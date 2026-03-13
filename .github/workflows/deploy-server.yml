@@ -13,16 +13,10 @@ on:
   push:
     branches: [main]
     paths:
-      - 'framework/core/**'
-      - 'platform/core/**'
       - 'platform/**'
       - '!platform/apps/web/**'
       - '!platform/apps/keycloak-theme/**'
-      - 'platform/docker/bowrain-server/**'
-      - 'platform/docker/bowrain-worker/**'
-      - 'framework/go.mod'
-      - 'framework/go.sum'
-      - 'go.work'
+      - '!platform/cli/**'
 
 permissions:
   packages: write

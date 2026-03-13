@@ -38,6 +38,29 @@ $(BOTH_TARGETS):
 test-parallel: ## Run all tests in parallel
 	@$(MAKE) -C framework test & $(MAKE) -C platform test & wait
 
+# ── Per-Module Test (forwarded to sub-Makefiles) ─────────────────────────────
+
+test-framework test-cli test-kapi: ## Run individual framework module tests
+	$(MAKE) -C framework $@
+
+test-platform test-bowrain-cli test-bowrain: ## Run individual platform module tests
+	$(MAKE) -C platform $@
+
+# ── Module Isolation ──────────────────────────────────────────────────────────
+
+verify-isolation: ## Verify all Go module isolation boundaries
+	GOWORK=off bash -c "cd framework && go build ./..."
+	GOWORK=off bash -c "cd framework/cli && go build ./..."
+	GOWORK=off bash -c "cd platform/core && go build ./..."
+	GOWORK=off bash -c "cd framework/kapi && go build ./..."
+	GOWORK=off bash -c "cd platform/cli && go build ./..."
+	@# kapi must not depend on platform
+	@if cd framework/kapi && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/platform'; then echo "ERROR: kapi depends on platform"; exit 1; fi
+	@# bowrain must not depend on cli
+	@if cd platform && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/cli'; then echo "ERROR: bowrain depends on cli"; exit 1; fi
+	@# kapi must not have heavy deps
+	@if cd framework/kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
+
 # ── Build ────────────────────────────────────────────────────────────────────
 
 build: ## Build the kapi CLI
@@ -205,6 +228,8 @@ help: ## Show this help
 	@echo ""
 
 .PHONY: all help $(BOTH_TARGETS) test-parallel \
+        test-framework test-cli test-kapi test-platform test-bowrain-cli test-bowrain \
+        verify-isolation \
         build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
         install install-bowrain-cli \
         frontend-check-all \

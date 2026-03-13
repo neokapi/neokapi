@@ -60,8 +60,8 @@ jobs:
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
           check_paths bowrain_cli '^platform/cli/'
-          # bowrain: anything under platform/ except the frontend app dirs
-          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/apps/(web|bowrain/frontend)/' | grep -q .; then
+          # bowrain: anything under platform/ except frontend app dirs, platform/core/, and platform/cli/
+          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/(apps/(web|bowrain/frontend|keycloak-theme)|core/|cli/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
@@ -74,7 +74,7 @@ jobs:
     name: Frontend
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.frontend == 'true' || needs.changes.outputs.any_go == 'true'
+    if: needs.changes.outputs.frontend == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-ui
@@ -107,8 +107,8 @@ jobs:
   test-framework:
     name: Test (framework)
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: always() && !cancelled() && needs.changes.outputs.framework == 'true'
+    needs: changes
+    if: needs.changes.outputs.framework == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -156,8 +156,8 @@ jobs:
   test-platform:
     name: Test (platform)
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true')
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -197,8 +197,8 @@ jobs:
   test-cli:
     name: Test (cli)
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true')
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -238,8 +238,8 @@ jobs:
   test-kapi:
     name: Test (kapi)
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true')
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -279,8 +279,8 @@ jobs:
   test-bowrain-cli:
     name: Test (Bowrain CLI)
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true')
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -320,8 +320,8 @@ jobs:
   test-bowrain:
     name: Test (bowrain)
     runs-on: ubuntu-latest
-    needs: [changes, frontend]
-    if: always() && !cancelled() && (needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true')
+    needs: changes
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-go-modules
@@ -399,21 +399,17 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   # ── Lint ──────────────────────────────────────────────────────────────────
-  lint:
-    name: Lint
+  lint-framework:
+    name: Lint (framework)
     runs-on: ubuntu-latest
     needs: changes
-    if: needs.changes.outputs.any_go == 'true'
+    if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26.0"
-
-      - name: Create embed placeholders
-        run: |
-          mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
 
       - name: Lint framework
         uses: golangci/golangci-lint-action@v7
@@ -431,20 +427,36 @@ jobs:
           working-directory: framework/cli
           args: --timeout=5m ./...
 
-      - name: Lint platform
-        uses: golangci/golangci-lint-action@v7
-        with:
-          install-mode: binary
-          version: latest
-          working-directory: platform/core
-          args: --timeout=5m ./...
-
       - name: Lint kapi
         uses: golangci/golangci-lint-action@v7
         with:
           install-mode: binary
           version: latest
           working-directory: framework/kapi
+          args: --timeout=5m ./...
+
+  lint-platform:
+    name: Lint (platform)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.0"
+
+      - name: Create embed placeholders
+        run: |
+          mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
+
+      - name: Lint platform
+        uses: golangci/golangci-lint-action@v7
+        with:
+          install-mode: binary
+          version: latest
+          working-directory: platform/core
           args: --timeout=5m ./...
 
       - name: Lint Bowrain CLI
@@ -492,12 +504,11 @@ jobs:
     if: needs.changes.outputs.any_go == 'true'
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-node-ui
       - uses: ./.github/actions/setup-go-modules
 
-      - name: Build SaaS web UI
-        working-directory: platform/apps/web
-        run: npx vp build
+      - name: Create embed placeholders
+        run: |
+          mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
 
       - name: Build kapi CLI
         run: cd framework/kapi && go build -o ../../bin/kapi ./cmd/kapi
