@@ -119,7 +119,7 @@ jobs:
       - name: Run framework tests
         id: run-tests
         working-directory: framework
-        run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1
+        run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -167,7 +167,7 @@ jobs:
 
       - name: Run platform tests
         id: run-tests
-        run: cd platform/core && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1
+        run: cd platform/core && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -208,7 +208,7 @@ jobs:
 
       - name: Run cli tests
         id: run-tests
-        run: cd framework/cli && go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1
+        run: cd framework/cli && go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -249,7 +249,7 @@ jobs:
 
       - name: Run kapi tests
         id: run-tests
-        run: cd framework/kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1
+        run: cd framework/kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -290,7 +290,7 @@ jobs:
 
       - name: Run Bowrain CLI tests
         id: run-tests
-        run: cd platform/cli && go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1
+        run: cd platform/cli && go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
@@ -334,7 +334,7 @@ jobs:
         run: |
           cd platform
           # shellcheck disable=SC2046
-          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1
+          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
