@@ -6,14 +6,14 @@ before:
   hooks:
     # Create placeholder so platform/apps/platform/main.go's //go:embed all:frontend/dist succeeds
     # without a real frontend build (bowrain is built separately in the release workflow).
-    - mkdir -p platform/apps/platform/frontend/dist && touch platform/apps/platform/frontend/dist/placeholder
+    - mkdir -p platform/apps/bowrain/frontend/dist && touch platform/apps/bowrain/frontend/dist/placeholder
     # Tests are already run by the release workflow before GoReleaser.
     - go mod tidy
     - bash -c "cd framework/cli && go mod tidy"
     - bash -c "cd platform/core && go mod tidy"
     - bash -c "cd framework/kapi && go mod tidy"
     - bash -c "cd platform/cli && go mod tidy"
-    - bash -c "cd bowrain && go mod tidy"
+    - bash -c "cd platform && go mod tidy"
 
 builds:
   - id: kapi

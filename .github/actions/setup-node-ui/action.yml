@@ -14,13 +14,14 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
         cache: npm
-        cache-dependency-path: package-lock.json
+        cache-dependency-path: platform/package-lock.json
 
     - name: Install workspace dependencies
       shell: bash
+      working-directory: platform
       run: npm ci
 
     - name: Build shared UI package
       shell: bash
-      working-directory: packages/ui
+      working-directory: platform/packages/ui
       run: npx tsc
