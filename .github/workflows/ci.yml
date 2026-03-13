@@ -557,7 +557,7 @@ jobs:
           bash scripts/fetch-okapi-bridge.sh
           echo "NEOKAPI_BRIDGE_JAR=$HOME/.cache/neokapi/bridge/v2.14.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
-          GITHUB_TOKEN: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
 
       - name: Cache okapi test data
         uses: actions/cache@v4
