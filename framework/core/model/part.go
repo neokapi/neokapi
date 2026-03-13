@@ -1,5 +1,7 @@
 package model
 
+// Package model defines the core content model for the neokapi framework.
+
 // PartType identifies the kind of Part flowing through a Flow.
 type PartType int
 
