@@ -657,14 +657,14 @@ jobs:
         if: steps.fetch-testdata.outcome == 'success'
         id: testdata-version
         run: |
-          VERSION=$(ls -1 okapi-testdata/ | sort -V | tail -1)
+          VERSION=$(find okapi-testdata/ -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)
           echo "dir=okapi-testdata/$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate test comparison
         if: steps.fetch-testdata.outcome == 'success'
         run: |
           mkdir -p website/static/data
-          go run ./scripts/testcompare \
+          GOWORK=off go run ./scripts/testcompare \
             -okapi-dir ${{ steps.testdata-version.outputs.dir }}/surefire \
             -gotest-bridge-json test-results-bridge.json \
             -gotest-native-json test-results-framework.json \
