@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { parseCodedSegments, segmentsToCodedText, spanLabel } from "../components/editor/codedText";
 import type { SpanInfo } from "../types/api";
 

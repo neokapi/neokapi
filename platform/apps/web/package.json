@@ -4,14 +4,17 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "vp dev --host",
+    "build": "tsc && vp build",
+    "preview": "vp preview",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
     "e2e:screenshots": "playwright test --config playwright.config.ts",
     "e2e:recordings": "playwright test --config playwright.recordings.config.ts",
     "e2e:tests": "playwright test --config playwright.e2e.config.ts",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "vp test",
+    "test:watch": "vp test watch"
   },
   "dependencies": {
     "@lexical/react": "^0.41.0",
@@ -34,7 +37,6 @@
     "@vitejs/plugin-react": "^6.0.0",
     "jsdom": "^28.1.0",
     "typescript": "^5.8.0",
-    "vite": "^8.0.0",
-    "vitest": "^4.0.18"
+    "vite-plus": "^0.1.11"
   }
 }
