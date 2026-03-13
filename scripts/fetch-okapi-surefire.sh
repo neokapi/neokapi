@@ -1,29 +1,28 @@
 #!/usr/bin/env bash
 #
-# fetch-okapi-testdata.sh — Download Okapi filter test data from GitHub release.
+# fetch-okapi-surefire.sh — Download Okapi Surefire reports from GitHub release.
 #
 # Usage:
-#   ./scripts/fetch-okapi-testdata.sh
+#   ./scripts/fetch-okapi-surefire.sh
 #
-# Downloads the okapi-testdata tarball from a GitHub release and extracts it
-# to ./okapi-testdata/<version>/ at the repository root. The versioned directory
-# makes updates idempotent: bumping TESTDATA_VERSION automatically picks up
-# new data without needing FORCE_FETCH.
+# Downloads the okapi-surefire tarball from a GitHub release and extracts it
+# to ./okapi-surefire/<version>/ at the repository root. Used by the test
+# comparison tool to compare neokapi bridge test results against Okapi's
+# native Surefire/Failsafe reports.
 #
 # Environment:
-#   GITHUB_TOKEN         — Optional GitHub token for authenticated requests
-#                          (avoids rate limits in CI).
-#   OKAPI_TESTDATA_TAG   — Override the release tag (default: okapi-testdata-1.48.0).
-#   TESTDATA_VERSION     — Override the local directory version (default: 1.48.0-v2).
-#   FORCE_FETCH          — If set (e.g. FORCE_FETCH=1), re-download even when
-#                          the versioned directory already exists.
+#   GITHUB_TOKEN          — Optional GitHub token for authenticated requests.
+#   OKAPI_SUREFIRE_TAG    — Override the release tag (default: okapi-surefire-1.48.0).
+#   SUREFIRE_VERSION      — Override the local directory version (default: 1.48.0).
+#   FORCE_FETCH           — If set (e.g. FORCE_FETCH=1), re-download even when
+#                           the versioned directory already exists.
 
 set -euo pipefail
 
 REPO="neokapi/okapi-bridge"
-TAG="${OKAPI_TESTDATA_TAG:-okapi-testdata-1.48.0}"
-VERSION="${TESTDATA_VERSION:-1.48.0-v4}"
-ASSET_NAME="okapi-testdata.tar.gz"
+TAG="${OKAPI_SUREFIRE_TAG:-okapi-surefire-1.48.0}"
+VERSION="${SUREFIRE_VERSION:-1.48.0}"
+ASSET_NAME="okapi-surefire.tar.gz"
 
 # Find repo root (directory containing go.work).
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -33,22 +32,21 @@ if [ ! -f "$REPO_ROOT/go.work" ]; then
     exit 1
 fi
 
-TARGET_DIR="$REPO_ROOT/okapi-testdata/$VERSION"
+TARGET_DIR="$REPO_ROOT/okapi-surefire/$VERSION"
 
 # Skip if already present and not forced.
 if [ -d "$TARGET_DIR" ] && [ "${FORCE_FETCH:-}" = "" ]; then
-    echo "okapi-testdata/$VERSION/ already exists. Set FORCE_FETCH=1 to re-download."
+    echo "okapi-surefire/$VERSION/ already exists. Set FORCE_FETCH=1 to re-download."
     exit 0
 fi
 
-echo "Fetching $ASSET_NAME from release $TAG → okapi-testdata/$VERSION/..."
+echo "Fetching $ASSET_NAME from release $TAG → okapi-surefire/$VERSION/..."
 
 # Create a temporary directory for the download.
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-# Build auth header file if token is available, without exposing the token
-# on the process command line.
+# Build auth header file if token is available.
 AUTH_HEADER_FILE=""
 if [ -n "${GITHUB_TOKEN:-}" ]; then
     AUTH_HEADER_FILE="$TMPDIR/github_auth_header"
@@ -56,10 +54,6 @@ if [ -n "${GITHUB_TOKEN:-}" ]; then
     chmod 600 "$AUTH_HEADER_FILE"
 fi
 
-# Resolve the asset download URL via the GitHub API. Authenticated requests
-# to the browser-style /releases/download/ URL don't reliably follow the CDN
-# redirect, so we use the API to get the asset URL and download with the
-# Accept: application/octet-stream header (same approach as fetch-okapi-bridge.sh).
 API_URL="https://api.github.com/repos/$REPO/releases/tags/$TAG"
 echo "  Resolving asset from: $API_URL"
 
@@ -105,10 +99,10 @@ if [ "$HTTP_CODE" != "200" ]; then
 fi
 
 # Extract to versioned target directory.
-echo "Extracting to okapi-testdata/$VERSION/..."
+echo "Extracting to okapi-surefire/$VERSION/..."
 rm -rf "$TARGET_DIR"
 mkdir -p "$TARGET_DIR"
 tar -xzf "$TMPDIR/$ASSET_NAME" -C "$TARGET_DIR"
 
 FILE_COUNT=$(find "$TARGET_DIR" -type f | wc -l | tr -d ' ')
-echo "Done. Extracted $FILE_COUNT files to okapi-testdata/$VERSION/"
+echo "Done. Extracted $FILE_COUNT files to okapi-surefire/$VERSION/"

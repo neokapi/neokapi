@@ -22,7 +22,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - invalid-target.xlf: Invalid XLIFF 2.0 file -- references <data> elements
 	//   without declaring <originalData>. Okapi rejects it on read.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_xliff2/*.xlf", mimeType, nil,
+		tdDir+"/okapi/filters/xliff2/src/test/resources/*.xlf", mimeType, nil,
 		"translated.xlf",
 		"invalid-target.xlf",
 	)
@@ -52,7 +52,7 @@ func TestWrite_WriteHTMLAsXliff2(t *testing.T) {
 
 	// The Java Xliff2FilterWriterTest#testWriteHTMLAsXliff2 roundtrips
 	// the gold XLIFF 2 output file to verify the writer produces valid output.
-	path := bridgetest.TestdataFile(t, "okf_xliff2/test02.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/test02.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

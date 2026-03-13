@@ -23,12 +23,12 @@ func TestConfig_AndroidUntranslatable(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AndroidStrings.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
 
 	// AndroidTest1.xml should have some translatable strings and exclude
 	// elements with translatable="false".
-	path := tdDir + "/okf_xml/AndroidTest1.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/AndroidTest1.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "AndroidTest1.xml should have translatable strings")
@@ -47,10 +47,10 @@ func TestConfig_AndroidUntranslatable2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AndroidStrings.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
 
-	path := tdDir + "/okf_xml/AndroidTest2.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/AndroidTest2.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "AndroidTest2.xml should have translatable strings")
@@ -61,10 +61,10 @@ func TestConfig_AndroidUntranslatable3(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AndroidStrings.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
 
-	path := tdDir + "/okf_xml/AndroidTest3.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/AndroidTest3.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "AndroidTest3.xml should have translatable strings")
@@ -74,7 +74,7 @@ func TestConfig_AndroidUntranslatable3(t *testing.T) {
 func TestConfig_DocBookSimpleInline(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/docbook-emphasis-example.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/docbook-emphasis-example.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "docbook-emphasis-example.xml should have translatable content")
@@ -96,7 +96,7 @@ func TestConfig_DocBookSimpleInline(t *testing.T) {
 func TestConfig_TranslatableContentExtracted(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/docbook-emphasis-example.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/docbook-emphasis-example.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DocBook paragraphs should be extractable")
@@ -106,7 +106,7 @@ func TestConfig_TranslatableContentExtracted(t *testing.T) {
 func TestConfig_UntranslatableContentExcluded(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/docbook-emphasis-example.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/docbook-emphasis-example.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	// Verify the file processes without error and produces parts
 	require.NotEmpty(t, parts)
@@ -116,7 +116,7 @@ func TestConfig_UntranslatableContentExcluded(t *testing.T) {
 func TestConfig_WithinTextRuleContentHandling(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/docbook-emphasis-example.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/docbook-emphasis-example.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -127,9 +127,9 @@ func TestConfig_InlineNonTranslatableHandling(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@inline-non-translatable.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@inline-non-translatable.fprm",
 	}
-	path := tdDir + "/okf_xml/inline-non-translatable.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/inline-non-translatable.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "inline-non-translatable.xml should have translatable content")
@@ -144,9 +144,9 @@ func TestConfig_InlineNonTranslatableHandling2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@inline-non-translatable-2.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@inline-non-translatable-2.fprm",
 	}
-	path := tdDir + "/okf_xml/inline-non-translatable-2.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/inline-non-translatable-2.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "inline-non-translatable-2.xml should produce parts")
 	// With this config, outer and inner are non-translatable. Verify the file
@@ -160,9 +160,9 @@ func TestConfig_CodeFinderOnRESX(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@RESX.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@RESX.fprm",
 	}
-	path := tdDir + "/okf_xml/Test01.resx"
+	path := tdDir + "/okapi/filters/its/src/test/resources/Test01.resx"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "Test01.resx should have translatable content with code finder")
@@ -173,9 +173,9 @@ func TestConfig_RESXWithPlaceholders(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@RESX.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@RESX.fprm",
 	}
-	path := tdDir + "/okf_xml/test_with_placeholders.resx"
+	path := tdDir + "/okapi/filters/its/src/test/resources/test_with_placeholders.resx"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "test_with_placeholders.resx should have translatable content")
@@ -192,9 +192,9 @@ func TestConfig_MozillaRDF(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@MozillaRDF.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@MozillaRDF.fprm",
 	}
-	path := tdDir + "/okf_xml/MozillaRDFTest01.rdf"
+	path := tdDir + "/okapi/filters/its/src/test/resources/MozillaRDFTest01.rdf"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "MozillaRDFTest01.rdf should produce parts")
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
@@ -206,9 +206,9 @@ func TestConfig_JavaPropertiesXML(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@JavaProperties.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@JavaProperties.fprm",
 	}
-	path := tdDir + "/okf_xml/JavaProperties.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/JavaProperties.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "JavaProperties.xml should have translatable content")
@@ -219,9 +219,9 @@ func TestConfig_OpenOffice(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@openoffice.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@openoffice.fprm",
 	}
-	path := tdDir + "/okf_xml/openoffice_input.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/openoffice_input.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "openoffice_input.xml should produce parts")
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -233,9 +233,9 @@ func TestConfig_TranslatableAndUntranslatable(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@translatable-and-untranslatable.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@translatable-and-untranslatable.fprm",
 	}
-	path := tdDir + "/okf_xml/translatable-and-untranslatable.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/translatable-and-untranslatable.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "translatable-and-untranslatable.xml should have translatable content")
@@ -246,9 +246,9 @@ func TestConfig_TagWithText(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@tag-with-text.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@tag-with-text.fprm",
 	}
-	path := tdDir + "/okf_xml/tag-with-text.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/tag-with-text.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "tag-with-text.xml should have translatable content")
@@ -259,9 +259,9 @@ func TestConfig_MergedCodes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@merged-codes.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@merged-codes.fprm",
 	}
-	path := tdDir + "/okf_xml/merged-codes.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/merged-codes.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "merged-codes.xml should produce parts")
 }
@@ -271,9 +271,9 @@ func TestConfig_Issue591(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/custom-configs/591/okf_xml@ibxlf1.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/591/okf_xml@ibxlf1.fprm",
 	}
-	path := tdDir + "/okf_xml/custom-configs/591/simple_with_simple_codes.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/custom-configs/591/simple_with_simple_codes.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "issue 591 file should produce parts")
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -285,9 +285,9 @@ func TestConfig_Issue1384(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
 	}
-	path := tdDir + "/okf_xml/custom-configs/1384/translatable-and-untranslatable.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/custom-configs/1384/translatable-and-untranslatable.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "issue 1384 file should produce parts")
 }
@@ -296,7 +296,7 @@ func TestConfig_Issue1384(t *testing.T) {
 func TestConfig_AndroidStringsSnippet(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AndroidStrings.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
 	xml := `<?xml version="1.0" encoding="UTF-8"?>
 <resources>
@@ -316,9 +316,9 @@ func TestConfig_AppleStringsdict(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AppleStringsdict.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AppleStringsdict.fprm",
 	}
-	path := tdDir + "/okf_xml/AppleStringsdictTest.stringsdict"
+	path := tdDir + "/okapi/filters/its/src/test/resources/AppleStringsdictTest.stringsdict"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts, "AppleStringsdict should produce parts")
 	blocks := bridgetest.TranslatableBlocks(parts)

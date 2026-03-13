@@ -22,19 +22,19 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Java testDoubleExtraction runs double extraction (read→write→re-read→compare)
 	// on 14 test files. We replicate this with AssertRoundTripEvents per file.
 	files := []string{
-		"okf_json/1EdwardParallax.json",
-		"okf_json/array-test.json",
-		"okf_json/books.json",
-		"okf_json/geo.json",
-		"okf_json/test01.json",
-		"okf_json/test02.json",
-		"okf_json/test03.json",
-		"okf_json/test04.json",
-		"okf_json/test05.json",
-		"okf_json/test06.json",
-		"okf_json/test08.json",
-		"okf_json/test09.json",
-		"okf_json/twitter.json",
+		"okapi/filters/json/src/test/resources/1EdwardParallax.json",
+		"okapi/filters/json/src/test/resources/array-test.json",
+		"okapi/filters/json/src/test/resources/books.json",
+		"okapi/filters/json/src/test/resources/geo.json",
+		"okapi/filters/json/src/test/resources/test01.json",
+		"okapi/filters/json/src/test/resources/test02.json",
+		"okapi/filters/json/src/test/resources/test03.json",
+		"okapi/filters/json/src/test/resources/test04.json",
+		"okapi/filters/json/src/test/resources/test05.json",
+		"okapi/filters/json/src/test/resources/test06.json",
+		"okapi/filters/json/src/test/resources/test08.json",
+		"okapi/filters/json/src/test/resources/test09.json",
+		"okapi/filters/json/src/test/resources/twitter.json",
 	}
 
 	for _, f := range files {
@@ -53,7 +53,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 func TestRoundTrip_DoubleExtractionOnPreviousFailure(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_json/customer_form.json")
+	path := bridgetest.TestdataFile(t, "okapi/filters/json/src/test/resources/customer_form.json")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -65,7 +65,7 @@ func TestRoundTrip_DoubleExtractionOnPreviousFailure(t *testing.T) {
 func TestRoundTrip_DoubleExtractionOnInvalid(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_json/invalid_by_most_processors.json")
+	path := bridgetest.TestdataFile(t, "okapi/filters/json/src/test/resources/invalid_by_most_processors.json")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -77,7 +77,7 @@ func TestRoundTrip_DoubleExtractionOnInvalid(t *testing.T) {
 func TestRoundTrip_SubFilterDoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_json/test07-subfilter.json")
+	path := bridgetest.TestdataFile(t, "okapi/filters/json/src/test/resources/test07-subfilter.json")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -96,5 +96,5 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// json/ test resource directory using EventComparator for
 	// semantic comparison.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_json/*.json", mimeType, nil)
+		tdDir+"/okapi/filters/json/src/test/resources/*.json", mimeType, nil)
 }

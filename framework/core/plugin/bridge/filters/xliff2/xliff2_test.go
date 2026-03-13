@@ -66,7 +66,7 @@ func TestExtract_Subflows(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/test01.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/test01.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -123,7 +123,7 @@ func TestExtract_SimpleMeta(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/test01.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/test01.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -262,7 +262,7 @@ func TestExtract_FromFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/test01.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/test01.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -288,7 +288,7 @@ func TestExtract_FromFile2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/test02.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/test02.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -307,7 +307,7 @@ func TestExtract_FromEscapedFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/escaped.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/escaped.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -359,7 +359,7 @@ func TestExtract_Ignoreable(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/test01.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/test01.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -386,7 +386,7 @@ func TestExtract_RoundTripTests(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_xliff2/roundtrips/*_input.xlf", mimeType, nil)
+		tdDir+"/okapi/filters/xliff2/src/test/resources/roundtrips/*_input.xlf", mimeType, nil)
 }
 
 // okapi: XLIFF2FilterTest#updateTarget
@@ -394,7 +394,7 @@ func TestExtract_UpdateTarget(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/update_target.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/update_target.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -481,7 +481,7 @@ func TestExtract_InvalidTargetXlf(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/invalid-target.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/invalid-target.xlf")
 	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
 
 	content, err := os.ReadFile(path)
@@ -517,7 +517,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/simple.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/simple.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -548,7 +548,7 @@ func TestExtract_StateChangeTranslated(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/segment-state.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/segment-state.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -600,7 +600,7 @@ func TestExtract_WriteOriginalDataOption(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/update_target.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/update_target.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -617,7 +617,7 @@ func TestExtract_SubFilterWithDefaultIcu(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/subfilter_icu/subfilter_icu.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/subfilter_icu/subfilter_icu.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -640,7 +640,7 @@ func TestExtract_SubFilterWithAllOptionsIcu(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/subfilter_icu/subfilter_icu.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/subfilter_icu/subfilter_icu.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -654,7 +654,7 @@ func TestRoundTrip_SubFilterWithAllOptionsIcuRoundtrip(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/subfilter_icu/subfilter_icu.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/subfilter_icu/subfilter_icu.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -830,7 +830,7 @@ func TestExtract_TranslatedXlf(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_xliff2/translated.xlf"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/translated.xlf"), mimeType, nil)
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)

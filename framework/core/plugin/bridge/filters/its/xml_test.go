@@ -364,7 +364,7 @@ func TestExtract_SubFilterContextPassing(t *testing.T) {
 func TestExtract_CDATASubfilter(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/TestCDATA1.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/TestCDATA1.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	require.NotEmpty(t, parts)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -375,7 +375,7 @@ func TestExtract_CDATASubfilter(t *testing.T) {
 func TestExtract_SubfilteringEmptyCDATASection(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/test_empty_cdata.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/test_empty_cdata.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	// Empty CDATA should not cause an error
 	require.NotEmpty(t, parts)

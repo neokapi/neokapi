@@ -21,7 +21,7 @@ func TestSimpleRead(t *testing.T) {
 	// The SDL package filter uses the target locale to select which subfolder to process.
 	// Java test uses en-US -> fr-CA.
 	parts := readPackageFileWithLocales(t,
-		"okf_sdlpackage/ts2017-test01.sdlppx", "en-US", "fr-CA")
+		"okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx", "en-US", "fr-CA")
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
@@ -62,7 +62,7 @@ func TestSdlppxWithSubFolders(t *testing.T) {
 	// The test-packages.sdlppx may use a different locale structure.
 	// Try with the exact locale used in the Java test.
 	parts := readPackageFileWithLocales(t,
-		"okf_sdlpackage/test-packages.sdlppx", "en-US", "zh-x-hmn-SDL")
+		"okapi/filters/sdlpackage/src/test/resources/test-packages.sdlppx", "en-US", "zh-x-hmn-SDL")
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
@@ -95,7 +95,7 @@ func TestSdlppxWithSubFolders(t *testing.T) {
 func TestSdlrpxWithSubFolders(t *testing.T) {
 	// Java test uses en-US -> zh-x-hmn-SDL and reads targets.
 	parts := readPackageFileWithLocales(t,
-		"okf_sdlpackage/test-packages.sdlrpx", "en-US", "zh-x-hmn-SDL")
+		"okapi/filters/sdlpackage/src/test/resources/test-packages.sdlrpx", "en-US", "zh-x-hmn-SDL")
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
@@ -135,7 +135,7 @@ func TestSdlrpxWithSubFolders(t *testing.T) {
 func TestSimpleReadWrite(t *testing.T) {
 	// Java test uses en-US -> pl-PL for the read-write test.
 	result := roundtripPackageFile(t,
-		"okf_sdlpackage/ts2017-test01.sdlppx", "en-US", "pl-PL")
+		"okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx", "en-US", "pl-PL")
 	require.NotEmpty(t, result.Parts, "roundtrip should produce parts")
 	require.NotEmpty(t, result.Output, "roundtrip should produce output")
 
@@ -182,9 +182,9 @@ func TestLayerBalance(t *testing.T) {
 		srcLocale model.LocaleID
 		tgtLocale model.LocaleID
 	}{
-		{"sdlppx-frCA", "okf_sdlpackage/ts2017-test01.sdlppx", "en-US", "fr-CA"},
-		{"sdlppx-subfolders", "okf_sdlpackage/test-packages.sdlppx", "en-US", "zh-x-hmn-SDL"},
-		{"sdlrpx-subfolders", "okf_sdlpackage/test-packages.sdlrpx", "en-US", "zh-x-hmn-SDL"},
+		{"sdlppx-frCA", "okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx", "en-US", "fr-CA"},
+		{"sdlppx-subfolders", "okapi/filters/sdlpackage/src/test/resources/test-packages.sdlppx", "en-US", "zh-x-hmn-SDL"},
+		{"sdlrpx-subfolders", "okapi/filters/sdlpackage/src/test/resources/test-packages.sdlrpx", "en-US", "zh-x-hmn-SDL"},
 	}
 
 	for _, tc := range files {
@@ -207,9 +207,9 @@ func TestGroupBalance(t *testing.T) {
 		srcLocale model.LocaleID
 		tgtLocale model.LocaleID
 	}{
-		{"sdlppx-frCA", "okf_sdlpackage/ts2017-test01.sdlppx", "en-US", "fr-CA"},
-		{"sdlppx-subfolders", "okf_sdlpackage/test-packages.sdlppx", "en-US", "zh-x-hmn-SDL"},
-		{"sdlrpx-subfolders", "okf_sdlpackage/test-packages.sdlrpx", "en-US", "zh-x-hmn-SDL"},
+		{"sdlppx-frCA", "okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx", "en-US", "fr-CA"},
+		{"sdlppx-subfolders", "okapi/filters/sdlpackage/src/test/resources/test-packages.sdlppx", "en-US", "zh-x-hmn-SDL"},
+		{"sdlrpx-subfolders", "okapi/filters/sdlpackage/src/test/resources/test-packages.sdlrpx", "en-US", "zh-x-hmn-SDL"},
 	}
 
 	for _, tc := range files {
@@ -227,7 +227,7 @@ func TestGroupBalance(t *testing.T) {
 // TestBlockIDs verifies that all blocks have unique, non-empty IDs.
 func TestBlockIDs(t *testing.T) {
 	parts := readPackageFileWithLocales(t,
-		"okf_sdlpackage/ts2017-test01.sdlppx", "en-US", "fr-CA")
+		"okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx", "en-US", "fr-CA")
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -243,7 +243,7 @@ func TestBlockIDs(t *testing.T) {
 // TestSegmentIDs verifies that all segments have non-empty IDs.
 func TestSegmentIDs(t *testing.T) {
 	parts := readPackageFileWithLocales(t,
-		"okf_sdlpackage/ts2017-test01.sdlppx", "en-US", "fr-CA")
+		"okapi/filters/sdlpackage/src/test/resources/ts2017-test01.sdlppx", "en-US", "fr-CA")
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)

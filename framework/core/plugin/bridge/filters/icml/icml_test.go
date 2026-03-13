@@ -29,7 +29,7 @@ import (
 // okapi: ICMLFilterTest#getMimeType_ThenReturnMimeType
 func TestFilter_MimeType(t *testing.T) {
 	// Verify the filter produces a LayerStart with the expected MIME type.
-	parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
 
@@ -41,9 +41,9 @@ func TestFilter_MimeType(t *testing.T) {
 // okapi: ICMLFilterTest#getName_ThenReturnName
 func TestFilter_Name(t *testing.T) {
 	// Verify the filter can open and extract from an ICML file.
-	// The Java test checks filter.getName() == "okf_icml"; here we verify
+	// The Java test checks filter.getName() == "okapi", "filters", "icml", "src", "test", "resources"; here we verify
 	// the filter class is functional by confirming it produces parts.
-	parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 	require.NotEmpty(t, parts, "filter should produce parts for valid ICML")
 }
 
@@ -51,7 +51,7 @@ func TestFilter_Name(t *testing.T) {
 func TestFilter_DisplayName(t *testing.T) {
 	// The Java test checks filter.getDisplayName() == "ICML Filter".
 	// We verify the filter works by extracting from a valid ICML file.
-	parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 	require.NotEmpty(t, parts, "filter should produce parts for valid ICML")
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "valid.icml should contain translatable content")
@@ -59,15 +59,15 @@ func TestFilter_DisplayName(t *testing.T) {
 
 // okapi: ICMLFilterTest#getConfigurations_ThenReturnDefaultSettings
 func TestFilter_Configurations(t *testing.T) {
-	// The Java test checks filter configurations: configId="okf_icml",
+	// The Java test checks filter configurations: configId="okapi", "filters", "icml", "src", "test", "resources",
 	// extensions=".wcml;.icml;", mimeType, name="ICML", description.
 	// We verify both .icml and .wcml files can be processed.
 	t.Run("icml_extension", func(t *testing.T) {
-		parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+		parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 		require.NotEmpty(t, parts, "should process .icml files")
 	})
 	t.Run("wcml_extension", func(t *testing.T) {
-		parts := readICMLFile(t, "okf_icml/Test01.wcml", nil)
+		parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", nil)
 		require.NotEmpty(t, parts, "should process .wcml files")
 	})
 }
@@ -81,7 +81,7 @@ func TestParameters_DefaultSettings(t *testing.T) {
 	// Default parameters: extractMasterSpreads=true, extractNotes=false,
 	// newTuOnBr=false, simplifyCodes=true, skipThreshold=1000.
 	// With defaults, the filter should extract content from Test01.wcml.
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "default params should extract translatable blocks")
 
@@ -101,7 +101,7 @@ func TestParameters_CustomSettings(t *testing.T) {
 		"simplifyCodes":        false,
 		"skipThreshold":        1,
 	}
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", params)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", params)
 
 	// With skipThreshold=1, very long content may be skipped. The filter
 	// should still produce parts (at minimum LayerStart/LayerEnd).
@@ -116,7 +116,7 @@ func TestParameters_CustomSettings(t *testing.T) {
 func TestOpen_Successful(t *testing.T) {
 	// The Java test verifies FilterTestDriver.testStartDocument succeeds.
 	// We verify the filter opens and produces a valid document structure.
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", nil)
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type, "last part should be LayerEnd")
@@ -134,7 +134,7 @@ func TestExtract_MultipleContent(t *testing.T) {
 		"simplifyCodes":        true,
 		"skipThreshold":        1000,
 	}
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", params)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from Test01.wcml")
 
@@ -160,7 +160,7 @@ func TestExtract_Break(t *testing.T) {
 		"simplifyCodes":        true,
 		"skipThreshold":        1000,
 	}
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", params)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", params)
 
 	// With newTuOnBr=true, breaks create new TUs. Some blocks may have
 	// empty source text for break-only units. Verify that the filter
@@ -193,7 +193,7 @@ func TestExtract_TableCellContent(t *testing.T) {
 		"simplifyCodes":        true,
 		"skipThreshold":        1000,
 	}
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", params)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from Test01.wcml")
 
@@ -218,7 +218,7 @@ func TestExtract_TableCellContent(t *testing.T) {
 func TestRoundTrip_ValidICML(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_icml/valid.icml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/icml/src/test/resources/valid.icml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -227,7 +227,7 @@ func TestRoundTrip_ValidICML(t *testing.T) {
 func TestRoundTrip_Test01WCML(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_icml/Test01.wcml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -236,7 +236,7 @@ func TestRoundTrip_Test01WCML(t *testing.T) {
 func TestRoundTrip_SmallWCML(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_icml/small.wcml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/icml/src/test/resources/small.wcml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -246,8 +246,8 @@ func TestRoundTrip_AllTestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	dir := bridgetest.TestdataDir(t)
-	icmlGlob := filepath.Join(dir, "okf_icml", "*.icml")
-	wcmlGlob := filepath.Join(dir, "okf_icml", "*.wcml")
+	icmlGlob := filepath.Join(dir, "okapi", "filters", "icml", "src", "test", "resources", "*.icml")
+	wcmlGlob := filepath.Join(dir, "okapi", "filters", "icml", "src", "test", "resources", "*.wcml")
 
 	// Known failing files — not_valid.icml is intentionally malformed.
 	knownFailing := []string{"not_valid.icml"}
@@ -272,7 +272,7 @@ func TestRoundTrip_AllTestFiles(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestExtract_ValidICML_HasTranslatableContent(t *testing.T) {
-	parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "valid.icml should contain translatable blocks")
 
@@ -282,14 +282,14 @@ func TestExtract_ValidICML_HasTranslatableContent(t *testing.T) {
 }
 
 func TestExtract_LayerStructure(t *testing.T) {
-	parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
 	assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type, "last part should be LayerEnd")
 }
 
 func TestExtract_BlockIDs(t *testing.T) {
-	parts := readICMLFile(t, "okf_icml/valid.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 
@@ -302,22 +302,22 @@ func TestExtract_BlockIDs(t *testing.T) {
 }
 
 func TestExtract_ParagraphClassTest(t *testing.T) {
-	parts := readICMLFile(t, "okf_icml/ParagraphClassTest.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/ParagraphClassTest.icml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "ParagraphClassTest.icml should contain translatable blocks")
 }
 
 func TestExtract_SpanClassTest(t *testing.T) {
-	parts := readICMLFile(t, "okf_icml/SpanClassTest.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/SpanClassTest.icml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "SpanClassTest.icml should contain translatable blocks")
 }
 
 func TestExtract_FootnoteFiles(t *testing.T) {
 	files := []string{
-		"okf_icml/OpenofficeFootnoteTest.icml",
-		"okf_icml/ThreeParagraphFootnoteTest.icml",
-		"okf_icml/WordFootnoteTest.icml",
+		"okapi/filters/icml/src/test/resources/OpenofficeFootnoteTest.icml",
+		"okapi/filters/icml/src/test/resources/ThreeParagraphFootnoteTest.icml",
+		"okapi/filters/icml/src/test/resources/WordFootnoteTest.icml",
 	}
 	for _, f := range files {
 		name := filepath.Base(f)
@@ -332,11 +332,11 @@ func TestExtract_FootnoteFiles(t *testing.T) {
 
 func TestExtract_ArticleFiles(t *testing.T) {
 	files := []string{
-		"okf_icml/DraftForJEP.icml",
-		"okf_icml/NotesTowardV10.icml",
-		"okf_icml/TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml",
-		"okf_icml/TestArticle.icml",
-		"okf_icml/XMLProductionStartWithTheWeb.icml",
+		"okapi/filters/icml/src/test/resources/DraftForJEP.icml",
+		"okapi/filters/icml/src/test/resources/NotesTowardV10.icml",
+		"okapi/filters/icml/src/test/resources/TakeItNoItsYoursReallyTheExcellentInevitabilityOfFree.icml",
+		"okapi/filters/icml/src/test/resources/TestArticle.icml",
+		"okapi/filters/icml/src/test/resources/XMLProductionStartWithTheWeb.icml",
 	}
 	for _, f := range files {
 		name := filepath.Base(f)
@@ -352,10 +352,10 @@ func TestExtract_ArticleFiles(t *testing.T) {
 func TestExtract_NewTuOnBr_ProducesMoreBlocks(t *testing.T) {
 	// With newTuOnBr=true, <Br/> elements create new translation units,
 	// so we expect more blocks than with newTuOnBr=false.
-	partsNoBr := readICMLFile(t, "okf_icml/Test01.wcml", map[string]any{
+	partsNoBr := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", map[string]any{
 		"newTuOnBr": false,
 	})
-	partsBr := readICMLFile(t, "okf_icml/Test01.wcml", map[string]any{
+	partsBr := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", map[string]any{
 		"newTuOnBr": true,
 	})
 
@@ -369,10 +369,10 @@ func TestExtract_NewTuOnBr_ProducesMoreBlocks(t *testing.T) {
 
 func TestExtract_SimplifyCodes(t *testing.T) {
 	// Test with simplifyCodes=true vs false — both should extract the same text.
-	partsSimple := readICMLFile(t, "okf_icml/valid.icml", map[string]any{
+	partsSimple := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", map[string]any{
 		"simplifyCodes": true,
 	})
-	partsNoSimple := readICMLFile(t, "okf_icml/valid.icml", map[string]any{
+	partsNoSimple := readICMLFile(t, "okapi/filters/icml/src/test/resources/valid.icml", map[string]any{
 		"simplifyCodes": false,
 	})
 
@@ -394,7 +394,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	// Read file once, write it, then read the output again — verify same blocks.
-	path := bridgetest.TestdataFile(t, "okf_icml/valid.icml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/icml/src/test/resources/valid.icml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -411,7 +411,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 }
 
 func TestExtract_321950(t *testing.T) {
-	parts := readICMLFile(t, "okf_icml/321950.icml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/321950.icml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "321950.icml should contain translatable blocks")
 }
@@ -421,14 +421,14 @@ func TestExtract_NotValid_Handling(t *testing.T) {
 	// partial results or handle the error gracefully. We just verify the
 	// bridge doesn't panic — the RoundTripTestFiles test already skips
 	// this file as a known failure.
-	path := bridgetest.TestdataFile(t, "okf_icml/not_valid.icml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/icml/src/test/resources/not_valid.icml")
 	_, err := os.ReadFile(path)
 	require.NoError(t, err, "not_valid.icml should exist on disk")
 }
 
 func TestExtract_UnicodeContent(t *testing.T) {
 	// Test01.wcml contains German text with umlauts and special characters.
-	parts := readICMLFile(t, "okf_icml/Test01.wcml", nil)
+	parts := readICMLFile(t, "okapi/filters/icml/src/test/resources/Test01.wcml", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks")
 

@@ -100,7 +100,7 @@ func TestExtract_StartDocument(t *testing.T) {
 
 // okapi: POFilterTest#testPOHeader
 func TestExtract_POHeader(t *testing.T) {
-	parts := readPOFile(t, "okf_po/potest.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/potest.po", nil)
 
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from potest.po")
@@ -115,7 +115,7 @@ func TestExtract_POHeader(t *testing.T) {
 
 // okapi: POFilterTest#testPOTHeader
 func TestExtract_POTHeader(t *testing.T) {
-	parts := readPOFile(t, "okf_po/POT-Test01.pot", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/POT-Test01.pot", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from POT")
@@ -253,7 +253,7 @@ func TestExtract_TUPluralEntryDefaultSingular(t *testing.T) {
 
 // okapi: POFilterTest#testOnePlural
 func TestExtract_OnePlural(t *testing.T) {
-	parts := readPOFile(t, "okf_po/plurals.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/plurals.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from plurals.po")
@@ -271,7 +271,7 @@ func TestExtract_OnePlural(t *testing.T) {
 
 // okapi: POFilterTest#testThreePlurals
 func TestExtract_ThreePlurals(t *testing.T) {
-	parts := readPOFile(t, "okf_po/plurals-2.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/plurals-2.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from plurals-2.po")
@@ -309,7 +309,7 @@ func TestExtract_PluralFormDefaults(t *testing.T) {
 
 // okapi: POFilterTest#testPluralFormAccess
 func TestExtract_PluralFormAccess(t *testing.T) {
-	parts := readPOFile(t, "okf_po/potest.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/potest.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -367,7 +367,7 @@ func TestExtract_EscapedCharacters(t *testing.T) {
 
 // okapi: POFilterTest#testUnescapedRead
 func TestExtract_UnescapedRead(t *testing.T) {
-	parts := readPOFile(t, "okf_po/escaping.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/escaping.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from escaping.po")
@@ -389,7 +389,7 @@ func TestExtract_UnescapedRead(t *testing.T) {
 // okapi: POFilterTest#testUnescapedRewrite
 func TestExtract_UnescapedRewrite(t *testing.T) {
 	// Roundtrip escaping.po and verify escape sequences survive.
-	output := fileRoundtrip(t, "okf_po/escaping.po", nil)
+	output := fileRoundtrip(t, "okapi/filters/po/src/test/resources/escaping.po", nil)
 	assert.Contains(t, output, "C:\\\\Users\\\\Administrator", "escaped backslashes should survive roundtrip")
 }
 
@@ -439,7 +439,7 @@ func TestExtract_WithNoCodesLookingLikeCodes(t *testing.T) {
 
 // okapi: POFilterTest#testTUContextParsing
 func TestExtract_TUContextParsing(t *testing.T) {
-	parts := readPOFile(t, "okf_po/simple_withcontext.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/simple_withcontext.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from file with context")
@@ -465,7 +465,7 @@ func TestExtract_TUEmptyIDEntry(t *testing.T) {
 
 // okapi: POFilterTest#testMsgCtxtAsNotes
 func TestExtract_MsgCtxtAsNotes(t *testing.T) {
-	parts := readPOFile(t, "okf_po/msgctxt_notes.po", nil)
+	parts := readPOFile(t, "okapi/filters/po/src/test/resources/msgctxt_notes.po", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.GreaterOrEqual(t, len(blocks), 2, "should extract at least 2 blocks from msgctxt_notes.po")
@@ -646,7 +646,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	// Read file once, write it, then read the output again.
-	path := bridgetest.TestdataFile(t, "okf_po/potest.po")
+	path := bridgetest.TestdataFile(t, "okapi/filters/po/src/test/resources/potest.po")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 

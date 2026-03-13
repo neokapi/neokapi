@@ -721,7 +721,7 @@ func TestExtract_MaxwidthRulesWithSizeChar(t *testing.T) {
 // okapi: JSONFilterTest#testVariableMaxWidthInNestedObjects
 func TestExtract_VariableMaxWidthInNestedObjects(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_json/nested_charsize.json")
+	path := bridgetest.TestdataFile(t, "okapi/filters/json/src/test/resources/nested_charsize.json")
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, map[string]any{
 		"extractAllPairs":  false,

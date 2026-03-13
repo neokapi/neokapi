@@ -48,7 +48,7 @@ func TestCSV_Parameters(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@CSVTesting01.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTesting01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTesting01.csv", params)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "CSVTesting01.csv should produce translatable blocks with config")
 
@@ -63,7 +63,7 @@ func TestCSV_FileEvents(t *testing.T) {
 	pool, cfg := sharedPool(t)
 	bridgetest.RequireFilter(t, pool, cfg, csvFilterClass)
 
-	parts := readCSVFile(t, "okf_table/csv_test1.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test1.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test1.txt has a header row and 3 data rows with 7 columns each.
@@ -77,7 +77,7 @@ func TestCSV_FileEvents(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents2
 func TestCSV_FileEvents2(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test2.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test2.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test2.txt has empty fields — should still produce blocks for non-empty values.
@@ -87,7 +87,7 @@ func TestCSV_FileEvents2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents2a
 func TestCSV_FileEvents2a(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test3.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test3.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test3.txt has quoted fields with embedded commas and newlines.
@@ -97,7 +97,7 @@ func TestCSV_FileEvents2a(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents3
 func TestCSV_FileEvents3(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test4.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test4.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test4.txt has comment lines before and after field names.
@@ -107,7 +107,7 @@ func TestCSV_FileEvents3(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents4
 func TestCSV_FileEvents4(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test5.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test5.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test5.txt has various whitespace around values.
@@ -117,7 +117,7 @@ func TestCSV_FileEvents4(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents5
 func TestCSV_FileEvents5(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test6.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test6.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -126,7 +126,7 @@ func TestCSV_FileEvents5(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents6
 func TestCSV_FileEvents6(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test7.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test7.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -135,7 +135,7 @@ func TestCSV_FileEvents6(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents7
 func TestCSV_FileEvents7(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test8.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test8.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -144,7 +144,7 @@ func TestCSV_FileEvents7(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents8
 func TestCSV_FileEvents8(t *testing.T) {
-	parts := readCSVFile(t, "okf_table/csv_test9.txt", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_test9.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -156,7 +156,7 @@ func TestCSV_FileEvents96(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTest_96.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTest_96.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -171,7 +171,7 @@ func TestCSV_FileEvents96_2(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTest_96_2.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTest_96_2.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -186,7 +186,7 @@ func TestCSV_FileEvents96_3(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTesting01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTesting01.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -200,7 +200,7 @@ func TestCSV_FileEvents97(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_97.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTest_97.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTest_97.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -217,7 +217,7 @@ func TestCSV_FileEvents106(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv._106.fprm")
 
-	parts := readCSVFile(t, "okf_table/csv.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -232,7 +232,7 @@ func TestCSV_FileEvents106_2(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv._106.fprm")
 
-	parts := readCSVFile(t, "okf_table/csv2.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv2.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -244,7 +244,7 @@ func TestCSV_FileEvents106_3(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv._106.fprm")
 
-	parts := readCSVFile(t, "okf_table/csv3.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv3.txt", params)
 	require.NotEmpty(t, parts)
 
 	// csv3.txt is a small snippet with BOM. The 106 config sets columnNamesLineNum=1
@@ -274,7 +274,7 @@ func TestCSV_FileEvents118(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@CSVTesting01.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTesting01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTesting01.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -288,7 +288,7 @@ func TestCSV_FileEvents118_2(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@CSVTesting01.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTest_96.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTest_96.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -300,7 +300,7 @@ func TestCSV_Skeleton(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	output := csvFileRoundtrip(t, "okf_table/CSVTest_96.txt", params)
+	output := csvFileRoundtrip(t, "okapi/filters/table/src/test/resources/CSVTest_96.txt", params)
 	require.NotEmpty(t, output)
 
 	// The output should preserve the basic structure.
@@ -313,7 +313,7 @@ func TestCSV_Skeleton2(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	output := csvFileRoundtrip(t, "okf_table/CSVTest_96_2.txt", params)
+	output := csvFileRoundtrip(t, "okapi/filters/table/src/test/resources/CSVTest_96_2.txt", params)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "source1")
@@ -325,7 +325,7 @@ func TestCSV_Skeleton3(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_97.fprm")
 
-	output := csvFileRoundtrip(t, "okf_table/CSVTest_97.txt", params)
+	output := csvFileRoundtrip(t, "okapi/filters/table/src/test/resources/CSVTest_97.txt", params)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "Source text 1")
@@ -344,7 +344,7 @@ func TestCSV_SourceId(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@source_id.fprm")
 
-	parts := readCSVFile(t, "okf_table/csv_teste.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_teste.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -369,7 +369,7 @@ func TestCSV_RecordId(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@record_id.fprm")
 
-	parts := readCSVFile(t, "okf_table/csv_testd.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/csv_testd.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -387,7 +387,7 @@ func TestCSV_TabDelimited2Column(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@2Cols_ID_Text.fprm")
 
-	parts := readCSVFile(t, "okf_table/test2cols.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/test2cols.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -409,7 +409,7 @@ func TestCSV_TabDelimited2ColumnRoundTrip(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@2Cols_ID_Text.fprm")
 
-	output := csvFileRoundtrip(t, "okf_table/test2cols.csv", params)
+	output := csvFileRoundtrip(t, "okapi/filters/table/src/test/resources/test2cols.csv", params)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "text")
@@ -418,7 +418,7 @@ func TestCSV_TabDelimited2ColumnRoundTrip(t *testing.T) {
 // okapi: CommaSeparatedValuesFilterTest#testQualifiedValues
 func TestCSV_QualifiedValues(t *testing.T) {
 	// Test reading CSV with double-quote qualified fields.
-	parts := readCSVFile(t, "okf_table/text_qualifier_double_quote.csv", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/text_qualifier_double_quote.csv", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -438,7 +438,7 @@ func TestCSV_QualifiedValues(t *testing.T) {
 // okapi: CommaSeparatedValuesFilterTest#testQualifiedValues2
 func TestCSV_QualifiedValues2(t *testing.T) {
 	// Test reading CSV with single-quote qualified fields.
-	parts := readCSVFile(t, "okf_table/text_qualifier_single_quote.csv", nil)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/text_qualifier_single_quote.csv", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -486,7 +486,7 @@ func TestCSV_EscapeQualifiersBackslash(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/Issue404/okf_table@csv_backslash.fprm")
 
-	parts := readCSVFile(t, "okf_table/Issue404/Issue_404 .csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/Issue404/Issue_404 .csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -563,7 +563,7 @@ func TestCSV_DontEscapeUnremovedQualifiers(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@2Cols_ID_Text.fprm")
 
-	output := csvFileRoundtrip(t, "okf_table/test2cols.csv", params)
+	output := csvFileRoundtrip(t, "okapi/filters/table/src/test/resources/test2cols.csv", params)
 	require.NotEmpty(t, output)
 }
 
@@ -582,7 +582,7 @@ func TestCSV_ThreeColumnsSrcTrgData(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTesting01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTesting01.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -596,7 +596,7 @@ func TestCSV_ThreeColumnsSrcTrgData_2(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTest_96.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTest_96.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -624,7 +624,7 @@ func TestCSV_ThreeColumnsSrcTrgData_3(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@copy-of-csv_96.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTest_96_2.txt", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTest_96_2.txt", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -636,7 +636,7 @@ func TestCSV_ThreeColumnsExtractAllWithSubfilter(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@CSVTesting01.fprm")
 
-	parts := readCSVFile(t, "okf_table/testContent_escaped2.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/testContent_escaped2.csv", params)
 	require.NotEmpty(t, parts)
 
 	// This test exercises subfilter extraction (HTML content in CSV cells).
@@ -649,7 +649,7 @@ func TestCSV_ThreeColumnsSrcDataWithSubfilter(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@CSVTesting01.fprm")
 
-	parts := readCSVFile(t, "okf_table/testContent_escaped4.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/testContent_escaped4.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -679,7 +679,7 @@ func TestCSV_Catkeys(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@catkeys.fprm")
 
-	parts := readCSVFile(t, "okf_table/test01.catkeys", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/test01.catkeys", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -701,7 +701,7 @@ func TestCSV_SubfilterTuIds(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@CSVTesting01.fprm")
 
-	parts := readCSVFile(t, "okf_table/testContent_escaped.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/testContent_escaped.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -722,7 +722,7 @@ func TestCSV_CommentColumnsAsMetadata(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@csv-metadata.fprm")
 
-	parts := readCSVFile(t, "okf_table/CSVTesting01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/CSVTesting01.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -734,7 +734,7 @@ func TestCSV_Issue_1153(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@debug.fprm")
 
-	parts := readCSVFile(t, "okf_table/debug/test.csv", params)
+	parts := readCSVFile(t, "okapi/filters/table/src/test/resources/debug/test.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

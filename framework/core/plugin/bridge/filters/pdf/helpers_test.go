@@ -13,11 +13,11 @@ import (
 const filterClass = "net.sf.okapi.filters.pdf.PdfFilter"
 const mimeType = "application/pdf"
 
-// readPDF reads a PDF file from testdata/okf_pdf/ and returns the extracted parts.
+// readPDF reads a PDF file from testdata/okapi/filters/pdf/src/test/resources/ and returns the extracted parts.
 func readPDF(t *testing.T, relPath string, params map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_pdf/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/pdf/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 }
 

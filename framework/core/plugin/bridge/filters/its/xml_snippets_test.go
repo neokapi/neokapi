@@ -415,7 +415,7 @@ func TestSnippets_LocalWithinTextOnRoot(t *testing.T) {
 func TestSnippets_AndroidQuotes(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AndroidStrings.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
 	xml := `<?xml version="1.0" encoding="UTF-8"?>
 <resources><string name="test">Text with "quotes"</string></resources>`
@@ -505,7 +505,7 @@ func TestSnippets_DefaultInfo(t *testing.T) {
 func TestSnippets_SingleTest(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/Translate1.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/Translate1.xml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "Translate1.xml should have translatable content")

@@ -174,7 +174,7 @@ func TestExtraction_EndNotesExtracted(t *testing.T) {
 			pool, cfg := bridgetest.SharedBridge(t)
 			_ = pool
 			_ = cfg
-			return bridgetest.TestdataFile(t, "okf_idml/okf_idml@ExtractAll.fprm")
+			return bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/okf_idml@ExtractAll.fprm")
 		}(),
 	}
 	parts := readIDML(t, "09-footnotes.idml", params)
@@ -594,11 +594,11 @@ func TestExtraction_DoesNotMergeTagsThatDifferByKerningInReferencesAndXmlStructu
 func TestExtraction_MergesTagsThatDifferByKerningInReferencesAndXmlStructures(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_idml/okf_idml@IgnoreAll.fprm"
+	configPath := tdDir + "/okapi/filters/idml/src/test/resources/okf_idml@IgnoreAll.fprm"
 	params := map[string]any{
 		"configFile": configPath,
 	}
-	path := bridgetest.TestdataFile(t, "okf_idml/779-reference-and-tag-styles.idml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/779-reference-and-tag-styles.idml")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -625,7 +625,7 @@ func TestExtraction_InParallel(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := bridgetest.TestdataFile(t, "okf_idml/"+f)
+			path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/"+f)
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 			blocks := bridgetest.TranslatableBlocks(parts)
 			assert.NotEmpty(t, blocks, "%s should produce translatable blocks", f)

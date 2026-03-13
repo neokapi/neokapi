@@ -72,7 +72,7 @@ func TestExtract_Files(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_plaintext/" + f
+			path := tdDir + "/okapi/filters/plaintext/src/test/resources/" + f
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 			require.NotEmpty(t, parts, "file %s should produce parts", f)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -160,7 +160,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 	// The Java testDoubleExtraction does a roundtrip for all test files.
 	// This is equivalent to our RoundTripTestFiles.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_plaintext/*.txt", mimeType, nil)
+		tdDir+"/okapi/filters/plaintext/src/test/resources/*.txt", mimeType, nil)
 }
 
 // okapi-unmapped: PlainTextFilterTest#testCancel — cancellation is Java-specific (filter.cancel())
@@ -198,7 +198,7 @@ func TestExtract_Paragraphs(t *testing.T) {
 	// ParaPlainTextFilter. This file has CR line endings:
 	// "Line 1\rLine 2\r\rLine 3\rLine 4\rLine 5"
 	// In paragraph mode, blank lines split paragraphs, consecutive lines join.
-	path := tdDir + "/okf_plaintext/test_paragraphs1.txt"
+	path := tdDir + "/okapi/filters/plaintext/src/test/resources/test_paragraphs1.txt"
 
 	// Read with paragraph params.
 	params := map[string]any{
@@ -227,7 +227,7 @@ func TestExtract_LoadParams(t *testing.T) {
 	// test_params1.txt contains regex-based content:
 	// "#v1\nrule=(.)\nsourceGroup.i=1\nregexOptions.i=8"
 	// test_params1.fprm specifies spliced line parameters.
-	path := tdDir + "/okf_plaintext/test_params1.txt"
+	path := tdDir + "/okapi/filters/plaintext/src/test/resources/test_params1.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	require.NotEmpty(t, parts, "should parse test_params1.txt")
 
@@ -283,7 +283,7 @@ func TestPara_Files(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_plaintext/" + f
+			path := tdDir + "/okapi/filters/plaintext/src/test/resources/" + f
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -311,7 +311,7 @@ func TestPara_Files2(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_plaintext/" + f
+			path := tdDir + "/okapi/filters/plaintext/src/test/resources/" + f
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -474,7 +474,7 @@ func TestRegex_Files(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_plaintext/" + f
+			path := tdDir + "/okapi/filters/plaintext/src/test/resources/" + f
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 			require.NotEmpty(t, parts)
 		})
@@ -490,7 +490,7 @@ func TestRegex_DoubleExtraction(t *testing.T) {
 	files := []string{"crlf.txt", "lf.txt", "cr.txt"}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_plaintext/" + f
+			path := tdDir + "/okapi/filters/plaintext/src/test/resources/" + f
 			content, err := readTestFile(path)
 			require.NoError(t, err)
 			bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,
@@ -506,7 +506,7 @@ func TestRegex_Parameters(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Test that parameter files can be loaded and used.
-	path := tdDir + "/okf_plaintext/test_params1.txt"
+	path := tdDir + "/okapi/filters/plaintext/src/test/resources/test_params1.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -526,7 +526,7 @@ func TestSpliced_CombinedLines(t *testing.T) {
 	}
 
 	// combined_lines.txt has lines ending with backslash that should be joined.
-	path := tdDir + "/okf_plaintext/combined_lines.txt"
+	path := tdDir + "/okapi/filters/plaintext/src/test/resources/combined_lines.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 	require.NotEmpty(t, parts)
 
@@ -584,7 +584,7 @@ func TestSpliced_DoubleExtraction(t *testing.T) {
 	files := []string{"crlf.txt", "lf.txt", "cr.txt"}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_plaintext/" + f
+			path := tdDir + "/okapi/filters/plaintext/src/test/resources/" + f
 			content, err := readTestFile(path)
 			require.NoError(t, err)
 			bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,

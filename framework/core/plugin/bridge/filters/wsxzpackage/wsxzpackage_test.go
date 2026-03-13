@@ -16,7 +16,7 @@ import (
 
 // okapi: WsxzPackageFilterTests#testSimpleRead
 func TestSimpleRead(t *testing.T) {
-	parts := readFile(t, "okf_wsxzpackage/test1.wsxz")
+	parts := readFile(t, "okapi/filters/wsxzpackage/src/test/resources/test1.wsxz")
 	require.NotEmpty(t, parts)
 
 	// WSXZ packages contain XLIFF sub-documents.
@@ -43,7 +43,7 @@ func TestSimpleRead(t *testing.T) {
 // okapi: WsxzPackageFilterTests#testSimpleReadWrite
 func TestSimpleReadWrite(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_wsxzpackage/test1.wsxz")
+	path := bridgetest.TestdataFile(t, "okapi/filters/wsxzpackage/src/test/resources/test1.wsxz")
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestSimpleReadWrite(t *testing.T) {
 
 // TestLayerBalance verifies that layer start/end parts are balanced.
 func TestLayerBalance(t *testing.T) {
-	parts := readFile(t, "okf_wsxzpackage/test1.wsxz")
+	parts := readFile(t, "okapi/filters/wsxzpackage/src/test/resources/test1.wsxz")
 
 	starts := countPartsByType(parts, model.PartLayerStart)
 	ends := countPartsByType(parts, model.PartLayerEnd)

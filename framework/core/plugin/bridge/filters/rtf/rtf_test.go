@@ -24,7 +24,7 @@ func TestExtract_SimpleTU(t *testing.T) {
 	// The Java test checks:
 	//   TU1 source: "Text (to) translate."  target: "Texte \u00e0 traduire."
 	//   TU2 source: "Text with <bold>bold</bold>."  target: "Texte avec du <bold>gras</bold>."
-	parts := readRTFFile(t, "okf_rtf/Test01.rtf", nil)
+	parts := readRTFFile(t, "okapi/filters/rtf/src/test/resources/Test01.rtf", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "Test01.rtf should produce translatable blocks")
@@ -52,7 +52,7 @@ func TestExtract_BasicProcessing(t *testing.T) {
 	// The Java test opens Test01.rtf through FilterTestDriver.process() and
 	// verifies no exception occurs. We verify the file can be fully extracted
 	// through the bridge without errors.
-	parts := readRTFFile(t, "okf_rtf/Test01.rtf", nil)
+	parts := readRTFFile(t, "okapi/filters/rtf/src/test/resources/Test01.rtf", nil)
 
 	require.NotEmpty(t, parts, "Test01.rtf should produce parts")
 	assert.Equal(t, model.PartLayerStart, parts[0].Type,
@@ -97,9 +97,9 @@ func TestExtract_StartDoc(t *testing.T) {
 func TestExtract_AllExternalFiles(t *testing.T) {
 	// The Java test iterates over all .rtf files in the test resources
 	// directory and processes each one to completion. We do the same:
-	// read every .rtf file from testdata/okf_rtf/ and verify no errors.
+	// read every .rtf file from testdata/okapi/filters/rtf/src/test/resources/ and verify no errors.
 	tdDir := bridgetest.TestdataDir(t)
-	rtfDir := filepath.Join(tdDir, "okf_rtf")
+	rtfDir := filepath.Join(tdDir, "okapi/filters/rtf/src/test/resources")
 
 	entries, err := os.ReadDir(rtfDir)
 	require.NoError(t, err, "reading okf_rtf testdata directory")
@@ -110,7 +110,7 @@ func TestExtract_AllExternalFiles(t *testing.T) {
 			rtfFiles = append(rtfFiles, e.Name())
 		}
 	}
-	require.NotEmpty(t, rtfFiles, "should find .rtf test files in okf_rtf/")
+	require.NotEmpty(t, rtfFiles, "should find .rtf test files in okapi/filters/rtf/src/test/resources/")
 
 	pool, cfg := bridgetest.SharedBridge(t)
 
@@ -167,7 +167,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// 3. The first extraction produces the expected translatable blocks.
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_rtf/Test01.rtf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/rtf/src/test/resources/Test01.rtf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

@@ -31,7 +31,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_mosestext/*.txt", mimeType, nil)
+		tdDir+"/okapi/filters/mosestext/src/test/resources/*.txt", mimeType, nil)
 }
 
 // okapi: MosesTextFilterTest#testLineBreaks_CR (roundtrip)
@@ -93,7 +93,7 @@ func TestRoundTrip_IndividualFiles(t *testing.T) {
 	files := []string{"Test01.txt", "Test02.txt"}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_mosestext/" + f
+			path := tdDir + "/okapi/filters/mosestext/src/test/resources/" + f
 			content, err := readTestFile(path)
 			require.NoError(t, err)
 			bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,

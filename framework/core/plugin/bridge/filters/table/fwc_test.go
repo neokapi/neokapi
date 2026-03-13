@@ -47,7 +47,7 @@ func TestFWC_Parameters(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, fwcFilterClass)
 
 	// Use test_params3.txt which has explicit column start/end positions.
-	parts := readFWCFile(t, "okf_table/csv_test6.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/csv_test6.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -56,7 +56,7 @@ func TestFWC_Parameters(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testFileEvents
 func TestFWC_FileEvents(t *testing.T) {
-	parts := readFWCFile(t, "okf_table/csv_test6.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/csv_test6.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test6.txt is a fixed-width file with field names and data rows.
@@ -83,7 +83,7 @@ func TestFWC_DoubleExtraction(t *testing.T) {
 	pool, cfg := sharedPool(t)
 	bridgetest.RequireFilter(t, pool, cfg, fwcFilterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_table/fwc_test5.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/fwc_test5.txt")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 
@@ -92,7 +92,7 @@ func TestFWC_DoubleExtraction(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testSkeleton
 func TestFWC_Skeleton(t *testing.T) {
-	output := fwcFileRoundtrip(t, "okf_table/csv_test6.txt", nil)
+	output := fwcFileRoundtrip(t, "okapi/filters/table/src/test/resources/csv_test6.txt", nil)
 	require.NotEmpty(t, output)
 
 	// The fixed-width structure should be preserved.
@@ -101,7 +101,7 @@ func TestFWC_Skeleton(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testSkeleton2
 func TestFWC_Skeleton2(t *testing.T) {
-	output := fwcFileRoundtrip(t, "okf_table/csv_test8.txt", nil)
+	output := fwcFileRoundtrip(t, "okapi/filters/table/src/test/resources/csv_test8.txt", nil)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "Value")
@@ -109,7 +109,7 @@ func TestFWC_Skeleton2(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testSkeleton3
 func TestFWC_Skeleton3(t *testing.T) {
-	output := fwcFileRoundtrip(t, "okf_table/fwc_test5.txt", nil)
+	output := fwcFileRoundtrip(t, "okapi/filters/table/src/test/resources/fwc_test5.txt", nil)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "s1")
@@ -118,7 +118,7 @@ func TestFWC_Skeleton3(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testSkelRefs
 func TestFWC_SkelRefs(t *testing.T) {
-	output := fwcFileRoundtrip(t, "okf_table/fwc_test4.txt", nil)
+	output := fwcFileRoundtrip(t, "okapi/filters/table/src/test/resources/fwc_test4.txt", nil)
 	require.NotEmpty(t, output)
 
 	// fwc_test4.txt has Target and Source columns (reversed order).
@@ -128,7 +128,7 @@ func TestFWC_SkelRefs(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testHeader
 func TestFWC_Header(t *testing.T) {
-	parts := readFWCFile(t, "okf_table/csv_test8.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/csv_test8.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// csv_test8.txt has a header section (description lines before column names).
@@ -138,7 +138,7 @@ func TestFWC_Header(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testListedColumns
 func TestFWC_ListedColumns(t *testing.T) {
-	parts := readFWCFile(t, "okf_table/fwc_test5.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/fwc_test5.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -157,7 +157,7 @@ func TestFWC_ListedColumns(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testListedColumns2
 func TestFWC_ListedColumns2(t *testing.T) {
-	parts := readFWCFile(t, "okf_table/fwc_test4.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/fwc_test4.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -167,7 +167,7 @@ func TestFWC_ListedColumns2(t *testing.T) {
 // okapi: FixedWidthColumnsFilterTest#testListedColumns3
 func TestFWC_ListedColumns3(t *testing.T) {
 	// Test with csv_testa.txt which has a more complex column layout.
-	parts := readFWCFile(t, "okf_table/csv_testa.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/csv_testa.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -176,7 +176,7 @@ func TestFWC_ListedColumns3(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testListedColumns4
 func TestFWC_ListedColumns4(t *testing.T) {
-	parts := readFWCFile(t, "okf_table/csv_testb.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/csv_testb.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -185,7 +185,7 @@ func TestFWC_ListedColumns4(t *testing.T) {
 
 // okapi: FixedWidthColumnsFilterTest#testListedColumns5
 func TestFWC_ListedColumns5(t *testing.T) {
-	parts := readFWCFile(t, "okf_table/csv_test6.txt", nil)
+	parts := readFWCFile(t, "okapi/filters/table/src/test/resources/csv_test6.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

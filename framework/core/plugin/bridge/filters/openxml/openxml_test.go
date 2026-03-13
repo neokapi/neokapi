@@ -448,7 +448,7 @@ func TestExtract_SimpleDocx(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX should produce translatable blocks")
@@ -463,7 +463,7 @@ func TestExtract_DocxLayerStructure(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	var hasLayerStart, hasLayerEnd bool
 	for _, p := range parts {
@@ -486,7 +486,7 @@ func TestExtract_DocxMultiLayer(t *testing.T) {
 	// OpenXML documents produce multiple layers (one per internal XML part:
 	// document.xml, styles.xml, etc.)
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	var layerStartCount int
 	for _, p := range parts {
@@ -504,7 +504,7 @@ func TestExtract_DocxBlockIDs(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -524,7 +524,7 @@ func TestExtract_DocxWithTabs(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/Document-with-tabs.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/Document-with-tabs.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with tabs should produce translatable blocks")
@@ -536,7 +536,7 @@ func TestExtract_DocxDataSkeleton(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	// OpenXML skeleton data lives on Data parts (structural XML), not on blocks.
 	var dataWithSkeleton int
@@ -558,7 +558,7 @@ func TestExtract_DocxInlineCodes(t *testing.T) {
 
 	// 948-1.docx has formatting runs producing inline codes.
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -582,7 +582,7 @@ func TestExtract_DocxSegmentIDs(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -602,7 +602,7 @@ func TestExtract_DocxDataParts(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	var dataCount int
 	for _, p := range parts {
@@ -623,7 +623,7 @@ func TestExtract_ReorderedZip(t *testing.T) {
 
 	// Regression: DOCX with reordered ZIP entries should still extract correctly.
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/reordered-zip.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/reordered-zip.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "reordered ZIP DOCX should produce blocks")
@@ -636,7 +636,7 @@ func TestExtract_DocProperties(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/DocProperties.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/DocProperties.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DocProperties.docx should produce translatable blocks")
@@ -654,7 +654,7 @@ func TestExtract_SimpleXlsx(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/pokemon.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/pokemon.xlsx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "XLSX should produce translatable blocks")
@@ -666,7 +666,7 @@ func TestExtract_XlsxBlockIDs(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/pokemon.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/pokemon.xlsx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -686,7 +686,7 @@ func TestExtract_XlsxInlineStrings(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/1199-inline-strings.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/1199-inline-strings.xlsx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "XLSX with inline strings should produce blocks")
@@ -698,7 +698,7 @@ func TestExtract_XlsxMultiLayer(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/pokemon.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/pokemon.xlsx", mimeType, nil)
 
 	// XLSX should have multiple layers (shared strings, sheet1, etc.)
 	var layerStartCount int
@@ -719,7 +719,7 @@ func TestExtract_SimplePptx(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/794.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/794.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX should produce translatable blocks")
@@ -731,7 +731,7 @@ func TestExtract_PptxBlockIDs(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/794.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/794.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -750,7 +750,7 @@ func TestExtract_PptxMultiLayer(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/794.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/794.pptx", mimeType, nil)
 
 	// PPTX should have layers for slides, notes, masters, etc.
 	var layerStartCount int
@@ -770,7 +770,7 @@ func TestExtract_PptxLineBreak(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/1421-line-break.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/1421-line-break.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with line breaks should produce blocks")
@@ -787,9 +787,9 @@ func TestExtract_AllFormatsLayerBalance(t *testing.T) {
 		name string
 		file string
 	}{
-		{"docx", tdDir + "/okf_openxml/948-1.docx"},
-		{"xlsx", tdDir + "/okf_openxml/pokemon.xlsx"},
-		{"pptx", tdDir + "/okf_openxml/794.pptx"},
+		{"docx", tdDir + "/okapi/filters/openxml/src/test/resources/948-1.docx"},
+		{"xlsx", tdDir + "/okapi/filters/openxml/src/test/resources/pokemon.xlsx"},
+		{"pptx", tdDir + "/okapi/filters/openxml/src/test/resources/794.pptx"},
 	}
 
 	for _, tc := range tests {
@@ -821,9 +821,9 @@ func TestExtract_AllFormatsGroupBalance(t *testing.T) {
 		name string
 		file string
 	}{
-		{"docx", tdDir + "/okf_openxml/948-1.docx"},
-		{"xlsx", tdDir + "/okf_openxml/pokemon.xlsx"},
-		{"pptx", tdDir + "/okf_openxml/794.pptx"},
+		{"docx", tdDir + "/okapi/filters/openxml/src/test/resources/948-1.docx"},
+		{"xlsx", tdDir + "/okapi/filters/openxml/src/test/resources/pokemon.xlsx"},
+		{"pptx", tdDir + "/okapi/filters/openxml/src/test/resources/794.pptx"},
 	}
 
 	for _, tc := range tests {
@@ -855,9 +855,9 @@ func TestExtract_PartSequenceIntegrity(t *testing.T) {
 		name string
 		file string
 	}{
-		{"docx", tdDir + "/okf_openxml/948-1.docx"},
-		{"xlsx", tdDir + "/okf_openxml/pokemon.xlsx"},
-		{"pptx", tdDir + "/okf_openxml/794.pptx"},
+		{"docx", tdDir + "/okapi/filters/openxml/src/test/resources/948-1.docx"},
+		{"xlsx", tdDir + "/okapi/filters/openxml/src/test/resources/pokemon.xlsx"},
+		{"pptx", tdDir + "/okapi/filters/openxml/src/test/resources/794.pptx"},
 	}
 
 	for _, tc := range tests {
@@ -893,7 +893,7 @@ func TestExtract_SpanData(t *testing.T) {
 
 	// 948-1.docx has formatting runs producing inline codes.
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/948-1.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/948-1.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -921,7 +921,7 @@ func TestExtract_DocxSoftLineBreaks(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/Document-with-soft-linebreaks.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/Document-with-soft-linebreaks.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with soft line breaks should produce blocks")
@@ -934,7 +934,7 @@ func TestExtract_DocxTextBoxes(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/TextBoxes.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/TextBoxes.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with text boxes should produce blocks")
@@ -946,7 +946,7 @@ func TestExtract_DocxSmartArt(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/smart_art.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/smart_art.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with SmartArt should produce blocks")
@@ -959,7 +959,7 @@ func TestExtract_DocxWatermark(t *testing.T) {
 
 	// Watermarks are typically non-translatable — verify document still processes.
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/watermark.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/watermark.docx", mimeType, nil)
 
 	require.NotEmpty(t, parts, "DOCX with watermark should produce parts")
 
@@ -979,7 +979,7 @@ func TestExtract_DocxSpecialCharsAndLinebreaks(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/special-chars-and-linebreaks.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/special-chars-and-linebreaks.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with special chars should produce blocks")
@@ -992,7 +992,7 @@ func TestExtract_DocxNotes(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/1413-notes.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/1413-notes.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with footnotes/endnotes should produce blocks")
@@ -1014,7 +1014,7 @@ func TestExtract_DocxExternalHyperlink(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/external_hyperlink.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/external_hyperlink.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with external hyperlinks should produce blocks")
@@ -1027,7 +1027,7 @@ func TestExtract_DocxNestedTables(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/848-nested-tables.docx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/848-nested-tables.docx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "DOCX with nested tables should produce blocks")
@@ -1042,7 +1042,7 @@ func TestExtract_XlsxEmptyCells(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/894-empty-cells-and-rows.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/894-empty-cells-and-rows.xlsx", mimeType, nil)
 
 	require.NotEmpty(t, parts, "XLSX with empty cells should produce parts")
 }
@@ -1053,7 +1053,7 @@ func TestExtract_XlsxSmartArt(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/smartart.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/smartart.xlsx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "XLSX with SmartArt should produce blocks")
@@ -1066,7 +1066,7 @@ func TestExtract_XlsxSharedStringsAndComments(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/972-shared-strings-and-comments.xlsx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/972-shared-strings-and-comments.xlsx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "XLSX with shared strings and comments should produce blocks")
@@ -1080,7 +1080,7 @@ func TestExtract_PptxSmartArt(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/SmartArt.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/SmartArt.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with SmartArt should produce blocks")
@@ -1093,7 +1093,7 @@ func TestExtract_PptxComments(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/Comments.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/Comments.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with comments should produce blocks")
@@ -1106,7 +1106,7 @@ func TestExtract_PptxHiddenSlides(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/1010-slide1-hidden-slide2-hidden.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/1010-slide1-hidden-slide2-hidden.pptx", mimeType, nil)
 
 	// Hidden slides should still be processed (content may be translatable).
 	require.NotEmpty(t, parts, "PPTX with hidden slides should produce parts")
@@ -1119,7 +1119,7 @@ func TestExtract_PptxSlideLayouts(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/slideLayouts.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/slideLayouts.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with multiple slide layouts should produce blocks")
@@ -1141,7 +1141,7 @@ func TestExtract_PptxFormattedHyperlink(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/FormattedHyperlink.pptx", mimeType, nil)
+		tdDir+"/okapi/filters/openxml/src/test/resources/FormattedHyperlink.pptx", mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with formatted hyperlinks should produce blocks")
@@ -1170,7 +1170,7 @@ func TestExtract_KnownLimitationDocx(t *testing.T) {
 	for _, tt := range files {
 		t.Run(tt.name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okf_openxml/"+tt.name), mimeType, nil)
+				bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/"+tt.name), mimeType, nil)
 
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -1191,7 +1191,7 @@ func TestExtract_PptxFormattings(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/1009-1.pptx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/1009-1.pptx"), mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with formattings should produce blocks")
@@ -1203,7 +1203,7 @@ func TestExtract_PptxCharts(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/1046.pptx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/1046.pptx"), mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with charts should produce blocks")
@@ -1227,7 +1227,7 @@ func TestExtract_PptxVisibleHiddenSlides(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okf_openxml/"+tc.file), mimeType, nil)
+				bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/"+tc.file), mimeType, nil)
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
 			assert.Equal(t, model.PartLayerEnd, parts[len(parts)-1].Type)
@@ -1241,7 +1241,7 @@ func TestExtract_PptxLineBreaksAsTags(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/1421-line-break.pptx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/1421-line-break.pptx"), mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "PPTX with line breaks should produce blocks")
@@ -1266,7 +1266,7 @@ func TestExtract_XlsxInlineStringsExtracted(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/1199-inline-strings.xlsx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/1199-inline-strings.xlsx"), mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "XLSX inline strings should produce blocks")
@@ -1282,7 +1282,7 @@ func TestExtract_XlsxMergedCells(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/972-shared-strings-and-comments.xlsx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/972-shared-strings-and-comments.xlsx"), mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1305,7 +1305,7 @@ func TestExtract_XlsxCrossSheetReferences(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okf_openxml/"+tc.file), mimeType, nil)
+				bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/"+tc.file), mimeType, nil)
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)
 		})
@@ -1328,7 +1328,7 @@ func TestExtract_TabAsCharVariants(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/Document-with-tabs.docx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/Document-with-tabs.docx"), mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "tab-as-char document should produce blocks")
@@ -1343,7 +1343,7 @@ func TestExtract_ZipFullFile(t *testing.T) {
 
 	// This tests that the full ZIP structure is handled correctly.
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/948-1.docx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/948-1.docx"), mimeType, nil)
 
 	require.NotEmpty(t, parts)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -1368,7 +1368,7 @@ func TestExtract_FormattingPreservation(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okf_openxml/"+tc.file), mimeType, nil)
+				bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/"+tc.file), mimeType, nil)
 			blocks := bridgetest.TranslatableBlocks(parts)
 			require.NotEmpty(t, blocks)
 		})
@@ -1382,7 +1382,7 @@ func TestExtract_Subfiltering(t *testing.T) {
 
 	// Subfiltering tests embedded content within OpenXML documents.
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_openxml/948-1.docx"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/948-1.docx"), mimeType, nil)
 
 	require.NotEmpty(t, parts)
 	// Sub-documents (child layers) indicate subfiltering is working.
@@ -1412,7 +1412,7 @@ func TestExtract_KnownLimitationPptx(t *testing.T) {
 	for _, tt := range files {
 		t.Run(tt.name, func(t *testing.T) {
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-				bridgetest.TestdataFile(t, "okf_openxml/"+tt.name), mimeType, nil)
+				bridgetest.TestdataFile(t, "okapi/filters/openxml/src/test/resources/"+tt.name), mimeType, nil)
 
 			require.NotEmpty(t, parts)
 			assert.Equal(t, model.PartLayerStart, parts[0].Type)

@@ -22,7 +22,7 @@ func TestConfig_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 	// Metadata + extraction rules + HTML subfilter combined.
 	// Uses metadata.json and metadata.fprm.
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_json/metadata.json")
+	path := bridgetest.TestdataFile(t, "okapi/filters/json/src/test/resources/metadata.json")
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, map[string]any{
 		"extractAllPairs":          false,
@@ -65,7 +65,7 @@ func TestConfig_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 func TestConfig_MetaDataAndExtractionRulesNestedNotes(t *testing.T) {
 	// Nested note rules with metadata from file.
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_json/metadata-nested.json")
+	path := bridgetest.TestdataFile(t, "okapi/filters/json/src/test/resources/metadata-nested.json")
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, map[string]any{
 		"extractAllPairs":          false,

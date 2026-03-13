@@ -227,7 +227,7 @@ func TestExtract_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_properties/Test01.properties"
+	path := tdDir + "/okapi/filters/properties/src/test/resources/Test01.properties"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -266,7 +266,7 @@ func TestExtract_IdGenerationDefaultConfig(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_properties/issue_216.properties"
+	path := tdDir + "/okapi/filters/properties/src/test/resources/issue_216.properties"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -280,7 +280,7 @@ func TestExtract_IdGenerationDefaultConfig(t *testing.T) {
 // okapi: PropertiesFilterTest#testIdGeneration_subfiltersConfig
 func TestExtract_IdGenerationSubfiltersConfig(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_properties/issue_216.properties")
+	path := bridgetest.TestdataFile(t, "okapi/filters/properties/src/test/resources/issue_216.properties")
 
 	params := map[string]any{
 		"subfilter": "okf_html",

@@ -306,13 +306,13 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	// Test01.html.ttx — uses en / fr locales per its UserSettings.
-	path1 := bridgetest.TestdataFile(t, "okf_ttx/Test01.html.ttx")
+	path1 := bridgetest.TestdataFile(t, "okapi/filters/ttx/src/test/resources/Test01.html.ttx")
 	content1, err := os.ReadFile(path1)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content1, path1, mimeType, nil)
 
 	// Test02_allseg.html.ttx
-	path2 := bridgetest.TestdataFile(t, "okf_ttx/Test02_allseg.html.ttx")
+	path2 := bridgetest.TestdataFile(t, "okapi/filters/ttx/src/test/resources/Test02_allseg.html.ttx")
 	content2, err := os.ReadFile(path2)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content2, path2, mimeType, nil)
@@ -322,7 +322,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 func TestRoundTrip_DoubleExtractionOriginalAllSegmented(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_ttx/Test02_allseg.html.ttx")
+	path := bridgetest.TestdataFile(t, "okapi/filters/ttx/src/test/resources/Test02_allseg.html.ttx")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)

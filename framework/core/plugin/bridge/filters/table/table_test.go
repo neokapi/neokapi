@@ -47,7 +47,7 @@ func TestTable_ColumnDefinedLocales(t *testing.T) {
 
 	// The defined_locales config specifies parametersClass=tsv.Parameters,
 	// so we use the TSV filter class which properly splits tab-separated columns.
-	path := bridgetest.TestdataFile(t, "okf_table/Locale_defined_TSV_test.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/Locale_defined_TSV_test.txt")
 	parts := bridgetest.ReadFile(t, pool, cfg, tsvFilterClass, path, tsvMimeType, params)
 	require.NotEmpty(t, parts)
 
@@ -66,7 +66,7 @@ func TestTable_ColumnDefinedSource(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@defined_locales.fprm")
 
-	path := bridgetest.TestdataFile(t, "okf_table/Locale_defined_TSV_test.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/Locale_defined_TSV_test.txt")
 	parts := bridgetest.ReadFile(t, pool, cfg, tsvFilterClass, path, tsvMimeType, params)
 	require.NotEmpty(t, parts)
 
@@ -83,7 +83,7 @@ func TestTable_ColumnDefinedTarget(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@defined_locales.fprm")
 
-	path := bridgetest.TestdataFile(t, "okf_table/Locale_defined_TSV_test.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/Locale_defined_TSV_test.txt")
 	parts := bridgetest.ReadFile(t, pool, cfg, tsvFilterClass, path, tsvMimeType, params)
 	require.NotEmpty(t, parts)
 
@@ -104,7 +104,7 @@ func TestTable_ColumnDefinedTarget(t *testing.T) {
 // okapi: TableFilterTest#testMultilineColNames
 func TestTable_MultilineColNames(t *testing.T) {
 	// Test table with multiline column names (long header).
-	parts := readTableFile(t, "okf_table/csv_test7.txt", nil)
+	parts := readTableFile(t, "okapi/filters/table/src/test/resources/csv_test7.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -117,7 +117,7 @@ func TestTable_Skeleton(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@defined_locales.fprm")
 
-	path := bridgetest.TestdataFile(t, "okf_table/Locale_defined_TSV_test.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/Locale_defined_TSV_test.txt")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 
@@ -131,7 +131,7 @@ func TestTable_Skeleton(t *testing.T) {
 
 // okapi: TableFilterTest#testSkeleton3
 func TestTable_Skeleton3(t *testing.T) {
-	output := tableFileRoundtrip(t, "okf_table/csv_test7.txt", nil)
+	output := tableFileRoundtrip(t, "okapi/filters/table/src/test/resources/csv_test7.txt", nil)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "Value")
@@ -139,7 +139,7 @@ func TestTable_Skeleton3(t *testing.T) {
 
 // okapi: TableFilterTest#testFileEvents
 func TestTable_FileEvents(t *testing.T) {
-	parts := readTableFile(t, "okf_table/csv_test7.txt", nil)
+	parts := readTableFile(t, "okapi/filters/table/src/test/resources/csv_test7.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -151,7 +151,7 @@ func TestTable_FileEvents(t *testing.T) {
 
 // okapi: TableFilterTest#testFileEvents2
 func TestTable_FileEvents2(t *testing.T) {
-	parts := readTableFile(t, "okf_table/csv_test9.txt", nil)
+	parts := readTableFile(t, "okapi/filters/table/src/test/resources/csv_test9.txt", nil)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -172,7 +172,7 @@ func TestTable_DoubleExtraction(t *testing.T) {
 	pool, cfg := sharedPool(t)
 	bridgetest.RequireFilter(t, pool, cfg, tableFilterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_table/csv_test7.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/csv_test7.txt")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 
@@ -185,7 +185,7 @@ func TestTable_TrimMode(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/okf_table@strong.fprm")
 
-	parts := readTableFile(t, "okf_table/strong.csv", params)
+	parts := readTableFile(t, "okapi/filters/table/src/test/resources/strong.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -206,7 +206,7 @@ func TestTable_Synchronization(t *testing.T) {
 
 	// Read a file that tests synchronization of source and target columns.
 	// The defined_locales config uses TSV parameters class.
-	path := bridgetest.TestdataFile(t, "okf_table/Locale_defined_TSV_test.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/Locale_defined_TSV_test.txt")
 	parts := bridgetest.ReadFile(t, pool, cfg, tsvFilterClass, path, tsvMimeType, params)
 	require.NotEmpty(t, parts)
 
@@ -239,7 +239,7 @@ func TestTable_Issue1128(t *testing.T) {
 	dir := tdDir(t)
 	params := configParams(dir + "/issue1128/okf_table@strong.fprm")
 
-	parts := readTableFile(t, "okf_table/issue1128/strong.csv", params)
+	parts := readTableFile(t, "okapi/filters/table/src/test/resources/issue1128/strong.csv", params)
 	require.NotEmpty(t, parts)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -257,7 +257,7 @@ func TestTable_Issue1128(t *testing.T) {
 
 	// Roundtrip and check output matches golden.
 	pool, cfg := sharedPool(t)
-	path := bridgetest.TestdataFile(t, "okf_table/issue1128/strong.csv")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/issue1128/strong.csv")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 
@@ -273,7 +273,7 @@ func TestTable_Issue124(t *testing.T) {
 	params := configParams(dir + "/okf_table@test124.fprm")
 
 	// test124 config: TSV with source=col2, comment=col1 (parametersClass=tsv.Parameters).
-	path := bridgetest.TestdataFile(t, "okf_table/test_tsv_simple.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/test_tsv_simple.txt")
 	parts := bridgetest.ReadFile(t, pool, cfg, tsvFilterClass, path, tsvMimeType, params)
 	require.NotEmpty(t, parts)
 

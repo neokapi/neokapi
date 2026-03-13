@@ -19,7 +19,7 @@ func TestRoundTrip_TTML_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, ttmlFilterClass,
-		tdDir+"/okf_ttml/*.ttml", ttmlMimeType, nil)
+		tdDir+"/okapi/filters/subtitles/src/test/resources/*.ttml", ttmlMimeType, nil)
 }
 
 // okapi-unmapped: TtmlXliffCompareIT — XLIFF compare tests require XLIFF serialization

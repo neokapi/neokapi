@@ -15,11 +15,11 @@ import (
 const filterClass = "net.sf.okapi.filters.epub.EpubFilter"
 const mimeType = "application/epub+zip"
 
-// readEPUB reads an EPUB file from testdata/okf_epub/ and returns the extracted parts.
+// readEPUB reads an EPUB file from testdata/okapi/filters/epub/src/test/resources/ and returns the extracted parts.
 func readEPUB(t *testing.T, relPath string, params map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_epub/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/epub/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 }
 
@@ -27,7 +27,7 @@ func readEPUB(t *testing.T, relPath string, params map[string]any) []*model.Part
 func roundtripEPUB(t *testing.T, relPath string, params map[string]any) bridgetest.RoundTripResult {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_epub/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/epub/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return bridgetest.RoundTrip(t, pool, cfg, filterClass, content, path, mimeType, params)
@@ -37,7 +37,7 @@ func roundtripEPUB(t *testing.T, relPath string, params map[string]any) bridgete
 func assertRoundTripEventsEPUB(t *testing.T, relPath string, params map[string]any) bridgetest.RoundTripResult {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_epub/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/epub/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, params)

@@ -97,133 +97,133 @@ func TestRoundTrip_SupplementalChars(t *testing.T) {
 
 // okapi: RoundTripXmlIT#testInput
 func TestRoundTrip_InputXml(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/input.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/input.xml", nil)
 }
 
 // okapi: RoundTripXmlIT#test01
 func TestRoundTrip_Test01(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test01.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test01.xml", nil)
 }
 
 // okapi: RoundTripXmlIT#test02
 func TestRoundTrip_Test02(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test02.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test02.xml", nil)
 }
 
 // okapi: RoundTripXmlIT#test03
 func TestRoundTrip_Test03(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test03.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test03.xml", nil)
 }
 
 // okapi: RoundTripXmlIT#test04
 func TestRoundTrip_Test04(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test04.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test04.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (utf8 no bom)
 func TestRoundTrip_UTF8NoBom(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test08_utf8nobom.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test08_utf8nobom.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (Translate1)
 func TestRoundTrip_Translate1(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/Translate1.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/Translate1.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (Translate2)
 func TestRoundTrip_Translate2(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/Translate2.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/Translate2.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (Translate2 linked rules)
 func TestRoundTrip_Translate2LinkedRules(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/Translate2_LinkedRules.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/Translate2_LinkedRules.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (LocNote-1)
 func TestRoundTrip_LocNote1(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/LocNote-1.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/LocNote-1.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (LocNote-2)
 func TestRoundTrip_LocNote2(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/LocNote-2.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/LocNote-2.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (LocNote-3)
 func TestRoundTrip_LocNote3(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/LocNote-3.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/LocNote-3.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (LocNote-4)
 func TestRoundTrip_LocNote4(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/LocNote-4.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/LocNote-4.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (LocNote-5)
 func TestRoundTrip_LocNote5(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/LocNote-5.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/LocNote-5.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (LocNote-6)
 func TestRoundTrip_LocNote6(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/LocNote-6.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/LocNote-6.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (XRTT-Source1)
 func TestRoundTrip_XRTTSource1(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/XRTT-Source1.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/XRTT-Source1.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (emoji)
 func TestRoundTrip_Emoji(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/emoji1.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/emoji1.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (TestCDATA1)
 func TestRoundTrip_TestCDATA1(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/TestCDATA1.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/TestCDATA1.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (TestMultiLang)
 func TestRoundTrip_TestMultiLang(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/TestMultiLang.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/TestMultiLang.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (Android strings)
 func TestRoundTrip_AndroidStrings(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@AndroidStrings.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@AndroidStrings.fprm",
 	}
-	roundtripTestFile(t, "okf_xml/strings.xml", params)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/strings.xml", params)
 }
 
 // okapi: RoundTripXmlIT (OpenOffice)
 func TestRoundTrip_OpenOffice(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/okf_xml@openoffice.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/okf_xml@openoffice.fprm",
 	}
-	roundtripTestFile(t, "okf_xml/openoffice_input.xml", params)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/openoffice_input.xml", params)
 }
 
 // okapi: RoundTripXmlIT (custom config 591)
 func TestRoundTrip_CustomConfig591(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/custom-configs/591/okf_xml@ibxlf1.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/591/okf_xml@ibxlf1.fprm",
 	}
-	roundtripTestFile(t, "okf_xml/custom-configs/591/simple_with_simple_codes.xml", params)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/custom-configs/591/simple_with_simple_codes.xml", params)
 }
 
 // okapi: RoundTripXmlIT (custom config 1384)
 func TestRoundTrip_CustomConfig1384(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/custom-configs/1384/okf_xml@translatable-and-untranslatable.fprm",
 	}
-	roundtripTestFile(t, "okf_xml/custom-configs/1384/translatable-and-untranslatable.xml", params)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/custom-configs/1384/translatable-and-untranslatable.xml", params)
 }
 
 // ---------------------------------------------------------------------------
@@ -232,14 +232,14 @@ func TestRoundTrip_CustomConfig1384(t *testing.T) {
 
 // okapi: XMLFilterEncodingTest#utf8ToUtf16le
 func TestRoundTrip_UTF8Encoding(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test08_utf8nobom.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test08_utf8nobom.xml", nil)
 }
 
 // okapi: XMLFilterEncodingTest#utf16leWithBomFromFile
 func TestRoundTrip_UTF16LEWithBom(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/test10_utf16le-with-bom.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/test10_utf16le-with-bom.xml"
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	// Just verify it can be read and roundtripped without error
@@ -253,22 +253,22 @@ func TestRoundTrip_UTF16LEWithBom(t *testing.T) {
 
 // okapi: RoundTripXmlIT (test05)
 func TestRoundTrip_Test05(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test05.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test05.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (test06)
 func TestRoundTrip_Test06(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test06.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test06.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (test07)
 func TestRoundTrip_Test07(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test07.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test07.xml", nil)
 }
 
 // okapi: RoundTripXmlIT (test09)
 func TestRoundTrip_Test09(t *testing.T) {
-	roundtripTestFile(t, "okf_xml/test09.xml", nil)
+	roundtripTestFile(t, "okapi/filters/its/src/test/resources/test09.xml", nil)
 }
 
 // ---------------------------------------------------------------------------

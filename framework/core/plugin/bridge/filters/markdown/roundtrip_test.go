@@ -30,7 +30,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - deployconfigure-reality: Okapi merges adjacent Data parts in complex
 	//   markdown with HTML comments, producing 3 fewer parts on re-read.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_markdown/*.md", mimeType, nil,
+		tdDir+"/okapi/filters/markdown/src/test/resources/*.md", mimeType, nil,
 		"test-html-block-newline.md",
 		"html_list_original.md",
 		"html_table_changed.md",
@@ -50,6 +50,6 @@ func TestRoundTrip_SuiteFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_markdown/suite/*.md", mimeType, nil,
+		tdDir+"/okapi/filters/markdown/src/test/resources/suite/*.md", mimeType, nil,
 	)
 }

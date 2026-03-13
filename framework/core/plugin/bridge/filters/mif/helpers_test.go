@@ -19,7 +19,7 @@ const mimeType = "application/vnd.mif"
 func readMIF(t *testing.T, relPath string, params map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_mif/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 }
 
@@ -34,7 +34,7 @@ func readMIFWithConfig(t *testing.T, relPath string, configName string) []*model
 	t.Helper()
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_mif/" + configName,
+		"configFile": tdDir + "/okapi/filters/mif/src/test/resources/" + configName,
 	}
 	return readMIF(t, relPath, params)
 }
@@ -42,7 +42,7 @@ func readMIFWithConfig(t *testing.T, relPath string, configName string) []*model
 // readMIFContent reads a MIF file from testdata and returns the raw bytes.
 func readMIFContent(t *testing.T, relPath string) []byte {
 	t.Helper()
-	path := bridgetest.TestdataFile(t, "okf_mif/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return content
@@ -53,7 +53,7 @@ func configParams(t *testing.T, configName string) map[string]any {
 	t.Helper()
 	tdDir := bridgetest.TestdataDir(t)
 	return map[string]any{
-		"configFile": tdDir + "/okf_mif/" + configName,
+		"configFile": tdDir + "/okapi/filters/mif/src/test/resources/" + configName,
 	}
 }
 
@@ -87,7 +87,7 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 func mifTestFiles(t *testing.T) []string {
 	t.Helper()
 	tdDir := bridgetest.TestdataDir(t)
-	entries, err := os.ReadDir(tdDir + "/okf_mif")
+	entries, err := os.ReadDir(tdDir + "/okapi/filters/mif/src/test/resources")
 	require.NoError(t, err)
 	var files []string
 	for _, e := range entries {

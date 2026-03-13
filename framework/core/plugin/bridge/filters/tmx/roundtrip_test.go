@@ -77,7 +77,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - header_with_prop_and_note.tmx: srclang="en-us" but bridge uses
 	//   "en"; TMX filter rejects the language mismatch
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_tmx/*.tmx", mimeType, nil,
+		tdDir+"/okapi/filters/tmx/src/test/resources/*.tmx", mimeType, nil,
 		"code_id_difference.tmx",
 		"code_fail.tmx",
 		"html_test.tmx",
@@ -86,5 +86,5 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 
 // okapi: TmxXliffCompareIT
 func TestRoundTrip_SampleTMX2(t *testing.T) {
-	fileRoundtripEvents(t, "okf_tmx/sampleTMX2.tmx", nil)
+	fileRoundtripEvents(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
 }

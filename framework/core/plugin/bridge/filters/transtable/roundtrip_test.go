@@ -20,7 +20,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// The TransTable writer omits the header row, so re-reading the output
 	// fails with "Unexpected header."
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_transtable/*.txt", mimeType, nil,
+		tdDir+"/okapi/filters/transtable/src/test/resources/*.txt", mimeType, nil,
 		"test01.xml.txt", // Known failing in Java integration tests
 	)
 }

@@ -86,7 +86,7 @@ func blockByName(blocks []*model.Block, name string) *model.Block {
 // okapi: RegexFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules01.fprm"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules01.fprm"
 
 	parts := readRegex(t, `"Hello world"`, configPath, nil)
 
@@ -122,8 +122,8 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filePath := tdDir + "/okf_regex/" + tt.file
-			configPath := tdDir + "/okf_regex/" + tt.configFile
+			filePath := tdDir + "/okapi/filters/regex/src/test/resources/" + tt.file
+			configPath := tdDir + "/okapi/filters/regex/src/test/resources/" + tt.configFile
 
 			content, err := os.ReadFile(filePath)
 			require.NoError(t, err)
@@ -157,8 +157,8 @@ func TestExtract_Configurations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			filePath := tdDir + "/okf_regex/" + tt.file
-			configPath := tdDir + "/okf_regex/" + tt.configFile
+			filePath := tdDir + "/okapi/filters/regex/src/test/resources/" + tt.file
+			configPath := tdDir + "/okapi/filters/regex/src/test/resources/" + tt.configFile
 
 			parts := readRegexFile(t, filePath, configPath)
 			require.NotEmpty(t, parts, "configuration %s should produce parts", tt.name)
@@ -180,8 +180,8 @@ func TestExtract_Configurations(t *testing.T) {
 // patterns with group markers.
 func TestExtract_NameExtraction(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules05.fprm"
-	filePath := tdDir + "/okf_regex/TestRules05.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules05.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules05.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -209,8 +209,8 @@ func TestExtract_NameExtraction(t *testing.T) {
 // macStrings config which maps group 1 (comment) to groupNote.
 func TestExtract_NoteExtraction(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@macStrings.fprm"
-	filePath := tdDir + "/okf_regex/test.strings"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@macStrings.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/test.strings"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -241,8 +241,8 @@ func TestExtract_NoteExtraction(t *testing.T) {
 // defines metaRules for extracting timestamp metadata.
 func TestExtract_Meta(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/meta/okf_regex@meta.fprm"
-	filePath := tdDir + "/okf_regex/meta/test.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/meta/okf_regex@meta.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/meta/test.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -265,8 +265,8 @@ func TestExtract_Meta(t *testing.T) {
 // fidelity and that the filter opened without errors.
 func TestExtract_SimpleRule(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules01.fprm"
-	filePath := tdDir + "/okf_regex/TestRules01.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules01.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules01.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	require.NotEmpty(t, parts, "should produce parts from TestRules01")
@@ -291,8 +291,8 @@ func TestExtract_SimpleRule(t *testing.T) {
 // which defines [ID] TAB Text patterns.
 func TestExtract_IDAndText(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules03.fprm"
-	filePath := tdDir + "/okf_regex/TestRules03.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules03.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules03.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -315,8 +315,8 @@ func TestExtract_IDAndText(t *testing.T) {
 // quoted strings with backslash escapes.
 func TestExtract_EscapeDoubleChar(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules04.fprm"
-	filePath := tdDir + "/okf_regex/TestRules04.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules04.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules04.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -337,8 +337,8 @@ func TestExtract_EscapeDoubleChar(t *testing.T) {
 // but verifies the filter handles the content correctly.
 func TestExtract_EscapeDoubleCharNoEscape(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules04.fprm"
-	filePath := tdDir + "/okf_regex/TestRules04.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules04.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules04.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	require.NotEmpty(t, parts)
@@ -361,8 +361,8 @@ func TestExtract_EscapeDoubleCharNoEscape(t *testing.T) {
 // extracts content within curly braces with preserveWS=false.
 func TestExtract_CollapseNewline(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules02.fprm"
-	filePath := tdDir + "/okf_regex/TestRules02.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules02.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules02.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -384,8 +384,8 @@ func TestExtract_CollapseNewline(t *testing.T) {
 // has blank lines between groups.
 func TestExtract_EmptyLines(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules05.fprm"
-	filePath := tdDir + "/okf_regex/TestRules05.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules05.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules05.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -403,8 +403,8 @@ func TestExtract_EmptyLines(t *testing.T) {
 // TestRules07.strings which has semicolons embedded in values.
 func TestExtract_SemicolonInData(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@macStrings.fprm"
-	filePath := tdDir + "/okf_regex/TestRules07.strings"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@macStrings.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules07.strings"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -437,8 +437,8 @@ func TestExtract_SemicolonInData(t *testing.T) {
 // which processes rls_string entries with quoted values containing escapes.
 func TestExtract_BackslashEscapeHandling(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@SymbianRLS.fprm"
-	filePath := tdDir + "/okf_regex/SymbianRLSSample.rls"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@SymbianRLS.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/SymbianRLSSample.rls"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -465,7 +465,7 @@ func TestExtract_BackslashEscapeHandling(t *testing.T) {
 // config which enables the okf_html subfilter on extracted content.
 func TestExtract_SubFiltering(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@macStrings_HTML.fprm"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@macStrings_HTML.fprm"
 
 	// Use a simple .strings snippet with HTML content.
 	snippet := "/* Comment */\n\"key1\" = \"Hello <b>World</b>\";\n"
@@ -492,7 +492,7 @@ func TestExtract_SubFiltering(t *testing.T) {
 // Tests notes combined with sub-filter content.
 func TestExtract_NoteWithSubfilter(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@macStrings_HTML.fprm"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@macStrings_HTML.fprm"
 
 	// Test with a .strings entry that has both a comment (note) and HTML content.
 	snippet := "/* Important note */\n\"key1\" = \"Text with <i>emphasis</i>\";\n"
@@ -516,8 +516,8 @@ func TestExtract_NoteWithSubfilter(t *testing.T) {
 // okapi: RegexFilterTest#testConfigurations (SRT-specific extraction)
 func TestExtract_SRT(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@SRT.fprm"
-	filePath := tdDir + "/okf_regex/Test01_srt_en.srt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@SRT.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/Test01_srt_en.srt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -544,8 +544,8 @@ func TestExtract_SRT(t *testing.T) {
 // okapi: RegexFilterTest#testConfigurations (StringInfo-specific extraction)
 func TestExtract_StringInfo(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@StringInfo.fprm"
-	filePath := tdDir + "/okf_regex/Test01_stringinfo_en.info"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@StringInfo.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/Test01_stringinfo_en.info"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -567,8 +567,8 @@ func TestExtract_StringInfo(t *testing.T) {
 // okapi: RegexFilterTest#testConfigurations (INI-specific extraction)
 func TestExtract_INI(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@INI.fprm"
-	filePath := tdDir + "/okf_regex/TestFrenchISL.isl"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@INI.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestFrenchISL.isl"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -589,8 +589,8 @@ func TestExtract_INI(t *testing.T) {
 // okapi: RegexFilterTest#testDoubleExtraction (TestRules06 group/subgroup variant)
 func TestExtract_GroupsAndSubGroups(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := tdDir + "/okf_regex/okf_regex@TestRules06.fprm"
-	filePath := tdDir + "/okf_regex/TestRules06.txt"
+	configPath := tdDir + "/okapi/filters/regex/src/test/resources/okf_regex@TestRules06.fprm"
+	filePath := tdDir + "/okapi/filters/regex/src/test/resources/TestRules06.txt"
 
 	parts := readRegexFile(t, filePath, configPath)
 	blocks := bridgetest.TranslatableBlocks(parts)

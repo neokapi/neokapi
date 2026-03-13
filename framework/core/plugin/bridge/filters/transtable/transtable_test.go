@@ -220,7 +220,7 @@ func TestExtract_TestFile(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_transtable/test01.xml.txt"
+	path := tdDir + "/okapi/filters/transtable/src/test/resources/test01.xml.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

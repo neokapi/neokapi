@@ -23,13 +23,13 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Test01.dtd: entities with references, HTML-like content, comments
 	t.Run("Test01", func(t *testing.T) {
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_dtd/Test01.dtd", mimeType, nil)
+			tdDir+"/okapi/filters/dtd/src/test/resources/Test01.dtd", mimeType, nil)
 	})
 
 	// Test02.dtd: Qt Linguist DTD with element/attribute definitions (non-extractable)
 	t.Run("Test02", func(t *testing.T) {
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_dtd/Test02.dtd", mimeType, nil)
+			tdDir+"/okapi/filters/dtd/src/test/resources/Test02.dtd", mimeType, nil)
 	})
 }
 
@@ -39,7 +39,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_dtd/*.dtd", mimeType, nil)
+		tdDir+"/okapi/filters/dtd/src/test/resources/*.dtd", mimeType, nil)
 }
 
 // okapi: RoundTripDtdIT#dtdFilesSerialized
@@ -52,5 +52,5 @@ func TestRoundTrip_TestFilesSerialized(t *testing.T) {
 	// handled transparently, so we run the same roundtrip with event
 	// comparison on the full set of DTD files.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_dtd/*.dtd", mimeType, nil)
+		tdDir+"/okapi/filters/dtd/src/test/resources/*.dtd", mimeType, nil)
 }

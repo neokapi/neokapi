@@ -53,7 +53,7 @@ func readBytesWithEncoding(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bri
 func TestBom_DetectBom(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/ruby.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/ruby.html")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -84,7 +84,7 @@ func TestBom_DetectBom(t *testing.T) {
 func TestBom_DetectUnicodeLittleBom(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/FFFEBOM.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/FFFEBOM.html")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -117,7 +117,7 @@ func TestBom_DetectUnicodeLittleBom(t *testing.T) {
 func TestBom_DetectAndRemoveBom(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/ruby.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/ruby.html")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

@@ -839,7 +839,7 @@ func TestExtract_EmptyTgtLang(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_xliff/empty-tgt-lang.xlf"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/empty-tgt-lang.xlf"), mimeType, nil)
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -857,7 +857,7 @@ func TestExtract_EmptyTgtLang(t *testing.T) {
 func TestExtract_LqiTest(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

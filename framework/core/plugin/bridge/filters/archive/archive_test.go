@@ -103,7 +103,7 @@ func TestExtract_MissingFilter(t *testing.T) {
 	}
 
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_archive/test3_es.archive")
+	path := bridgetest.TestdataFile(t, "okapi/filters/archive/src/test/resources/test3_es.archive")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -209,7 +209,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 
 	for _, tt := range testFiles {
 		t.Run(tt.name, func(t *testing.T) {
-			path := bridgetest.TestdataFile(t, "okf_archive/"+tt.name)
+			path := bridgetest.TestdataFile(t, "okapi/filters/archive/src/test/resources/"+tt.name)
 			content, err := os.ReadFile(path)
 			require.NoError(t, err)
 

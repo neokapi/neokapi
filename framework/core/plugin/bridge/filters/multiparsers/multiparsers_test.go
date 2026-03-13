@@ -25,7 +25,7 @@ func TestExtract_SimpleRead(t *testing.T) {
 		"csvFormatCols":    "2:okf_html,5:okf_markdown",
 		"csvStartingRow":   2,
 	}
-	parts := readCSVFile(t, "okf_multiparsers/test01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/multiparsers/src/test/resources/test01.csv", params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 
@@ -51,7 +51,7 @@ func TestExtract_AutoDetectColumnTypes(t *testing.T) {
 		"csvAutoDetectColumnTypes":    true,
 		"csvAutoDetectColumnTypesRow": 2,
 	}
-	parts := readCSVFile(t, "okf_multiparsers/test04.csv", params)
+	parts := readCSVFile(t, "okapi/filters/multiparsers/src/test/resources/test04.csv", params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.Equal(t, 6, len(blocks), "expected 6 translatable blocks")
@@ -83,7 +83,7 @@ func TestExtract_SubFilterContent(t *testing.T) {
 		"csvNoExtractCols": "0,3",
 		"csvFormatCols":    "2:okf_html,5:okf_markdown",
 	}
-	parts := readCSVFile(t, "okf_multiparsers/test02.csv", params)
+	parts := readCSVFile(t, "okapi/filters/multiparsers/src/test/resources/test02.csv", params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from test02.csv")
@@ -129,7 +129,7 @@ func TestRoundTrip_ReadWrite(t *testing.T) {
 	// for sub-filter columns, which is not available through the bridge protocol.
 	// The read phase with sub-filters is tested in TestExtract_SubFilterContent.
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_multiparsers/test02.csv")
+	path := bridgetest.TestdataFile(t, "okapi/filters/multiparsers/src/test/resources/test02.csv")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -151,7 +151,7 @@ func TestExtract_TwoSubFilterContent(t *testing.T) {
 	params := map[string]any{
 		"csvFormatCols": "0:okf_markdown,1:okf_html",
 	}
-	parts := readCSVFile(t, "okf_multiparsers/test03.csv", params)
+	parts := readCSVFile(t, "okapi/filters/multiparsers/src/test/resources/test03.csv", params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.Equal(t, 3, len(blocks), "expected 3 translatable blocks")
@@ -193,7 +193,7 @@ func TestExtract_TwoSubFilterContent(t *testing.T) {
 func TestRoundTrip_AllTestFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	dir := bridgetest.TestdataDir(t)
-	pattern := filepath.Join(dir, "okf_multiparsers", "*.csv")
+	pattern := filepath.Join(dir, "okapi", "filters", "multiparsers", "src", "test", "resources", "*.csv")
 
 	// test01.csv needs csvStartingRow param; test02/03/04 need format cols.
 	// Use default (nil) params here since RoundTripTestFiles applies same
@@ -203,7 +203,7 @@ func TestRoundTrip_AllTestFiles(t *testing.T) {
 }
 
 func TestExtract_LayerStructure(t *testing.T) {
-	parts := readCSVFile(t, "okf_multiparsers/test01.csv", nil)
+	parts := readCSVFile(t, "okapi/filters/multiparsers/src/test/resources/test01.csv", nil)
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type, "first part should be LayerStart")
@@ -216,7 +216,7 @@ func TestExtract_BlockIDs(t *testing.T) {
 		"csvFormatCols":    "2:okf_html,5:okf_markdown",
 		"csvStartingRow":   2,
 	}
-	parts := readCSVFile(t, "okf_multiparsers/test01.csv", params)
+	parts := readCSVFile(t, "okapi/filters/multiparsers/src/test/resources/test01.csv", params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)

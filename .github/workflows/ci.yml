@@ -550,12 +550,12 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/neokapi/bridge/
-          key: okapi-bridge-v2.15.3-okapi1.48.0
+          key: okapi-bridge-v2.16.0-okapi1.48.0
 
       - name: Fetch okapi-bridge JAR
         run: |
           bash scripts/fetch-okapi-bridge.sh
-          echo "NEOKAPI_BRIDGE_JAR=$HOME/.cache/neokapi/bridge/v2.15.3-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
+          echo "NEOKAPI_BRIDGE_JAR=$HOME/.cache/neokapi/bridge/v2.16.0-okapi1.48.0/okapi-bridge.jar" >> "$GITHUB_ENV"
         env:
           GITHUB_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
 
@@ -563,7 +563,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: okapi-testdata/
-          key: okapi-testdata-1.48.0-v3
+          key: okapi-testdata-1.48.0-v4
 
       - name: Fetch okapi test data
         run: bash scripts/fetch-okapi-testdata.sh
@@ -640,33 +640,33 @@ jobs:
           pattern: test-results-*
           merge-multiple: true
 
-      - name: Cache okapi test data
+      - name: Cache okapi surefire reports
         uses: actions/cache@v4
         with:
-          path: okapi-testdata/
-          key: okapi-testdata-1.48.0-v3
+          path: okapi-surefire/
+          key: okapi-surefire-1.48.0
 
-      - name: Fetch okapi test data (includes surefire reports)
-        id: fetch-testdata
-        run: bash scripts/fetch-okapi-testdata.sh
+      - name: Fetch okapi surefire reports
+        id: fetch-surefire
+        run: bash scripts/fetch-okapi-surefire.sh
         env:
           GITHUB_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
         continue-on-error: true
 
-      - name: Resolve testdata version
-        if: steps.fetch-testdata.outcome == 'success'
-        id: testdata-version
+      - name: Resolve surefire version
+        if: steps.fetch-surefire.outcome == 'success'
+        id: surefire-version
         run: |
-          VERSION=$(find okapi-testdata/ -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)
-          echo "dir=okapi-testdata/$VERSION" >> "$GITHUB_OUTPUT"
+          VERSION=$(find okapi-surefire/ -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -V | tail -1)
+          echo "dir=okapi-surefire/$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Generate test comparison
-        if: steps.fetch-testdata.outcome == 'success'
+        if: steps.fetch-surefire.outcome == 'success'
         run: |
           mkdir -p website/static/data
           cd scripts/testcompare
           GOWORK=off go run . \
-            -okapi-dir ../../${{ steps.testdata-version.outputs.dir }}/surefire \
+            -okapi-dir ../../${{ steps.surefire-version.outputs.dir }}/okapi-surefire \
             -gotest-bridge-json ../../test-results-bridge.json \
             -gotest-native-json ../../test-results-framework.json \
             -bridge-src ../../framework/core/plugin/bridge/filters \
@@ -676,7 +676,7 @@ jobs:
             -out ../../website/static/data/test-comparison.json
 
       - name: Upload to docs-assets release
-        if: steps.fetch-testdata.outcome == 'success'
+        if: steps.fetch-surefire.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -691,7 +691,7 @@ jobs:
             --notes "Auto-generated documentation assets (screenshots, recordings, test data)"
 
       - name: Trigger docs deploy
-        if: steps.fetch-testdata.outcome == 'success'
+        if: steps.fetch-surefire.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run docs.yml

@@ -65,7 +65,7 @@ func TestExtract_StartDocument(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_mosestext/Test01.txt"
+	path := tdDir + "/okapi/filters/mosestext/src/test/resources/Test01.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -351,7 +351,7 @@ func TestExtract_FromFile(t *testing.T) {
 	// Test01.txt:
 	//   <mrk mtype="seg">This is line 1.</mrk>
 	//   This is a test on line 1,<lb/>and line two.
-	path := tdDir + "/okf_mosestext/Test01.txt"
+	path := tdDir + "/okapi/filters/mosestext/src/test/resources/Test01.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -375,7 +375,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 
 	// Java: roundtrip comparison for Test01.txt and Test02.txt
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_mosestext/*.txt", mimeType, nil)
+		tdDir+"/okapi/filters/mosestext/src/test/resources/*.txt", mimeType, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -528,7 +528,7 @@ func TestExtract_FromFile_Test02(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Test02.txt has complex content: entities, segments, <lb/>, <mrk> with mid.
-	path := tdDir + "/okf_mosestext/Test02.txt"
+	path := tdDir + "/okapi/filters/mosestext/src/test/resources/Test02.txt"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

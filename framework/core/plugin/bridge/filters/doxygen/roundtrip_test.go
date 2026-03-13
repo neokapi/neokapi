@@ -66,7 +66,7 @@ func TestRoundTrip_TestFilesH(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_doxygen/*.h", mimeType, nil)
+		tdDir+"/okapi/filters/doxygen/src/test/resources/*.h", mimeType, nil)
 }
 
 // okapi: RoundTripDoxygenIT (Python files)
@@ -76,7 +76,7 @@ func TestRoundTrip_TestFilesPy(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_doxygen/*.py", mimeType, nil)
+		tdDir+"/okapi/filters/doxygen/src/test/resources/*.py", mimeType, nil)
 }
 
 // ---------------------------------------------------------------------------

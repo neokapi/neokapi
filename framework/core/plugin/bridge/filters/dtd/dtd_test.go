@@ -60,7 +60,7 @@ func TestExtract_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_dtd/Test01.dtd"
+	path := tdDir + "/okapi/filters/dtd/src/test/resources/Test01.dtd"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -279,7 +279,7 @@ func TestExtract_FullFile_Test01(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_dtd/Test01.dtd"
+	path := tdDir + "/okapi/filters/dtd/src/test/resources/Test01.dtd"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -310,7 +310,7 @@ func TestExtract_FullFile_Test02(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_dtd/Test02.dtd"
+	path := tdDir + "/okapi/filters/dtd/src/test/resources/Test02.dtd"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	// Test02.dtd is a Qt Linguist TS format DTD — it contains only ELEMENT and

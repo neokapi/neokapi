@@ -29,7 +29,7 @@ const (
 )
 
 // testdata directory prefix for all okf_table test files.
-const tableTestdataPrefix = "okf_table/"
+const tableTestdataPrefix = "okapi/filters/table/src/test/resources/"
 
 // --- CSV helpers ---
 
@@ -172,7 +172,7 @@ func tableFileRoundtrip(t *testing.T, relPath string, filterParams map[string]an
 // tdDir returns the okf_table testdata base directory.
 func tdDir(t *testing.T) string {
 	t.Helper()
-	return bridgetest.TestdataDir(t) + "/okf_table"
+	return bridgetest.TestdataDir(t) + "/okapi/filters/table/src/test/resources"
 }
 
 // configParams returns filterParams with configFile set to the given .fprm path.

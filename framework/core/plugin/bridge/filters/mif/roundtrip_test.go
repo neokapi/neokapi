@@ -13,7 +13,7 @@ import (
 func TestRoundTrip_ConsequentialEmptyParaLinesMerged(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_mif/1187_crlf.mif")
+	path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/1187_crlf.mif")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("reading test file: %v", err)
@@ -26,7 +26,7 @@ func TestRoundTrip_ConsequentialEmptyParaLinesMerged(t *testing.T) {
 func TestRoundTrip_TabsEncodedOnExtractionAndHardReturnsEncodedOnMerge(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_mif/1188_crlf.mif")
+	path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/1188_crlf.mif")
 	content, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("reading test file: %v", err)
@@ -53,7 +53,7 @@ func TestRoundTrip_HardReturnsAsNonTextualRoundTripped(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := bridgetest.TestdataFile(t, "okf_mif/"+f)
+			path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/"+f)
 			content, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("reading test file %s: %v", f, err)
@@ -103,7 +103,7 @@ func TestRoundTrip_WithDifferentParameters(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := bridgetest.TestdataFile(t, "okf_mif/"+f)
+			path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/"+f)
 			content, err := os.ReadFile(path)
 			if err != nil {
 				t.Fatalf("reading test file %s: %v", f, err)

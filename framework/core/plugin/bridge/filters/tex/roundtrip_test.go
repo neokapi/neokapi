@@ -34,7 +34,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_tex/*.tex", mimeType, nil)
+		tdDir+"/okapi/filters/tex/src/test/resources/*.tex", mimeType, nil)
 }
 
 // okapi: RoundTripTexIT (inline snippets with various TeX features)
@@ -157,7 +157,7 @@ func TestRoundTrip_FileEvents(t *testing.T) {
 
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			path := tdDir + "/okf_tex/" + f
+			path := tdDir + "/okapi/filters/tex/src/test/resources/" + f
 			content, err := readTestFile(path)
 			require.NoError(t, err)
 			bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,
@@ -175,7 +175,7 @@ func TestRoundTrip_XliffCompare(t *testing.T) {
 	// The XLIFF compare IT verifies extraction consistency. Event-level
 	// roundtrip tests cover the same ground: re-reading output and comparing
 	// parts ensures extraction is stable.
-	path := tdDir + "/okf_tex/Test01.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/Test01.tex"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass,
