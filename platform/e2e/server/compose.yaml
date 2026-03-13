@@ -8,7 +8,7 @@
 services:
   # Init container: copies static web files to a shared volume, then exits.
   web-init:
-    image: ${BOWRAIN_WEB_IMAGE:-ghcr.io/neokapi/bowrain-web:latest}
+    image: ${BOWRAIN_WEB_IMAGE:-ghcr.io/neokapi/bowrain-web:e2e}
     entrypoint: ["/bin/sh", "-c", "cp -r /usr/share/nginx/html/* /web/ && echo 'Web files copied.'"]
     volumes:
       - web-dist:/web
@@ -28,7 +28,7 @@ services:
       retries: 10
 
   bowrain-server:
-    image: ${BOWRAIN_SERVER_IMAGE:-ghcr.io/neokapi/bowrain-server:latest}
+    image: ${BOWRAIN_SERVER_IMAGE:-ghcr.io/neokapi/bowrain-server:e2e}
     depends_on:
       web-init:
         condition: service_completed_successfully
@@ -63,7 +63,7 @@ services:
       retries: 20
 
   keycloak:
-    image: ${BOWRAIN_KEYCLOAK_IMAGE:-ghcr.io/neokapi/bowrain-keycloak:latest}
+    image: ${BOWRAIN_KEYCLOAK_IMAGE:-ghcr.io/neokapi/bowrain-keycloak:e2e}
     # Override CMD: use start-dev (H2 in-memory DB) instead of the production
     # "start --optimized" which requires PostgreSQL.
     command: ["start-dev", "--import-realm"]
