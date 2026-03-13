@@ -587,20 +587,23 @@ jobs:
 
       - name: Generate test comparison
         if: steps.fetch-surefire.outcome == 'success'
+        env:
+          GH_SHA: ${{ github.sha }}
+          SUREFIRE_DIR: ${{ steps.surefire-version.outputs.dir }}
         run: |
           mkdir -p website/static/data
-          BRIDGE_FLAG=""
+          BRIDGE_ARGS=()
           if [ -f test-results-bridge.json ]; then
-            BRIDGE_FLAG="-gotest-bridge-json ../../test-results-bridge.json"
+            BRIDGE_ARGS=(-gotest-bridge-json ../../test-results-bridge.json)
           fi
           cd scripts/testcompare
           GOWORK=off go run . \
-            -okapi-dir ../../${{ steps.surefire-version.outputs.dir }}/okapi-surefire \
-            $BRIDGE_FLAG \
+            -okapi-dir "../../${SUREFIRE_DIR}/okapi-surefire" \
+            "${BRIDGE_ARGS[@]}" \
             -gotest-native-json ../../test-results-framework.json \
             -bridge-src ../../framework/core/plugin/bridge/filters \
             -native-src ../../framework/core/formats \
-            -go-commit ${{ github.sha }} \
+            -go-commit "$GH_SHA" \
             -okapi-tag v1.48.0 \
             -out ../../website/static/data/test-comparison.json
 
