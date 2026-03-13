@@ -47,6 +47,9 @@ dist/
 # Keycloak theme build output
 dist_keycloak/
 
+# Keycloak provider JARs (downloaded for local dev)
+platform/docker/keycloak/*.jar
+
 # Dev server
 .bowrain-server.pid
 bowrain-dev.db*
