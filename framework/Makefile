@@ -30,7 +30,7 @@ PROTOC_GEN_GO := $(shell which protoc-gen-go 2>/dev/null)
 
 # Bridge / Okapi
 GITHUB_TOKEN         ?= $(shell gh auth token 2>/dev/null)
-OKAPI_BRIDGE_VERSION ?= v2.11.0
+OKAPI_BRIDGE_VERSION ?= v2.14.0
 OKAPI_VERSION        ?= 1.48.0
 BRIDGE_JAR           := $(HOME)/.cache/neokapi/bridge/$(OKAPI_BRIDGE_VERSION)-okapi$(OKAPI_VERSION)/okapi-bridge.jar
 GOTEST_JSON_FILE     := $(COVER_DIR)/bridge-test-results.jsonl
