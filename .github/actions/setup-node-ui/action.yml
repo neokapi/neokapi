@@ -23,5 +23,5 @@ runs:
 
     - name: Build shared UI package
       shell: bash
-      working-directory: platform/packages/ui
+      working-directory: platform/packages/ui/ui
       run: npx tsc
