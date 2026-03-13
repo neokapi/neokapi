@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { router, rootRoute } from "./index";
 
 // TanStack Router's internal types are complex; use loose typing for structural tests.

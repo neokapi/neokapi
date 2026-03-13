@@ -48,9 +48,10 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
 
 .PHONY: all help \
         build-server build-worker build-bowrain-cli build-bowrain build-headless install-bowrain-cli \
-        ui-deps ui-build storybook storybook-dev storybook-build \
-        frontend-deps frontend-dev frontend-build build-ui \
-        web-deps web-build email-deps email-build keycloak-theme \
+        ui-deps ui-build ui-check storybook storybook-dev storybook-build \
+        frontend-deps frontend-dev frontend-build frontend-check build-ui \
+        web-deps web-build web-check email-deps email-build keycloak-theme keycloak-check \
+        frontend-check-all \
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
         dev-deps dev-deps-down dev-server dev-web bowrain-dev certs \
@@ -109,6 +110,9 @@ frontend-dev: ## Start frontend dev server
 frontend-build: ui-build frontend-deps ## Build frontend for production
 	cd $(FRONTEND_DIR) && $(NPM) run build
 
+frontend-check: frontend-deps ## Lint, format-check, and typecheck Bowrain frontend
+	cd $(FRONTEND_DIR) && $(NPM) run check
+
 build-ui: build-server frontend-build ## Build server + frontend
 
 # ── Shared UI Package ──────────────────────────────────────────────────────
@@ -118,6 +122,9 @@ ui-deps: ## Install shared UI package dependencies
 
 ui-build: ui-deps ## Build shared UI declarations
 	cd packages/ui && npx tsc
+
+ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
+	cd packages/ui && $(NPM) run check
 
 storybook: ui-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
@@ -137,6 +144,9 @@ web-build: ui-build web-deps ## Build SaaS web UI for production
 	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(WEB_DIR)/public/version.json
 	cd $(WEB_DIR) && $(NPM) run build
 
+web-check: web-deps ## Lint, format-check, and typecheck SaaS web UI
+	cd $(WEB_DIR) && $(NPM) run check
+
 # ── Email Templates (React Email -> HTML) ────────────────────────────────────
 
 email-deps: ## Install React Email template dependencies
@@ -149,6 +159,13 @@ email-build: email-deps ## Pre-render React Email templates
 
 keycloak-theme: ui-deps ## Build Keycloak login theme JAR
 	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run build-keycloak-theme
+
+keycloak-check: ## Lint, format-check, and typecheck Keycloak theme
+	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run check
+
+# ── Frontend Checks (all) ────────────────────────────────────────────────
+
+frontend-check-all: ui-check web-check frontend-check keycloak-check ## Run checks across all frontend projects
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
