@@ -9,13 +9,19 @@
 FROM node:22-alpine AS web-builder
 WORKDIR /src
 
-COPY platform/packages/ui/package.json platform/packages/ui/package-lock.json* platform/packages/ui/
-RUN cd platform/packages/ui && npm ci
+# Copy workspace root (lock file + workspace config) and package.json files
+# for all workspaces to leverage Docker layer caching for npm ci.
+COPY platform/package.json platform/package-lock.json platform/
+COPY platform/packages/ui/package.json platform/packages/ui/
+COPY platform/apps/web/package.json platform/apps/web/
+COPY platform/apps/bowrain/frontend/package.json platform/apps/bowrain/frontend/
+RUN cd platform && npm ci
+
+# Build shared UI package
 COPY platform/packages/ui/ platform/packages/ui/
 RUN cd platform/packages/ui && npx tsc
 
-COPY platform/apps/web/package.json platform/apps/web/package-lock.json platform/apps/web/
-RUN cd platform/apps/web && npm ci
+# Build web app
 COPY platform/apps/web/ platform/apps/web/
 RUN cd platform/apps/web && npm run build
 
