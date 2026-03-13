@@ -81,7 +81,7 @@ except: pass
 if [ -z "$ASSET_URL" ]; then
     echo "ERROR: Asset '$ASSET_NAME' not found in release '$BRIDGE_VERSION'." >&2
     echo "  The token may lack access to $REPO (cross-repo)." >&2
-    echo "  In CI, set NEOKAPI_REGISTRY_TOKEN (org secret) with access to $REPO." >&2
+    echo "  In CI, set NEOKAPI_GITHUB_TOKEN (org secret) with access to $REPO." >&2
     exit 1
 fi
 

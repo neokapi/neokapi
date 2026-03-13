@@ -52,7 +52,7 @@ jobs:
     needs: [image-tag, build]
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
       IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
     steps:

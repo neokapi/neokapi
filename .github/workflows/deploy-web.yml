@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'dev' }}
     env:
-      GH_TOKEN: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
+      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
       RUN_ID: ${{ github.run_id }}
       REPO: ${{ github.repository }}
