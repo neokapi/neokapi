@@ -110,7 +110,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/${{ matrix.image }}/Dockerfile
+          file: platform/docker/${{ matrix.image }}/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           tags: ghcr.io/neokapi/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
@@ -184,7 +184,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: docker/keycloak/Dockerfile
+          file: platform/docker/keycloak/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-keycloak:${{ steps.version.outputs.VERSION }}

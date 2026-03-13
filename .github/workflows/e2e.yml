@@ -42,11 +42,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        working-directory: platform/apps/platform/frontend
+        working-directory: platform/apps/bowrain/frontend
         run: npx playwright test
 
       - name: Upload test results
@@ -54,7 +54,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: platform/apps/platform/frontend/playwright-report/
+          path: platform/apps/bowrain/frontend/playwright-report/
           retention-days: 30
 
   # ── Bowrain server Docker stack E2E ────────────────────────────────────────

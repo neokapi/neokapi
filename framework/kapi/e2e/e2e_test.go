@@ -28,13 +28,13 @@ func TestMain(m *testing.M) {
 	root := findRoot()
 	kapiBin = filepath.Join(root, "bin", "kapi-e2e-test")
 	cmd := exec.Command("go", "build", "-o", kapiBin, "./cmd/kapi")
-	cmd.Dir = filepath.Join(root, "kapi")
+	cmd.Dir = filepath.Join(root, "framework", "kapi")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		panic("failed to build kapi: " + err.Error())
 	}
-	testdata = filepath.Join(root, "kapi", "e2e", "testdata")
+	testdata = filepath.Join(root, "framework", "kapi", "e2e", "testdata")
 	os.Exit(m.Run())
 }
 
