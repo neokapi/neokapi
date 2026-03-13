@@ -164,7 +164,7 @@ jobs:
           java-version: "17"
 
       - name: Build Keycloak theme
-        run: make keycloak-theme
+        run: make -C platform keycloak-theme
 
       - name: Extract version
         id: version

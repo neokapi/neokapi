@@ -127,7 +127,7 @@ jobs:
         run: cd platform && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Build Keycloak theme
-        run: make keycloak-theme
+        run: make -C platform keycloak-theme
 
       - name: Start dependencies (Keycloak + Mailpit + NATS)
         run: docker compose -f compose.yaml up -d --wait
