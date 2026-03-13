@@ -9,12 +9,12 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "paths": {
-      "@neokapi/ui": ["../../../packages/ui/src"],
-      "@neokapi/ui/*": ["../../../packages/ui/src/*"]
+      "@neokapi/ui": ["../../packages/ui/ui/src"],
+      "@neokapi/ui/*": ["../../packages/ui/ui/src/*"]
     }
   },
   "include": ["src"],
   "references": [
-    { "path": "../../../packages/ui" }
+    { "path": "../../packages/ui/ui" }
   ]
 }

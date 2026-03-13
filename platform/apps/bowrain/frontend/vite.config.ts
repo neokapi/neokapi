@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      "@neokapi/ui": path.resolve(__dirname, "../../../../packages/ui/src"),
+      "@neokapi/ui": path.resolve(__dirname, "../../../packages/ui/ui/src"),
     },
     dedupe: ["react", "react-dom", "lexical", "@lexical/react"],
   },
