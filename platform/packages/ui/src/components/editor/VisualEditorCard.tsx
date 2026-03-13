@@ -110,7 +110,7 @@ export function VisualEditorCard({
   tmMatches,
   termMatches,
   onApplyTM,
-  onInsertTerm,
+  onInsertTerm: _onInsertTerm,
   referenceLocales,
   project,
   qaIssues,

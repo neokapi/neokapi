@@ -22,8 +22,8 @@ export function ProjectDashboardRoute() {
   const handleCreateProject = useCallback(
     async (name: string, sourceLang: string, targetLangs: string[]) => {
       const info = await adapter.createProject(ws, name, sourceLang, targetLangs);
-      queryClient.invalidateQueries({ queryKey: ["projects", ws] });
-      navigate({
+      void queryClient.invalidateQueries({ queryKey: ["projects", ws] });
+      void navigate({
         to: "/$workspace/project/$projectId/stream/$stream",
         params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
       });
@@ -33,7 +33,7 @@ export function ProjectDashboardRoute() {
 
   const handleOpenProject = useCallback(
     (project: ProjectInfo) => {
-      navigate({
+      void navigate({
         to: "/$workspace/project/$projectId/stream/$stream",
         params: { workspace: workspace ?? ws, projectId: project.id, stream: "main" },
       });

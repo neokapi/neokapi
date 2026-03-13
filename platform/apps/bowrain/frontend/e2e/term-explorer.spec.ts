@@ -26,8 +26,7 @@ function setInput(page: any, testId: string, value: string) {
   return page.evaluate(({ testId, value }: { testId: string; value: string }) => {
     const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
     if (!input) return;
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    nativeSetter.call(input, value);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }, { testId, value });
@@ -70,8 +69,7 @@ test.describe("Term Explorer", () => {
     await page.evaluate(() => {
       const inputs = document.querySelectorAll('[data-testid="term-add-form"] input[placeholder="Term text"]');
       if (inputs[0]) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-        nativeSetter.call(inputs[0], "database");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(inputs[0], "database");
         inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
         inputs[0].dispatchEvent(new Event("change", { bubbles: true }));
       }
@@ -81,8 +79,7 @@ test.describe("Term Explorer", () => {
     await page.evaluate(() => {
       const inputs = document.querySelectorAll('[data-testid="term-add-form"] input[placeholder="Term text"]');
       if (inputs[1]) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-        nativeSetter.call(inputs[1], "base de données");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(inputs[1], "base de données");
         inputs[1].dispatchEvent(new Event("input", { bubbles: true }));
         inputs[1].dispatchEvent(new Event("change", { bubbles: true }));
       }
@@ -183,8 +180,7 @@ test.describe("Term Explorer", () => {
     await page.evaluate(() => {
       const select = document.querySelector('[data-testid="term-target-locale-filter"]') as HTMLSelectElement;
       if (select) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!;
-        nativeSetter.call(select, "de");
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, "de");
         select.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
@@ -230,8 +226,7 @@ test.describe("Term Explorer", () => {
       const inputs = row.querySelectorAll("input");
       // First input is domain
       if (inputs[0]) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-        nativeSetter.call(inputs[0], "Healthcare");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(inputs[0], "Healthcare");
         inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
         inputs[0].dispatchEvent(new Event("change", { bubbles: true }));
       }

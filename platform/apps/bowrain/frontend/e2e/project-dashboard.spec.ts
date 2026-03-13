@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
-import { selectLocale, selectMultiLocales, setMultiLocales, expectLocaleChips } from "./locale-helper";
+import { selectLocale, setMultiLocales, expectLocaleChips } from "./locale-helper";
 
 test.beforeEach(async ({ page }) => {
   await setupLocalApp(page);

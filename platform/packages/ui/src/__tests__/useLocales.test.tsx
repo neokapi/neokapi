@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, waitFor } from "@testing-library/react";
 import { ApiProvider } from "../context/ApiContext";
 import { useLocales } from "../hooks/useLocales";
@@ -86,6 +86,7 @@ describe("useLocales", () => {
     });
 
     expect(screen.getByTestId("count").textContent).toBe("3");
+    // eslint-disable-next-line typescript-eslint/unbound-method -- vitest spy
     expect(adapter.getKnownLocales).toHaveBeenCalledOnce();
   });
 

@@ -106,7 +106,7 @@ export const Events = {
 export async function injectMockBackend(page: Page) {
   // Intercept the Wails runtime module and serve our mock
   await page.route("**/node_modules/.vite/deps/@wailsio*", (route) => {
-    route.fulfill({
+    void route.fulfill({
       status: 200,
       contentType: "application/javascript",
       body: MOCK_RUNTIME_MODULE,
@@ -115,7 +115,7 @@ export async function injectMockBackend(page: Page) {
 
   // Also intercept any direct @wailsio/runtime imports (in case Vite resolves differently)
   await page.route("**/@wailsio/runtime*", (route) => {
-    route.fulfill({
+    void route.fulfill({
       status: 200,
       contentType: "application/javascript",
       body: MOCK_RUNTIME_MODULE,

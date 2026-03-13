@@ -36,7 +36,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
     mutationFn: (data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean }) =>
       api.createAutomationRule(workspaceSlug, projectId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rulesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       setEditorOpen(false);
     },
   });
@@ -45,7 +45,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
     mutationFn: ({ ruleId, data }: { ruleId: string; data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean } }) =>
       api.updateAutomationRule(workspaceSlug, projectId, ruleId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rulesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       setEditorOpen(false);
       setEditingRule(undefined);
     },
@@ -54,14 +54,14 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   const deleteMutation = useMutation({
     mutationFn: (ruleId: string) => api.deleteAutomationRule(workspaceSlug, projectId, ruleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rulesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: rulesQueryKey });
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (ruleId: string) => api.toggleAutomationRule(workspaceSlug, projectId, ruleId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: rulesQueryKey });
+      void queryClient.invalidateQueries({ queryKey: rulesQueryKey });
     },
   });
 

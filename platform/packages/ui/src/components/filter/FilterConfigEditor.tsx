@@ -342,7 +342,7 @@ function JsonField({ name, description, value, onChange }: JsonFieldProps) {
       const parsed = JSON.parse(text);
       setError(null);
       onChange(parsed);
-    } catch (e) {
+    } catch {
       setError("Invalid JSON");
     }
   }, [text, onChange]);

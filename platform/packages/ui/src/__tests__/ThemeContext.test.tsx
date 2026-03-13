@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vite-plus/test";
+import { describe, it, expect, beforeEach, afterEach } from "vite-plus/test";
 import { render, screen, act } from "@testing-library/react";
-import { ThemeProvider, useTheme, type Theme, getCookieDomain, getThemeCookie, setThemeCookie } from "../context/ThemeContext";
+import { ThemeProvider, useTheme, getCookieDomain, getThemeCookie } from "../context/ThemeContext";
 
 // Helper component that exposes theme state for assertions
 function ThemeDisplay() {
@@ -210,14 +210,14 @@ describe("getCookieDomain", () => {
   const originalHostname = window.location.hostname;
   afterEach(() => {
     Object.defineProperty(window, "location", {
-      value: { ...window.location, hostname: originalHostname },
+      value: Object.assign({}, window.location, { hostname: originalHostname }),
       writable: true,
     });
   });
 
   it("returns undefined for localhost", () => {
     Object.defineProperty(window, "location", {
-      value: { ...window.location, hostname: "localhost" },
+      value: Object.assign({}, window.location, { hostname: "localhost" }),
       writable: true,
     });
     expect(getCookieDomain()).toBeUndefined();
@@ -225,7 +225,7 @@ describe("getCookieDomain", () => {
 
   it("returns undefined for IP addresses", () => {
     Object.defineProperty(window, "location", {
-      value: { ...window.location, hostname: "127.0.0.1" },
+      value: Object.assign({}, window.location, { hostname: "127.0.0.1" }),
       writable: true,
     });
     expect(getCookieDomain()).toBeUndefined();
@@ -233,7 +233,7 @@ describe("getCookieDomain", () => {
 
   it("returns parent domain for subdomain hostnames", () => {
     Object.defineProperty(window, "location", {
-      value: { ...window.location, hostname: "auth.bowrain.mymac" },
+      value: Object.assign({}, window.location, { hostname: "auth.bowrain.mymac" }),
       writable: true,
     });
     expect(getCookieDomain()).toBe(".bowrain.mymac");
@@ -241,7 +241,7 @@ describe("getCookieDomain", () => {
 
   it("returns dotted hostname for two-part hostnames", () => {
     Object.defineProperty(window, "location", {
-      value: { ...window.location, hostname: "bowrain.mymac" },
+      value: Object.assign({}, window.location, { hostname: "bowrain.mymac" }),
       writable: true,
     });
     expect(getCookieDomain()).toBe(".bowrain.mymac");

@@ -9,10 +9,9 @@ import { Badge } from "./ui/badge";
 import { GlassCard } from "./ui/card";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { StreamSelector } from "./StreamSelector";
-import { StreamBadge } from "./StreamBadge";
 import {
   ArrowLeft, ArrowRight, Globe, FileCode, FileJson, FileText,
-  FileType, MessageSquare, FileSpreadsheet, Upload, X, Lock, Package,
+  FileType, MessageSquare, FileSpreadsheet, X, Lock, Package,
 } from "./icons";
 
 interface ProjectViewProps {

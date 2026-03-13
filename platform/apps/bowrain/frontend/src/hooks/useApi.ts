@@ -139,7 +139,7 @@ export function useConnection() {
     return ci;
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const connect = useCallback(async (serverURL: string) => {
     await Backend.ConnectToServer(serverURL);

@@ -167,8 +167,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   }, [getWordCountApi, project.id, fileName]);
 
   useEffect(() => {
-    loadBlocks();
-    loadWordCount();
+    void loadBlocks();
+    void loadWordCount();
   }, [loadBlocks, loadWordCount]);
 
   // Filter blocks by search
@@ -222,7 +222,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           setEditingIndex(null);
         } else if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
-          handleSaveEdit();
+          void handleSaveEdit();
         }
         return;
       }
@@ -303,7 +303,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     const termPromise = api.lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTermMatches(m || []))
       .catch(() => setTermMatches([]));
-    Promise.all([tmPromise, termPromise]).finally(() => setContextLoading(false));
+    void Promise.all([tmPromise, termPromise]).finally(() => setContextLoading(false));
   }, [showContextPanel, layoutMode, selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
 
   // Load QA issues, history, and notes for current block in visual mode
@@ -433,7 +433,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             ? {
                 ...b,
                 targets: { ...b.targets, [targetLocale]: plainText },
-                targets_coded: { ...(b.targets_coded || {}), [targetLocale]: codedText },
+                targets_coded: { ...b.targets_coded, [targetLocale]: codedText },
               }
             : b,
         ),
@@ -631,7 +631,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     const match = tmMatches[index];
     const block = filteredBlocks[selectedIndex];
     if (!match || !block || !block.translatable) return;
-    api.updateBlockTarget({
+    void api.updateBlockTarget({
       project_id: project.id,
       item_name: fileName,
       block_id: block.id,
@@ -1266,7 +1266,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                       onClick={() => {
                         const block = filteredBlocks[selectedIndex];
                         if (!block || !block.translatable) return;
-                        api.updateBlockTarget({
+                        void api.updateBlockTarget({
                           project_id: project.id,
                           item_name: fileName,
                           block_id: block.id,

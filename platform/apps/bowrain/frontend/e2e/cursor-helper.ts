@@ -249,8 +249,7 @@ export async function humanTypeNative(page: Page, testId: string, text: string) 
     const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
     if (!input) return;
     input.focus();
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    nativeSetter.call(input, val);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, val);
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
   }, { tid: testId, val: text });

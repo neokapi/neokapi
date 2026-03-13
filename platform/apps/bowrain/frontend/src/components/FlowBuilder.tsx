@@ -33,7 +33,7 @@ function ReaderNode({ data }: NodeProps) {
   const colors = nodeColors.reader;
   return (
     <div
-      data-testid={`flow-node-${data.nodeId}`}
+      data-testid={`flow-node-${String(data.nodeId)}`}
       className="px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]"
       style={{ border: `2px solid ${colors.border}`, background: colors.bg, color: colors.text }}
     >
@@ -49,7 +49,7 @@ function WriterNode({ data }: NodeProps) {
   const colors = nodeColors.writer;
   return (
     <div
-      data-testid={`flow-node-${data.nodeId}`}
+      data-testid={`flow-node-${String(data.nodeId)}`}
       className="px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]"
       style={{ border: `2px solid ${colors.border}`, background: colors.bg, color: colors.text }}
     >
@@ -65,7 +65,7 @@ function ToolNode({ data, selected }: NodeProps) {
   const colors = nodeColors.tool;
   return (
     <div
-      data-testid={`flow-node-${data.nodeId}`}
+      data-testid={`flow-node-${String(data.nodeId)}`}
       className={cn(
         "px-4 py-2.5 rounded-lg min-w-[140px] text-center text-[13px]",
         selected && "ring-2 ring-primary/30",
@@ -80,7 +80,7 @@ function ToolNode({ data, selected }: NodeProps) {
       <div className="text-[10px] font-semibold mb-0.5" style={{ color: colors.sub }}>TOOL</div>
       <div className="font-semibold">{(data.label as string) || (data.toolName as string)}</div>
       {data.description ? (
-        <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{String(data.description)}</div>
+        <div className="text-[11px] mt-0.5" style={{ color: colors.sub }}>{data.description as string}</div>
       ) : null}
       <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
     </div>

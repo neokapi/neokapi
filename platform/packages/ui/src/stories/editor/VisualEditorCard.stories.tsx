@@ -5,7 +5,7 @@ import { VisualEditorCard } from "../../components/editor/VisualEditorCard";
 import type { VisualEditorMode } from "../../components/editor/visual-editor-types";
 import type { SpanInfo } from "../../types/api";
 import {
-  sampleBlocks, sampleProject, simpleBoldSpans,
+  sampleBlocks, sampleProject,
   sampleTMMatches, sampleTermMatches,
   sampleQAIssues, sampleBlockNotes, sampleBlockHistory,
 } from "../fixtures";

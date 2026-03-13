@@ -104,7 +104,7 @@ window.addEventListener("message",function(e){
 });
 parent.postMessage({type:"kat-iframe-ready"},"*");setTimeout(rh,0);
 })();
-<\/script>`;
+</script>`;
 
   return `<!DOCTYPE html>
 <html>

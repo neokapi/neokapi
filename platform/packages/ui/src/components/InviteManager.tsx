@@ -44,7 +44,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
   }, [api, workspace.slug]);
 
   useEffect(() => {
-    loadInvites();
+    void loadInvites();
   }, [loadInvites]);
 
   const handleCreate = async () => {
@@ -75,7 +75,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
 
   const handleCopyLink = (code: string) => {
     const url = `${window.location.origin}/join/${code}`;
-    navigator.clipboard.writeText(url);
+    void navigator.clipboard.writeText(url);
     setCopied(code);
     setTimeout(() => setCopied(null), 2000);
   };

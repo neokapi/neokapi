@@ -52,7 +52,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
       setCheckingAuth(false);
       return;
     }
-    (async () => {
+    void (async () => {
       try {
         const currentUser = await api.getCurrentUser();
         if (currentUser) {
@@ -69,7 +69,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
   // Auto-accept once user is resolved.
   useEffect(() => {
     if (user && !result && !error && !accepting) {
-      handleAccept();
+      void handleAccept();
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 

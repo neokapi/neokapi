@@ -53,26 +53,6 @@ async function setupRecording(page: any, title: string = "Bowrain", theme: "dark
   await moveCursorTo(page, 640, 400, 0);
 }
 
-/** Helper to click by test ID using native DOM click. */
-async function clickTestId(page: any, testId: string) {
-  await page.evaluate((id: string) => {
-    const el = document.querySelector(`[data-testid="${id}"]`) as HTMLElement;
-    if (el) el.click();
-  }, testId);
-}
-
-/** Helper: set value on an input natively (avoids Playwright fill hangs). */
-async function setInput(page: any, testId: string, value: string) {
-  await page.evaluate(({ testId, value }: { testId: string; value: string }) => {
-    const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
-    if (!input) return;
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    nativeSetter.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, { testId, value });
-}
-
 /** Pause for visual effect in recordings */
 async function pause(page: any, ms: number = 500) {
   await page.waitForTimeout(ms);
@@ -85,7 +65,7 @@ async function findProject(page: any, name: string) {
 }
 
 // Use conditional describe to skip entire suite in CI; serial ensures order + shared state
-const describeOrSkip = isCI ? test.describe.skip : test.describe.serial;
+const describeOrSkip = isCI ? test.describe.skip.bind(test.describe) : test.describe.serial.bind(test.describe);
 
 const themes = ["dark", "light"] as const;
 
@@ -628,7 +608,7 @@ describeOrSkip("Video Recordings", () => {
 
   // ── 6. TM Explorer ────────────────────────────────────────────────────────────
   // Explore translation memory (creates "Documentation")
-  test(`record TM explorer [${theme}]`, async ({ page }, testInfo) => {
+  test(`record TM explorer [${theme}]`, async ({ page }, _testInfo) => {
     test.skip(!!process.env.CI, "Flaky in CI - TM search input timing issue");
     await setupRecording(page, "Bowrain — Translation Memory", theme);
     await pause(page, 600);
@@ -834,14 +814,13 @@ describeOrSkip("Video Recordings", () => {
     // Fill first term using native input (React-controlled inputs)
     await page.evaluate(() => {
       const inputs = document.querySelectorAll('[data-testid="term-add-form"] input[placeholder="Term text"]');
-      const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
       if (inputs[0]) {
-        nativeSetter.call(inputs[0], 'authentication');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(inputs[0], 'authentication');
         inputs[0].dispatchEvent(new Event('input', { bubbles: true }));
         inputs[0].dispatchEvent(new Event('change', { bubbles: true }));
       }
       if (inputs[1]) {
-        nativeSetter.call(inputs[1], 'authentification');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(inputs[1], 'authentification');
         inputs[1].dispatchEvent(new Event('input', { bubbles: true }));
         inputs[1].dispatchEvent(new Event('change', { bubbles: true }));
       }

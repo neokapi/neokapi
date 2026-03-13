@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, Button } from "@neokapi/ui";
 
 export function LoginPage() {
-  const [serverUrl, setServerUrl] = useState("");
+  const [serverUrl, _setServerUrl] = useState("");
 
   const handleLogin = () => {
     const base = serverUrl || window.location.origin;

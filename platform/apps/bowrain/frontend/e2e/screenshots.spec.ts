@@ -42,8 +42,7 @@ async function setInput(page: any, testId: string, value: string) {
   await page.evaluate(({ testId, value }: { testId: string; value: string }) => {
     const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
     if (!input) return;
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
-    nativeSetter.call(input, value);
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }, { testId, value });

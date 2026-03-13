@@ -80,7 +80,7 @@ describe("WorkspaceIcon", () => {
     const { unmount } = render(
       <WorkspaceIcon workspace={ws({ name: "alpha" })} active={false} onClick={() => {}} />,
     );
-    const color1 = screen.getByRole("button").style.backgroundColor;
+    const _color1 = screen.getByRole("button").style.backgroundColor;
     unmount();
 
     render(

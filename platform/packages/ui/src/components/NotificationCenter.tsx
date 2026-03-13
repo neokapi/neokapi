@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { NotificationInfo } from "../types/api";
-import { Bell, Check, Trash2, X } from "./icons";
+import { Bell, Check, Trash2 } from "./icons";
 
 interface NotificationCenterProps {
   notifications: NotificationInfo[];
