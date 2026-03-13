@@ -17,7 +17,9 @@
 
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:26.1
+    build:
+      context: .
+      dockerfile: docker/keycloak/Dockerfile.dev
     command: start-dev --import-realm
     environment:
       KC_HEALTH_ENABLED: "true"

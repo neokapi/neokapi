@@ -10,6 +10,10 @@ FROM quay.io/keycloak/keycloak:26.1
 # Install custom theme JAR (pre-built by `make keycloak-theme`).
 COPY platform/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar /opt/keycloak/providers/keycloak-theme.jar
 
+# Install Apple identity provider extension (Sign in with Apple).
+# https://github.com/klausbetz/apple-identity-provider-keycloak
+ADD --chmod=644 https://github.com/klausbetz/apple-identity-provider-keycloak/releases/download/1.14.0/apple-identity-provider-1.14.0.jar /opt/keycloak/providers/apple-identity-provider.jar
+
 # Pre-build with runtime flags so Keycloak skips the Quarkus rebuild at startup.
 RUN /opt/keycloak/bin/kc.sh build --health-enabled=true --db=postgres
 

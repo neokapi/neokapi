@@ -207,15 +207,17 @@ Standard Keycloak message keys (`loginAccountTitle`, `password`, `doLogIn`, `doR
 
 ## JAR Volume Mount in compose.yaml
 
-The built theme JAR is mounted directly into the Keycloak container as a provider:
+The dev compose builds from `Dockerfile.dev` (which includes the Apple identity provider JAR) and mounts the theme JAR and realm config as volumes:
 
 ```yaml
 keycloak:
-  image: quay.io/keycloak/keycloak:26.1
+  build:
+    context: .
+    dockerfile: docker/keycloak/Dockerfile.dev
   command: start-dev --import-realm
   volumes:
     - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
-    - ./bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
+    - ./platform/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
 ```
 
 The realm import (`realm.json`) activates the theme:
@@ -232,7 +234,7 @@ The JAR must be built before starting Docker Compose (`make keycloak-theme`). Ke
 
 ## Identity Providers in realm.json
 
-The development realm configures two social identity providers:
+The development realm configures three social identity providers:
 
 ```json
 "identityProviders": [
@@ -253,11 +255,46 @@ The development realm configures two social identity providers:
             "clientSecret": "placeholder-github-client-secret",
             "defaultScope": "user:email"
         }
+    },
+    {
+        "alias": "apple",
+        "providerId": "apple",
+        "config": {
+            "clientId": "placeholder-apple-client-id",
+            "clientSecret": "placeholder-apple-client-secret",
+            "defaultScope": "name%20email",
+            "teamId": "placeholder-apple-team-id",
+            "keyId": "placeholder-apple-key-id"
+        }
     }
 ]
 ```
 
 These use placeholder credentials for development. The Login page's `SocialIcon` component renders branded SVG icons for `github`, `google`, `microsoft`, and `apple` aliases, with a generic globe fallback for unknown providers.
+
+### Apple Identity Provider Extension
+
+Sign in with Apple requires a custom Keycloak extension because Apple doesn't fully comply with OpenID Connect standards. The extension is [apple-identity-provider-keycloak](https://github.com/klausbetz/apple-identity-provider-keycloak) v1.14.0 (compatible with Keycloak 25.0.0–26.2.3).
+
+The JAR is downloaded directly in both the production Dockerfile and the dev Dockerfile (`Dockerfile.dev`):
+
+```dockerfile
+ADD --chmod=644 https://github.com/klausbetz/apple-identity-provider-keycloak/releases/download/1.14.0/apple-identity-provider-1.14.0.jar /opt/keycloak/providers/apple-identity-provider.jar
+```
+
+The dev compose builds from `Dockerfile.dev` so the extension is available out of the box — no manual downloads needed.
+
+Apple credentials are injected at container startup via the entrypoint script using these environment variables:
+
+| Variable | Description |
+|---|---|
+| `APPLE_CLIENT_ID` | Service ID from Apple Developer Account |
+| `APPLE_CLIENT_SECRET` | Contents of the `.p8` private key file |
+| `APPLE_TEAM_ID` | Team ID from Apple Developer Account |
+| `APPLE_KEY_ID` | Key identifier from Apple Developer Account |
+
+The redirect URI to register in your Apple Developer Account is:
+`https://<keycloak-url>/realms/bowrain/broker/apple/endpoint`
 
 The realm also configures:
 - `registrationAllowed: true` with email-as-username

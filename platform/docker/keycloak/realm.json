@@ -79,6 +79,20 @@
         "clientSecret": "placeholder-github-client-secret",
         "defaultScope": "user:email"
       }
+    },
+    {
+      "alias": "apple",
+      "providerId": "apple",
+      "enabled": true,
+      "trustEmail": true,
+      "firstBrokerLoginFlowAlias": "first broker login",
+      "config": {
+        "clientId": "placeholder-apple-client-id",
+        "clientSecret": "placeholder-apple-client-secret",
+        "defaultScope": "name%20email",
+        "teamId": "placeholder-apple-team-id",
+        "keyId": "placeholder-apple-key-id"
+      }
     }
   ],
   "users": [
