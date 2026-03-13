@@ -137,7 +137,7 @@ The existing Neokapi/Bowrain architecture provides strong foundations:
 3. **Confidence-based routing** (extend automation engine)
    - auto_approve_threshold: 85+ → passes quality gate
    - review_threshold: 60-84 → human review queue
-   - reject_threshold: <60 → auto-reject with feedback
+   - reject_threshold: \<60 → auto-reject with feedback
    - Uses existing quality gate mechanism (EventQualityGateFailed)
 
 4. **MCP scoring tools**
