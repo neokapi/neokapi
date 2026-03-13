@@ -39,7 +39,7 @@ jobs:
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui
+        working-directory: platform/packages/ui/ui
         run: npx tsc
 
       - name: Install frontend dependencies

@@ -114,19 +114,19 @@ build-ui: build-server frontend-build ## Build server + frontend
 # ── Shared UI Package ──────────────────────────────────────────────────────
 
 ui-deps: ## Install shared UI package dependencies
-	cd packages/ui && $(NPM) install
+	cd packages/ui/ui && $(NPM) install
 
 ui-build: ui-deps ## Build shared UI declarations
-	cd packages/ui && npx tsc
+	cd packages/ui/ui && npx tsc
 
 storybook: ui-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
-	cd packages/ui && $(NPM) run storybook
+	cd packages/ui/ui && $(NPM) run storybook
 
 storybook-dev: storybook ## Alias for storybook
 
 storybook-build: ui-deps ## Build Storybook static site
-	cd packages/ui && $(NPM) run storybook:build
+	cd packages/ui/ui && $(NPM) run storybook:build
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
 
@@ -326,8 +326,8 @@ deps-update: ## Update platform dependencies
 # ── Clean ────────────────────────────────────────────────────────────────────
 
 clean: ## Clean platform build artifacts
-	rm -rf packages/ui/storybook-static
-	rm -rf packages/ui/node_modules
+	rm -rf packages/ui/ui/storybook-static
+	rm -rf packages/ui/ui/node_modules
 	rm -rf $(FRONTEND_DIR)/dist
 	rm -rf $(FRONTEND_DIR)/node_modules
 	rm -rf $(WEB_DIR)/dist
