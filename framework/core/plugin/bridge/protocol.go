@@ -45,6 +45,7 @@ type WriteStreamParams struct {
 	FilterParams    map[string]any
 	SourcePath      string // Optional absolute file path; Java reads from disk when set
 	OutputPath      string // When set, Java writes output directly to this path
+	SourceLocale    string // Source locale for skeleton re-read during write
 }
 
 // WriteStreamResult holds the output of a WriteStream call.

@@ -994,9 +994,10 @@ func TestUnConsolidatedStream(t *testing.T) {
 }
 
 // okapi: TmxFilterTest#testInputStream
-// Skipped: a_small_test2.tmx has srclang="en-us" but bridge sends "en".
 func TestInputStream(t *testing.T) {
-	t.Skip("skipped: a_small_test2.tmx uses srclang=en-us; bridge sends en")
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/a_small_test2.tmx", nil)
+	blocks := allBlocks(parts)
+	require.NotEmpty(t, blocks)
 }
 
 // --- Cancel ---
@@ -1232,18 +1233,26 @@ func TestOutputBasic_Comment(t *testing.T) {
 // --- Double extraction tests ---
 
 // okapi: TmxFilterTest#testDoubleExtraction
-// Skipped: ImportTest2A/2B/2C.tmx all have srclang="en-us" but the bridge
-// passes sourceLocale="en", causing TMX filter to reject the language mismatch.
 func TestDoubleExtraction(t *testing.T) {
-	t.Skip("skipped: ImportTest2A/2B/2C.tmx use srclang=en-us; bridge sends en")
+	files := []string{
+		"okapi/filters/tmx/src/test/resources/ImportTest2A.tmx",
+		"okapi/filters/tmx/src/test/resources/ImportTest2B.tmx",
+		"okapi/filters/tmx/src/test/resources/ImportTest2C.tmx",
+	}
+	for _, f := range files {
+		t.Run(f, func(t *testing.T) {
+			fileRoundtripEvents(t, f, nil)
+		})
+	}
 }
 
 // okapi: TmxFilterTest#testDoubleExtractionCompKit
 func TestDoubleExtractionCompKit(t *testing.T) {
 	// Double extraction with comparison kit uses event-level roundtrip comparison.
-	// Excluded: a_small_test2.tmx and sampleTMX2.tmx have srclang="en-us" but bridge sends "en".
 	files := []string{
 		"integration-tests/okapi/src/test/resources/tmx/a_small_test.tmx",
+		"integration-tests/okapi/src/test/resources/tmx/a_small_test2.tmx",
+		"integration-tests/okapi/src/test/resources/tmx/sampleTMX2.tmx",
 	}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
@@ -1314,15 +1323,17 @@ func TestParametersFromString(t *testing.T) {
 // --- Full file extraction tests ---
 
 // okapi: TmxFilterTest (file-based extraction of sampleTMX2.tmx)
-// Skipped: sampleTMX2.tmx has srclang="en-us" but bridge sends "en".
 func TestExtract_SampleTMX2(t *testing.T) {
-	t.Skip("skipped: sampleTMX2.tmx uses srclang=en-us; bridge sends en")
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
+	blocks := allBlocks(parts)
+	require.NotEmpty(t, blocks)
 }
 
 // okapi: TmxFilterTest (file-based extraction of Paragraph_TM.tmx)
-// Skipped: Paragraph_TM.tmx has srclang="en-us" but bridge sends "en".
 func TestExtract_ParagraphTM(t *testing.T) {
-	t.Skip("skipped: Paragraph_TM.tmx uses srclang=en-us; bridge sends en")
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/Paragraph_TM.tmx", nil)
+	blocks := allBlocks(parts)
+	require.NotEmpty(t, blocks)
 }
 
 // okapi: TmxFilterTest (file-based extraction of small_complete.tmx)

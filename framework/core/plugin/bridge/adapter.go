@@ -190,6 +190,7 @@ type BridgeFormatWriter struct {
 	originalContent []byte         // original document needed by Okapi for skeleton
 	sourcePath      string         // absolute file path for direct disk access
 	outputPath      string         // captured from SetOutput for direct disk writing
+	sourceLocale    string         // source locale for skeleton re-read during write
 }
 
 var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
@@ -227,6 +228,13 @@ func (w *BridgeFormatWriter) SetOriginalContent(content []byte) {
 // When set, Java reads from this path instead of receiving content bytes.
 func (w *BridgeFormatWriter) SetSourcePath(path string) {
 	w.sourcePath = path
+}
+
+// SetSourceLocale sets the source locale for the write phase.
+// This is passed to the Java bridge so it can re-read the original document
+// with the correct source locale (important for format-specific locale handling).
+func (w *BridgeFormatWriter) SetSourceLocale(locale string) {
+	w.sourceLocale = locale
 }
 
 // Write streams parts from the channel directly to the Java bridge, which
@@ -273,6 +281,7 @@ func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part
 		FilterParams:    w.filterParams,
 		SourcePath:      sourcePath,
 		OutputPath:      w.outputPath,
+		SourceLocale:    w.sourceLocale,
 	}, parts)
 	if err != nil {
 		return fmt.Errorf("bridge write: %w", err)
