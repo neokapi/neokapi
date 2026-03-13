@@ -20,8 +20,8 @@ on:
       - '!platform/apps/keycloak-theme/**'
       - 'platform/docker/bowrain-server/**'
       - 'platform/docker/bowrain-worker/**'
-      - 'go.mod'
-      - 'go.sum'
+      - 'framework/go.mod'
+      - 'framework/go.sum'
       - 'go.work'
 
 permissions:
