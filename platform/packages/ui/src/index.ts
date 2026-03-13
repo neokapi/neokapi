@@ -1,3 +1,5 @@
+// Shared UI component library for Bowrain applications.
+
 // Utilities
 export { cn } from "./lib/utils";
 
