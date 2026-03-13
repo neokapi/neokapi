@@ -20,11 +20,13 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          "vendor-router": ["@tanstack/react-router"],
-          "vendor-query": ["@tanstack/react-query"],
+        codeSplitting: {
+          groups: [
+            { name: "vendor-router", test: /@tanstack[\\/]react-router/ },
+            { name: "vendor-query", test: /@tanstack[\\/]react-query/ },
+          ],
         },
       },
     },
