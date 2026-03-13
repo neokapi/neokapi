@@ -6,6 +6,11 @@
     "apps/bowrain/frontend"
   ],
   "devDependencies": {
-    "storybook": "^10.2.13"
+    "storybook": "^10.2.17"
+  },
+  "overrides": {
+    "@tailwindcss/vite": {
+      "vite": "^8.0.0"
+    }
   }
 }
