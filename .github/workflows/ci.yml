@@ -79,19 +79,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-node-ui
 
-      - name: Lint shared UI (oxlint)
+      - name: Check shared UI (oxlint + oxfmt)
         working-directory: platform/packages/ui
-        run: npx vp lint
-        continue-on-error: true
+        run: npx vp check
 
       - name: Run UI unit tests
         working-directory: platform/packages/ui
         run: npm test
 
-      - name: Lint web app (oxlint)
+      - name: Check web app (oxlint + oxfmt)
         working-directory: platform/apps/web
-        run: npx vp lint
-        continue-on-error: true
+        run: npx vp check
 
       - name: Run web unit tests
         working-directory: platform/apps/web
@@ -101,10 +99,9 @@ jobs:
         working-directory: platform/apps/web
         run: npx vp build
 
-      - name: Lint Bowrain frontend (oxlint)
+      - name: Check Bowrain frontend (oxlint + oxfmt)
         working-directory: platform/apps/bowrain/frontend
-        run: npx vp lint
-        continue-on-error: true
+        run: npx vp check
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:
