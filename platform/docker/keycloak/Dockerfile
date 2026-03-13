@@ -3,21 +3,21 @@
 # The theme JAR is pre-built on the CI runner (keycloakify requires Maven)
 # and passed in via the build context.
 #
-# Build: docker build -f docker/keycloak/Dockerfile .
+# Build: docker build -f platform/docker/keycloak/Dockerfile .
 
 FROM quay.io/keycloak/keycloak:26.1
 
 # Install custom theme JAR (pre-built by `make keycloak-theme`).
-COPY bowrain/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar /opt/keycloak/providers/keycloak-theme.jar
+COPY platform/apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar /opt/keycloak/providers/keycloak-theme.jar
 
 # Pre-build with runtime flags so Keycloak skips the Quarkus rebuild at startup.
 RUN /opt/keycloak/bin/kc.sh build --health-enabled=true --db=postgres
 
 # Seed realm configuration for initial import (writable for entrypoint sed).
-COPY --chown=1000:0 docker/keycloak/realm.json /opt/keycloak/data/import/realm.json
+COPY --chown=1000:0 platform/docker/keycloak/realm.json /opt/keycloak/data/import/realm.json
 
 # Entrypoint wrapper that substitutes OIDC_CLIENT_SECRET in realm.json before starting Keycloak.
-COPY --chmod=0755 docker/keycloak/docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
+COPY --chmod=0755 platform/docker/keycloak/docker-entrypoint.sh /opt/keycloak/docker-entrypoint.sh
 
 ENV KC_HEALTH_ENABLED=true
 
