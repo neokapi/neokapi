@@ -3,9 +3,9 @@ module github.com/neokapi/neokapi/kapi
 go 1.26.0
 
 require (
+	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/neokapi/neokapi v0.0.0
 	github.com/neokapi/neokapi/cli v0.0.0
-	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 )
@@ -56,7 +56,7 @@ require (
 	golang.org/x/text v0.33.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/grpc v1.72.2 // indirect
-	google.golang.org/protobuf v1.36.6 // indirect
+	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.67.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

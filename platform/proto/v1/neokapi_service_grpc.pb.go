@@ -5,7 +5,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.0
-// source: bowrain/proto/v1/neokapi_service.proto
+// source: proto/v1/neokapi_service.proto
 
 package serverv1
 
@@ -526,5 +526,5 @@ var NeokapiService_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "bowrain/proto/v1/neokapi_service.proto",
+	Metadata: "proto/v1/neokapi_service.proto",
 }

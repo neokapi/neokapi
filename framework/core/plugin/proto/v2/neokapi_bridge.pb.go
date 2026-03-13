@@ -2784,10 +2784,10 @@ var File_core_plugin_proto_v2_neokapi_bridge_proto protoreflect.FileDescriptor
 
 const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\n" +
-	"(core/plugin/proto/v2/neokapi_bridge.proto\x12\x10neokapi.bridge.v2\"9\n" +
+	")core/plugin/proto/v2/neokapi_bridge.proto\x12\x11neokapi.bridge.v2\"9\n" +
 	"\x0fAnnotationEntry\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04data\"\xa7\x04\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\"\xa9\x04\n" +
 	"\vSpanMessage\x12\x1b\n" +
 	"\tspan_type\x18\x01 \x01(\x05R\bspanType\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
@@ -2805,31 +2805,31 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\n" +
 	"equiv_text\x18\v \x01(\tR\tequivText\x12\x1f\n" +
 	"\vcan_reorder\x18\f \x01(\bR\n" +
-	"canReorder\x12P\n" +
-	"\vannotations\x18\r \x03(\v2..neokapi.bridge.v2.SpanMessage.AnnotationsEntryR\vannotations\x12\x19\n" +
-	"\bsub_type\x18\x0e \x01(\tR\asubType\x1aa\n" +
+	"canReorder\x12Q\n" +
+	"\vannotations\x18\r \x03(\v2/.neokapi.bridge.v2.SpanMessage.AnnotationsEntryR\vannotations\x12\x19\n" +
+	"\bsub_type\x18\x0e \x01(\tR\asubType\x1ab\n" +
 	"\x10AnnotationsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x127\n" +
-	"\x05value\x18\x02 \x01(\v2!.neokapi.bridge.v2.AnnotationEntryR\x05value:\x028\x01\"e\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x128\n" +
+	"\x05value\x18\x02 \x01(\v2\".neokapi.bridge.v2.AnnotationEntryR\x05value:\x028\x01\"f\n" +
 	"\x0fFragmentMessage\x12\x1d\n" +
 	"\n" +
-	"coded_text\x18\x01 \x01(\tR\tcodedText\x123\n" +
-	"\x05spans\x18\x02 \x03(\v2\x1d.neokapi.bridge.v2.SpanMessageR\x05spans\"\xee\x01\n" +
+	"coded_text\x18\x01 \x01(\tR\tcodedText\x124\n" +
+	"\x05spans\x18\x02 \x03(\v2\x1e.neokapi.bridge.v2.SpanMessageR\x05spans\"\xf0\x01\n" +
 	"\x0eSegmentMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12;\n" +
-	"\acontent\x18\x02 \x01(\v2!.neokapi.bridge.v2.FragmentMessageR\acontent\x12P\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12<\n" +
+	"\acontent\x18\x02 \x01(\v2\".neokapi.bridge.v2.FragmentMessageR\acontent\x12Q\n" +
 	"\n" +
-	"properties\x18\x03 \x03(\v20.neokapi.bridge.v2.SegmentMessage.PropertiesEntryR\n" +
+	"properties\x18\x03 \x03(\v21.neokapi.bridge.v2.SegmentMessage.PropertiesEntryR\n" +
 	"properties\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"c\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"d\n" +
 	"\vTargetEntry\x12\x16\n" +
-	"\x06locale\x18\x01 \x01(\tR\x06locale\x12<\n" +
-	"\bsegments\x18\x02 \x03(\v2 .neokapi.bridge.v2.SegmentMessageR\bsegments\"\x89\x01\n" +
+	"\x06locale\x18\x01 \x01(\tR\x06locale\x12=\n" +
+	"\bsegments\x18\x02 \x03(\v2!.neokapi.bridge.v2.SegmentMessageR\bsegments\"\x8a\x01\n" +
 	"\x0fSkeletonMessage\x12\x1a\n" +
-	"\bstrategy\x18\x01 \x01(\x05R\bstrategy\x12;\n" +
-	"\x05parts\x18\x02 \x03(\v2%.neokapi.bridge.v2.SkeletonPartMessageR\x05parts\x12\x1d\n" +
+	"\bstrategy\x18\x01 \x01(\x05R\bstrategy\x12<\n" +
+	"\x05parts\x18\x02 \x03(\v2&.neokapi.bridge.v2.SkeletonPartMessageR\x05parts\x12\x1d\n" +
 	"\n" +
 	"source_uri\x18\x03 \x01(\tR\tsourceUri\"~\n" +
 	"\x13SkeletonPartMessage\x12\x12\n" +
@@ -2843,31 +2843,31 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"max_length\x18\x01 \x01(\x05R\tmaxLength\x12!\n" +
 	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\x12\x18\n" +
 	"\acontext\x18\x03 \x01(\tR\acontext\x12\x18\n" +
-	"\apreview\x18\x04 \x01(\tR\apreview\"\x99\x06\n" +
+	"\apreview\x18\x04 \x01(\tR\apreview\"\xa0\x06\n" +
 	"\fBlockMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x1b\n" +
 	"\tmime_type\x18\x04 \x01(\tR\bmimeType\x12\"\n" +
-	"\ftranslatable\x18\x05 \x01(\bR\ftranslatable\x128\n" +
-	"\x06source\x18\x06 \x03(\v2 .neokapi.bridge.v2.SegmentMessageR\x06source\x127\n" +
-	"\atargets\x18\a \x03(\v2\x1d.neokapi.bridge.v2.TargetEntryR\atargets\x12N\n" +
+	"\ftranslatable\x18\x05 \x01(\bR\ftranslatable\x129\n" +
+	"\x06source\x18\x06 \x03(\v2!.neokapi.bridge.v2.SegmentMessageR\x06source\x128\n" +
+	"\atargets\x18\a \x03(\v2\x1e.neokapi.bridge.v2.TargetEntryR\atargets\x12O\n" +
 	"\n" +
-	"properties\x18\b \x03(\v2..neokapi.bridge.v2.BlockMessage.PropertiesEntryR\n" +
-	"properties\x12Q\n" +
-	"\vannotations\x18\t \x03(\v2/.neokapi.bridge.v2.BlockMessage.AnnotationsEntryR\vannotations\x12G\n" +
+	"properties\x18\b \x03(\v2/.neokapi.bridge.v2.BlockMessage.PropertiesEntryR\n" +
+	"properties\x12R\n" +
+	"\vannotations\x18\t \x03(\v20.neokapi.bridge.v2.BlockMessage.AnnotationsEntryR\vannotations\x12H\n" +
 	"\fdisplay_hint\x18\n" +
-	" \x01(\v2$.neokapi.bridge.v2.DisplayHintMessageR\vdisplayHint\x12=\n" +
-	"\bskeleton\x18\v \x01(\v2!.neokapi.bridge.v2.SkeletonMessageR\bskeleton\x12/\n" +
+	" \x01(\v2%.neokapi.bridge.v2.DisplayHintMessageR\vdisplayHint\x12>\n" +
+	"\bskeleton\x18\v \x01(\v2\".neokapi.bridge.v2.SkeletonMessageR\bskeleton\x12/\n" +
 	"\x13preserve_whitespace\x18\f \x01(\bR\x12preserveWhitespace\x12\x1f\n" +
 	"\vis_referent\x18\r \x01(\bR\n" +
 	"isReferent\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aa\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1ab\n" +
 	"\x10AnnotationsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x127\n" +
-	"\x05value\x18\x02 \x01(\v2!.neokapi.bridge.v2.AnnotationEntryR\x05value:\x028\x01\"\xa8\x03\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x128\n" +
+	"\x05value\x18\x02 \x01(\v2\".neokapi.bridge.v2.AnnotationEntryR\x05value:\x028\x01\"\xa9\x03\n" +
 	"\fLayerMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x16\n" +
@@ -2878,60 +2878,60 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\n" +
 	"line_break\x18\a \x01(\tR\tlineBreak\x12'\n" +
 	"\x0fis_multilingual\x18\b \x01(\bR\x0eisMultilingual\x12\x1b\n" +
-	"\tparent_id\x18\t \x01(\tR\bparentId\x12N\n" +
+	"\tparent_id\x18\t \x01(\tR\bparentId\x12O\n" +
 	"\n" +
 	"properties\x18\n" +
-	" \x03(\v2..neokapi.bridge.v2.LayerMessage.PropertiesEntryR\n" +
+	" \x03(\v2/.neokapi.bridge.v2.LayerMessage.PropertiesEntryR\n" +
 	"properties\x12\x17\n" +
 	"\ahas_bom\x18\v \x01(\bR\x06hasBom\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9f\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xa1\x02\n" +
 	"\vDataMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12M\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12N\n" +
 	"\n" +
-	"properties\x18\x03 \x03(\v2-.neokapi.bridge.v2.DataMessage.PropertiesEntryR\n" +
-	"properties\x12=\n" +
-	"\bskeleton\x18\x04 \x01(\v2!.neokapi.bridge.v2.SkeletonMessageR\bskeleton\x12\x1f\n" +
+	"properties\x18\x03 \x03(\v2..neokapi.bridge.v2.DataMessage.PropertiesEntryR\n" +
+	"properties\x12>\n" +
+	"\bskeleton\x18\x04 \x01(\v2\".neokapi.bridge.v2.SkeletonMessageR\bskeleton\x12\x1f\n" +
 	"\vis_referent\x18\x05 \x01(\bR\n" +
 	"isReferent\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xdf\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe0\x01\n" +
 	"\x11GroupStartMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
-	"\x04type\x18\x03 \x01(\tR\x04type\x12S\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12T\n" +
 	"\n" +
-	"properties\x18\x04 \x03(\v23.neokapi.bridge.v2.GroupStartMessage.PropertiesEntryR\n" +
+	"properties\x18\x04 \x03(\v24.neokapi.bridge.v2.GroupStartMessage.PropertiesEntryR\n" +
 	"properties\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"!\n" +
 	"\x0fGroupEndMessage\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\"\x8b\x02\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\"\x8c\x02\n" +
 	"\fMediaMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1b\n" +
 	"\tmime_type\x18\x02 \x01(\tR\bmimeType\x12\x12\n" +
 	"\x04data\x18\x03 \x01(\fR\x04data\x12\x10\n" +
 	"\x03uri\x18\x04 \x01(\tR\x03uri\x12\x19\n" +
-	"\balt_text\x18\x05 \x01(\tR\aaltText\x12N\n" +
+	"\balt_text\x18\x05 \x01(\tR\aaltText\x12O\n" +
 	"\n" +
-	"properties\x18\x06 \x03(\v2..neokapi.bridge.v2.MediaMessage.PropertiesEntryR\n" +
+	"properties\x18\x06 \x03(\v2/.neokapi.bridge.v2.MediaMessage.PropertiesEntryR\n" +
 	"properties\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x85\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8b\x03\n" +
 	"\vPartMessage\x12\x1b\n" +
-	"\tpart_type\x18\x01 \x01(\x05R\bpartType\x124\n" +
-	"\x05block\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.BlockMessageR\x05block\x124\n" +
-	"\x05layer\x18\x03 \x01(\v2\x1e.neokapi.bridge.v2.LayerMessageR\x05layer\x121\n" +
-	"\x04data\x18\x04 \x01(\v2\x1d.neokapi.bridge.v2.DataMessageR\x04data\x12D\n" +
-	"\vgroup_start\x18\x05 \x01(\v2#.neokapi.bridge.v2.GroupStartMessageR\n" +
-	"groupStart\x12>\n" +
-	"\tgroup_end\x18\x06 \x01(\v2!.neokapi.bridge.v2.GroupEndMessageR\bgroupEnd\x124\n" +
-	"\x05media\x18\a \x01(\v2\x1e.neokapi.bridge.v2.MediaMessageR\x05media\"0\n" +
+	"\tpart_type\x18\x01 \x01(\x05R\bpartType\x125\n" +
+	"\x05block\x18\x02 \x01(\v2\x1f.neokapi.bridge.v2.BlockMessageR\x05block\x125\n" +
+	"\x05layer\x18\x03 \x01(\v2\x1f.neokapi.bridge.v2.LayerMessageR\x05layer\x122\n" +
+	"\x04data\x18\x04 \x01(\v2\x1e.neokapi.bridge.v2.DataMessageR\x04data\x12E\n" +
+	"\vgroup_start\x18\x05 \x01(\v2$.neokapi.bridge.v2.GroupStartMessageR\n" +
+	"groupStart\x12?\n" +
+	"\tgroup_end\x18\x06 \x01(\v2\".neokapi.bridge.v2.GroupEndMessageR\bgroupEnd\x125\n" +
+	"\x05media\x18\a \x01(\v2\x1f.neokapi.bridge.v2.MediaMessageR\x05media\"0\n" +
 	"\vInfoRequest\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\"\x84\x01\n" +
 	"\fInfoResponse\x12\x12\n" +
@@ -2953,9 +2953,9 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"extensions\x18\x05 \x03(\tR\n" +
 	"extensions\x12\x1b\n" +
 	"\tfilter_id\x18\x06 \x01(\tR\bfilterId\x12\"\n" +
-	"\fcapabilities\x18\a \x03(\tR\fcapabilities\"N\n" +
-	"\x13ListFiltersResponse\x127\n" +
-	"\afilters\x18\x01 \x03(\v2\x1d.neokapi.bridge.v2.FilterEntryR\afilters\"\\\n" +
+	"\fcapabilities\x18\a \x03(\tR\fcapabilities\"O\n" +
+	"\x13ListFiltersResponse\x128\n" +
+	"\afilters\x18\x01 \x03(\v2\x1e.neokapi.bridge.v2.FilterEntryR\afilters\"\\\n" +
 	"\n" +
 	"ContentRef\x12\x18\n" +
 	"\x06inline\x18\x01 \x01(\fH\x00R\x06inline\x12\x14\n" +
@@ -2966,43 +2966,43 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\tOutputRef\x12\x14\n" +
 	"\x04path\x18\x01 \x01(\tH\x00R\x04path\x12\x12\n" +
 	"\x03uri\x18\x02 \x01(\tH\x00R\x03uriB\r\n" +
-	"\vdestination\"\xd6\x03\n" +
+	"\vdestination\"\xd8\x03\n" +
 	"\vOpenRequest\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
 	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12\x1a\n" +
 	"\bencoding\x18\x04 \x01(\tR\bencoding\x12\x18\n" +
 	"\acontent\x18\x05 \x01(\fR\acontent\x12\x1b\n" +
-	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12T\n" +
-	"\rfilter_params\x18\a \x03(\v2/.neokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x12#\n" +
+	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12U\n" +
+	"\rfilter_params\x18\a \x03(\v20.neokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x12#\n" +
 	"\rtarget_locale\x18\b \x01(\tR\ftargetLocale\x12\x1f\n" +
 	"\vsource_path\x18\t \x01(\tR\n" +
-	"sourcePath\x12=\n" +
+	"sourcePath\x12>\n" +
 	"\vcontent_ref\x18\n" +
-	" \x01(\v2\x1c.neokapi.bridge.v2.ContentRefR\n" +
+	" \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\n" +
 	"contentRef\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"$\n" +
 	"\fOpenResponse\x12\x14\n" +
 	"\x05error\x18\x01 \x01(\tR\x05error\"\r\n" +
-	"\vReadRequest\"\x83\x01\n" +
+	"\vReadRequest\"\x85\x01\n" +
 	"\n" +
-	"WriteChunk\x127\n" +
-	"\x06header\x18\x01 \x01(\v2\x1d.neokapi.bridge.v2.WriteHeaderH\x00R\x06header\x123\n" +
-	"\x04part\x18\x02 \x01(\v2\x1d.neokapi.bridge.v2.PartMessageH\x00R\x04partB\a\n" +
-	"\x05chunk\"\xd3\x03\n" +
+	"WriteChunk\x128\n" +
+	"\x06header\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.WriteHeaderH\x00R\x06header\x124\n" +
+	"\x04part\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04partB\a\n" +
+	"\x05chunk\"\xd6\x03\n" +
 	"\vWriteHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x16\n" +
 	"\x06locale\x18\x02 \x01(\tR\x06locale\x12\x1a\n" +
 	"\bencoding\x18\x03 \x01(\tR\bencoding\x12)\n" +
-	"\x10original_content\x18\x04 \x01(\fR\x0foriginalContent\x12T\n" +
-	"\rfilter_params\x18\x05 \x03(\v2/.neokapi.bridge.v2.WriteHeader.FilterParamsEntryR\ffilterParams\x12\x1f\n" +
+	"\x10original_content\x18\x04 \x01(\fR\x0foriginalContent\x12U\n" +
+	"\rfilter_params\x18\x05 \x03(\v20.neokapi.bridge.v2.WriteHeader.FilterParamsEntryR\ffilterParams\x12\x1f\n" +
 	"\vsource_path\x18\x06 \x01(\tR\n" +
-	"sourcePath\x12N\n" +
-	"\x14original_content_ref\x18\a \x01(\v2\x1c.neokapi.bridge.v2.ContentRefR\x12originalContentRef\x12:\n" +
+	"sourcePath\x12O\n" +
+	"\x14original_content_ref\x18\a \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\x12originalContentRef\x12;\n" +
 	"\n" +
-	"output_ref\x18\b \x01(\v2\x1b.neokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
+	"output_ref\x18\b \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"^\n" +
@@ -3015,54 +3015,54 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\rCloseResponse\x12\x14\n" +
 	"\x05error\x18\x01 \x01(\tR\x05error\"\x11\n" +
 	"\x0fShutdownRequest\"\x12\n" +
-	"\x10ShutdownResponse\"\xe3\x01\n" +
-	"\x10RoundTripRequest\x12;\n" +
-	"\x06header\x18\x01 \x01(\v2!.neokapi.bridge.v2.RoundTripHeaderH\x00R\x06header\x12M\n" +
-	"\x0eprocessed_part\x18\x02 \x01(\v2$.neokapi.bridge.v2.RoundTripProcessedH\x00R\rprocessedPart\x128\n" +
-	"\x05flush\x18\x03 \x01(\v2 .neokapi.bridge.v2.RoundTripFlushH\x00R\x05flushB\t\n" +
-	"\arequest\"\xdb\x01\n" +
-	"\x11RoundTripResponse\x123\n" +
-	"\x04part\x18\x01 \x01(\v2\x1d.neokapi.bridge.v2.PartMessageH\x00R\x04part\x12B\n" +
-	"\tread_done\x18\x02 \x01(\v2#.neokapi.bridge.v2.RoundTripReadDoneH\x00R\breadDone\x12A\n" +
-	"\bcomplete\x18\x03 \x01(\v2#.neokapi.bridge.v2.RoundTripCompleteH\x00R\bcompleteB\n" +
+	"\x10ShutdownResponse\"\xe6\x01\n" +
+	"\x10RoundTripRequest\x12<\n" +
+	"\x06header\x18\x01 \x01(\v2\".neokapi.bridge.v2.RoundTripHeaderH\x00R\x06header\x12N\n" +
+	"\x0eprocessed_part\x18\x02 \x01(\v2%.neokapi.bridge.v2.RoundTripProcessedH\x00R\rprocessedPart\x129\n" +
+	"\x05flush\x18\x03 \x01(\v2!.neokapi.bridge.v2.RoundTripFlushH\x00R\x05flushB\t\n" +
+	"\arequest\"\xde\x01\n" +
+	"\x11RoundTripResponse\x124\n" +
+	"\x04part\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04part\x12C\n" +
+	"\tread_done\x18\x02 \x01(\v2$.neokapi.bridge.v2.RoundTripReadDoneH\x00R\breadDone\x12B\n" +
+	"\bcomplete\x18\x03 \x01(\v2$.neokapi.bridge.v2.RoundTripCompleteH\x00R\bcompleteB\n" +
 	"\n" +
-	"\bresponse\"\x84\x04\n" +
+	"\bresponse\"\x87\x04\n" +
 	"\x0fRoundTripHeader\x12!\n" +
 	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
 	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x1a\n" +
 	"\bencoding\x18\x05 \x01(\tR\bencoding\x12\x1b\n" +
-	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12X\n" +
-	"\rfilter_params\x18\a \x03(\v23.neokapi.bridge.v2.RoundTripHeader.FilterParamsEntryR\ffilterParams\x12=\n" +
-	"\vcontent_ref\x18\b \x01(\v2\x1c.neokapi.bridge.v2.ContentRefR\n" +
+	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12Y\n" +
+	"\rfilter_params\x18\a \x03(\v24.neokapi.bridge.v2.RoundTripHeader.FilterParamsEntryR\ffilterParams\x12>\n" +
+	"\vcontent_ref\x18\b \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\n" +
 	"contentRef\x12#\n" +
-	"\routput_locale\x18\t \x01(\tR\foutputLocale\x12:\n" +
+	"\routput_locale\x18\t \x01(\tR\foutputLocale\x12;\n" +
 	"\n" +
 	"output_ref\x18\n" +
-	" \x01(\v2\x1b.neokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
+	" \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"G\n" +
-	"\x12RoundTripProcessed\x121\n" +
-	"\x04part\x18\x01 \x01(\v2\x1d.neokapi.bridge.v2.PartMessageR\x04part\"\x13\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"H\n" +
+	"\x12RoundTripProcessed\x122\n" +
+	"\x04part\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageR\x04part\"\x13\n" +
 	"\x11RoundTripReadDone\"\x10\n" +
 	"\x0eRoundTripFlush\"b\n" +
 	"\x11RoundTripComplete\x12\x16\n" +
 	"\x06output\x18\x01 \x01(\fR\x06output\x12\x1f\n" +
 	"\voutput_path\x18\x02 \x01(\tR\n" +
 	"outputPath\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\x82\x05\n" +
-	"\rBridgeService\x12E\n" +
-	"\x04Info\x12\x1d.neokapi.bridge.v2.InfoRequest\x1a\x1e.neokapi.bridge.v2.InfoResponse\x12Z\n" +
-	"\vListFilters\x12$.neokapi.bridge.v2.ListFiltersRequest\x1a%.neokapi.bridge.v2.ListFiltersResponse\x12E\n" +
-	"\x04Open\x12\x1d.neokapi.bridge.v2.OpenRequest\x1a\x1e.neokapi.bridge.v2.OpenResponse\x12F\n" +
-	"\x04Read\x12\x1d.neokapi.bridge.v2.ReadRequest\x1a\x1d.neokapi.bridge.v2.PartMessage0\x01\x12H\n" +
-	"\x05Write\x12\x1c.neokapi.bridge.v2.WriteChunk\x1a\x1f.neokapi.bridge.v2.WriteResponse(\x01\x12H\n" +
-	"\x05Close\x12\x1e.neokapi.bridge.v2.CloseRequest\x1a\x1f.neokapi.bridge.v2.CloseResponse\x12Q\n" +
-	"\bShutdown\x12!.neokapi.bridge.v2.ShutdownRequest\x1a\".neokapi.bridge.v2.ShutdownResponse\x12X\n" +
-	"\tRoundTrip\x12\".neokapi.bridge.v2.RoundTripRequest\x1a#.neokapi.bridge.v2.RoundTripResponse(\x010\x01BS\n" +
-	"\x17com.neokapi.bridge.protoP\x01Z6github.com/neokapi/neokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
+	"\x05error\x18\x03 \x01(\tR\x05error2\x92\x05\n" +
+	"\rBridgeService\x12G\n" +
+	"\x04Info\x12\x1e.neokapi.bridge.v2.InfoRequest\x1a\x1f.neokapi.bridge.v2.InfoResponse\x12\\\n" +
+	"\vListFilters\x12%.neokapi.bridge.v2.ListFiltersRequest\x1a&.neokapi.bridge.v2.ListFiltersResponse\x12G\n" +
+	"\x04Open\x12\x1e.neokapi.bridge.v2.OpenRequest\x1a\x1f.neokapi.bridge.v2.OpenResponse\x12H\n" +
+	"\x04Read\x12\x1e.neokapi.bridge.v2.ReadRequest\x1a\x1e.neokapi.bridge.v2.PartMessage0\x01\x12J\n" +
+	"\x05Write\x12\x1d.neokapi.bridge.v2.WriteChunk\x1a .neokapi.bridge.v2.WriteResponse(\x01\x12J\n" +
+	"\x05Close\x12\x1f.neokapi.bridge.v2.CloseRequest\x1a .neokapi.bridge.v2.CloseResponse\x12S\n" +
+	"\bShutdown\x12\".neokapi.bridge.v2.ShutdownRequest\x1a#.neokapi.bridge.v2.ShutdownResponse\x12Z\n" +
+	"\tRoundTrip\x12#.neokapi.bridge.v2.RoundTripRequest\x1a$.neokapi.bridge.v2.RoundTripResponse(\x010\x01BV\n" +
+	"\x18com.neokapi.bridge.protoP\x01Z8github.com/neokapi/neokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
 
 var (
 	file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescOnce sync.Once

@@ -5,7 +5,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v7.34.0
-// source: bowrain/proto/v1/neokapi_service.proto
+// source: proto/v1/neokapi_service.proto
 
 package serverv1
 
@@ -36,7 +36,7 @@ type CreateProjectRequest struct {
 
 func (x *CreateProjectRequest) Reset() {
 	*x = CreateProjectRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[0]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -48,7 +48,7 @@ func (x *CreateProjectRequest) String() string {
 func (*CreateProjectRequest) ProtoMessage() {}
 
 func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[0]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -61,7 +61,7 @@ func (x *CreateProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateProjectRequest.ProtoReflect.Descriptor instead.
 func (*CreateProjectRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{0}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *CreateProjectRequest) GetName() string {
@@ -101,7 +101,7 @@ type GetProjectRequest struct {
 
 func (x *GetProjectRequest) Reset() {
 	*x = GetProjectRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[1]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -113,7 +113,7 @@ func (x *GetProjectRequest) String() string {
 func (*GetProjectRequest) ProtoMessage() {}
 
 func (x *GetProjectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[1]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -126,7 +126,7 @@ func (x *GetProjectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProjectRequest.ProtoReflect.Descriptor instead.
 func (*GetProjectRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{1}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *GetProjectRequest) GetProjectId() string {
@@ -144,7 +144,7 @@ type ListProjectsRequest struct {
 
 func (x *ListProjectsRequest) Reset() {
 	*x = ListProjectsRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[2]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -156,7 +156,7 @@ func (x *ListProjectsRequest) String() string {
 func (*ListProjectsRequest) ProtoMessage() {}
 
 func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[2]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -169,7 +169,7 @@ func (x *ListProjectsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProjectsRequest.ProtoReflect.Descriptor instead.
 func (*ListProjectsRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{2}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{2}
 }
 
 type ProjectResponse struct {
@@ -187,7 +187,7 @@ type ProjectResponse struct {
 
 func (x *ProjectResponse) Reset() {
 	*x = ProjectResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[3]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +199,7 @@ func (x *ProjectResponse) String() string {
 func (*ProjectResponse) ProtoMessage() {}
 
 func (x *ProjectResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[3]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,7 +212,7 @@ func (x *ProjectResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectResponse.ProtoReflect.Descriptor instead.
 func (*ProjectResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{3}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ProjectResponse) GetId() string {
@@ -273,7 +273,7 @@ type ListProjectsResponse struct {
 
 func (x *ListProjectsResponse) Reset() {
 	*x = ListProjectsResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[4]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -285,7 +285,7 @@ func (x *ListProjectsResponse) String() string {
 func (*ListProjectsResponse) ProtoMessage() {}
 
 func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[4]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -298,7 +298,7 @@ func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProjectsResponse.ProtoReflect.Descriptor instead.
 func (*ListProjectsResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{4}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ListProjectsResponse) GetProjects() []*ProjectResponse {
@@ -324,7 +324,7 @@ type BlockMessage struct {
 
 func (x *BlockMessage) Reset() {
 	*x = BlockMessage{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[5]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -336,7 +336,7 @@ func (x *BlockMessage) String() string {
 func (*BlockMessage) ProtoMessage() {}
 
 func (x *BlockMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[5]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -349,7 +349,7 @@ func (x *BlockMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockMessage.ProtoReflect.Descriptor instead.
 func (*BlockMessage) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{5}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *BlockMessage) GetId() string {
@@ -418,7 +418,7 @@ type StoreBlocksRequest struct {
 
 func (x *StoreBlocksRequest) Reset() {
 	*x = StoreBlocksRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[6]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +430,7 @@ func (x *StoreBlocksRequest) String() string {
 func (*StoreBlocksRequest) ProtoMessage() {}
 
 func (x *StoreBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[6]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +443,7 @@ func (x *StoreBlocksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoreBlocksRequest.ProtoReflect.Descriptor instead.
 func (*StoreBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{6}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *StoreBlocksRequest) GetProjectId() string {
@@ -469,7 +469,7 @@ type StoreBlocksResponse struct {
 
 func (x *StoreBlocksResponse) Reset() {
 	*x = StoreBlocksResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[7]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +481,7 @@ func (x *StoreBlocksResponse) String() string {
 func (*StoreBlocksResponse) ProtoMessage() {}
 
 func (x *StoreBlocksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[7]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +494,7 @@ func (x *StoreBlocksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StoreBlocksResponse.ProtoReflect.Descriptor instead.
 func (*StoreBlocksResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{7}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StoreBlocksResponse) GetStoredCount() int32 {
@@ -514,7 +514,7 @@ type StreamBlocksRequest struct {
 
 func (x *StreamBlocksRequest) Reset() {
 	*x = StreamBlocksRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[8]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -526,7 +526,7 @@ func (x *StreamBlocksRequest) String() string {
 func (*StreamBlocksRequest) ProtoMessage() {}
 
 func (x *StreamBlocksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[8]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -539,7 +539,7 @@ func (x *StreamBlocksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamBlocksRequest.ProtoReflect.Descriptor instead.
 func (*StreamBlocksRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{8}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *StreamBlocksRequest) GetProjectId() string {
@@ -568,7 +568,7 @@ type BlockResponse struct {
 
 func (x *BlockResponse) Reset() {
 	*x = BlockResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[9]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -580,7 +580,7 @@ func (x *BlockResponse) String() string {
 func (*BlockResponse) ProtoMessage() {}
 
 func (x *BlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[9]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -593,7 +593,7 @@ func (x *BlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BlockResponse.ProtoReflect.Descriptor instead.
 func (*BlockResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{9}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *BlockResponse) GetBlock() *BlockMessage {
@@ -635,7 +635,7 @@ type CreateVersionRequest struct {
 
 func (x *CreateVersionRequest) Reset() {
 	*x = CreateVersionRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[10]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -647,7 +647,7 @@ func (x *CreateVersionRequest) String() string {
 func (*CreateVersionRequest) ProtoMessage() {}
 
 func (x *CreateVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[10]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -660,7 +660,7 @@ func (x *CreateVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateVersionRequest.ProtoReflect.Descriptor instead.
 func (*CreateVersionRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{10}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *CreateVersionRequest) GetProjectId() string {
@@ -698,7 +698,7 @@ type VersionResponse struct {
 
 func (x *VersionResponse) Reset() {
 	*x = VersionResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[11]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -710,7 +710,7 @@ func (x *VersionResponse) String() string {
 func (*VersionResponse) ProtoMessage() {}
 
 func (x *VersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[11]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -723,7 +723,7 @@ func (x *VersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VersionResponse.ProtoReflect.Descriptor instead.
 func (*VersionResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{11}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *VersionResponse) GetId() string {
@@ -777,7 +777,7 @@ type ListVersionsRequest struct {
 
 func (x *ListVersionsRequest) Reset() {
 	*x = ListVersionsRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[12]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -789,7 +789,7 @@ func (x *ListVersionsRequest) String() string {
 func (*ListVersionsRequest) ProtoMessage() {}
 
 func (x *ListVersionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[12]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -802,7 +802,7 @@ func (x *ListVersionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVersionsRequest.ProtoReflect.Descriptor instead.
 func (*ListVersionsRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{12}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListVersionsRequest) GetProjectId() string {
@@ -821,7 +821,7 @@ type ListVersionsResponse struct {
 
 func (x *ListVersionsResponse) Reset() {
 	*x = ListVersionsResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[13]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -833,7 +833,7 @@ func (x *ListVersionsResponse) String() string {
 func (*ListVersionsResponse) ProtoMessage() {}
 
 func (x *ListVersionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[13]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -846,7 +846,7 @@ func (x *ListVersionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListVersionsResponse.ProtoReflect.Descriptor instead.
 func (*ListVersionsResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{13}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListVersionsResponse) GetVersions() []*VersionResponse {
@@ -867,7 +867,7 @@ type PullContentRequest struct {
 
 func (x *PullContentRequest) Reset() {
 	*x = PullContentRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[14]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -879,7 +879,7 @@ func (x *PullContentRequest) String() string {
 func (*PullContentRequest) ProtoMessage() {}
 
 func (x *PullContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[14]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -892,7 +892,7 @@ func (x *PullContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullContentRequest.ProtoReflect.Descriptor instead.
 func (*PullContentRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{14}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *PullContentRequest) GetConnectorId() string {
@@ -925,7 +925,7 @@ type PullContentResponse struct {
 
 func (x *PullContentResponse) Reset() {
 	*x = PullContentResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[15]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +937,7 @@ func (x *PullContentResponse) String() string {
 func (*PullContentResponse) ProtoMessage() {}
 
 func (x *PullContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[15]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +950,7 @@ func (x *PullContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PullContentResponse.ProtoReflect.Descriptor instead.
 func (*PullContentResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{15}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PullContentResponse) GetBlockCount() int32 {
@@ -971,7 +971,7 @@ type PushContentRequest struct {
 
 func (x *PushContentRequest) Reset() {
 	*x = PushContentRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[16]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -983,7 +983,7 @@ func (x *PushContentRequest) String() string {
 func (*PushContentRequest) ProtoMessage() {}
 
 func (x *PushContentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[16]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -996,7 +996,7 @@ func (x *PushContentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushContentRequest.ProtoReflect.Descriptor instead.
 func (*PushContentRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{16}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *PushContentRequest) GetConnectorId() string {
@@ -1029,7 +1029,7 @@ type PushContentResponse struct {
 
 func (x *PushContentResponse) Reset() {
 	*x = PushContentResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[17]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1041,7 +1041,7 @@ func (x *PushContentResponse) String() string {
 func (*PushContentResponse) ProtoMessage() {}
 
 func (x *PushContentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[17]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1054,7 +1054,7 @@ func (x *PushContentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushContentResponse.ProtoReflect.Descriptor instead.
 func (*PushContentResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{17}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *PushContentResponse) GetPushedCount() int32 {
@@ -1074,7 +1074,7 @@ type ExecuteFlowRequest struct {
 
 func (x *ExecuteFlowRequest) Reset() {
 	*x = ExecuteFlowRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[18]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1086,7 +1086,7 @@ func (x *ExecuteFlowRequest) String() string {
 func (*ExecuteFlowRequest) ProtoMessage() {}
 
 func (x *ExecuteFlowRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[18]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1099,7 +1099,7 @@ func (x *ExecuteFlowRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecuteFlowRequest.ProtoReflect.Descriptor instead.
 func (*ExecuteFlowRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{18}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ExecuteFlowRequest) GetFlowConfig() string {
@@ -1129,7 +1129,7 @@ type FlowProgressResponse struct {
 
 func (x *FlowProgressResponse) Reset() {
 	*x = FlowProgressResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[19]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1141,7 +1141,7 @@ func (x *FlowProgressResponse) String() string {
 func (*FlowProgressResponse) ProtoMessage() {}
 
 func (x *FlowProgressResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[19]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1154,7 +1154,7 @@ func (x *FlowProgressResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowProgressResponse.ProtoReflect.Descriptor instead.
 func (*FlowProgressResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{19}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *FlowProgressResponse) GetStage() string {
@@ -1201,7 +1201,7 @@ type SubscribeRequest struct {
 
 func (x *SubscribeRequest) Reset() {
 	*x = SubscribeRequest{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[20]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1213,7 +1213,7 @@ func (x *SubscribeRequest) String() string {
 func (*SubscribeRequest) ProtoMessage() {}
 
 func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[20]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1226,7 +1226,7 @@ func (x *SubscribeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SubscribeRequest.ProtoReflect.Descriptor instead.
 func (*SubscribeRequest) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{20}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *SubscribeRequest) GetEventTypes() []string {
@@ -1251,7 +1251,7 @@ type EventResponse struct {
 
 func (x *EventResponse) Reset() {
 	*x = EventResponse{}
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[21]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1263,7 +1263,7 @@ func (x *EventResponse) String() string {
 func (*EventResponse) ProtoMessage() {}
 
 func (x *EventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_bowrain_proto_v1_neokapi_service_proto_msgTypes[21]
+	mi := &file_proto_v1_neokapi_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1276,7 +1276,7 @@ func (x *EventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventResponse.ProtoReflect.Descriptor instead.
 func (*EventResponse) Descriptor() ([]byte, []int) {
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{21}
+	return file_proto_v1_neokapi_service_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *EventResponse) GetId() string {
@@ -1328,17 +1328,17 @@ func (x *EventResponse) GetMetadata() map[string]string {
 	return nil
 }
 
-var File_bowrain_proto_v1_neokapi_service_proto protoreflect.FileDescriptor
+var File_proto_v1_neokapi_service_proto protoreflect.FileDescriptor
 
-const file_bowrain_proto_v1_neokapi_service_proto_rawDesc = "" +
+const file_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"\n" +
-	"%bowrain/proto/v1/neokapi_service.proto\x12\x10neokapi.server.v1\"\x8d\x02\n" +
+	"\x1eproto/v1/neokapi_service.proto\x12\x11neokapi.server.v1\"\x8e\x02\n" +
 	"\x14CreateProjectRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +
 	"\rsource_locale\x18\x02 \x01(\tR\fsourceLocale\x12%\n" +
-	"\x0etarget_locales\x18\x03 \x03(\tR\rtargetLocales\x12V\n" +
+	"\x0etarget_locales\x18\x03 \x03(\tR\rtargetLocales\x12W\n" +
 	"\n" +
-	"properties\x18\x04 \x03(\v26.neokapi.server.v1.CreateProjectRequest.PropertiesEntryR\n" +
+	"properties\x18\x04 \x03(\v27.neokapi.server.v1.CreateProjectRequest.PropertiesEntryR\n" +
 	"properties\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -1346,14 +1346,14 @@ const file_bowrain_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"\x11GetProjectRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\"\x15\n" +
-	"\x13ListProjectsRequest\"\xd1\x02\n" +
+	"\x13ListProjectsRequest\"\xd2\x02\n" +
 	"\x0fProjectResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12%\n" +
-	"\x0etarget_locales\x18\x04 \x03(\tR\rtargetLocales\x12Q\n" +
+	"\x0etarget_locales\x18\x04 \x03(\tR\rtargetLocales\x12R\n" +
 	"\n" +
-	"properties\x18\x05 \x03(\v21.neokapi.server.v1.ProjectResponse.PropertiesEntryR\n" +
+	"properties\x18\x05 \x03(\v22.neokapi.server.v1.ProjectResponse.PropertiesEntryR\n" +
 	"properties\x12\x1d\n" +
 	"\n" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\x12\x1d\n" +
@@ -1361,38 +1361,38 @@ const file_bowrain_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"updated_at\x18\a \x01(\tR\tupdatedAt\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"U\n" +
-	"\x14ListProjectsResponse\x12=\n" +
-	"\bprojects\x18\x01 \x03(\v2!.neokapi.server.v1.ProjectResponseR\bprojects\"\xb6\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"V\n" +
+	"\x14ListProjectsResponse\x12>\n" +
+	"\bprojects\x18\x01 \x03(\v2\".neokapi.server.v1.ProjectResponseR\bprojects\"\xb8\x03\n" +
 	"\fBlockMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x12\n" +
 	"\x04type\x18\x03 \x01(\tR\x04type\x12\x16\n" +
-	"\x06source\x18\x04 \x01(\tR\x06source\x12E\n" +
-	"\atargets\x18\x05 \x03(\v2+.neokapi.server.v1.BlockMessage.TargetsEntryR\atargets\x12!\n" +
+	"\x06source\x18\x04 \x01(\tR\x06source\x12F\n" +
+	"\atargets\x18\x05 \x03(\v2,.neokapi.server.v1.BlockMessage.TargetsEntryR\atargets\x12!\n" +
 	"\fcontent_hash\x18\x06 \x01(\tR\vcontentHash\x12!\n" +
-	"\fcontext_hash\x18\a \x01(\tR\vcontextHash\x12N\n" +
+	"\fcontext_hash\x18\a \x01(\tR\vcontextHash\x12O\n" +
 	"\n" +
-	"properties\x18\b \x03(\v2..neokapi.server.v1.BlockMessage.PropertiesEntryR\n" +
+	"properties\x18\b \x03(\v2/.neokapi.server.v1.BlockMessage.PropertiesEntryR\n" +
 	"properties\x1a:\n" +
 	"\fTargetsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a=\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"k\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"l\n" +
 	"\x12StoreBlocksRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\x126\n" +
-	"\x06blocks\x18\x02 \x03(\v2\x1e.neokapi.server.v1.BlockMessageR\x06blocks\"8\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\x127\n" +
+	"\x06blocks\x18\x02 \x03(\v2\x1f.neokapi.server.v1.BlockMessageR\x06blocks\"8\n" +
 	"\x13StoreBlocksResponse\x12!\n" +
 	"\fstored_count\x18\x01 \x01(\x05R\vstoredCount\"Q\n" +
 	"\x13StreamBlocksRequest\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tR\tprojectId\x12\x1b\n" +
-	"\tblock_ids\x18\x02 \x03(\tR\bblockIds\"\xa0\x01\n" +
-	"\rBlockResponse\x124\n" +
-	"\x05block\x18\x01 \x01(\v2\x1e.neokapi.server.v1.BlockMessageR\x05block\x12\x1d\n" +
+	"\tblock_ids\x18\x02 \x03(\tR\bblockIds\"\xa1\x01\n" +
+	"\rBlockResponse\x125\n" +
+	"\x05block\x18\x01 \x01(\v2\x1f.neokapi.server.v1.BlockMessageR\x05block\x12\x1d\n" +
 	"\n" +
 	"project_id\x18\x02 \x01(\tR\tprojectId\x12\x1b\n" +
 	"\tstored_at\x18\x03 \x01(\tR\bstoredAt\x12\x1d\n" +
@@ -1415,9 +1415,9 @@ const file_bowrain_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\tR\tcreatedAt\"4\n" +
 	"\x13ListVersionsRequest\x12\x1d\n" +
 	"\n" +
-	"project_id\x18\x01 \x01(\tR\tprojectId\"U\n" +
-	"\x14ListVersionsResponse\x12=\n" +
-	"\bversions\x18\x01 \x03(\v2!.neokapi.server.v1.VersionResponseR\bversions\"{\n" +
+	"project_id\x18\x01 \x01(\tR\tprojectId\"V\n" +
+	"\x14ListVersionsResponse\x12>\n" +
+	"\bversions\x18\x01 \x03(\v2\".neokapi.server.v1.VersionResponseR\bversions\"{\n" +
 	"\x12PullContentRequest\x12!\n" +
 	"\fconnector_id\x18\x01 \x01(\tR\vconnectorId\x12\x1d\n" +
 	"\n" +
@@ -1446,7 +1446,7 @@ const file_bowrain_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"\x04done\x18\x05 \x01(\bR\x04done\"3\n" +
 	"\x10SubscribeRequest\x12\x1f\n" +
 	"\vevent_types\x18\x01 \x03(\tR\n" +
-	"eventTypes\"\xab\x02\n" +
+	"eventTypes\"\xac\x02\n" +
 	"\rEventResponse\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04type\x18\x02 \x01(\tR\x04type\x12\x16\n" +
@@ -1454,39 +1454,39 @@ const file_bowrain_proto_v1_neokapi_service_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x04 \x01(\tR\tprojectId\x12\x19\n" +
 	"\bblock_id\x18\x05 \x01(\tR\ablockId\x12\x1c\n" +
-	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\x12I\n" +
-	"\bmetadata\x18\a \x03(\v2-.neokapi.server.v1.EventResponse.MetadataEntryR\bmetadata\x1a;\n" +
+	"\ttimestamp\x18\x06 \x01(\tR\ttimestamp\x12J\n" +
+	"\bmetadata\x18\a \x03(\v2..neokapi.server.v1.EventResponse.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\xfc\a\n" +
-	"\rNeokapiService\x12Z\n" +
-	"\rCreateProject\x12&.neokapi.server.v1.CreateProjectRequest\x1a!.neokapi.server.v1.ProjectResponse\x12T\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x012\x93\b\n" +
+	"\x0eNeokapiService\x12\\\n" +
+	"\rCreateProject\x12'.neokapi.server.v1.CreateProjectRequest\x1a\".neokapi.server.v1.ProjectResponse\x12V\n" +
 	"\n" +
-	"GetProject\x12#.neokapi.server.v1.GetProjectRequest\x1a!.neokapi.server.v1.ProjectResponse\x12]\n" +
-	"\fListProjects\x12%.neokapi.server.v1.ListProjectsRequest\x1a&.neokapi.server.v1.ListProjectsResponse\x12Z\n" +
-	"\vStoreBlocks\x12$.neokapi.server.v1.StoreBlocksRequest\x1a%.neokapi.server.v1.StoreBlocksResponse\x12X\n" +
-	"\fStreamBlocks\x12%.neokapi.server.v1.StreamBlocksRequest\x1a\x1f.neokapi.server.v1.BlockResponse0\x01\x12Z\n" +
-	"\rCreateVersion\x12&.neokapi.server.v1.CreateVersionRequest\x1a!.neokapi.server.v1.VersionResponse\x12]\n" +
-	"\fListVersions\x12%.neokapi.server.v1.ListVersionsRequest\x1a&.neokapi.server.v1.ListVersionsResponse\x12Z\n" +
-	"\vPullContent\x12$.neokapi.server.v1.PullContentRequest\x1a%.neokapi.server.v1.PullContentResponse\x12Z\n" +
-	"\vPushContent\x12$.neokapi.server.v1.PushContentRequest\x1a%.neokapi.server.v1.PushContentResponse\x12]\n" +
-	"\vExecuteFlow\x12$.neokapi.server.v1.ExecuteFlowRequest\x1a&.neokapi.server.v1.FlowProgressResponse0\x01\x12R\n" +
-	"\tSubscribe\x12\".neokapi.server.v1.SubscribeRequest\x1a\x1f.neokapi.server.v1.EventResponse0\x01B4Z2github.com/neokapi/neokapi/bowrain/proto/v1;serverv1b\x06proto3"
+	"GetProject\x12$.neokapi.server.v1.GetProjectRequest\x1a\".neokapi.server.v1.ProjectResponse\x12_\n" +
+	"\fListProjects\x12&.neokapi.server.v1.ListProjectsRequest\x1a'.neokapi.server.v1.ListProjectsResponse\x12\\\n" +
+	"\vStoreBlocks\x12%.neokapi.server.v1.StoreBlocksRequest\x1a&.neokapi.server.v1.StoreBlocksResponse\x12Z\n" +
+	"\fStreamBlocks\x12&.neokapi.server.v1.StreamBlocksRequest\x1a .neokapi.server.v1.BlockResponse0\x01\x12\\\n" +
+	"\rCreateVersion\x12'.neokapi.server.v1.CreateVersionRequest\x1a\".neokapi.server.v1.VersionResponse\x12_\n" +
+	"\fListVersions\x12&.neokapi.server.v1.ListVersionsRequest\x1a'.neokapi.server.v1.ListVersionsResponse\x12\\\n" +
+	"\vPullContent\x12%.neokapi.server.v1.PullContentRequest\x1a&.neokapi.server.v1.PullContentResponse\x12\\\n" +
+	"\vPushContent\x12%.neokapi.server.v1.PushContentRequest\x1a&.neokapi.server.v1.PushContentResponse\x12_\n" +
+	"\vExecuteFlow\x12%.neokapi.server.v1.ExecuteFlowRequest\x1a'.neokapi.server.v1.FlowProgressResponse0\x01\x12T\n" +
+	"\tSubscribe\x12#.neokapi.server.v1.SubscribeRequest\x1a .neokapi.server.v1.EventResponse0\x01B6Z4github.com/neokapi/neokapi/bowrain/proto/v1;serverv1b\x06proto3"
 
 var (
-	file_bowrain_proto_v1_neokapi_service_proto_rawDescOnce sync.Once
-	file_bowrain_proto_v1_neokapi_service_proto_rawDescData []byte
+	file_proto_v1_neokapi_service_proto_rawDescOnce sync.Once
+	file_proto_v1_neokapi_service_proto_rawDescData []byte
 )
 
-func file_bowrain_proto_v1_neokapi_service_proto_rawDescGZIP() []byte {
-	file_bowrain_proto_v1_neokapi_service_proto_rawDescOnce.Do(func() {
-		file_bowrain_proto_v1_neokapi_service_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_bowrain_proto_v1_neokapi_service_proto_rawDesc), len(file_bowrain_proto_v1_neokapi_service_proto_rawDesc)))
+func file_proto_v1_neokapi_service_proto_rawDescGZIP() []byte {
+	file_proto_v1_neokapi_service_proto_rawDescOnce.Do(func() {
+		file_proto_v1_neokapi_service_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_v1_neokapi_service_proto_rawDesc), len(file_proto_v1_neokapi_service_proto_rawDesc)))
 	})
-	return file_bowrain_proto_v1_neokapi_service_proto_rawDescData
+	return file_proto_v1_neokapi_service_proto_rawDescData
 }
 
-var file_bowrain_proto_v1_neokapi_service_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
-var file_bowrain_proto_v1_neokapi_service_proto_goTypes = []any{
+var file_proto_v1_neokapi_service_proto_msgTypes = make([]protoimpl.MessageInfo, 27)
+var file_proto_v1_neokapi_service_proto_goTypes = []any{
 	(*CreateProjectRequest)(nil), // 0: neokapi.server.v1.CreateProjectRequest
 	(*GetProjectRequest)(nil),    // 1: neokapi.server.v1.GetProjectRequest
 	(*ListProjectsRequest)(nil),  // 2: neokapi.server.v1.ListProjectsRequest
@@ -1515,7 +1515,7 @@ var file_bowrain_proto_v1_neokapi_service_proto_goTypes = []any{
 	nil,                          // 25: neokapi.server.v1.BlockMessage.PropertiesEntry
 	nil,                          // 26: neokapi.server.v1.EventResponse.MetadataEntry
 }
-var file_bowrain_proto_v1_neokapi_service_proto_depIdxs = []int32{
+var file_proto_v1_neokapi_service_proto_depIdxs = []int32{
 	22, // 0: neokapi.server.v1.CreateProjectRequest.properties:type_name -> neokapi.server.v1.CreateProjectRequest.PropertiesEntry
 	23, // 1: neokapi.server.v1.ProjectResponse.properties:type_name -> neokapi.server.v1.ProjectResponse.PropertiesEntry
 	3,  // 2: neokapi.server.v1.ListProjectsResponse.projects:type_name -> neokapi.server.v1.ProjectResponse
@@ -1554,26 +1554,26 @@ var file_bowrain_proto_v1_neokapi_service_proto_depIdxs = []int32{
 	0,  // [0:9] is the sub-list for field type_name
 }
 
-func init() { file_bowrain_proto_v1_neokapi_service_proto_init() }
-func file_bowrain_proto_v1_neokapi_service_proto_init() {
-	if File_bowrain_proto_v1_neokapi_service_proto != nil {
+func init() { file_proto_v1_neokapi_service_proto_init() }
+func file_proto_v1_neokapi_service_proto_init() {
+	if File_proto_v1_neokapi_service_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_bowrain_proto_v1_neokapi_service_proto_rawDesc), len(file_bowrain_proto_v1_neokapi_service_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_v1_neokapi_service_proto_rawDesc), len(file_proto_v1_neokapi_service_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   27,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_bowrain_proto_v1_neokapi_service_proto_goTypes,
-		DependencyIndexes: file_bowrain_proto_v1_neokapi_service_proto_depIdxs,
-		MessageInfos:      file_bowrain_proto_v1_neokapi_service_proto_msgTypes,
+		GoTypes:           file_proto_v1_neokapi_service_proto_goTypes,
+		DependencyIndexes: file_proto_v1_neokapi_service_proto_depIdxs,
+		MessageInfos:      file_proto_v1_neokapi_service_proto_msgTypes,
 	}.Build()
-	File_bowrain_proto_v1_neokapi_service_proto = out.File
-	file_bowrain_proto_v1_neokapi_service_proto_goTypes = nil
-	file_bowrain_proto_v1_neokapi_service_proto_depIdxs = nil
+	File_proto_v1_neokapi_service_proto = out.File
+	file_proto_v1_neokapi_service_proto_goTypes = nil
+	file_proto_v1_neokapi_service_proto_depIdxs = nil
 }

@@ -15,7 +15,7 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@neokapi/ui": path.resolve(__dirname, "../../packages/ui/ui/src"),
+      "@neokapi/ui": path.resolve(__dirname, "../../packages/ui/src"),
     },
   },
 });

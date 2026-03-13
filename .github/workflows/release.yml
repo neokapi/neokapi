@@ -33,11 +33,11 @@ jobs:
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       - name: Run UI unit tests
-        working-directory: platform/packages/ui/ui
+        working-directory: platform/packages/ui
         run: npm test
 
       - name: Build SaaS web UI
@@ -241,7 +241,7 @@ jobs:
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       # Build frontend and assets manually to avoid Wails Taskfile running
