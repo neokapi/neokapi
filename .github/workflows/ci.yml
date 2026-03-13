@@ -102,7 +102,10 @@ jobs:
 
       - name: Run framework tests
         working-directory: framework
-        run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1 || true
+        run: |
+          set +e
+          go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1
+          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
 
       - name: Convert to JUnit XML
         if: always()
@@ -119,8 +122,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' framework/test-results-framework.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
@@ -153,8 +156,10 @@ jobs:
 
       - name: Run platform tests
         run: |
+          set +e
           cd platform/core
-          go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1 || true
+          go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1
+          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
 
       - name: Convert to JUnit XML
         if: always()
@@ -171,8 +176,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' platform/test-results-platform.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
@@ -198,8 +203,10 @@ jobs:
 
       - name: Run cli tests
         run: |
+          set +e
           cd framework/cli
-          go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1 || true
+          go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1
+          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
 
       - name: Convert to JUnit XML
         if: always()
@@ -216,8 +223,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' framework/test-results-cli.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
@@ -243,8 +250,10 @@ jobs:
 
       - name: Run kapi tests
         run: |
+          set +e
           cd framework/kapi
-          go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1 || true
+          go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1
+          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
 
       - name: Convert to JUnit XML
         if: always()
@@ -261,8 +270,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' framework/test-results-kapi.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
@@ -288,8 +297,10 @@ jobs:
 
       - name: Run Bowrain CLI tests
         run: |
+          set +e
           cd platform/cli
-          go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1 || true
+          go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1
+          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
 
       - name: Convert to JUnit XML
         if: always()
@@ -306,8 +317,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' platform/test-results-bowrain-cli.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
@@ -333,9 +344,11 @@ jobs:
 
       - name: Run bowrain tests
         run: |
+          set +e
           cd platform
           # shellcheck disable=SC2046
-          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1 || true
+          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1
+          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
 
       - name: Convert to JUnit XML
         if: always()
@@ -352,8 +365,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-bowrain.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
@@ -602,7 +615,10 @@ jobs:
 
       - name: Run bridge filter integration tests
         working-directory: framework
-        run: go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash ../scripts/go-test-progress.sh > ../test-results-bridge.json || true
+        run: |
+          set +e
+          go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash ../scripts/go-test-progress.sh > ../test-results-bridge.json
+          echo "GO_TEST_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
         timeout-minutes: 30
 
       - name: Stop bridge JVM pool
@@ -627,8 +643,8 @@ jobs:
       - name: Fail if tests failed
         if: always()
         run: |
-          if grep -q '"Action":"fail"' test-results-bridge.json 2>/dev/null; then
-            echo "Tests failed"
+          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
+            echo "Tests failed (exit code $GO_TEST_EXIT)"
             exit 1
           fi
 
