@@ -15,5 +15,6 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
+    ignorePatterns: ["dist/**", "storybook-static/**"],
   },
 });

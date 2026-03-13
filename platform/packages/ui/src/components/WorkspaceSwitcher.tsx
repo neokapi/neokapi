@@ -60,7 +60,12 @@ export function WorkspaceSwitcher({
           <StackedIcons active={activeWorkspace} other={otherWs} />
         ) : (
           activeWorkspace && (
-            <WorkspaceIcon workspace={activeWorkspace} active={false} onClick={() => {}} size={28} />
+            <WorkspaceIcon
+              workspace={activeWorkspace}
+              active={false}
+              onClick={() => {}}
+              size={28}
+            />
           )
         )}
         {!collapsed && (
@@ -72,10 +77,7 @@ export function WorkspaceSwitcher({
           </>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="start"
-        className="w-[200px] backdrop-blur-lg"
-      >
+      <DropdownMenuContent align="start" className="w-[200px] backdrop-blur-lg">
         {workspaces.map((ws) => (
           <DropdownMenuItem
             key={ws.id}

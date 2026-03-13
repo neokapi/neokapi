@@ -2,9 +2,16 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { TagPalette } from "../../components/editor/TagPalette";
 import {
-  boldOpen, boldClose, italicOpen, italicClose,
-  linkOpen, linkClose, codeOpen, codeClose,
-  lineBreak, richSpans,
+  boldOpen,
+  boldClose,
+  italicOpen,
+  italicClose,
+  linkOpen,
+  linkClose,
+  codeOpen,
+  codeClose,
+  lineBreak,
+  richSpans,
 } from "../fixtures";
 
 const meta: Meta<typeof TagPalette> = {

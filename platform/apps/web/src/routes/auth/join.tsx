@@ -8,7 +8,9 @@ export function JoinRoute() {
   return (
     <JoinPage
       code={code ?? ""}
-      onJoined={() => navigate({ to: "/$workspace", params: { workspace: "default" }, replace: true })}
+      onJoined={() =>
+        navigate({ to: "/$workspace", params: { workspace: "default" }, replace: true })
+      }
     />
   );
 }

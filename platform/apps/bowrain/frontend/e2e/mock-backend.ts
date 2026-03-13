@@ -259,9 +259,27 @@ export async function injectMockBackend(page: Page) {
         description: "Translate content using AI/LLM",
         source: "built-in",
         nodes: [
-          { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
-          { id: "ai-translate", type: "tool", name: "ai-translate", label: "AI Translate", position: { x: 250, y: 100 } },
-          { id: "writer", type: "writer", name: "auto", label: "Output", position: { x: 500, y: 100 } },
+          {
+            id: "reader",
+            type: "reader",
+            name: "auto",
+            label: "Input",
+            position: { x: 0, y: 100 },
+          },
+          {
+            id: "ai-translate",
+            type: "tool",
+            name: "ai-translate",
+            label: "AI Translate",
+            position: { x: 250, y: 100 },
+          },
+          {
+            id: "writer",
+            type: "writer",
+            name: "auto",
+            label: "Output",
+            position: { x: 500, y: 100 },
+          },
         ],
         edges: [
           { id: "e-reader-translate", source: "reader", target: "ai-translate" },
@@ -274,9 +292,27 @@ export async function injectMockBackend(page: Page) {
         description: "Generate pseudo-translations for testing",
         source: "built-in",
         nodes: [
-          { id: "reader", type: "reader", name: "auto", label: "Input", position: { x: 0, y: 100 } },
-          { id: "pseudo-translate", type: "tool", name: "pseudo-translate", label: "Pseudo Translate", position: { x: 250, y: 100 } },
-          { id: "writer", type: "writer", name: "auto", label: "Output", position: { x: 500, y: 100 } },
+          {
+            id: "reader",
+            type: "reader",
+            name: "auto",
+            label: "Input",
+            position: { x: 0, y: 100 },
+          },
+          {
+            id: "pseudo-translate",
+            type: "tool",
+            name: "pseudo-translate",
+            label: "Pseudo Translate",
+            position: { x: 250, y: 100 },
+          },
+          {
+            id: "writer",
+            type: "writer",
+            name: "auto",
+            label: "Output",
+            position: { x: 500, y: 100 },
+          },
         ],
         edges: [
           { id: "e-reader-pseudo", source: "reader", target: "pseudo-translate" },
@@ -323,9 +359,16 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.DetectFormat] = (filePath: string) => {
       const ext = filePath.split(".").pop() || "";
       const formatMap: Record<string, string> = {
-        html: "html", htm: "html", json: "json", txt: "plaintext",
-        xml: "xml", yaml: "yaml", yml: "yaml", po: "po",
-        properties: "properties", md: "markdown",
+        html: "html",
+        htm: "html",
+        json: "json",
+        txt: "plaintext",
+        xml: "xml",
+        yaml: "yaml",
+        yml: "yaml",
+        po: "po",
+        properties: "properties",
+        md: "markdown",
       };
       return formatMap[ext] || "plaintext";
     };
@@ -348,9 +391,7 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.ListContentItems] = () => [];
     mock[IDS.ListStoreProjects] = () => [];
     mock[IDS.ListStoreVersions] = () => [];
-    mock[IDS.ListWorkspaces] = () => [
-      { id: "personal", name: "Personal", type: "local" },
-    ];
+    mock[IDS.ListWorkspaces] = () => [{ id: "personal", name: "Personal", type: "local" }];
     mock[IDS.LoadPlugins] = () => {};
     mock[IDS.FetchContent] = () => [];
     mock[IDS.PublishContent] = () => {};
@@ -462,9 +503,16 @@ export async function injectMockBackend(page: Page) {
         const name = fp.split("/").pop() || fp;
         const ext = name.split(".").pop() || "";
         const formatMap: Record<string, string> = {
-          html: "html", htm: "html", json: "json", txt: "plaintext",
-          xml: "xml", yaml: "yaml", yml: "yaml", po: "po",
-          properties: "properties", md: "markdown",
+          html: "html",
+          htm: "html",
+          json: "json",
+          txt: "plaintext",
+          xml: "xml",
+          yaml: "yaml",
+          yml: "yaml",
+          po: "po",
+          properties: "properties",
+          md: "markdown",
         };
         const format = formatMap[ext] || "plaintext";
 
@@ -504,10 +552,7 @@ export async function injectMockBackend(page: Page) {
           type: "file",
           size: 1024,
           block_count: blocks.length,
-          word_count: blocks.reduce(
-            (sum: number, b: any) => sum + b.source.split(/\s+/).length,
-            0,
-          ),
+          word_count: blocks.reduce((sum: number, b: any) => sum + b.source.split(/\s+/).length, 0),
         });
       }
 
@@ -597,9 +642,9 @@ export async function injectMockBackend(page: Page) {
       for (const b of blocks) {
         if (!b.translatable || b.targets[targetLocale]) continue;
         // Find exact or fuzzy match from TM
-        const exact = entries.find((e: any) =>
-          e.source.toLowerCase() === b.source.toLowerCase() &&
-          e.target_locale === targetLocale
+        const exact = entries.find(
+          (e: any) =>
+            e.source.toLowerCase() === b.source.toLowerCase() && e.target_locale === targetLocale,
         );
         if (exact) {
           b.targets[targetLocale] = (exact as any).target;
@@ -615,7 +660,8 @@ export async function injectMockBackend(page: Page) {
 
     mock[IDS.GetWordCount] = (projectID: string, itemName: string) => {
       const files = projectFiles[projectID];
-      if (!files || !files[itemName]) return { source_words: 0, source_chars: 0, target_words: {}, target_chars: {} };
+      if (!files || !files[itemName])
+        return { source_words: 0, source_chars: 0, target_words: {}, target_chars: {} };
       const blocks = files[itemName];
       let sourceWords = 0;
       let sourceChars = 0;
@@ -632,10 +678,19 @@ export async function injectMockBackend(page: Page) {
           }
         }
       }
-      return { source_words: sourceWords, source_chars: sourceChars, target_words: targetWords, target_chars: targetChars };
+      return {
+        source_words: sourceWords,
+        source_chars: sourceChars,
+        target_words: targetWords,
+        target_chars: targetChars,
+      };
     };
 
-    mock[IDS.ExportTranslatedItem] = (_projectID: string, itemName: string, targetLocale: string) => {
+    mock[IDS.ExportTranslatedItem] = (
+      _projectID: string,
+      itemName: string,
+      targetLocale: string,
+    ) => {
       const baseName = itemName.replace(/\.[^.]+$/, "");
       const ext = itemName.split(".").pop();
       return `/tmp/${baseName}_${targetLocale}.${ext}`;
@@ -643,7 +698,11 @@ export async function injectMockBackend(page: Page) {
 
     mock[IDS.OpenFileInOS] = () => {};
 
-    mock[IDS.RenderDocumentPreview] = (_projectID: string, itemName: string, _targetLocale: string) => {
+    mock[IDS.RenderDocumentPreview] = (
+      _projectID: string,
+      itemName: string,
+      _targetLocale: string,
+    ) => {
       return `<!DOCTYPE html><html><head><style>
         kat-block { cursor: pointer; border-radius: 2px; display: inline; }
         kat-block:hover { background-color: rgba(59,130,246,0.15); }
@@ -673,7 +732,12 @@ export async function injectMockBackend(page: Page) {
       </script></body></html>`;
     };
 
-    mock[IDS.RenderBlockHTML] = (projectID: string, itemName: string, blockID: string, targetLocale: string) => {
+    mock[IDS.RenderBlockHTML] = (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+    ) => {
       const files = projectFiles[projectID];
       if (!files || !files[itemName]) return "";
       const block = files[itemName].find((b: any) => b.id === blockID);
@@ -707,13 +771,20 @@ export async function injectMockBackend(page: Page) {
 
     // --- TM mock handlers ---
 
-    mock[IDS.GetTMEntries] = (_projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
+    mock[IDS.GetTMEntries] = (
+      _projectID: string,
+      query: string,
+      sourceLocale: string,
+      targetLocale: string,
+      offset: number,
+      limit: number,
+    ) => {
       let entries = Object.values(tmStore);
 
       if (query) {
         const q = query.toLowerCase();
-        entries = entries.filter((e: any) =>
-          e.source.toLowerCase().includes(q) || e.target.toLowerCase().includes(q)
+        entries = entries.filter(
+          (e: any) => e.source.toLowerCase().includes(q) || e.target.toLowerCase().includes(q),
         );
       }
       if (sourceLocale) {
@@ -732,7 +803,13 @@ export async function injectMockBackend(page: Page) {
       return Object.keys(tmStore).length;
     };
 
-    mock[IDS.AddTMEntry] = (_projectID: string, source: string, target: string, sourceLocale: string, targetLocale: string) => {
+    mock[IDS.AddTMEntry] = (
+      _projectID: string,
+      source: string,
+      target: string,
+      sourceLocale: string,
+      targetLocale: string,
+    ) => {
       const id = `tm-entry-${++tmEntryCounter}`;
       const entry = {
         id,
@@ -765,7 +842,12 @@ export async function injectMockBackend(page: Page) {
 
     // --- Context panel: per-block TM and term lookup ---
 
-    mock[IDS.LookupTMForBlock] = (projectID: string, itemName: string, blockID: string, targetLocale: string) => {
+    mock[IDS.LookupTMForBlock] = (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+    ) => {
       const files = projectFiles[projectID];
       if (!files || !files[itemName]) return [];
       const block = files[itemName].find((b: any) => b.id === blockID);
@@ -778,13 +860,23 @@ export async function injectMockBackend(page: Page) {
         const srcLower = block.source.toLowerCase();
         const entryLower = entry.source.toLowerCase();
         if (srcLower === entryLower) {
-          matches.push({ source: entry.source, target: entry.target, score: 1.0, match_type: "exact" });
+          matches.push({
+            source: entry.source,
+            target: entry.target,
+            score: 1.0,
+            match_type: "exact",
+          });
         } else if (srcLower.includes(entryLower) || entryLower.includes(srcLower)) {
           const longer = Math.max(srcLower.length, entryLower.length);
           const shorter = Math.min(srcLower.length, entryLower.length);
           const score = shorter / longer;
           if (score > 0.5) {
-            matches.push({ source: entry.source, target: entry.target, score, match_type: "fuzzy" });
+            matches.push({
+              source: entry.source,
+              target: entry.target,
+              score,
+              match_type: "fuzzy",
+            });
           }
         }
       }
@@ -792,7 +884,12 @@ export async function injectMockBackend(page: Page) {
       return matches;
     };
 
-    mock[IDS.LookupTermsForBlock] = (projectID: string, itemName: string, blockID: string, targetLocale: string) => {
+    mock[IDS.LookupTermsForBlock] = (
+      projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+    ) => {
       const files = projectFiles[projectID];
       if (!files || !files[itemName]) return [];
       const block = files[itemName].find((b: any) => b.id === blockID);
@@ -808,7 +905,10 @@ export async function injectMockBackend(page: Page) {
           const idx = srcLower.indexOf(termLower);
           if (idx >= 0) {
             const targetTerms = concept.terms
-              .filter((tt: any) => tt.locale !== t.locale && (!targetLocale || tt.locale === targetLocale))
+              .filter(
+                (tt: any) =>
+                  tt.locale !== t.locale && (!targetLocale || tt.locale === targetLocale),
+              )
               .map((tt: any) => tt.text);
             matches.push({
               source_term: t.text,
@@ -827,26 +927,30 @@ export async function injectMockBackend(page: Page) {
 
     // --- Terminology mock handlers ---
 
-    mock[IDS.GetTerms] = (_projectID: string, query: string, sourceLocale: string, targetLocale: string, offset: number, limit: number) => {
+    mock[IDS.GetTerms] = (
+      _projectID: string,
+      query: string,
+      sourceLocale: string,
+      targetLocale: string,
+      offset: number,
+      limit: number,
+    ) => {
       let concepts = Object.values(termsStore);
 
       if (query) {
         const q = query.toLowerCase();
-        concepts = concepts.filter((c: any) =>
-          c.terms.some((t: any) => t.text.toLowerCase().includes(q)) ||
-          (c.domain && c.domain.toLowerCase().includes(q)) ||
-          (c.definition && c.definition.toLowerCase().includes(q))
+        concepts = concepts.filter(
+          (c: any) =>
+            c.terms.some((t: any) => t.text.toLowerCase().includes(q)) ||
+            (c.domain && c.domain.toLowerCase().includes(q)) ||
+            (c.definition && c.definition.toLowerCase().includes(q)),
         );
       }
       if (sourceLocale) {
-        concepts = concepts.filter((c: any) =>
-          c.terms.some((t: any) => t.locale === sourceLocale)
-        );
+        concepts = concepts.filter((c: any) => c.terms.some((t: any) => t.locale === sourceLocale));
       }
       if (targetLocale) {
-        concepts = concepts.filter((c: any) =>
-          c.terms.some((t: any) => t.locale === targetLocale)
-        );
+        concepts = concepts.filter((c: any) => c.terms.some((t: any) => t.locale === targetLocale));
       }
 
       const total = concepts.length;
@@ -904,7 +1008,12 @@ export async function injectMockBackend(page: Page) {
       delete termsStore[conceptID];
     };
 
-    mock[IDS.LookupTerms] = (_projectID: string, text: string, _sourceLocale: string, targetLocale: string) => {
+    mock[IDS.LookupTerms] = (
+      _projectID: string,
+      text: string,
+      _sourceLocale: string,
+      targetLocale: string,
+    ) => {
       const concepts = Object.values(termsStore);
       const textLower = text.toLowerCase();
       const matches: any[] = [];
@@ -916,7 +1025,10 @@ export async function injectMockBackend(page: Page) {
           const idx = textLower.indexOf(termLower);
           if (idx >= 0) {
             const targetTerms = concept.terms
-              .filter((tt: any) => tt.locale !== t.locale && (!targetLocale || tt.locale === targetLocale))
+              .filter(
+                (tt: any) =>
+                  tt.locale !== t.locale && (!targetLocale || tt.locale === targetLocale),
+              )
               .map((tt: any) => ({ text: tt.text, locale: tt.locale, status: tt.status }));
             matches.push({
               source_term: t.text,
@@ -935,7 +1047,14 @@ export async function injectMockBackend(page: Page) {
       return { matches };
     };
 
-    mock[IDS.ImportTermsCSV] = (_projectID: string, content: string, sourceLocale: string, targetLocale: string, domain: string, hasHeader: boolean) => {
+    mock[IDS.ImportTermsCSV] = (
+      _projectID: string,
+      content: string,
+      sourceLocale: string,
+      targetLocale: string,
+      domain: string,
+      hasHeader: boolean,
+    ) => {
       const lines = content.split("\n").filter((l: string) => l.trim());
       const startIdx = hasHeader ? 1 : 0;
       let count = 0;
@@ -982,10 +1101,14 @@ export async function injectMockBackend(page: Page) {
     };
 
     mock[IDS.ExportTermsJSON] = (_projectID: string, name: string) => {
-      return JSON.stringify({
-        name,
-        concepts: Object.values(termsStore),
-      }, null, 2);
+      return JSON.stringify(
+        {
+          name,
+          concepts: Object.values(termsStore),
+        },
+        null,
+        2,
+      );
     };
 
     mock[IDS.TermEnforceItem] = (projectID: string, itemName: string, targetLocale: string) => {
@@ -1000,7 +1123,7 @@ export async function injectMockBackend(page: Page) {
         for (const c of concepts) {
           const concept = c as any;
           const srcTerms = concept.terms.filter((t: any) =>
-            srcLower.includes(t.text.toLowerCase())
+            srcLower.includes(t.text.toLowerCase()),
           );
           for (const st of srcTerms) {
             const tgtTerms = concept.terms.filter((t: any) => t.locale !== st.locale);
@@ -1097,8 +1220,20 @@ export async function injectMockBackend(page: Page) {
     mock[IDS.CancelLogin] = () => {};
 
     mock[IDS.GetServerWorkspaces] = () => [
-      { id: "ws-1", slug: "acme-corp", name: "Acme Corp", description: "Main workspace", role: "editor" },
-      { id: "ws-2", slug: "personal", name: "Personal", description: "Personal workspace", role: "owner" },
+      {
+        id: "ws-1",
+        slug: "acme-corp",
+        name: "Acme Corp",
+        description: "Main workspace",
+        role: "editor",
+      },
+      {
+        id: "ws-2",
+        slug: "personal",
+        name: "Personal",
+        description: "Personal workspace",
+        role: "owner",
+      },
     ];
 
     mock[IDS.SelectWorkspace] = (slug: string) => {
@@ -1121,7 +1256,13 @@ export async function injectMockBackend(page: Page) {
 
     mock[IDS.GetPendingChangesCount] = () => 0;
 
-    mock[IDS.ReviewBlock] = (_projectID: string, itemName: string, blockID: string, targetLocale: string, reviewed: boolean) => {
+    mock[IDS.ReviewBlock] = (
+      _projectID: string,
+      itemName: string,
+      blockID: string,
+      targetLocale: string,
+      reviewed: boolean,
+    ) => {
       const files = projectFiles[_projectID];
       if (!files || !files[itemName]) return;
       const block = files[itemName].find((b: any) => b.id === blockID);

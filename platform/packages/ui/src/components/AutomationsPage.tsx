@@ -23,7 +23,11 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   const queryClient = useQueryClient();
   const rulesQueryKey = ["automations", "rules", workspaceSlug, projectId];
 
-  const { data: rules, isLoading, error } = useQuery({
+  const {
+    data: rules,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: rulesQueryKey,
     queryFn: () => api.listAutomationRules(workspaceSlug, projectId),
     staleTime: 15_000,
@@ -33,8 +37,13 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   const [editingRule, setEditingRule] = useState<AutomationRule | undefined>();
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean }) =>
-      api.createAutomationRule(workspaceSlug, projectId, data),
+    mutationFn: (data: {
+      name: string;
+      trigger: string;
+      conditions: AutomationCondition[];
+      actions: AutomationAction[];
+      enabled: boolean;
+    }) => api.createAutomationRule(workspaceSlug, projectId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       setEditorOpen(false);
@@ -42,8 +51,19 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ ruleId, data }: { ruleId: string; data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean } }) =>
-      api.updateAutomationRule(workspaceSlug, projectId, ruleId, data),
+    mutationFn: ({
+      ruleId,
+      data,
+    }: {
+      ruleId: string;
+      data: {
+        name: string;
+        trigger: string;
+        conditions: AutomationCondition[];
+        actions: AutomationAction[];
+        enabled: boolean;
+      };
+    }) => api.updateAutomationRule(workspaceSlug, projectId, ruleId, data),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: rulesQueryKey });
       setEditorOpen(false);
@@ -76,7 +96,13 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   }, []);
 
   const handleSave = useCallback(
-    (data: { name: string; trigger: string; conditions: AutomationCondition[]; actions: AutomationAction[]; enabled: boolean }) => {
+    (data: {
+      name: string;
+      trigger: string;
+      conditions: AutomationCondition[];
+      actions: AutomationAction[];
+      enabled: boolean;
+    }) => {
       if (editingRule) {
         updateMutation.mutate({ ruleId: editingRule.id, data });
       } else {
@@ -120,9 +146,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
         </div>
 
         {isLoading && (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            Loading rules...
-          </div>
+          <div className="py-8 text-center text-sm text-muted-foreground">Loading rules...</div>
         )}
 
         {error && (
@@ -140,10 +164,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
         {rules && rules.length > 0 && (
           <div className="space-y-2">
             {rules.map((rule) => (
-              <div
-                key={rule.id}
-                className="flex items-center gap-4 rounded-md border px-4 py-3"
-              >
+              <div key={rule.id} className="flex items-center gap-4 rounded-md border px-4 py-3">
                 <Switch
                   checked={rule.enabled}
                   onCheckedChange={() => toggleMutation.mutate(rule.id)}
@@ -152,9 +173,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium truncate">{rule.name}</span>
-                    {rule.builtin && (
-                      <Badge variant="secondary">built-in</Badge>
-                    )}
+                    {rule.builtin && <Badge variant="secondary">built-in</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     Trigger: {rule.trigger}
@@ -166,11 +185,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditRule(rule)}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => handleEditRule(rule)}>
                     Edit
                   </Button>
                   {!rule.builtin && (
@@ -195,9 +210,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
       <GlassCard intensity="subtle" className="p-6">
         <div className="mb-4">
           <h2 className="text-xl font-semibold">Execution History</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Recent automation executions
-          </p>
+          <p className="mt-1 text-[13px] text-muted-foreground">Recent automation executions</p>
         </div>
         <AutomationHistory
           workspaceSlug={workspaceSlug}

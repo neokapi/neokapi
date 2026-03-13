@@ -1,22 +1,13 @@
 import { useState, useCallback, useMemo } from "react";
 import { cn } from "../../lib/utils";
-import {
-  FilterSchema,
-  ParameterGroup,
-  PropertySchema,
-  FilterParamsValue,
-} from "./types";
+import { FilterSchema, ParameterGroup, PropertySchema, FilterParamsValue } from "./types";
 
 // UI components from the ui directory
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "../ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/collapsible";
 import { ChevronDown, ChevronRight } from "../icons";
 
 interface FilterConfigEditorProps {
@@ -79,7 +70,7 @@ export function FilterConfigEditor({
     (fieldName: string, fieldValue: unknown) => {
       onChange({ ...value, [fieldName]: fieldValue });
     },
-    [value, onChange]
+    [value, onChange],
   );
 
   return (
@@ -100,9 +91,7 @@ export function FilterConfigEditor({
       {/* Ungrouped parameters */}
       {ungroupedFields.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Other Parameters
-          </h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Other Parameters</h3>
           {ungroupedFields.map((fieldName) => (
             <ParameterField
               key={fieldName}
@@ -142,20 +131,14 @@ function ParameterGroupSection({
           type="button"
           className="flex items-center gap-2 text-sm font-medium hover:text-foreground text-muted-foreground w-full"
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           {group.label}
         </button>
       </CollapsibleTrigger>
 
       <CollapsibleContent className="mt-2 ml-6 space-y-3">
         {group.description && (
-          <p className="text-xs text-muted-foreground mb-2">
-            {group.description}
-          </p>
+          <p className="text-xs text-muted-foreground mb-2">{group.description}</p>
         )}
         {group.fields.map((fieldName) => {
           const schema = properties[fieldName];
@@ -271,15 +254,9 @@ function BooleanField({ name, description, value, defaultValue, onChange }: Bool
         <Label htmlFor={name} className="text-sm">
           {name}
         </Label>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
+        {description && <p className="text-xs text-muted-foreground">{description}</p>}
       </div>
-      <Switch
-        id={name}
-        checked={checked}
-        onCheckedChange={onChange}
-      />
+      <Switch id={name} checked={checked} onCheckedChange={onChange} />
     </div>
   );
 }
@@ -319,9 +296,7 @@ function TextField({
           onChange(v);
         }}
       />
-      {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
     </div>
   );
 }
@@ -357,16 +332,14 @@ function JsonField({ name, description, value, onChange }: JsonFieldProps) {
         className={cn(
           "w-full min-h-[80px] p-2 text-xs font-mono rounded border",
           "bg-background border-input focus:border-ring focus:outline-none",
-          error && "border-destructive"
+          error && "border-destructive",
         )}
         value={text}
         onChange={(e) => setText(e.target.value)}
         onBlur={handleBlur}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {!error && description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {!error && description && <p className="text-xs text-muted-foreground">{description}</p>}
     </div>
   );
 }
@@ -404,7 +377,7 @@ function CodeFinderRulesField({
       newRules.splice(index, 1);
       onChange({ ...value, rules: newRules });
     },
-    [value, rules, onChange]
+    [value, rules, onChange],
   );
 
   const handleRuleChange = useCallback(
@@ -413,14 +386,14 @@ function CodeFinderRulesField({
       newRules[index] = { pattern };
       onChange({ ...value, rules: newRules });
     },
-    [value, rules, onChange]
+    [value, rules, onChange],
   );
 
   const handleSampleChange = useCallback(
     (newSample: string) => {
       onChange({ ...value, sample: newSample });
     },
-    [value, onChange]
+    [value, onChange],
   );
 
   const handleApplyPreset = useCallback(
@@ -431,7 +404,7 @@ function CodeFinderRulesField({
       }
       setShowPresets(false);
     },
-    [presets, onChange]
+    [presets, onChange],
   );
 
   return (
@@ -466,9 +439,7 @@ function CodeFinderRulesField({
         )}
       </div>
 
-      {description && (
-        <p className="text-xs text-muted-foreground">{description}</p>
-      )}
+      {description && <p className="text-xs text-muted-foreground">{description}</p>}
 
       <div className="space-y-2 ml-2">
         {rules.map((rule, index) => (
@@ -479,12 +450,7 @@ function CodeFinderRulesField({
               className="flex-1 font-mono text-xs"
               onChange={(e) => handleRuleChange(index, e.target.value)}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => handleRemoveRule(index)}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
               ✕
             </Button>
           </div>

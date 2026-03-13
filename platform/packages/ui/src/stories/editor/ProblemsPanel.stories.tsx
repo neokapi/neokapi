@@ -58,14 +58,22 @@ export const ErrorsOnly: Story = {
       {
         blockId: "blk-2",
         issues: [
-          { type: "missing-tag", severity: "error", message: 'Missing closing <b> tag in target' },
+          { type: "missing-tag", severity: "error", message: "Missing closing <b> tag in target" },
         ],
       },
       {
         blockId: "blk-6",
         issues: [
-          { type: "placeholder", severity: "error", message: "Missing placeholder {count} in target" },
-          { type: "punctuation", severity: "error", message: 'Target ends with "." but source does not' },
+          {
+            type: "placeholder",
+            severity: "error",
+            message: "Missing placeholder {count} in target",
+          },
+          {
+            type: "punctuation",
+            severity: "error",
+            message: 'Target ends with "." but source does not',
+          },
         ],
       },
     ],
@@ -79,14 +87,22 @@ export const WarningsOnly: Story = {
       {
         blockId: "blk-1",
         issues: [
-          { type: "terminology", severity: "warning", message: '"localization" should be "localisation"' },
+          {
+            type: "terminology",
+            severity: "warning",
+            message: '"localization" should be "localisation"',
+          },
         ],
       },
       {
         blockId: "blk-3",
         issues: [
           { type: "whitespace", severity: "warning", message: "Trailing whitespace in target" },
-          { type: "capitalization", severity: "warning", message: "Target starts with lowercase but source starts with uppercase" },
+          {
+            type: "capitalization",
+            severity: "warning",
+            message: "Target starts with lowercase but source starts with uppercase",
+          },
         ],
       },
     ],
@@ -99,8 +115,16 @@ export const ManyIssues: Story = {
     issues: Array.from({ length: 10 }, (_, i) => ({
       blockId: `blk-${i + 1}`,
       issues: [
-        { type: "tag-mismatch", severity: (i % 3 === 0 ? "error" : "warning") as "error" | "warning", message: `Issue in block ${i + 1}: tag mismatch detected` },
-        { type: "length", severity: "warning" as const, message: `Block ${i + 1}: target is 40% longer than source` },
+        {
+          type: "tag-mismatch",
+          severity: (i % 3 === 0 ? "error" : "warning") as "error" | "warning",
+          message: `Issue in block ${i + 1}: tag mismatch detected`,
+        },
+        {
+          type: "length",
+          severity: "warning" as const,
+          message: `Block ${i + 1}: target is 40% longer than source`,
+        },
       ],
     })),
   },

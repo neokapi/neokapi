@@ -63,9 +63,10 @@ export function FormatVocabularyBadge({ spans, onClick }: FormatVocabularyBadgeP
       categories: entries.map(([cat, count]) => ({
         category: cat,
         count,
-        color: registry.typesInCategory(cat).length > 0
-          ? registry.lookupOrFallback(registry.typesInCategory(cat)[0]).color
-          : { bg: "transparent", border: "transparent", text: "var(--text-muted)" },
+        color:
+          registry.typesInCategory(cat).length > 0
+            ? registry.lookupOrFallback(registry.typesInCategory(cat)[0]).color
+            : { bg: "transparent", border: "transparent", text: "var(--text-muted)" },
       })),
     };
   }, [spans, registry]);

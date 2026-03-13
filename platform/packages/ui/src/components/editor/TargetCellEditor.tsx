@@ -40,9 +40,10 @@ interface TargetCellEditorProps {
 }
 
 /** Read the Lexical editor state and convert to coded text + spans. */
-function editorStateToCodedText(
-  root: ReturnType<typeof $getRoot>,
-): { codedText: string; spans: SpanInfo[] } {
+function editorStateToCodedText(root: ReturnType<typeof $getRoot>): {
+  codedText: string;
+  spans: SpanInfo[];
+} {
   const segments: CodedSegment[] = [];
   const paragraphs = root.getChildren();
 
@@ -68,13 +69,7 @@ function editorStateToCodedText(
 }
 
 /** Plugin that handles Enter/Escape keys and auto-focus. */
-function KeyHandlerPlugin({
-  onSave,
-  onCancel,
-}: {
-  onSave: () => void;
-  onCancel: () => void;
-}) {
+function KeyHandlerPlugin({ onSave, onCancel }: { onSave: () => void; onCancel: () => void }) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -146,11 +141,7 @@ function TagConstraintPlugin() {
       handler,
       COMMAND_PRIORITY_CRITICAL,
     );
-    const unregCut = editor.registerCommand(
-      CUT_COMMAND,
-      handler,
-      COMMAND_PRIORITY_CRITICAL,
-    );
+    const unregCut = editor.registerCommand(CUT_COMMAND, handler, COMMAND_PRIORITY_CRITICAL);
 
     return () => {
       unregBackspace();
@@ -163,7 +154,13 @@ function TagConstraintPlugin() {
 }
 
 /** Plugin that handles Ctrl+1..9 keyboard shortcuts for tag insertion. */
-function TagShortcutPlugin({ sourceSpans, usedSpans }: { sourceSpans: SpanInfo[]; usedSpans?: SpanInfo[] }) {
+function TagShortcutPlugin({
+  sourceSpans,
+  usedSpans,
+}: {
+  sourceSpans: SpanInfo[];
+  usedSpans?: SpanInfo[];
+}) {
   const [editor] = useLexicalComposerContext();
 
   useEffect(() => {
@@ -178,8 +175,8 @@ function TagShortcutPlugin({ sourceSpans, usedSpans }: { sourceSpans: SpanInfo[]
       // Block insertion of non-cloneable tags already present in target.
       if (!isCloneable(span) && usedSpans) {
         const key = `${span.type}:${span.span_type}`;
-        const usedCount = usedSpans.filter(s => `${s.type}:${s.span_type}` === key).length;
-        const sourceCount = sourceSpans.filter(s => `${s.type}:${s.span_type}` === key).length;
+        const usedCount = usedSpans.filter((s) => `${s.type}:${s.span_type}` === key).length;
+        const sourceCount = sourceSpans.filter((s) => `${s.type}:${s.span_type}` === key).length;
         if (usedCount >= sourceCount) return;
       }
 

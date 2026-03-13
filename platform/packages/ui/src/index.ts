@@ -8,23 +8,47 @@ export { ModalGlass } from "./components/ui/dialog";
 
 // UI primitives (shadcn/ui)
 export { Button, type ButtonProps } from "./components/ui/button";
-export { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter, GlassCard } from "./components/ui/card";
+export {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+  GlassCard,
+} from "./components/ui/card";
 export type { GlassCardProps } from "./components/ui/card";
 export { Input } from "./components/ui/input";
 export { Label } from "./components/ui/label";
 export { Badge, type BadgeProps } from "./components/ui/badge";
 export { Separator } from "./components/ui/separator";
 export { Tabs, TabsList, TabsTrigger, TabsContent, TabsGlass } from "./components/ui/tabs";
-export { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./components/ui/select";
+export {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "./components/ui/select";
 export { Switch, type SwitchProps } from "./components/ui/switch";
 export { AlertGlass, AlertGlassTitle, AlertGlassDescription } from "./components/ui/alert";
 export type { AlertGlassProps } from "./components/ui/alert";
 export { ComboBoxGlass } from "./components/ui/combobox";
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
-export type { CollapsibleProps, CollapsibleTriggerProps, CollapsibleContentProps } from "./components/ui/collapsible";
+export type {
+  CollapsibleProps,
+  CollapsibleTriggerProps,
+  CollapsibleContentProps,
+} from "./components/ui/collapsible";
 export {
-  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter,
-  DialogTitle, DialogDescription, DialogClose,
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+  DialogClose,
 } from "./components/ui/dialog";
 export type { DialogProps, DialogContentProps } from "./components/ui/dialog";
 
@@ -88,12 +112,21 @@ export type { PreviewContentMode } from "./components/editor/visual-editor-types
 export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
 export type { CodedSegment } from "./components/editor/codedText";
 export {
-  semanticCategory, semanticLabel, semanticTooltip,
-  tagColors, tagNameFromData, buildPairs, validateTags, codedTextToHtml,
+  semanticCategory,
+  semanticLabel,
+  semanticTooltip,
+  tagColors,
+  tagNameFromData,
+  buildPairs,
+  validateTags,
+  codedTextToHtml,
 } from "./components/editor/tagSemantics";
 export type {
-  SemanticCategory, TagColorScheme, SpanPairInfo,
-  TagValidationResult, TagValidationIssue,
+  SemanticCategory,
+  TagColorScheme,
+  SpanPairInfo,
+  TagValidationResult,
+  TagValidationIssue,
 } from "./components/editor/tagSemantics";
 export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
 export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";
@@ -115,7 +148,11 @@ export { RestApiAdapter } from "./api/rest-adapter";
 export { PresenceAvatars } from "./components/PresenceAvatars";
 export type { PresenceAvatarsProps } from "./components/PresenceAvatars";
 export { useCollaboration } from "./hooks/useCollaboration";
-export type { CollabUser, CollabConnectionState, UseCollaborationOptions } from "./hooks/useCollaboration";
+export type {
+  CollabUser,
+  CollabConnectionState,
+  UseCollaborationOptions,
+} from "./hooks/useCollaboration";
 
 // Hooks
 export { useProjectApi } from "./hooks/useProjectApi";
@@ -132,22 +169,63 @@ export { useIsMobile } from "./hooks/useIsMobile";
 
 // Types
 export type {
-  User, Workspace, Membership, ProjectInfo, ProjectItem, ConfigResponse, WebVersionInfo,
-  SpanInfo, BlockInfo, UpdateBlockRequest, UpdateBlockTargetCodedRequest,
-  AITranslateFileRequest, TranslationStats, WordCountResult,
-  ProviderConfig, ProviderConfigWithKey,
-  TMEntryInfo, TMSearchResult, TMUpdateRequest, TMMatchInfo,
-  TermInfo, ConceptInfo, TermSearchResult, AddConceptRequest, UpdateConceptRequest,
-  BlockTermMatch, TermEnforceResult,
-  BlockNote, BlockHistoryEntry, QAIssue, FileQAResult,
-  LocaleInfo, FormatInfo, ToolInfo,
-  FlowNodePosition, FlowNodeInfo, FlowEdgeInfo, FlowDefinitionInfo,
-  Invite, AcceptInviteResponse, ClaimProjectResponse,
-  ApiToken, CreateApiTokenResponse,
-  AutomationRule, AutomationCondition, AutomationAction, AutomationEvent,
-  SaveAutomationRuleRequest, AutomationHistoryEntry,
-  EntityInfo, NotificationInfo,
-  StreamInfo, StreamVisibility, BlockChangeInfo, StreamDiffResult, StreamMergeResult, CreateStreamRequest,
+  User,
+  Workspace,
+  Membership,
+  ProjectInfo,
+  ProjectItem,
+  ConfigResponse,
+  WebVersionInfo,
+  SpanInfo,
+  BlockInfo,
+  UpdateBlockRequest,
+  UpdateBlockTargetCodedRequest,
+  AITranslateFileRequest,
+  TranslationStats,
+  WordCountResult,
+  ProviderConfig,
+  ProviderConfigWithKey,
+  TMEntryInfo,
+  TMSearchResult,
+  TMUpdateRequest,
+  TMMatchInfo,
+  TermInfo,
+  ConceptInfo,
+  TermSearchResult,
+  AddConceptRequest,
+  UpdateConceptRequest,
+  BlockTermMatch,
+  TermEnforceResult,
+  BlockNote,
+  BlockHistoryEntry,
+  QAIssue,
+  FileQAResult,
+  LocaleInfo,
+  FormatInfo,
+  ToolInfo,
+  FlowNodePosition,
+  FlowNodeInfo,
+  FlowEdgeInfo,
+  FlowDefinitionInfo,
+  Invite,
+  AcceptInviteResponse,
+  ClaimProjectResponse,
+  ApiToken,
+  CreateApiTokenResponse,
+  AutomationRule,
+  AutomationCondition,
+  AutomationAction,
+  AutomationEvent,
+  SaveAutomationRuleRequest,
+  AutomationHistoryEntry,
+  EntityInfo,
+  NotificationInfo,
+  StreamInfo,
+  StreamVisibility,
+  BlockChangeInfo,
+  StreamDiffResult,
+  StreamMergeResult,
+  CreateStreamRequest,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

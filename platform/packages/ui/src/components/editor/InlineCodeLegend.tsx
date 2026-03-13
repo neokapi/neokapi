@@ -155,13 +155,19 @@ function LegendEntry({ typeName: _typeName, span, label, constraints }: LegendEn
       {/* Constraint icons */}
       <div className="flex items-center gap-1 shrink-0">
         {!constraints.deletable && (
-          <span title="Required — cannot be removed"><Lock className={cn("w-2.5 h-2.5 text-red-500")} /></span>
+          <span title="Required — cannot be removed">
+            <Lock className={cn("w-2.5 h-2.5 text-red-500")} />
+          </span>
         )}
         {!constraints.cloneable && (
-          <span title="Cannot be duplicated"><Copy className={cn("w-2.5 h-2.5 text-amber-500")} /></span>
+          <span title="Cannot be duplicated">
+            <Copy className={cn("w-2.5 h-2.5 text-amber-500")} />
+          </span>
         )}
         {!constraints.reorderable && (
-          <span title="Fixed position"><Shuffle className={cn("w-2.5 h-2.5 text-purple-500")} /></span>
+          <span title="Fixed position">
+            <Shuffle className={cn("w-2.5 h-2.5 text-purple-500")} />
+          </span>
         )}
         {constraints.deletable && constraints.cloneable && constraints.reorderable && (
           <span className="text-[9px] text-emerald-600 font-medium">flexible</span>

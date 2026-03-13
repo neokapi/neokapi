@@ -10,11 +10,7 @@ import { GlassCard } from "./ui/card";
 
 function StatusBadge({ status }: { status: AutomationHistoryEntry["status"] }) {
   const variant =
-    status === "success"
-      ? "default"
-      : status === "failed"
-        ? "destructive"
-        : "secondary";
+    status === "success" ? "default" : status === "failed" ? "destructive" : "secondary";
 
   return <Badge variant={variant}>{status}</Badge>;
 }
@@ -49,18 +45,18 @@ interface AutomationHistoryProps {
 
 export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: AutomationHistoryProps) {
   const api = useApi();
-  const { data: entries, isLoading, error } = useQuery({
+  const {
+    data: entries,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["automations", "history", workspaceSlug, projectId],
     queryFn: () => api.listAutomationHistory(workspaceSlug, projectId),
     staleTime: 15_000,
   });
 
   if (isLoading) {
-    return (
-      <div className="py-8 text-center text-sm text-muted-foreground">
-        Loading history...
-      </div>
-    );
+    return <div className="py-8 text-center text-sm text-muted-foreground">Loading history...</div>;
   }
 
   if (error) {
@@ -91,9 +87,7 @@ export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: Autom
                 </span>
                 <StatusBadge status={entry.status} />
               </div>
-              <div className="mt-1 text-xs text-muted-foreground">
-                Event: {entry.event_id}
-              </div>
+              <div className="mt-1 text-xs text-muted-foreground">Event: {entry.event_id}</div>
               {entry.status === "failed" && entry.error && (
                 <div className="mt-2 text-xs text-destructive bg-destructive/10 rounded px-2 py-1 font-mono break-all">
                   {entry.error}

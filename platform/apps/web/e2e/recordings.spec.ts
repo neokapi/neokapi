@@ -7,7 +7,6 @@ import {
   deleteAllEditorProjects,
   seedTMEntries,
   seedConcepts,
-
   pseudoTranslateFile,
   waitForServer,
 } from "./helpers/api-client";
@@ -17,7 +16,6 @@ import {
   humanClick,
   humanClickNative,
   humanType,
-
   pause,
 } from "./helpers/cursor-helper";
 
@@ -28,14 +26,16 @@ const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {
   const url = new URL(BASE_URL);
-  await page.context().addCookies([{
-    name: "bowrain_session",
-    value: authToken,
-    domain: url.hostname,
-    path: "/api/",
-    httpOnly: true,
-    sameSite: "Lax",
-  }]);
+  await page.context().addCookies([
+    {
+      name: "bowrain_session",
+      value: authToken,
+      domain: url.hostname,
+      path: "/api/",
+      httpOnly: true,
+      sameSite: "Lax",
+    },
+  ]);
 }
 
 async function setTheme(page: Page, theme: "dark" | "light") {
@@ -189,11 +189,16 @@ test.describe("Web App Recordings", () => {
 
       // Clean up
       try {
-        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch { /* ignore */ }
+        await fetch(
+          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+      } catch {
+        /* ignore */
+      }
     });
 
     // ── Focus view ─────────────────────────────────────────────────────────
@@ -234,11 +239,16 @@ test.describe("Web App Recordings", () => {
       await pause(page, 1500);
 
       try {
-        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch { /* ignore */ }
+        await fetch(
+          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+      } catch {
+        /* ignore */
+      }
     });
 
     // ── Pseudo-translation workflow ────────────────────────────────────────
@@ -270,11 +280,16 @@ test.describe("Web App Recordings", () => {
       await pause(page, 2000);
 
       try {
-        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch { /* ignore */ }
+        await fetch(
+          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+      } catch {
+        /* ignore */
+      }
     });
 
     // ── TM Explorer ────────────────────────────────────────────────────────
@@ -389,11 +404,16 @@ test.describe("Web App Recordings", () => {
       await pause(page, 2000);
 
       try {
-        await fetch(`${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-      } catch { /* ignore */ }
+        await fetch(
+          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+      } catch {
+        /* ignore */
+      }
     });
 
     // ── Settings ───────────────────────────────────────────────────────────

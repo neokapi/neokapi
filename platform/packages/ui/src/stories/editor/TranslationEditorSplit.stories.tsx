@@ -66,16 +66,15 @@ function MockDocumentPreview({
               marginBottom: 4,
               borderRadius: 4,
               cursor: "pointer",
-              border: block.id === selectedBlockId
-                ? "2px solid hsl(var(--primary))"
-                : "1px solid transparent",
+              border:
+                block.id === selectedBlockId
+                  ? "2px solid hsl(var(--primary))"
+                  : "1px solid transparent",
               transition: "border-color 0.15s",
             }}
             className={block.id === selectedBlockId ? "bg-accent" : "hover:bg-accent/50"}
           >
-            <span style={{ fontSize: 13 }}>
-              {block.targets[targetLocale] || block.source}
-            </span>
+            <span style={{ fontSize: 13 }}>{block.targets[targetLocale] || block.source}</span>
           </div>
         ))}
       </div>

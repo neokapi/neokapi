@@ -9,16 +9,12 @@ const carol: CollabUser = { userId: "u3", name: "Carol", color: "#3b82f6" };
 
 describe("PresenceAvatars", () => {
   it("renders nothing when no other users are connected", () => {
-    const { container } = render(
-      <PresenceAvatars users={[alice]} currentUserId="u1" />,
-    );
+    const { container } = render(<PresenceAvatars users={[alice]} currentUserId="u1" />);
     expect(container.querySelector("[data-testid='presence-avatars']")).toBeNull();
   });
 
   it("renders avatars for other users (excludes current user)", () => {
-    render(
-      <PresenceAvatars users={[alice, bob, carol]} currentUserId="u1" />,
-    );
+    render(<PresenceAvatars users={[alice, bob, carol]} currentUserId="u1" />);
     const avatarContainer = screen.getByTestId("presence-avatars");
     // Should show Bob and Carol but not Alice.
     expect(avatarContainer.textContent).toContain("B");
@@ -50,9 +46,7 @@ describe("PresenceAvatars", () => {
       color: "#8b5cf6",
       avatarUrl: "https://example.com/bob.jpg",
     };
-    render(
-      <PresenceAvatars users={[userWithAvatar]} currentUserId="u1" />,
-    );
+    render(<PresenceAvatars users={[userWithAvatar]} currentUserId="u1" />);
     const img = screen.getByAltText("Bob");
     expect(img).toBeDefined();
     expect(img.getAttribute("src")).toBe("https://example.com/bob.jpg");

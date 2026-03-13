@@ -109,8 +109,6 @@ describe("ApiContext", () => {
   });
 
   it("throws when useApi is called outside ApiProvider", () => {
-    expect(() => render(<ApiDisplay />)).toThrow(
-      "useApi must be used within an ApiProvider",
-    );
+    expect(() => render(<ApiDisplay />)).toThrow("useApi must be used within an ApiProvider");
   });
 });

@@ -31,7 +31,12 @@ const sentence = `Click ${O}here${C} to ${O}learn more${C}`;
 const htmlSpans: SpanInfo[] = [
   { span_type: "opening", type: "fmt:bold", id: "1", data: '<b class="cta">' },
   { span_type: "closing", type: "fmt:bold", id: "1", data: "</b>" },
-  { span_type: "opening", type: "link:hyperlink", id: "2", data: '<a href="https://docs.example.com">' },
+  {
+    span_type: "opening",
+    type: "link:hyperlink",
+    id: "2",
+    data: '<a href="https://docs.example.com">',
+  },
   { span_type: "closing", type: "link:hyperlink", id: "2", data: "</a>" },
 ];
 
@@ -43,9 +48,21 @@ const markdownSpans: SpanInfo[] = [
 ];
 
 const xliffSpans: SpanInfo[] = [
-  { span_type: "opening", type: "fmt:bold", id: "1", data: '<pc id="1" dataRefStart="d1">', sub_type: "xlf:b" },
+  {
+    span_type: "opening",
+    type: "fmt:bold",
+    id: "1",
+    data: '<pc id="1" dataRefStart="d1">',
+    sub_type: "xlf:b",
+  },
   { span_type: "closing", type: "fmt:bold", id: "1", data: "</pc>", sub_type: "xlf:b" },
-  { span_type: "opening", type: "link:hyperlink", id: "2", data: '<pc id="2" dataRefStart="d2">', sub_type: "xlf:a" },
+  {
+    span_type: "opening",
+    type: "link:hyperlink",
+    id: "2",
+    data: '<pc id="2" dataRefStart="d2">',
+    sub_type: "xlf:a",
+  },
   { span_type: "closing", type: "link:hyperlink", id: "2", data: "</pc>", sub_type: "xlf:a" },
 ];
 
@@ -82,8 +99,26 @@ const mdRichSpans: SpanInfo[] = [
 const i18nSentence = `Hello ${P}, you have ${P} new ${O}messages${C}.`;
 
 const i18nSpans: SpanInfo[] = [
-  { span_type: "placeholder", type: "code:variable", id: "1", data: "{userName}", display_text: "{userName}", deletable: false, cloneable: false, can_reorder: true },
-  { span_type: "placeholder", type: "code:placeholder", id: "2", data: "{count}", display_text: "{count}", deletable: false, cloneable: false, can_reorder: true },
+  {
+    span_type: "placeholder",
+    type: "code:variable",
+    id: "1",
+    data: "{userName}",
+    display_text: "{userName}",
+    deletable: false,
+    cloneable: false,
+    can_reorder: true,
+  },
+  {
+    span_type: "placeholder",
+    type: "code:placeholder",
+    id: "2",
+    data: "{count}",
+    display_text: "{count}",
+    deletable: false,
+    cloneable: false,
+    can_reorder: true,
+  },
   { span_type: "opening", type: "fmt:bold", id: "3", data: "<b>" },
   { span_type: "closing", type: "fmt:bold", id: "3", data: "</b>" },
 ];
@@ -105,8 +140,8 @@ const meta: Meta = {
           "came from an HTML file, a Markdown document, or an XLIFF exchange file.",
           "This is because all three formats map to the same vocabulary types:",
           "",
-          "- HTML `<b>` = Markdown `**` = XLIFF `<pc dataRefStart=\"d1\">` → **fmt:bold**",
-          "- HTML `<a>` = Markdown `[]()` = XLIFF `<pc dataRefStart=\"d2\">` → **link:hyperlink**",
+          '- HTML `<b>` = Markdown `**` = XLIFF `<pc dataRefStart="d1">` → **fmt:bold**',
+          '- HTML `<a>` = Markdown `[]()` = XLIFF `<pc dataRefStart="d2">` → **link:hyperlink**',
           "",
           "Translators see the same visual experience regardless of the source format.",
         ].join("\n"),
@@ -137,14 +172,32 @@ function FormatCard({
 }) {
   return (
     <div style={cardStyle}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 8,
+        }}
+      >
         <div>
           <div style={{ fontSize: 13, fontWeight: 600 }}>{format}</div>
           <div style={{ fontSize: 10, color: "#888" }}>{description}</div>
         </div>
         <FormatVocabularyBadge spans={spans} />
       </div>
-      <div style={{ fontSize: 10, fontFamily: "monospace", color: "#888", marginBottom: 8, padding: "4px 8px", backgroundColor: "rgba(128,128,128,0.08)", borderRadius: 4, whiteSpace: "pre-wrap" }}>
+      <div
+        style={{
+          fontSize: 10,
+          fontFamily: "monospace",
+          color: "#888",
+          marginBottom: 8,
+          padding: "4px 8px",
+          backgroundColor: "rgba(128,128,128,0.08)",
+          borderRadius: 4,
+          whiteSpace: "pre-wrap",
+        }}
+      >
         {nativeExample}
       </div>
       <div style={{ marginBottom: 6 }}>
@@ -173,15 +226,17 @@ export const CrossFormatConsistency: Story = {
     <div style={{ maxWidth: 700, padding: 16 }}>
       <h3 style={titleStyle}>Cross-Format Consistency</h3>
       <p style={descStyle}>
-        The same sentence extracted from HTML, Markdown, and XLIFF files.
-        Despite completely different native syntax, the translator sees
-        identical visual output because all three map to the same vocabulary types.
+        The same sentence extracted from HTML, Markdown, and XLIFF files. Despite completely
+        different native syntax, the translator sees identical visual output because all three map
+        to the same vocabulary types.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         <FormatCard
           format="HTML"
           description=".html file"
-          nativeExample={'Click <b class="cta">here</b> to <a href="https://docs.example.com">learn more</a>'}
+          nativeExample={
+            'Click <b class="cta">here</b> to <a href="https://docs.example.com">learn more</a>'
+          }
           codedText={sentence}
           spans={htmlSpans}
         />
@@ -195,7 +250,9 @@ export const CrossFormatConsistency: Story = {
         <FormatCard
           format="XLIFF 2.0"
           description=".xlf file"
-          nativeExample={'Click <pc id="1" dataRefStart="d1">here</pc> to <pc id="2" dataRefStart="d2">learn more</pc>'}
+          nativeExample={
+            'Click <pc id="1" dataRefStart="d1">here</pc> to <pc id="2" dataRefStart="d2">learn more</pc>'
+          }
           codedText={sentence}
           spans={xliffSpans}
         />
@@ -210,15 +267,17 @@ export const RichContentAcrossFormats: Story = {
     <div style={{ maxWidth: 700, padding: 16 }}>
       <h3 style={titleStyle}>Rich Content: HTML vs Markdown</h3>
       <p style={descStyle}>
-        A more complex segment with bold, code, line break, and link.
-        Both formats produce identical editor output.
+        A more complex segment with bold, code, line break, and link. Both formats produce identical
+        editor output.
       </p>
       <div style={{ display: "flex", gap: 16 }}>
         <div style={{ flex: 1 }}>
           <FormatCard
             format="HTML"
             description="<strong>, <code>, <br/>, <a>"
-            nativeExample={'<strong>Important:</strong> Use <code>kapi init</code> to get started.<br/>See the <a href="/docs">docs</a>.'}
+            nativeExample={
+              '<strong>Important:</strong> Use <code>kapi init</code> to get started.<br/>See the <a href="/docs">docs</a>.'
+            }
             codedText={richSentence}
             spans={htmlRichSpans}
           />
@@ -227,7 +286,9 @@ export const RichContentAcrossFormats: Story = {
           <FormatCard
             format="Markdown"
             description="**, `, newline, []()"
-            nativeExample={'**Important:** Use `kapi init` to get started.  \nSee the [docs](/docs).'}
+            nativeExample={
+              "**Important:** Use `kapi init` to get started.  \nSee the [docs](/docs)."
+            }
             codedText={richSentence}
             spans={mdRichSpans}
           />
@@ -243,9 +304,9 @@ export const CodeTokensAndVariables: Story = {
     <div style={{ maxWidth: 700, padding: 16 }}>
       <h3 style={titleStyle}>Variables and Placeholders</h3>
       <p style={descStyle}>
-        i18n message formats embed variables and placeholders that must be
-        preserved during translation. The vocabulary system marks these as
-        non-deletable and non-cloneable, protecting them from accidental changes.
+        i18n message formats embed variables and placeholders that must be preserved during
+        translation. The vocabulary system marks these as non-deletable and non-cloneable,
+        protecting them from accidental changes.
       </p>
       <FormatCard
         format="JSON i18n"
@@ -271,15 +332,23 @@ export const TagPaletteWithCategories: Story = {
   render: () => {
     const mixedSpans: SpanInfo[] = [
       ...htmlRichSpans,
-      { span_type: "placeholder", type: "code:variable", id: "5", data: "{version}", display_text: "{version}", deletable: false, cloneable: false },
+      {
+        span_type: "placeholder",
+        type: "code:variable",
+        id: "5",
+        data: "{version}",
+        display_text: "{version}",
+        deletable: false,
+        cloneable: false,
+      },
     ];
 
     return (
       <div style={{ maxWidth: 640, padding: 16 }}>
         <h3 style={titleStyle}>Tag Palette with Category Groups</h3>
         <p style={descStyle}>
-          When a segment contains tags from multiple vocabulary categories,
-          the palette shows category separators for clarity.
+          When a segment contains tags from multiple vocabulary categories, the palette shows
+          category separators for clarity.
         </p>
         <TagPalette sourceSpans={mixedSpans} onInsert={() => {}} showCategoryGroups />
       </div>

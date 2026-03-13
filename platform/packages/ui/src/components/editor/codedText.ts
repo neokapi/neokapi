@@ -12,18 +12,13 @@ function isMarker(ch: string): boolean {
 }
 
 /** A parsed segment of coded text — either plain text or a tag reference. */
-export type CodedSegment =
-  | { type: "text"; value: string }
-  | { type: "tag"; spanInfo: SpanInfo };
+export type CodedSegment = { type: "text"; value: string } | { type: "tag"; spanInfo: SpanInfo };
 
 /**
  * Parse coded text + spans into an array of segments for read-only rendering.
  * No Lexical dependency — used by SourceCellDisplay.
  */
-export function parseCodedSegments(
-  codedText: string,
-  spans: SpanInfo[],
-): CodedSegment[] {
+export function parseCodedSegments(codedText: string, spans: SpanInfo[]): CodedSegment[] {
   const segments: CodedSegment[] = [];
   let textBuf = "";
   let spanIdx = 0;

@@ -1,5 +1,21 @@
 import { useState, useEffect, useCallback } from "react";
-import { Button, Input, Badge, cn, Label, Select, SelectTrigger, SelectValue, SelectContent, SelectItem, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui";
+import {
+  Button,
+  Input,
+  Badge,
+  cn,
+  Label,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
 import * as Backend from "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js";
@@ -134,7 +150,11 @@ export function ConnectorPanel() {
       )}
 
       <Dialog open={showAddDialog} onOpenChange={handleAddDialogClose}>
-        <DialogContent size="sm" data-testid="connector-form" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent
+          size="sm"
+          data-testid="connector-form"
+          onInteractOutside={(e: Event) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Add Connector</DialogTitle>
           </DialogHeader>
@@ -147,7 +167,9 @@ export function ConnectorPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   {connectorTypes.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -166,7 +188,9 @@ export function ConnectorPanel() {
               <Input
                 type="text"
                 value={configFormat}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfigFormat(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setConfigFormat(e.target.value)
+                }
                 placeholder="json, html..."
               />
             </div>
@@ -208,7 +232,10 @@ export function ConnectorPanel() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); void handleRemoveConnector(c.id); }}
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      void handleRemoveConnector(c.id);
+                    }}
                   >
                     Remove
                   </Button>
@@ -225,9 +252,16 @@ export function ConnectorPanel() {
               <div className="p-3 bg-card rounded-lg border border-border mb-3">
                 <h4 className="text-foreground font-medium text-sm mb-2">Sync Status</h4>
                 <div className="text-muted-foreground text-xs space-y-0.5">
-                  <div>Status: <Badge variant={syncStatus.status === "synced" ? "default" : "secondary"}>{syncStatus.status}</Badge></div>
+                  <div>
+                    Status:{" "}
+                    <Badge variant={syncStatus.status === "synced" ? "default" : "secondary"}>
+                      {syncStatus.status}
+                    </Badge>
+                  </div>
                   <div>Items: {syncStatus.item_count}</div>
-                  {syncStatus.last_sync && <div>Last sync: {new Date(syncStatus.last_sync).toLocaleString()}</div>}
+                  {syncStatus.last_sync && (
+                    <div>Last sync: {new Date(syncStatus.last_sync).toLocaleString()}</div>
+                  )}
                 </div>
               </div>
             )}
@@ -239,7 +273,9 @@ export function ConnectorPanel() {
                 {contentItems.map((item) => (
                   <div key={item.id} className="p-2 bg-card rounded border border-border">
                     <div className="text-foreground text-xs">{item.title || item.path}</div>
-                    <div className="text-muted-foreground text-[11px]">{item.block_count} blocks</div>
+                    <div className="text-muted-foreground text-[11px]">
+                      {item.block_count} blocks
+                    </div>
                   </div>
                 ))}
               </div>

@@ -21,9 +21,7 @@ export const Default: Story = {
   render: () => (
     <AlertGlass>
       <AlertGlassTitle>Heads up</AlertGlassTitle>
-      <AlertGlassDescription>
-        3 blocks are missing translations for fr-FR.
-      </AlertGlassDescription>
+      <AlertGlassDescription>3 blocks are missing translations for fr-FR.</AlertGlassDescription>
     </AlertGlass>
   ),
 };

@@ -14,9 +14,7 @@ export default defineConfig({
   // Run tests sequentially for predictable video capture
   workers: 1,
   use: {
-    baseURL: useServerMode
-      ? "http://localhost:8090"
-      : "http://localhost:5173",
+    baseURL: useServerMode ? "http://localhost:8090" : "http://localhost:5173",
     headless: true,
     viewport: { width: 1280, height: 800 },
     // Enable video recording - retain on success

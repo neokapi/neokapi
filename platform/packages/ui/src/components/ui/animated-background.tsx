@@ -16,7 +16,10 @@ export function AnimatedBackgroundGlass({ className, showCenterOrb }: AnimatedBa
 
   return (
     <div
-      className={cn("fixed inset-0 transition-all duration-500 overflow-hidden pointer-events-none", className)}
+      className={cn(
+        "fixed inset-0 transition-all duration-500 overflow-hidden pointer-events-none",
+        className,
+      )}
       style={{ background: "linear-gradient(135deg, var(--bg-from), var(--bg-via), var(--bg-to))" }}
       aria-hidden="true"
     >

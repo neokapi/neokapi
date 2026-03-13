@@ -55,7 +55,12 @@ export function StreamMergeDialog({
   const totalChanges = result.added_blocks + result.modified_blocks + result.removed_blocks;
 
   return (
-    <Dialog open={open} onOpenChange={(v: boolean) => { if (!v) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v: boolean) => {
+        if (!v) onClose();
+      }}
+    >
       <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Merge Stream</DialogTitle>

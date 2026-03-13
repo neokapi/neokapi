@@ -32,7 +32,13 @@ import * as Backend from "../bindings/github.com/neokapi/neokapi/bowrain/apps/bo
 type AppView = View | "flows" | "connectors";
 type AppMode = "loading" | "connecting" | "ready";
 
-function toWorkspace(ws: { id: string; slug: string; name: string; description: string; role: string }): Workspace {
+function toWorkspace(ws: {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  role: string;
+}): Workspace {
   return { ...ws, logo_url: "", type: "team" as const, role: ws.role as "owner" };
 }
 
@@ -42,7 +48,15 @@ const desktopNavItems: NavItem[] = [
 ];
 
 const wailsAdapter = new WailsApiAdapter();
-const localWorkspace = { id: "local", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal" as const, role: "owner" as const };
+const localWorkspace = {
+  id: "local",
+  name: "Personal",
+  slug: "personal",
+  description: "",
+  logo_url: "",
+  type: "personal" as const,
+  role: "owner" as const,
+};
 
 function App() {
   const connection = useConnection();
@@ -79,8 +93,10 @@ function App() {
         setPendingChanges(0);
       }
     });
-    return () => { cancel?.(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancel?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Listen for deep-link-project events from bowrain:// URL handler.
@@ -90,7 +106,8 @@ function App() {
       if (!info?.project_id) return;
       void connection.refresh().then((ci) => {
         if (ci.state === "connected") {
-          wailsAdapter.getProject(info.workspace || "", info.project_id)
+          wailsAdapter
+            .getProject(info.workspace || "", info.project_id)
             .then((proj) => {
               setActiveProject(proj);
               setActiveFile(null);
@@ -103,54 +120,84 @@ function App() {
         }
       });
     });
-    return () => { cancel?.(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancel?.();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Connection flow ---
 
   useEffect(() => {
-    connection.refresh().then(async (ci) => {
-      if (ci.state === "connected") {
-        setIsServerMode(true);
-        try {
-          const wsList = await connection.getServerWorkspaces();
-          const mapped = wsList.map(toWorkspace);
-          setAllWorkspaces(mapped);
-          if (ci.workspace) {
-            const ws = mapped.find((w) => w.slug === ci.workspace);
-            setWorkspace(ws ?? toWorkspace({ id: ci.workspace, slug: ci.workspace, name: ci.workspace, description: "", role: "owner" }));
-          } else if (mapped.length > 0) {
-            await connection.selectWorkspace(mapped[0].slug);
-            setWorkspace(mapped[0]);
+    connection
+      .refresh()
+      .then(async (ci) => {
+        if (ci.state === "connected") {
+          setIsServerMode(true);
+          try {
+            const wsList = await connection.getServerWorkspaces();
+            const mapped = wsList.map(toWorkspace);
+            setAllWorkspaces(mapped);
+            if (ci.workspace) {
+              const ws = mapped.find((w) => w.slug === ci.workspace);
+              setWorkspace(
+                ws ??
+                  toWorkspace({
+                    id: ci.workspace,
+                    slug: ci.workspace,
+                    name: ci.workspace,
+                    description: "",
+                    role: "owner",
+                  }),
+              );
+            } else if (mapped.length > 0) {
+              await connection.selectWorkspace(mapped[0].slug);
+              setWorkspace(mapped[0]);
+            }
+          } catch {
+            if (ci.workspace) {
+              setWorkspace(
+                toWorkspace({
+                  id: ci.workspace,
+                  slug: ci.workspace,
+                  name: ci.workspace,
+                  description: "",
+                  role: "owner",
+                }),
+              );
+            }
           }
-        } catch {
-          if (ci.workspace) {
-            setWorkspace(toWorkspace({ id: ci.workspace, slug: ci.workspace, name: ci.workspace, description: "", role: "owner" }));
-          }
+          setMode("ready");
+        } else if (ci.state === "offline" && ci.workspace) {
+          setWorkspace(
+            toWorkspace({
+              id: ci.workspace,
+              slug: ci.workspace,
+              name: ci.workspace,
+              description: "",
+              role: "owner",
+            }),
+          );
+          setIsServerMode(true);
+          setMode("ready");
+          Backend.GetPendingChangesCount?.()
+            .then((n: number) => setPendingChanges(n))
+            .catch(() => {});
+        } else if ((window as any).__skipConnection) {
+          // Headless server mode (e2e tests): skip connection screen, use local workspace.
+          setMode("ready");
+        } else {
+          setMode("connecting");
         }
-        setMode("ready");
-      } else if (ci.state === "offline" && ci.workspace) {
-        setWorkspace(toWorkspace({ id: ci.workspace, slug: ci.workspace, name: ci.workspace, description: "", role: "owner" }));
-        setIsServerMode(true);
-        setMode("ready");
-        Backend.GetPendingChangesCount?.()
-          .then((n: number) => setPendingChanges(n))
-          .catch(() => {});
-      } else if ((window as any).__skipConnection) {
-        // Headless server mode (e2e tests): skip connection screen, use local workspace.
-        setMode("ready");
-      } else {
-        setMode("connecting");
-      }
-    }).catch(() => {
-      if ((window as any).__skipConnection) {
-        setMode("ready");
-      } else {
-        setMode("connecting");
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      })
+      .catch(() => {
+        if ((window as any).__skipConnection) {
+          setMode("ready");
+        } else {
+          setMode("connecting");
+        }
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -164,53 +211,64 @@ function App() {
       .catch(() => {});
   }, [mode]);
 
-  const handleServerConnect = useCallback(async (serverURL: string) => {
-    const ci = await connection.connect(serverURL);
-    if (ci.state === "connected") {
-      setIsServerMode(true);
-      try {
-        const wsList = await connection.getServerWorkspaces();
-        const mapped = wsList.map(toWorkspace);
-        setAllWorkspaces(mapped);
-        if (mapped.length > 0) {
-          await connection.selectWorkspace(mapped[0].slug);
-          setWorkspace(mapped[0]);
+  const handleServerConnect = useCallback(
+    async (serverURL: string) => {
+      const ci = await connection.connect(serverURL);
+      if (ci.state === "connected") {
+        setIsServerMode(true);
+        try {
+          const wsList = await connection.getServerWorkspaces();
+          const mapped = wsList.map(toWorkspace);
+          setAllWorkspaces(mapped);
+          if (mapped.length > 0) {
+            await connection.selectWorkspace(mapped[0].slug);
+            setWorkspace(mapped[0]);
+          }
+        } catch {
+          /* ignore */
         }
-      } catch { /* ignore */ }
-      setMode("ready");
-    }
-    return ci;
-  }, [connection]);
+        setMode("ready");
+      }
+      return ci;
+    },
+    [connection],
+  );
 
-  const handleSelectWorkspace = useCallback(async (ws: Workspace) => {
-    if (isServerMode) {
-      await connection.selectWorkspace(ws.slug);
-    }
-    setWorkspace(ws);
-    setActiveProject(null);
-    setActiveFile(null);
-    setShowTMExplorer(false);
-    setShowTermExplorer(false);
-    Backend.ListProjects()
-      .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
-      .catch(() => setProjects([]));
-  }, [connection, isServerMode]);
+  const handleSelectWorkspace = useCallback(
+    async (ws: Workspace) => {
+      if (isServerMode) {
+        await connection.selectWorkspace(ws.slug);
+      }
+      setWorkspace(ws);
+      setActiveProject(null);
+      setActiveFile(null);
+      setShowTMExplorer(false);
+      setShowTermExplorer(false);
+      Backend.ListProjects()
+        .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
+        .catch(() => setProjects([]));
+    },
+    [connection, isServerMode],
+  );
 
-  const handleWorkspaceCreated = useCallback(async (ws: Workspace) => {
-    setShowCreateWs(false);
-    setAllWorkspaces((prev) => [...prev, ws]);
-    if (isServerMode) {
-      await connection.selectWorkspace(ws.slug);
-    }
-    setWorkspace(ws);
-    setActiveProject(null);
-    setActiveFile(null);
-    setShowTMExplorer(false);
-    setShowTermExplorer(false);
-    Backend.ListProjects()
-      .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
-      .catch(() => setProjects([]));
-  }, [connection, isServerMode]);
+  const handleWorkspaceCreated = useCallback(
+    async (ws: Workspace) => {
+      setShowCreateWs(false);
+      setAllWorkspaces((prev) => [...prev, ws]);
+      if (isServerMode) {
+        await connection.selectWorkspace(ws.slug);
+      }
+      setWorkspace(ws);
+      setActiveProject(null);
+      setActiveFile(null);
+      setShowTMExplorer(false);
+      setShowTermExplorer(false);
+      Backend.ListProjects()
+        .then((p: ProjectInfo[]) => setProjects(p?.length ? p : []))
+        .catch(() => setProjects([]));
+    },
+    [connection, isServerMode],
+  );
 
   const handleSignOut = useCallback(async () => {
     await connection.logout();
@@ -238,19 +296,16 @@ function App() {
     [],
   );
 
-  const handleOpenProject = useCallback(
-    async (project: ProjectInfo) => {
-      try {
-        const fresh = await wailsAdapter.getProject("personal", project.id);
-        setActiveProject(fresh);
-        setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
-      } catch {
-        setActiveProject(project);
-      }
-      setActiveFile(null);
-    },
-    [],
-  );
+  const handleOpenProject = useCallback(async (project: ProjectInfo) => {
+    try {
+      const fresh = await wailsAdapter.getProject("personal", project.id);
+      setActiveProject(fresh);
+      setProjects((prev) => prev.map((p) => (p.id === fresh.id ? fresh : p)));
+    } catch {
+      setActiveProject(project);
+    }
+    setActiveFile(null);
+  }, []);
 
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
@@ -340,11 +395,19 @@ function App() {
     );
   }, []);
 
-  const sidebarUser: User | null = isServerMode && connection.info.user_name
-    ? { id: "server", email: connection.info.user_name, name: connection.info.user_name, avatar_url: "" }
-    : null;
+  const sidebarUser: User | null =
+    isServerMode && connection.info.user_name
+      ? {
+          id: "server",
+          email: connection.info.user_name,
+          name: connection.info.user_name,
+          avatar_url: "",
+        }
+      : null;
 
-  const connectionState = isServerMode ? connection.info.state as "disconnected" | "connecting" | "connected" | "offline" : undefined;
+  const connectionState = isServerMode
+    ? (connection.info.state as "disconnected" | "connecting" | "connected" | "offline")
+    : undefined;
 
   // --- Pre-app screens ---
 
@@ -441,9 +504,15 @@ function App() {
           />
         );
       case "termbase":
-        return <div className="text-muted-foreground p-6">Select a project to explore its termbase.</div>;
+        return (
+          <div className="text-muted-foreground p-6">Select a project to explore its termbase.</div>
+        );
       case "memory":
-        return <div className="text-muted-foreground p-6">Select a project to explore its translation memory.</div>;
+        return (
+          <div className="text-muted-foreground p-6">
+            Select a project to explore its translation memory.
+          </div>
+        );
       case "settings":
         return <SettingsPage />;
       case "flows":
@@ -480,13 +549,19 @@ function App() {
               <TopBar
                 user={sidebarUser}
                 onSignOut={isServerMode ? handleSignOut : undefined}
-                connectionState={isServerMode ? connection.info.state as "disconnected" | "connecting" | "connected" | "offline" : undefined}
+                connectionState={
+                  isServerMode
+                    ? (connection.info.state as
+                        | "disconnected"
+                        | "connecting"
+                        | "connected"
+                        | "offline")
+                    : undefined
+                }
                 pendingChanges={pendingChanges}
               />
             }
-            contentClassName={cn(
-              isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto",
-            )}
+            contentClassName={cn(isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto")}
           >
             {renderView()}
           </AppShell>

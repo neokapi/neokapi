@@ -14,10 +14,14 @@ interface NotificationCenterProps {
 /** Notification icon type → color mapping. */
 function typeColor(type: string): string {
   switch (type) {
-    case "review.assigned": return "text-blue-500";
-    case "review.completed": return "text-green-500";
-    case "extraction.completed": return "text-purple-500";
-    default: return "text-muted-foreground";
+    case "review.assigned":
+      return "text-blue-500";
+    case "review.completed":
+      return "text-green-500";
+    case "extraction.completed":
+      return "text-purple-500";
+    default:
+      return "text-muted-foreground";
   }
 }
 
@@ -56,7 +60,7 @@ export function NotificationCenter({
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  const toggle = useCallback(() => setOpen(prev => !prev), []);
+  const toggle = useCallback(() => setOpen((prev) => !prev), []);
 
   return (
     <div ref={ref} className="relative">
@@ -132,7 +136,10 @@ export function NotificationCenter({
                       <button
                         className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
                         title="Mark as read"
-                        onClick={(e) => { e.stopPropagation(); onMarkRead(n.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkRead(n.id);
+                        }}
                       >
                         <Check className="w-3 h-3" />
                       </button>
@@ -140,7 +147,10 @@ export function NotificationCenter({
                     <button
                       className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                       title="Delete"
-                      onClick={(e) => { e.stopPropagation(); onDelete(n.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(n.id);
+                      }}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

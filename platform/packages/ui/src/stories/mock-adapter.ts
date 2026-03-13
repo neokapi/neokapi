@@ -8,18 +8,32 @@
 
 import type { ApiAdapter } from "../api/adapter";
 import type {
-  BlockInfo, TranslationStats, WordCountResult,
-  TMMatchInfo, BlockTermMatch, BlockNote, BlockHistoryEntry,
-  QAIssue, FileQAResult,
+  BlockInfo,
+  TranslationStats,
+  WordCountResult,
+  TMMatchInfo,
+  BlockTermMatch,
+  BlockNote,
+  BlockHistoryEntry,
+  QAIssue,
+  FileQAResult,
 } from "../types/api";
 import type {
-  AutomationRule, AutomationEvent, AutomationHistoryEntry, SaveAutomationRuleRequest,
+  AutomationRule,
+  AutomationEvent,
+  AutomationHistoryEntry,
+  SaveAutomationRuleRequest,
 } from "../types/api";
 import {
-  sampleBlocks, sampleProject,
-  sampleBlockNotes, sampleBlockHistory,
-  sampleQAIssues, sampleFileQAResults,
-  sampleAutomationRules, sampleAutomationEvents, sampleAutomationHistory,
+  sampleBlocks,
+  sampleProject,
+  sampleBlockNotes,
+  sampleBlockHistory,
+  sampleQAIssues,
+  sampleFileQAResults,
+  sampleAutomationRules,
+  sampleAutomationEvents,
+  sampleAutomationHistory,
 } from "./fixtures";
 
 // ---------------------------------------------------------------------------
@@ -60,7 +74,10 @@ function generatePreviewHTML(blocks: BlockInfo[]): string {
     const inner = `<kat-block data-block-id="${b.id}">${displayHTML}</kat-block>`;
     const isShort = b.source.length < 45 && !b.has_spans;
     if (isShort) {
-      if (isFirstHeading) { isFirstHeading = false; return `  <h1>${inner}</h1>`; }
+      if (isFirstHeading) {
+        isFirstHeading = false;
+        return `  <h1>${inner}</h1>`;
+      }
       return `  <h2>${inner}</h2>`;
     }
     return `  <p>${inner}</p>`;
@@ -137,17 +154,36 @@ ${script}
 export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
   // Mutable copy so updates are reflected in subsequent reads
   const _blocks: BlockInfo[] = blocks
-    ? blocks.map((b) => ({ ...b, targets: { ...b.targets }, targets_coded: { ...b.targets_coded } }))
-    : sampleBlocks.map((b) => ({ ...b, targets: { ...b.targets }, targets_coded: { ...b.targets_coded } }));
+    ? blocks.map((b) => ({
+        ...b,
+        targets: { ...b.targets },
+        targets_coded: { ...b.targets_coded },
+      }))
+    : sampleBlocks.map((b) => ({
+        ...b,
+        targets: { ...b.targets },
+        targets_coded: { ...b.targets_coded },
+      }));
 
-  const _automationRules: AutomationRule[] = sampleAutomationRules.map((r) => ({ ...r, conditions: [...r.conditions], actions: [...r.actions] }));
+  const _automationRules: AutomationRule[] = sampleAutomationRules.map((r) => ({
+    ...r,
+    conditions: [...r.conditions],
+    actions: [...r.actions],
+  }));
 
   const noop = async () => {};
-  const notImpl = () => { throw new Error("Not implemented in mock"); };
+  const notImpl = () => {
+    throw new Error("Not implemented in mock");
+  };
 
   return {
     // --- Config ---------------------------------------------------------
-    getConfig: async () => ({ mode: "standalone", version: "0.0.0-storybook", commit: "storybook", build_date: "unknown" }),
+    getConfig: async () => ({
+      mode: "standalone",
+      version: "0.0.0-storybook",
+      commit: "storybook",
+      build_date: "unknown",
+    }),
 
     // --- Auth -----------------------------------------------------------
     getCurrentUser: async () => ({
@@ -158,12 +194,26 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
 
     // --- Workspaces -----------------------------------------------------
-    listWorkspaces: async () => [{
-      id: "ws-1", name: "Demo Workspace", slug: "demo", description: "", logo_url: "", type: "personal", role: "owner",
-    }],
+    listWorkspaces: async () => [
+      {
+        id: "ws-1",
+        name: "Demo Workspace",
+        slug: "demo",
+        description: "",
+        logo_url: "",
+        type: "personal",
+        role: "owner",
+      },
+    ],
     createWorkspace: notImpl,
     getWorkspace: async () => ({
-      id: "ws-1", name: "Demo Workspace", slug: "demo", description: "", logo_url: "", type: "personal", role: "owner",
+      id: "ws-1",
+      name: "Demo Workspace",
+      slug: "demo",
+      description: "",
+      logo_url: "",
+      type: "personal",
+      role: "owner",
     }),
     updateWorkspace: notImpl,
     deleteWorkspace: notImpl,
@@ -214,8 +264,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
         blk.targets_coded = blk.targets_coded ?? {};
         blk.targets_coded[req.target_locale] = req.coded_text;
         // Also write plain text (strip Unicode markers)
-        blk.targets[req.target_locale] = req.coded_text
-          .replace(/[\uE001\uE002\uE003]/g, "");
+        blk.targets[req.target_locale] = req.coded_text.replace(/[\uE001\uE002\uE003]/g, "");
       }
     },
 
@@ -244,20 +293,42 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       target_chars: { "fr-FR": 200, "de-DE": 60 },
     }),
 
-    exportTranslatedFile: async () => new Blob(["mock export"], { type: "application/octet-stream" }),
+    exportTranslatedFile: async () =>
+      new Blob(["mock export"], { type: "application/octet-stream" }),
 
     lookupTMForBlock: async (): Promise<TMMatchInfo[]> => [
-      { source: "Welcome to Neokapi", target: "Bienvenue sur Neokapi", score: 100, match_type: "exact" },
-      { source: "Welcome to the app", target: "Bienvenue dans l'application", score: 85, match_type: "fuzzy" },
+      {
+        source: "Welcome to Neokapi",
+        target: "Bienvenue sur Neokapi",
+        score: 100,
+        match_type: "exact",
+      },
+      {
+        source: "Welcome to the app",
+        target: "Bienvenue dans l'application",
+        score: 85,
+        match_type: "fuzzy",
+      },
     ],
 
     lookupTermsForBlock: async (): Promise<BlockTermMatch[]> => [
-      { source_term: "localization", target_terms: ["localisation"], domain: "i18n", status: "preferred", start: 0, end: 12 },
+      {
+        source_term: "localization",
+        target_terms: ["localisation"],
+        domain: "i18n",
+        status: "preferred",
+        start: 0,
+        end: 12,
+      },
     ],
 
     // --- Block notes ----------------------------------------------------
     addBlockNote: async (_ws, _projectId, blockId, text): Promise<BlockNote> => ({
-      id: `note-${Date.now()}`, blockId, author: "translator@example.com", text, createdAt: new Date().toISOString(),
+      id: `note-${Date.now()}`,
+      blockId,
+      author: "translator@example.com",
+      text,
+      createdAt: new Date().toISOString(),
     }),
     listBlockNotes: async (): Promise<BlockNote[]> => sampleBlockNotes,
     deleteBlockNote: async () => {},
@@ -271,7 +342,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
 
     // --- Preview ---------------------------------------------------------
     renderDocumentPreview: async (): Promise<string> => generatePreviewHTML(_blocks),
-    renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> => "<span>rendered block</span>",
+    renderBlockHTML: async (_ws, _projectId, _blockId): Promise<string> =>
+      "<span>rendered block</span>",
 
     // --- TM -------------------------------------------------------------
     getTMEntries: async () => ({ entries: [], total_count: 0 }),
@@ -292,7 +364,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
 
     // --- Automations -----------------------------------------------------
     listAutomationRules: async (): Promise<AutomationRule[]> => [..._automationRules],
-    createAutomationRule: async (_ws: string, _pid: string, data: SaveAutomationRuleRequest): Promise<AutomationRule> => {
+    createAutomationRule: async (
+      _ws: string,
+      _pid: string,
+      data: SaveAutomationRuleRequest,
+    ): Promise<AutomationRule> => {
       const rule: AutomationRule = {
         id: `rule-${Date.now()}`,
         project_id: "proj-demo-1",
@@ -304,10 +380,19 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       _automationRules.push(rule);
       return rule;
     },
-    updateAutomationRule: async (_ws: string, _pid: string, ruleId: string, data: SaveAutomationRuleRequest): Promise<AutomationRule> => {
+    updateAutomationRule: async (
+      _ws: string,
+      _pid: string,
+      ruleId: string,
+      data: SaveAutomationRuleRequest,
+    ): Promise<AutomationRule> => {
       const idx = _automationRules.findIndex((r) => r.id === ruleId);
       if (idx >= 0) {
-        _automationRules[idx] = { ..._automationRules[idx], ...data, updated_at: new Date().toISOString() };
+        _automationRules[idx] = {
+          ..._automationRules[idx],
+          ...data,
+          updated_at: new Date().toISOString(),
+        };
         return _automationRules[idx];
       }
       throw new Error("Rule not found");
@@ -316,7 +401,11 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       const idx = _automationRules.findIndex((r) => r.id === ruleId);
       if (idx >= 0) _automationRules.splice(idx, 1);
     },
-    toggleAutomationRule: async (_ws: string, _pid: string, ruleId: string): Promise<AutomationRule> => {
+    toggleAutomationRule: async (
+      _ws: string,
+      _pid: string,
+      ruleId: string,
+    ): Promise<AutomationRule> => {
       const rule = _automationRules.find((r) => r.id === ruleId);
       if (rule) {
         rule.enabled = !rule.enabled;
@@ -330,7 +419,13 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
 
     // --- Providers ------------------------------------------------------
     listProviderConfigs: async () => [
-      { id: "prov-1", name: "Claude", provider_type: "anthropic", model: "claude-sonnet-4-20250514", base_url: "" },
+      {
+        id: "prov-1",
+        name: "Claude",
+        provider_type: "anthropic",
+        model: "claude-sonnet-4-20250514",
+        base_url: "",
+      },
     ],
     saveProviderConfig: notImpl,
     deleteProviderConfig: noop,
@@ -356,18 +451,39 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
 
     // --- Entities ---------------------------------------------------------
     createEntity: async (_ws, _pid, _item, _bid, entity) => ({
-      key: `entity-${Date.now()}`, text: "", type: "generic", start: 0, end: 0, dnt: false, ...entity,
+      key: `entity-${Date.now()}`,
+      text: "",
+      type: "generic",
+      start: 0,
+      end: 0,
+      dnt: false,
+      ...entity,
     }),
     updateEntity: async (_ws, _pid, _item, _bid, entityKey, entity) => ({
-      key: entityKey, text: "", type: "generic", start: 0, end: 0, dnt: false, ...entity,
+      key: entityKey,
+      text: "",
+      type: "generic",
+      start: 0,
+      end: 0,
+      dnt: false,
+      ...entity,
     }),
     deleteEntity: noop,
     promoteEntity: noop,
     listStreams: async () => [],
-    createStream: async () => { throw new Error("Not implemented"); },
-    getStream: async () => { throw new Error("Not implemented"); },
+    createStream: async () => {
+      throw new Error("Not implemented");
+    },
+    getStream: async () => {
+      throw new Error("Not implemented");
+    },
     deleteStream: noop,
     diffStream: async () => ({ stream_name: "", parent_name: "", changes: [] }),
-    mergeStream: async () => ({ merged_blocks: 0, added_blocks: 0, modified_blocks: 0, removed_blocks: 0 }),
+    mergeStream: async () => ({
+      merged_blocks: 0,
+      added_blocks: 0,
+      modified_blocks: 0,
+      removed_blocks: 0,
+    }),
   };
 }

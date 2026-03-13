@@ -35,17 +35,28 @@ const iconBtnClass =
 
 function connectionToAvatarStatus(state?: ConnectionState) {
   switch (state) {
-    case "connected": return "online" as const;
-    case "offline": return "away" as const;
-    case "connecting": return "busy" as const;
-    default: return undefined;
+    case "connected":
+      return "online" as const;
+    case "offline":
+      return "away" as const;
+    case "connecting":
+      return "busy" as const;
+    default:
+      return undefined;
   }
 }
 
 export function TopBar({
-  user, onSignOut, connectionState, pendingChanges,
-  notifications, unreadCount, onMarkNotificationRead, onMarkAllNotificationsRead,
-  onDeleteNotification, onNotificationClick,
+  user,
+  onSignOut,
+  connectionState,
+  pendingChanges,
+  notifications,
+  unreadCount,
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  onDeleteNotification,
+  onNotificationClick,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const isOffline = connectionState === "offline";
@@ -61,7 +72,10 @@ export function TopBar({
       )}
 
       {/* Notification center */}
-      {notifications && onMarkNotificationRead && onMarkAllNotificationsRead && onDeleteNotification ? (
+      {notifications &&
+      onMarkNotificationRead &&
+      onMarkAllNotificationsRead &&
+      onDeleteNotification ? (
         <NotificationCenter
           notifications={notifications}
           unreadCount={unreadCount ?? 0}

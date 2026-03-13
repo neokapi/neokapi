@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import {
-  Card, CardContent, CardHeader, CardTitle,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Button,
-  useApi, useAuth, useWorkspace,
+  useApi,
+  useAuth,
+  useWorkspace,
   type AcceptInviteResponse,
 } from "@neokapi/ui";
 
@@ -140,9 +145,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {error && (
-            <div className="text-destructive text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-destructive text-sm text-center">{error}</div>}
           {!accepting && error && (
             <Button onClick={handleAccept} className="w-full" size="lg">
               Try again

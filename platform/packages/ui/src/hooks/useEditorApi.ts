@@ -42,8 +42,7 @@ export function useEditorApi() {
   );
 
   const aiTranslateFile = useCallback(
-    async (req: AITranslateFileRequest): Promise<TranslationStats> =>
-      api.aiTranslateFile(ws, req),
+    async (req: AITranslateFileRequest): Promise<TranslationStats> => api.aiTranslateFile(ws, req),
     [api, ws, activeStream],
   );
 
@@ -66,19 +65,34 @@ export function useEditorApi() {
   );
 
   const lookupTMForBlock = useCallback(
-    async (projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<TMMatchInfo[]> =>
+    async (
+      projectId: string,
+      itemName: string,
+      blockId: string,
+      targetLocale: string,
+    ): Promise<TMMatchInfo[]> =>
       api.lookupTMForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
   const lookupTermsForBlock = useCallback(
-    async (projectId: string, itemName: string, blockId: string, targetLocale: string): Promise<BlockTermMatch[]> =>
+    async (
+      projectId: string,
+      itemName: string,
+      blockId: string,
+      targetLocale: string,
+    ): Promise<BlockTermMatch[]> =>
       api.lookupTermsForBlock(ws, projectId, itemName, blockId, targetLocale, activeStream),
     [api, ws, activeStream],
   );
 
   const getBlockHistory = useCallback(
-    async (projectId: string, blockId: string, locale: string, limit?: number): Promise<BlockHistoryEntry[]> =>
+    async (
+      projectId: string,
+      blockId: string,
+      locale: string,
+      limit?: number,
+    ): Promise<BlockHistoryEntry[]> =>
       api.getBlockHistory(ws, projectId, blockId, locale, limit, activeStream),
     [api, ws, activeStream],
   );
@@ -125,41 +139,44 @@ export function useEditorApi() {
     [api, ws, activeStream],
   );
 
-  return useMemo(() => ({
-    getFileBlocks,
-    updateBlockTarget,
-    updateBlockTargetCoded,
-    aiTranslateFile,
-    tmTranslateFile,
-    getWordCount,
-    exportTranslatedFile,
-    lookupTMForBlock,
-    lookupTermsForBlock,
-    getBlockHistory,
-    addBlockNote,
-    listBlockNotes,
-    deleteBlockNote,
-    runQACheck,
-    runFileQACheck,
-    renderDocumentPreview,
-    renderBlockHTML,
-  }), [
-    getFileBlocks,
-    updateBlockTarget,
-    updateBlockTargetCoded,
-    aiTranslateFile,
-    tmTranslateFile,
-    getWordCount,
-    exportTranslatedFile,
-    lookupTMForBlock,
-    lookupTermsForBlock,
-    getBlockHistory,
-    addBlockNote,
-    listBlockNotes,
-    deleteBlockNote,
-    runQACheck,
-    runFileQACheck,
-    renderDocumentPreview,
-    renderBlockHTML,
-  ]);
+  return useMemo(
+    () => ({
+      getFileBlocks,
+      updateBlockTarget,
+      updateBlockTargetCoded,
+      aiTranslateFile,
+      tmTranslateFile,
+      getWordCount,
+      exportTranslatedFile,
+      lookupTMForBlock,
+      lookupTermsForBlock,
+      getBlockHistory,
+      addBlockNote,
+      listBlockNotes,
+      deleteBlockNote,
+      runQACheck,
+      runFileQACheck,
+      renderDocumentPreview,
+      renderBlockHTML,
+    }),
+    [
+      getFileBlocks,
+      updateBlockTarget,
+      updateBlockTargetCoded,
+      aiTranslateFile,
+      tmTranslateFile,
+      getWordCount,
+      exportTranslatedFile,
+      lookupTMForBlock,
+      lookupTermsForBlock,
+      getBlockHistory,
+      addBlockNote,
+      listBlockNotes,
+      deleteBlockNote,
+      runQACheck,
+      runFileQACheck,
+      renderDocumentPreview,
+      renderBlockHTML,
+    ],
+  );
 }

@@ -4,7 +4,15 @@ import { WorkspaceRail } from "../components/WorkspaceRail";
 import type { Workspace, User } from "../types/api";
 
 function ws(id: string, name: string): Workspace {
-  return { id, name, slug: name.toLowerCase(), description: "", logo_url: "", type: "team", role: "owner" };
+  return {
+    id,
+    name,
+    slug: name.toLowerCase(),
+    description: "",
+    logo_url: "",
+    type: "team",
+    role: "owner",
+  };
 }
 
 const testUser: User = { id: "u1", name: "Alice", email: "alice@example.com", avatar_url: "" };

@@ -12,9 +12,22 @@ import { FormatVocabularyBadge } from "../../components/editor/FormatVocabularyB
 import { TagChipComponent } from "../../components/editor/TagChipComponent";
 import type { SpanInfo } from "../../types/api";
 import {
-  boldOpen, boldClose, italicOpen, italicClose, linkOpen, linkClose,
-  codeOpen, codeClose, lineBreak, imgTag, underlineOpen, underlineClose,
-  strikeOpen, strikeClose, supOpen, supClose,
+  boldOpen,
+  boldClose,
+  italicOpen,
+  italicClose,
+  linkOpen,
+  linkClose,
+  codeOpen,
+  codeClose,
+  lineBreak,
+  imgTag,
+  underlineOpen,
+  underlineClose,
+  strikeOpen,
+  strikeClose,
+  supOpen,
+  supClose,
   richSpans,
 } from "../fixtures";
 
@@ -58,8 +71,8 @@ export const AllVocabularies: Story = {
     <div style={{ maxWidth: 480, padding: 16 }}>
       <h3 style={titleStyle}>Vocabulary Explorer</h3>
       <p style={descStyle}>
-        Click a category to expand it and see all span types, their chip
-        representations, and editing constraints.
+        Click a category to expand it and see all span types, their chip representations, and
+        editing constraints.
       </p>
       <VocabularyExplorer />
     </div>
@@ -72,8 +85,8 @@ export const FilteredByActiveTypes: Story = {
     <div style={{ maxWidth: 480, padding: 16 }}>
       <h3 style={titleStyle}>Filtered by Document Types</h3>
       <p style={descStyle}>
-        When a document only uses certain types, inactive categories are dimmed.
-        This document uses bold, italic, and hyperlinks.
+        When a document only uses certain types, inactive categories are dimmed. This document uses
+        bold, italic, and hyperlinks.
       </p>
       <VocabularyExplorer activeTypes={["fmt:bold", "fmt:italic", "link:hyperlink"]} />
     </div>
@@ -94,9 +107,12 @@ export const CompactMode: Story = {
 export const InlineCodeLegendPanel: Story = {
   render: () => {
     const spans: SpanInfo[] = [
-      boldOpen, boldClose,
-      linkOpen, linkClose,
-      codeOpen, codeClose,
+      boldOpen,
+      boldClose,
+      linkOpen,
+      linkClose,
+      codeOpen,
+      codeClose,
       lineBreak,
     ];
 
@@ -104,8 +120,8 @@ export const InlineCodeLegendPanel: Story = {
       <div style={{ maxWidth: 400, padding: 16 }}>
         <h3 style={titleStyle}>Inline Code Legend</h3>
         <p style={descStyle}>
-          Shows all inline tag types in the current segment, grouped by category,
-          with constraint indicators.
+          Shows all inline tag types in the current segment, grouped by category, with constraint
+          indicators.
         </p>
         <InlineCodeLegend spans={spans} onClose={() => {}} />
       </div>
@@ -117,19 +133,52 @@ export const InlineCodeLegendPanel: Story = {
 export const CodeTokenLegend: Story = {
   render: () => {
     const spans: SpanInfo[] = [
-      { span_type: "placeholder", type: "code:variable", id: "1", data: "{userName}", deletable: false, cloneable: false, can_reorder: true },
-      { span_type: "placeholder", type: "code:placeholder", id: "2", data: "{0}", deletable: false, cloneable: false, can_reorder: true },
-      { span_type: "opening", type: "code:function", id: "3", data: "{count, plural,", deletable: false, cloneable: false, can_reorder: false },
-      { span_type: "closing", type: "code:function", id: "3", data: "}", deletable: false, cloneable: false, can_reorder: false },
-      boldOpen, boldClose,
+      {
+        span_type: "placeholder",
+        type: "code:variable",
+        id: "1",
+        data: "{userName}",
+        deletable: false,
+        cloneable: false,
+        can_reorder: true,
+      },
+      {
+        span_type: "placeholder",
+        type: "code:placeholder",
+        id: "2",
+        data: "{0}",
+        deletable: false,
+        cloneable: false,
+        can_reorder: true,
+      },
+      {
+        span_type: "opening",
+        type: "code:function",
+        id: "3",
+        data: "{count, plural,",
+        deletable: false,
+        cloneable: false,
+        can_reorder: false,
+      },
+      {
+        span_type: "closing",
+        type: "code:function",
+        id: "3",
+        data: "}",
+        deletable: false,
+        cloneable: false,
+        can_reorder: false,
+      },
+      boldOpen,
+      boldClose,
     ];
 
     return (
       <div style={{ maxWidth: 400, padding: 16 }}>
         <h3 style={titleStyle}>Code Tokens + Formatting</h3>
         <p style={descStyle}>
-          A segment mixing code tokens (variables, placeholders, ICU functions)
-          with formatting tags. Note the different constraint levels.
+          A segment mixing code tokens (variables, placeholders, ICU functions) with formatting
+          tags. Note the different constraint levels.
         </p>
         <InlineCodeLegend spans={spans} onClose={() => {}} />
       </div>
@@ -143,8 +192,8 @@ export const VocabularyBadge: Story = {
     <div style={{ maxWidth: 480, padding: 16 }}>
       <h3 style={titleStyle}>Vocabulary Badge</h3>
       <p style={descStyle}>
-        Compact inline badge showing which vocabulary categories are active.
-        Typically displayed in the editor card header.
+        Compact inline badge showing which vocabulary categories are active. Typically displayed in
+        the editor card header.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
         <div>
@@ -161,7 +210,8 @@ export const VocabularyBadge: Story = {
             spans={[
               { span_type: "placeholder", type: "code:variable", id: "1", data: "{name}" },
               { span_type: "placeholder", type: "code:placeholder", id: "2", data: "{0}" },
-              boldOpen, boldClose,
+              boldOpen,
+              boldClose,
             ]}
           />
         </div>

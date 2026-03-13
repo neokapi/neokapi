@@ -123,11 +123,8 @@ const jsonFilterSchema: FilterSchema = {
       "x-okapiFormat": "inlineCodeFinder",
       "x-presets": {
         htmlTags: {
-          rules: [
-            { pattern: "</?[a-zA-Z][a-zA-Z0-9]*[^>]*/?>" },
-            { pattern: "&[a-zA-Z]+;" },
-          ],
-          sample: 'Click <b>here</b> for &mdash; details',
+          rules: [{ pattern: "</?[a-zA-Z][a-zA-Z0-9]*[^>]*/?>" }, { pattern: "&[a-zA-Z]+;" }],
+          sample: "Click <b>here</b> for &mdash; details",
         },
         markdownInline: {
           rules: [
@@ -299,8 +296,7 @@ const xmlFilterSchema: FilterSchema = {
     },
     codeFinderRules: {
       type: "object",
-      description:
-        "Patterns for detecting inline codes in mixed-content XML text nodes.",
+      description: "Patterns for detecting inline codes in mixed-content XML text nodes.",
       "x-widget": "codeFinderRules",
       "x-okapiFormat": "inlineCodeFinder",
       "x-presets": {
@@ -310,13 +306,10 @@ const xmlFilterSchema: FilterSchema = {
             { pattern: "</(b|i|u|em|strong|code|a|span)>" },
             { pattern: "<(br|hr|img)[^>]*/>" },
           ],
-          sample: "Click <b>here</b> to <a href=\"#\">learn more</a>",
+          sample: 'Click <b>here</b> to <a href="#">learn more</a>',
         },
         resnameVars: {
-          rules: [
-            { pattern: "\\{[0-9]+\\}" },
-            { pattern: "\\%[0-9]*[sdfu]" },
-          ],
+          rules: [{ pattern: "\\{[0-9]+\\}" }, { pattern: "\\%[0-9]*[sdfu]" }],
           sample: "Welcome {0}, you have {1} messages",
         },
       },
@@ -368,13 +361,7 @@ export const HTMLFilter: Story = {
       preserveWhitespace: false,
       maxSegmentLength: 0,
     });
-    return (
-      <FilterConfigEditor
-        schema={htmlFilterSchema}
-        value={value}
-        onChange={setValue}
-      />
-    );
+    return <FilterConfigEditor schema={htmlFilterSchema} value={value} onChange={setValue} />;
   },
 };
 
@@ -392,20 +379,11 @@ export const JSONFilterWithCodeFinder: Story = {
       extractionRules: "",
       useCodeFinder: true,
       codeFinderRules: {
-        rules: [
-          { pattern: "</?[a-zA-Z][a-zA-Z0-9]*[^>]*/?>" },
-          { pattern: "&[a-zA-Z]+;" },
-        ],
-        sample: 'Click <b>here</b> for &mdash; details',
+        rules: [{ pattern: "</?[a-zA-Z][a-zA-Z0-9]*[^>]*/?>" }, { pattern: "&[a-zA-Z]+;" }],
+        sample: "Click <b>here</b> for &mdash; details",
       },
     });
-    return (
-      <FilterConfigEditor
-        schema={jsonFilterSchema}
-        value={value}
-        onChange={setValue}
-      />
-    );
+    return <FilterConfigEditor schema={jsonFilterSchema} value={value} onChange={setValue} />;
   },
 };
 
@@ -427,13 +405,7 @@ export const PlainTextFilter: Story = {
       inputEncoding: "UTF-8",
       outputEncoding: "UTF-8",
     });
-    return (
-      <FilterConfigEditor
-        schema={plainTextFilterSchema}
-        value={value}
-        onChange={setValue}
-      />
-    );
+    return <FilterConfigEditor schema={plainTextFilterSchema} value={value} onChange={setValue} />;
   },
 };
 
@@ -462,13 +434,7 @@ export const XMLFilterWithInlineCodes: Story = {
       escapeGT: false,
       collapseWhitespace: true,
     });
-    return (
-      <FilterConfigEditor
-        schema={xmlFilterSchema}
-        value={value}
-        onChange={setValue}
-      />
-    );
+    return <FilterConfigEditor schema={xmlFilterSchema} value={value} onChange={setValue} />;
   },
 };
 
@@ -486,12 +452,6 @@ export const EmptyCodeFinderRules: Story = {
       useCodeFinder: true,
       codeFinderRules: { rules: [], sample: "" },
     });
-    return (
-      <FilterConfigEditor
-        schema={jsonFilterSchema}
-        value={value}
-        onChange={setValue}
-      />
-    );
+    return <FilterConfigEditor schema={jsonFilterSchema} value={value} onChange={setValue} />;
   },
 };

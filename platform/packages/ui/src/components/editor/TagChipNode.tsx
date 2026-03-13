@@ -14,10 +14,7 @@ import type { SpanInfo } from "../../types/api";
 import { TagChipComponent } from "./TagChipComponent";
 import { isDeletable } from "./tagConstraints";
 
-export type SerializedTagChipNode = Spread<
-  { spanInfo: SpanInfo },
-  SerializedLexicalNode
->;
+export type SerializedTagChipNode = Spread<{ spanInfo: SpanInfo }, SerializedLexicalNode>;
 
 export class TagChipNode extends DecoratorNode<ReactNode> {
   __spanInfo: SpanInfo;
@@ -90,8 +87,6 @@ export function $createTagChipNode(spanInfo: SpanInfo): TagChipNode {
   return new TagChipNode(spanInfo);
 }
 
-export function $isTagChipNode(
-  node: LexicalNode | null | undefined,
-): node is TagChipNode {
+export function $isTagChipNode(node: LexicalNode | null | undefined): node is TagChipNode {
   return node instanceof TagChipNode;
 }

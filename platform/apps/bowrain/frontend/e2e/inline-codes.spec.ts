@@ -193,7 +193,15 @@ async function pressEnterInEditor(page: Page) {
   await page.evaluate(() => {
     const el = document.querySelector('[contenteditable="true"]');
     if (el) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     }
   });
 }
@@ -203,7 +211,15 @@ async function pressEscapeInEditor(page: Page) {
   await page.evaluate(() => {
     const el = document.querySelector('[contenteditable="true"]');
     if (el) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          code: "Escape",
+          keyCode: 27,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     }
   });
 }
@@ -213,7 +229,15 @@ async function pressCtrlDigitInEditor(page: Page, digit: number) {
   await page.evaluate((d: number) => {
     const el = document.querySelector('[contenteditable="true"]');
     if (el) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: String(d), code: `Digit${d}`, ctrlKey: true, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: String(d),
+          code: `Digit${d}`,
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     }
   }, digit);
 }

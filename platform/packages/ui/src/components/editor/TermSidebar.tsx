@@ -125,7 +125,9 @@ export function TermSidebar({
               </span>
             )}
             {m.project_id && (
-              <span className="inline-block mt-0.5 text-[10px] px-1 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 ml-1">project</span>
+              <span className="inline-block mt-0.5 text-[10px] px-1 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 ml-1">
+                project
+              </span>
             )}
           </div>
         ))}

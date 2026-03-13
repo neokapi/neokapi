@@ -5,13 +5,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { GlassCard } from "./ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { AlertGlass, AlertGlassDescription } from "./ui/alert";
 import { KeyRound, Trash2, Copy, Clock } from "./icons";
@@ -173,8 +167,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     }
   };
 
-  const isExpired = (t: ApiToken) =>
-    t.expires_at != null && new Date(t.expires_at) < new Date();
+  const isExpired = (t: ApiToken) => t.expires_at != null && new Date(t.expires_at) < new Date();
 
   const formatExpiry = (expiresAtVal: string | null): string => {
     if (expiresAtVal == null) return "Never";
@@ -208,7 +201,12 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
         </div>
 
         {error && (
-          <AlertGlass variant="destructive" dismissible onDismiss={() => setError("")} className="mb-4">
+          <AlertGlass
+            variant="destructive"
+            dismissible
+            onDismiss={() => setError("")}
+            className="mb-4"
+          >
             <AlertGlassDescription>{error}</AlertGlassDescription>
           </AlertGlass>
         )}
@@ -223,10 +221,18 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Name</th>
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Prefix</th>
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Last Used</th>
-                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">Expires</th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Name
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Prefix
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Last Used
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Expires
+                  </th>
                   <th className="px-4 py-2.5 text-sm font-medium text-muted-foreground w-[60px]"></th>
                 </tr>
               </thead>
@@ -243,9 +249,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                         {t.token_prefix}...
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
-                        {t.last_used_at
-                          ? new Date(t.last_used_at).toLocaleDateString()
-                          : "Never"}
+                        {t.last_used_at ? new Date(t.last_used_at).toLocaleDateString() : "Never"}
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
                         <span className="inline-flex items-center gap-1.5">
@@ -334,7 +338,13 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                     {PRESETS.map((p) => (
                       <SelectItem key={p.value} value={p.value}>
                         {p.days != null
-                          ? `${p.label} (${formatShortDate((() => { const d = new Date(); d.setDate(d.getDate() + p.days); return d; })())})`
+                          ? `${p.label} (${formatShortDate(
+                              (() => {
+                                const d = new Date();
+                                d.setDate(d.getDate() + p.days);
+                                return d;
+                              })(),
+                            )})`
                           : p.label}
                       </SelectItem>
                     ))}
@@ -391,19 +401,29 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
       </Dialog>
 
       {/* Delete confirmation dialog */}
-      <Dialog open={deleteTokenId !== null} onOpenChange={(open: boolean) => { if (!open) setDeleteTokenId(null); }}>
+      <Dialog
+        open={deleteTokenId !== null}
+        onOpenChange={(open: boolean) => {
+          if (!open) setDeleteTokenId(null);
+        }}
+      >
         <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>Delete API Token</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground py-2">
-            Are you sure you want to delete this token? Any applications using it will lose access immediately.
+            Are you sure you want to delete this token? Any applications using it will lose access
+            immediately.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTokenId(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete} data-testid="token-confirm-delete-btn">
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDelete}
+              data-testid="token-confirm-delete-btn"
+            >
               Delete
             </Button>
           </DialogFooter>

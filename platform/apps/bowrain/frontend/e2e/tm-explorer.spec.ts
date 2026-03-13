@@ -23,13 +23,16 @@ async function createProjectAndOpenTM(page: any) {
 
 /** Helper: set value on an input natively (avoids Playwright fill hangs). */
 function setInput(page: any, testId: string, value: string) {
-  return page.evaluate(({ testId, value }: { testId: string; value: string }) => {
-    const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
-    if (!input) return;
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }, { testId, value });
+  return page.evaluate(
+    ({ testId, value }: { testId: string; value: string }) => {
+      const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
+      if (!input) return;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    { testId, value },
+  );
 }
 
 /** Helper: click by test ID using native DOM click. */
@@ -128,9 +131,14 @@ test.describe("TM Explorer", () => {
 
     // Select "de" from the target locale filter using native DOM
     await page.evaluate(() => {
-      const select = document.querySelector('[data-testid="tm-target-locale-filter"]') as HTMLSelectElement;
+      const select = document.querySelector(
+        '[data-testid="tm-target-locale-filter"]',
+      ) as HTMLSelectElement;
       if (select) {
-        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(select, "de");
+        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
+          select,
+          "de",
+        );
         select.dispatchEvent(new Event("change", { bubbles: true }));
       }
     });
@@ -170,7 +178,10 @@ test.describe("TM Explorer", () => {
     await page.evaluate(() => {
       const input = document.querySelector('[data-testid^="tm-edit-input-"]') as HTMLInputElement;
       if (input) {
-        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Salut");
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
+          input,
+          "Salut",
+        );
         input.dispatchEvent(new Event("input", { bubbles: true }));
         input.dispatchEvent(new Event("change", { bubbles: true }));
       }

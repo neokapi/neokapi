@@ -38,8 +38,10 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryDescriptions: Record<string, string> = {
-  formatting: "Visual text styles like bold, italic, and underline that should be preserved in translations.",
-  linking: "Hyperlinks and cross-references — the linked text is translated but the URL is preserved.",
+  formatting:
+    "Visual text styles like bold, italic, and underline that should be preserved in translations.",
+  linking:
+    "Hyperlinks and cross-references — the linked text is translated but the URL is preserved.",
   media: "Embedded images, videos, and other media that appear inline within text.",
   structure: "Structural elements like line breaks and footnotes that control document layout.",
   code: "Variables, placeholders, and function calls that must not be modified during translation.",
@@ -49,21 +51,39 @@ const categoryDescriptions: Record<string, string> = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function constraintBadges(info: SpanTypeInfo): Array<{ label: string; color: string; description: string }> {
+function constraintBadges(
+  info: SpanTypeInfo,
+): Array<{ label: string; color: string; description: string }> {
   const badges: Array<{ label: string; color: string; description: string }> = [];
   if (!info.constraints.deletable) {
-    badges.push({ label: "Required", color: "text-red-500 bg-red-500/10 border-red-500/25", description: "Must be present in the translation" });
+    badges.push({
+      label: "Required",
+      color: "text-red-500 bg-red-500/10 border-red-500/25",
+      description: "Must be present in the translation",
+    });
   }
   if (!info.constraints.cloneable) {
-    badges.push({ label: "No duplicates", color: "text-amber-600 bg-amber-500/10 border-amber-500/25", description: "Cannot be duplicated in the translation" });
+    badges.push({
+      label: "No duplicates",
+      color: "text-amber-600 bg-amber-500/10 border-amber-500/25",
+      description: "Cannot be duplicated in the translation",
+    });
   }
   if (!info.constraints.reorderable) {
-    badges.push({ label: "Fixed position", color: "text-purple-500 bg-purple-500/10 border-purple-500/25", description: "Must stay in the same relative position" });
+    badges.push({
+      label: "Fixed position",
+      color: "text-purple-500 bg-purple-500/10 border-purple-500/25",
+      description: "Must stay in the same relative position",
+    });
   }
   return badges;
 }
 
-function makeSpanInfo(typeName: string, spanType: "opening" | "closing" | "placeholder", id: string): SpanInfo {
+function makeSpanInfo(
+  typeName: string,
+  spanType: "opening" | "closing" | "placeholder",
+  id: string,
+): SpanInfo {
   return { span_type: spanType, type: typeName, id, data: "" };
 }
 
@@ -71,7 +91,11 @@ function makeSpanInfo(typeName: string, spanType: "opening" | "closing" | "place
 // Component
 // ---------------------------------------------------------------------------
 
-export function VocabularyExplorer({ activeTypes, compact, onTypeSelect }: VocabularyExplorerProps) {
+export function VocabularyExplorer({
+  activeTypes,
+  compact,
+  onTypeSelect,
+}: VocabularyExplorerProps) {
   const registry = getDefaultRegistry();
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
 
@@ -131,7 +155,11 @@ export function VocabularyExplorer({ activeTypes, compact, onTypeSelect }: Vocab
                   {group.types.slice(0, 4).map((t) => (
                     <TagChipComponent
                       key={t.name}
-                      spanInfo={makeSpanInfo(t.name, t.info.chipLabel.placeholder ? "placeholder" : "opening", "p")}
+                      spanInfo={makeSpanInfo(
+                        t.name,
+                        t.info.chipLabel.placeholder ? "placeholder" : "opening",
+                        "p",
+                      )}
                       dimmed={activeTypes ? !activeTypes.includes(t.name) : false}
                     />
                   ))}
@@ -187,8 +215,12 @@ export function VocabularyExplorer({ activeTypes, compact, onTypeSelect }: Vocab
                       {/* Type info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-foreground">{t.info.label}</span>
-                          <span className="text-[10px] text-muted-foreground font-mono">{t.name}</span>
+                          <span className="text-xs font-medium text-foreground">
+                            {t.info.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {t.name}
+                          </span>
                         </div>
                         {/* Constraint badges */}
                         {badges.length > 0 && (
@@ -196,7 +228,10 @@ export function VocabularyExplorer({ activeTypes, compact, onTypeSelect }: Vocab
                             {badges.map((b) => (
                               <span
                                 key={b.label}
-                                className={cn("text-[9px] px-1.5 py-0.5 rounded border font-medium", b.color)}
+                                className={cn(
+                                  "text-[9px] px-1.5 py-0.5 rounded border font-medium",
+                                  b.color,
+                                )}
                                 title={b.description}
                               >
                                 {b.label}

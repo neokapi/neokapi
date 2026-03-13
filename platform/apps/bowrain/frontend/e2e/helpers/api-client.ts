@@ -83,8 +83,7 @@ async function apiDelete(path: string, token: string) {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!resp.ok && resp.status !== 204)
-    throw new Error(`DELETE ${path} failed: ${resp.status}`);
+  if (!resp.ok && resp.status !== 204) throw new Error(`DELETE ${path} failed: ${resp.status}`);
 }
 
 // --- Workspace ---
@@ -143,10 +142,7 @@ export async function deleteEditorProject(
   await apiDelete(`/workspaces/${wsSlug}/editor/projects/${projectId}`, token);
 }
 
-export async function deleteAllEditorProjects(
-  token: string,
-  wsSlug: string,
-): Promise<void> {
+export async function deleteAllEditorProjects(token: string, wsSlug: string): Promise<void> {
   const projects = await listEditorProjects(token, wsSlug);
   if (!projects) return;
   for (const p of projects) {
@@ -167,14 +163,11 @@ export async function uploadFile(
   const formData = new FormData();
   formData.append("files", new Blob([fileContent]), fileName);
 
-  const resp = await fetch(
-    `${API}/workspaces/${wsSlug}/editor/projects/${projectId}/files`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    },
-  );
+  const resp = await fetch(`${API}/workspaces/${wsSlug}/editor/projects/${projectId}/files`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
   if (!resp.ok) throw new Error(`Upload ${fileName} failed: ${resp.status} ${await resp.text()}`);
 }
 
@@ -221,7 +214,8 @@ export async function seedTMEntries(
   wsSlug: string,
   entriesPath?: string,
 ): Promise<number> {
-  const filePath = entriesPath || path.resolve(__dirname, "../../../../web/e2e/seed/tm-entries.json");
+  const filePath =
+    entriesPath || path.resolve(__dirname, "../../../../web/e2e/seed/tm-entries.json");
   const entries: TMEntry[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const entry of entries) {
     await apiPost(`/workspaces/${wsSlug}/tm`, token, entry);
@@ -250,7 +244,8 @@ export async function seedConcepts(
   wsSlug: string,
   conceptsPath?: string,
 ): Promise<number> {
-  const filePath = conceptsPath || path.resolve(__dirname, "../../../../web/e2e/seed/concepts.json");
+  const filePath =
+    conceptsPath || path.resolve(__dirname, "../../../../web/e2e/seed/concepts.json");
   const concepts: Concept[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
   for (const concept of concepts) {
     await apiPost(`/workspaces/${wsSlug}/terms`, token, concept);
@@ -302,7 +297,9 @@ export async function fullSeed(): Promise<SeedResult> {
   console.log("Seeding terminology concepts...");
   const conceptCount = await seedConcepts(token, ws.slug);
 
-  console.log(`Seed complete: ${projects.length} projects, ${tmCount} TM entries, ${conceptCount} concepts`);
+  console.log(
+    `Seed complete: ${projects.length} projects, ${tmCount} TM entries, ${conceptCount} concepts`,
+  );
 
   return {
     context: { token, workspaceSlug: ws.slug, workspaceId: ws.id },

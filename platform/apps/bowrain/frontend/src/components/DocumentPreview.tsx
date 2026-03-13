@@ -36,15 +36,19 @@ export function DocumentPreview({
     let cancelled = false;
     setLoading(true);
     setIframeReady(false);
-    renderDocumentPreview(projectId, itemName, targetLocale).then((html) => {
-      if (!cancelled) {
-        setPreviewHTML(html);
-        setLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => { cancelled = true; };
+    renderDocumentPreview(projectId, itemName, targetLocale)
+      .then((html) => {
+        if (!cancelled) {
+          setPreviewHTML(html);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [renderDocumentPreview, projectId, itemName, targetLocale]);
 
   // Listen for block clicks and iframe ready signal
@@ -82,13 +86,9 @@ export function DocumentPreview({
     if (!cw || !iframeReady) return;
 
     for (const block of blocks) {
-      const html = showTarget && block.targets[targetLocale]
-        ? block.targets[targetLocale]
-        : block.source;
-      cw.postMessage(
-        { type: "kat-update-block", blockId: block.id, html },
-        "*",
-      );
+      const html =
+        showTarget && block.targets[targetLocale] ? block.targets[targetLocale] : block.source;
+      cw.postMessage({ type: "kat-update-block", blockId: block.id, html }, "*");
     }
   }, [showTarget, blocks, targetLocale, iframeReady]);
 

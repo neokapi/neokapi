@@ -11,7 +11,11 @@ import {
 } from "../components/editor/tagSemantics";
 import type { SpanInfo } from "../types/api";
 
-function span(spanType: "opening" | "closing" | "placeholder", type: string, data: string): SpanInfo {
+function span(
+  spanType: "opening" | "closing" | "placeholder",
+  type: string,
+  data: string,
+): SpanInfo {
   return { span_type: spanType, type, id: "1", data };
 }
 
@@ -94,7 +98,13 @@ describe("semanticLabel", () => {
   });
 
   it("uses display_text from span when available", () => {
-    const s: SpanInfo = { span_type: "opening", type: "fmt:bold", id: "1", data: "<b>", display_text: "[BOLD]" };
+    const s: SpanInfo = {
+      span_type: "opening",
+      type: "fmt:bold",
+      id: "1",
+      data: "<b>",
+      display_text: "[BOLD]",
+    };
     expect(semanticLabel(s)).toBe("[BOLD]");
   });
 
@@ -233,7 +243,7 @@ describe("validateTags", () => {
 
     expect(result.valid).toBe(false);
     expect(result.errors.length).toBeGreaterThan(0);
-    expect(result.errors.some(e => e.type === "missing_tag")).toBe(true);
+    expect(result.errors.some((e) => e.type === "missing_tag")).toBe(true);
   });
 
   it("reports extra tags as warnings", () => {
@@ -241,7 +251,7 @@ describe("validateTags", () => {
     const target = [span("opening", "fmt:bold", "<b>"), span("closing", "fmt:bold", "</b>")];
     const result = validateTags(source, target);
 
-    expect(result.warnings.some(w => w.type === "extra_tag")).toBe(true);
+    expect(result.warnings.some((w) => w.type === "extra_tag")).toBe(true);
   });
 
   it("reports unpaired closing tags in target", () => {
@@ -249,7 +259,7 @@ describe("validateTags", () => {
     const target = [span("closing", "fmt:bold", "</b>")];
     const result = validateTags(source, target);
 
-    expect(result.errors.some(e => e.type === "unpaired")).toBe(true);
+    expect(result.errors.some((e) => e.type === "unpaired")).toBe(true);
   });
 
   it("reports unpaired opening tags in target", () => {
@@ -257,7 +267,7 @@ describe("validateTags", () => {
     const target = [span("opening", "fmt:bold", "<b>")];
     const result = validateTags(source, target);
 
-    expect(result.errors.some(e => e.type === "unpaired")).toBe(true);
+    expect(result.errors.some((e) => e.type === "unpaired")).toBe(true);
   });
 
   it("reports deleted_non_deletable for missing non-deletable tag", () => {
@@ -266,8 +276,8 @@ describe("validateTags", () => {
     const result = validateTags(source, target);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.type === "deleted_non_deletable")).toBe(true);
-    expect(result.errors.some(e => e.type === "missing_tag")).toBe(false);
+    expect(result.errors.some((e) => e.type === "deleted_non_deletable")).toBe(true);
+    expect(result.errors.some((e) => e.type === "missing_tag")).toBe(false);
   });
 
   it("reports missing_tag (not deleted_non_deletable) for deletable tag", () => {
@@ -275,8 +285,8 @@ describe("validateTags", () => {
     const target: SpanInfo[] = [];
     const result = validateTags(source, target);
 
-    expect(result.errors.some(e => e.type === "missing_tag")).toBe(true);
-    expect(result.errors.some(e => e.type === "deleted_non_deletable")).toBe(false);
+    expect(result.errors.some((e) => e.type === "missing_tag")).toBe(true);
+    expect(result.errors.some((e) => e.type === "deleted_non_deletable")).toBe(false);
   });
 
   it("reports cloned_non_cloneable for duplicated non-cloneable tag", () => {
@@ -288,8 +298,8 @@ describe("validateTags", () => {
     const result = validateTags(source, target);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.type === "cloned_non_cloneable")).toBe(true);
-    expect(result.warnings.some(w => w.type === "extra_tag")).toBe(false);
+    expect(result.errors.some((e) => e.type === "cloned_non_cloneable")).toBe(true);
+    expect(result.warnings.some((w) => w.type === "extra_tag")).toBe(false);
   });
 
   it("reports extra_tag (not cloned_non_cloneable) for cloneable tag", () => {
@@ -297,8 +307,8 @@ describe("validateTags", () => {
     const target = [span("opening", "fmt:bold", "<b>")];
     const result = validateTags(source, target);
 
-    expect(result.warnings.some(w => w.type === "extra_tag")).toBe(true);
-    expect(result.errors.some(e => e.type === "cloned_non_cloneable")).toBe(false);
+    expect(result.warnings.some((w) => w.type === "extra_tag")).toBe(true);
+    expect(result.errors.some((e) => e.type === "cloned_non_cloneable")).toBe(false);
   });
 
   it("handles mixed valid and invalid tags", () => {
@@ -315,7 +325,7 @@ describe("validateTags", () => {
     const result = validateTags(source, target);
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some(e => e.message.includes("Line Break"))).toBe(true);
+    expect(result.errors.some((e) => e.message.includes("Line Break"))).toBe(true);
   });
 });
 
@@ -367,7 +377,10 @@ describe("codedTextToHtml", () => {
   });
 
   it("skips unknown types (text flows through)", () => {
-    const spans = [span("opening", "custom:unknown", "<div>"), span("closing", "custom:unknown", "</div>")];
+    const spans = [
+      span("opening", "custom:unknown", "<div>"),
+      span("closing", "custom:unknown", "</div>"),
+    ];
     const coded = `${OPENING}content${CLOSING}`;
     // Unknown types use fallback HTML (<span data-type="...">)
     const html = codedTextToHtml(coded, spans);

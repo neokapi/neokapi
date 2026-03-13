@@ -6,42 +6,62 @@
     "code:variable": {
       "category": "code",
       "label": "Variable",
-      "html": {"placeholder": "<code class=\"variable\"/>"},
-      "display": {"placeholder": "[VAR]"},
-      "chipLabel": {"placeholder": "var"},
-      "color": {"bg": "rgba(234,88,12,0.15)", "border": "rgba(234,88,12,0.5)", "text": "rgb(234,88,12)"},
+      "html": { "placeholder": "<code class=\"variable\"/>" },
+      "display": { "placeholder": "[VAR]" },
+      "chipLabel": { "placeholder": "var" },
+      "color": {
+        "bg": "rgba(234,88,12,0.15)",
+        "border": "rgba(234,88,12,0.5)",
+        "text": "rgb(234,88,12)"
+      },
       "equiv": "",
-      "constraints": {"deletable": false, "cloneable": false, "reorderable": true}
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": true }
     },
     "code:placeholder": {
       "category": "code",
       "label": "Placeholder",
-      "html": {"placeholder": "<code class=\"placeholder\"/>"},
-      "display": {"placeholder": "[PH]"},
-      "chipLabel": {"placeholder": "ph"},
-      "color": {"bg": "rgba(234,88,12,0.15)", "border": "rgba(234,88,12,0.5)", "text": "rgb(234,88,12)"},
+      "html": { "placeholder": "<code class=\"placeholder\"/>" },
+      "display": { "placeholder": "[PH]" },
+      "chipLabel": { "placeholder": "ph" },
+      "color": {
+        "bg": "rgba(234,88,12,0.15)",
+        "border": "rgba(234,88,12,0.5)",
+        "text": "rgb(234,88,12)"
+      },
       "equiv": "",
-      "constraints": {"deletable": false, "cloneable": false, "reorderable": true}
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": true }
     },
     "code:function": {
       "category": "code",
       "label": "Function",
-      "html": {"open": "<code class=\"function\">", "close": "</code>"},
-      "display": {"open": "[FN]", "close": "[/FN]"},
-      "chipLabel": {"open": "fn>", "close": "/fn", "placeholder": "fn"},
-      "color": {"bg": "rgba(234,88,12,0.15)", "border": "rgba(234,88,12,0.5)", "text": "rgb(234,88,12)"},
+      "html": { "open": "<code class=\"function\">", "close": "</code>" },
+      "display": { "open": "[FN]", "close": "[/FN]" },
+      "chipLabel": { "open": "fn>", "close": "/fn", "placeholder": "fn" },
+      "color": {
+        "bg": "rgba(234,88,12,0.15)",
+        "border": "rgba(234,88,12,0.5)",
+        "text": "rgb(234,88,12)"
+      },
       "equiv": "",
-      "constraints": {"deletable": false, "cloneable": false, "reorderable": false}
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
     },
     "code:markup": {
       "category": "code",
       "label": "Markup",
-      "html": {"open": "<span data-type=\"code:markup\">", "close": "</span>", "placeholder": "<span data-type=\"code:markup\"/>"},
-      "display": {"open": "[CODE]", "close": "[/CODE]", "placeholder": "[CODE/]"},
-      "chipLabel": {"open": "?>", "close": "/?", "placeholder": "?"},
-      "color": {"bg": "rgba(156,163,175,0.15)", "border": "rgba(156,163,175,0.5)", "text": "rgb(107,114,128)"},
+      "html": {
+        "open": "<span data-type=\"code:markup\">",
+        "close": "</span>",
+        "placeholder": "<span data-type=\"code:markup\"/>"
+      },
+      "display": { "open": "[CODE]", "close": "[/CODE]", "placeholder": "[CODE/]" },
+      "chipLabel": { "open": "?>", "close": "/?", "placeholder": "?" },
+      "color": {
+        "bg": "rgba(156,163,175,0.15)",
+        "border": "rgba(156,163,175,0.5)",
+        "text": "rgb(107,114,128)"
+      },
       "equiv": "",
-      "constraints": {"deletable": true, "cloneable": true, "reorderable": true}
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
     }
   }
 }

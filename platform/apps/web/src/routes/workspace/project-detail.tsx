@@ -14,7 +14,9 @@ export function ProjectDetailRoute() {
   const ws = activeWorkspace.slug;
   const { activeStream } = useStream();
 
-  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!, activeStream));
+  const { data: project } = useSuspenseQuery(
+    projectQueryOptions(adapter, ws, projectId!, activeStream),
+  );
 
   useEffect(() => {
     document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
