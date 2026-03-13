@@ -101,11 +101,10 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run framework tests
+        id: run-tests
         working-directory: framework
-        run: |
-          set +e
-          go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1
-          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
+        run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json 2>&1
+        continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
@@ -120,12 +119,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -155,11 +150,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run platform tests
-        run: |
-          set +e
-          cd platform/core
-          go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1
-          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
+        id: run-tests
+        run: cd platform/core && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json 2>&1
+        continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
@@ -174,12 +167,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -202,11 +191,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run cli tests
-        run: |
-          set +e
-          cd framework/cli
-          go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1
-          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
+        id: run-tests
+        run: cd framework/cli && go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json 2>&1
+        continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
@@ -221,12 +208,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -249,11 +232,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run kapi tests
-        run: |
-          set +e
-          cd framework/kapi
-          go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1
-          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
+        id: run-tests
+        run: cd framework/kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json 2>&1
+        continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
@@ -268,12 +249,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -296,11 +273,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run Bowrain CLI tests
-        run: |
-          set +e
-          cd platform/cli
-          go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1
-          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
+        id: run-tests
+        run: cd platform/cli && go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json 2>&1
+        continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
@@ -315,12 +290,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -343,12 +314,9 @@ jobs:
         run: go install github.com/jstemmer/go-junit-report/v2@latest
 
       - name: Run bowrain tests
-        run: |
-          set +e
-          cd platform
-          # shellcheck disable=SC2046
-          go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1
-          echo "GO_TEST_EXIT=$?" >> "$GITHUB_ENV"
+        id: run-tests
+        run: cd platform && go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json 2>&1
+        continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
@@ -363,12 +331,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -614,11 +578,10 @@ jobs:
           echo "Started 4 bridge JVMs: $NEOKAPI_BRIDGE_ADDRS"
 
       - name: Run bridge filter integration tests
+        id: run-tests
         working-directory: framework
-        run: |
-          set +e
-          go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash ../scripts/go-test-progress.sh > ../test-results-bridge.json
-          echo "GO_TEST_EXIT=${PIPESTATUS[0]}" >> "$GITHUB_ENV"
+        run: go test -race -p 1 -tags=integration -count=1 -json ./core/plugin/bridge/filters/... 2>&1 | bash ../scripts/go-test-progress.sh > ../test-results-bridge.json
+        continue-on-error: true
         timeout-minutes: 30
 
       - name: Stop bridge JVM pool
@@ -641,12 +604,8 @@ jobs:
           reporter: java-junit
 
       - name: Fail if tests failed
-        if: always()
-        run: |
-          if [ "${GO_TEST_EXIT:-0}" != "0" ]; then
-            echo "Tests failed (exit code $GO_TEST_EXIT)"
-            exit 1
-          fi
+        if: steps.run-tests.outcome == 'failure'
+        run: exit 1
 
       - name: Upload bridge test results
         uses: actions/upload-artifact@v4
