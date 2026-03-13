@@ -19,6 +19,7 @@ export default defineConfig({
     alias: {
       "@neokapi/ui": path.resolve(__dirname, "../../packages/ui/src"),
     },
+    dedupe: ["react", "react-dom"],
   },
   lint: {
     ignorePatterns: ["dist/**", "dist_keycloak/**"],
