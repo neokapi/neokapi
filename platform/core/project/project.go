@@ -1,3 +1,4 @@
+// Package project defines the .bowrain/ project model.
 package project
 
 import (
