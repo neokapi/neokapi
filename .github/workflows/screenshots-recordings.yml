@@ -43,7 +43,7 @@ jobs:
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       - name: Build frontend
@@ -116,7 +116,7 @@ jobs:
         run: npm ci
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui/ui
+        working-directory: platform/packages/ui
         run: npx tsc
 
       - name: Build web UI
