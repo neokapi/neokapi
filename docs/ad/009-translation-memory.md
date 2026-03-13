@@ -88,21 +88,17 @@ Three storage tiers:
    are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file`
    (explicit path). Created on demand. Uses a lightweight `cli/storage/`
    infrastructure layer.
-3. **Server SQLite** (`bowrain/sievepen/`): persistent; matching keys are
+3. **Server PostgreSQL** (`bowrain/sievepen/`): persistent; matching keys are
    pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
    layer with TermBase ([AD-010](./010-terminology.md)) and Content Store
-   ([AD-003](./003-content-store.md)). Pure Go with no CGo dependencies.
-   SQLite is the default for local development, single-instance deployments,
-   and the desktop app. Supports project scoping and stream branching.
-4. **Server PostgreSQL** (`bowrain/sievepen/`): persistent; same schema and
-   matching logic as SQLite, with workspace-scoped isolation (`workspace_id`).
-   Used for SaaS and multi-instance deployments, sharing the connection pool
-   with ContentStore, AuthStore, TermBase, JobStore, and QuotaStore
+   ([AD-003](./003-content-store.md)). Workspace-scoped isolation (`workspace_id`),
+   project scoping, and stream branching. Shares the connection pool with
+   ContentStore, AuthStore, TermBase, JobStore, and QuotaStore
    ([AD-003](./003-content-store.md)).
 
 | Aspect | kapi CLI | Bowrain Server |
 |--------|---------|---------------|
-| Storage | SQLite files on disk | SQLite or PostgreSQL |
+| Storage | SQLite files on disk | PostgreSQL |
 | Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
 | Scope | Single user, single machine | Multi-user, multi-workspace |
 | Features | CRUD, TMX import/export, lookup, search | + streams, project scoping, REST API |
@@ -150,9 +146,9 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
   the single-binary goal. neokapi's TM must work out of the box.
 - **BoltDB / BadgerDB**: key-value stores lack query flexibility for tiered
   matching with multiple indexed keys.
-- **PostgreSQL only**: Requires an external service; SQLite provides
-  zero-deployment overhead for local, single-instance, and desktop use. Both
-  backends are now production-ready, with PostgreSQL used for SaaS deployments.
+- **SQLite for server**: Zero-deployment overhead but lacks concurrent write
+  performance and multi-instance support. SQLite remains the right choice for
+  CLI workflows and the desktop app's local cache.
 - **`mattn/go-sqlite3`**: CGo dependency breaks cross-compilation. Chose pure
   Go `modernc.org/sqlite` instead.
 
@@ -168,7 +164,7 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
 - The tiered matching pipeline (generalized, structural, plain) maximizes reuse
   while falling back gracefully for legacy content
 - TMX roundtrip preserves inline codes via standard TMX elements
-- Shared storage infrastructure (SQLite and PostgreSQL) with TermBase
+- Shared storage infrastructure (PostgreSQL) with TermBase
   ([AD-010](./010-terminology.md)) and Content Store
   ([AD-003](./003-content-store.md)) reduces code duplication
 - TMX import/export provides portability for offline sharing

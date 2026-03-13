@@ -298,7 +298,7 @@ POST   /api/v1/projects/:id/review-queue/batch-decide
 The bowrain-app provides rapid review of the extraction queue through a swipe-based interface. Full authentication flow:
 
 ```
-Keycloak Login → Workspace Selection → Project Selection → Review Queue
+OIDC Login → Workspace Selection → Project Selection → Review Queue
 ```
 
 #### Card Types
