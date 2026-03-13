@@ -28,7 +28,7 @@ function HomepageHeader() {
           </Link>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/bowrain/introduction">
+            to="/bowrain/introduction">
             Bowrain Platform
           </Link>
         </div>
@@ -73,21 +73,21 @@ const BowrainFeatures: ProductItem[] = [
     title: 'Bowrain CLI',
     description:
       'Git-like project management for localization. One command to push, translate, and pull: bowrain sync. Run flows, manage terminology, and integrate with CI/CD.',
-    link: '/docs/bowrain-cli/overview',
+    link: '/bowrain/cli/overview',
     linkText: 'Bowrain CLI',
   },
   {
     title: 'Visual Editor',
     description:
       'Translation editor with split preview, focus view, translation memory, and terminology. Available as a web app and native desktop app.',
-    link: '/docs/bowrain-server/web-overview',
+    link: '/bowrain/server/web-overview',
     linkText: 'Bowrain Web',
   },
   {
     title: 'Automation & Connectors',
     description:
       'Configurable automation rules locally in YAML and visually on the server. Event-driven triggers, quality gates, webhooks, and CI integration. Bidirectional connectors sync content from CMS, code repos, and design tools.',
-    link: '/docs/bowrain-server/automation',
+    link: '/bowrain/server/automation',
     linkText: 'Automation',
   },
 ];
@@ -126,7 +126,7 @@ function HomepageFeatures() {
           Bowrain Platform
         </Heading>
         <p className="text--center margin-bottom--lg">
-          Full-stack localization platform with <Link to="/docs/bowrain-cli/overview">Bowrain CLI</Link>, visual editor, and server.
+          Full-stack localization platform with <Link to="/bowrain/cli/overview">Bowrain CLI</Link>, visual editor, and server.
         </p>
         <div className="row">
           {BowrainFeatures.map((props, idx) => (
