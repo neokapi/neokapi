@@ -14,7 +14,7 @@ import (
 
 // okapi: OpenOfficeFilterTest#testStartDocument
 func TestOpenOffice_StartDocument(t *testing.T) {
-	parts := readOpenOfficeFile(t, "okf_openoffice/TestDocument01.odt", nil)
+	parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/TestDocument01.odt", nil)
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type,
@@ -38,7 +38,7 @@ func TestOpenOffice_DefaultInfo(t *testing.T) {
 
 // okapi: OpenOfficeFilterTest#testFirstTextUnit
 func TestOpenOffice_FirstTextUnit(t *testing.T) {
-	parts := readOpenOfficeFile(t, "okf_openoffice/TestDocument01.odt", nil)
+	parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/TestDocument01.odt", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from TestDocument01.odt")
@@ -54,20 +54,20 @@ func TestOpenOffice_DoubleExtraction(t *testing.T) {
 
 	// The Java test roundtrips 14 OpenOffice archive files.
 	files := []string{
-		"okf_openoffice/TestSpreadsheet01.ods",
-		"okf_openoffice/TestDocument01.odt",
-		"okf_openoffice/TestDocument02.odt",
-		"okf_openoffice/TestDocument03.odt",
-		"okf_openoffice/TestDocument04.odt",
-		"okf_openoffice/TestDocument05.odt",
-		"okf_openoffice/TestDocument06.odt",
-		"okf_openoffice/TestDrawing01.odg",
-		"okf_openoffice/TestPresentation01.odp",
-		"okf_openoffice/TestDocument_WithITS.odt",
-		"okf_openoffice/TestDocumentWithMetadata.odt",
-		"okf_openoffice/TestDocumentWithNumberTag.odp",
-		"okf_openoffice/TestDocumentWithFormulaResults.ods",
-		"okf_openoffice/TestDocumentWithTableWrappingAboutTable.odt",
+		"okapi/filters/openoffice/src/test/resources/TestSpreadsheet01.ods",
+		"okapi/filters/openoffice/src/test/resources/TestDocument01.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocument02.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocument03.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocument04.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocument05.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocument06.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDrawing01.odg",
+		"okapi/filters/openoffice/src/test/resources/TestPresentation01.odp",
+		"okapi/filters/openoffice/src/test/resources/TestDocument_WithITS.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocumentWithMetadata.odt",
+		"okapi/filters/openoffice/src/test/resources/TestDocumentWithNumberTag.odp",
+		"okapi/filters/openoffice/src/test/resources/TestDocumentWithFormulaResults.ods",
+		"okapi/filters/openoffice/src/test/resources/TestDocumentWithTableWrappingAboutTable.odt",
 	}
 
 	for _, f := range files {
@@ -120,7 +120,7 @@ func TestOpenOffice_MetadataExtraction(t *testing.T) {
 			params := map[string]any{
 				"extractMetadata": tc.extractMetadata,
 			}
-			parts := readOpenOfficeFile(t, "okf_openoffice/TestDocumentWithMetadata.odt", params)
+			parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/TestDocumentWithMetadata.odt", params)
 
 			blocks := allBlocks(parts)
 			texts := make([]string, len(blocks))
@@ -177,7 +177,7 @@ func TestOpenOffice_NumberTag(t *testing.T) {
 			params := map[string]any{
 				"encodeCharacterEntityReferenceGlyphs": tc.encodeCharacterEntityReferenceGlyphs,
 			}
-			parts := readOpenOfficeFile(t, "okf_openoffice/TestDocumentWithNumberTag.odp", params)
+			parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/TestDocumentWithNumberTag.odp", params)
 
 			blocks := allBlocks(parts)
 			require.NotEmpty(t, blocks, "should extract blocks from number tag presentation")
@@ -227,7 +227,7 @@ func TestOpenOffice_BookmarkReferencesHandling(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			parts := readOpenOfficeFile(t, "okf_openoffice/bookmark-reference.odt", tc.params)
+			parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/bookmark-reference.odt", tc.params)
 
 			blocks := allBlocks(parts)
 			// The Java test asserts exactly 3 text units.
@@ -258,7 +258,7 @@ func TestOpenOffice_FormulaResultExtraction(t *testing.T) {
 		"Sheet3",
 	}
 
-	parts := readOpenOfficeFile(t, "okf_openoffice/TestDocumentWithFormulaResults.ods", nil)
+	parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/TestDocumentWithFormulaResults.ods", nil)
 
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract blocks from formula results spreadsheet")

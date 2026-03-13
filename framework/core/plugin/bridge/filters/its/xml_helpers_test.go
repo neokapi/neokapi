@@ -31,7 +31,7 @@ func readXMLWithConfig(t *testing.T, snippet string, configName string) []*model
 	t.Helper()
 	tdDir := bridgetest.TestdataDir(t)
 	params := map[string]any{
-		"configFile": tdDir + "/okf_xml/" + configName,
+		"configFile": tdDir + "/okapi/filters/its/src/test/resources/" + configName,
 	}
 	return readXML(t, snippet, params)
 }

@@ -13,7 +13,7 @@ import (
 
 // okapi: XLIFFFilterTest#testSimpleTransUnit
 func TestExtract_SimpleTransUnit(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/simple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/simple.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "Hello World!", blocks[0].SourceText())
@@ -21,7 +21,7 @@ func TestExtract_SimpleTransUnit(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testDefaultInfo
 func TestExtract_DefaultInfo(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/simple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/simple.xlf", nil)
 	for _, p := range parts {
 		if p.Type == model.PartLayerStart {
 			layer := p.Resource.(*model.Layer)
@@ -34,14 +34,14 @@ func TestExtract_DefaultInfo(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/simple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/simple.xlf", nil)
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
 }
 
 // okapi: XLIFFFilterTest#testStartDocumentFromList
 func TestExtract_StartDocumentFromList(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/simple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/simple.xlf", nil)
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
 	layer := parts[0].Resource.(*model.Layer)
@@ -50,7 +50,7 @@ func TestExtract_StartDocumentFromList(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStartSubDocumentFromList
 func TestExtract_StartSubDocumentFromList(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/simple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/simple.xlf", nil)
 	var layerCount int
 	for _, p := range parts {
 		if p.Type == model.PartLayerStart {
@@ -62,7 +62,7 @@ func TestExtract_StartSubDocumentFromList(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBilingualTransUnit
 func TestExtract_BilingualTransUnit(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/simple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/simple.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -182,7 +182,7 @@ func TestExtract_EmptyTargetOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testEmptyTgtLangAttribute
 func TestExtract_EmptyTgtLangAttribute(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/empty-tgt-lang.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/empty-tgt-lang.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -259,7 +259,7 @@ func TestExtract_LocNoteModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAlTrans
 func TestExtract_AlTrans(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/alttrans.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/alttrans.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -270,7 +270,7 @@ func TestExtract_AlTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAlTransData
 func TestExtract_AlTransData(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/alttrans.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/alttrans.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -284,7 +284,7 @@ func TestExtract_AlTransData(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputAlTrans
 func TestExtract_OutputAlTrans(t *testing.T) {
-	out := fileRoundtrip(t, "okf_xliff/alttrans.xlf", nil)
+	out := fileRoundtrip(t, "okapi/filters/xliff/src/test/resources/alttrans.xlf", nil)
 	assert.Contains(t, out, "alt-trans")
 }
 
@@ -360,7 +360,7 @@ func TestExtract_EmptyTargetInAltTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMixedAlTrans
 func TestExtract_MixedAlTrans(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Manual-12-AltTrans.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Manual-12-AltTrans.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -416,20 +416,20 @@ func TestExtract_IgnoredSegmentedTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedEntry
 func TestExtract_SegmentedEntry(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/segmented.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/segmented.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testSegmentedEntryOutput
 func TestExtract_SegmentedEntryOutput(t *testing.T) {
-	out := fileRoundtrip(t, "okf_xliff/segmented.xlf", nil)
+	out := fileRoundtrip(t, "okapi/filters/xliff/src/test/resources/segmented.xlf", nil)
 	assert.NotEmpty(t, out)
 }
 
 // okapi: XLIFFFilterTest#testSegmentedEntryWithDifferences
 func TestExtract_SegmentedEntryWithDifferences(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/segmented.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/segmented.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -449,7 +449,7 @@ func TestExtract_SegmentedNoTargetEntryOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedSource1
 func TestExtract_SegmentedSource1(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/segsource.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/segsource.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -676,7 +676,7 @@ func TestExtract_TranslateOnTU(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testTranslateNo
 func TestExtract_TranslateNo2(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/translate_no.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/translate_no.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	allBlocks := bridgetest.FilterBlocks(parts)
 	assert.Less(t, len(blocks), len(allBlocks))
@@ -795,21 +795,21 @@ func TestExtract_ApprovedOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testWithNamespaces
 func TestExtract_WithNamespaces(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/NSTest01.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/NSTest01.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testForceUniqueIds
 func TestExtract_ForceUniqueIds(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/duplicate-ids.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/duplicate-ids.xlf", nil)
 	blocks := bridgetest.FilterBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testDontForceUniqueIds
 func TestExtract_DontForceUniqueIds(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/duplicate-ids.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/duplicate-ids.xlf", nil)
 	blocks := bridgetest.FilterBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1146,7 +1146,7 @@ func TestExtract_PreserveSpaceByDefaultNoDeclaration(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveSpaceByDefaultInSdlXliff
 func TestExtract_PreserveSpaceByDefaultInSdlXliff(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1224,7 +1224,7 @@ func TestExtract_ToolAfterSkl(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testHandleInvalidXmlCharacters
 func TestExtract_HandleInvalidXmlCharacters(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/invalid_xml_entity.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/invalid_xml_entity.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1312,14 +1312,14 @@ func TestExtract_XmlLangModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testTargetStateCoordOutput
 func TestExtract_TargetStateCoordOutput(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/target_state.xliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/target_state.xliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testUseTranslationTargetState
 func TestExtract_UseTranslationTargetState(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/target_state.xliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/target_state.xliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1440,105 +1440,105 @@ func TestExtract_AllowedCharsModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSdlTagDefs
 func TestExtract_SdlTagDefs(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testSdlTagDefsWithSubs
 func TestExtract_SdlTagDefsWithSubs(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testSdlXliffApprovedConfStateMapping
 func TestExtract_SdlXliffApprovedConfStateMapping(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testRemoveSdlComment
 func TestExtract_RemoveSdlComment(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/comments.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/comments.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testRemoveNestedSdlComment
 func TestExtract_RemoveNestedSdlComment(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/comments.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/comments.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue424
 func TestExtract_Issue424(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/ImplementationPlan.docx.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/ImplementationPlan.docx.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue466NoMrk
 func TestExtract_Issue466NoMrk(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/no_mrk.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/no_mrk.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue466MixedMrk
 func TestExtract_Issue466MixedMrk(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue466PreserveCRLF
 func TestExtract_Issue466PreserveCRLF(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue597SdlXliffConfStateMapping
 func TestExtract_Issue597SdlXliffConfStateMapping(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue597SdlXliffInvalidInitialConf
 func TestExtract_Issue597SdlXliffInvalidInitialConf(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue597SdlXliffInvalidUpdatedState
 func TestExtract_Issue597SdlXliffInvalidUpdatedState(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue597SdlXliffNoConf
 func TestExtract_Issue597SdlXliffNoConf(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testIssue597SdlXliffRemoveStateAndOriginalConf
 func TestExtract_Issue597SdlXliffRemoveStateAndOriginalConf(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/sdlxliff/simpleTest15984.sdlxliff", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/sdlxliff/simpleTest15984.sdlxliff", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testLQIAnnotations
 func TestExtract_LQIAnnotations(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/lqiExtensions.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/lqiExtensions.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1546,7 +1546,7 @@ func TestExtract_LQIAnnotations(t *testing.T) {
 // okapi: XLIFFFilterTest#testLQRInline
 func TestExtract_LQRInline(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1554,21 +1554,21 @@ func TestExtract_LQRInline(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testLQIRemoval
 func TestExtract_LQIRemoval(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/lqiExtensions.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/lqiExtensions.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testLQIAndProvModifications1
 func TestExtract_LQIAndProvModifications1(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/lqiExtensions.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/lqiExtensions.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: XLIFFFilterTest#testAddLQIModifications2
 func TestExtract_AddLQIModifications2(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/lqiExtensions.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/lqiExtensions.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1576,7 +1576,7 @@ func TestExtract_AddLQIModifications2(t *testing.T) {
 // okapi: XLIFFFilterTest#testITSAnnotations
 func TestExtract_ITSAnnotations(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1585,7 +1585,7 @@ func TestExtract_ITSAnnotations(t *testing.T) {
 // okapi: XLIFFFilterTest#testITSAnnotatorsRef
 func TestExtract_ITSAnnotatorsRef(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1594,7 +1594,7 @@ func TestExtract_ITSAnnotatorsRef(t *testing.T) {
 // okapi: XLIFFFilterTest#testITSStandoffManager
 func TestExtract_ITSStandoffManager(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1603,7 +1603,7 @@ func TestExtract_ITSStandoffManager(t *testing.T) {
 // okapi: XLIFFFilterTest#testXLIFFITSLQIMapping
 func TestExtract_XLIFFITSLQIMapping(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1612,7 +1612,7 @@ func TestExtract_XLIFFITSLQIMapping(t *testing.T) {
 // okapi: XLIFFFilterTest#testXLIFFITSProvenance
 func TestExtract_XLIFFITSProvenance(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1621,7 +1621,7 @@ func TestExtract_XLIFFITSProvenance(t *testing.T) {
 // okapi: XLIFFFilterTest#testXLIFFITSProvenanceFile
 func TestExtract_XLIFFITSProvenanceFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1630,7 +1630,7 @@ func TestExtract_XLIFFITSProvenanceFile(t *testing.T) {
 // okapi: XLIFFFilterTest#testXLIFFITSProvenanceGroup
 func TestExtract_XLIFFITSProvenanceGroup(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xliff/lqiTest.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff/src/test/resources/lqiTest.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -1638,7 +1638,7 @@ func TestExtract_XLIFFITSProvenanceGroup(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testXTMAnnotations
 func TestExtract_XTMAnnotations(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/xtmxliff/StatusSample.docx.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/xtmxliff/StatusSample.docx.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }

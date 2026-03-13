@@ -20,7 +20,7 @@ import (
 func TestEncoding_UTF8ToUTF16LE(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/test08_utf8nobom.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/test08_utf8nobom.xml"
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -35,7 +35,7 @@ func TestEncoding_UTF16WithBom(t *testing.T) {
 	// test10_utf16le-with-bom.xml is a UTF-16LE file with BOM.
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/test10_utf16le-with-bom.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/test10_utf16le-with-bom.xml"
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -61,7 +61,7 @@ func TestEncoding_UTF16WithoutBom(t *testing.T) {
 func TestEncoding_UTF16LEWithBomFromFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_xml/test10_utf16le-with-bom.xml"
+	path := tdDir + "/okapi/filters/its/src/test/resources/test10_utf16le-with-bom.xml"
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)

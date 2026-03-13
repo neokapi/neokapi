@@ -30,7 +30,7 @@ func TestCodeFinder_CreatesInlineCodes(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/codefinder-subfilter-test.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/codefinder-subfilter-test.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, codeFinderParams())
 
 	require.NotEmpty(t, parts)
@@ -90,7 +90,7 @@ func TestCodeFinder_FullMergePreservesEscapedText(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/codefinder-subfilter-test.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/codefinder-subfilter-test.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -107,7 +107,7 @@ func TestCodeFinder_FullRoundTripPreservesEscapedText(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/codefinder-subfilter-test.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/codefinder-subfilter-test.xlf")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -119,7 +119,7 @@ func TestCodeFinder_SubfilterCodeFinderOnly(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_xliff2/codefinder/en-fr.xlf")
+	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/codefinder/en-fr.xlf")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)

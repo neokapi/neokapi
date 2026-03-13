@@ -31,7 +31,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_plaintext/*.txt", mimeType, nil)
+		tdDir+"/okapi/filters/plaintext/src/test/resources/*.txt", mimeType, nil)
 }
 
 // okapi: RoundTripPlainTextIT#testPlainTextFiles (paragraph mode)

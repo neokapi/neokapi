@@ -33,11 +33,11 @@ func TestConfig_InitialisesStyleIgnorances(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Load the IgnoreAll config which sets all style ignorance flags.
-	configPath := tdDir + "/okf_idml/okf_idml@IgnoreAll.fprm"
+	configPath := tdDir + "/okapi/filters/idml/src/test/resources/okf_idml@IgnoreAll.fprm"
 	params := map[string]any{
 		"configFile": configPath,
 	}
-	path := bridgetest.TestdataFile(t, "okf_idml/756-character-kerning.idml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/756-character-kerning.idml")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -61,11 +61,11 @@ func TestConfig_FontMappingsAreInitialised(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Load the chained font mappings config.
-	configPath := tdDir + "/okf_idml/okf_idml@chained-font-mappings.fprm"
+	configPath := tdDir + "/okapi/filters/idml/src/test/resources/okf_idml@chained-font-mappings.fprm"
 	params := map[string]any{
 		"configFile": configPath,
 	}
-	path := bridgetest.TestdataFile(t, "okf_idml/926.idml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/926.idml")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

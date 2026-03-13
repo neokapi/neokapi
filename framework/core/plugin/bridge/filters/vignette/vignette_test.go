@@ -40,7 +40,7 @@ func TestExtract_SimpleEntry(t *testing.T) {
 // okapi: VignetteFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_vignette/Test01.xml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/vignette/src/test/resources/Test01.xml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -56,7 +56,7 @@ func TestExtract_StartDocument(t *testing.T) {
 // okapi: VignetteFilterTest#testDoubleExtraction
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_vignette/Test01.xml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/vignette/src/test/resources/Test01.xml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

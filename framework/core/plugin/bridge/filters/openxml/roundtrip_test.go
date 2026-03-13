@@ -22,7 +22,7 @@ func TestRoundTrip_Docx(t *testing.T) {
 	// - 1437-color-exclusion: Span Type CSS property order changes after roundtrip
 	//   (HashMap iteration order instability in Okapi).
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/*.docx", mimeType, nil,
+		tdDir+"/okapi/filters/openxml/src/test/resources/*.docx", mimeType, nil,
 		"1102.docx",
 		"1437-color-exclusion.docx",
 		"830-3.docx",
@@ -42,7 +42,7 @@ func TestRoundTrip_Xlsx(t *testing.T) {
 	// when combined with -race. The streaming roundtrip works correctly
 	// (verified locally) but requires >7GB RAM with race detector.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/*.xlsx", mimeType, nil,
+		tdDir+"/okapi/filters/openxml/src/test/resources/*.xlsx", mimeType, nil,
 		"large.xlsx",
 	)
 }
@@ -56,7 +56,7 @@ func TestRoundTrip_Pptx(t *testing.T) {
 	// Known failing: Okapi OpenXML filter loses PPTX style metadata during
 	// roundtrip (style inheritance collapse, font stack truncation).
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_openxml/*.pptx", mimeType, nil,
+		tdDir+"/okapi/filters/openxml/src/test/resources/*.pptx", mimeType, nil,
 		"1329-styles-clarification.pptx",
 		"1435-text-for-masking.pptx",
 	)

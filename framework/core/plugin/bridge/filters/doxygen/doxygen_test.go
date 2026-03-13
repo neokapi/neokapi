@@ -35,7 +35,7 @@ func readDoxygenFile(t *testing.T, filename string) []*model.Part {
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
-	path := tdDir + "/okf_doxygen/" + filename
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/" + filename
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 }
 
@@ -435,7 +435,7 @@ func TestDoubleExtraction_Sample(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_doxygen/sample.h"
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/sample.h"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -447,7 +447,7 @@ func TestDoubleExtraction_QtStyle(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_doxygen/qt-style.h"
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/qt-style.h"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -459,7 +459,7 @@ func TestDoubleExtraction_JavadocStyle(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_doxygen/javadoc-style.h"
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/javadoc-style.h"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -471,7 +471,7 @@ func TestDoubleExtraction_SpecialCommands(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_doxygen/special_commands.h"
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/special_commands.h"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -483,7 +483,7 @@ func TestDoubleExtraction_Lists(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_doxygen/lists.h"
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/lists.h"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -579,7 +579,7 @@ func TestExtract_PythonFile(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_doxygen/python.py"
+	path := tdDir + "/okapi/filters/doxygen/src/test/resources/python.py"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

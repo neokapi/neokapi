@@ -48,7 +48,7 @@ func TestRoundTrip_WikiFiles(t *testing.T) {
 	// Test all .wiki files from okf_wiki testdata.
 	// The Java RoundTripWikiIT iterates over wiki files in the wikitext/ directory.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_wiki/*.wiki", mimeType, nil)
+		tdDir+"/okapi/filters/wiki/src/test/resources/*.wiki", mimeType, nil)
 }
 
 // okapi: RoundTripWikiIT#testWikiFiles (*.txt DokuWiki files)
@@ -59,7 +59,7 @@ func TestRoundTrip_DokuWikiTxtFiles(t *testing.T) {
 
 	// DokuWiki uses .txt extension.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_wiki/*.txt", mimeType, nil)
+		tdDir+"/okapi/filters/wiki/src/test/resources/*.txt", mimeType, nil)
 }
 
 // okapi: RoundTripWikiIT (header roundtrip)

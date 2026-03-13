@@ -16,7 +16,7 @@ import (
 func TestExtraction_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/324.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/324.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts, "should produce at least one part")
@@ -32,7 +32,7 @@ func TestExtraction_StartDocument(t *testing.T) {
 func TestExtraction_OpenTwice(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/324.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/324.html")
 
 	// First read.
 	parts1 := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
@@ -58,7 +58,7 @@ func TestExtraction_DoubleExtractionSingle(t *testing.T) {
 
 	// Java uses a single file (test.html) with RoundTripComparison:
 	// read → write → re-read, then compare events from both reads.
-	path := bridgetest.TestdataFile(t, "okf_html/test.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/test.html")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -76,14 +76,14 @@ func TestExtraction_DoubleExtraction(t *testing.T) {
 	// testdata files.
 	tdDir := bridgetest.TestdataDir(t)
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_html/*.html", mimeType, nil)
+		tdDir+"/okapi/filters/html/src/test/resources/*.html", mimeType, nil)
 }
 
 // okapi: ExtractionComparisionTest#testDoubleExtraction2
 func TestExtraction_DoubleExtraction2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/test.asp")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/test.asp")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -95,7 +95,7 @@ func TestExtraction_DoubleExtraction2(t *testing.T) {
 func TestExtraction_ReconstructFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/324.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/324.html")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

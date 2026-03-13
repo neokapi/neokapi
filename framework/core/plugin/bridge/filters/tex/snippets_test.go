@@ -507,7 +507,7 @@ func TestExtract_DemoFile(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_tex/Test01.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/Test01.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -534,7 +534,7 @@ func TestExtract_DemoFileWin(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_tex/Test01.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/Test01.tex"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 
@@ -558,7 +558,7 @@ func TestExtract_DemoFile2(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_tex/Test02.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/Test02.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -799,7 +799,7 @@ func TestExtract_DemoFile3(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_tex/Test03.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/Test03.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -816,7 +816,7 @@ func TestExtract_SampleFile(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_tex/sample.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/sample.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -838,7 +838,7 @@ func TestExtract_Sample1File(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_tex/sample1.tex"
+	path := tdDir + "/okapi/filters/tex/src/test/resources/sample1.tex"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)

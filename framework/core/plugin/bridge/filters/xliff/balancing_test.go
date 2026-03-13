@@ -23,7 +23,7 @@ import (
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithCTypesAfterJoinAll
 func TestBalancing_WithCTypes(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/WithCTypes.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/WithCTypes.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -34,7 +34,7 @@ func TestBalancing_WithCTypes(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingOverMultipleSegmentsAfterJoinAll
 func TestBalancing_OverMultipleSegments(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/MultipleSegments.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/MultipleSegments.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	assert.NotEmpty(t, blocks[0].SourceText())
@@ -42,7 +42,7 @@ func TestBalancing_OverMultipleSegments(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingBetweenSegmentsAfterJoinAll
 func TestBalancing_BetweenSegments(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/BetweenSegments.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/BetweenSegments.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	assert.NotEmpty(t, blocks[0].SourceText())
@@ -50,7 +50,7 @@ func TestBalancing_BetweenSegments(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithBxAndGTagsAfterJoinAll
 func TestBalancing_WithBxAndGTags(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/DifferentTags.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/DifferentTags.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -61,7 +61,7 @@ func TestBalancing_WithBxAndGTags(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsAfterJoinAll
 func TestBalancing_WithNestedGTags(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/2LevelGTags.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/2LevelGTags.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -72,7 +72,7 @@ func TestBalancing_WithNestedGTags(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAll
 func TestBalancing_WithNestedGTagsOnThreeLevels(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/3LevelGTags.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/3LevelGTags.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -83,7 +83,7 @@ func TestBalancing_WithNestedGTagsOnThreeLevels(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAllWithNamespaces
 func TestBalancing_WithNestedGTagsOnThreeLevelsWithNamespaces(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/3LevelGTagsWithNamespaces.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/3LevelGTagsWithNamespaces.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -94,7 +94,7 @@ func TestBalancing_WithNestedGTagsOnThreeLevelsWithNamespaces(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testDifferentCTypes
 func TestBalancing_DifferentCTypes(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/DifferentCTypes.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/DifferentCTypes.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]
@@ -105,7 +105,7 @@ func TestBalancing_DifferentCTypes(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testDifferentCTypesWithBreakingMrk
 func TestBalancing_DifferentCTypesWithBreakingMrk(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/Balancing/DifferentCTypesWithBreakingMrk.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/Balancing/DifferentCTypesWithBreakingMrk.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	b := blocks[0]

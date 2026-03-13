@@ -30,7 +30,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 
 	// Skip files that use non-UTF-8 encodings not supported by the bridge.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_po/*.po", mimeType, nil,
+		tdDir+"/okapi/filters/po/src/test/resources/*.po", mimeType, nil,
 		"Test01.po",                   // UTF-16 encoding
 		"Test_DrupalRussianCP1251.po", // Windows-1251 encoding
 	)
@@ -42,7 +42,7 @@ func TestRoundTrip_TestFilesPOT(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_po/*.pot", mimeType, nil)
+		tdDir+"/okapi/filters/po/src/test/resources/*.pot", mimeType, nil)
 }
 
 // ---- POWriterTest ----

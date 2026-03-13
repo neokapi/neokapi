@@ -82,7 +82,7 @@ func TestExtracts_GathersExtractsFromEveryResource(t *testing.T) {
 				t.Skipf("known failing file: %s (Java-side StringIndexOutOfBoundsException)", f)
 			}
 
-			path := bridgetest.TestdataFile(t, "okf_mif/"+f)
+			path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/"+f)
 			parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 			require.NotEmpty(t, parts, "should produce parts from %s", f)
 

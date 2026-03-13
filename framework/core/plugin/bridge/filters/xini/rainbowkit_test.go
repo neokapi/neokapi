@@ -41,7 +41,7 @@ func readRainbowkit(t *testing.T, relPath string, params map[string]any) []*mode
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, rainbowkitFilterClass)
-	path := bridgetest.TestdataFile(t, "okf_xini/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/xini/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, rainbowkitFilterClass, path, mimeType, params)
 }
 
@@ -61,7 +61,7 @@ func rainbowkitRoundtrip(t *testing.T, relPath string, params map[string]any) st
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, rainbowkitFilterClass)
-	path := bridgetest.TestdataFile(t, "okf_xini/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/xini/src/test/resources/"+relPath)
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 	result := bridgetest.RoundTrip(t, pool, cfg, rainbowkitFilterClass, content, path, mimeType, params)

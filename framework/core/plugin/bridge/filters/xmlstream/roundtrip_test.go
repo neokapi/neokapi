@@ -24,7 +24,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_xmlstream/*.xml", mimeType, nil)
+		tdDir+"/okapi/filters/xmlstream/src/test/resources/*.xml", mimeType, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 func TestDita_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "bookmap-readme.dita")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "bookmap-readme.dita")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestDita_StartDocument(t *testing.T) {
 func TestDita_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "bookmap-readme.dita")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "bookmap-readme.dita")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -58,7 +58,7 @@ func TestDita_DoubleExtraction(t *testing.T) {
 func TestDita_DoubleExtractionSingle(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "changingtheoil.dita")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "changingtheoil.dita")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestDita_DoubleExtractionSingle(t *testing.T) {
 func TestDita_ReconstructFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "bookmap-readme.dita")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "bookmap-readme.dita")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestDita_ReconstructFile(t *testing.T) {
 func TestDita_OpenTwice(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "bookmap-readme.dita")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "bookmap-readme.dita")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -104,7 +104,7 @@ func TestDita_OpenTwice(t *testing.T) {
 func TestDocType_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "doctype.xml")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "doctype.xml")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -115,7 +115,7 @@ func TestDocType_DoubleExtraction(t *testing.T) {
 func TestDocType_Events(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "doctype.xml")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "doctype.xml")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -134,7 +134,7 @@ func TestDocType_Events(t *testing.T) {
 func TestPI_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "PI-Problem.xml")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "PI-Problem.xml")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -145,7 +145,7 @@ func TestPI_DoubleExtraction(t *testing.T) {
 func TestPI_DoubleExtraction2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "PI-Problem2.dita")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "PI-Problem2.dita")
 
 	content, err := os.ReadFile(xmlPath)
 	require.NoError(t, err)
@@ -160,8 +160,8 @@ func TestPI_DoubleExtraction2(t *testing.T) {
 func TestPropertyXml_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -176,8 +176,8 @@ func TestPropertyXml_StartDocument(t *testing.T) {
 func TestPropertyXml_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -191,8 +191,8 @@ func TestPropertyXml_DoubleExtraction(t *testing.T) {
 func TestPropertyXml_DoubleExtractionSingle(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "test_drive.xml")
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "test_drive.xml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -206,8 +206,8 @@ func TestPropertyXml_DoubleExtractionSingle(t *testing.T) {
 func TestPropertyXml_ReconstructFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -222,8 +222,8 @@ func TestPropertyXml_ReconstructFile(t *testing.T) {
 func TestPropertyXml_OpenTwice(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	xmlPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "about.xml")
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	xmlPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "about.xml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -243,7 +243,7 @@ func TestPropertyXml_OpenTwice(t *testing.T) {
 func TestPropertyXml_AsSnippetNoCdata(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -258,7 +258,7 @@ func TestPropertyXml_AsSnippetNoCdata(t *testing.T) {
 func TestPropertyXml_AsSnippetWithCdata(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "java_properties", "okf_xmlstream@javaproperties.fprm")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "java_properties", "okf_xmlstream@javaproperties.fprm")
 
 	params := map[string]any{
 		"configFile": configPath,

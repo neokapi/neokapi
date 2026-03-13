@@ -18,7 +18,7 @@ func defaultXMLParams(t *testing.T) map[string]any {
 	t.Helper()
 	tdDir := bridgetest.TestdataDir(t)
 	return map[string]any{
-		"configFile": filepath.Join(tdDir, "okf_xmlstream", "xml_wellformedConfiguration.yml"),
+		"configFile": filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "xml_wellformedConfiguration.yml"),
 	}
 }
 

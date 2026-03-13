@@ -61,7 +61,7 @@ func TestExtract_SimpleYaml(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// The Java test loads Test01.yml: simple config with title and list.
-	path := tdDir + "/okf_yaml/Test01.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/Test01.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -91,7 +91,7 @@ func TestExtract_StartDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_yaml/Test01.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/Test01.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -108,7 +108,7 @@ func TestExtract_Scalars(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// scalar_sample.yml has various scalar types: plain, quoted, literal, folded, anchors.
-	path := tdDir + "/okf_yaml/scalar_sample.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/scalar_sample.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -135,7 +135,7 @@ func TestExtract_Flow(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_yaml/flow_sample.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/flow_sample.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -152,7 +152,7 @@ func TestExtract_MultilineValue(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_yaml/literal.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/literal.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -189,7 +189,7 @@ func TestExtract_Map(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	path := tdDir + "/okf_yaml/Test02.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/Test02.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -346,7 +346,7 @@ func TestExtract_Subfiltering(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// subfilter.yml contains HTML values that should be processed by subfilter.
-	path := tdDir + "/okf_yaml/subfilter.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/subfilter.yml"
 	params := map[string]any{
 		"subfilter": "okf_html",
 	}
@@ -375,7 +375,7 @@ func TestExtract_DoubleSubfilter(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// The Java test uses Issue556.yml with HTML subfilter.
-	path := tdDir + "/okf_yaml/Issue556.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/Issue556.yml"
 	params := map[string]any{
 		"subfilter": "okf_html",
 	}
@@ -400,7 +400,7 @@ func TestExtract_SubFilterProcessLiteralAsBlock(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// literal_html.yml with subfilter and subFilterProcessLiteralAsBlock=true.
-	path := tdDir + "/okf_yaml/literal_html.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/literal_html.yml"
 	params := map[string]any{
 		"subfilter":                      "okf_html",
 		"subFilterProcessLiteralAsBlock": true,
@@ -428,7 +428,7 @@ func TestExtract_Issue555(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// comment_issue.yml tests comments and null values.
-	path := tdDir + "/okf_yaml/comment_issue.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/comment_issue.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -445,7 +445,7 @@ func TestExtract_Issue556(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Issue556.yml: HTML content in a YAML value, tested with subfilter.
-	path := tdDir + "/okf_yaml/Issue556.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/Issue556.yml"
 	params := map[string]any{
 		"subfilter": "okf_html",
 	}
@@ -473,7 +473,7 @@ func TestExtract_DoublePlainWithQuotes(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// plain_with_single_quotes.yaml has plain scalars containing HTML with single quotes.
-	path := tdDir + "/okf_yaml/plain_with_single_quotes.yaml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/plain_with_single_quotes.yaml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -571,7 +571,7 @@ func TestParse_SingleFile(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// Test01.yml is a minimal file used to verify the parser works on file input.
-	path := tdDir + "/okf_yaml/Test01.yml"
+	path := tdDir + "/okapi/filters/yaml/src/test/resources/Test01.yml"
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -614,7 +614,7 @@ func TestExtract_EmojiYaml(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass,
-		bridgetest.TestdataFile(t, "okf_yaml/emoji1.yaml"), mimeType, nil)
+		bridgetest.TestdataFile(t, "okapi/filters/yaml/src/test/resources/emoji1.yaml"), mimeType, nil)
 
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -630,7 +630,7 @@ func TestExtract_EmojiYaml(t *testing.T) {
 func TestExtract_TimestampTagYaml(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_yaml/no-children-1-pretty.yaml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/yaml/src/test/resources/no-children-1-pretty.yaml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 

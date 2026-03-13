@@ -85,5 +85,5 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_phpcontent/*.phpcnt", mimeType, nil)
+		tdDir+"/okapi/filters/php/src/test/resources/*.phpcnt", mimeType, nil)
 }

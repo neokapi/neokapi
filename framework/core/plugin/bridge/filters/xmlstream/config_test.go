@@ -727,7 +727,7 @@ func TestConfig_DefaultConfiguration(t *testing.T) {
 func TestConfig_ExcludeByDefault(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "excludeByDefault.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "excludeByDefault.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -902,7 +902,7 @@ func TestConfig_CodeFinderRules(t *testing.T) {
 func TestConfig_LoadNonAsciiRuleFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "nonAscii.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "nonAscii.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}

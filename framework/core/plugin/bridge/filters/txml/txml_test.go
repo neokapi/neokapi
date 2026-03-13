@@ -358,7 +358,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// the Java RoundTripComparison for Test01.docx.txml, Test02.html.txml,
 	// and Test03.mif.txml.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_txml/*.txml", mimeType, nil)
+		tdDir+"/okapi/filters/txml/src/test/resources/*.txml", mimeType, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -384,7 +384,7 @@ func TestExtract_LayerStructure(t *testing.T) {
 
 // TestExtract_BlockIDs verifies that each extracted block has a unique ID.
 func TestExtract_BlockIDs(t *testing.T) {
-	parts := readTXMLFile(t, "okf_txml/Test02.html.txml", nil)
+	parts := readTXMLFile(t, "okapi/filters/txml/src/test/resources/Test02.html.txml", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.GreaterOrEqual(t, len(blocks), 2, "should extract at least 2 blocks")
@@ -399,7 +399,7 @@ func TestExtract_BlockIDs(t *testing.T) {
 
 // TestExtract_DocxTxml verifies extraction from the docx.txml test file.
 func TestExtract_DocxTxml(t *testing.T) {
-	parts := readTXMLFile(t, "okf_txml/Test01.docx.txml", nil)
+	parts := readTXMLFile(t, "okapi/filters/txml/src/test/resources/Test01.docx.txml", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from Test01.docx.txml")
@@ -412,7 +412,7 @@ func TestExtract_DocxTxml(t *testing.T) {
 
 // TestExtract_HtmlTxml verifies extraction from the html.txml test file.
 func TestExtract_HtmlTxml(t *testing.T) {
-	parts := readTXMLFile(t, "okf_txml/Test02.html.txml", nil)
+	parts := readTXMLFile(t, "okapi/filters/txml/src/test/resources/Test02.html.txml", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from Test02.html.txml")
@@ -423,7 +423,7 @@ func TestExtract_HtmlTxml(t *testing.T) {
 
 // TestExtract_MifTxml verifies extraction from the mif.txml test file.
 func TestExtract_MifTxml(t *testing.T) {
-	parts := readTXMLFile(t, "okf_txml/Test03.mif.txml", nil)
+	parts := readTXMLFile(t, "okapi/filters/txml/src/test/resources/Test03.mif.txml", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from Test03.mif.txml")
@@ -466,7 +466,7 @@ func TestRoundTrip_WithTarget(t *testing.T) {
 // TestRoundTrip_DocxFile verifies roundtrip for Test01.docx.txml.
 func TestRoundTrip_DocxFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_txml/Test01.docx.txml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/txml/src/test/resources/Test01.docx.txml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -475,7 +475,7 @@ func TestRoundTrip_DocxFile(t *testing.T) {
 // TestRoundTrip_HtmlFile verifies roundtrip for Test02.html.txml.
 func TestRoundTrip_HtmlFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_txml/Test02.html.txml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/txml/src/test/resources/Test02.html.txml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)
@@ -484,7 +484,7 @@ func TestRoundTrip_HtmlFile(t *testing.T) {
 // TestRoundTrip_MifFile verifies roundtrip for Test03.mif.txml.
 func TestRoundTrip_MifFile(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_txml/Test03.mif.txml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/txml/src/test/resources/Test03.mif.txml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, nil)

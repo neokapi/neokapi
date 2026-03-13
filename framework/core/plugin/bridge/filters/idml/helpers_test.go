@@ -16,11 +16,11 @@ import (
 const filterClass = "net.sf.okapi.filters.idml.IDMLFilter"
 const mimeType = "application/vnd.adobe.indesign-idml-package"
 
-// readIDML reads an IDML file from testdata/okf_idml/ and returns the extracted parts.
+// readIDML reads an IDML file from testdata/okapi/filters/idml/src/test/resources/ and returns the extracted parts.
 func readIDML(t *testing.T, relPath string, params map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_idml/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 }
 
@@ -29,8 +29,8 @@ func readIDMLWithConfig(t *testing.T, idmlRelPath, configRelPath string) []*mode
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := filepath.Join(tdDir, "okf_idml", idmlRelPath)
-	configPath := filepath.Join(tdDir, "okf_idml", configRelPath)
+	path := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", idmlRelPath)
+	configPath := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", configRelPath)
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -41,7 +41,7 @@ func readIDMLWithConfig(t *testing.T, idmlRelPath, configRelPath string) []*mode
 func roundtripIDML(t *testing.T, relPath string, params map[string]any) bridgetest.RoundTripResult {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_idml/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return bridgetest.RoundTrip(t, pool, cfg, filterClass, content, path, mimeType, params)
@@ -52,8 +52,8 @@ func roundtripIDMLWithConfig(t *testing.T, idmlRelPath, configRelPath string) br
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := filepath.Join(tdDir, "okf_idml", idmlRelPath)
-	configPath := filepath.Join(tdDir, "okf_idml", configRelPath)
+	path := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", idmlRelPath)
+	configPath := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", configRelPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	params := map[string]any{
@@ -66,7 +66,7 @@ func roundtripIDMLWithConfig(t *testing.T, idmlRelPath, configRelPath string) br
 func assertRoundTripEventsIDML(t *testing.T, relPath string, params map[string]any) bridgetest.RoundTripResult {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_idml/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, content, path, mimeType, params)
@@ -78,8 +78,8 @@ func assertRoundTripEventsIDMLWithConfig(t *testing.T, idmlRelPath, configRelPat
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	path := filepath.Join(tdDir, "okf_idml", idmlRelPath)
-	configPath := filepath.Join(tdDir, "okf_idml", configRelPath)
+	path := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", idmlRelPath)
+	configPath := filepath.Join(tdDir, "okapi", "filters", "idml", "src", "test", "resources", configRelPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	params := map[string]any{

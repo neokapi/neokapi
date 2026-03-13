@@ -20,7 +20,7 @@ const mimeType = "text/xml"
 func readXINI(t *testing.T, relPath string, params map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xini/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/xini/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, params)
 }
 
@@ -41,7 +41,7 @@ func readXINIDefault(t *testing.T, relPath string) []*model.Part {
 func fileRoundtrip(t *testing.T, relPath string, params map[string]any) string {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_xini/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/xini/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	result := bridgetest.RoundTrip(t, pool, cfg, filterClass, content, path, mimeType, params)

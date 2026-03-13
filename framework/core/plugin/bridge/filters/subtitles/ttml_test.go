@@ -408,7 +408,7 @@ func TestExtract_EmptyDocument(t *testing.T) {
 // with head, metadata, layout, and body sections.
 func TestExtract_FullDocument(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_ttml/example1.ttml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/subtitles/src/test/resources/example1.ttml")
 	parts := bridgetest.ReadFile(t, pool, cfg, ttmlFilterClass, path, ttmlMimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

@@ -256,7 +256,7 @@ func TestLengthConstraints_Group(t *testing.T) {
 
 // okapi: CdataSubfilteringTest#notSubfiltered
 func TestCdataSubfiltering_NotSubfiltered(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/subfiltering/688-cdata.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/subfiltering/688-cdata.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -265,7 +265,7 @@ func TestCdataSubfiltering_NotSubfiltered(t *testing.T) {
 func TestCdataSubfiltering_SubfilteredAsHtml(t *testing.T) {
 	// Subfiltering with cdataSubfilter=okf_html requires FilterConfigurationMapper;
 	// test basic extraction instead.
-	parts := readXLIFFFile(t, "okf_xliff/subfiltering/688-cdata.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/subfiltering/688-cdata.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 	// The CDATA content should be present somewhere in the extracted text
@@ -282,28 +282,28 @@ func TestCdataSubfiltering_SubfilteredAsHtml(t *testing.T) {
 
 // okapi: CdataSubfilteringTest#inlineNotSubfiltered
 func TestCdataSubfiltering_InlineNotSubfiltered(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/subfiltering/688-cdata.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/subfiltering/688-cdata.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: CdataSubfilteringTest#inlineSubfilteredAsHtml
 func TestCdataSubfiltering_InlineSubfilteredAsHtml(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/subfiltering/688-cdata.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/subfiltering/688-cdata.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: CdataSubfilteringTest#subfilteredWithTargetsCopiedFromSource
 func TestCdataSubfiltering_SubfilteredWithTargetsCopiedFromSource(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/subfiltering/998.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/subfiltering/998.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: CdataSubfilteringTest#subfilteredWithTargetsCopiedFromSourceAndTranslated
 func TestCdataSubfiltering_SubfilteredWithTargetsCopiedFromSourceAndTranslated(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/subfiltering/998.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/subfiltering/998.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -314,28 +314,28 @@ func TestCdataSubfiltering_SubfilteredWithTargetsCopiedFromSourceAndTranslated(t
 
 // okapi: PcdataSubfilteringTest#subfilteredAsHtml
 func TestPcdataSubfiltering_SubfilteredAsHtml(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/pcdatasubfiltering/test.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/pcdatasubfiltering/test.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: PcdataSubfilteringTest#subfilteredAsHtmlWithAnnotations
 func TestPcdataSubfiltering_SubfilteredAsHtmlWithAnnotations(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/pcdatasubfiltering/test-with-annotations.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/pcdatasubfiltering/test-with-annotations.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: PcdataSubfilteringTest#subfilteredAsHtmlWithAnnotationsSplitIntoMultiple
 func TestPcdataSubfiltering_SubfilteredAsHtmlWithAnnotationsSplitIntoMultiple(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/pcdatasubfiltering/test-with-annotations-multiple.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/pcdatasubfiltering/test-with-annotations-multiple.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: PcdataSubfilteringTest#subfilteredWithTargetsCopiedFromSourceAndTranslated
 func TestPcdataSubfiltering_SubfilteredWithTargetsCopiedFromSourceAndTranslated(t *testing.T) {
-	parts := readXLIFFFile(t, "okf_xliff/pcdatasubfiltering/test.xlf", nil)
+	parts := readXLIFFFile(t, "okapi/filters/xliff/src/test/resources/pcdatasubfiltering/test.xlf", nil)
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks)
 }

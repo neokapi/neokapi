@@ -13,7 +13,7 @@ import (
 
 // okapi: ODFFilterTest#testFirstTextUnit
 func TestODF_FirstTextUnit(t *testing.T) {
-	parts := readODFFile(t, "okf_openoffice/TestDocument01.odt_content.xml", nil)
+	parts := readODFFile(t, "okapi/filters/openoffice/src/test/resources/TestDocument01.odt_content.xml", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from content.xml")
@@ -24,7 +24,7 @@ func TestODF_FirstTextUnit(t *testing.T) {
 
 // okapi: ODFFilterTest#testITSMarkup
 func TestODF_ITSMarkup(t *testing.T) {
-	parts := readODFFile(t, "okf_openoffice/Content_WithITS.xml", nil)
+	parts := readODFFile(t, "okapi/filters/openoffice/src/test/resources/Content_WithITS.xml", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "should extract translatable blocks from ITS content")
@@ -107,12 +107,12 @@ func TestODF_DoubleExtraction(t *testing.T) {
 
 	// The Java test roundtrips several ODF XML files.
 	files := []string{
-		"okf_openoffice/TestDocument01.odt_content.xml",
-		"okf_openoffice/TestDocument01.odt_meta.xml",
-		"okf_openoffice/TestDocument01.odt_styles.xml",
-		"okf_openoffice/TestDocument02.odt_content.xml",
-		"okf_openoffice/ODFTest_footnote.xml",
-		"okf_openoffice/TestSpreadsheet01.ods_content.xml",
+		"okapi/filters/openoffice/src/test/resources/TestDocument01.odt_content.xml",
+		"okapi/filters/openoffice/src/test/resources/TestDocument01.odt_meta.xml",
+		"okapi/filters/openoffice/src/test/resources/TestDocument01.odt_styles.xml",
+		"okapi/filters/openoffice/src/test/resources/TestDocument02.odt_content.xml",
+		"okapi/filters/openoffice/src/test/resources/ODFTest_footnote.xml",
+		"okapi/filters/openoffice/src/test/resources/TestSpreadsheet01.ods_content.xml",
 	}
 
 	for _, f := range files {

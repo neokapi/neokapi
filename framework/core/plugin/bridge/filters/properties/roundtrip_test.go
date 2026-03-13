@@ -16,7 +16,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	// Test01: default config
 	t.Run("Test01", func(t *testing.T) {
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/Test01.properties", mimeType, nil)
+			tdDir+"/okapi/filters/properties/src/test/resources/Test01.properties", mimeType, nil)
 	})
 
 	// Test02: useKeyCondition=true, extractOnlyMatchingKey=true
@@ -27,7 +27,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			"keyCondition":           ".*text.*",
 		}
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/Test02.properties", mimeType, params)
+			tdDir+"/okapi/filters/properties/src/test/resources/Test02.properties", mimeType, params)
 	})
 
 	// Test03: useKeyCondition=true, extractOnlyMatchingKey=false
@@ -38,13 +38,13 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			"keyCondition":           ".*text.*",
 		}
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/Test03.properties", mimeType, params)
+			tdDir+"/okapi/filters/properties/src/test/resources/Test03.properties", mimeType, params)
 	})
 
 	// Test04: default config
 	t.Run("Test04", func(t *testing.T) {
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/Test04.properties", mimeType, nil)
+			tdDir+"/okapi/filters/properties/src/test/resources/Test04.properties", mimeType, nil)
 	})
 
 	// issue_216: subfilter config
@@ -53,7 +53,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 			"subfilter": "okf_html",
 		}
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/issue_216.properties", mimeType, params)
+			tdDir+"/okapi/filters/properties/src/test/resources/issue_216.properties", mimeType, params)
 	})
 }
 
@@ -69,13 +69,13 @@ func TestRoundTrip_DoubleExtractionSubFilter(t *testing.T) {
 	// Test01 with subfilter
 	t.Run("Test01", func(t *testing.T) {
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/Test01.properties", mimeType, params)
+			tdDir+"/okapi/filters/properties/src/test/resources/Test01.properties", mimeType, params)
 	})
 
 	// Test04 with subfilter
 	t.Run("Test04", func(t *testing.T) {
 		bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-			tdDir+"/okf_properties/Test04.properties", mimeType, params)
+			tdDir+"/okapi/filters/properties/src/test/resources/Test04.properties", mimeType, params)
 	})
 }
 
@@ -91,5 +91,5 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_properties/*.properties", mimeType, nil)
+		tdDir+"/okapi/filters/properties/src/test/resources/*.properties", mimeType, nil)
 }

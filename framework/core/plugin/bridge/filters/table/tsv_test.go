@@ -17,7 +17,7 @@ func TestTSV_FileEvents(t *testing.T) {
 	pool, cfg := sharedPool(t)
 	bridgetest.RequireFilter(t, pool, cfg, tsvFilterClass)
 
-	parts := readTSVFile(t, "okf_table/TSV_test.txt", nil)
+	parts := readTSVFile(t, "okapi/filters/table/src/test/resources/TSV_test.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// TSV_test.txt has Source/Target columns with 2 data rows.
@@ -35,7 +35,7 @@ func TestTSV_FileEvents(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testFileEvents2
 func TestTSV_FileEvents2(t *testing.T) {
-	parts := readTSVFile(t, "okf_table/test_tsv_simple.txt", nil)
+	parts := readTSVFile(t, "okapi/filters/table/src/test/resources/test_tsv_simple.txt", nil)
 	require.NotEmpty(t, parts)
 
 	// test_tsv_simple.txt has a mix: some rows with targets, some without, some with comments.
@@ -54,7 +54,7 @@ func TestTSV_FileEvents2(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testSkeleton
 func TestTSV_Skeleton(t *testing.T) {
-	output := tsvFileRoundtrip(t, "okf_table/TSV_test.txt", nil)
+	output := tsvFileRoundtrip(t, "okapi/filters/table/src/test/resources/TSV_test.txt", nil)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "Source text 1")
@@ -63,7 +63,7 @@ func TestTSV_Skeleton(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testSkeleton2
 func TestTSV_Skeleton2(t *testing.T) {
-	output := tsvFileRoundtrip(t, "okf_table/test_tsv_simple.txt", nil)
+	output := tsvFileRoundtrip(t, "okapi/filters/table/src/test/resources/test_tsv_simple.txt", nil)
 	require.NotEmpty(t, output)
 
 	assert.Contains(t, output, "Source1")
@@ -74,7 +74,7 @@ func TestTSV_DoubleExtraction(t *testing.T) {
 	pool, cfg := sharedPool(t)
 	bridgetest.RequireFilter(t, pool, cfg, tsvFilterClass)
 
-	path := bridgetest.TestdataFile(t, "okf_table/TSV_test.txt")
+	path := bridgetest.TestdataFile(t, "okapi/filters/table/src/test/resources/TSV_test.txt")
 	content, err := readFileContent(path)
 	require.NoError(t, err)
 

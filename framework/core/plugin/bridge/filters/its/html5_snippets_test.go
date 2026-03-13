@@ -338,7 +338,7 @@ func TestExtract_WithinTextLocal(t *testing.T) {
 // okapi: HTML5FilterTest#testLink
 func TestExtract_Link(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_html5/test02.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/its/src/test/resources/test02.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -377,7 +377,7 @@ func TestExtract_EmptyElements(t *testing.T) {
 // okapi: HTML5FilterTest#testOpenTwice
 func TestExtract_OpenTwice(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_html5/test01.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/its/src/test/resources/test01.html")
 
 	// First read.
 	parts1 := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)

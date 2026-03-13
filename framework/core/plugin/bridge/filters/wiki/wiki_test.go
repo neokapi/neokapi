@@ -236,7 +236,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 	tdDir := bridgetest.TestdataDir(t)
 
 	// The Java testDoubleExtraction does a roundtrip for dokuwiki.txt.
-	path := tdDir + "/okf_wiki/dokuwiki.txt"
+	path := tdDir + "/okapi/filters/wiki/src/test/resources/dokuwiki.txt"
 	content, err := readTestFile(path)
 	require.NoError(t, err)
 
@@ -345,7 +345,7 @@ func TestExtract_MultipleHeadingLevels(t *testing.T) {
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: simple.wiki)
 func TestExtract_SimpleWikiFile(t *testing.T) {
-	parts := readWikiFile(t, "okf_wiki/simple.wiki", nil)
+	parts := readWikiFile(t, "okapi/filters/wiki/src/test/resources/simple.wiki", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "simple.wiki should produce translatable blocks")
@@ -368,7 +368,7 @@ func TestExtract_SimpleWikiFile(t *testing.T) {
 
 // okapi: WikiFilterTest#testMultipleLines (full-file extraction: mediawiki.wiki)
 func TestExtract_MediawikiFile(t *testing.T) {
-	parts := readWikiFile(t, "okf_wiki/mediawiki.wiki", nil)
+	parts := readWikiFile(t, "okapi/filters/wiki/src/test/resources/mediawiki.wiki", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "mediawiki.wiki should produce translatable blocks")
@@ -387,7 +387,7 @@ func TestExtract_MediawikiFile(t *testing.T) {
 
 // okapi: WikiFilterTest#testDoubleExtraction (full-file: dokuwiki.txt)
 func TestExtract_DokuWikiFile(t *testing.T) {
-	parts := readWikiFile(t, "okf_wiki/dokuwiki.txt", nil)
+	parts := readWikiFile(t, "okapi/filters/wiki/src/test/resources/dokuwiki.txt", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.NotEmpty(t, blocks, "dokuwiki.txt should produce translatable blocks")

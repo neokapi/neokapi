@@ -88,7 +88,7 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - TS09-12-Test01.xlf: Okapi assigns non-deterministic integer IDs to inline
 	//   codes (bpt/ept) across reads, causing span ID mismatch in event roundtrip.
 	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
-		tdDir+"/okf_xliff/*.xlf", mimeType, nil,
+		tdDir+"/okapi/filters/xliff/src/test/resources/*.xlf", mimeType, nil,
 		"TS09-12-Test01.xlf",
 	)
 }

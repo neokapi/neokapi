@@ -287,7 +287,7 @@ func TestdataDir(t *testing.T) string {
 		t.Fatal("okapi-testdata/ not found — run scripts/fetch-okapi-testdata.sh to fetch test data")
 	}
 
-	// Find version subdirectories (contain okf_* filter dirs).
+	// Find version subdirectories (contain okapi/filters/).
 	entries, err := os.ReadDir(baseDir)
 	require.NoError(t, err, "reading okapi-testdata/")
 
@@ -297,8 +297,8 @@ func TestdataDir(t *testing.T) string {
 		if !e.IsDir() {
 			continue
 		}
-		// Verify it looks like a testdata version (contains filter subdirs).
-		if _, serr := os.Stat(filepath.Join(baseDir, e.Name(), "okf_html")); serr == nil {
+		// Verify it looks like a testdata version (contains okapi/filters/).
+		if _, serr := os.Stat(filepath.Join(baseDir, e.Name(), "okapi", "filters")); serr == nil {
 			latest = e.Name()
 		}
 	}
@@ -320,6 +320,39 @@ func TestdataFile(t *testing.T, relPath string) string {
 		t.Fatalf("testdata file not found: %s", relPath)
 	}
 	return full
+}
+
+// FilterTestResourceDir returns the path to a filter module's unit test resources
+// within the okapi-testdata directory. The filterModule is the Okapi filter module
+// name (e.g., "html", "json", "xliff"). The returned path points to:
+//
+//	okapi-testdata/<version>/okapi/filters/<filterModule>/src/test/resources
+//
+// Fails the test if the directory doesn't exist.
+func FilterTestResourceDir(t *testing.T, filterModule string) string {
+	t.Helper()
+
+	dir := filepath.Join(TestdataDir(t), "okapi", "filters", filterModule, "src", "test", "resources")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Fatalf("filter test resource dir not found: %s (filter module %q)", dir, filterModule)
+	}
+	return dir
+}
+
+// IntegrationTestResourceDir returns the path to the Okapi integration test
+// resources within the okapi-testdata directory. The returned path points to:
+//
+//	okapi-testdata/<version>/integration-tests/okapi/src/test/resources
+//
+// Fails the test if the directory doesn't exist.
+func IntegrationTestResourceDir(t *testing.T) string {
+	t.Helper()
+
+	dir := filepath.Join(TestdataDir(t), "integration-tests", "okapi", "src", "test", "resources")
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		t.Fatalf("integration test resource dir not found: %s", dir)
+	}
+	return dir
 }
 
 // findRepoRoot walks up from the current directory looking for go.work.

@@ -17,7 +17,7 @@ import (
 // okapi: HTML5FilterTest#testWhiteSpaces
 func TestFullFile_WhiteSpaces(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_html5/testWhiteSpaces.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/its/src/test/resources/testWhiteSpaces.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -46,7 +46,7 @@ func TestFullFile_WhiteSpaces(t *testing.T) {
 // okapi: HTML5FilterTest#testTranslateOverridenByRule
 func TestFullFile_TranslateOverriddenByRule(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_html5/test01.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/its/src/test/resources/test01.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -148,7 +148,7 @@ func TestFullFile_DATAContentOutput(t *testing.T) {
 // okapi: HTML5FilterTest#testLocQualityIssuesExternalXMLStandoff
 func TestFullFile_LQIExternalXMLStandoff(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_html5/lqi-test1.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/its/src/test/resources/lqi-test1.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, html5FilterClass, path, html5MimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)

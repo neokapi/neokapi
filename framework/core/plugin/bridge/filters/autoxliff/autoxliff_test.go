@@ -29,7 +29,7 @@ func TestDelegate_SDLXLIFF(t *testing.T) {
 		"xliff_config": "okf_xliff-sdl",
 	}
 
-	parts := readAutoXLIFFFile(t, "okf_autoxliff/sdlxliff.xlf", sdlParams)
+	parts := readAutoXLIFFFile(t, "okapi/filters/autoxliff/src/test/resources/sdlxliff.xlf", sdlParams)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.Len(t, blocks, 1, "should extract exactly 1 translatable text unit from SDL XLIFF")
@@ -51,7 +51,7 @@ func TestDelegate_SDLXLIFF(t *testing.T) {
 // okapi: TestAutoXLIFFFilter#testDelegateXLIFF12
 func TestDelegate_XLIFF12(t *testing.T) {
 	// AutoXLIFF auto-detects XLIFF 1.2 and delegates to the standard XLIFF filter.
-	parts := readAutoXLIFFFile(t, "okf_autoxliff/xliff12.xlf", nil)
+	parts := readAutoXLIFFFile(t, "okapi/filters/autoxliff/src/test/resources/xliff12.xlf", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.Len(t, blocks, 1, "should extract exactly 1 translatable text unit from XLIFF 1.2")
@@ -68,7 +68,7 @@ func TestDelegate_XLIFF12(t *testing.T) {
 // okapi: TestAutoXLIFFFilter#testDelegateXLIFF20
 func TestDelegate_XLIFF20(t *testing.T) {
 	// AutoXLIFF auto-detects XLIFF 2.0 and delegates to the XLIFF 2.0 filter.
-	parts := readAutoXLIFFFile(t, "okf_autoxliff/xliff2.xlf", nil)
+	parts := readAutoXLIFFFile(t, "okapi/filters/autoxliff/src/test/resources/xliff2.xlf", nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
 	require.Len(t, blocks, 1, "should extract exactly 1 translatable text unit from XLIFF 2.0")

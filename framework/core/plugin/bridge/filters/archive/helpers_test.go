@@ -15,11 +15,11 @@ import (
 const filterClass = "net.sf.okapi.filters.archive.ArchiveFilter"
 const mimeType = "application/zip"
 
-// readArchiveFile reads an archive file from testdata/okf_archive/ and returns the extracted parts.
+// readArchiveFile reads an archive file from testdata/okapi/filters/archive/src/test/resources/ and returns the extracted parts.
 func readArchiveFile(t *testing.T, relPath string, filterParams map[string]any) []*model.Part {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_archive/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/archive/src/test/resources/"+relPath)
 	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, filterParams)
 }
 
@@ -27,7 +27,7 @@ func readArchiveFile(t *testing.T, relPath string, filterParams map[string]any) 
 func roundtripArchive(t *testing.T, relPath string, filterParams map[string]any) bridgetest.RoundTripResult {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_archive/"+relPath)
+	path := bridgetest.TestdataFile(t, "okapi/filters/archive/src/test/resources/"+relPath)
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return bridgetest.RoundTrip(t, pool, cfg, filterClass, content, path, mimeType, filterParams)

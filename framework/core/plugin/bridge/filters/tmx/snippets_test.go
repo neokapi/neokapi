@@ -557,7 +557,7 @@ func TestPropAndNoteInStartDocument(t *testing.T) {
 	// sends SourceLocale="en". The TMX filter may reject the mismatch.
 	// We use readTMXAllowError to handle this gracefully.
 	pool, cfg := bridgetest.SharedBridge(t)
-	path := bridgetest.TestdataFile(t, "okf_tmx/header_with_prop_and_note.tmx")
+	path := bridgetest.TestdataFile(t, "okapi/filters/tmx/src/test/resources/header_with_prop_and_note.tmx")
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -995,7 +995,7 @@ func TestUnConsolidatedStream(t *testing.T) {
 
 // okapi: TmxFilterTest#testInputStream
 func TestInputStream(t *testing.T) {
-	parts := readTMXFile(t, "okf_tmx/a_small_test2.tmx", nil)
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/a_small_test2.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks, "should read TMX from file input")
 }
@@ -1237,9 +1237,9 @@ func TestDoubleExtraction(t *testing.T) {
 	// Double extraction means reading a file twice and comparing the results.
 	// This verifies that the filter is deterministic.
 	files := []string{
-		"okf_tmx/ImportTest2A.tmx",
-		"okf_tmx/ImportTest2B.tmx",
-		"okf_tmx/ImportTest2C.tmx",
+		"okapi/filters/tmx/src/test/resources/ImportTest2A.tmx",
+		"okapi/filters/tmx/src/test/resources/ImportTest2B.tmx",
+		"okapi/filters/tmx/src/test/resources/ImportTest2C.tmx",
 	}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
@@ -1260,9 +1260,9 @@ func TestDoubleExtraction(t *testing.T) {
 func TestDoubleExtractionCompKit(t *testing.T) {
 	// Double extraction with comparison kit uses event-level roundtrip comparison.
 	files := []string{
-		"okf_tmx/sampleTMX2.tmx",
-		"okf_tmx/a_small_test.tmx",
-		"okf_tmx/a_small_test2.tmx",
+		"okapi/filters/tmx/src/test/resources/sampleTMX2.tmx",
+		"okapi/filters/tmx/src/test/resources/a_small_test.tmx",
+		"okapi/filters/tmx/src/test/resources/a_small_test2.tmx",
 	}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
@@ -1334,7 +1334,7 @@ func TestParametersFromString(t *testing.T) {
 
 // okapi: TmxFilterTest (file-based extraction of sampleTMX2.tmx)
 func TestExtract_SampleTMX2(t *testing.T) {
-	parts := readTMXFile(t, "okf_tmx/sampleTMX2.tmx", nil)
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks)
 
@@ -1346,14 +1346,14 @@ func TestExtract_SampleTMX2(t *testing.T) {
 
 // okapi: TmxFilterTest (file-based extraction of Paragraph_TM.tmx)
 func TestExtract_ParagraphTM(t *testing.T) {
-	parts := readTMXFile(t, "okf_tmx/Paragraph_TM.tmx", nil)
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/Paragraph_TM.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: TmxFilterTest (file-based extraction of small_complete.tmx)
 func TestExtract_SmallComplete(t *testing.T) {
-	parts := readTMXFile(t, "okf_tmx/small_complete.tmx", nil)
+	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/small_complete.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks)
 

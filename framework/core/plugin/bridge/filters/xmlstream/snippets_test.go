@@ -294,7 +294,7 @@ func TestSnippets_LabelInOption(t *testing.T) {
 func TestSnippets_CodeFinder(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "xml_withCodeFinderRules.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "xml_withCodeFinderRules.yml")
 
 	params := map[string]any{
 		"configFile": configPath,
@@ -553,7 +553,7 @@ func TestSnippets_InlineAndExcludeWithTwoExcludes(t *testing.T) {
 func TestSnippets_CdataSectionExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "cdataAsHTML.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdataAsHTML.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -577,7 +577,7 @@ func TestSnippets_CdataSectionExtraction(t *testing.T) {
 func TestSnippets_CdataSectionExtractionAndWS(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "cdataAsHTML.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdataAsHTML.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -601,7 +601,7 @@ func TestSnippets_CdataSectionExtractionAndWS(t *testing.T) {
 func TestSnippets_CdataSectionExtractionWithCondition(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "cdataWithConditions.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdataWithConditions.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -624,7 +624,7 @@ func TestSnippets_CdataSectionExtractionWithCondition(t *testing.T) {
 func TestSnippets_CdataSectionAsHTML(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "cdataAsHTML.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdataAsHTML.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -648,7 +648,7 @@ func TestSnippets_CdataSectionAsHTML(t *testing.T) {
 func TestSnippets_CdataSectionAsHTMLButEmpty(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "cdataAsHTML.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "cdataAsHTML.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}
@@ -720,7 +720,7 @@ func TestSnippets_BadCodeIdsAfterRenumber(t *testing.T) {
 func TestSnippets_WSPreserveStackAfterExcluded(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
-	configPath := filepath.Join(tdDir, "okf_xmlstream", "xml_excludedPre.yml")
+	configPath := filepath.Join(tdDir, "okapi", "filters", "xmlstream", "src", "test", "resources", "xml_excludedPre.yml")
 	params := map[string]any{
 		"configFile": configPath,
 	}

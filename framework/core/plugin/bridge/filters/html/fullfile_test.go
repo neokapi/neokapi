@@ -20,7 +20,7 @@ func TestFullFile_AllExternalFiles(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	tdDir := bridgetest.TestdataDir(t)
-	htmlDir := filepath.Join(tdDir, "okf_html")
+	htmlDir := filepath.Join(tdDir, "okapi/filters/html/src/test/resources")
 
 	// Collect all .html and .htm files.
 	htmlFiles, err := filepath.Glob(filepath.Join(htmlDir, "*.html"))
@@ -51,7 +51,7 @@ func TestFullFile_AllExternalFiles(t *testing.T) {
 func TestFullFile_Nonwellformed(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/nonwellformed.specialtest")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/nonwellformed.specialtest")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	// The main assertion is that parsing completes without error.
@@ -66,7 +66,7 @@ func TestFullFile_Nonwellformed(t *testing.T) {
 func TestFullFile_EncodingShouldBeFound(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/withEncoding.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/withEncoding.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -88,7 +88,7 @@ func TestFullFile_EncodingShouldBeFound(t *testing.T) {
 func TestFullFile_EncodingShouldBeFound2(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/W3CHTMHLTest1.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/W3CHTMHLTest1.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	require.NotEmpty(t, parts)
@@ -109,7 +109,7 @@ func TestFullFile_EncodingShouldBeFound2(t *testing.T) {
 func TestFullFile_OkapiIntro(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/okapi_intro_test.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/okapi_intro_test.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -134,7 +134,7 @@ func TestFullFile_OkapiIntro(t *testing.T) {
 func TestFullFile_SkippedScriptAndStyleElements(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/testStyleScriptStylesheet.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/testStyleScriptStylesheet.html")
 	parts := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
 
 	blocks := bridgetest.TranslatableBlocks(parts)
@@ -189,7 +189,7 @@ func TestFullFile_OpenTwiceWithString(t *testing.T) {
 func TestFullFile_OpenTwiceWithURI(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/okapi_intro_test.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/okapi_intro_test.html")
 
 	// First read.
 	parts1 := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)
@@ -220,7 +220,7 @@ func TestFullFile_OpenTwiceWithURI(t *testing.T) {
 func TestFullFile_OpenTwiceWithStream(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_html/okapi_intro_test.html")
+	path := bridgetest.TestdataFile(t, "okapi/filters/html/src/test/resources/okapi_intro_test.html")
 
 	// First read.
 	parts1 := bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, nil)

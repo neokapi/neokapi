@@ -188,7 +188,7 @@ func TestExtraction_SlashCodes(t *testing.T) {
 func TestExtraction_SlashCodesOutput(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	path := bridgetest.TestdataFile(t, "okf_mif/Test01.mif")
+	path := bridgetest.TestdataFile(t, "okapi/filters/mif/src/test/resources/Test01.mif")
 	content := readMIFContent(t, "Test01.mif")
 
 	// Roundtrip and verify slash codes survive.

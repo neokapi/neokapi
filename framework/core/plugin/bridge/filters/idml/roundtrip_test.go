@@ -26,7 +26,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 	tests := []struct {
 		name       string
 		file       string
-		configFile string // relative to okf_idml/ within testdata; "" means no config
+		configFile string // relative to okapi/filters/idml/src/test/resources/ within testdata; "" means no config
 	}{
 		// [0] - [11]: Tests with ExtractAll.fprm config
 		{"Test00.idml_ExtractAll", "Test00.idml", "okf_idml@ExtractAll.fprm"},
@@ -110,13 +110,13 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path := bridgetest.TestdataFile(t, "okf_idml/"+tt.file)
+			path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/"+tt.file)
 			content, err := os.ReadFile(path)
 			require.NoError(t, err)
 
 			var params map[string]any
 			if tt.configFile != "" {
-				configPath := tdDir + "/okf_idml/" + tt.configFile
+				configPath := tdDir + "/okapi/filters/idml/src/test/resources/" + tt.configFile
 				params = map[string]any{
 					"configFile": configPath,
 				}
@@ -148,11 +148,11 @@ func TestRoundTrip_EndNotesExtractedAndMerged(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
-	configPath := tdDir + "/okf_idml/okf_idml@ExtractAll.fprm"
+	configPath := tdDir + "/okapi/filters/idml/src/test/resources/okf_idml@ExtractAll.fprm"
 	params := map[string]any{
 		"configFile": configPath,
 	}
-	path := bridgetest.TestdataFile(t, "okf_idml/09-footnotes.idml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/09-footnotes.idml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -267,7 +267,7 @@ func TestRoundTrip_EmptyContentStylesPreserved(t *testing.T) {
 
 	// This test uses expected output files from the expected/ subdirectory.
 	// Run roundtrip and verify parts are produced.
-	path := bridgetest.TestdataFile(t, "okf_idml/1369-empty-paragraph-styles.idml")
+	path := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/1369-empty-paragraph-styles.idml")
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
@@ -275,7 +275,7 @@ func TestRoundTrip_EmptyContentStylesPreserved(t *testing.T) {
 	require.NotEmpty(t, result.Output, "roundtrip should produce output")
 
 	// Also test with table cell styles.
-	path2 := bridgetest.TestdataFile(t, "okf_idml/1369-empty-paragraph-in-table-cell-styles.idml")
+	path2 := bridgetest.TestdataFile(t, "okapi/filters/idml/src/test/resources/1369-empty-paragraph-in-table-cell-styles.idml")
 	content2, err := os.ReadFile(path2)
 	require.NoError(t, err)
 
@@ -322,7 +322,7 @@ func TestRoundTrip_ExpectedFiles(t *testing.T) {
 
 	for _, tt := range files {
 		t.Run(tt.name, func(t *testing.T) {
-			path := tdDir + "/okf_idml/expected/" + tt.name
+			path := tdDir + "/okapi/filters/idml/src/test/resources/expected/" + tt.name
 			if _, err := os.Stat(path); os.IsNotExist(err) {
 				t.Skipf("expected file not found: %s", tt.name)
 			}
@@ -332,7 +332,7 @@ func TestRoundTrip_ExpectedFiles(t *testing.T) {
 			var params map[string]any
 			if tt.config != "" {
 				params = map[string]any{
-					"configFile": tdDir + "/okf_idml/" + tt.config,
+					"configFile": tdDir + "/okapi/filters/idml/src/test/resources/" + tt.config,
 				}
 			}
 
