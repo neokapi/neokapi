@@ -128,7 +128,7 @@ neokapi/                              ── Framework Module ──
 ├── bowrain/                         ── Platform Module ──
 │   ├── go.mod                       # module github.com/neokapi/neokapi/bowrain
 │   ├── config/                      # Viper-based AppConfig
-│   ├── store/                       # ContentStore + SQLite implementation
+│   ├── store/                       # ContentStore + PostgreSQL implementation
 │   ├── auth/                        # OIDC, JWT, device flow authentication
 │   ├── connector/                   # System connectors (CMS, file, git)
 │   ├── project/                     # .kapi/ project model
@@ -136,9 +136,9 @@ neokapi/                              ── Framework Module ──
 │   ├── service/                     # Auth, project, connector, flow services
 │   ├── credentials/                 # Credential management
 │   ├── server/                      # HTTP/gRPC server handlers
-│   ├── storage/                     # SQLite migration utilities
-│   ├── sievepen/                    # SQLite TM implementation
-│   ├── termbase/                    # SQLite TermBase implementation
+│   ├── storage/                     # Database migration utilities
+│   ├── sievepen/                    # PostgreSQL TM implementation
+│   ├── termbase/                    # PostgreSQL TermBase implementation
 │   ├── proto/v1/                    # gRPC protobuf definitions
 │   ├── cmd/
 │   │   ├── kapi/                    # Cobra CLI

@@ -110,7 +110,7 @@ Desktop auth uses OAuth 2.0 Authorization Code with PKCE (RFC 7636):
 
 1. App generates a PKCE code verifier and challenge
 2. Opens system browser to `{server}/api/v1/auth/desktop/login` with the challenge
-3. User authenticates via Keycloak OIDC in the browser
+3. User authenticates via the OIDC provider in the browser
 4. Server redirects to `bowrain://auth/callback` with tokens
 5. OS routes the URL protocol to the app's `HandleAuthURL` handler
 6. App exchanges the callback for access and refresh tokens

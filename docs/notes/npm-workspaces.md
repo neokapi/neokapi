@@ -157,7 +157,7 @@ cd bowrain/apps/web && npm ci && npm run build   # Web app builds
 cd kapi/apps/kapi-web && npm ci && npm run build  # Kapi web builds
 ```
 
-The Bowrain desktop frontend build is verified separately through `make frontend-build`. The Keycloak theme build is verified via `make keycloak-theme`.
+The Bowrain desktop frontend build is verified separately through `make frontend-build`. The Keycloak theme build is verified separately through `make keycloak-theme`.
 
 ## Clean Target
 

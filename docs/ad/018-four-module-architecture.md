@@ -38,7 +38,7 @@ framework (core/)
 | Platform | `github.com/neokapi/neokapi/platform` | Shared platform types: project model, auth, connector interfaces, REST client |
 | Kapi | `github.com/neokapi/neokapi/kapi` | Standalone CLI tool for local file processing |
 | Bowrain CLI | `github.com/neokapi/neokapi/bowrain-cli` | Bowrain CLI — project sync companion (init, push, pull, auth, status) |
-| Bowrain | `github.com/neokapi/neokapi/bowrain` | REST server, desktop app, SQLite/PostgreSQL storage, OIDC, connectors |
+| Bowrain | `github.com/neokapi/neokapi/bowrain` | REST server, desktop app, PostgreSQL storage, OIDC, connectors |
 
 ### Directory Layout
 
