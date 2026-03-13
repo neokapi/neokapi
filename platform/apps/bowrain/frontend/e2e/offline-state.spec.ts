@@ -25,12 +25,16 @@ async function setupConnected(page: any) {
 test("should show Connected indicator after connecting", async ({ page }) => {
   await setupConnected(page);
   // TopBar shows a StatusDot with title="Connected" on the avatar
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
+    timeout: 5000,
+  });
 });
 
 test("should show Offline status when connection-state-changed event fires", async ({ page }) => {
   await setupConnected(page);
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
+    timeout: 5000,
+  });
 
   // Simulate the backend going offline
   await page.evaluate(() => {
@@ -54,7 +58,9 @@ test("should show Offline status when connection-state-changed event fires", asy
   });
 
   // Should show Offline indicator (amber dot)
-  await expect(page.locator("[data-testid='connection-status'][title='Offline']")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("[data-testid='connection-status'][title='Offline']")).toBeVisible({
+    timeout: 5000,
+  });
 
   // Should show pending changes count
   await expect(page.getByText("3 pending")).toBeVisible({ timeout: 5000 });
@@ -62,7 +68,9 @@ test("should show Offline status when connection-state-changed event fires", asy
 
 test("should clear pending changes when reconnected", async ({ page }) => {
   await setupConnected(page);
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
+    timeout: 5000,
+  });
 
   // Go offline with pending changes
   await page.evaluate(() => {
@@ -83,7 +91,9 @@ test("should clear pending changes when reconnected", async ({ page }) => {
     }
   });
 
-  await expect(page.locator("[data-testid='connection-status'][title='Offline']")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("[data-testid='connection-status'][title='Offline']")).toBeVisible({
+    timeout: 5000,
+  });
   await expect(page.getByText("5 pending")).toBeVisible({ timeout: 5000 });
 
   // Simulate reconnection
@@ -105,7 +115,9 @@ test("should clear pending changes when reconnected", async ({ page }) => {
   });
 
   // Should show Connected indicator again
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({ timeout: 5000 });
+  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
+    timeout: 5000,
+  });
 
   // "pending" text should not be visible
   await expect(page.getByText("pending")).not.toBeVisible();

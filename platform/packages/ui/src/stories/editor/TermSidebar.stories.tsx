@@ -70,9 +70,6 @@ export const SingleMatch: Story = {
 /** All term statuses displayed */
 export const AllStatuses: Story = {
   args: {
-    termMatches: [
-      ...sampleTermMatches,
-      deprecatedTermMatch,
-    ],
+    termMatches: [...sampleTermMatches, deprecatedTermMatch],
   },
 };

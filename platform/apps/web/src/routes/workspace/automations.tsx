@@ -8,16 +8,14 @@ export function AutomationsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <GlassCard intensity="subtle" className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
+      <GlassCard
+        intensity="subtle"
+        className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
+      >
         Select a project to view automations
       </GlassCard>
     );
   }
 
-  return (
-    <AutomationsPage
-      workspaceSlug={activeWorkspace.slug}
-      projectId={projectId}
-    />
-  );
+  return <AutomationsPage workspaceSlug={activeWorkspace.slug} projectId={projectId} />;
 }

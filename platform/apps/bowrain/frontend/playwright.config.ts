@@ -7,9 +7,7 @@ export default defineConfig({
   timeout: 30000,
   globalTimeout: process.env.CI ? 600000 : 0, // 10 min cap in CI (204 tests)
   retries: process.env.CI ? 2 : 0,
-  reporter: process.env.CI
-    ? [["list"], ["html", { open: "never" }]]
-    : "html",
+  reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "html",
   use: {
     baseURL: useServerMode ? "http://localhost:8090" : "http://localhost:5173",
     headless: true,

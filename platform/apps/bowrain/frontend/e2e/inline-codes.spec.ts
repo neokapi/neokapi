@@ -56,8 +56,8 @@ async function openEditorWithInlineBlocks(page: Page) {
                 { span_type: "opening", type: "link:hyperlink", id: "a1", data: '<a href="#">' },
                 { span_type: "closing", type: "link:hyperlink", id: "a1", data: "</a>" },
               ],
-              targets: { ...(welcomeTargets["welcome.html-block-1"] || {}) },
-              targets_coded: { ...(welcomeTargetsCoded["welcome.html-block-1"] || {}) },
+              targets: { ...welcomeTargets["welcome.html-block-1"] },
+              targets_coded: { ...welcomeTargetsCoded["welcome.html-block-1"] },
               translatable: true,
               has_spans: true,
               properties: {},
@@ -72,8 +72,8 @@ async function openEditorWithInlineBlocks(page: Page) {
                 { span_type: "opening", type: "fmt:italic", id: "i1", data: "<i>" },
                 { span_type: "closing", type: "fmt:italic", id: "i1", data: "</i>" },
               ],
-              targets: { ...(welcomeTargets["welcome.html-block-2"] || {}) },
-              targets_coded: { ...(welcomeTargetsCoded["welcome.html-block-2"] || {}) },
+              targets: { ...welcomeTargets["welcome.html-block-2"] },
+              targets_coded: { ...welcomeTargetsCoded["welcome.html-block-2"] },
               translatable: true,
               has_spans: true,
               properties: {},
@@ -85,8 +85,8 @@ async function openEditorWithInlineBlocks(page: Page) {
               source_spans: [
                 { span_type: "placeholder", type: "struct:break", id: "br1", data: "<br/>" },
               ],
-              targets: { ...(welcomeTargets["welcome.html-block-3"] || {}) },
-              targets_coded: { ...(welcomeTargetsCoded["welcome.html-block-3"] || {}) },
+              targets: { ...welcomeTargets["welcome.html-block-3"] },
+              targets_coded: { ...welcomeTargetsCoded["welcome.html-block-3"] },
               translatable: true,
               has_spans: true,
               properties: {},
@@ -101,8 +101,8 @@ async function openEditorWithInlineBlocks(page: Page) {
                 { span_type: "opening", type: "link:hyperlink", id: "a2", data: '<a href="/doc">' },
                 { span_type: "closing", type: "link:hyperlink", id: "a2", data: "</a>" },
               ],
-              targets: { ...(welcomeTargets["welcome.html-block-4"] || {}) },
-              targets_coded: { ...(welcomeTargetsCoded["welcome.html-block-4"] || {}) },
+              targets: { ...welcomeTargets["welcome.html-block-4"] },
+              targets_coded: { ...welcomeTargetsCoded["welcome.html-block-4"] },
               translatable: true,
               has_spans: true,
               properties: {},
@@ -110,7 +110,7 @@ async function openEditorWithInlineBlocks(page: Page) {
             {
               id: "welcome.html-block-5",
               source: "Simple text without tags",
-              targets: { ...(welcomeTargets["welcome.html-block-5"] || {}) },
+              targets: { ...welcomeTargets["welcome.html-block-5"] },
               translatable: true,
               has_spans: false,
               properties: {},
@@ -193,7 +193,15 @@ async function pressEnterInEditor(page: Page) {
   await page.evaluate(() => {
     const el = document.querySelector('[contenteditable="true"]');
     if (el) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          code: "Enter",
+          keyCode: 13,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     }
   });
 }
@@ -203,7 +211,15 @@ async function pressEscapeInEditor(page: Page) {
   await page.evaluate(() => {
     const el = document.querySelector('[contenteditable="true"]');
     if (el) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Escape",
+          code: "Escape",
+          keyCode: 27,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     }
   });
 }
@@ -213,7 +229,15 @@ async function pressCtrlDigitInEditor(page: Page, digit: number) {
   await page.evaluate((d: number) => {
     const el = document.querySelector('[contenteditable="true"]');
     if (el) {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key: String(d), code: `Digit${d}`, ctrlKey: true, bubbles: true, cancelable: true }));
+      el.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: String(d),
+          code: `Digit${d}`,
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
     }
   }, digit);
 }

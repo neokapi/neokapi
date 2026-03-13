@@ -62,21 +62,24 @@ function StatusDot({ status }: { status: AvatarStatus }) {
   );
 }
 
-export function AccountMenu({ user, onSignOut, variant = "default", onSettings, collapsed = false, status }: AccountMenuProps) {
+export function AccountMenu({
+  user,
+  onSignOut,
+  variant = "default",
+  onSettings,
+  collapsed = false,
+  status,
+}: AccountMenuProps) {
   if (variant === "sidebar") {
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="flex items-center gap-2 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer transition-colors outline-none text-sidebar-foreground hover:bg-sidebar-accent"
-        >
+        <DropdownMenuTrigger className="flex items-center gap-2 w-full px-3 py-2.5 bg-transparent border-none cursor-pointer transition-colors outline-none text-sidebar-foreground hover:bg-sidebar-accent">
           <UserAvatar user={user} size={28} />
           {!collapsed && (
             <div className="flex-1 min-w-0 text-left">
               <div className="text-sm font-medium truncate">{user.name || user.email}</div>
               {user.name && user.email && (
-                <div className="text-[11px] truncate text-muted-foreground">
-                  {user.email}
-                </div>
+                <div className="text-[11px] truncate text-muted-foreground">{user.email}</div>
               )}
             </div>
           )}
@@ -105,9 +108,7 @@ export function AccountMenu({ user, onSignOut, variant = "default", onSettings, 
   if (variant === "icon") {
     return (
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-opacity outline-none opacity-60 hover:opacity-100"
-        >
+        <DropdownMenuTrigger className="flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-opacity outline-none opacity-60 hover:opacity-100">
           <span className="relative inline-flex">
             <UserAvatar user={user} size={24} />
             {status && <StatusDot status={status} />}
@@ -145,9 +146,7 @@ export function AccountMenu({ user, onSignOut, variant = "default", onSettings, 
           {user.email}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onSignOut}>
-          Sign out
-        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onSignOut}>Sign out</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

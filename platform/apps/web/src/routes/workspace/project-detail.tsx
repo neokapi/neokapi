@@ -7,14 +7,16 @@ import type { WorkspaceRouteContext } from "..";
 
 export function ProjectDetailRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, stream } = useParams({ strict: false });
+  const { workspace, projectId } = useParams({ strict: false });
   const adapter = useApi();
   const queryClient = useQueryClient();
   const { activeWorkspace } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
   const { activeStream } = useStream();
 
-  const { data: project } = useSuspenseQuery(projectQueryOptions(adapter, ws, projectId!, activeStream));
+  const { data: project } = useSuspenseQuery(
+    projectQueryOptions(adapter, ws, projectId!, activeStream),
+  );
 
   useEffect(() => {
     document.title = `${project.name} — ${activeWorkspace.name} — Bowrain`;
@@ -23,7 +25,7 @@ export function ProjectDetailRoute() {
   const handleUploadFiles = useCallback(
     async (files: File[]) => {
       await adapter.uploadFiles(ws, project.id, files, activeStream);
-      queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
+      void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
     },
     [ws, adapter, project.id, queryClient, activeStream],
   );
@@ -31,7 +33,7 @@ export function ProjectDetailRoute() {
   const handleRemoveFile = useCallback(
     async (fileName: string) => {
       await adapter.removeFile(ws, project.id, fileName, activeStream);
-      queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
+      void queryClient.invalidateQueries({ queryKey: ["project", ws, project.id] });
     },
     [ws, adapter, project.id, queryClient, activeStream],
   );

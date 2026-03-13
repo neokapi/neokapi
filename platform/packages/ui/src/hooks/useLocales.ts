@@ -9,7 +9,8 @@ export function useLocales() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.getKnownLocales()
+    api
+      .getKnownLocales()
       .then((r) => setLocales(r))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));

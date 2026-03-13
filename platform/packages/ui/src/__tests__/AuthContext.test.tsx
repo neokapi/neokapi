@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { render, screen, act } from "@testing-library/react";
 import { AuthProvider, useAuth } from "../context/AuthContext";
 
@@ -57,8 +57,6 @@ describe("AuthContext", () => {
   });
 
   it("throws when useAuth is called outside AuthProvider", () => {
-    expect(() => render(<AuthDisplay />)).toThrow(
-      "useAuth must be used within AuthProvider",
-    );
+    expect(() => render(<AuthDisplay />)).toThrow("useAuth must be used within AuthProvider");
   });
 });

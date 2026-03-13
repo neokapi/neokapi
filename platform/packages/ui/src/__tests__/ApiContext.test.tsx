@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen } from "@testing-library/react";
 import { ApiProvider, useApi } from "../context/ApiContext";
 import type { ApiAdapter } from "../api/adapter";
@@ -109,8 +109,6 @@ describe("ApiContext", () => {
   });
 
   it("throws when useApi is called outside ApiProvider", () => {
-    expect(() => render(<ApiDisplay />)).toThrow(
-      "useApi must be used within an ApiProvider",
-    );
+    expect(() => render(<ApiDisplay />)).toThrow("useApi must be used within an ApiProvider");
   });
 });

@@ -41,8 +41,16 @@ export interface UseCollaborationOptions {
 
 // Deterministic color palette for user avatars.
 const COLORS = [
-  "#f43f5e", "#8b5cf6", "#3b82f6", "#06b6d4", "#10b981",
-  "#f59e0b", "#ef4444", "#6366f1", "#0ea5e9", "#14b8a6",
+  "#f43f5e",
+  "#8b5cf6",
+  "#3b82f6",
+  "#06b6d4",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#6366f1",
+  "#0ea5e9",
+  "#14b8a6",
 ];
 
 function colorForUser(userId: string): string {
@@ -152,7 +160,18 @@ export function useCollaboration(options: UseCollaborationOptions) {
       setConnectionState("disconnected");
       setConnectedUsers([]);
     };
-  }, [enabled, serverUrl, workspace, projectId, fileName, locale, user.userId, user.name, user.avatarUrl, authToken]);
+  }, [
+    enabled,
+    serverUrl,
+    workspace,
+    projectId,
+    fileName,
+    locale,
+    user.userId,
+    user.name,
+    user.avatarUrl,
+    authToken,
+  ]);
 
   return {
     /** The shared Yjs document. */

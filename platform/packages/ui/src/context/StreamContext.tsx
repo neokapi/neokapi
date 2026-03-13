@@ -29,11 +29,14 @@ export function StreamProvider({
     setActiveStreamState(initialStream);
   }, [initialStream]);
 
-  const setActiveStream = useCallback((stream: string) => {
-    const s = stream || "main";
-    setActiveStreamState(s);
-    onStreamChange?.(s);
-  }, [onStreamChange]);
+  const setActiveStream = useCallback(
+    (stream: string) => {
+      const s = stream || "main";
+      setActiveStreamState(s);
+      onStreamChange?.(s);
+    },
+    [onStreamChange],
+  );
 
   return (
     <StreamContext.Provider value={{ activeStream, setActiveStream }}>

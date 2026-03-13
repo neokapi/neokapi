@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import {
-  Card, CardContent, CardHeader, CardTitle,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Button,
-  useApi, useAuth, useWorkspace,
+  useApi,
+  useAuth,
+  useWorkspace,
   type ClaimProjectResponse,
 } from "@neokapi/ui";
 
@@ -52,7 +57,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
       setCheckingAuth(false);
       return;
     }
-    (async () => {
+    void (async () => {
       try {
         const currentUser = await api.getCurrentUser();
         if (currentUser) {
@@ -69,7 +74,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
   // Auto-claim once user is resolved.
   useEffect(() => {
     if (user && !result && !error && !claiming) {
-      handleClaim();
+      void handleClaim();
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -117,8 +122,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
           <CardHeader className="items-center text-center">
             <CardTitle className="text-xl font-semibold">Project Claimed!</CardTitle>
             <p className="text-sm text-muted-foreground">
-              The project has been added to workspace{" "}
-              <strong>{result.workspace_slug}</strong>.
+              The project has been added to workspace <strong>{result.workspace_slug}</strong>.
             </p>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
@@ -141,9 +145,7 @@ export function ClaimPage({ token, onClaimed }: ClaimPageProps) {
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {error && (
-            <div className="text-destructive text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-destructive text-sm text-center">{error}</div>}
           {!claiming && error && (
             <Button onClick={handleClaim} className="w-full" size="lg">
               Try again

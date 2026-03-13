@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { cn } from "../../lib/utils";
 
 interface CommandContextValue {
@@ -74,10 +74,7 @@ function CommandInput({ className, onValueChange, ...props }: CommandInputProps)
 
 function CommandList({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div
-      className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)}
-      {...props}
-    />
+    <div className={cn("max-h-[300px] overflow-y-auto overflow-x-hidden", className)} {...props} />
   );
 }
 
@@ -85,7 +82,12 @@ function CommandEmpty({ className, ...props }: React.HTMLAttributes<HTMLDivEleme
   return <div className={cn("py-6 text-center text-sm", className)} {...props} />;
 }
 
-function CommandGroup({ className, heading, children, ...props }: React.HTMLAttributes<HTMLDivElement> & { heading?: string }) {
+function CommandGroup({
+  className,
+  heading,
+  children,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { heading?: string }) {
   return (
     <div className={cn("overflow-hidden p-1 text-foreground", className)} {...props}>
       {heading && (

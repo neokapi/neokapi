@@ -36,7 +36,12 @@ const categoryShortLabels: Record<string, string> = {
  * Tags are grouped by pairs, with used tags dimmed and hover highlighting within pairs.
  * When spans cross multiple vocabulary categories, category labels are shown.
  */
-export function TagPalette({ sourceSpans, onInsert, usedSpans, showCategoryGroups }: TagPaletteProps) {
+export function TagPalette({
+  sourceSpans,
+  onInsert,
+  usedSpans,
+  showCategoryGroups,
+}: TagPaletteProps) {
   if (sourceSpans.length === 0) return null;
 
   const pairs = useMemo(() => buildPairs(sourceSpans), [sourceSpans]);
@@ -127,11 +132,17 @@ export function TagPalette({ sourceSpans, onInsert, usedSpans, showCategoryGroup
                 return (
                   <button
                     key={sourceIndex}
-                    onClick={() => { if (!blocked) onInsert(span); }}
+                    onClick={() => {
+                      if (!blocked) onInsert(span);
+                    }}
                     onMouseEnter={() => setHoveredPairIndex(group.pairIndex)}
                     onMouseLeave={() => setHoveredPairIndex(null)}
                     style={{ ...buttonStyle, cursor: blocked ? "not-allowed" : "pointer" }}
-                    title={blocked ? `"${label}" cannot be duplicated` : `Insert tag (Ctrl+${sourceIndex + 1})`}
+                    title={
+                      blocked
+                        ? `"${label}" cannot be duplicated`
+                        : `Insert tag (Ctrl+${sourceIndex + 1})`
+                    }
                     disabled={blocked}
                     data-testid={`tag-palette-${sourceIndex}`}
                   >

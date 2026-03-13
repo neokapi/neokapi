@@ -7,8 +7,10 @@ import { AppSidebar, type AppSidebarProps } from "./AppSidebar";
 import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";
 import { X, Menu } from "./icons";
 
-export interface AppShellProps<V extends string = string>
-  extends Omit<AppSidebarProps<V>, "collapsed" | "onCollapsedChange" | "collapsedWidth"> {
+export interface AppShellProps<V extends string = string> extends Omit<
+  AppSidebarProps<V>,
+  "collapsed" | "onCollapsedChange" | "collapsedWidth"
+> {
   /** Controlled collapsed state. true = sidebar collapsed (icon mode). */
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
@@ -26,19 +28,26 @@ function HeaderBar({ headerSlot }: { headerSlot?: ReactNode }) {
   const breadcrumb = useBreadcrumb();
   return (
     <div className="flex flex-wrap items-center shrink-0">
-      {breadcrumb && (
-        <div className="flex items-center h-10 pl-4">{breadcrumb}</div>
-      )}
+      {breadcrumb && <div className="flex items-center h-10 pl-4">{breadcrumb}</div>}
       <div className="flex-1 min-w-0" />
       {headerSlot}
     </div>
   );
 }
 
-function MobileHeader({ headerSlot, onOpenMenu }: { headerSlot?: ReactNode; onOpenMenu: () => void }) {
+function MobileHeader({
+  headerSlot,
+  onOpenMenu,
+}: {
+  headerSlot?: ReactNode;
+  onOpenMenu: () => void;
+}) {
   const breadcrumb = useBreadcrumb();
   return (
-    <div className="flex items-center shrink-0 h-12 px-3 gap-2" style={{ borderBottom: "1px solid var(--sidebar-border, hsl(var(--border)))" }}>
+    <div
+      className="flex items-center shrink-0 h-12 px-3 gap-2"
+      style={{ borderBottom: "1px solid var(--sidebar-border, hsl(var(--border)))" }}
+    >
       <button
         onClick={onOpenMenu}
         className="flex items-center justify-center w-8 h-8 rounded bg-transparent border-none cursor-pointer text-foreground"
@@ -66,7 +75,9 @@ function MobileDrawer<V extends string = string>({
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
-      return () => { document.body.style.overflow = ""; };
+      return () => {
+        document.body.style.overflow = "";
+      };
     }
   }, [open]);
 
@@ -135,15 +146,13 @@ export function AppShell<V extends string = string>({
           <BreadcrumbProvider>
             <div className="relative z-10 flex flex-col h-screen overflow-hidden">
               <MobileHeader headerSlot={headerSlot} onOpenMenu={handleOpenMenu} />
-              <div className={cn("flex-1 p-4 flex flex-col min-h-0 overflow-auto", contentClassName)}>
+              <div
+                className={cn("flex-1 p-4 flex flex-col min-h-0 overflow-auto", contentClassName)}
+              >
                 {children}
               </div>
             </div>
-            <MobileDrawer
-              open={drawerOpen}
-              onClose={handleCloseMenu}
-              sidebarProps={sidebarProps}
-            />
+            <MobileDrawer open={drawerOpen} onClose={handleCloseMenu} sidebarProps={sidebarProps} />
           </BreadcrumbProvider>
         </SidebarGlass.Provider>
       </>
@@ -162,19 +171,29 @@ export function AppShell<V extends string = string>({
         <BreadcrumbProvider>
           <div
             className="relative z-10 flex flex-col h-screen overflow-hidden"
-            style={{
-              "--sidebar-width": "220px",
-              "--sidebar-width-icon": "60px",
-            } as React.CSSProperties}
+            style={
+              {
+                "--sidebar-width": "220px",
+                "--sidebar-width-icon": "60px",
+              } as React.CSSProperties
+            }
           >
             {hasTopBar && (
               <div
                 className="shrink-0 flex items-center h-12 glass-surface bg-card/80"
-                style={{ "--wails-draggable": "drag", borderBottom: "1px solid var(--sidebar-border)" } as React.CSSProperties}
+                style={
+                  {
+                    "--wails-draggable": "drag",
+                    borderBottom: "1px solid var(--sidebar-border)",
+                  } as React.CSSProperties
+                }
               >
                 <div
                   className="shrink-0 transition-[width] duration-300 ease-in-out"
-                  style={{ width: collapsed ? "var(--sidebar-width-icon)" : "var(--sidebar-width)", minWidth: 78 }}
+                  style={{
+                    width: collapsed ? "var(--sidebar-width-icon)" : "var(--sidebar-width)",
+                    minWidth: 78,
+                  }}
                 />
                 <div className="flex-1 min-w-0">
                   <HeaderBar headerSlot={headerSlot} />

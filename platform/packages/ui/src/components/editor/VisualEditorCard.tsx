@@ -1,7 +1,14 @@
 import { useState, useCallback } from "react";
 import type {
-  ProjectInfo, BlockInfo, SpanInfo, TMMatchInfo, BlockTermMatch,
-  BlockNote, QAIssue, BlockHistoryEntry, AddConceptRequest,
+  ProjectInfo,
+  BlockInfo,
+  SpanInfo,
+  TMMatchInfo,
+  BlockTermMatch,
+  BlockNote,
+  QAIssue,
+  BlockHistoryEntry,
+  AddConceptRequest,
 } from "../../types/api";
 import type { VisualEditorMode } from "./visual-editor-types";
 import { SourceCellDisplay } from "./SourceCellDisplay";
@@ -16,7 +23,16 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
 import { cn } from "../../lib/utils";
-import { Check, X, ChevronDown, ChevronUp, ChevronRight, AlertTriangle, Info, Code } from "../icons";
+import {
+  Check,
+  X,
+  ChevronDown,
+  ChevronUp,
+  ChevronRight,
+  AlertTriangle,
+  Info,
+  Code,
+} from "../icons";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -110,7 +126,7 @@ export function VisualEditorCard({
   tmMatches,
   termMatches,
   onApplyTM,
-  onInsertTerm,
+  onInsertTerm: _onInsertTerm,
   referenceLocales,
   project,
   qaIssues,
@@ -176,10 +192,7 @@ export function VisualEditorCard({
   );
 
   return (
-    <div
-      className="visual-editor-card w-full rounded-xl p-0"
-      data-testid="visual-editor-card"
-    >
+    <div className="visual-editor-card w-full rounded-xl p-0" data-testid="visual-editor-card">
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">
@@ -236,10 +249,7 @@ export function VisualEditorCard({
           )}
           {/* Vocabulary badge showing inline tag summary */}
           {sourceSpans.length > 0 && (
-            <FormatVocabularyBadge
-              spans={sourceSpans}
-              onClick={() => setShowLegend((v) => !v)}
-            />
+            <FormatVocabularyBadge spans={sourceSpans} onClick={() => setShowLegend((v) => !v)} />
           )}
         </div>
         <Tabs
@@ -271,7 +281,13 @@ export function VisualEditorCard({
                 ) : (
                   <Info className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
                 )}
-                <span className={issue.severity === "error" ? "text-destructive" : "text-amber-600 dark:text-amber-400"}>
+                <span
+                  className={
+                    issue.severity === "error"
+                      ? "text-destructive"
+                      : "text-amber-600 dark:text-amber-400"
+                  }
+                >
                   <span className="font-medium">{issue.type}:</span> {issue.message}
                 </span>
               </div>
@@ -304,7 +320,9 @@ export function VisualEditorCard({
             <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
               Source
               {editorMode === "enrich" && (
-                <span className="ml-2 font-normal text-[9px] normal-case">(select text to create term)</span>
+                <span className="ml-2 font-normal text-[9px] normal-case">
+                  (select text to create term)
+                </span>
               )}
             </div>
             {block.has_spans && (
@@ -326,10 +344,18 @@ export function VisualEditorCard({
           </div>
           <div className="text-sm leading-relaxed">
             {termMatches.length > 0 || (block.entities && block.entities.length > 0) ? (
-              <HighlightedSource text={block.source} termMatches={termMatches} entities={block.entities} />
+              <HighlightedSource
+                text={block.source}
+                termMatches={termMatches}
+                entities={block.entities}
+              />
             ) : block.has_spans && block.source_coded ? (
               codeView ? (
-                <SourceCellDisplay codedText={sourceCodedText} spans={sourceSpans} entities={block.entities} />
+                <SourceCellDisplay
+                  codedText={sourceCodedText}
+                  spans={sourceSpans}
+                  entities={block.entities}
+                />
               ) : (
                 <FormattedSourceDisplay codedText={sourceCodedText} spans={sourceSpans} />
               )
@@ -343,10 +369,7 @@ export function VisualEditorCard({
       {/* ── Inline code legend (expandable) ─────────────── */}
       {showLegend && sourceSpans.length > 0 && (
         <div className="px-4 pb-2" data-testid="inline-code-legend">
-          <InlineCodeLegend
-            spans={sourceSpans}
-            onClose={() => setShowLegend(false)}
-          />
+          <InlineCodeLegend spans={sourceSpans} onClose={() => setShowLegend(false)} />
         </div>
       )}
 
@@ -369,7 +392,10 @@ export function VisualEditorCard({
             const refText = block.targets[refLocale];
             if (!refText) return null;
             return (
-              <div key={refLocale} className="rounded-md px-3 py-1.5 bg-muted/50 border border-border mb-1">
+              <div
+                key={refLocale}
+                className="rounded-md px-3 py-1.5 bg-muted/50 border border-border mb-1"
+              >
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mr-2">
                   {refLocale}
                 </span>
@@ -397,7 +423,9 @@ export function VisualEditorCard({
           <div
             className={cn(
               "text-sm leading-relaxed px-3 py-2 rounded-md border border-border bg-muted/30 min-h-[44px]",
-              editorMode === "translate" && !isEditing && "cursor-pointer hover:bg-muted/60 transition-colors",
+              editorMode === "translate" &&
+                !isEditing &&
+                "cursor-pointer hover:bg-muted/60 transition-colors",
             )}
             onClick={editorMode === "translate" && !isEditing ? onStartEditing : undefined}
             data-testid="target-display"
@@ -421,7 +449,11 @@ export function VisualEditorCard({
             className="flex items-center gap-1 text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 hover:text-foreground transition-colors"
             onClick={() => setNotesExpanded((v) => !v)}
           >
-            {notesExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+            {notesExpanded ? (
+              <ChevronDown className="w-3 h-3" />
+            ) : (
+              <ChevronRight className="w-3 h-3" />
+            )}
             Notes
             {notes && notes.length > 0 && (
               <span className="font-normal text-[10px] ml-1">({notes.length})</span>
@@ -432,7 +464,10 @@ export function VisualEditorCard({
               {notes && notes.length > 0 && (
                 <div className="space-y-1 mb-2">
                   {notes.map((note) => (
-                    <div key={note.id} className="flex items-start gap-2 p-2 bg-muted rounded-md border border-border text-xs">
+                    <div
+                      key={note.id}
+                      className="flex items-start gap-2 p-2 bg-muted rounded-md border border-border text-xs"
+                    >
                       <div className="flex-1">
                         <div className="text-muted-foreground text-[10px] mb-0.5">
                           {note.author} &middot; {new Date(note.createdAt).toLocaleDateString()}
@@ -587,7 +622,8 @@ export function VisualEditorCard({
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-[10px] text-muted-foreground">
-                    {entry.author || "unknown"} &middot; {new Date(entry.timestamp).toLocaleString()}
+                    {entry.author || "unknown"} &middot;{" "}
+                    {new Date(entry.timestamp).toLocaleString()}
                   </span>
                   <span className="text-[10px] px-1.5 py-px rounded bg-muted-foreground/10 text-muted-foreground">
                     {entry.origin}

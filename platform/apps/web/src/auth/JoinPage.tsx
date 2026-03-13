@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import {
-  Card, CardContent, CardHeader, CardTitle,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
   Button,
-  useApi, useAuth, useWorkspace,
+  useApi,
+  useAuth,
+  useWorkspace,
   type AcceptInviteResponse,
 } from "@neokapi/ui";
 
@@ -52,7 +57,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
       setCheckingAuth(false);
       return;
     }
-    (async () => {
+    void (async () => {
       try {
         const currentUser = await api.getCurrentUser();
         if (currentUser) {
@@ -69,7 +74,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
   // Auto-accept once user is resolved.
   useEffect(() => {
     if (user && !result && !error && !accepting) {
-      handleAccept();
+      void handleAccept();
     }
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -140,9 +145,7 @@ export function JoinPage({ code, onJoined }: JoinPageProps) {
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          {error && (
-            <div className="text-destructive text-sm text-center">{error}</div>
-          )}
+          {error && <div className="text-destructive text-sm text-center">{error}</div>}
           {!accepting && error && (
             <Button onClick={handleAccept} className="w-full" size="lg">
               Try again

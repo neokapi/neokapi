@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
-import { selectLocale, selectMultiLocales, setMultiLocales, expectLocaleChips } from "./locale-helper";
+import { selectLocale, setMultiLocales, expectLocaleChips } from "./locale-helper";
 
 test.beforeEach(async ({ page }) => {
   await setupLocalApp(page);
@@ -58,4 +58,3 @@ test("should navigate back from project view to dashboard", async ({ page }) => 
   // Should see the project card
   await expect(page.getByRole("heading", { name: "Test" })).toBeVisible();
 });
-

@@ -6,9 +6,7 @@ import { Button } from "./ui/button";
 import { CardContent, GlassCard } from "./ui/card";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { FolderOpen, ArrowRight } from "./icons";
 
 interface ProjectDashboardProps {
@@ -52,7 +50,9 @@ export function ProjectDashboard({
         <div className="flex justify-between items-center mb-6">
           <div>
             <h2 className="text-xl font-semibold">Translation Projects</h2>
-            <p className="text-[13px] text-muted-foreground mt-1">{projects.length} project{projects.length !== 1 ? "s" : ""}</p>
+            <p className="text-[13px] text-muted-foreground mt-1">
+              {projects.length} project{projects.length !== 1 ? "s" : ""}
+            </p>
           </div>
           <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">
             New Project
@@ -60,15 +60,16 @@ export function ProjectDashboard({
         </div>
 
         {projects.length === 0 && (
-          <div className="flex flex-col items-center text-center py-12" data-testid="empty-projects">
+          <div
+            className="flex flex-col items-center text-center py-12"
+            data-testid="empty-projects"
+          >
             <FolderOpen className="w-14 h-14 mb-5 text-primary opacity-40" />
             <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
             <p className="text-sm text-muted-foreground mb-6">
               Create your first translation project to start localizing your content.
             </p>
-            <Button onClick={() => setShowCreate(true)}>
-              New Project
-            </Button>
+            <Button onClick={() => setShowCreate(true)}>New Project</Button>
           </div>
         )}
 
@@ -87,10 +88,12 @@ export function ProjectDashboard({
                 <CardContent className="pt-4">
                   <h3 className="font-semibold text-base mb-2">{p.name}</h3>
                   <div className="text-[13px] text-muted-foreground mb-2">
-                    {getDisplayName(p.source_locale)} <ArrowRight className="w-3 h-3 inline-block" /> {p.target_locales.map(l => getDisplayName(l)).join(", ")}
+                    {getDisplayName(p.source_locale)}{" "}
+                    <ArrowRight className="w-3 h-3 inline-block" />{" "}
+                    {p.target_locales.map((l) => getDisplayName(l)).join(", ")}
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {(p.items?.length ?? 0)} file{(p.items?.length ?? 0) !== 1 ? "s" : ""}
+                    {p.items?.length ?? 0} file{(p.items?.length ?? 0) !== 1 ? "s" : ""}
                   </div>
                 </CardContent>
               </GlassCard>
@@ -100,7 +103,11 @@ export function ProjectDashboard({
       </GlassCard>
 
       <Dialog open={showCreate} onOpenChange={handleOpenChange}>
-        <DialogContent size="md" data-testid="create-project-dialog" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent
+          size="md"
+          data-testid="create-project-dialog"
+          onInteractOutside={(e: Event) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Create Translation Project</DialogTitle>
           </DialogHeader>
@@ -140,7 +147,11 @@ export function ProjectDashboard({
             <Button variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={!name.trim() || targetLangsList.length === 0} data-testid="create-project-submit">
+            <Button
+              onClick={handleCreate}
+              disabled={!name.trim() || targetLangsList.length === 0}
+              data-testid="create-project-submit"
+            >
               Create
             </Button>
           </DialogFooter>

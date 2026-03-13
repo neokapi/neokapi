@@ -86,8 +86,7 @@ async function apiDelete(path: string, token: string) {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!resp.ok && resp.status !== 204)
-    throw new Error(`DELETE ${path} failed: ${resp.status}`);
+  if (!resp.ok && resp.status !== 204) throw new Error(`DELETE ${path} failed: ${resp.status}`);
 }
 
 // --- Workspace ---
@@ -147,10 +146,7 @@ export async function deleteEditorProject(
 }
 
 /** Delete all editor projects in the workspace. */
-export async function deleteAllEditorProjects(
-  token: string,
-  wsSlug: string,
-): Promise<void> {
+export async function deleteAllEditorProjects(token: string, wsSlug: string): Promise<void> {
   const projects = await listEditorProjects(token, wsSlug);
   if (!projects) return;
   for (const p of projects) {
@@ -171,14 +167,11 @@ export async function uploadFile(
   const formData = new FormData();
   formData.append("files", new Blob([fileContent]), fileName);
 
-  const resp = await fetch(
-    `${API}/workspaces/${wsSlug}/editor/projects/${projectId}/files`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    },
-  );
+  const resp = await fetch(`${API}/workspaces/${wsSlug}/editor/projects/${projectId}/files`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
   if (!resp.ok) throw new Error(`Upload ${fileName} failed: ${resp.status} ${await resp.text()}`);
 }
 
@@ -278,17 +271,11 @@ export async function createInvite(
   return apiPost(`/workspaces/${wsSlug}/invites`, token, body);
 }
 
-export async function listInvites(
-  token: string,
-  wsSlug: string,
-): Promise<Invite[]> {
+export async function listInvites(token: string, wsSlug: string): Promise<Invite[]> {
   return apiGet(`/workspaces/${wsSlug}/invites`, token);
 }
 
-export async function acceptInvite(
-  token: string,
-  code: string,
-): Promise<void> {
+export async function acceptInvite(token: string, code: string): Promise<void> {
   await apiPost(`/join/${code}`, token);
 }
 
@@ -314,7 +301,8 @@ export async function createAnonymousProject(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, source_locale: sourceLocale, target_locales: targetLocales }),
   });
-  if (!resp.ok) throw new Error(`Create anonymous project failed: ${resp.status} ${await resp.text()}`);
+  if (!resp.ok)
+    throw new Error(`Create anonymous project failed: ${resp.status} ${await resp.text()}`);
   return resp.json();
 }
 
@@ -372,7 +360,9 @@ export async function fullSeed(): Promise<SeedResult> {
   console.log("Seeding terminology concepts...");
   const conceptCount = await seedConcepts(token, ws.slug);
 
-  console.log(`Seed complete: ${projects.length} projects, ${tmCount} TM entries, ${conceptCount} concepts`);
+  console.log(
+    `Seed complete: ${projects.length} projects, ${tmCount} TM entries, ${conceptCount} concepts`,
+  );
 
   return {
     context: { token, workspaceSlug: ws.slug, workspaceId: ws.id },

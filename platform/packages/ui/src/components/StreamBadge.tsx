@@ -13,7 +13,13 @@ const visibilityColor: Record<StreamVisibility, string> = {
   shared: "bg-blue-500",
 };
 
-const VisibilityIcon = ({ visibility, className }: { visibility: StreamVisibility; className?: string }) => {
+const VisibilityIcon = ({
+  visibility,
+  className,
+}: {
+  visibility: StreamVisibility;
+  className?: string;
+}) => {
   switch (visibility) {
     case "public":
       return <Globe className={className} />;
@@ -32,7 +38,9 @@ export function StreamBadge({ stream, compact }: StreamBadgeProps) {
         className="inline-flex items-center gap-1 text-xs text-muted-foreground"
         title={`${stream.name} (${stream.visibility})`}
       >
-        <span className={`inline-block h-1.5 w-1.5 rounded-full ${visibilityColor[stream.visibility]}`} />
+        <span
+          className={`inline-block h-1.5 w-1.5 rounded-full ${visibilityColor[stream.visibility]}`}
+        />
         <span className="truncate max-w-[100px]">{stream.name}</span>
       </span>
     );

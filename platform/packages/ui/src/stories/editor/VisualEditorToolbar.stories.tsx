@@ -2,10 +2,19 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { VisualEditorToolbar } from "../../components/editor/VisualEditorToolbar";
 import {
-  boldOpen, boldClose, italicOpen, italicClose,
-  linkOpen, linkClose, codeOpen, codeClose,
-  lineBreak, underlineOpen, underlineClose,
-  strikeOpen, strikeClose,
+  boldOpen,
+  boldClose,
+  italicOpen,
+  italicClose,
+  linkOpen,
+  linkClose,
+  codeOpen,
+  codeClose,
+  lineBreak,
+  underlineOpen,
+  underlineClose,
+  strikeOpen,
+  strikeClose,
   richSpans,
 } from "../fixtures";
 
@@ -53,12 +62,18 @@ export const AllTags: Story = {
 export const ExtendedTags: Story = {
   args: {
     sourceSpans: [
-      boldOpen, boldClose,
-      italicOpen, italicClose,
-      underlineOpen, underlineClose,
-      strikeOpen, strikeClose,
-      linkOpen, linkClose,
-      codeOpen, codeClose,
+      boldOpen,
+      boldClose,
+      italicOpen,
+      italicClose,
+      underlineOpen,
+      underlineClose,
+      strikeOpen,
+      strikeClose,
+      linkOpen,
+      linkClose,
+      codeOpen,
+      codeClose,
       lineBreak,
     ],
   },

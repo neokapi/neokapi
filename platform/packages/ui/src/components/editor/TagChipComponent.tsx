@@ -4,15 +4,23 @@ import { resolveConstraints } from "./tagConstraints";
 
 interface TagChipComponentProps {
   spanInfo: SpanInfo;
-  index?: number;         // sequential number (1-based)
-  pairIndex?: number;     // pair number badge
-  highlighted?: boolean;  // partner-tag hover glow
-  dimmed?: boolean;       // already-used in palette
-  locked?: boolean;       // non-deletable tag (dashed border, lock tooltip)
+  index?: number; // sequential number (1-based)
+  pairIndex?: number; // pair number badge
+  highlighted?: boolean; // partner-tag hover glow
+  dimmed?: boolean; // already-used in palette
+  locked?: boolean; // non-deletable tag (dashed border, lock tooltip)
   showConstraints?: boolean; // show constraint indicator icons
 }
 
-export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimmed, locked, showConstraints }: TagChipComponentProps) {
+export function TagChipComponent({
+  spanInfo,
+  index,
+  pairIndex,
+  highlighted,
+  dimmed,
+  locked,
+  showConstraints,
+}: TagChipComponentProps) {
   const colors = tagColors(spanInfo);
   const label = semanticLabel(spanInfo);
   const constraints = resolveConstraints(spanInfo);
@@ -36,16 +44,14 @@ export function TagChipComponent({ spanInfo, index, pairIndex, highlighted, dimm
       data-span-type={spanInfo.type}
       data-category={semanticCategory(spanInfo)}
     >
-      {index !== undefined && (
-        <span style={indexStyle}>{index}</span>
-      )}
+      {index !== undefined && <span style={indexStyle}>{index}</span>}
       {label}
       {showConstraints && !constraints.deletable && (
-        <span style={constraintIconStyle} aria-label="required">*</span>
+        <span style={constraintIconStyle} aria-label="required">
+          *
+        </span>
       )}
-      {pairIndex !== undefined && (
-        <span style={pairBadgeStyle}>{pairIndex}</span>
-      )}
+      {pairIndex !== undefined && <span style={pairBadgeStyle}>{pairIndex}</span>}
     </span>
   );
 }

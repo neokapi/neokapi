@@ -1,7 +1,17 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import type {
-  ProjectInfo, BlockInfo, WordCountResult, SpanInfo, TMMatchInfo, BlockTermMatch,
-  BlockNote, QAIssue, BlockHistoryEntry, FileQAResult, AddConceptRequest, EntityInfo,
+  ProjectInfo,
+  BlockInfo,
+  WordCountResult,
+  SpanInfo,
+  TMMatchInfo,
+  BlockTermMatch,
+  BlockNote,
+  QAIssue,
+  BlockHistoryEntry,
+  FileQAResult,
+  AddConceptRequest,
+  EntityInfo,
 } from "../types/api";
 import { useEditorApi } from "../hooks/useEditorApi";
 import { useApi } from "../context/ApiContext";
@@ -94,7 +104,14 @@ function termStatusClass(status: string): string {
   return colors[status] || "text-muted-foreground bg-muted";
 }
 
-export function TranslationEditor({ project, fileName, onBack, onExport, renderPreview, presenceSlot }: TranslationEditorProps) {
+export function TranslationEditor({
+  project,
+  fileName,
+  onBack,
+  onExport,
+  renderPreview,
+  presenceSlot,
+}: TranslationEditorProps) {
   const [blocks, setBlocks] = useState<BlockInfo[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -126,7 +143,10 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
   // Entity marking state
   const [entityMarkState, setEntityMarkState] = useState<{
-    text: string; start: number; end: number; position: { x: number; y: number };
+    text: string;
+    start: number;
+    end: number;
+    position: { x: number; y: number };
   } | null>(null);
 
   const { getDisplayName } = useLocales();
@@ -135,11 +155,18 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const wsSlug = activeWorkspace?.slug ?? "";
 
   // Register breadcrumb in the top bar area
-  const breadcrumbNode = useMemo(() => (
-    <button onClick={onBack} data-testid="back-to-project" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0">
-      <ArrowLeft className="w-3.5 h-3.5" /> {project.name}
-    </button>
-  ), [onBack, project.name]);
+  const breadcrumbNode = useMemo(
+    () => (
+      <button
+        onClick={onBack}
+        data-testid="back-to-project"
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-none p-0"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" /> {project.name}
+      </button>
+    ),
+    [onBack, project.name],
+  );
   useSetBreadcrumb(breadcrumbNode);
 
   const api = useEditorApi();
@@ -167,8 +194,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   }, [getWordCountApi, project.id, fileName]);
 
   useEffect(() => {
-    loadBlocks();
-    loadWordCount();
+    void loadBlocks();
+    void loadWordCount();
   }, [loadBlocks, loadWordCount]);
 
   // Filter blocks by search
@@ -182,9 +209,10 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
   const translatableBlocks = filteredBlocks.filter((b) => b.translatable);
   const translatedCount = translatableBlocks.filter((b) => b.targets[targetLocale]).length;
-  const progress = translatableBlocks.length > 0
-    ? Math.round((translatedCount / translatableBlocks.length) * 100)
-    : 0;
+  const progress =
+    translatableBlocks.length > 0
+      ? Math.round((translatedCount / translatableBlocks.length) * 100)
+      : 0;
 
   // Status counts for progress bar
   const statusCounts = useMemo(() => {
@@ -202,16 +230,13 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const filteredBlocksRef = useRef(filteredBlocks);
   filteredBlocksRef.current = filteredBlocks;
   const startEditingRef = useRef<(index: number) => void>(() => {});
-  const handlePreviewBlockSelect = useCallback(
-    (blockId: string) => {
-      const index = filteredBlocksRef.current.findIndex((b) => b.id === blockId);
-      if (index >= 0) {
-        setSelectedIndex(index);
-        startEditingRef.current(index);
-      }
-    },
-    [],
-  );
+  const handlePreviewBlockSelect = useCallback((blockId: string) => {
+    const index = filteredBlocksRef.current.findIndex((b) => b.id === blockId);
+    if (index >= 0) {
+      setSelectedIndex(index);
+      startEditingRef.current(index);
+    }
+  }, []);
 
   // Keyboard navigation
   useEffect(() => {
@@ -222,7 +247,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           setEditingIndex(null);
         } else if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
-          handleSaveEdit();
+          void handleSaveEdit();
         }
         return;
       }
@@ -296,15 +321,26 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     setContextLoading(true);
     setAppliedTMIndex(null);
     // TM lookup
-    const tmPromise = api.lookupTMForBlock(project.id, fileName, block.id, targetLocale)
+    const tmPromise = api
+      .lookupTMForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTmMatches(m || []))
       .catch(() => setTmMatches([]));
     // Term lookup
-    const termPromise = api.lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
+    const termPromise = api
+      .lookupTermsForBlock(project.id, fileName, block.id, targetLocale)
       .then((m) => setTermMatches(m || []))
       .catch(() => setTermMatches([]));
-    Promise.all([tmPromise, termPromise]).finally(() => setContextLoading(false));
-  }, [showContextPanel, layoutMode, selectedIndex, filteredBlocks, targetLocale, project.id, fileName, api]);
+    void Promise.all([tmPromise, termPromise]).finally(() => setContextLoading(false));
+  }, [
+    showContextPanel,
+    layoutMode,
+    selectedIndex,
+    filteredBlocks,
+    targetLocale,
+    project.id,
+    fileName,
+    api,
+  ]);
 
   // Load QA issues, history, and notes for current block in visual mode
   useEffect(() => {
@@ -312,15 +348,18 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     const block = filteredBlocks[selectedIndex];
     if (!block) return;
     // QA: run per-block check
-    api.runQACheck(project.id, block.id, targetLocale)
+    api
+      .runQACheck(project.id, block.id, targetLocale)
       .then((issues) => setBlockQAIssues(issues || []))
       .catch(() => setBlockQAIssues([]));
     // History
-    api.getBlockHistory(project.id, block.id, targetLocale, 20)
+    api
+      .getBlockHistory(project.id, block.id, targetLocale, 20)
       .then((h) => setBlockHistory(h || []))
       .catch(() => setBlockHistory([]));
     // Notes (enrich mode loads these)
-    api.listBlockNotes(project.id, block.id)
+    api
+      .listBlockNotes(project.id, block.id)
       .then((n) => setBlockNotes(n || []))
       .catch(() => setBlockNotes([]));
   }, [layoutMode, selectedIndex, filteredBlocks, targetLocale, project.id, api]);
@@ -348,32 +387,33 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   };
   startEditingRef.current = startEditing;
 
-  const handleCreateEntity = useCallback(async (type: string, dnt: boolean) => {
-    if (!entityMarkState || selectedIndex < 0) return;
-    const block = filteredBlocks[selectedIndex];
-    if (!block) return;
-    try {
-      const created = await fullApi.createEntity(wsSlug, project.id, fileName, block.id, {
-        text: entityMarkState.text,
-        type,
-        start: entityMarkState.start,
-        end: entityMarkState.end,
-        dnt,
-        source: "manual",
-      });
-      // Update block entities in local state.
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id
-            ? { ...b, entities: [...(b.entities ?? []), created] }
-            : b,
-        ),
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create entity");
-    }
-    setEntityMarkState(null);
-  }, [entityMarkState, selectedIndex, filteredBlocks, fullApi, wsSlug, project.id, fileName]);
+  const handleCreateEntity = useCallback(
+    async (type: string, dnt: boolean) => {
+      if (!entityMarkState || selectedIndex < 0) return;
+      const block = filteredBlocks[selectedIndex];
+      if (!block) return;
+      try {
+        const created = await fullApi.createEntity(wsSlug, project.id, fileName, block.id, {
+          text: entityMarkState.text,
+          type,
+          start: entityMarkState.start,
+          end: entityMarkState.end,
+          dnt,
+          source: "manual",
+        });
+        // Update block entities in local state.
+        setBlocks((prev) =>
+          prev.map((b) =>
+            b.id === block.id ? { ...b, entities: [...(b.entities ?? []), created] } : b,
+          ),
+        );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to create entity");
+      }
+      setEntityMarkState(null);
+    },
+    [entityMarkState, selectedIndex, filteredBlocks, fullApi, wsSlug, project.id, fileName],
+  );
 
   const handleSaveEdit = async () => {
     if (editingIndex === null) return;
@@ -392,9 +432,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       // Update local state
       setBlocks((prev) =>
         prev.map((b) =>
-          b.id === block.id
-            ? { ...b, targets: { ...b.targets, [targetLocale]: editValue } }
-            : b,
+          b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: editValue } } : b,
         ),
       );
 
@@ -433,7 +471,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             ? {
                 ...b,
                 targets: { ...b.targets, [targetLocale]: plainText },
-                targets_coded: { ...(b.targets_coded || {}), [targetLocale]: codedText },
+                targets_coded: { ...b.targets_coded, [targetLocale]: codedText },
               }
             : b,
         ),
@@ -448,7 +486,6 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       setError(e instanceof Error ? e.message : "Failed to save");
     }
   };
-
 
   const handleTMTranslate = async () => {
     setLoading(true);
@@ -506,9 +543,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       });
       setBlocks((prev) =>
         prev.map((b) =>
-          b.id === block.id
-            ? { ...b, targets: { ...b.targets, [targetLocale]: block.source } }
-            : b,
+          b.id === block.id ? { ...b, targets: { ...b.targets, [targetLocale]: block.source } } : b,
         ),
       );
     } catch (e) {
@@ -571,41 +606,44 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   };
 
   // Visual mode handlers
-  const handleVisualSave = useCallback(async (codedText: string, spans: SpanInfo[]) => {
-    if (editingIndex === null) return;
-    const block = filteredBlocks[editingIndex];
-    if (!block) return;
+  const handleVisualSave = useCallback(
+    async (codedText: string, spans: SpanInfo[]) => {
+      if (editingIndex === null) return;
+      const block = filteredBlocks[editingIndex];
+      if (!block) return;
 
-    if (block.has_spans) {
-      await handleSaveCodedEdit(codedText, spans);
-    } else {
-      // For non-coded blocks, codedText is plain text
-      const plainText = codedText.replace(/[\uE001-\uE003]/g, "");
-      try {
-        await api.updateBlockTarget({
-          project_id: project.id,
-          item_name: fileName,
-          block_id: block.id,
-          target_locale: targetLocale,
-          text: plainText,
-        });
-        setBlocks((prev) =>
-          prev.map((b) =>
-            b.id === block.id
-              ? { ...b, targets: { ...b.targets, [targetLocale]: plainText } }
-              : b,
-          ),
-        );
-        const nextIndex = editingIndex + 1;
-        setEditingIndex(null);
-        if (nextIndex < filteredBlocks.length) {
-          setSelectedIndex(nextIndex);
+      if (block.has_spans) {
+        await handleSaveCodedEdit(codedText, spans);
+      } else {
+        // For non-coded blocks, codedText is plain text
+        const plainText = codedText.replace(/[\uE001-\uE003]/g, "");
+        try {
+          await api.updateBlockTarget({
+            project_id: project.id,
+            item_name: fileName,
+            block_id: block.id,
+            target_locale: targetLocale,
+            text: plainText,
+          });
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === block.id
+                ? { ...b, targets: { ...b.targets, [targetLocale]: plainText } }
+                : b,
+            ),
+          );
+          const nextIndex = editingIndex + 1;
+          setEditingIndex(null);
+          if (nextIndex < filteredBlocks.length) {
+            setSelectedIndex(nextIndex);
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : "Failed to save");
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to save");
       }
-    }
-  }, [editingIndex, filteredBlocks, handleSaveCodedEdit, api, project.id, fileName, targetLocale]);
+    },
+    [editingIndex, filteredBlocks, handleSaveCodedEdit, api, project.id, fileName, targetLocale],
+  );
 
   const handleVisualApprove = useCallback(() => {
     handleMarkReviewed();
@@ -627,31 +665,36 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     );
   }, [selectedIndex, filteredBlocks]);
 
-  const handleVisualApplyTM = useCallback((index: number) => {
-    const match = tmMatches[index];
-    const block = filteredBlocks[selectedIndex];
-    if (!match || !block || !block.translatable) return;
-    api.updateBlockTarget({
-      project_id: project.id,
-      item_name: fileName,
-      block_id: block.id,
-      target_locale: targetLocale,
-      text: match.target,
-    }).then(() => {
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id
-            ? {
-                ...b,
-                targets: { ...b.targets, [targetLocale]: match.target },
-                properties: { ...b.properties, "translation-origin": "tm" },
-              }
-            : b,
-        ),
-      );
-      setAppliedTMIndex(index);
-    });
-  }, [tmMatches, filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale]);
+  const handleVisualApplyTM = useCallback(
+    (index: number) => {
+      const match = tmMatches[index];
+      const block = filteredBlocks[selectedIndex];
+      if (!match || !block || !block.translatable) return;
+      void api
+        .updateBlockTarget({
+          project_id: project.id,
+          item_name: fileName,
+          block_id: block.id,
+          target_locale: targetLocale,
+          text: match.target,
+        })
+        .then(() => {
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === block.id
+                ? {
+                    ...b,
+                    targets: { ...b.targets, [targetLocale]: match.target },
+                    properties: { ...b.properties, "translation-origin": "tm" },
+                  }
+                : b,
+            ),
+          );
+          setAppliedTMIndex(index);
+        });
+    },
+    [tmMatches, filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
+  );
 
   const handleVisualInsertTerm = useCallback((_text: string) => {
     // Term insertion is handled by the VisualEditorCard's TargetCellEditor
@@ -659,53 +702,71 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
   const handleRunFileQA = useCallback(() => {
     setQaLoading(true);
-    api.runFileQACheck(project.id, fileName, targetLocale)
+    api
+      .runFileQACheck(project.id, fileName, targetLocale)
       .then((results) => setFileQAResults(results || []))
       .catch(() => setFileQAResults([]))
       .finally(() => setQaLoading(false));
   }, [api, project.id, fileName, targetLocale]);
 
-  const handleRevertHistory = useCallback((entry: BlockHistoryEntry) => {
-    const block = filteredBlocks[selectedIndex];
-    if (!block) return;
-    api.updateBlockTarget({
-      project_id: project.id,
-      item_name: fileName,
-      block_id: block.id,
-      target_locale: targetLocale,
-      text: entry.text,
-    }).then(() => {
-      setBlocks((prev) =>
-        prev.map((b) =>
-          b.id === block.id
-            ? { ...b, targets: { ...b.targets, [targetLocale]: entry.text } }
-            : b,
-        ),
-      );
-    }).catch((e) => setError(e instanceof Error ? e.message : "Failed to revert"));
-  }, [filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale]);
+  const handleRevertHistory = useCallback(
+    (entry: BlockHistoryEntry) => {
+      const block = filteredBlocks[selectedIndex];
+      if (!block) return;
+      api
+        .updateBlockTarget({
+          project_id: project.id,
+          item_name: fileName,
+          block_id: block.id,
+          target_locale: targetLocale,
+          text: entry.text,
+        })
+        .then(() => {
+          setBlocks((prev) =>
+            prev.map((b) =>
+              b.id === block.id
+                ? { ...b, targets: { ...b.targets, [targetLocale]: entry.text } }
+                : b,
+            ),
+          );
+        })
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to revert"));
+    },
+    [filteredBlocks, selectedIndex, api, project.id, fileName, targetLocale],
+  );
 
-  const handleAddNote = useCallback((text: string) => {
-    const block = filteredBlocks[selectedIndex];
-    if (!block) return;
-    api.addBlockNote(project.id, block.id, text)
-      .then((note) => setBlockNotes((prev) => [...prev, note]))
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to add note"));
-  }, [filteredBlocks, selectedIndex, api, project.id]);
+  const handleAddNote = useCallback(
+    (text: string) => {
+      const block = filteredBlocks[selectedIndex];
+      if (!block) return;
+      api
+        .addBlockNote(project.id, block.id, text)
+        .then((note) => setBlockNotes((prev) => [...prev, note]))
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to add note"));
+    },
+    [filteredBlocks, selectedIndex, api, project.id],
+  );
 
-  const handleDeleteNote = useCallback((noteId: string) => {
-    api.deleteBlockNote(project.id, noteId)
-      .then(() => setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)))
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to delete note"));
-  }, [api, project.id]);
+  const handleDeleteNote = useCallback(
+    (noteId: string) => {
+      api
+        .deleteBlockNote(project.id, noteId)
+        .then(() => setBlockNotes((prev) => prev.filter((n) => n.id !== noteId)))
+        .catch((e) => setError(e instanceof Error ? e.message : "Failed to delete note"));
+    },
+    [api, project.id],
+  );
 
-  const handleTermCreate = useCallback(async (req: AddConceptRequest) => {
-    try {
-      await fullApi.addConcept(wsSlug, req);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create term");
-    }
-  }, [fullApi, wsSlug]);
+  const handleTermCreate = useCallback(
+    async (req: AddConceptRequest) => {
+      try {
+        await fullApi.addConcept(wsSlug, req);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Failed to create term");
+      }
+    },
+    [fullApi, wsSlug],
+  );
 
   const handleVisualNavigate = useCallback((index: number) => {
     setSelectedIndex(index);
@@ -720,7 +781,11 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   const availableLayouts: LayoutMode[] = ["grid", "focus", "split-h", "split-v", "visual"];
 
   const blockGrid = (
-    <div ref={blockListRef} className="flex-1 overflow-auto border border-border rounded-lg bg-card" data-testid="block-grid">
+    <div
+      ref={blockListRef}
+      className="flex-1 overflow-auto border border-border rounded-lg bg-card"
+      data-testid="block-grid"
+    >
       {/* Header row */}
       <div className="flex px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider sticky top-0 bg-card/80 backdrop-blur-sm z-[1]">
         <span className="w-10 text-center">#</span>
@@ -744,12 +809,12 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             onDoubleClick={() => startEditing(index)}
             className={cn(
               "flex px-3 py-2 border-b border-border cursor-pointer items-stretch min-h-[44px] transition-colors border-l-[3px]",
-              selectedIndex === index
-                ? "bg-muted/50 border-l-primary"
-                : statusBorderClass[status],
+              selectedIndex === index ? "bg-muted/50 border-l-primary" : statusBorderClass[status],
             )}
           >
-            <span className="w-10 text-center text-xs text-muted-foreground pt-0.5 shrink-0">{index + 1}</span>
+            <span className="w-10 text-center text-xs text-muted-foreground pt-0.5 shrink-0">
+              {index + 1}
+            </span>
             <span
               className={cn("w-2 h-2 rounded-full shrink-0 mt-1.5 mr-2", statusDotClass[status])}
               data-testid={`status-dot-${index}`}
@@ -757,17 +822,22 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             />
             <div className="flex-1 text-sm leading-relaxed pr-4 break-words">
               {block.has_spans && block.source_coded && block.source_spans ? (
-                <FormattedSourceDisplay
-                  codedText={block.source_coded}
-                  spans={block.source_spans}
+                <FormattedSourceDisplay codedText={block.source_coded} spans={block.source_spans} />
+              ) : showContextPanel &&
+                selectedIndex === index &&
+                (termMatches.length > 0 || (block.entities && block.entities.length > 0)) ? (
+                <HighlightedSource
+                  text={block.source}
+                  termMatches={termMatches}
+                  entities={block.entities}
                 />
-              ) : showContextPanel && selectedIndex === index && (termMatches.length > 0 || (block.entities && block.entities.length > 0)) ? (
-                <HighlightedSource text={block.source} termMatches={termMatches} entities={block.entities} />
               ) : (
                 block.source
               )}
               {!block.translatable && (
-                <span className="ml-2 px-1.5 py-px bg-muted rounded text-[10px] text-muted-foreground align-middle">non-translatable</span>
+                <span className="ml-2 px-1.5 py-px bg-muted rounded text-[10px] text-muted-foreground align-middle">
+                  non-translatable
+                </span>
               )}
             </div>
             <div
@@ -803,7 +873,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
               ) : (
                 <span
                   className={cn(
-                    block.targets[targetLocale] ? "text-foreground" : "text-muted-foreground italic",
+                    block.targets[targetLocale]
+                      ? "text-foreground"
+                      : "text-muted-foreground italic",
                   )}
                   data-testid={`target-text-${index}`}
                 >
@@ -821,7 +893,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                       )}
                     </>
                   ) : (
-                    block.targets[targetLocale] || (block.translatable ? "Click to translate..." : "")
+                    block.targets[targetLocale] ||
+                    (block.translatable ? "Click to translate..." : "")
                   )}
                 </span>
               )}
@@ -838,14 +911,16 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
     </div>
   );
 
-  const previewComponent = renderPreview ? renderPreview({
-    projectId: project.id,
-    itemName: fileName,
-    targetLocale,
-    selectedBlockId,
-    onBlockSelect: handlePreviewBlockSelect,
-    blocks,
-  }) : null;
+  const previewComponent = renderPreview
+    ? renderPreview({
+        projectId: project.id,
+        itemName: fileName,
+        targetLocale,
+        selectedBlockId,
+        onBlockSelect: handlePreviewBlockSelect,
+        blocks,
+      })
+    : null;
 
   const focusView = currentBlock ? (
     <div className="flex-1 flex flex-col overflow-auto gap-4 p-4" data-testid="focus-view">
@@ -863,7 +938,10 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         <span className="flex-1 text-center font-semibold text-sm">
           Block {selectedIndex + 1} of {filteredBlocks.length}
           <span
-            className={cn("ml-2 px-2 py-0.5 rounded text-[11px] font-semibold", statusBadgeClass[getBlockStatus(currentBlock, targetLocale)])}
+            className={cn(
+              "ml-2 px-2 py-0.5 rounded text-[11px] font-semibold",
+              statusBadgeClass[getBlockStatus(currentBlock, targetLocale)],
+            )}
             data-testid="focus-status-badge"
           >
             {getBlockStatus(currentBlock, targetLocale)}
@@ -890,14 +968,21 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
       {/* Current block - Source */}
       <div className="p-4 bg-card border border-border rounded-lg">
-        <div className="mb-2 text-xs font-semibold text-muted-foreground uppercase">
-          Source
-        </div>
+        <div className="mb-2 text-xs font-semibold text-muted-foreground uppercase">Source</div>
         <div className="text-base leading-relaxed" data-testid="focus-source">
           {currentBlock.has_spans && currentBlock.source_coded && currentBlock.source_spans ? (
-            <FormattedSourceDisplay codedText={currentBlock.source_coded} spans={currentBlock.source_spans} />
-          ) : showContextPanel && (termMatches.length > 0 || (currentBlock.entities && currentBlock.entities.length > 0)) ? (
-            <HighlightedSource text={currentBlock.source} termMatches={termMatches} entities={currentBlock.entities} />
+            <FormattedSourceDisplay
+              codedText={currentBlock.source_coded}
+              spans={currentBlock.source_spans}
+            />
+          ) : showContextPanel &&
+            (termMatches.length > 0 ||
+              (currentBlock.entities && currentBlock.entities.length > 0)) ? (
+            <HighlightedSource
+              text={currentBlock.source}
+              termMatches={termMatches}
+              entities={currentBlock.entities}
+            />
           ) : (
             currentBlock.source
           )}
@@ -911,10 +996,22 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             Target ({getDisplayName(targetLocale)})
           </span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="text-[11px] h-6 px-2" onClick={handleCopySource} data-testid="focus-copy-source">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[11px] h-6 px-2"
+              onClick={handleCopySource}
+              data-testid="focus-copy-source"
+            >
               Copy Source
             </Button>
-            <Button variant="outline" size="sm" className="text-[11px] h-6 px-2" onClick={handleMarkReviewed} data-testid="focus-mark-reviewed">
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-[11px] h-6 px-2"
+              onClick={handleMarkReviewed}
+              data-testid="focus-mark-reviewed"
+            >
               Reviewed
             </Button>
           </div>
@@ -958,21 +1055,27 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
         <div
           data-testid="progress-reviewed"
           className="bg-green-500 opacity-40"
-          style={{ width: `${(statusCounts.reviewed / Math.max(translatableBlocks.length, 1)) * 100}%` }}
+          style={{
+            width: `${(statusCounts.reviewed / Math.max(translatableBlocks.length, 1)) * 100}%`,
+          }}
         />
       )}
       {statusCounts.translated > 0 && (
         <div
           data-testid="progress-translated"
           className="bg-blue-500 opacity-40"
-          style={{ width: `${(statusCounts.translated / Math.max(translatableBlocks.length, 1)) * 100}%` }}
+          style={{
+            width: `${(statusCounts.translated / Math.max(translatableBlocks.length, 1)) * 100}%`,
+          }}
         />
       )}
       {statusCounts.draft > 0 && (
         <div
           data-testid="progress-draft"
           className="bg-amber-500 opacity-40"
-          style={{ width: `${(statusCounts.draft / Math.max(translatableBlocks.length, 1)) * 100}%` }}
+          style={{
+            width: `${(statusCounts.draft / Math.max(translatableBlocks.length, 1)) * 100}%`,
+          }}
         />
       )}
     </div>
@@ -983,7 +1086,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
   if (statusCounts.reviewed > 0) progressBreakdown.push(`${statusCounts.reviewed} reviewed`);
   if (statusCounts.translated > 0) progressBreakdown.push(`${statusCounts.translated} translated`);
   if (statusCounts.draft > 0) progressBreakdown.push(`${statusCounts.draft} draft`);
-  if (statusCounts["not-started"] > 0) progressBreakdown.push(`${statusCounts["not-started"]} pending`);
+  if (statusCounts["not-started"] > 0)
+    progressBreakdown.push(`${statusCounts["not-started"]} pending`);
 
   // Split mode fallback preview: use DocumentPreview when renderPreview is not provided
   const splitPreview = previewComponent ?? (
@@ -1017,9 +1121,27 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                     ? "bg-primary text-primary-foreground font-semibold"
                     : "bg-transparent text-muted-foreground font-normal",
                 )}
-                title={mode === "grid" ? "Grid View" : mode === "focus" ? "Focus View" : mode === "split-h" ? "Horizontal Split" : mode === "split-v" ? "Vertical Split" : "Visual Mode"}
+                title={
+                  mode === "grid"
+                    ? "Grid View"
+                    : mode === "focus"
+                      ? "Focus View"
+                      : mode === "split-h"
+                        ? "Horizontal Split"
+                        : mode === "split-v"
+                          ? "Vertical Split"
+                          : "Visual Mode"
+                }
               >
-                {mode === "grid" ? "Grid" : mode === "focus" ? "Focus" : mode === "split-h" ? "H-Split" : mode === "split-v" ? "V-Split" : "Visual"}
+                {mode === "grid"
+                  ? "Grid"
+                  : mode === "focus"
+                    ? "Focus"
+                    : mode === "split-h"
+                      ? "H-Split"
+                      : mode === "split-v"
+                        ? "V-Split"
+                        : "Visual"}
               </button>
             ))}
           </div>
@@ -1029,7 +1151,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
             </SelectTrigger>
             <SelectContent>
               {project.target_locales.map((l) => (
-                <SelectItem key={l} value={l}>{getDisplayName(l)} ({l})</SelectItem>
+                <SelectItem key={l} value={l}>
+                  {getDisplayName(l)} ({l})
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -1037,7 +1161,12 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
         {/* Messages */}
         {error && (
-          <AlertGlass variant="destructive" dismissible onDismiss={() => setError(null)} className="mb-2">
+          <AlertGlass
+            variant="destructive"
+            dismissible
+            onDismiss={() => setError(null)}
+            className="mb-2"
+          >
             <AlertGlassDescription>{error}</AlertGlassDescription>
           </AlertGlass>
         )}
@@ -1101,9 +1230,27 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                   ? "bg-primary text-primary-foreground font-semibold"
                   : "bg-transparent text-muted-foreground font-normal",
               )}
-              title={mode === "grid" ? "Grid View" : mode === "focus" ? "Focus View" : mode === "split-h" ? "Horizontal Split" : mode === "split-v" ? "Vertical Split" : "Visual Mode"}
+              title={
+                mode === "grid"
+                  ? "Grid View"
+                  : mode === "focus"
+                    ? "Focus View"
+                    : mode === "split-h"
+                      ? "Horizontal Split"
+                      : mode === "split-v"
+                        ? "Vertical Split"
+                        : "Visual Mode"
+              }
             >
-              {mode === "grid" ? "Grid" : mode === "focus" ? "Focus" : mode === "split-h" ? "H-Split" : mode === "split-v" ? "V-Split" : "Visual"}
+              {mode === "grid"
+                ? "Grid"
+                : mode === "focus"
+                  ? "Focus"
+                  : mode === "split-h"
+                    ? "H-Split"
+                    : mode === "split-v"
+                      ? "V-Split"
+                      : "Visual"}
             </button>
           ))}
         </div>
@@ -1113,7 +1260,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           </SelectTrigger>
           <SelectContent>
             {project.target_locales.map((l) => (
-              <SelectItem key={l} value={l}>{getDisplayName(l)} ({l})</SelectItem>
+              <SelectItem key={l} value={l}>
+                {getDisplayName(l)} ({l})
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -1124,21 +1273,49 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
       {/* Toolbar */}
       <div className="flex gap-2 py-2 items-center flex-wrap backdrop-blur-sm">
-        <Button variant="outline" size="sm" onClick={handleTMTranslate} disabled={loading} data-testid="tm-btn">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleTMTranslate}
+          disabled={loading}
+          data-testid="tm-btn"
+        >
           TM Lookup
         </Button>
         <div className="w-px h-5 bg-border" />
-        <Button variant="outline" size="sm" onClick={handleCopySource} disabled={loading || selectedIndex < 0} data-testid="copy-source-btn">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCopySource}
+          disabled={loading || selectedIndex < 0}
+          data-testid="copy-source-btn"
+        >
           Copy Source
         </Button>
-        <Button variant="outline" size="sm" onClick={handleMarkReviewed} disabled={loading || selectedIndex < 0} data-testid="mark-reviewed-btn">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleMarkReviewed}
+          disabled={loading || selectedIndex < 0}
+          data-testid="mark-reviewed-btn"
+        >
           Reviewed
         </Button>
         <div className="w-px h-5 bg-border" />
-        <Button variant="outline" size="sm" onClick={handlePrevUntranslated} data-testid="prev-untranslated-btn">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handlePrevUntranslated}
+          data-testid="prev-untranslated-btn"
+        >
           <ArrowLeft className="w-3 h-3 mr-1" /> Untranslated
         </Button>
-        <Button variant="outline" size="sm" onClick={handleNextUntranslated} data-testid="next-untranslated-btn">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleNextUntranslated}
+          data-testid="next-untranslated-btn"
+        >
           Untranslated <ArrowRight className="w-3 h-3 ml-1" />
         </Button>
         <div className="flex-1" />
@@ -1162,9 +1339,15 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       </div>
 
       {/* Progress bar */}
-      <div className="relative h-6 bg-muted rounded overflow-hidden mb-2 glass-surface" data-testid="progress-bar">
+      <div
+        className="relative h-6 bg-muted rounded overflow-hidden mb-2 glass-surface"
+        data-testid="progress-bar"
+      >
         {progressSegments}
-        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-semibold text-foreground whitespace-nowrap" data-testid="progress-text">
+        <span
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-semibold text-foreground whitespace-nowrap"
+          data-testid="progress-text"
+        >
           {progress}% ({translatedCount}/{translatableBlocks.length} translated)
           {progressBreakdown.length > 0 && ` \u2014 ${progressBreakdown.join(", ")}`}
         </span>
@@ -1172,12 +1355,22 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 
       {/* Messages */}
       {error && (
-        <AlertGlass variant="destructive" dismissible onDismiss={() => setError(null)} className="mb-2">
+        <AlertGlass
+          variant="destructive"
+          dismissible
+          onDismiss={() => setError(null)}
+          className="mb-2"
+        >
           <AlertGlassDescription>{error}</AlertGlassDescription>
         </AlertGlass>
       )}
       {message && (
-        <AlertGlass variant="success" dismissible onDismiss={() => setMessage(null)} className="mb-2">
+        <AlertGlass
+          variant="success"
+          dismissible
+          onDismiss={() => setMessage(null)}
+          className="mb-2"
+        >
           <AlertGlassDescription>{message}</AlertGlassDescription>
         </AlertGlass>
       )}
@@ -1189,9 +1382,7 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           {layoutMode === "focus" && focusView}
           {layoutMode === "split-h" && (
             <div className="flex flex-col flex-1 gap-3 overflow-hidden">
-              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                {blockGrid}
-              </div>
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">{blockGrid}</div>
               <div className="h-[40%] min-h-[200px] overflow-hidden" data-testid="split-h-preview">
                 {splitPreview}
               </div>
@@ -1199,23 +1390,20 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           )}
           {layoutMode === "split-v" && (
             <div className="flex flex-1 gap-3 overflow-hidden" data-testid="split-layout">
-              <div className="flex-1 min-w-0 overflow-hidden">
-                {splitPreview}
-              </div>
-              <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-                {blockGrid}
-              </div>
+              <div className="flex-1 min-w-0 overflow-hidden">{splitPreview}</div>
+              <div className="flex-1 min-w-0 flex flex-col overflow-hidden">{blockGrid}</div>
             </div>
           )}
         </div>
 
         {/* Context Panel - TM & Terminology */}
         {showContextPanel && (
-          <div className="w-[280px] min-w-[280px] border-l border-border bg-card overflow-auto p-3 shrink-0 glass-surface" data-testid="context-panel">
+          <div
+            className="w-[280px] min-w-[280px] border-l border-border bg-card overflow-auto p-3 shrink-0 glass-surface"
+            data-testid="context-panel"
+          >
             {contextLoading && (
-              <div className="text-center py-3 text-xs text-muted-foreground">
-                Loading...
-              </div>
+              <div className="text-center py-3 text-xs text-muted-foreground">Loading...</div>
             )}
             {/* TM Matches */}
             <div className="mb-4">
@@ -1226,66 +1414,78 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                 )}
               </div>
               {!contextLoading && tmMatches.length === 0 ? (
-                <div className="text-xs text-muted-foreground italic py-2">No TM matches for this block</div>
+                <div className="text-xs text-muted-foreground italic py-2">
+                  No TM matches for this block
+                </div>
               ) : (
                 tmMatches.map((m, i) => (
-                  <div key={i} className={cn(
-                    "p-2 bg-muted rounded-md mb-1.5 border border-border",
-                    appliedTMIndex === i && "border-green-500 bg-green-500/5",
-                  )} data-testid={`tm-match-${i}`}>
+                  <div
+                    key={i}
+                    className={cn(
+                      "p-2 bg-muted rounded-md mb-1.5 border border-border",
+                      appliedTMIndex === i && "border-green-500 bg-green-500/5",
+                    )}
+                    data-testid={`tm-match-${i}`}
+                  >
                     <div className="flex justify-between mb-1">
-                      <span className={cn("text-[11px] font-bold px-1.5 py-px rounded", tmScoreClass(m.score))}>
+                      <span
+                        className={cn(
+                          "text-[11px] font-bold px-1.5 py-px rounded",
+                          tmScoreClass(m.score),
+                        )}
+                      >
                         {Math.round(m.score * 100)}%
                       </span>
                       <span className="text-[10px] text-muted-foreground">
                         {m.match_type.replace(/-/g, " ")}
                       </span>
                       {m.project_id && (
-                        <span className={cn(
-                          "text-[10px] px-1 py-px rounded ml-1",
-                          m.project_id === project.id
-                            ? "text-green-600 dark:text-green-400 bg-green-500/10"
-                            : "text-blue-600 dark:text-blue-400 bg-blue-500/10"
-                        )}>
+                        <span
+                          className={cn(
+                            "text-[10px] px-1 py-px rounded ml-1",
+                            m.project_id === project.id
+                              ? "text-green-600 dark:text-green-400 bg-green-500/10"
+                              : "text-blue-600 dark:text-blue-400 bg-blue-500/10",
+                          )}
+                        >
                           {m.project_id === project.id ? "same project" : "cross-project"}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs mb-1 text-muted-foreground">
-                      {m.source}
-                    </div>
-                    <div className="text-xs font-medium">
-                      {m.target}
-                    </div>
+                    <div className="text-xs mb-1 text-muted-foreground">{m.source}</div>
+                    <div className="text-xs font-medium">{m.target}</div>
                     <Button
                       size="sm"
                       className={cn(
                         "mt-1.5 text-[11px] h-6 px-2",
-                        appliedTMIndex === i && "bg-green-500 hover:bg-green-500 opacity-80 cursor-default",
+                        appliedTMIndex === i &&
+                          "bg-green-500 hover:bg-green-500 opacity-80 cursor-default",
                       )}
                       onClick={() => {
                         const block = filteredBlocks[selectedIndex];
                         if (!block || !block.translatable) return;
-                        api.updateBlockTarget({
-                          project_id: project.id,
-                          item_name: fileName,
-                          block_id: block.id,
-                          target_locale: targetLocale,
-                          text: m.target,
-                        }).then(() => {
-                          setBlocks((prev) =>
-                            prev.map((b) =>
-                              b.id === block.id
-                                ? {
-                                    ...b,
-                                    targets: { ...b.targets, [targetLocale]: m.target },
-                                    properties: { ...b.properties, "translation-origin": "tm" },
-                                  }
-                                : b,
-                            ),
-                          );
-                          setAppliedTMIndex(i);
-                        });
+                        void api
+                          .updateBlockTarget({
+                            project_id: project.id,
+                            item_name: fileName,
+                            block_id: block.id,
+                            target_locale: targetLocale,
+                            text: m.target,
+                          })
+                          .then(() => {
+                            setBlocks((prev) =>
+                              prev.map((b) =>
+                                b.id === block.id
+                                  ? {
+                                      ...b,
+                                      targets: { ...b.targets, [targetLocale]: m.target },
+                                      properties: { ...b.properties, "translation-origin": "tm" },
+                                    }
+                                  : b,
+                              ),
+                            );
+                            setAppliedTMIndex(i);
+                          });
                       }}
                       data-testid={`tm-apply-${i}`}
                       disabled={appliedTMIndex === i}
@@ -1306,13 +1506,26 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                 )}
               </div>
               {!contextLoading && termMatches.length === 0 ? (
-                <div className="text-xs text-muted-foreground italic py-2">No terms found in this block</div>
+                <div className="text-xs text-muted-foreground italic py-2">
+                  No terms found in this block
+                </div>
               ) : (
                 termMatches.map((m, i) => (
-                  <div key={i} className="p-2 bg-muted rounded-md mb-1.5 border border-border" data-testid={`term-match-${i}`}>
+                  <div
+                    key={i}
+                    className="p-2 bg-muted rounded-md mb-1.5 border border-border"
+                    data-testid={`term-match-${i}`}
+                  >
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className="text-[13px] font-semibold">{m.source_term}</span>
-                      <span className={cn("text-[10px] font-semibold px-1.5 py-px rounded", termStatusClass(m.status))}>{m.status}</span>
+                      <span
+                        className={cn(
+                          "text-[10px] font-semibold px-1.5 py-px rounded",
+                          termStatusClass(m.status),
+                        )}
+                      >
+                        {m.status}
+                      </span>
                     </div>
                     {m.target_terms && m.target_terms.length > 0 ? (
                       <div className="text-xs inline-flex items-center gap-1">
@@ -1325,7 +1538,9 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                       </div>
                     )}
                     {m.domain && (
-                      <span className="inline-block mt-1 text-[10px] text-muted-foreground px-1.5 py-px rounded bg-card border border-border">{m.domain}</span>
+                      <span className="inline-block mt-1 text-[10px] text-muted-foreground px-1.5 py-px rounded bg-card border border-border">
+                        {m.domain}
+                      </span>
                     )}
                   </div>
                 ))
@@ -1340,22 +1555,34 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
                   <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2 pb-1 border-b border-border">
                     Entities
                     {currentEntities.length > 0 && (
-                      <span className="ml-1.5 font-normal text-[10px]">({currentEntities.length})</span>
+                      <span className="ml-1.5 font-normal text-[10px]">
+                        ({currentEntities.length})
+                      </span>
                     )}
                   </div>
                   {!contextLoading && currentEntities.length === 0 ? (
-                    <div className="text-xs text-muted-foreground italic py-2">No entities in this block</div>
+                    <div className="text-xs text-muted-foreground italic py-2">
+                      No entities in this block
+                    </div>
                   ) : (
                     currentEntities.map((e: EntityInfo, i: number) => (
-                      <div key={e.key} className="p-2 bg-muted rounded-md mb-1.5 border border-border" data-testid={`entity-${i}`}>
+                      <div
+                        key={e.key}
+                        className="p-2 bg-muted rounded-md mb-1.5 border border-border"
+                        data-testid={`entity-${i}`}
+                      >
                         <div className="flex items-center gap-1.5 mb-1">
                           <span className="text-[13px] font-semibold">{e.text}</span>
                           {e.dnt && (
-                            <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-red-500/10 text-red-500">DNT</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-px rounded bg-red-500/10 text-red-500">
+                              DNT
+                            </span>
                           )}
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] px-1.5 py-px rounded bg-card border border-border text-muted-foreground">{entityLabel(e.type)}</span>
+                          <span className="text-[10px] px-1.5 py-px rounded bg-card border border-border text-muted-foreground">
+                            {entityLabel(e.type)}
+                          </span>
                           {e.source && (
                             <span className="text-[10px] text-muted-foreground">{e.source}</span>
                           )}
@@ -1371,7 +1598,10 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
       </div>
 
       {/* Status bar */}
-      <div className="flex justify-between py-2 text-xs text-muted-foreground" data-testid="status-bar">
+      <div
+        className="flex justify-between py-2 text-xs text-muted-foreground"
+        data-testid="status-bar"
+      >
         <span>
           Block {selectedIndex + 1} of {filteredBlocks.length}
         </span>
@@ -1384,7 +1614,8 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
           </span>
         )}
         <span className="text-muted-foreground inline-flex items-center gap-0.5">
-          Enter: edit | Esc: cancel | <ArrowUp className="w-3 h-3 inline-block" /><ArrowDown className="w-3 h-3 inline-block" />: navigate
+          Enter: edit | Esc: cancel | <ArrowUp className="w-3 h-3 inline-block" />
+          <ArrowDown className="w-3 h-3 inline-block" />: navigate
           {editingIndex !== null && filteredBlocks[editingIndex]?.has_spans && (
             <> | Ctrl+1..9: insert tag</>
           )}
@@ -1408,7 +1639,13 @@ export function TranslationEditor({ project, fileName, onBack, onExport, renderP
 }
 
 /** Row-level validation indicator for tag mismatches. */
-function RowTagWarning({ sourceSpans, targetCodedText }: { sourceSpans: SpanInfo[]; targetCodedText: string }) {
+function RowTagWarning({
+  sourceSpans,
+  targetCodedText,
+}: {
+  sourceSpans: SpanInfo[];
+  targetCodedText: string;
+}) {
   const targetSpans = useMemo(() => {
     const spans: SpanInfo[] = [];
     for (const ch of targetCodedText) {

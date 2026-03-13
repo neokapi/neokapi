@@ -2,13 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import type { AddConceptRequest, TermInfo } from "../../types/api";
 
 interface TermCreationPopoverProps {
@@ -100,9 +94,7 @@ export function TermCreationPopover({
           <div className="text-sm font-medium mb-2">Add Term</div>
 
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Source term ({sourceLocale})
-            </label>
+            <label className="text-xs text-muted-foreground">Source term ({sourceLocale})</label>
             <Input
               value={sourceTerm}
               onChange={(e) => setSourceTerm(e.target.value)}
@@ -113,9 +105,7 @@ export function TermCreationPopover({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Translation ({targetLocale})
-            </label>
+            <label className="text-xs text-muted-foreground">Translation ({targetLocale})</label>
             <Input
               value={targetTranslation}
               onChange={(e) => setTargetTranslation(e.target.value)}
@@ -125,9 +115,7 @@ export function TermCreationPopover({
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Domain (optional)
-            </label>
+            <label className="text-xs text-muted-foreground">Domain (optional)</label>
             <Input
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
@@ -138,10 +126,7 @@ export function TermCreationPopover({
 
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Status</label>
-            <Select
-              value={status}
-              onValueChange={(v: string) => setStatus(v as TermStatus)}
-            >
+            <Select value={status} onValueChange={(v: string) => setStatus(v as TermStatus)}>
               <SelectTrigger className="h-8 text-sm">
                 <SelectValue />
               </SelectTrigger>
@@ -154,20 +139,10 @@ export function TermCreationPopover({
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              disabled={submitting}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={submitting}>
               Cancel
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!sourceTerm.trim() || submitting}
-            >
+            <Button type="submit" size="sm" disabled={!sourceTerm.trim() || submitting}>
               {submitting ? "Adding..." : "Add Term"}
             </Button>
           </div>

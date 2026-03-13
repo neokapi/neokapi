@@ -27,10 +27,7 @@ export function useBreadcrumb() {
 /** Set a breadcrumb for the current view. Clears on unmount. */
 export function useSetBreadcrumb(node: ReactNode) {
   const { setBreadcrumb } = useContext(BreadcrumbContext);
-  const stableSetBreadcrumb = useCallback(
-    (n: ReactNode) => setBreadcrumb(n),
-    [setBreadcrumb],
-  );
+  const stableSetBreadcrumb = useCallback((n: ReactNode) => setBreadcrumb(n), [setBreadcrumb]);
   useEffect(() => {
     stableSetBreadcrumb(node);
     return () => stableSetBreadcrumb(null);

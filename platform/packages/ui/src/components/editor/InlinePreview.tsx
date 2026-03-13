@@ -18,10 +18,7 @@ export function InlinePreview({ codedText, spans }: InlinePreviewProps) {
   return (
     <div style={containerStyle}>
       <span style={labelStyle}>Preview:</span>
-      <span
-        style={contentStyle}
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
+      <span style={contentStyle} dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );
 }

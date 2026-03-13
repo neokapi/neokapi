@@ -1,12 +1,15 @@
 {
   "name": "bowrain-keycloak-theme",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "vp dev",
+    "build": "tsc && vp build",
     "build-keycloak-theme": "npm run build && keycloakify build",
+    "check": "vp check",
+    "lint": "vp lint",
+    "fmt": "vp fmt",
     "update-kc-gen": "keycloakify update-kc-gen"
   },
   "dependencies": {
@@ -18,15 +21,16 @@
     "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
+    "@types/node": "^25.5.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^6.0.0",
     "typescript": "^5.8.0",
-    "vite": "^8.0.0"
+    "vite-plus": "^0.1.11"
   },
   "overrides": {
     "@tailwindcss/vite": {
-      "vite": "^8.0.0"
+      "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
     }
   }
 }

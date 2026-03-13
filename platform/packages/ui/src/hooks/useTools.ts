@@ -9,7 +9,8 @@ export function useTools() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.listTools()
+    api
+      .listTools()
       .then((r) => setTools(r))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));

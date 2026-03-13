@@ -93,6 +93,11 @@ bench: bench-generate bench-run-all ## Run all benchmarks + copy results to webs
 	cp framework/bench/pseudobench/results/pseudobench.json website/static/data/pseudobench.json
 	@echo "Results copied to website/static/data/pseudobench.json"
 
+# ── Frontend Checks ──────────────────────────────────────────────────────────
+
+frontend-check-all: ## Run lint, format, and typecheck across all frontend projects
+	$(MAKE) -C platform frontend-check-all
+
 # ── Documentation Assets ────────────────────────────────────────────────────
 
 screenshots recordings bowrain-cli-recordings:
@@ -202,6 +207,7 @@ help: ## Show this help
 .PHONY: all help $(BOTH_TARGETS) test-parallel \
         build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
         install install-bowrain-cli \
+        frontend-check-all \
         cover test-e2e test-e2e-kapi test-e2e-bowrain \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
         bench bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions \

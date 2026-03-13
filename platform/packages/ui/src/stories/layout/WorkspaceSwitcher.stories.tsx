@@ -5,9 +5,33 @@ import { SidebarGlass } from "../../components/ui/sidebar";
 import type { Workspace } from "../../types/api";
 
 const workspaces: Workspace[] = [
-  { id: "ws-1", name: "Personal", slug: "personal", description: "", logo_url: "", type: "personal", role: "owner" },
-  { id: "ws-2", name: "Acme Corp", slug: "acme", description: "", logo_url: "", type: "team", role: "editor" },
-  { id: "ws-3", name: "Globex Inc", slug: "globex", description: "", logo_url: "", type: "team", role: "owner" },
+  {
+    id: "ws-1",
+    name: "Personal",
+    slug: "personal",
+    description: "",
+    logo_url: "",
+    type: "personal",
+    role: "owner",
+  },
+  {
+    id: "ws-2",
+    name: "Acme Corp",
+    slug: "acme",
+    description: "",
+    logo_url: "",
+    type: "team",
+    role: "editor",
+  },
+  {
+    id: "ws-3",
+    name: "Globex Inc",
+    slug: "globex",
+    description: "",
+    logo_url: "",
+    type: "team",
+    role: "owner",
+  },
 ];
 
 const meta: Meta<typeof WorkspaceSwitcher> = {

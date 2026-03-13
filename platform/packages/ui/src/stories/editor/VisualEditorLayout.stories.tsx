@@ -2,13 +2,20 @@ import { useState, useCallback } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { VisualEditorLayout } from "../../components/editor/VisualEditorLayout";
-import type { VisualEditorMode, PreviewContentMode } from "../../components/editor/visual-editor-types";
+import type {
+  VisualEditorMode,
+  PreviewContentMode,
+} from "../../components/editor/visual-editor-types";
 import type { SpanInfo } from "../../types/api";
 import {
-  sampleBlocks, sampleProject,
-  sampleTMMatches, sampleTermMatches,
-  sampleQAIssues, sampleFileQAResults,
-  sampleBlockNotes, sampleBlockHistory,
+  sampleBlocks,
+  sampleProject,
+  sampleTMMatches,
+  sampleTermMatches,
+  sampleQAIssues,
+  sampleFileQAResults,
+  sampleBlockNotes,
+  sampleBlockHistory,
   navigationBlocks,
 } from "../fixtures";
 import { withProviders, createProvidersDecorator } from "../decorators";
@@ -39,10 +46,13 @@ function InteractiveLayout(overrides: LayoutOverrides) {
     setEditingIndex(selectedIndex);
   }, [selectedIndex]);
 
-  const handleSave = useCallback((_codedText: string, _spans: SpanInfo[]) => {
-    setEditingIndex(null);
-    setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
-  }, [blocks.length]);
+  const handleSave = useCallback(
+    (_codedText: string, _spans: SpanInfo[]) => {
+      setEditingIndex(null);
+      setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
+    },
+    [blocks.length],
+  );
 
   const handleCancelEditing = useCallback(() => {
     setEditingIndex(null);
@@ -187,8 +197,38 @@ export const FullFeatured: Story = {
       onTermCreate={fn()}
       presenceSlot={
         <div style={{ display: "flex", gap: 4 }}>
-          <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#6366f1", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 600 }}>JD</div>
-          <div style={{ width: 24, height: 24, borderRadius: "50%", background: "#f59e0b", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 11, fontWeight: 600 }}>MK</div>
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "#6366f1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            JD
+          </div>
+          <div
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: "50%",
+              background: "#f59e0b",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 600,
+            }}
+          >
+            MK
+          </div>
         </div>
       }
     />
@@ -257,10 +297,13 @@ function NavigationDemo() {
     setEditingIndex(selectedIndex);
   }, [selectedIndex]);
 
-  const handleSave = useCallback((_codedText: string, _spans: SpanInfo[]) => {
-    setEditingIndex(null);
-    setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
-  }, [blocks.length]);
+  const handleSave = useCallback(
+    (_codedText: string, _spans: SpanInfo[]) => {
+      setEditingIndex(null);
+      setSelectedIndex((i) => Math.min(i + 1, blocks.length - 1));
+    },
+    [blocks.length],
+  );
 
   const handleCancelEditing = useCallback(() => {
     setEditingIndex(null);

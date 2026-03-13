@@ -124,18 +124,21 @@ export async function injectCursor(page: Page) {
 export async function moveCursorTo(page: Page, x: number, y: number, duration: number = 300) {
   const start = await page.evaluate(() => (window as any).__getCursorPos?.() || { x: 100, y: 100 });
   const steps = Math.max(10, Math.floor(duration / 16)); // ~60fps
-  
+
   for (let i = 1; i <= steps; i++) {
     const t = i / steps;
     // Ease-out cubic for natural deceleration
     const ease = 1 - Math.pow(1 - t, 3);
     const currentX = start.x + (x - start.x) * ease;
     const currentY = start.y + (y - start.y) * ease;
-    
-    await page.evaluate(({ x, y }) => {
-      (window as any).__moveCursorSmooth?.(x, y);
-    }, { x: currentX, y: currentY });
-    
+
+    await page.evaluate(
+      ({ x, y }) => {
+        (window as any).__moveCursorSmooth?.(x, y);
+      },
+      { x: currentX, y: currentY },
+    );
+
     await page.waitForTimeout(16);
   }
 }
@@ -157,32 +160,35 @@ export async function moveCursorToElement(page: Page, locator: Locator, duration
 export async function humanClick(page: Page, locator: Locator, force: boolean = false) {
   await moveCursorToElement(page, locator, 400);
   await page.waitForTimeout(100); // Brief pause before click
-  
+
   // Get element position and trigger ripple manually
   const box = await locator.boundingBox();
   if (box) {
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
-    
+
     // Create ripple and click cursor animation (these run async in the browser)
-    await page.evaluate(({ x, y }) => {
-      // Trigger cursor click animation
-      const cursor = document.getElementById('playwright-cursor');
-      if (cursor) cursor.classList.add('clicking');
-      
-      // Create ripple effect - browser will animate this independently
-      const ripple = document.createElement('div');
-      ripple.className = 'click-ripple';
-      ripple.style.left = x + 'px';
-      ripple.style.top = y + 'px';
-      document.body.appendChild(ripple);
-      
-      // These timeouts run in browser, not blocked by Playwright
-      setTimeout(() => ripple.remove(), 600);
-      setTimeout(() => cursor?.classList.remove('clicking'), 150);
-    }, { x, y });
+    await page.evaluate(
+      ({ x, y }) => {
+        // Trigger cursor click animation
+        const cursor = document.getElementById("playwright-cursor");
+        if (cursor) cursor.classList.add("clicking");
+
+        // Create ripple effect - browser will animate this independently
+        const ripple = document.createElement("div");
+        ripple.className = "click-ripple";
+        ripple.style.left = x + "px";
+        ripple.style.top = y + "px";
+        document.body.appendChild(ripple);
+
+        // These timeouts run in browser, not blocked by Playwright
+        setTimeout(() => ripple.remove(), 600);
+        setTimeout(() => cursor?.classList.remove("clicking"), 150);
+      },
+      { x, y },
+    );
   }
-  
+
   // Click immediately - the ripple animation continues in the browser
   await locator.click({ force });
 
@@ -205,19 +211,22 @@ export async function humanClickNative(page: Page, testId: string) {
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
 
-    await page.evaluate(({ x, y, tid }) => {
-      const cursor = document.getElementById('playwright-cursor');
-      if (cursor) cursor.classList.add('clicking');
-      const ripple = document.createElement('div');
-      ripple.className = 'click-ripple';
-      ripple.style.left = x + 'px';
-      ripple.style.top = y + 'px';
-      document.body.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 600);
-      setTimeout(() => cursor?.classList.remove('clicking'), 150);
-      // Native DOM click
-      (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
-    }, { x, y, tid: testId });
+    await page.evaluate(
+      ({ x, y, tid }) => {
+        const cursor = document.getElementById("playwright-cursor");
+        if (cursor) cursor.classList.add("clicking");
+        const ripple = document.createElement("div");
+        ripple.className = "click-ripple";
+        ripple.style.left = x + "px";
+        ripple.style.top = y + "px";
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+        setTimeout(() => cursor?.classList.remove("clicking"), 150);
+        // Native DOM click
+        (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
+      },
+      { x, y, tid: testId },
+    );
   }
 
   await page.waitForTimeout(350);
@@ -245,15 +254,17 @@ export async function humanTypeNative(page: Page, testId: string, text: string) 
   await page.waitForTimeout(100);
 
   // Set value natively with React-compatible events
-  await page.evaluate(({ tid, val }) => {
-    const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
-    if (!input) return;
-    input.focus();
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    nativeSetter.call(input, val);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, { tid: testId, val: text });
+  await page.evaluate(
+    ({ tid, val }) => {
+      const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
+      if (!input) return;
+      input.focus();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, val);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    { tid: testId, val: text },
+  );
 
   await page.waitForTimeout(200);
 }

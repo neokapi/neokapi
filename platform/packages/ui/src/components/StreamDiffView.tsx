@@ -7,10 +7,28 @@ export interface StreamDiffViewProps {
 
 type ChangeType = BlockChangeInfo["change_type"];
 
-const changeConfig: Record<ChangeType, { label: string; color: string; bgColor: string; icon: typeof Plus }> = {
-  added:    { label: "Added",    color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-500/10", icon: Plus },
-  modified: { label: "Modified", color: "text-amber-600 dark:text-amber-400",    bgColor: "bg-amber-500/10",   icon: ArrowRight },
-  removed:  { label: "Removed",  color: "text-red-600 dark:text-red-400",        bgColor: "bg-red-500/10",     icon: Trash2 },
+const changeConfig: Record<
+  ChangeType,
+  { label: string; color: string; bgColor: string; icon: typeof Plus }
+> = {
+  added: {
+    label: "Added",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bgColor: "bg-emerald-500/10",
+    icon: Plus,
+  },
+  modified: {
+    label: "Modified",
+    color: "text-amber-600 dark:text-amber-400",
+    bgColor: "bg-amber-500/10",
+    icon: ArrowRight,
+  },
+  removed: {
+    label: "Removed",
+    color: "text-red-600 dark:text-red-400",
+    bgColor: "bg-red-500/10",
+    icon: Trash2,
+  },
 };
 
 const changeOrder: ChangeType[] = ["added", "modified", "removed"];
@@ -31,7 +49,8 @@ export function StreamDiffView({ diff }: StreamDiffViewProps) {
   if (diff.changes.length === 0) {
     return (
       <div className="rounded-lg border border-border/50 p-6 text-center text-sm text-muted-foreground">
-        No differences between <span className="font-medium text-foreground">{diff.stream_name}</span> and{" "}
+        No differences between{" "}
+        <span className="font-medium text-foreground">{diff.stream_name}</span> and{" "}
         <span className="font-medium text-foreground">{diff.parent_name}</span>.
       </div>
     );
@@ -81,10 +100,7 @@ export function StreamDiffView({ diff }: StreamDiffViewProps) {
             </h4>
             <div className="rounded-lg border border-border/50 divide-y divide-border/50">
               {items.map((change) => (
-                <div
-                  key={change.block_id}
-                  className="flex items-center gap-3 px-3 py-2 text-sm"
-                >
+                <div key={change.block_id} className="flex items-center gap-3 px-3 py-2 text-sm">
                   <cfg.icon className={`h-3.5 w-3.5 shrink-0 ${cfg.color}`} />
                   <span className="font-mono text-xs truncate flex-1">{change.block_id}</span>
                   {change.old_hash && change.new_hash && (

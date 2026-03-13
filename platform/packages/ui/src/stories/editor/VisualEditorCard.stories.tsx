@@ -5,9 +5,13 @@ import { VisualEditorCard } from "../../components/editor/VisualEditorCard";
 import type { VisualEditorMode } from "../../components/editor/visual-editor-types";
 import type { SpanInfo } from "../../types/api";
 import {
-  sampleBlocks, sampleProject, simpleBoldSpans,
-  sampleTMMatches, sampleTermMatches,
-  sampleQAIssues, sampleBlockNotes, sampleBlockHistory,
+  sampleBlocks,
+  sampleProject,
+  sampleTMMatches,
+  sampleTermMatches,
+  sampleQAIssues,
+  sampleBlockNotes,
+  sampleBlockHistory,
 } from "../fixtures";
 
 const baseBlock = sampleBlocks[1]; // "Click here to continue" — has spans
@@ -129,13 +133,7 @@ export const EnrichMode: Story = {
 
 /** Interactive card in review mode — approve/reject are functional */
 export const ReviewMode: Story = {
-  render: () => (
-    <InteractiveCard
-      editorMode="review"
-      block={sampleBlocks[0]}
-      blockIndex={0}
-    />
-  ),
+  render: () => <InteractiveCard editorMode="review" block={sampleBlocks[0]} blockIndex={0} />,
 };
 
 /**

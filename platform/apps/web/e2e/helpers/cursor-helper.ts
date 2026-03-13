@@ -124,9 +124,12 @@ export async function moveCursorTo(page: Page, x: number, y: number, duration: n
     const currentX = start.x + (x - start.x) * ease;
     const currentY = start.y + (y - start.y) * ease;
 
-    await page.evaluate(({ x, y }) => {
-      (window as any).__moveCursorSmooth?.(x, y);
-    }, { x: currentX, y: currentY });
+    await page.evaluate(
+      ({ x, y }) => {
+        (window as any).__moveCursorSmooth?.(x, y);
+      },
+      { x: currentX, y: currentY },
+    );
 
     await page.waitForTimeout(16);
   }
@@ -154,17 +157,20 @@ export async function humanClick(page: Page, locator: Locator, force: boolean = 
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
 
-    await page.evaluate(({ x, y }) => {
-      const cursor = document.getElementById('playwright-cursor');
-      if (cursor) cursor.classList.add('clicking');
-      const ripple = document.createElement('div');
-      ripple.className = 'click-ripple';
-      ripple.style.left = x + 'px';
-      ripple.style.top = y + 'px';
-      document.body.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 600);
-      setTimeout(() => cursor?.classList.remove('clicking'), 150);
-    }, { x, y });
+    await page.evaluate(
+      ({ x, y }) => {
+        const cursor = document.getElementById("playwright-cursor");
+        if (cursor) cursor.classList.add("clicking");
+        const ripple = document.createElement("div");
+        ripple.className = "click-ripple";
+        ripple.style.left = x + "px";
+        ripple.style.top = y + "px";
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+        setTimeout(() => cursor?.classList.remove("clicking"), 150);
+      },
+      { x, y },
+    );
   }
 
   await locator.click({ force });
@@ -184,18 +190,21 @@ export async function humanClickNative(page: Page, testId: string) {
     const x = box.x + box.width / 2;
     const y = box.y + box.height / 2;
 
-    await page.evaluate(({ x, y, tid }) => {
-      const cursor = document.getElementById('playwright-cursor');
-      if (cursor) cursor.classList.add('clicking');
-      const ripple = document.createElement('div');
-      ripple.className = 'click-ripple';
-      ripple.style.left = x + 'px';
-      ripple.style.top = y + 'px';
-      document.body.appendChild(ripple);
-      setTimeout(() => ripple.remove(), 600);
-      setTimeout(() => cursor?.classList.remove('clicking'), 150);
-      (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
-    }, { x, y, tid: testId });
+    await page.evaluate(
+      ({ x, y, tid }) => {
+        const cursor = document.getElementById("playwright-cursor");
+        if (cursor) cursor.classList.add("clicking");
+        const ripple = document.createElement("div");
+        ripple.className = "click-ripple";
+        ripple.style.left = x + "px";
+        ripple.style.top = y + "px";
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+        setTimeout(() => cursor?.classList.remove("clicking"), 150);
+        (document.querySelector(`[data-testid="${tid}"]`) as HTMLElement)?.click();
+      },
+      { x, y, tid: testId },
+    );
   }
 
   await page.waitForTimeout(350);
@@ -220,15 +229,21 @@ export async function humanTypeNative(page: Page, testId: string, text: string) 
   await moveCursorToElement(page, locator, 350);
   await page.waitForTimeout(100);
 
-  await page.evaluate(({ tid, val }) => {
-    const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
-    if (!input) return;
-    input.focus();
-    const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!;
-    nativeSetter.call(input, val);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }, { tid: testId, val: text });
+  await page.evaluate(
+    ({ tid, val }) => {
+      const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
+      if (!input) return;
+      input.focus();
+      const nativeSetter = Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.bind(input);
+      nativeSetter(val);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    },
+    { tid: testId, val: text },
+  );
 
   await page.waitForTimeout(200);
 }

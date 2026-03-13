@@ -90,15 +90,19 @@ export function DocumentPreview({
     let cancelled = false;
     setLoading(true);
     setIframeReady(false);
-    renderDocumentPreview(projectId, itemName, targetLocale).then((html) => {
-      if (!cancelled) {
-        setPreviewHTML(html);
-        setLoading(false);
-      }
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
-    return () => { cancelled = true; };
+    renderDocumentPreview(projectId, itemName, targetLocale)
+      .then((html) => {
+        if (!cancelled) {
+          setPreviewHTML(html);
+          setLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [renderDocumentPreview, projectId, itemName, targetLocale]);
 
   // Listen for block clicks, iframe ready signal, and content height / spacer position
@@ -185,17 +189,20 @@ export function DocumentPreview({
     let cancelled = false;
     for (const block of blocks) {
       if (block.targets[targetLocale]) {
-        renderBlockHTML(projectId, block.id, targetLocale).then((html) => {
-          if (!cancelled) {
-            cw.postMessage(
-              { type: "kat-update-block", blockId: block.id, html },
-              "*",
-            );
-          }
-        }).catch(() => { /* fall back to plain text already sent */ });
+        renderBlockHTML(projectId, block.id, targetLocale)
+          .then((html) => {
+            if (!cancelled) {
+              cw.postMessage({ type: "kat-update-block", blockId: block.id, html }, "*");
+            }
+          })
+          .catch(() => {
+            /* fall back to plain text already sent */
+          });
       }
     }
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [showTarget, blocks, targetLocale, iframeReady, renderBlockHTML, projectId]);
 
   if (loading) {
@@ -216,12 +223,14 @@ export function DocumentPreview({
 
   // In inline mode, iframe fills available space but expands for tall content
   const effectiveIframeStyle: React.CSSProperties = inlineMode
-    ? { ...iframeStyle, height: "100%", minHeight: iframeContentHeight > 0 ? iframeContentHeight : undefined }
+    ? {
+        ...iframeStyle,
+        height: "100%",
+        minHeight: iframeContentHeight > 0 ? iframeContentHeight : undefined,
+      }
     : iframeStyle;
 
-  const effectiveContainerStyle: React.CSSProperties = inlineMode
-    ? containerStyle
-    : containerStyle;
+  const effectiveContainerStyle: React.CSSProperties = inlineMode ? containerStyle : containerStyle;
 
   return (
     <div

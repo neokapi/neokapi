@@ -16,13 +16,9 @@ if (import.meta.env.DEV) {
 */
 
 createRoot(document.getElementById("root")!).render(
-    <StrictMode>
-        <ThemeProvider>
-            {!window.kcContext ? (
-                <h1>No Keycloak Context</h1>
-            ) : (
-                <KcPage kcContext={window.kcContext} />
-            )}
-        </ThemeProvider>
-    </StrictMode>
+  <StrictMode>
+    <ThemeProvider>
+      {!window.kcContext ? <h1>No Keycloak Context</h1> : <KcPage kcContext={window.kcContext} />}
+    </ThemeProvider>
+  </StrictMode>,
 );
