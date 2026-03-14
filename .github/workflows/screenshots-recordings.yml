@@ -46,6 +46,13 @@ jobs:
         working-directory: platform/packages/ui
         run: npx tsc
 
+      - name: Generate Wails bindings
+        working-directory: platform/apps/bowrain
+        run: |
+          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.73
+          wails3 generate bindings -f '-tags server' -clean=true
+          sed -i 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
+
       - name: Build frontend
         working-directory: platform/apps/bowrain/frontend
         run: npm run build
@@ -130,7 +137,7 @@ jobs:
         run: make -C platform keycloak-theme
 
       - name: Start dependencies (Keycloak + Mailpit + NATS)
-        run: docker compose -f compose.yaml up -d --wait
+        run: docker compose -f platform/compose.yaml up -d --wait
 
       - name: Start bowrain-server
         run: |
@@ -201,7 +208,7 @@ jobs:
             kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
             rm -f .bowrain-server.pid
           fi
-          docker compose -f compose.yaml down -v
+          docker compose -f platform/compose.yaml down -v
 
   # ── Kapi CLI Recordings (VHS, standalone) ────────────────────────────────────
   kapi-recordings:

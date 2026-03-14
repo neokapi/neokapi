@@ -59,9 +59,8 @@ if curl -sf "${BOWRAIN_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
   # Obtain auth token for server-backed tapes if not already provided.
   if [ -z "${BOWRAIN_TOKEN:-}" ]; then
     echo "  Acquiring auth token..."
-    START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
-      "${BOWRAIN_SERVER_URL}/api/v1/auth/device/start") || true
-    if [ -n "$START_RESP" ]; then
+    if START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
+      "${BOWRAIN_SERVER_URL}/api/v1/auth/device/start" 2>/dev/null); then
       DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
       USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
       curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
@@ -79,7 +78,8 @@ if curl -sf "${BOWRAIN_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
         "${BOWRAIN_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
       echo "  Token obtained."
     else
-      echo "  Warning: could not acquire auth token."
+      echo "  Warning: could not acquire auth token (device auth endpoint returned error)."
+      echo "  Server-backed tapes that need auth will use unauthenticated mode."
     fi
   fi
 elif command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1; then
