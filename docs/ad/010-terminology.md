@@ -34,8 +34,7 @@ import. TBX is used for import/export; native storage uses SQLite or PostgreSQL.
 Progressive complexity model: Terminology Store (Phase 1) -> Concept
 Management (Phase 2) -> Brand Governance (Phase 3).
 
-Shared storage infrastructure (PostgreSQL) with Sievepen TM ([AD-009](./009-translation-memory.md))
-and Content Store ([AD-003](./003-content-store.md)) via `bowrain/storage/`.
+Storage follows the standard tiered model: in-memory for session processing, SQLite for CLI workflows, and PostgreSQL for Bowrain Server deployments (shared infrastructure with Sievepen TM ([AD-009](./009-translation-memory.md)) and Content Store ([AD-003](./003-content-store.md))).
 
 ### Data Model: Concept-Oriented
 

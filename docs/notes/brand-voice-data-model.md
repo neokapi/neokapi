@@ -115,7 +115,7 @@ type BrandStore interface {
 }
 ```
 
-## SQLite Schema
+## Framework: SQLite Schema
 
 ```sql
 -- cli/storage/brand/sqlite.go
@@ -163,9 +163,9 @@ CREATE TABLE IF NOT EXISTS brand_voice_corrections (
 );
 ```
 
-## PostgreSQL Schema
+## Bowrain Server: PostgreSQL Schema
 
-The PostgreSQL schema mirrors the SQLite schema with PostgreSQL-specific types:
+The Bowrain Server PostgreSQL schema (`bowrain/brand/`) mirrors the SQLite schema with PostgreSQL-specific types:
 - `TEXT` columns for JSON data (tone, style, vocabulary, examples, locales, channels, dimensions, findings)
 - `TIMESTAMP WITH TIME ZONE` for temporal columns
 - Workspace isolation via `workspace_id` column with foreign key to workspaces table
@@ -186,9 +186,9 @@ Severity weights follow MQM conventions:
 - major=5 (clear violation)
 - critical=25 (severe violation, e.g., competitor term)
 
-## MCP Protocol Details
+## Bowrain Server: MCP Protocol Details
 
-The cloud MCP server (`platform/server/mcp/`) uses Streamable HTTP transport:
+The Bowrain Server cloud MCP endpoint (`platform/server/mcp/`) uses Streamable HTTP transport:
 
 ```go
 // server.go
@@ -216,6 +216,8 @@ Loaded via `packs.Load("professional-b2b")` which returns a `*brand.VoiceProfile
 
 ## Implementation Files
 
+### Framework (`core/`, `cli/`)
+
 | File | Purpose |
 |------|---------|
 | `core/brand/profile.go` | VoiceProfile data model with tone, style, vocabulary |
@@ -229,6 +231,12 @@ Loaded via `packs.Load("professional-b2b")` which returns a `*brand.VoiceProfile
 | `core/ai/tools/brandvoice.go` | LLM-based brand-voice-check pipeline tool |
 | `core/tools/brandvocab.go` | Rule-based brand-vocab-filter pipeline tool |
 | `cli/storage/brand/sqlite.go` | SQLite BrandStore implementation |
+
+### Bowrain Server (`platform/`, `bowrain/`)
+
+| File | Purpose |
+|------|---------|
+| `bowrain/brand/` | PostgreSQL BrandStore implementation |
 | `platform/server/mcp/server.go` | Cloud MCP server bootstrap |
 | `platform/server/mcp/resources.go` | MCP resource handlers |
 | `platform/server/mcp/tools.go` | MCP tool handlers (Phase 1) |
