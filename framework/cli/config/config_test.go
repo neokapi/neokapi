@@ -50,25 +50,14 @@ func TestChannelBufferDefault(t *testing.T) {
 	assert.Equal(t, 64, cfg.ChannelBuffer())
 }
 
-func TestServerURLDefault(t *testing.T) {
-	cfg := NewBowrainAppConfig()
-	assert.Equal(t, "http://localhost:8080", cfg.ServerURL())
-}
-
-func TestServerURLOverride(t *testing.T) {
-	cfg := NewBowrainAppConfig()
-	cfg.Set("server.url", "https://bowrain.example.com")
-	assert.Equal(t, "https://bowrain.example.com", cfg.ServerURL())
-}
-
 func TestGlobalConfigFilePath(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", "/tmp/test-kapi-config")
 	assert.Equal(t, "/tmp/test-kapi-config/kapi.yaml", GlobalConfigFilePath())
 }
 
-func TestGlobalConfigFilePathBowrain(t *testing.T) {
-	t.Setenv("BOWRAIN_CONFIG_DIR", "/tmp/test-bowrain-config")
-	assert.Equal(t, "/tmp/test-bowrain-config/bowrain.yaml", GlobalConfigFilePath("bowrain"))
+func TestGlobalConfigFilePathCustomApp(t *testing.T) {
+	t.Setenv("MYAPP_CONFIG_DIR", "/tmp/test-myapp-config")
+	assert.Equal(t, "/tmp/test-myapp-config/myapp.yaml", GlobalConfigFilePath("myapp"))
 }
 
 func TestSetGlobalConfig(t *testing.T) {
@@ -85,18 +74,25 @@ func TestSetGlobalConfig(t *testing.T) {
 	assert.Equal(t, "128", cfg.v.GetString("flow.channelBuffer"))
 }
 
-func TestSetGlobalConfigBowrain(t *testing.T) {
+func TestSetGlobalConfigCustomApp(t *testing.T) {
 	dir := t.TempDir()
-	t.Setenv("BOWRAIN_CONFIG_DIR", dir)
+	t.Setenv("MYAPP_CONFIG_DIR", dir)
 
-	err := SetGlobalConfig("server.url", "https://bowrain.example.com", "bowrain")
+	err := SetGlobalConfig("server.url", "https://example.com", "myapp")
 	require.NoError(t, err)
 
 	// Verify by reading back.
-	cfg := NewBowrainAppConfig()
-	cfg.v.SetConfigFile(GlobalConfigFilePath("bowrain"))
+	cfg := NewAppConfig()
+	cfg.v.SetConfigFile(GlobalConfigFilePath("myapp"))
 	require.NoError(t, cfg.v.ReadInConfig())
-	assert.Equal(t, "https://bowrain.example.com", cfg.v.GetString("server.url"))
+	assert.Equal(t, "https://example.com", cfg.v.GetString("server.url"))
+}
+
+func TestOverlayAppConfig(t *testing.T) {
+	cfg := NewOverlayAppConfig("testapp", func(c *AppConfig) {
+		c.Set("custom.key", "custom-value")
+	})
+	assert.Equal(t, "custom-value", cfg.GetString("custom.key"))
 }
 
 func TestConfigLoadNoFile(t *testing.T) {

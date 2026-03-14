@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain-cli/cmd/bowrain/output"
-	cliconfig "github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/config"
 	"github.com/neokapi/neokapi/platform/project"
@@ -239,9 +238,9 @@ func resolveServerURLFrom(explicit string) string {
 		return explicit
 	}
 	// Check bowrain config (includes BOWRAIN_SERVER_URL env via Viper BindEnv).
-	cfg := cliconfig.NewBowrainAppConfig()
+	cfg := newBowrainAppConfig()
 	_ = cfg.Load()
-	if u := cfg.ServerURL(); u != "" {
+	if u := cfg.GetString("server.url"); u != "" {
 		return u
 	}
 	// Fall back to auth state.
