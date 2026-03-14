@@ -141,6 +141,7 @@ export interface ProjectInfo {
 
 /** Item within a project */
 export interface ProjectItem {
+  id: string;
   name: string;
   format: string;
   type: string;

@@ -1,8 +1,22 @@
-import { useState } from "react";
-import type { Workspace, User } from "../types/api";
-import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Palette } from "./icons";
+import { useState, useMemo } from "react";
+import type { Workspace, User, ProjectInfo } from "../types/api";
+import {
+  BookOpen,
+  Brain,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Palette,
+  Home,
+  LayoutDashboard,
+  Sparkles,
+} from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useSidebar } from "./ui/sidebar";
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 export type View = "translate" | "brand" | "termbase" | "memory" | "settings";
 
@@ -13,6 +27,32 @@ export interface NavItem {
 }
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
+
+/**
+ * Sidebar context describing what level the user is at.
+ *
+ * - "workspace": Dashboard or workspace-level pages (brand, termbase, etc.)
+ * - "project": Inside a project (project detail or translation editor)
+ */
+/** Which project-level page is currently shown. */
+export type ProjectView = "dashboard" | "automations";
+
+export type SidebarContext =
+  | { level: "workspace"; activeView: View }
+  | {
+      level: "project";
+      project: ProjectInfo;
+      activeStream: string;
+      /** Which project sub-page is active in the sidebar. */
+      activeProjectView: ProjectView;
+      onBack: () => void;
+      /** Navigate to project dashboard (file list). */
+      onOpenDashboard: () => void;
+      onOpenFile: (fileName: string) => void;
+      onStreamChange: (stream: string) => void;
+      onCreateStream?: () => void;
+      onOpenAutomations?: () => void;
+    };
 
 export interface AppSidebarProps<V extends string = string> {
   workspaces: Workspace[];
@@ -31,15 +71,181 @@ export interface AppSidebarProps<V extends string = string> {
   pendingChanges?: number;
   /** Show theme toggle in sidebar footer (default true for web, false for desktop). */
   showThemeToggle?: boolean;
+  /** Contextual sidebar content. When absent, uses flat nav based on activeView. */
+  sidebarContext?: SidebarContext;
 }
 
+// ---------------------------------------------------------------------------
+// Shared nav button
+// ---------------------------------------------------------------------------
+
+function NavButton({
+  isActive,
+  onClick,
+  icon,
+  label,
+  iconsOnly,
+  testId,
+}: {
+  isActive: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  iconsOnly: boolean;
+  testId?: string;
+}) {
+  return (
+    <button
+      data-testid={testId}
+      onClick={onClick}
+      className="flex w-full items-center gap-2 rounded-md border-none cursor-pointer text-sm text-left transition-[background,color] duration-200 ease-linear outline-none"
+      style={{
+        padding: iconsOnly ? "10px 0" : "8px 12px",
+        justifyContent: iconsOnly ? "center" : "flex-start",
+        ...(isActive
+          ? {
+              background: "var(--sidebar-primary, var(--semantic-primary))",
+              color: "var(--sidebar-primary-foreground, var(--semantic-text-inverse))",
+            }
+          : {
+              background: "transparent",
+              color: "color-mix(in srgb, var(--sidebar-foreground) 60%, transparent)",
+            }),
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "var(--sidebar-accent, var(--semantic-surface-elevated))";
+          e.currentTarget.style.color = "var(--sidebar-foreground)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.background = "transparent";
+          e.currentTarget.style.color = "color-mix(in srgb, var(--sidebar-foreground) 60%, transparent)";
+        }
+      }}
+    >
+      <span className="shrink-0 flex items-center justify-center">{icon}</span>
+      {!iconsOnly && <span>{label}</span>}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Workspace-level nav (default flat navigation)
+// ---------------------------------------------------------------------------
+
 const defaultNavItems: NavItem[] = [
-  { id: "translate", label: "Translate", icon: <Globe className="w-5 h-5" /> },
+  { id: "translate", label: "Projects", icon: <Home className="w-5 h-5" /> },
   { id: "brand", label: "Brand Voice", icon: <Palette className="w-5 h-5" /> },
   { id: "termbase", label: "Termbase", icon: <BookOpen className="w-5 h-5" /> },
   { id: "memory", label: "Memory", icon: <Brain className="w-5 h-5" /> },
   { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
 ];
+
+function WorkspaceNav<V extends string>({
+  activeView,
+  onViewChange,
+  extraNavItems,
+  iconsOnly,
+}: {
+  activeView: V;
+  onViewChange: (view: V) => void;
+  extraNavItems: NavItem[];
+  iconsOnly: boolean;
+}) {
+  const navItems = [
+    ...defaultNavItems.slice(0, -1),
+    ...extraNavItems,
+    defaultNavItems[defaultNavItems.length - 1],
+  ];
+
+  return (
+    <nav className="flex-1 overflow-hidden px-2 py-2">
+      <ul className="flex flex-col gap-1 list-none p-0 m-0">
+        {navItems.map(({ id, label, icon }) => {
+          const isActive = activeView === id;
+          return (
+            <li key={id}>
+              <NavButton
+                isActive={isActive}
+                onClick={() => onViewChange(id as V)}
+                icon={icon}
+                label={label}
+                iconsOnly={iconsOnly}
+                testId={`nav-${id}`}
+              />
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Project-level nav
+// ---------------------------------------------------------------------------
+
+function ProjectNav({
+  ctx,
+  iconsOnly,
+}: {
+  ctx: Extract<SidebarContext, { level: "project" }>;
+  iconsOnly: boolean;
+}) {
+  const { activeProjectView } = ctx;
+
+  return (
+    <nav className="flex-1 overflow-hidden px-2 py-2">
+      {/* Home button — goes up one level */}
+      <NavButton
+        isActive={false}
+        onClick={ctx.onBack}
+        icon={<Home className="w-5 h-5" />}
+        label={activeProjectView !== "dashboard" ? ctx.project.name : "Home"}
+        iconsOnly={iconsOnly}
+        testId="sidebar-home"
+      />
+
+      {/* Divider */}
+      <div
+        className="mx-1 my-2"
+        style={{ borderTop: "1px solid var(--sidebar-border)" }}
+      />
+
+      {/* Project-level menu items */}
+      <ul className="flex flex-col gap-1 list-none p-0 m-0">
+        <li>
+          <NavButton
+            isActive={activeProjectView === "dashboard"}
+            onClick={ctx.onOpenDashboard}
+            icon={<LayoutDashboard className="w-5 h-5" />}
+            label="Dashboard"
+            iconsOnly={iconsOnly}
+            testId="sidebar-dashboard"
+          />
+        </li>
+        {ctx.onOpenAutomations && (
+          <li>
+            <NavButton
+              isActive={activeProjectView === "automations"}
+              onClick={ctx.onOpenAutomations}
+              icon={<Sparkles className="w-5 h-5" />}
+              label="Automations"
+              iconsOnly={iconsOnly}
+              testId="sidebar-automations"
+            />
+          </li>
+        )}
+      </ul>
+    </nav>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export function AppSidebar<V extends string = string>({
   workspaces,
@@ -51,15 +257,16 @@ export function AppSidebar<V extends string = string>({
   extraNavItems = [],
   collapsed,
   onCollapsedChange,
+  sidebarContext,
 }: AppSidebarProps<V>) {
   const [hovered, setHovered] = useState(false);
   const { state } = useSidebar();
   const iconsOnly = collapsed;
-  const navItems = [
-    ...defaultNavItems.slice(0, -1),
-    ...extraNavItems,
-    defaultNavItems[defaultNavItems.length - 1],
-  ];
+
+  const effectiveContext = useMemo<SidebarContext>(
+    () => sidebarContext ?? { level: "workspace", activeView: activeView as View },
+    [sidebarContext, activeView],
+  );
 
   return (
     <aside
@@ -90,55 +297,19 @@ export function AppSidebar<V extends string = string>({
         />
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-hidden px-2 py-2">
-        <ul className="flex flex-col gap-1 list-none p-0 m-0">
-          {navItems.map(({ id, label, icon }) => {
-            const isActive = activeView === id;
-            return (
-              <li key={id}>
-                <button
-                  data-testid={`nav-${id}`}
-                  onClick={() => onViewChange(id as V)}
-                  className="flex w-full items-center gap-2 rounded-md border-none cursor-pointer text-sm text-left transition-[background,color] duration-200 ease-linear outline-none"
-                  style={{
-                    padding: iconsOnly ? "10px 0" : "8px 12px",
-                    justifyContent: iconsOnly ? "center" : "flex-start",
-                    ...(isActive
-                      ? {
-                          background: "var(--sidebar-primary, var(--semantic-primary))",
-                          color: "var(--sidebar-primary-foreground, var(--semantic-text-inverse))",
-                        }
-                      : {
-                          background: "transparent",
-                          color: "color-mix(in srgb, var(--sidebar-foreground) 60%, transparent)",
-                        }),
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background =
-                        "var(--sidebar-accent, var(--semantic-surface-elevated))";
-                      e.currentTarget.style.color = "var(--sidebar-foreground)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.color =
-                        "color-mix(in srgb, var(--sidebar-foreground) 60%, transparent)";
-                    }
-                  }}
-                >
-                  <span className="shrink-0 flex items-center justify-center">{icon}</span>
-                  {!iconsOnly && <span>{label}</span>}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+      {/* Context-dependent navigation */}
+      {effectiveContext.level === "workspace" ? (
+        <WorkspaceNav
+          activeView={effectiveContext.activeView as V}
+          onViewChange={onViewChange}
+          extraNavItems={extraNavItems}
+          iconsOnly={iconsOnly}
+        />
+      ) : (
+        <ProjectNav ctx={effectiveContext} iconsOnly={iconsOnly} />
+      )}
 
-      {/* Floating collapse/expand button on sidebar edge */}
+      {/* Floating collapse/expand button */}
       <button
         onClick={() => onCollapsedChange(!collapsed)}
         className="absolute top-1/2 -translate-y-1/2 rounded-full w-6 h-6 flex items-center justify-center border cursor-pointer transition-opacity duration-200 z-20 shadow-sm"

@@ -30,6 +30,7 @@ type Project struct {
 
 // Item represents a file or data object within a project.
 type Item struct {
+	ID          string            `json:"id"`
 	ProjectID   string            `json:"project_id"`
 	Name        string            `json:"name"`
 	Format      string            `json:"format"`

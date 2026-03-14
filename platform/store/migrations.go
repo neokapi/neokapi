@@ -392,4 +392,13 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_block_notes_lookup ON block_notes(project_id, stream, block_id);
 		`,
 	},
+	{
+		Version:     17,
+		Description: "add id column to items",
+		SQL: `
+			ALTER TABLE items ADD COLUMN id TEXT NOT NULL DEFAULT '';
+			UPDATE items SET id = lower(hex(randomblob(4))) WHERE id = '';
+			CREATE UNIQUE INDEX idx_items_id ON items(project_id, stream, id);
+		`,
+	},
 }

@@ -13,7 +13,7 @@ import type { WorkspaceRouteContext } from "..";
 
 export function TranslateRoute() {
   const navigate = useNavigate();
-  const { workspace, projectId, fileName } = useParams({ strict: false });
+  const { workspace, projectId, itemId } = useParams({ strict: false });
   const adapter = useApi();
   const { activeWorkspace, user } = useRouteContext({ strict: false }) as WorkspaceRouteContext;
   const ws = activeWorkspace.slug;
@@ -22,6 +22,10 @@ export function TranslateRoute() {
   const { data: project } = useSuspenseQuery(
     projectQueryOptions(adapter, ws, projectId!, activeStream),
   );
+
+  // Resolve item name from ID via project data.
+  const item = project.items?.find((i) => i.id === itemId);
+  const fileName = item?.name ?? itemId ?? "";
 
   useEffect(() => {
     document.title = `${fileName} — ${project.name} — Bowrain`;
@@ -32,7 +36,7 @@ export function TranslateRoute() {
     serverUrl: window.location.origin,
     workspace: ws,
     projectId: projectId ?? "",
-    fileName: fileName ?? "",
+    fileName,
     locale: project.target_locales?.[0] ?? "",
     user: {
       userId: user.id,
@@ -45,10 +49,10 @@ export function TranslateRoute() {
   return (
     <TranslationEditor
       project={project}
-      fileName={fileName!}
+      fileName={fileName}
       onBack={() =>
         navigate({
-          to: "/$workspace/project/$projectId/stream/$stream",
+          to: "/$workspace/p/$projectId/s/$stream",
           params: {
             workspace: workspace ?? ws,
             projectId: project.id,

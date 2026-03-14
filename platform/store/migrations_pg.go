@@ -304,4 +304,13 @@ var storeMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_notifications_user ON notifications(user_id, read, created_at DESC);
 		`,
 	},
+	{
+		Version:     5,
+		Description: "add id column to items",
+		SQL: `
+			ALTER TABLE items ADD COLUMN id TEXT NOT NULL DEFAULT '';
+			UPDATE items SET id = substr(md5(random()::text), 1, 8) WHERE id = '';
+			CREATE UNIQUE INDEX idx_items_id ON items(project_id, stream, id);
+		`,
+	},
 }

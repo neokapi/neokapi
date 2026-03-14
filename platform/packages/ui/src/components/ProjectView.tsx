@@ -27,7 +27,7 @@ import {
 interface ProjectViewProps {
   project: ProjectInfo;
   onBack: () => void;
-  onOpenFile: (fileName: string) => void;
+  onOpenFile: (itemId: string) => void;
   /** Upload files via adapter. Web apps pass File objects; desktop passes file paths. */
   onUploadFiles: (files: File[]) => void;
   onRemoveFile: (fileName: string) => void;
@@ -265,7 +265,7 @@ export function ProjectView({
                   >
                     <td className={`${isMobile ? "px-2" : "px-4"} py-2.5 text-sm`}>
                       <button
-                        onClick={() => onOpenFile(f.name)}
+                        onClick={() => onOpenFile(f.id)}
                         className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5 text-left break-all"
                         data-testid={`open-file-${f.name}`}
                       >

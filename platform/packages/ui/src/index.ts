@@ -62,7 +62,7 @@ export { AccountMenu } from "./components/AccountMenu";
 export { TopBar } from "./components/TopBar";
 export type { TopBarProps } from "./components/TopBar";
 export { AppSidebar } from "./components/AppSidebar";
-export type { AppSidebarProps } from "./components/AppSidebar";
+export type { AppSidebarProps, SidebarContext } from "./components/AppSidebar";
 export { AppShell } from "./components/AppShell";
 export type { AppShellProps } from "./components/AppShell";
 export { CreateWorkspaceDialog } from "./components/CreateWorkspaceDialog";

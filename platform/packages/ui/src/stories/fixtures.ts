@@ -446,6 +446,7 @@ export const sampleProject: ProjectInfo = {
   workspace_id: "ws-1",
   items: [
     {
+      id: "itm-msg1",
       name: "messages.json",
       format: "json",
       type: "file",
@@ -454,6 +455,7 @@ export const sampleProject: ProjectInfo = {
       word_count: 42,
     },
     {
+      id: "itm-xlf1",
       name: "ui-strings.xliff",
       format: "xliff",
       type: "file",

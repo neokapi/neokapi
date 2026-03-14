@@ -156,15 +156,18 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 	if item.ItemType == "" {
 		item.ItemType = "file"
 	}
+	if item.ID == "" {
+		item.ID = id.New()
+	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=EXCLUDED.format, item_type=EXCLUDED.item_type,
 			source_bytes=EXCLUDED.source_bytes, block_index=EXCLUDED.block_index,
 			properties=EXCLUDED.properties, updated_at=EXCLUDED.updated_at`,
-		projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
+		item.ID, projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
 		item.BlockIndex, string(propsJSON), now, now)
 	if err != nil {
 		return fmt.Errorf("store item %q: %w", item.Name, err)
@@ -175,7 +178,7 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
 	return scanItemPg(row)
 }
@@ -183,7 +186,7 @@ func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName
 func (s *PostgresStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
 	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 ORDER BY name`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
@@ -224,6 +227,14 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 	}
 
 	return tx.Commit()
+}
+
+func (s *PostgresStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {
+	stream = defaultStream(stream)
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		 FROM items WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, itemID)
+	return scanItemPg(row)
 }
 
 // ---------------------------------------------------------------------------
@@ -625,7 +636,7 @@ func scanProjectPg(row scanner) (*platstore.Project, error) {
 func scanItemPg(row scanner) (*platstore.Item, error) {
 	var item platstore.Item
 	var propsJSON string
-	err := row.Scan(&item.ProjectID, &item.Name, &item.Format, &item.ItemType,
+	err := row.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Format, &item.ItemType,
 		&item.SourceBytes, &item.BlockIndex, &propsJSON, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan item: %w", err)

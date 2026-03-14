@@ -47,4 +47,6 @@ export {
   Code,
   KeyRound,
   Menu,
+  Home,
+  LayoutDashboard,
 } from "lucide-react";

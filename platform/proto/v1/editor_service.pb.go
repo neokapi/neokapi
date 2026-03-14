@@ -453,6 +453,7 @@ type EditorProjectItem struct {
 	Size          int64                  `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
 	BlockCount    int32                  `protobuf:"varint,5,opt,name=block_count,json=blockCount,proto3" json:"block_count,omitempty"`
 	WordCount     int32                  `protobuf:"varint,6,opt,name=word_count,json=wordCount,proto3" json:"word_count,omitempty"`
+	Id            string                 `protobuf:"bytes,7,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -527,6 +528,13 @@ func (x *EditorProjectItem) GetWordCount() int32 {
 		return x.WordCount
 	}
 	return 0
+}
+
+func (x *EditorProjectItem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
 }
 
 type ListEditorProjectsResponse struct {
@@ -4864,7 +4872,7 @@ const file_proto_v1_editor_service_proto_rawDesc = "" +
 	"\vmodified_at\x18\a \x01(\tR\n" +
 	"modifiedAt\x127\n" +
 	"\astreams\x18\b \x03(\v2\x1d.neokapi.server.v1.StreamInfoR\astreams\x12#\n" +
-	"\ractive_stream\x18\t \x01(\tR\factiveStream\"\xa7\x01\n" +
+	"\ractive_stream\x18\t \x01(\tR\factiveStream\"\xb7\x01\n" +
 	"\x11EditorProjectItem\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +
 	"\x06format\x18\x02 \x01(\tR\x06format\x12\x12\n" +
@@ -4873,7 +4881,8 @@ const file_proto_v1_editor_service_proto_rawDesc = "" +
 	"\vblock_count\x18\x05 \x01(\x05R\n" +
 	"blockCount\x12\x1d\n" +
 	"\n" +
-	"word_count\x18\x06 \x01(\x05R\twordCount\"^\n" +
+	"word_count\x18\x06 \x01(\x05R\twordCount\x12\x0e\n" +
+	"\x02id\x18\a \x01(\tR\x02id\"^\n" +
 	"\x1aListEditorProjectsResponse\x12@\n" +
 	"\bprojects\x18\x01 \x03(\v2$.neokapi.server.v1.EditorProjectInfoR\bprojects\"w\n" +
 	"\x17GetEditorProjectRequest\x12%\n" +

@@ -118,6 +118,7 @@ message EditorProjectItem {
   int64 size = 4;
   int32 block_count = 5;
   int32 word_count = 6;
+  string id = 7;
 }
 
 message ListEditorProjectsResponse {
