@@ -147,3 +147,75 @@ func TestAutomationPause(t *testing.T) {
 	assert.Equal(t, 1, count)
 	mu.Unlock()
 }
+
+func TestBrandVoiceEventTypes(t *testing.T) {
+	tests := []struct {
+		eventType platev.EventType
+		value     string
+	}{
+		{platev.EventBrandVoiceCheckStarted, "brand.voice.check.started"},
+		{platev.EventBrandVoiceCheckCompleted, "brand.voice.check.completed"},
+		{platev.EventBrandVoiceGateFailed, "brand.voice.gate.failed"},
+		{platev.EventBrandVoiceGatePassed, "brand.voice.gate.passed"},
+		{platev.EventBrandVoiceDrift, "brand.voice.drift"},
+		{platev.EventBrandVoiceCorrected, "brand.voice.corrected"},
+		{platev.EventBrandProfileUpdated, "brand.profile.updated"},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, platev.EventType(tt.value), tt.eventType)
+	}
+}
+
+func TestIsBrandVoiceEvent(t *testing.T) {
+	tests := []struct {
+		eventType platev.EventType
+		want      bool
+	}{
+		{platev.EventBrandVoiceCheckStarted, true},
+		{platev.EventBrandVoiceCheckCompleted, true},
+		{platev.EventBrandVoiceGateFailed, true},
+		{platev.EventBrandVoiceGatePassed, true},
+		{platev.EventBrandVoiceDrift, true},
+		{platev.EventBrandVoiceCorrected, true},
+		{platev.EventBrandProfileUpdated, true},
+		{platev.EventBlockCreated, false},
+		{platev.EventFlowStarted, false},
+		{platev.EventQualityGatePass, false},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, IsBrandVoiceEvent(tt.eventType), "IsBrandVoiceEvent(%q)", tt.eventType)
+	}
+}
+
+func TestAutomationBrandVoiceRule(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var executed []platev.EventType
+	var mu sync.Mutex
+
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event platev.Event) error {
+		mu.Lock()
+		executed = append(executed, event.Type)
+		mu.Unlock()
+		return nil
+	})
+	defer engine.Close()
+
+	engine.AddRule(AutomationRule{
+		Name:      "brand-voice-gate",
+		EventType: platev.EventBrandVoiceGateFailed,
+		Actions:   []AutomationAction{{Type: "notify", Config: map[string]string{"channel": "brand-alerts"}}},
+	})
+
+	bus.Publish(platev.Event{Type: platev.EventBrandVoiceCheckStarted})   // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGateFailed})     // Should trigger
+	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGatePassed})     // Should not trigger
+
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Len(t, executed, 1)
+	assert.Equal(t, platev.EventBrandVoiceGateFailed, executed[0])
+	mu.Unlock()
+}

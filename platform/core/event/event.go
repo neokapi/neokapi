@@ -39,6 +39,15 @@ const (
 	// Quality events
 	EventQualityGatePass EventType = "quality.gate.pass"
 	EventQualityGateFail EventType = "quality.gate.fail"
+
+	// Brand voice events
+	EventBrandVoiceCheckStarted   EventType = "brand.voice.check.started"
+	EventBrandVoiceCheckCompleted EventType = "brand.voice.check.completed"
+	EventBrandVoiceGateFailed     EventType = "brand.voice.gate.failed"
+	EventBrandVoiceGatePassed     EventType = "brand.voice.gate.passed"
+	EventBrandVoiceDrift          EventType = "brand.voice.drift"
+	EventBrandVoiceCorrected      EventType = "brand.voice.corrected"
+	EventBrandProfileUpdated      EventType = "brand.profile.updated"
 )
 
 // Event is a typed message emitted by the system.
