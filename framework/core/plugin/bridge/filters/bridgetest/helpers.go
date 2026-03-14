@@ -79,9 +79,13 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 				return
 			}
 
+			// All external bridges share one PoolGroup so the pool treats them
+			// as interchangeable, preventing eviction from creating duplicate
+			// connections to the same JVM.
+			const poolGroup = "external-bridges"
 			sharedPool = bridge.NewBridgePool(len(trimmed), log.Default())
 			for _, addr := range trimmed {
-				cfg := bridge.BridgeConfig{Address: addr}
+				cfg := bridge.BridgeConfig{Address: addr, PoolGroup: poolGroup}
 				b := bridge.NewJavaBridge(cfg, log.Default())
 				if err := b.Start(); err != nil {
 					sharedErr = errFatalf("connecting to external bridge at %s: %v", addr, err)
@@ -89,8 +93,7 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 				}
 				sharedPool.Seed(b)
 			}
-			// Use first address as the shared config (for pool.Acquire fallback).
-			sharedCfg = bridge.BridgeConfig{Address: trimmed[0]}
+			sharedCfg = bridge.BridgeConfig{PoolGroup: poolGroup}
 			return
 		}
 
@@ -184,6 +187,14 @@ func ReadString(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, 
 // Returns the collected parts. Fails the test on any error.
 func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) []*model.Part {
 	t.Helper()
+	return ReadBytesWithLocales(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, "en", "fr")
+}
+
+// ReadBytesWithLocales is like ReadBytes but allows specifying source and target
+// locales. This is needed for filters like TMX where the source locale must
+// match the TUV xml:lang attribute exactly.
+func ReadBytesWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) []*model.Part {
+	t.Helper()
 
 	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
 	if filterParams != nil {
@@ -192,8 +203,8 @@ func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	doc := &model.RawDocument{
 		URI:          uri,
-		SourceLocale: "en",
-		TargetLocale: "fr",
+		SourceLocale: model.LocaleID(srcLocale),
+		TargetLocale: model.LocaleID(tgtLocale),
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
@@ -210,6 +221,16 @@ func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	require.NoError(t, reader.Close())
 	return parts
+}
+
+// ReadFileWithLocales reads testdata from disk with explicit locales.
+func ReadFileWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, path, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) []*model.Part {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	require.NoError(t, err, "reading test file %s", path)
+
+	return ReadBytesWithLocales(t, pool, cfg, filterClass, content, path, mimeType, filterParams, srcLocale, tgtLocale)
 }
 
 // ReadFile reads testdata from disk and extracts parts using the specified filter.

@@ -76,8 +76,9 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 	// - code_id_difference.tmx: Code ID difference causes event mismatch
 	// - html_test.tmx: UTF-16LE encoded; the bridge streams content as
 	//   UTF-8 so the Java filter cannot parse it
-	bridgetest.RoundTripTestFiles(t, pool, cfg, filterClass,
+	bridgetest.RoundTripTestFilesWithLocales(t, pool, cfg, filterClass,
 		tdDir+"/okapi/filters/tmx/src/test/resources/*.tmx", mimeType, nil,
+		"en-us", "fr",
 		"code_id_difference.tmx",
 		"html_test.tmx")
 }
@@ -85,5 +86,5 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 // okapi: TmxXliffCompareIT
 func TestRoundTrip_SampleTMX2(t *testing.T) {
 	t.Parallel()
-	fileRoundtripEvents(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
+	fileRoundtripEventsUS(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
 }

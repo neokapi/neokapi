@@ -62,6 +62,8 @@ func roundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	ctx := context.Background()
 	require.NoError(t, reader.Open(ctx, doc))
+	// Ensure the bridge is released even if a require aborts the goroutine.
+	t.Cleanup(func() { _ = reader.Close() })
 
 	var parts []*model.Part
 	var readErr error
@@ -89,6 +91,7 @@ func roundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	writer.SetOriginalContent(content)
 	writer.SetEncoding("UTF-8")
 	writer.SetLocale(model.LocaleID(tgtLocale))
+	writer.SetSourceLocale(srcLocale)
 	require.NoError(t, writer.SetOutputWriter(&output))
 
 	// Pass source_path when the URI is an absolute file path so the Java
@@ -138,6 +141,14 @@ func AssertRoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeCon
 // pattern).
 func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, knownFailing ...string) {
 	t.Helper()
+	RoundTripTestFilesWithLocales(t, pool, cfg, filterClass, globPattern, mimeType, filterParams, "en", "fr", knownFailing...)
+}
+
+// RoundTripTestFilesWithLocales is like RoundTripTestFiles but with explicit
+// source and target locales. This is needed for filters like TMX where the
+// source locale must match the TUV xml:lang attribute exactly.
+func RoundTripTestFilesWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string, knownFailing ...string) {
+	t.Helper()
 
 	// Log pool stats at the end for CI observability.
 	t.Cleanup(func() {
@@ -167,7 +178,7 @@ func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bridge
 			}
 			content, err := os.ReadFile(f)
 			require.NoError(t, err)
-			AssertRoundTripEvents(t, pool, cfg, filterClass, content, f, mimeType, filterParams)
+			AssertRoundTripEventsWithLocales(t, pool, cfg, filterClass, content, f, mimeType, filterParams, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
 		})
 	}
 }
@@ -183,6 +194,19 @@ func AssertRoundTripEvents(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bri
 
 	// Re-read the output to get parts for comparison.
 	rereadParts := ReadBytes(t, pool, cfg, filterClass, result.Output, uri, mimeType, filterParams)
+	compareParts(t, result.Parts, rereadParts)
+
+	return result
+}
+
+// AssertRoundTripEventsWithLocales is like AssertRoundTripEvents but with
+// explicit source and target locales.
+func AssertRoundTripEventsWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
+	t.Helper()
+
+	result := RoundTripWithLocales(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, srcLocale, tgtLocale)
+
+	rereadParts := ReadBytesWithLocales(t, pool, cfg, filterClass, result.Output, uri, mimeType, filterParams, string(srcLocale), string(tgtLocale))
 	compareParts(t, result.Parts, rereadParts)
 
 	return result

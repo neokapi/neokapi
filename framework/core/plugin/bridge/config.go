@@ -13,6 +13,13 @@ const (
 
 // BridgeConfig configures the bridge subprocess.
 type BridgeConfig struct {
+	// PoolGroup overrides the default PoolKey derivation. When set, all bridges
+	// sharing the same PoolGroup value are treated as interchangeable by the pool,
+	// regardless of their individual Address or Command/Args. This is used for
+	// external bridge pools where multiple JVMs at different addresses should be
+	// pooled together under a single key.
+	PoolGroup string
+
 	// Address is the gRPC address of a pre-started bridge server.
 	// When set, Start() connects to this address instead of spawning a subprocess.
 	// Command and Args are ignored when Address is set.
@@ -41,6 +48,9 @@ type BridgeConfig struct {
 // PoolKey returns a stable key that uniquely identifies the bridge process
 // configuration (command + args). Used by BridgePool for bucketing.
 func (c BridgeConfig) PoolKey() string {
+	if c.PoolGroup != "" {
+		return "group:" + c.PoolGroup
+	}
 	if c.Address != "" {
 		return "addr:" + c.Address
 	}

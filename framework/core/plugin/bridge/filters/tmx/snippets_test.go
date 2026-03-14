@@ -36,9 +36,21 @@ func readTMXDefault(t *testing.T, snippet string) []*model.Part {
 // readTMXFile reads a TMX file from testdata with the given filter params.
 func readTMXFile(t *testing.T, relPath string, filterParams map[string]any) []*model.Part {
 	t.Helper()
+	return readTMXFileWithLocales(t, relPath, filterParams, "en", "fr")
+}
+
+// readTMXFileUS is like readTMXFile but uses "en-us" source locale for files
+// in the filter unit test resources (which use xml:lang="en-us").
+func readTMXFileUS(t *testing.T, relPath string, filterParams map[string]any) []*model.Part {
+	t.Helper()
+	return readTMXFileWithLocales(t, relPath, filterParams, "en-us", "fr")
+}
+
+func readTMXFileWithLocales(t *testing.T, relPath string, filterParams map[string]any, src, tgt string) []*model.Part {
+	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, relPath)
-	return bridgetest.ReadFile(t, pool, cfg, filterClass, path, mimeType, filterParams)
+	return bridgetest.ReadFileWithLocales(t, pool, cfg, filterClass, path, mimeType, filterParams, src, tgt)
 }
 
 // allBlocks returns all blocks (translatable and non-translatable) from parts.
@@ -70,13 +82,24 @@ func fileRoundtrip(t *testing.T, relPath string, filterParams map[string]any) st
 // fileRoundtripEvents reads a TMX file and asserts event-level roundtrip equality.
 func fileRoundtripEvents(t *testing.T, relPath string, filterParams map[string]any) {
 	t.Helper()
+	fileRoundtripEventsWithLocales(t, relPath, filterParams, "en", "fr")
+}
+
+// fileRoundtripEventsUS is like fileRoundtripEvents but uses "en-us" source locale.
+func fileRoundtripEventsUS(t *testing.T, relPath string, filterParams map[string]any) {
+	t.Helper()
+	fileRoundtripEventsWithLocales(t, relPath, filterParams, "en-us", "fr")
+}
+
+func fileRoundtripEventsWithLocales(t *testing.T, relPath string, filterParams map[string]any, src, tgt string) {
+	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	path := bridgetest.TestdataFile(t, relPath)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read %s: %v", path, err)
 	}
-	bridgetest.AssertRoundTripEvents(t, pool, cfg, filterClass, data, path, mimeType, filterParams)
+	bridgetest.AssertRoundTripEventsWithLocales(t, pool, cfg, filterClass, data, path, mimeType, filterParams, model.LocaleID(src), model.LocaleID(tgt))
 }
 
 // readTMXAllowError reads a TMX snippet and returns parts and any error.
@@ -995,7 +1018,7 @@ func TestUnConsolidatedStream(t *testing.T) {
 
 // okapi: TmxFilterTest#testInputStream
 func TestInputStream(t *testing.T) {
-	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/a_small_test2.tmx", nil)
+	parts := readTMXFileUS(t, "okapi/filters/tmx/src/test/resources/a_small_test2.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
@@ -1241,7 +1264,7 @@ func TestDoubleExtraction(t *testing.T) {
 	}
 	for _, f := range files {
 		t.Run(f, func(t *testing.T) {
-			fileRoundtripEvents(t, f, nil)
+			fileRoundtripEventsUS(t, f, nil)
 		})
 	}
 }
@@ -1324,14 +1347,14 @@ func TestParametersFromString(t *testing.T) {
 
 // okapi: TmxFilterTest (file-based extraction of sampleTMX2.tmx)
 func TestExtract_SampleTMX2(t *testing.T) {
-	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
+	parts := readTMXFileUS(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
 
 // okapi: TmxFilterTest (file-based extraction of Paragraph_TM.tmx)
 func TestExtract_ParagraphTM(t *testing.T) {
-	parts := readTMXFile(t, "okapi/filters/tmx/src/test/resources/Paragraph_TM.tmx", nil)
+	parts := readTMXFileUS(t, "okapi/filters/tmx/src/test/resources/Paragraph_TM.tmx", nil)
 	blocks := allBlocks(parts)
 	require.NotEmpty(t, blocks)
 }
