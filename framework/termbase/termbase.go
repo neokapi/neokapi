@@ -3,30 +3,41 @@ package termbase
 import (
 	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
+)
+
+// TermSource indicates whether a concept comes from traditional terminology or brand vocabulary.
+type TermSource string
+
+const (
+	TermSourceTerminology     TermSource = "terminology"
+	TermSourceBrandVocabulary TermSource = "brand_vocabulary"
 )
 
 // Term represents a single term in a specific locale with lifecycle metadata.
 type Term struct {
-	Text         string           // the term text
-	Locale       model.LocaleID   // language/locale
-	Status       model.TermStatus // lifecycle status
-	PartOfSpeech string           // noun, verb, adjective, etc.
-	Gender       string           // grammatical gender (if applicable)
-	Note         string           // usage note or context
+	Text           string           `json:"text"`                      // the term text
+	Locale         model.LocaleID   `json:"locale"`                    // language/locale
+	Status         model.TermStatus `json:"status"`                    // lifecycle status
+	PartOfSpeech   string           `json:"part_of_speech,omitempty"`  // noun, verb, adjective, etc.
+	Gender         string           `json:"gender,omitempty"`          // grammatical gender (if applicable)
+	Note           string           `json:"note,omitempty"`            // usage note or context
+	CompetitorTerm bool             `json:"competitor_term,omitempty"` // true if this is a competitor brand term
 }
 
 // Concept is the central unit of a termbase — a language-neutral concept
 // with terms in multiple locales, organized following TBX principles.
 type Concept struct {
-	ID         string            // unique concept identifier
-	ProjectID  string            // project scope (empty = workspace-scoped)
-	Domain     string            // subject field (software, medical, legal, etc.)
-	Definition string            // language-neutral definition
-	Terms      []Term            // terms across locales
-	Properties map[string]string // extensible metadata
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID         string            `json:"id"`                    // unique concept identifier
+	ProjectID  string            `json:"project_id,omitempty"`  // project scope (empty = workspace-scoped)
+	Domain     string            `json:"domain,omitempty"`      // subject field (software, medical, legal, etc.)
+	Definition string            `json:"definition,omitempty"`  // language-neutral definition
+	Source     TermSource        `json:"source,omitempty"`      // "terminology" or "brand_vocabulary"
+	Terms      []Term            `json:"terms,omitempty"`       // terms across locales
+	Properties map[string]string `json:"properties,omitempty"`  // extensible metadata
+	CreatedAt  time.Time         `json:"created_at"`
+	UpdatedAt  time.Time         `json:"updated_at"`
 }
 
 // SourceTerm returns the first term matching the given locale.
@@ -95,8 +106,22 @@ type LookupOptions struct {
 	MatchModes    []model.MatchStrategy
 	Domains       []string           // restrict to specific domains
 	StatusFilter  []model.TermStatus // only return terms with these statuses
+	SourceFilter  []TermSource       // filter by term source (empty = all)
 	ProjectID     string             // project context for scope filtering
 	ProjectScope  ProjectScope       // project filtering mode (default: all)
+}
+
+// ConceptRelation represents a relationship between two concepts for graph import/export.
+type ConceptRelation struct {
+	SourceID     string `json:"source_id"`
+	TargetID     string `json:"target_id"`
+	RelationType string `json:"relation_type"` // Uses graph.Label* constants
+}
+
+// TermDesignation represents a term with temporal validity for the status-on-edge model.
+type TermDesignation struct {
+	Term     Term            `json:"term"`
+	Validity *graph.Validity `json:"validity,omitempty"`
 }
 
 // TermBase defines the interface for a terminology database.

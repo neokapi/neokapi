@@ -79,22 +79,37 @@ func ImportCSV(tb TermBase, reader io.Reader, opts CSVImportOptions) (int, error
 			}
 		}
 
+		var termSource TermSource
+		if len(row) > 5 {
+			if s := strings.TrimSpace(row[5]); s == string(TermSourceBrandVocabulary) {
+				termSource = TermSourceBrandVocabulary
+			}
+		}
+
+		competitorTerm := false
+		if len(row) > 6 {
+			competitorTerm = strings.EqualFold(strings.TrimSpace(row[6]), "true")
+		}
+
 		conceptID := fmt.Sprintf("%s-%d", prefix, i-startIdx+1)
 
 		concept := Concept{
 			ID:         conceptID,
 			Domain:     domain,
 			Definition: definition,
+			Source:     termSource,
 			Terms: []Term{
 				{
-					Text:   sourceTerm,
-					Locale: opts.SourceLocale,
-					Status: status,
+					Text:           sourceTerm,
+					Locale:         opts.SourceLocale,
+					Status:         status,
+					CompetitorTerm: competitorTerm,
 				},
 				{
-					Text:   targetTerm,
-					Locale: opts.TargetLocale,
-					Status: status,
+					Text:           targetTerm,
+					Locale:         opts.TargetLocale,
+					Status:         status,
+					CompetitorTerm: competitorTerm,
 				},
 			},
 		}
@@ -114,7 +129,7 @@ func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.L
 	defer csvWriter.Flush()
 
 	if includeHeader {
-		if err := csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "concept_id"}); err != nil {
+		if err := csvWriter.Write([]string{"source", "target", "domain", "definition", "status", "concept_id", "term_source", "competitor_term"}); err != nil {
 			return fmt.Errorf("write CSV header: %w", err)
 		}
 	}
@@ -126,6 +141,10 @@ func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.L
 		}
 
 		for _, target := range concept.TargetTerms(targetLocale) {
+			competitorStr := ""
+			if target.CompetitorTerm {
+				competitorStr = "true"
+			}
 			if err := csvWriter.Write([]string{
 				sourceTerm.Text,
 				target.Text,
@@ -133,6 +152,8 @@ func ExportCSV(tb TermBase, writer io.Writer, sourceLocale, targetLocale model.L
 				concept.Definition,
 				string(target.Status),
 				concept.ID,
+				string(concept.Source),
+				competitorStr,
 			}); err != nil {
 				return fmt.Errorf("write CSV row: %w", err)
 			}

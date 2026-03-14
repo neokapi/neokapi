@@ -103,6 +103,14 @@ var tbMigrations = []storage.Migration{
 		);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add source column to concepts and competitor_term column to terms",
+		SQL: `
+		ALTER TABLE tb_concepts ADD COLUMN source TEXT NOT NULL DEFAULT 'terminology';
+		ALTER TABLE tb_terms ADD COLUMN competitor_term INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }
 
 // AddConcept inserts or updates a concept with all its terms using an empty stream.
@@ -135,18 +143,24 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	source := concept.Source
+	if source == "" {
+		source = TermSourceTerminology
+	}
+
 	_, err = tx.Exec(`
-		INSERT INTO tb_concepts (id, project_id, stream, domain, definition, properties, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tb_concepts (id, project_id, stream, domain, definition, properties, source, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			project_id = excluded.project_id,
 			stream = excluded.stream,
 			domain = excluded.domain,
 			definition = excluded.definition,
 			properties = excluded.properties,
+			source = excluded.source,
 			updated_at = excluded.updated_at
 	`, concept.ID, concept.ProjectID, stream, concept.Domain, concept.Definition,
-		nullableString(propsJSON),
+		nullableString(propsJSON), string(source),
 		concept.CreatedAt.Format(time.RFC3339),
 		concept.UpdatedAt.Format(time.RFC3339))
 	if err != nil {
@@ -159,12 +173,16 @@ func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) e
 	}
 
 	for _, term := range concept.Terms {
+		competitorInt := 0
+		if term.CompetitorTerm {
+			competitorInt = 1
+		}
 		_, err = tx.Exec(`
-			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+			INSERT INTO tb_terms (concept_id, text, text_lower, locale, status, part_of_speech, gender, note, competitor_term)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`, concept.ID, term.Text, strings.ToLower(term.Text),
 			string(term.Locale), string(term.Status),
-			term.PartOfSpeech, term.Gender, term.Note)
+			term.PartOfSpeech, term.Gender, term.Note, competitorInt)
 		if err != nil {
 			return fmt.Errorf("insert term: %w", err)
 		}
@@ -608,16 +626,17 @@ func (tb *SQLiteTermBase) Close() error {
 func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 	var c Concept
 	var propsJSON *string
-	var createdStr, updatedStr string
+	var createdStr, updatedStr, source string
 
 	err := tb.db.QueryRow(`
-		SELECT id, project_id, domain, definition, properties, created_at, updated_at
+		SELECT id, project_id, domain, definition, properties, source, created_at, updated_at
 		FROM tb_concepts WHERE id = ?
-	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &createdStr, &updatedStr)
+	`, id).Scan(&c.ID, &c.ProjectID, &c.Domain, &c.Definition, &propsJSON, &source, &createdStr, &updatedStr)
 	if err != nil {
 		return Concept{}, err
 	}
 
+	c.Source = TermSource(source)
 	c.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	c.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 
@@ -626,7 +645,7 @@ func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 	}
 
 	rows, err := tb.db.Query(`
-		SELECT text, locale, status, part_of_speech, gender, note
+		SELECT text, locale, status, part_of_speech, gender, note, competitor_term
 		FROM tb_terms WHERE concept_id = ?
 	`, id)
 	if err != nil {
@@ -637,11 +656,13 @@ func (tb *SQLiteTermBase) scanConcept(id string) (Concept, error) {
 	for rows.Next() {
 		var t Term
 		var locale, status string
-		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note); err != nil {
+		var competitorInt int
+		if err := rows.Scan(&t.Text, &locale, &status, &t.PartOfSpeech, &t.Gender, &t.Note, &competitorInt); err != nil {
 			continue
 		}
 		t.Locale = model.LocaleID(locale)
 		t.Status = model.TermStatus(status)
+		t.CompetitorTerm = competitorInt != 0
 		c.Terms = append(c.Terms, t)
 	}
 
@@ -675,6 +696,10 @@ func (tb *SQLiteTermBase) queryExactTerms(sourceText string, opts LookupOptions)
 		args = append(args, opts.ProjectID)
 		needsJoin = true
 	}
+
+	var sourceNeedsJoin bool
+	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
+	needsJoin = needsJoin || sourceNeedsJoin
 
 	var q string
 	if needsJoin {
@@ -715,6 +740,10 @@ func (tb *SQLiteTermBase) queryNormalizedTerms(normalizedSource string, opts Loo
 		args = append(args, opts.ProjectID)
 		needsJoin = true
 	}
+
+	var sourceNeedsJoin bool
+	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
+	needsJoin = needsJoin || sourceNeedsJoin
 
 	var q string
 	if needsJoin {
@@ -767,6 +796,10 @@ func (tb *SQLiteTermBase) queryFuzzyTrigramCandidates(normalizedSource string, o
 		needsJoin = true
 	}
 
+	var sourceNeedsJoin bool
+	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
+	needsJoin = needsJoin || sourceNeedsJoin
+
 	var q string
 	if needsJoin {
 		q = fmt.Sprintf(`
@@ -813,6 +846,10 @@ func (tb *SQLiteTermBase) queryFuzzyFullScan(normalizedSource string, opts Looku
 		args = append(args, opts.ProjectID)
 		needsJoin = true
 	}
+
+	var sourceNeedsJoin bool
+	where, args, sourceNeedsJoin = sourceFilterSQL(where, args, opts.SourceFilter)
+	needsJoin = needsJoin || sourceNeedsJoin
 
 	var q string
 	if needsJoin {
@@ -914,8 +951,10 @@ func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []st
 		args = append(args, opts.ProjectID)
 	}
 
+	where, args, _ = sourceFilterSQL(where, args, opts.SourceFilter)
+
 	rows, err := tb.db.Query(fmt.Sprintf(`
-		SELECT c.id, c.project_id, c.domain, c.definition, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note
+		SELECT c.id, c.project_id, c.domain, c.definition, c.source, t.text, t.locale, t.status, t.part_of_speech, t.gender, t.note, t.competitor_term
 		FROM tb_terms t JOIN tb_concepts c ON t.concept_id = c.id
 		WHERE %s
 	`, where), args...)
@@ -926,19 +965,21 @@ func (tb *SQLiteTermBase) queryTermsByLocale(locale model.LocaleID, domains []st
 
 	var results []termWithConcept
 	for rows.Next() {
-		var cID, projectID, domain, definition, text, loc, status, pos, gender, note string
-		if err := rows.Scan(&cID, &projectID, &domain, &definition, &text, &loc, &status, &pos, &gender, &note); err != nil {
+		var cID, projectID, domain, definition, source, text, loc, status, pos, gender, note string
+		var competitorInt int
+		if err := rows.Scan(&cID, &projectID, &domain, &definition, &source, &text, &loc, &status, &pos, &gender, &note, &competitorInt); err != nil {
 			continue
 		}
 		results = append(results, termWithConcept{
-			concept: Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition},
+			concept: Concept{ID: cID, ProjectID: projectID, Domain: domain, Definition: definition, Source: TermSource(source)},
 			term: Term{
-				Text:         text,
-				Locale:       model.LocaleID(loc),
-				Status:       model.TermStatus(status),
-				PartOfSpeech: pos,
-				Gender:       gender,
-				Note:         note,
+				Text:           text,
+				Locale:         model.LocaleID(loc),
+				Status:         model.TermStatus(status),
+				PartOfSpeech:   pos,
+				Gender:         gender,
+				Note:           note,
+				CompetitorTerm: competitorInt != 0,
 			},
 		})
 	}
@@ -985,6 +1026,25 @@ func (tb *SQLiteTermBase) scanTermMatches(rows interface {
 		})
 	}
 	return matches
+}
+
+// sourceFilterSQL appends a WHERE clause for SourceFilter and returns updated args.
+// It requires tb_concepts to be joined as "c".
+func sourceFilterSQL(where string, args []any, filter []TermSource) (string, []any, bool) {
+	if len(filter) == 0 {
+		return where, args, false
+	}
+	placeholders := make([]string, len(filter))
+	for i, s := range filter {
+		placeholders[i] = "?"
+		src := s
+		if src == "" {
+			src = TermSourceTerminology
+		}
+		args = append(args, string(src))
+	}
+	where += " AND c.source IN (" + strings.Join(placeholders, ",") + ")"
+	return where, args, true
 }
 
 func nullableString(b []byte) *string {
