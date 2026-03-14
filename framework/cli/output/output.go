@@ -1,5 +1,4 @@
 // Package output provides consistent output formatting for neokapi CLI tools.
-// Both kapi and bowrain CLIs use this package to output results in text or JSON format.
 package output
 
 import (
