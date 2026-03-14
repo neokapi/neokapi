@@ -1,5 +1,5 @@
 // Package cli provides a shared CLI base for neokapi CLI tools.
-// Both kapi and bowrain build on this package, selecting which commands to expose.
+// CLI tools build on this package, selecting which commands to expose.
 package cli
 
 import (
@@ -20,7 +20,7 @@ import (
 )
 
 // App holds shared CLI state that is initialized during PersistentPreRun.
-// Both kapi and bowrain create an App instance and attach shared commands.
+// CLI tools create an App instance and attach shared commands.
 type App struct {
 	FormatReg    *registry.FormatRegistry
 	SchemaReg    *schema.SchemaRegistry
@@ -42,7 +42,6 @@ type App struct {
 
 	// RegistryResolver is an optional hook for resolving plugin registries.
 	// When set, it is called before falling back to the config-based registries.
-	// Brain sets this to resolve registries from .bowrain/ project config.
 	RegistryResolver func() []config.RegistryEntry
 }
 
