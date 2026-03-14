@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/registry"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -84,6 +85,9 @@ type Server struct {
 	// SessionStore holds ephemeral auth states (device codes, OIDC states).
 	// Backed by Redis when configured, otherwise in-memory.
 	SessionStore SessionStateStore
+
+	// BrandStore manages brand voice profiles. Nil when not configured.
+	BrandStore corebrand.BrandStore
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
@@ -218,6 +222,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	v1.GET("/formats", s.HandleListFormats)
 	v1.GET("/tools", s.HandleListTools)
 	v1.GET("/locales", s.HandleGetKnownLocales)
+
+	// Brand voice starter packs (public, no auth required).
+	v1.GET("/brand-voice/starter-packs", s.HandleListStarterPacks)
 
 	// Connector endpoints (public).
 	v1.GET("/connectors/types", s.HandleListConnectorTypes)
@@ -480,6 +487,22 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Extraction settings (project-scoped, AD-022)
 	g.GET("/projects/:id/settings/extraction", s.HandleGetExtractionSettings)
 	g.PUT("/projects/:id/settings/extraction", s.HandleUpdateExtractionSettings)
+
+	// Brand voice profiles (workspace-scoped)
+	g.GET("/brand-profiles", s.HandleListBrandProfiles)
+	g.POST("/brand-profiles", s.HandleCreateBrandProfile)
+	g.GET("/brand-profiles/:id", s.HandleGetBrandProfile)
+	g.PUT("/brand-profiles/:id", s.HandleUpdateBrandProfile)
+	g.DELETE("/brand-profiles/:id", s.HandleDeleteBrandProfile)
+	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice)
+	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
+	g.GET("/brand-voice/suggested-rules", s.HandleGetSuggestedRules)
+
+	// Brand voice scores and corrections (project-scoped)
+	g.GET("/projects/:id/brand-voice/scores", s.HandleGetBrandVoiceScores)
+	g.GET("/projects/:id/brand-voice/scores/:locale", s.HandleGetBrandVoiceScoresByLocale)
+	g.GET("/projects/:id/brand-voice/trends", s.HandleGetBrandVoiceTrends)
+	g.POST("/projects/:id/brand-voice/corrections", s.HandleCreateBrandVoiceCorrection)
 
 	// Stream management (project-scoped)
 	g.GET("/projects/:id/streams", s.HandleListStreams)
