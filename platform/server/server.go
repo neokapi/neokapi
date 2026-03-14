@@ -20,7 +20,9 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
+	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/registry"
+	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/store"
@@ -88,6 +90,12 @@ type Server struct {
 
 	// BrandStore manages brand voice profiles. Nil when not configured.
 	BrandStore corebrand.BrandStore
+
+	// GraphStore provides graph-based concept management. Nil when not configured.
+	GraphStore coreg.GraphStore
+
+	// graphSyncer keeps the graph in sync with content events. Nil when graph is not configured.
+	graphSyncer *platgraph.GraphSyncer
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
@@ -164,6 +172,8 @@ func NewServer(cfg ServerConfig) *Server {
 			s.AutomationRuleStore = event.NewPostgresRuleStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewPostgresReviewQueueStore(pgSQL)
 			s.NotificationStore = bstore.NewPostgresNotificationStore(pgSQL)
+			s.BrandStore = pg.Brand
+			s.GraphStore = pg.GraphStore
 			if cfg.JWTSecret != "" {
 				s.AuthStore = pg.Auth
 				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)
@@ -192,6 +202,11 @@ func NewServer(cfg ServerConfig) *Server {
 	// Wire up automation engine.
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, s.executeAutomationAction)
 	s.registerDefaultAutomations()
+
+	// Wire up graph sync if graph store is available.
+	if s.GraphStore != nil {
+		s.graphSyncer = platgraph.NewGraphSyncer(s.GraphStore, s.EventBus)
+	}
 
 	return s
 }
