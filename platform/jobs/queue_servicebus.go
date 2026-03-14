@@ -79,6 +79,10 @@ func (q *ServiceBusQueue) Dequeue(ctx context.Context) (string, func(), func(), 
 	return jobID, ack, nack, nil
 }
 
+func (q *ServiceBusQueue) Healthy() bool {
+	return true // Service Bus SDK has no connection-level ping; best-effort.
+}
+
 func (q *ServiceBusQueue) Close() error {
 	ctx := context.Background()
 	var firstErr error

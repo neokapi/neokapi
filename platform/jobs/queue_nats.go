@@ -101,6 +101,10 @@ func (q *NATSQueue) Dequeue(ctx context.Context) (string, func(), func(), error)
 	return "", nil, nil, fmt.Errorf("no messages available")
 }
 
+func (q *NATSQueue) Healthy() bool {
+	return q.conn.Status() == nats.CONNECTED
+}
+
 func (q *NATSQueue) Close() error {
 	q.conn.Close()
 	return nil

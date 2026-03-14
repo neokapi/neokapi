@@ -16,6 +16,9 @@ type Queue interface {
 	// queue for retry.
 	Dequeue(ctx context.Context) (jobID string, ack func(), nack func(), err error)
 
+	// Healthy reports whether the queue connection is alive.
+	Healthy() bool
+
 	// Close releases queue resources.
 	Close() error
 }
@@ -68,6 +71,12 @@ func (q *ChannelQueue) Dequeue(ctx context.Context) (string, func(), func(), err
 		}
 		return jobID, ack, nack, nil
 	}
+}
+
+func (q *ChannelQueue) Healthy() bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return !q.closed
 }
 
 func (q *ChannelQueue) Close() error {
