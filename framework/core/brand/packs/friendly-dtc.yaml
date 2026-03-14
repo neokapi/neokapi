@@ -1,0 +1,67 @@
+name: Friendly DTC
+description: Casual, warm voice for direct-to-consumer brands
+tone:
+  personality: [friendly, approachable, authentic]
+  formality: casual
+  emotion: warm
+  humor: light
+  guidelines: >-
+    Write like you're talking to a friend. Be warm, genuine, and relatable.
+    Use everyday language that feels natural. Show personality and let humor
+    come through organically.
+style:
+  active_voice: true
+  sentence_length: varied
+  person_pov: second
+  contractions: always
+  prohibited_patterns:
+    - regex: '\b(pursuant to|hereby|aforementioned)\b'
+      description: Legalese and overly formal language
+      severity: major
+    - regex: '\b(utilize|facilitate|implement)\b'
+      description: Corporate verbs that feel stiff
+      severity: minor
+vocabulary:
+  forbidden_terms:
+    - term: utilize
+      replacement: use
+      severity: minor
+    - term: facilitate
+      replacement: help
+      severity: minor
+    - term: implement
+      replacement: set up
+      severity: minor
+    - term: purchase
+      replacement: buy
+      severity: minor
+    - term: commence
+      replacement: start
+      severity: minor
+    - term: inquire
+      replacement: ask
+      severity: minor
+  preferred_terms:
+    - term: you
+      note: Always address the customer directly
+    - term: we
+      note: Use to create a sense of partnership
+    - term: easy
+      note: Reinforce simplicity in messaging
+examples:
+  - before: "We are pleased to inform you that your order has been dispatched."
+    after: "Great news — your order's on its way!"
+    explanation: Replace formal notification with warm, excited language
+    category: tone
+  - before: "Customers who utilize our premium tier will experience enhanced functionality."
+    after: "You'll love what you can do with our premium plan."
+    explanation: Speak directly to the reader with simple, enthusiastic language
+    category: style
+  - before: "Please do not hesitate to contact our support department."
+    after: "Got questions? We're here to help!"
+    explanation: Replace stiff invitation with friendly, approachable offer
+    category: vocabulary
+  - before: "The implementation process requires approximately 48 hours."
+    after: "You'll be up and running in about two days."
+    explanation: Use conversational framing instead of technical language
+    category: style

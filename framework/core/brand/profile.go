@@ -6,84 +6,84 @@ import (
 
 // VoiceProfile defines a brand voice configuration with tone, style, and vocabulary rules.
 type VoiceProfile struct {
-	ID          string                    `json:"id"`
-	Name        string                    `json:"name"`
-	Description string                    `json:"description,omitempty"`
-	Tone        ToneProfile               `json:"tone"`
-	Style       StyleRules                `json:"style"`
-	Vocabulary  VocabularyRules           `json:"vocabulary"`
-	Examples    []VoiceExample            `json:"examples"`
-	Locales     map[string]LocaleOverride `json:"locales,omitempty"`
-	Channels    map[string]ChannelOverride `json:"channels,omitempty"`
-	WorkspaceID string                    `json:"workspace_id"`
-	Version     int                       `json:"version"`
-	CreatedAt   time.Time                 `json:"created_at"`
-	UpdatedAt   time.Time                 `json:"updated_at"`
-	CreatedBy   string                    `json:"created_by,omitempty"`
+	ID          string                    `json:"id" yaml:"id,omitempty"`
+	Name        string                    `json:"name" yaml:"name"`
+	Description string                    `json:"description,omitempty" yaml:"description,omitempty"`
+	Tone        ToneProfile               `json:"tone" yaml:"tone"`
+	Style       StyleRules                `json:"style" yaml:"style"`
+	Vocabulary  VocabularyRules           `json:"vocabulary" yaml:"vocabulary"`
+	Examples    []VoiceExample            `json:"examples" yaml:"examples"`
+	Locales     map[string]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
+	Channels    map[string]ChannelOverride `json:"channels,omitempty" yaml:"channels,omitempty"`
+	WorkspaceID string                    `json:"workspace_id" yaml:"workspace_id,omitempty"`
+	Version     int                       `json:"version" yaml:"version,omitempty"`
+	CreatedAt   time.Time                 `json:"created_at" yaml:"created_at,omitempty"`
+	UpdatedAt   time.Time                 `json:"updated_at" yaml:"updated_at,omitempty"`
+	CreatedBy   string                    `json:"created_by,omitempty" yaml:"created_by,omitempty"`
 }
 
 // ToneProfile describes the desired tone characteristics.
 type ToneProfile struct {
-	Personality []string `json:"personality"`        // e.g. ["friendly", "knowledgeable", "direct"]
-	Formality   string   `json:"formality"`          // "casual", "neutral", "formal", "technical"
-	Emotion     string   `json:"emotion"`            // "warm", "neutral", "authoritative"
-	Humor       string   `json:"humor"`              // "none", "light", "frequent"
-	Guidelines  string   `json:"guidelines,omitempty"`
+	Personality []string `json:"personality" yaml:"personality"`           // e.g. ["friendly", "knowledgeable", "direct"]
+	Formality   string   `json:"formality" yaml:"formality"`              // "casual", "neutral", "formal", "technical"
+	Emotion     string   `json:"emotion" yaml:"emotion"`                  // "warm", "neutral", "authoritative"
+	Humor       string   `json:"humor" yaml:"humor"`                      // "none", "light", "frequent"
+	Guidelines  string   `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
 }
 
 // StyleRules defines writing style constraints.
 type StyleRules struct {
-	ActiveVoice        bool      `json:"active_voice"`
-	SentenceLength     string    `json:"sentence_length"`      // "short", "medium", "varied"
-	PersonPOV          string    `json:"person_pov"`           // "first_plural", "second", "third"
-	Contractions       string    `json:"contractions"`         // "always", "sometimes", "never"
-	ProhibitedPatterns []Pattern `json:"prohibited_patterns,omitempty"`
-	RequiredPatterns   []Pattern `json:"required_patterns,omitempty"`
+	ActiveVoice        bool      `json:"active_voice" yaml:"active_voice"`
+	SentenceLength     string    `json:"sentence_length" yaml:"sentence_length"`           // "short", "medium", "varied"
+	PersonPOV          string    `json:"person_pov" yaml:"person_pov"`                     // "first_plural", "second", "third"
+	Contractions       string    `json:"contractions" yaml:"contractions"`                  // "always", "sometimes", "never"
+	ProhibitedPatterns []Pattern `json:"prohibited_patterns,omitempty" yaml:"prohibited_patterns,omitempty"`
+	RequiredPatterns   []Pattern `json:"required_patterns,omitempty" yaml:"required_patterns,omitempty"`
 }
 
 // Pattern describes a regex-based text pattern rule.
 type Pattern struct {
-	Regex       string `json:"regex"`
-	Description string `json:"description"`
-	Severity    string `json:"severity"` // "minor", "major", "critical"
+	Regex       string `json:"regex" yaml:"regex"`
+	Description string `json:"description" yaml:"description"`
+	Severity    string `json:"severity" yaml:"severity"` // "minor", "major", "critical"
 }
 
 // VocabularyRules defines term usage constraints.
 type VocabularyRules struct {
-	PreferredTerms  []TermRule        `json:"preferred_terms,omitempty"`
-	ForbiddenTerms  []TermRule        `json:"forbidden_terms,omitempty"`
-	CompetitorTerms []TermRule        `json:"competitor_terms,omitempty"`
-	Abbreviations   map[string]string `json:"abbreviations,omitempty"`
+	PreferredTerms  []TermRule        `json:"preferred_terms,omitempty" yaml:"preferred_terms,omitempty"`
+	ForbiddenTerms  []TermRule        `json:"forbidden_terms,omitempty" yaml:"forbidden_terms,omitempty"`
+	CompetitorTerms []TermRule        `json:"competitor_terms,omitempty" yaml:"competitor_terms,omitempty"`
+	Abbreviations   map[string]string `json:"abbreviations,omitempty" yaml:"abbreviations,omitempty"`
 }
 
 // TermRule describes a vocabulary constraint for a specific term.
 type TermRule struct {
-	Term        string `json:"term"`
-	Replacement string `json:"replacement,omitempty"`
-	Note        string `json:"note,omitempty"`
-	Severity    string `json:"severity,omitempty"` // "minor", "major", "critical"
+	Term        string `json:"term" yaml:"term"`
+	Replacement string `json:"replacement,omitempty" yaml:"replacement,omitempty"`
+	Note        string `json:"note,omitempty" yaml:"note,omitempty"`
+	Severity    string `json:"severity,omitempty" yaml:"severity,omitempty"` // "minor", "major", "critical"
 }
 
 // VoiceExample shows a before/after transformation for brand voice.
 type VoiceExample struct {
-	Before      string `json:"before"`
-	After       string `json:"after"`
-	Explanation string `json:"explanation,omitempty"`
-	Category    string `json:"category,omitempty"` // "tone", "style", "vocabulary"
+	Before      string `json:"before" yaml:"before"`
+	After       string `json:"after" yaml:"after"`
+	Explanation string `json:"explanation,omitempty" yaml:"explanation,omitempty"`
+	Category    string `json:"category,omitempty" yaml:"category,omitempty"` // "tone", "style", "vocabulary"
 }
 
 // LocaleOverride provides locale-specific adjustments to a voice profile.
 type LocaleOverride struct {
-	Formality           string         `json:"formality,omitempty"`
-	Humor               string         `json:"humor,omitempty"`
-	PersonPOV           string         `json:"person_pov,omitempty"`
-	CulturalNotes       string         `json:"cultural_notes,omitempty"`
-	VocabularyOverrides []TermRule     `json:"vocabulary_overrides,omitempty"`
-	ExampleOverrides    []VoiceExample `json:"example_overrides,omitempty"`
+	Formality           string         `json:"formality,omitempty" yaml:"formality,omitempty"`
+	Humor               string         `json:"humor,omitempty" yaml:"humor,omitempty"`
+	PersonPOV           string         `json:"person_pov,omitempty" yaml:"person_pov,omitempty"`
+	CulturalNotes       string         `json:"cultural_notes,omitempty" yaml:"cultural_notes,omitempty"`
+	VocabularyOverrides []TermRule     `json:"vocabulary_overrides,omitempty" yaml:"vocabulary_overrides,omitempty"`
+	ExampleOverrides    []VoiceExample `json:"example_overrides,omitempty" yaml:"example_overrides,omitempty"`
 }
 
 // ChannelOverride provides channel-specific adjustments to a voice profile.
 type ChannelOverride struct {
-	Tone  *ToneProfile `json:"tone,omitempty"`
-	Style *StyleRules  `json:"style,omitempty"`
+	Tone  *ToneProfile `json:"tone,omitempty" yaml:"tone,omitempty"`
+	Style *StyleRules  `json:"style,omitempty" yaml:"style,omitempty"`
 }

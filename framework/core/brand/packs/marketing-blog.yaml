@@ -1,0 +1,61 @@
+name: Marketing Blog
+description: Conversational, storytelling voice for blog posts and content marketing
+tone:
+  personality: [engaging, conversational, insightful]
+  formality: neutral
+  emotion: warm
+  humor: light
+  guidelines: >-
+    Write as if having a conversation with an informed reader. Use storytelling
+    techniques to illustrate points. Vary sentence length for rhythm. Ask
+    rhetorical questions to engage the reader. Be opinionated but back it up.
+style:
+  active_voice: true
+  sentence_length: varied
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '\b(in order to)\b'
+      description: Wordy phrase (use 'to' instead)
+      severity: minor
+    - regex: '\b(at the end of the day)\b'
+      description: Cliche phrase
+      severity: minor
+vocabulary:
+  forbidden_terms:
+    - term: in order to
+      replacement: to
+      severity: minor
+    - term: at the end of the day
+      replacement: ultimately
+      severity: minor
+    - term: it goes without saying
+      replacement: ""
+      severity: minor
+    - term: thought leader
+      replacement: expert
+      severity: minor
+  preferred_terms:
+    - term: imagine
+      note: Use to draw readers into scenarios
+    - term: here's the thing
+      note: Use to introduce key insights conversationally
+    - term: let's
+      note: Creates a collaborative feeling with the reader
+examples:
+  - before: "This article will discuss the benefits of automated testing."
+    after: "Ever shipped a bug that a five-minute test would have caught? Let's talk about how automated testing saves your future self."
+    explanation: Replace dry introduction with an engaging hook
+    category: tone
+  - before: "In order to achieve optimal results, it is recommended that organizations implement a comprehensive strategy."
+    after: "Want better results? Start with a clear strategy — here's how."
+    explanation: Cut wordiness and speak directly to the reader
+    category: style
+  - before: "The solution provides value."
+    after: "Think of it this way: every hour you save on manual work is an hour you can spend building something new."
+    explanation: Replace vague claims with concrete, relatable framing
+    category: vocabulary
+  - before: "Studies show that companies using this approach see improvements."
+    after: "Teams that made this switch cut their review time in half. Here's what they did differently."
+    explanation: Lead with specific outcomes and create curiosity
+    category: tone
