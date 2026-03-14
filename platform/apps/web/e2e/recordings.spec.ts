@@ -21,7 +21,7 @@ import {
 
 const isCI = !!process.env.CI && !process.env.FORCE_RECORDINGS;
 
-const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
+const BASE_URL = process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080";
 
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {
@@ -103,7 +103,7 @@ test.describe("Web App Recordings", () => {
       await page.locator("#kc-login").click();
 
       // Wait for redirect back to Bowrain app (lands on /$workspace)
-      await page.waitForURL("**/localhost:8080/**", { timeout: 15000 });
+      await page.waitForURL(`${BASE_URL}/**`, { timeout: 15000 });
       await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
       await setTheme(page, theme);
       await injectCursor(page);
@@ -190,7 +190,7 @@ test.describe("Web App Recordings", () => {
       // Clean up
       try {
         await fetch(
-          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -240,7 +240,7 @@ test.describe("Web App Recordings", () => {
 
       try {
         await fetch(
-          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -281,7 +281,7 @@ test.describe("Web App Recordings", () => {
 
       try {
         await fetch(
-          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -405,7 +405,7 @@ test.describe("Web App Recordings", () => {
 
       try {
         await fetch(
-          `${process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },

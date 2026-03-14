@@ -3,7 +3,7 @@
 # VHS Type command cannot contain double quotes, so we wrap
 # the API calls here and invoke them by function name.
 
-BASE="http://localhost:8080/api/v1"
+BASE="${BOWRAIN_SERVER_URL:-http://localhost:8080}/api/v1"
 AUTH="Authorization: Bearer $BOWRAIN_TOKEN"
 
 ws_list() {

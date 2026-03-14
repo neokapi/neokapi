@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
+const BASE_URL = process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080";
 const API = `${BASE_URL}/api/v1`;
 
 export interface SeedContext {
@@ -20,11 +20,16 @@ export interface SeedContext {
 
 // --- Authentication ---
 
-/** Perform the device auth flow and return a JWT access token. */
+/** Perform the device auth flow and return a JWT access token.
+ *  If BOWRAIN_TOKEN is set, returns it directly (for external server mode). */
 export async function authenticate(
   email = "admin@example.com",
   name = "Demo User",
 ): Promise<string> {
+  // Fast path: pre-supplied token for external server mode.
+  const preSupplied = process.env.BOWRAIN_TOKEN;
+  if (preSupplied) return preSupplied;
+
   // Step 1: Start device auth
   const startResp = await fetch(`${API}/auth/device/start`, {
     method: "POST",
