@@ -48,9 +48,11 @@ Six AI tools are implemented as standard Tools (see [AD-006](./006-tool-system.m
 | `ai-terminology` | `ai/tools/terminology.go` | Extract terminology candidates from source Blocks |
 | `ai-review` | `ai/tools/review.go` | Review translations with explanations |
 | `ai-entity-extract` | `ai/tools/entity_extract.go` | Extract named entities and term candidates using LLM + optional NER |
-| `brand-voice-check` | planned | Validate content against brand voice rules (see [AD-010](./010-terminology.md)) |
+| `brand-voice-check` | `ai/tools/brandvoice.go` | Validate content against brand voice rules and score compliance |
 
 The `ai-terminology` tool creates `TermAnnotation` entries with `status: proposed`, feeding the terminology lifecycle workflow. The `ai-entity-extract` tool uses a hybrid approach (LLM via `ChatStructured` + optional NER provider) to produce `EntityAnnotation` entries that serve as do-not-translate markers, localization hints, and context for AI translation. It also extracts `TermCandidateAnnotation` entries from the same LLM call, combining entity detection and terminology extraction in a single pass. See [AD-022](./022-entity-term-extraction.md) for the extraction design and [AD-010](./010-terminology.md) for the full terminology and brand management design.
+
+The `brand-voice-check` tool uses `ChatStructured` with a JSON Schema specifying dimension, severity, message, and suggestion fields. The LLM receives the brand voice profile (tone, style, examples) as context and returns structured findings. These findings are scored using the MQM-inspired penalty model from `core/brand/scoring.go` (see [AD-025](./025-brand-voice-governance.md)). Results are attached as `BrandVoiceAnnotation` on the Block and stored as `brand-voice-score` and `brand-voice-findings` block properties.
 
 Because AI tools are standard Tools, they compose naturally in flows:
 
