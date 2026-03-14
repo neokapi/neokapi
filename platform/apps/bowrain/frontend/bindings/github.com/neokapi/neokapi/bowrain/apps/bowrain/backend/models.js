@@ -7,79 +7,6 @@
 import { Create as $Create } from "@wailsio/runtime";
 
 /**
- * AITranslateFileRequest holds parameters for AI-translating an item.
- */
-export class AITranslateFileRequest {
-    /**
-     * Creates a new AITranslateFileRequest instance.
-     * @param {Partial<AITranslateFileRequest>} [$$source = {}] - The source object to create the AITranslateFileRequest.
-     */
-    constructor($$source = {}) {
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("item_name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["item_name"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("provider" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["provider"] = "";
-        }
-        if (!("api_key" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["api_key"] = "";
-        }
-        if (!("model" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["model"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["provider_config_id"] = undefined;
-        }
-
-        Object.assign(this, $$source);
-    }
-
-    /**
-     * Creates a new AITranslateFileRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AITranslateFileRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new AITranslateFileRequest(/** @type {Partial<AITranslateFileRequest>} */($$parsedSource));
-    }
-}
-
-/**
  * AddConceptRequest holds parameters for adding a concept.
  */
 export class AddConceptRequest {
@@ -1495,7 +1422,7 @@ export class SpanInfo {
         }
         if (!("type" in $$source)) {
             /**
-             * "bold", "link", "break", etc.
+             * Semantic type from vocabulary (e.g., "fmt:bold")
              * @member
              * @type {string}
              */
@@ -1515,6 +1442,51 @@ export class SpanInfo {
              * @type {string}
              */
             this["data"] = "";
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Format-specific refinement (e.g., "html:b")
+             * @member
+             * @type {string | undefined}
+             */
+            this["sub_type"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Human-readable label (e.g., "[B]")
+             * @member
+             * @type {string | undefined}
+             */
+            this["display_text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * Plain text equivalent
+             * @member
+             * @type {string | undefined}
+             */
+            this["equiv_text"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["deletable"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["cloneable"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {boolean | undefined}
+             */
+            this["can_reorder"] = undefined;
         }
 
         Object.assign(this, $$source);
