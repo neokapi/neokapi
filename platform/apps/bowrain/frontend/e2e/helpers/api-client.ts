@@ -314,17 +314,48 @@ export async function fullSeed(): Promise<SeedResult> {
   };
 }
 
-/** Wait for the server to be healthy (retry with backoff). */
-export async function waitForServer(maxWaitMs = 60000): Promise<void> {
+/** Component status from the readiness endpoint. */
+export interface ReadinessComponentStatus {
+  status: string;
+  type?: string;
+  latency_ms?: number;
+  providers?: Array<{ name: string; model?: string; configured: boolean }>;
+  error?: string;
+}
+
+/** Full readiness response from /api/v1/ready. */
+export interface ReadinessInfo {
+  status: "ready" | "degraded" | "unhealthy";
+  version: string;
+  components: Record<string, ReadinessComponentStatus>;
+}
+
+/**
+ * Wait for the server to be ready (all critical components up).
+ * Returns the readiness info so callers can inspect component status
+ * (e.g. check `components.ai.status` to skip AI-dependent tests).
+ */
+export async function waitForReady(maxWaitMs = 60000): Promise<ReadinessInfo> {
   const start = Date.now();
+  let lastError: string | undefined;
   while (Date.now() - start < maxWaitMs) {
     try {
-      const resp = await fetch(`${API}/health`);
-      if (resp.ok) return;
+      const resp = await fetch(`${API}/ready`);
+      if (resp.ok || resp.status === 503) {
+        const info: ReadinessInfo = await resp.json();
+        if (info.status !== "unhealthy") return info;
+        lastError = `status=${info.status}`;
+      }
     } catch {
       // Server not ready yet
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
-  throw new Error(`Server not healthy after ${maxWaitMs}ms`);
+  throw new Error(`Server not ready after ${maxWaitMs}ms (${lastError ?? "unreachable"})`);
+}
+
+/** Wait for the server to be healthy (retry with backoff).
+ *  @deprecated Use waitForReady() for richer status information. */
+export async function waitForServer(maxWaitMs = 60000): Promise<void> {
+  await waitForReady(maxWaitMs);
 }

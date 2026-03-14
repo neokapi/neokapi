@@ -167,18 +167,25 @@ jobs:
           bin/bowrain-server &
           echo $! > .bowrain-server.pid
 
-      - name: Wait for server health
+      - name: Wait for server readiness
         if: ${{ inputs.server_url == '' }}
         run: |
           for i in {1..30}; do
-            if curl -sf http://localhost:8080/api/v1/health; then
-              echo "Server is healthy"
-              exit 0
-            fi
+            READY_JSON=$(curl -sf http://localhost:8080/api/v1/ready 2>/dev/null) && {
+              STATUS=$(echo "$READY_JSON" | jq -r '.status')
+              if [ "$STATUS" = "ready" ] || [ "$STATUS" = "degraded" ]; then
+                echo "Server is $STATUS"
+                AI_STATUS=$(echo "$READY_JSON" | jq -r '.components.ai.status')
+                echo "AI_AVAILABLE=$( [ "$AI_STATUS" = "up" ] && echo true || echo false )" >> "$GITHUB_ENV"
+                echo "$READY_JSON" | jq .
+                exit 0
+              fi
+              echo "Server status: $STATUS (waiting...)"
+            }
             echo "Waiting for server... ($i/30)"
             sleep 2
           done
-          echo "Server failed to become healthy"
+          echo "Server failed to become ready"
           exit 1
 
       - name: Cache Playwright browsers
