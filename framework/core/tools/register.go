@@ -201,4 +201,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	reg.Register("scoping-report", func() tool.Tool {
 		return NewScopingReportTool(&ScopingReportConfig{})
 	})
+
+	reg.Register("brand-vocab-check", func() tool.Tool {
+		return NewBrandVocabCheckTool(nil, nil)
+	})
+
+	// brand-voice-check is an AI tool requiring a provider.LLMProvider,
+	// so it is instantiated directly (e.g. via NewBrandVoiceCheckTool)
+	// rather than through the registry.
 }

@@ -1,0 +1,173 @@
+package tools
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+
+	"github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/tool"
+	"github.com/neokapi/neokapi/termbase"
+)
+
+// BrandVocabConfig holds configuration for the brand vocabulary check tool.
+type BrandVocabConfig struct {
+	Profile *brand.VoiceProfile
+}
+
+func (c *BrandVocabConfig) ToolName() string { return "brand-vocab-check" }
+func (c *BrandVocabConfig) Reset()           {}
+func (c *BrandVocabConfig) Validate() error  { return nil }
+
+// BrandVocabCheckTool checks text against brand vocabulary rules (preferred/forbidden/competitor terms).
+// This is a rule-based check that runs before the LLM-based brand-voice-check.
+type BrandVocabCheckTool struct {
+	tool.BaseTool
+	profile  *brand.VoiceProfile
+	termBase termbase.TermBase // optional — if provided, filters by term_source=brand_vocabulary
+}
+
+// NewBrandVocabCheckTool creates a new brand vocabulary check tool.
+func NewBrandVocabCheckTool(profile *brand.VoiceProfile, tb termbase.TermBase) *BrandVocabCheckTool {
+	t := &BrandVocabCheckTool{
+		profile:  profile,
+		termBase: tb,
+	}
+	t.ToolName = "brand-vocab-check"
+	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
+	t.Cfg = &BrandVocabConfig{Profile: profile}
+	t.HandleBlockFn = t.handleBlock
+	return t
+}
+
+func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error) {
+	block, ok := part.Resource.(*model.Block)
+	if !ok {
+		return part, nil
+	}
+
+	sourceText := block.SourceText()
+	if strings.TrimSpace(sourceText) == "" {
+		return part, nil
+	}
+
+	var findings []brand.BrandVoiceFinding
+	lowerText := strings.ToLower(sourceText)
+
+	// Check forbidden terms — major severity.
+	if t.profile != nil {
+		for _, rule := range t.profile.Vocabulary.ForbiddenTerms {
+			lowerTerm := strings.ToLower(rule.Term)
+			idx := 0
+			for {
+				pos := strings.Index(lowerText[idx:], lowerTerm)
+				if pos < 0 {
+					break
+				}
+				absPos := idx + pos
+				f := brand.BrandVoiceFinding{
+					Dimension: brand.DimensionVocabulary,
+					Severity:  brand.SeverityMajor,
+					Message:   fmt.Sprintf("Forbidden term %q found", rule.Term),
+					Position: model.TextRange{
+						Start: absPos,
+						End:   absPos + len(rule.Term),
+					},
+					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
+				}
+				if rule.Replacement != "" {
+					f.Suggestion = fmt.Sprintf("Use %q instead", rule.Replacement)
+				}
+				if rule.Note != "" {
+					f.Message = fmt.Sprintf("Forbidden term %q found: %s", rule.Term, rule.Note)
+				}
+				findings = append(findings, f)
+				idx = absPos + len(lowerTerm)
+			}
+		}
+
+		// Check competitor terms — critical severity.
+		for _, rule := range t.profile.Vocabulary.CompetitorTerms {
+			lowerTerm := strings.ToLower(rule.Term)
+			idx := 0
+			for {
+				pos := strings.Index(lowerText[idx:], lowerTerm)
+				if pos < 0 {
+					break
+				}
+				absPos := idx + pos
+				f := brand.BrandVoiceFinding{
+					Dimension: brand.DimensionVocabulary,
+					Severity:  brand.SeverityCritical,
+					Message:   fmt.Sprintf("Competitor term %q found", rule.Term),
+					Position: model.TextRange{
+						Start: absPos,
+						End:   absPos + len(rule.Term),
+					},
+					OriginalText: sourceText[absPos : absPos+len(rule.Term)],
+				}
+				if rule.Replacement != "" {
+					f.Suggestion = fmt.Sprintf("Use %q instead", rule.Replacement)
+				}
+				findings = append(findings, f)
+				idx = absPos + len(lowerTerm)
+			}
+		}
+
+		// Check preferred terms — suggest when a forbidden term has a preferred replacement.
+		// This is handled above in the forbidden check via rule.Replacement.
+	}
+
+	// If termBase is available, also look up brand vocabulary terms.
+	if t.termBase != nil {
+		matches := t.termBase.LookupAll(sourceText, termbase.LookupOptions{
+			SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
+		})
+		for _, m := range matches {
+			if m.Term.CompetitorTerm {
+				findings = append(findings, brand.BrandVoiceFinding{
+					Dimension:    brand.DimensionVocabulary,
+					Severity:     brand.SeverityCritical,
+					Message:      fmt.Sprintf("Competitor term %q found in termbase", m.Term.Text),
+					Position:     m.Position,
+					OriginalText: m.Term.Text,
+				})
+			} else if m.Term.Status == model.TermForbidden {
+				findings = append(findings, brand.BrandVoiceFinding{
+					Dimension:    brand.DimensionVocabulary,
+					Severity:     brand.SeverityMajor,
+					Message:      fmt.Sprintf("Forbidden term %q found in termbase", m.Term.Text),
+					Position:     m.Position,
+					OriginalText: m.Term.Text,
+				})
+			}
+		}
+	}
+
+	if block.Properties == nil {
+		block.Properties = make(map[string]string)
+	}
+
+	if len(findings) > 0 {
+		findingsJSON, _ := json.Marshal(findings)
+		block.Properties["brand-vocab-findings"] = string(findingsJSON)
+
+		// Calculate score and add annotation.
+		score := brand.CalculateScore(findings)
+		if block.Annotations == nil {
+			block.Annotations = make(map[string]model.Annotation)
+		}
+		profileID := ""
+		if t.profile != nil {
+			profileID = t.profile.ID
+		}
+		block.Annotations["brand-voice"] = &brand.BrandVoiceAnnotation{
+			ProfileID: profileID,
+			Score:     score.Overall,
+			Findings:  findings,
+		}
+	}
+
+	return part, nil
+}
