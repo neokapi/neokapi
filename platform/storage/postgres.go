@@ -23,6 +23,11 @@ type PgDB struct {
 // The connection string should be a PostgreSQL DSN or URL, e.g.:
 //
 //	"postgres://user:pass@host:5432/dbname?sslmode=disable"
+//
+// TODO(graph): This uses database/sql which does not support pgx AfterConnect
+// hooks. AGE graph queries require the AfterConnect hook from
+// platform/graph.AfterConnect to load the AGE extension on each connection.
+// To enable graph support, switch to pgxpool with AfterConnect wired in.
 func OpenPostgres(connStr string) (*PgDB, error) {
 	db, err := sql.Open("pgx", connStr)
 	if err != nil {
@@ -66,6 +71,10 @@ func OpenPostgresAzure(connStr string, clientID string) (*PgDB, error) {
 		cfg.Password = token.Token
 		return nil
 	}
+
+	// TODO(graph): Wire graph.AfterConnect into poolConfig.AfterConnect
+	// to enable AGE on every connection. Requires plumbing an option
+	// through OpenPostgresAzure or switching the server to pgxpool directly.
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
