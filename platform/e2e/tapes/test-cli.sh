@@ -56,14 +56,14 @@ echo ""
 
 # Build kapi (needed by create-project.tape)
 echo "Building kapi..."
-(cd ../../.. && cd kapi && go build -o ../bin/kapi ./cmd/kapi) || {
+(cd ../../.. && make build) || {
   echo -e "${RED}Failed to build kapi${NC}"
   exit 1
 }
 
 # Build bowrain
 echo "Building bowrain..."
-(cd ../../.. && cd bowrain-cli && go build -o ../bin/bowrain ./cmd/bowrain) || {
+(cd ../../.. && make build-bowrain-cli) || {
   echo -e "${RED}Failed to build bowrain${NC}"
   exit 1
 }

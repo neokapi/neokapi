@@ -36,7 +36,8 @@ func NewBridgeRoundTripper(pool *BridgePool, cfg BridgeConfig, filterClass strin
 // RoundTripConfig configures a complete read→process→write cycle.
 type RoundTripConfig struct {
 	// Input document.
-	InputPath    string
+	Content      []byte // Inline content bytes (sent via gRPC)
+	InputPath    string // Input file path (Java reads from disk)
 	URI          string
 	SourceLocale string
 	TargetLocale string
@@ -77,6 +78,7 @@ func (rt *BridgeRoundTripper) Execute(ctx context.Context, cfg RoundTripConfig,
 		Encoding:     cfg.Encoding,
 		MimeType:     cfg.MimeType,
 		FilterParams: cfg.FilterParams,
+		Content:      cfg.Content,
 		SourcePath:   sourcePath,
 		OutputPath:   cfg.OutputPath,
 		OutputLocale: cfg.OutputLocale,

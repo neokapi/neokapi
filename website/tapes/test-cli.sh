@@ -55,7 +55,7 @@ echo ""
 
 # Build kapi
 echo "Building kapi..."
-(cd ../.. && cd kapi && go build -o ../bin/kapi ./cmd/kapi) || {
+(cd ../.. && make build) || {
   echo -e "${RED}Failed to build kapi${NC}"
   exit 1
 }

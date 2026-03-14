@@ -31,6 +31,19 @@ type RoundTripResult struct {
 // Returns the extracted parts and the reconstructed output bytes.
 func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
 	t.Helper()
+	return roundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, "en", "fr")
+}
+
+// RoundTripWithLocales is like RoundTrip but allows specifying source and target
+// locales instead of the default en/fr. This is needed for tests that validate
+// locale-dependent behavior (e.g., text direction clarification).
+func RoundTripWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
+	t.Helper()
+	return roundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, string(srcLocale), string(tgtLocale))
+}
+
+func roundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) RoundTripResult {
+	t.Helper()
 
 	// --- Read phase ---
 	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
@@ -40,8 +53,8 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 
 	doc := &model.RawDocument{
 		URI:          uri,
-		SourceLocale: "en",
-		TargetLocale: "fr",
+		SourceLocale: model.LocaleID(srcLocale),
+		TargetLocale: model.LocaleID(tgtLocale),
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
 		Reader:       io.NopCloser(bytes.NewReader(content)),
@@ -75,78 +88,11 @@ func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	}
 	writer.SetOriginalContent(content)
 	writer.SetEncoding("UTF-8")
-	writer.SetLocale("fr")
+	writer.SetLocale(model.LocaleID(tgtLocale))
 	require.NoError(t, writer.SetOutputWriter(&output))
 
 	// Pass source_path when the URI is an absolute file path so the Java
 	// write phase can also resolve relative auxiliary files from disk.
-	if filepath.IsAbs(uri) {
-		if _, serr := os.Stat(uri); serr == nil {
-			writer.SetSourcePath(uri)
-		}
-	}
-
-	partsCh := make(chan *model.Part, len(parts))
-	for _, p := range parts {
-		partsCh <- p
-	}
-	close(partsCh)
-
-	require.NoError(t, writer.Write(ctx, partsCh), "roundtrip write phase")
-
-	return RoundTripResult{
-		Parts:  parts,
-		Output: output.Bytes(),
-	}
-}
-
-// RoundTripWithLocales is like RoundTrip but allows specifying source and target
-// locales instead of the default en/fr. This is needed for tests that validate
-// locale-dependent behavior (e.g., text direction clarification).
-func RoundTripWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
-	t.Helper()
-
-	// --- Read phase ---
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
-	if filterParams != nil {
-		reader.SetFilterParams(filterParams)
-	}
-
-	doc := &model.RawDocument{
-		URI:          uri,
-		SourceLocale: srcLocale,
-		TargetLocale: tgtLocale,
-		Encoding:     "UTF-8",
-		MimeType:     mimeType,
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-
-	ctx := context.Background()
-	require.NoError(t, reader.Open(ctx, doc))
-
-	var parts []*model.Part
-	var readErr error
-	for pr := range reader.Read(ctx) {
-		if pr.Error != nil {
-			readErr = pr.Error
-			break
-		}
-		parts = append(parts, pr.Part)
-	}
-	require.NoError(t, readErr, "roundtrip read phase")
-	require.NoError(t, reader.Close(), "closing reader after read phase")
-
-	// --- Write phase ---
-	var output bytes.Buffer
-	writer := bridge.NewBridgeFormatWriter(pool, cfg, filterClass)
-	if filterParams != nil {
-		writer.SetFilterParams(filterParams)
-	}
-	writer.SetOriginalContent(content)
-	writer.SetEncoding("UTF-8")
-	writer.SetLocale(tgtLocale)
-	require.NoError(t, writer.SetOutputWriter(&output))
-
 	if filepath.IsAbs(uri) {
 		if _, serr := os.Stat(uri); serr == nil {
 			writer.SetSourcePath(uri)
@@ -215,6 +161,7 @@ func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.Bridge
 	for _, f := range files {
 		name := filepath.Base(f)
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			if failing[name] {
 				t.Skipf("known failing file: %s", name)
 			}
