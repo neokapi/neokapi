@@ -115,9 +115,9 @@ The MCP SDK is added independently to `kapi/go.mod` and `bowrain-cli/go.mod`. No
 
 See [MCP Tools Reference](/docs/notes/mcp-tools-reference) for the complete tool specifications with input/output schemas.
 
-### Cloud MCP Server (Bowrain Server)
+### Cloud MCP Server
 
-In addition to the CLI-based stdio MCP servers, Bowrain Server exposes a cloud MCP endpoint at `/mcp/` using **Streamable HTTP** transport. This enables AI agents to access brand voice profiles, vocabulary tools, and compliance scoring over HTTP without running a local CLI process. Authentication uses OAuth 2.1 with Keycloak token validation.
+In addition to the CLI-based stdio MCP servers, the REST server exposes a cloud MCP endpoint at `/mcp/` using **Streamable HTTP** transport. This enables AI agents to access brand voice profiles, vocabulary tools, and compliance scoring over HTTP without running a local CLI process. Authentication uses OAuth 2.1 with Keycloak token validation.
 
 The cloud MCP server provides brand voice resources (profiles, vocabulary, examples), tools (vocabulary checking, compliance scoring, rewriting), and prompt templates (write/rewrite/check workflows). It reuses the same `BrandStore` interface as the REST API. See [AD-025](./025-brand-voice-governance.md) for the brand voice governance design and the [Brand Voice Data Model](/docs/notes/brand-voice-data-model) note for the full MCP resource/tool/prompt specification.
 

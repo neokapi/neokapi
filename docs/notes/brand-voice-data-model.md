@@ -163,9 +163,9 @@ CREATE TABLE IF NOT EXISTS brand_voice_corrections (
 );
 ```
 
-## Bowrain Server: PostgreSQL Schema
+## Server: PostgreSQL Schema
 
-The Bowrain Server PostgreSQL schema (`bowrain/brand/`) mirrors the SQLite schema with PostgreSQL-specific types:
+The server PostgreSQL schema mirrors the SQLite schema with PostgreSQL-specific types:
 - `TEXT` columns for JSON data (tone, style, vocabulary, examples, locales, channels, dimensions, findings)
 - `TIMESTAMP WITH TIME ZONE` for temporal columns
 - Workspace isolation via `workspace_id` column with foreign key to workspaces table
@@ -186,9 +186,9 @@ Severity weights follow MQM conventions:
 - major=5 (clear violation)
 - critical=25 (severe violation, e.g., competitor term)
 
-## Bowrain Server: MCP Protocol Details
+## Server: MCP Protocol Details
 
-The Bowrain Server cloud MCP endpoint (`platform/server/mcp/`) uses Streamable HTTP transport:
+The server cloud MCP endpoint (`platform/server/mcp/`) uses Streamable HTTP transport:
 
 ```go
 // server.go
@@ -232,11 +232,11 @@ Loaded via `packs.Load("professional-b2b")` which returns a `*brand.VoiceProfile
 | `core/tools/brandvocab.go` | Rule-based brand-vocab-filter pipeline tool |
 | `cli/storage/brand/sqlite.go` | SQLite BrandStore implementation |
 
-### Bowrain Server (`platform/`, `bowrain/`)
+### Server (`platform/`, `bowrain/`)
 
 | File | Purpose |
 |------|---------|
-| `bowrain/brand/` | PostgreSQL BrandStore implementation |
+| `bowrain/brand/` | PostgreSQL BrandStore (server) |
 | `platform/server/mcp/server.go` | Cloud MCP server bootstrap |
 | `platform/server/mcp/resources.go` | MCP resource handlers |
 | `platform/server/mcp/tools.go` | MCP tool handlers (Phase 1) |

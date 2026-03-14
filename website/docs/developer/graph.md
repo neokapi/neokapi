@@ -5,7 +5,7 @@ title: Graph Store
 
 # Graph Store Library
 
-The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. Bowrain Server extends this with an Apache AGE (PostgreSQL) backend for production deployments.
+The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. Server deployments can use an Apache AGE (PostgreSQL) backend for production use.
 
 ## Architecture
 
@@ -208,7 +208,7 @@ defer store.Close()
 
 Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval. `CypherQuery`/`CypherExec` return `ErrCypherNotSupported`.
 
-The `GraphStore` interface is designed for extension — Bowrain Server provides an Apache AGE (PostgreSQL) backend with native Cypher query support for production deployments.
+The `GraphStore` interface is designed for extension — server deployments can use an Apache AGE (PostgreSQL) backend with native Cypher query support.
 
 ## Usage Examples
 

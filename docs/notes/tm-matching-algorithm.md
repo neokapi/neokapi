@@ -85,7 +85,7 @@ Falls back to length-based pre-filtering if pg_trgm is unavailable.
 ## Storage Backends
 
 1. **In-memory**: fast, ephemeral; for session-scoped leverage during batch processing.
-2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are pre-computed and indexed. FTS5 trigram indexes for fuzzy candidate retrieval; FTS5 unicode61 for ranked UI search. Uses the shared `bowrain/storage/` infrastructure layer with TermBase ([AD-010](/docs/ad/010-terminology)) and Content Store ([AD-003](/docs/ad/003-content-store)). Pure Go with no CGo dependencies.
+2. **SQLite** (via `modernc.org/sqlite`): persistent; matching keys are pre-computed and indexed. FTS5 trigram indexes for fuzzy candidate retrieval; FTS5 unicode61 for ranked UI search. Pure Go with no CGo dependencies.
 3. **PostgreSQL**: persistent; same matching logic with pg_trgm GIN indexes for fuzzy candidate retrieval and tsvector/tsquery for ranked UI search. Workspace-scoped isolation via `workspace_id` column.
 
 Generalized and structural exact matching is an indexed lookup -- fast even for large TMs. Fuzzy matching uses trigram candidate retrieval to narrow the search space, then Levenshtein scoring on ~200 candidates.
