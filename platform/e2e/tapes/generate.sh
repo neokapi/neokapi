@@ -121,12 +121,13 @@ elif command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1;
     if [ "${token_ok:-1}" -eq 0 ]; then
       export BOWRAIN_TOKEN
       BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-    # Create default workspace
-    curl -sf -X POST \
-      -H "Authorization: Bearer $BOWRAIN_TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{"name":"Personal","slug":"personal"}' \
-      http://localhost:8080/api/v1/workspaces > /dev/null 2>&1 || true
+      # Create default workspace
+      curl -sf -X POST \
+        -H "Authorization: Bearer $BOWRAIN_TOKEN" \
+        -H "Content-Type: application/json" \
+        -d '{"name":"Personal","slug":"personal"}' \
+        http://localhost:8080/api/v1/workspaces > /dev/null 2>&1 || true
+    fi
     SERVER_AVAILABLE=true
     STARTED_SERVER=true
   else
