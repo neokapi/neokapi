@@ -79,7 +79,10 @@ export function WorkspaceLayout() {
         // our origin after logout.
         if (data.end_session_url) {
           const endSessionUrl = new URL(data.end_session_url);
-          endSessionUrl.searchParams.set("post_logout_redirect_uri", window.location.origin + "/");
+          if (data.id_token_hint) {
+            endSessionUrl.searchParams.set("id_token_hint", data.id_token_hint);
+            endSessionUrl.searchParams.set("post_logout_redirect_uri", window.location.origin + "/");
+          }
           queryClient.clear();
           window.location.href = endSessionUrl.toString();
           return;

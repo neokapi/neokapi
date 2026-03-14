@@ -10,7 +10,8 @@
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
-    "update-kc-gen": "keycloakify update-kc-gen"
+    "update-kc-gen": "keycloakify update-kc-gen",
+    "e2e": "npx playwright test --config e2e/playwright.config.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.1",

@@ -14,11 +14,15 @@ const Input = BaseInput as React.ForwardRefExoticComponent<
 >;
 
 export default function Login(props: {
-  kcContext: Extract<KcContext, { pageId: "login.ftl" }>;
+  kcContext: Extract<KcContext, { pageId: "login.ftl" }> | Extract<KcContext, { pageId: "login-username.ftl" }>;
   i18n: I18n;
 }) {
   const { kcContext, i18n } = props;
-  const { url, realm, login, messagesPerField, message, social } = kcContext;
+  const { url, realm, login, messagesPerField, message } = kcContext;
+  const social = (kcContext as any).social as
+    | { displayInfo?: boolean; providers?: { loginUrl: string; alias: string; providerId: string; displayName: string }[] }
+    | undefined;
+  const enableWebAuthnConditionalUI = (kcContext as any).enableWebAuthnConditionalUI as boolean | undefined;
   const { msg, msgStr } = i18n;
 
   return (
@@ -62,7 +66,7 @@ export default function Login(props: {
                 type="text"
                 icon={realm.registrationEmailAsUsername ? Mail : User}
                 autoFocus
-                autoComplete="username"
+                autoComplete={enableWebAuthnConditionalUI ? "username webauthn" : "username"}
                 defaultValue={login?.username ?? ""}
                 aria-invalid={messagesPerField.existsError("username")}
               />

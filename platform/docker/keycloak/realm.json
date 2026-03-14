@@ -8,13 +8,13 @@
   "verifyEmail": true,
   "loginWithEmailAllowed": true,
   "sslRequired": "none",
-  "webAuthnPolicyPasswordless": {
-    "rpEntityName": "Bowrain",
-    "signatureAlgorithms": ["ES256"],
-    "requireResidentKey": "Yes",
-    "userVerificationRequirement": "required"
-  },
+  "webAuthnPolicyPasswordlessRpEntityName": "Bowrain",
+  "webAuthnPolicyPasswordlessSignatureAlgorithms": ["ES256"],
+  "webAuthnPolicyPasswordlessRequireResidentKey": "Yes",
+  "webAuthnPolicyPasswordlessUserVerificationRequirement": "required",
+  "webAuthnPolicyPasswordlessPasskeysEnabled": true,
   "browserFlow": "passkey browser",
+  "registrationFlow": "passkey registration",
   "smtpServer": {
     "host": "mailpit",
     "port": "1025",
@@ -117,6 +117,35 @@
   ],
   "authenticationFlows": [
     {
+      "alias": "passkey registration",
+      "description": "Passwordless registration — no password required",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "flowAlias": "passkey registration form",
+          "authenticator": "registration-page-form",
+          "authenticatorFlow": true,
+          "requirement": "REQUIRED"
+        }
+      ]
+    },
+    {
+      "alias": "passkey registration form",
+      "description": "Registration form (email + name only)",
+      "providerId": "form-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "registration-user-creation",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED"
+        }
+      ]
+    },
+    {
       "alias": "passkey browser",
       "description": "Passkey-based browser authentication",
       "providerId": "basic-flow",
@@ -130,11 +159,6 @@
         },
         {
           "authenticator": "identity-provider-redirector",
-          "authenticatorFlow": false,
-          "requirement": "ALTERNATIVE"
-        },
-        {
-          "authenticator": "auth-passkeys-conditional",
           "authenticatorFlow": false,
           "requirement": "ALTERNATIVE"
         },
