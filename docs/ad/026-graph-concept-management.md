@@ -51,10 +51,6 @@ type GraphStore interface {
     BulkCreateNodes(ctx context.Context, nodes []*Node) error
     BulkCreateEdges(ctx context.Context, edges []*Edge) error
 
-    // Cypher escape hatch (AGE backend only; SQLite returns ErrCypherNotSupported)
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*Node, error)
-    CypherExec(ctx context.Context, query string, params map[string]any) error
-
     Close() error
 }
 ```
@@ -139,7 +135,20 @@ Edge labels in `core/graph/labels.go` are aligned with W3C SKOS vocabulary for t
 
 ### Apache AGE Backend (Server)
 
-Server deployments can use an Apache AGE backend (`platform/graph/age.go`) that implements `GraphStore` using PostgreSQL's AGE extension for native Cypher query support. This includes an `agtype` parser for AGE's custom result format and an `AfterConnect` hook for pgx pool connection setup. See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note for AGE-specific details.
+Server deployments can use an Apache AGE backend (`platform/graph/age.go`) that implements `GraphStore` using PostgreSQL's AGE extension. The AGE backend also implements a `CypherStore` sub-interface that adds native Cypher query support:
+
+```go
+// platform/graph/cypher.go
+type CypherStore interface {
+    graph.GraphStore
+    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*graph.Node, error)
+    CypherExec(ctx context.Context, query string, params map[string]any) error
+}
+```
+
+Cypher methods are not part of the core `GraphStore` interface — they are a server-specific extension. Callers type-assert to `CypherStore` when they need Cypher access. This keeps the framework interface clean and fully implementable by the SQLite backend.
+
+See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note for AGE-specific details (agtype parsing, AfterConnect hook).
 
 ### SQLite Backend
 
@@ -176,7 +185,6 @@ Indexes on `source`, `target`, and `label` columns for efficient traversal.
 - Validity filtering done in Go after edge retrieval (for scoped queries)
 - `ShortestPath` uses a recursive CTE with BFS, tracking visited nodes to avoid cycles
 - Bulk operations use transactions with prepared statements
-- `CypherQuery` / `CypherExec` return `ErrCypherNotSupported`
 
 ### Event-Driven Graph Sync (Server)
 
@@ -200,7 +208,7 @@ type ConceptRelation struct {
 
 - **Native graph database (Neo4j, DGraph)**: Adds deployment complexity and a separate database dependency. Apache AGE runs as a PostgreSQL extension on the existing database, requiring no additional infrastructure.
 
-- **Graph operations in SQL only**: Recursive CTEs handle simple traversals but become unwieldy for complex graph patterns. The Cypher escape hatch on AGE provides full graph query power when needed.
+- **Graph operations in SQL only**: Recursive CTEs handle simple traversals but become unwieldy for complex graph patterns. The AGE backend's `CypherStore` sub-interface provides full graph query power when needed.
 
 - **Hard-coded validity dimensions**: The tag-based model with workspace-configurable dimensions is more flexible than fixed fields like `market`, `product`, `channel`. It supports any scoping vocabulary without schema changes.
 
@@ -212,6 +220,6 @@ type ConceptRelation struct {
 - Two backends serve different deployment needs: AGE for production with native Cypher queries, SQLite for CLI and development with no external dependencies
 - Temporal validity enables modeling of relationships that change over time (term supersession, seasonal terminology, product lifecycle)
 - SKOS-aligned labels ensure interoperability with standard terminology interchange formats
-- The Cypher escape hatch on AGE allows power users to write complex graph queries directly, while the structured API covers common operations
+- The `CypherStore` sub-interface on the AGE backend allows power users to write complex graph queries directly, while the core `GraphStore` API covers common operations portably
 - Event-driven sync keeps the graph consistent with relational data without manual intervention
 - The `GraphStore` interface enables backend substitution -- a project can start with SQLite and migrate to AGE when needed

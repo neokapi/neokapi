@@ -11,11 +11,12 @@ The graph store library (`core/graph/`) provides a backend-agnostic graph databa
 
 ```mermaid
 graph TD
-    GS[GraphStore Interface] --> AGE[AGE Backend]
-    GS --> SQLite[SQLite Backend]
+    GS[GraphStore Interface] --> SQLite[SQLite Backend]
+    GS --> CS[CypherStore Interface]
+    CS --> AGE[AGE Backend]
 
-    AGE --> PG[(PostgreSQL + AGE)]
     SQLite --> DB[(SQLite)]
+    AGE --> PG[(PostgreSQL + AGE)]
 
     N[Node] --> P[Properties]
     E[Edge] --> V[Validity]
@@ -54,10 +55,6 @@ type GraphStore interface {
     // Bulk operations
     BulkCreateNodes(ctx context.Context, nodes []*Node) error
     BulkCreateEdges(ctx context.Context, edges []*Edge) error
-
-    // Cypher escape hatch (AGE only; SQLite returns ErrCypherNotSupported)
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*Node, error)
-    CypherExec(ctx context.Context, query string, params map[string]any) error
 
     Close() error
 }
@@ -206,9 +203,9 @@ store, _ := graphstore.NewSQLiteGraphStore(db)
 defer store.Close()
 ```
 
-Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval. `CypherQuery`/`CypherExec` return `ErrCypherNotSupported`.
+Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval.
 
-The `GraphStore` interface is designed for extension — server deployments can use an Apache AGE (PostgreSQL) backend with native Cypher query support.
+The `GraphStore` interface is designed for extension — server deployments can use an Apache AGE (PostgreSQL) backend.
 
 ## Usage Examples
 
@@ -262,12 +259,25 @@ neighbors, _ := store.NeighborsScoped(ctx, "old-term", graph.Outgoing, scope, gr
 
 ### Cypher Queries (AGE Backend Only)
 
-The `CypherQuery` and `CypherExec` methods provide an escape hatch for complex graph queries on the AGE backend:
+The AGE backend implements a `CypherStore` sub-interface (`platform/graph/`) that adds Cypher query support on top of `GraphStore`:
 
 ```go
-nodes, _ := store.CypherQuery(ctx,
-    "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
-    map[string]any{"root": "animal"})
+// platform/graph/cypher.go
+type CypherStore interface {
+    graph.GraphStore
+    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*graph.Node, error)
+    CypherExec(ctx context.Context, query string, params map[string]any) error
+}
 ```
 
-The SQLite backend returns `graph.ErrCypherNotSupported` for these methods. Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries that work across all backends.
+Callers that need Cypher access type-assert at the call site:
+
+```go
+if cs, ok := store.(graphstore.CypherStore); ok {
+    nodes, _ := cs.CypherQuery(ctx,
+        "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
+        map[string]any{"root": "animal"})
+}
+```
+
+Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries that work across all backends.
