@@ -2,6 +2,15 @@ name: Screenshots & Recordings
 
 on:
   workflow_dispatch:
+    inputs:
+      server_url:
+        description: 'External server URL (e.g. https://staging.bowrain.cloud). Leave blank to use local Docker stack.'
+        required: false
+        default: ''
+      server_token:
+        description: 'Pre-authenticated JWT token. Leave blank to run device auth flow.'
+        required: false
+        default: ''
   schedule:
     # Nightly at 2 AM UTC
     - cron: '0 2 * * *'
@@ -131,15 +140,19 @@ jobs:
         run: npm run build
 
       - name: Build bowrain-server
+        if: ${{ inputs.server_url == '' }}
         run: cd platform && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Build Keycloak theme
+        if: ${{ inputs.server_url == '' }}
         run: make -C platform keycloak-theme
 
       - name: Start dependencies (Keycloak + Mailpit + NATS)
+        if: ${{ inputs.server_url == '' }}
         run: docker compose -f platform/compose.yaml up -d --wait
 
       - name: Start bowrain-server
+        if: ${{ inputs.server_url == '' }}
         run: |
           BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
           BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
@@ -155,6 +168,7 @@ jobs:
           echo $! > .bowrain-server.pid
 
       - name: Wait for server health
+        if: ${{ inputs.server_url == '' }}
         run: |
           for i in {1..30}; do
             if curl -sf http://localhost:8080/api/v1/health; then
@@ -180,6 +194,9 @@ jobs:
       - name: Generate screenshots
         working-directory: platform/apps/web
         run: npx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
+        env:
+          BOWRAIN_SERVER_URL: ${{ inputs.server_url || 'http://localhost:8080' }}
+          BOWRAIN_TOKEN: ${{ inputs.server_token }}
 
       - name: Generate recordings
         working-directory: platform/apps/web
@@ -187,6 +204,8 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
+          BOWRAIN_SERVER_URL: ${{ inputs.server_url || 'http://localhost:8080' }}
+          BOWRAIN_TOKEN: ${{ inputs.server_token }}
 
       - name: Copy recordings to static assets
         working-directory: platform/apps/web
@@ -202,7 +221,7 @@ jobs:
           retention-days: 30
 
       - name: Shutdown server and dependencies
-        if: always()
+        if: ${{ always() && inputs.server_url == '' }}
         run: |
           if [ -f .bowrain-server.pid ]; then
             kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
@@ -277,6 +296,7 @@ jobs:
           sudo chmod +x /usr/local/bin/vhs
 
       - name: Login to GHCR
+        if: ${{ inputs.server_url == '' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -284,6 +304,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Start full stack (pre-built Docker images)
+        if: ${{ inputs.server_url == '' }}
         run: docker compose -f platform/e2e/compose.yaml up -d --wait
 
       - name: Generate Bowrain CLI recordings
@@ -291,15 +312,17 @@ jobs:
         working-directory: platform/e2e/tapes
         run: |
           export PATH="$PWD/../../../bin:$PATH"
-          export BOWRAIN_SERVER_URL=http://localhost:8080
 
           Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
           export DISPLAY=:99
 
           bash generate.sh
+        env:
+          BOWRAIN_SERVER_URL: ${{ inputs.server_url || 'http://localhost:8080' }}
+          BOWRAIN_TOKEN: ${{ inputs.server_token }}
 
       - name: Shutdown
-        if: always()
+        if: ${{ always() && inputs.server_url == '' }}
         run: docker compose -f platform/e2e/compose.yaml down -v
 
       - name: Upload Bowrain CLI assets
