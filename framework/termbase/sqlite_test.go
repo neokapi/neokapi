@@ -1,9 +1,12 @@
 package termbase_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
+	"time"
 
+	"github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/assert"
@@ -261,4 +264,177 @@ func TestSQLiteTermBase_ScaleTest(t *testing.T) {
 	concepts, total := tb.Search("terminology", "", "", 0, 10)
 	assert.GreaterOrEqual(t, total, 1)
 	assert.GreaterOrEqual(t, len(concepts), 1)
+}
+
+func TestSQLiteTermBase_TermSourceField(t *testing.T) {
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	// Add a terminology concept (default source).
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "term-1",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	// Add a brand vocabulary concept.
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "brand-1",
+		Domain: "brand",
+		Source: termbase.TermSourceBrandVocabulary,
+		Terms: []termbase.Term{
+			{Text: "Acme Cloud", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	// Verify source is persisted.
+	c, ok := tb.GetConcept("term-1")
+	assert.True(t, ok)
+	assert.Equal(t, termbase.TermSourceTerminology, c.Source)
+
+	c, ok = tb.GetConcept("brand-1")
+	assert.True(t, ok)
+	assert.Equal(t, termbase.TermSourceBrandVocabulary, c.Source)
+}
+
+func TestSQLiteTermBase_SourceFilterLookup(t *testing.T) {
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "term-1",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Deploy", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "brand-1",
+		Domain: "brand",
+		Source: termbase.TermSourceBrandVocabulary,
+		Terms: []termbase.Term{
+			{Text: "Deploy", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	// No filter: both match.
+	matches := tb.Lookup("Deploy", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+	})
+	assert.Len(t, matches, 2)
+
+	// Filter brand_vocabulary only.
+	matches = tb.Lookup("Deploy", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+		SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
+	})
+	require.Len(t, matches, 1)
+	assert.Equal(t, "brand-1", matches[0].Concept.ID)
+
+	// Filter terminology only.
+	matches = tb.Lookup("Deploy", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+		SourceFilter: []termbase.TermSource{termbase.TermSourceTerminology},
+	})
+	require.Len(t, matches, 1)
+	assert.Equal(t, "term-1", matches[0].Concept.ID)
+}
+
+func TestSQLiteTermBase_SourceFilterLookupAll(t *testing.T) {
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "term-1",
+		Domain: "software",
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "brand-1",
+		Domain: "brand",
+		Source: termbase.TermSourceBrandVocabulary,
+		Terms: []termbase.Term{
+			{Text: "Save", Locale: model.LocaleEnglish, Status: model.TermPreferred},
+		},
+	}))
+
+	matches := tb.LookupAll("Click Save", termbase.LookupOptions{
+		SourceLocale: model.LocaleEnglish,
+		SourceFilter: []termbase.TermSource{termbase.TermSourceBrandVocabulary},
+	})
+	require.Len(t, matches, 1)
+	assert.Equal(t, "brand-1", matches[0].Concept.ID)
+}
+
+func TestSQLiteTermBase_CompetitorTermField(t *testing.T) {
+	tb, err := termbase.NewSQLiteTermBase(":memory:")
+	require.NoError(t, err)
+	defer tb.Close()
+
+	require.NoError(t, tb.AddConcept(termbase.Concept{
+		ID:     "brand-1",
+		Domain: "brand",
+		Source: termbase.TermSourceBrandVocabulary,
+		Terms: []termbase.Term{
+			{Text: "Acme Cloud", Locale: model.LocaleEnglish, Status: model.TermPreferred, CompetitorTerm: false},
+			{Text: "CompetitorX Cloud", Locale: model.LocaleEnglish, Status: model.TermForbidden, CompetitorTerm: true},
+		},
+	}))
+
+	c, ok := tb.GetConcept("brand-1")
+	assert.True(t, ok)
+	require.Len(t, c.Terms, 2)
+	assert.False(t, c.Terms[0].CompetitorTerm)
+	assert.True(t, c.Terms[1].CompetitorTerm)
+}
+
+func TestConceptRelation_JSON(t *testing.T) {
+	rel := termbase.ConceptRelation{
+		SourceID:     "concept-1",
+		TargetID:     "concept-2",
+		RelationType: "related",
+	}
+	data, err := json.Marshal(rel)
+	require.NoError(t, err)
+
+	var decoded termbase.ConceptRelation
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, rel, decoded)
+}
+
+func TestTermDesignation_WithValidity(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	later := now.Add(24 * time.Hour)
+
+	td := termbase.TermDesignation{
+		Term: termbase.Term{
+			Text:   "Acme Cloud",
+			Locale: model.LocaleEnglish,
+			Status: model.TermPreferred,
+		},
+		Validity: &graph.Validity{
+			ValidFrom: &now,
+			ValidTo:   &later,
+			Tags:      map[string]string{"region": "US"},
+		},
+	}
+
+	data, err := json.Marshal(td)
+	require.NoError(t, err)
+
+	var decoded termbase.TermDesignation
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, td.Term.Text, decoded.Term.Text)
+	assert.NotNil(t, decoded.Validity)
+	assert.True(t, decoded.Validity.ValidFrom.Equal(now))
+	assert.True(t, decoded.Validity.ValidTo.Equal(later))
+	assert.Equal(t, "US", decoded.Validity.Tags["region"])
 }

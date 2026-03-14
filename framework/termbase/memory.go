@@ -156,6 +156,9 @@ func (tb *InMemoryTermBase) Lookup(sourceText string, opts LookupOptions) []Term
 		if !matchesDomain(concept, opts.Domains) {
 			continue
 		}
+		if !matchesSource(concept, opts.SourceFilter) {
+			continue
+		}
 
 		for _, term := range concept.Terms {
 			if term.Locale != opts.SourceLocale {
@@ -229,6 +232,9 @@ func (tb *InMemoryTermBase) LookupAll(sourceText string, opts LookupOptions) []T
 
 	for _, concept := range tb.concepts {
 		if !matchesDomain(concept, opts.Domains) {
+			continue
+		}
+		if !matchesSource(concept, opts.SourceFilter) {
 			continue
 		}
 
@@ -345,6 +351,22 @@ func MatchModesEnabled(modes []model.MatchStrategy) map[model.MatchStrategy]bool
 		m[mode] = true
 	}
 	return m
+}
+
+func matchesSource(c Concept, filter []TermSource) bool {
+	if len(filter) == 0 {
+		return true
+	}
+	source := c.Source
+	if source == "" {
+		source = TermSourceTerminology
+	}
+	for _, f := range filter {
+		if f == source {
+			return true
+		}
+	}
+	return false
 }
 
 func matchesDomain(c Concept, domains []string) bool {
