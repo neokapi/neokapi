@@ -125,9 +125,9 @@ type BrandStore interface {
 
 The framework provides:
 
-1. **SQLite** (`cli/storage/brand/`) — persistent file-based storage for kapi and bowrain CLI. JSON columns for tone, style, vocabulary, examples, locales, channels.
+1. **SQLite** (`cli/storage/brand/`) — persistent file-based storage for CLI tools. JSON columns for tone, style, vocabulary, examples, locales, channels.
 
-The `BrandStore` interface supports server-side backends — Bowrain Server implements a PostgreSQL backend with workspace scoping.
+The `BrandStore` interface supports server-side backends with workspace scoping and PostgreSQL storage.
 
 Score storage tracks compliance over time per block, enabling trend analysis. The correction feedback loop (`StoreCorrection` / `GetSuggestedRules`) surfaces repeated user corrections as candidate vocabulary rules.
 
@@ -151,9 +151,9 @@ This means brand vocabulary flows through the same pipeline tools (`term-lookup`
 Brand voice capabilities are exposed to AI agents via MCP ([AD-021](./021-mcp-integration.md)):
 
 - **`kapi mcp`** (stdio) — brand voice checking via `run_flow` with the `brand-voice-check` and `brand-vocab-filter` tools. No server required.
-- **`bowrain mcp`** (stdio) — same capabilities within a `.bowrain/` project context.
+- **Project CLI MCP** (stdio) — same capabilities within a project context.
 
-Bowrain Server extends this with a cloud MCP endpoint (`/mcp/`) using Streamable HTTP transport, providing HTTP-based access to brand voice profiles, vocabulary tools, scoring, and guided prompts for AI agents.
+Server deployments can extend this with a cloud MCP endpoint using Streamable HTTP transport, providing HTTP-based access to brand voice profiles, vocabulary tools, scoring, and guided prompts for AI agents.
 
 ### Starter Packs
 

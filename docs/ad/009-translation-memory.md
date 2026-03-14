@@ -78,34 +78,19 @@ Spans for the structural key. No separate pre-processing step is needed.
 
 ### Storage Backends
 
-Three storage tiers:
+The framework provides two storage tiers:
 
 1. **In-memory** (`core/sievepen/`): fast, ephemeral; for session-scoped
    leverage during batch processing.
-2. **CLI SQLite** (`cli/storage/sievepen/`): persistent file-based storage for
-   kapi and bowrain CLI. Same matching algorithm and schema as the server
-   variant but without project_id, stream, or workspace_id columns. Resources
+2. **SQLite** (`cli/storage/sievepen/`): persistent file-based storage for
+   CLI tools. Same matching algorithm and schema as server
+   variants but without project_id, stream, or workspace_id columns. Resources
    are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file`
-   (explicit path). Created on demand. Uses a lightweight `cli/storage/`
-   infrastructure layer.
-3. **Server PostgreSQL** (`bowrain/sievepen/`): persistent; matching keys are
-   pre-computed and indexed. Uses the shared `bowrain/storage/` infrastructure
-   layer with TermBase ([AD-010](./010-terminology.md)) and Content Store
-   ([AD-003](./003-content-store.md)). Workspace-scoped isolation (`workspace_id`),
-   project scoping, and stream branching. Shares the connection pool with
-   ContentStore, AuthStore, TermBase, JobStore, and QuotaStore
-   ([AD-003](./003-content-store.md)).
+   (explicit path). Created on demand.
 
-| Aspect | kapi CLI | Bowrain Server |
-|--------|---------|---------------|
-| Storage | SQLite files on disk | PostgreSQL |
-| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
-| Scope | Single user, single machine | Multi-user, multi-workspace |
-| Features | CRUD, TMX import/export, lookup, search | + streams, project scoping, REST API |
-
-All backends implement the same `TranslationMemory` interface. The server
-selects the backend at startup based on the `DATABASE_URL` connection string
-prefix ([AD-003](./003-content-store.md)).
+The `TranslationMemory` interface supports server-side backends with
+workspace-scoped isolation, project scoping, and stream branching for
+multi-user deployments.
 
 Generalized and structural exact matching is an indexed lookup -- fast even for
 large TMs. Fuzzy matching uses trigram-based candidate retrieval (FTS5 trigram
@@ -164,7 +149,7 @@ See [TM Matching Algorithm](/docs/notes/tm-matching-algorithm) for the full TMX 
 - The tiered matching pipeline (generalized, structural, plain) maximizes reuse
   while falling back gracefully for legacy content
 - TMX roundtrip preserves inline codes via standard TMX elements
-- Shared storage infrastructure (PostgreSQL) with TermBase
-  ([AD-010](./010-terminology.md)) and Content Store
-  ([AD-003](./003-content-store.md)) reduces code duplication
+- Storage interface enables both local SQLite and server-side backends,
+  sharing infrastructure with TermBase ([AD-010](./010-terminology.md))
+  and Content Store ([AD-003](./003-content-store.md))
 - TMX import/export provides portability for offline sharing

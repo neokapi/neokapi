@@ -162,7 +162,7 @@ This enables agents to:
 - Extract content and review against vocabulary rules
 - Score content for brand compliance
 
-Bowrain Server extends this with a cloud MCP endpoint (`/mcp/`) that provides HTTP-based access to brand voice profiles, vocabulary tools, scoring, and guided prompts — enabling AI agents to consume brand voice data without running a local CLI process.
+Server deployments can extend this with a cloud MCP endpoint that provides HTTP-based access to brand voice profiles, vocabulary tools, scoring, and guided prompts — enabling AI agents to consume brand voice data without running a local CLI process.
 
 ## Terminology Integration
 

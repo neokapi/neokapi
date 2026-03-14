@@ -34,7 +34,7 @@ import. TBX is used for import/export; native storage uses SQLite or PostgreSQL.
 Progressive complexity model: Terminology Store (Phase 1) -> Concept
 Management (Phase 2) -> Brand Governance (Phase 3).
 
-Storage follows the standard tiered model: in-memory for session processing, SQLite for CLI workflows, and PostgreSQL for Bowrain Server deployments (shared infrastructure with Sievepen TM ([AD-009](./009-translation-memory.md)) and Content Store ([AD-003](./003-content-store.md))).
+Storage follows the standard tiered model: in-memory for session processing, SQLite for CLI workflows, and PostgreSQL for server deployments (shared infrastructure with Sievepen TM ([AD-009](./009-translation-memory.md)) and Content Store ([AD-003](./003-content-store.md))).
 
 ### Data Model: Concept-Oriented
 
@@ -45,15 +45,9 @@ The core data model is concept-oriented, following TBX principles. A Concept gro
 The TermBase interface provides concept CRUD, term lookup, search, and import/export. Three storage tiers:
 
 1. **In-memory** (`core/termbase/`): Fast, ephemeral. Used for session-scoped batch processing.
-2. **CLI SQLite** (`cli/storage/termbase/`): Persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows. Resources are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file` (explicit path). Created on demand.
-3. **Server PostgreSQL** (`bowrain/termbase/`): Persistent storage for Bowrain Server with project scoping, terminology streams, and workspace isolation. Uses the shared `bowrain/storage` layer from [AD-003](./003-content-store.md).
+2. **SQLite** (`cli/storage/termbase/`): Persistent file-based storage for CLI tools. Designed for single-user, file-based workflows. Resources are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file` (explicit path). Created on demand.
 
-| Aspect | kapi CLI | Bowrain Server |
-|--------|---------|---------------|
-| Storage | SQLite files on disk | PostgreSQL |
-| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
-| Scope | Single user, single machine | Multi-user, multi-workspace |
-| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
+The `TermBase` interface supports server-side backends with project scoping, terminology streams, and workspace isolation.
 
 See [Terminology Data Model](/docs/notes/terminology-data-model) for full Go struct definitions (Concept, Term, TermContext, TermBase interface).
 

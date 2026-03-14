@@ -40,20 +40,12 @@ A **concept** groups related terms across languages. Each concept can have:
 
 ## Storage Backends
 
-Three storage tiers support progressive complexity:
+Two storage tiers ship with the framework:
 
 1. **In-memory** (`core/termbase/`) — fast, ephemeral. Used for session-scoped batch processing.
-2. **CLI SQLite** (`cli/storage/termbase/`) — persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows.
-3. **Server SQLite/PostgreSQL** (`bowrain/termbase/`) — persistent storage for Bowrain Server with project scoping, terminology streams, and workspace isolation.
+2. **SQLite** (`cli/storage/termbase/`) — persistent file-based storage for CLI tools. Designed for single-user, file-based workflows.
 
-### kapi vs Bowrain
-
-| Aspect | kapi CLI | Bowrain Server |
-|--------|---------|---------------|
-| Storage | SQLite files on disk | SQLite or PostgreSQL |
-| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
-| Scope | Single user, single machine | Multi-user, multi-workspace |
-| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
+The `TermBase` interface supports server-side backends for multi-user deployments with project scoping, terminology streams, and workspace isolation.
 
 ## CLI Usage
 

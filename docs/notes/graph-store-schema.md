@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(label);
 - Foreign keys enforce referential integrity on edges
 - Indexes on source, target, label enable efficient traversal queries
 
-## Bowrain Server: Apache AGE Cypher DDL
+## Server: Apache AGE Cypher DDL
 
 AGE uses a property graph model accessed through Cypher queries via `ag_catalog.cypher()`:
 
@@ -111,7 +111,7 @@ SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
 $$) as (p agtype);
 ```
 
-## Bowrain Server: agtype Parsing
+## Server: agtype Parsing
 
 AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `platform/graph/agtype.go` handles three formats:
 
@@ -173,7 +173,7 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 4. Stop at max depth or when target is found
 5. Result is comma-separated node IDs and edge IDs, resolved to full objects after the CTE query completes
 
-## Bowrain Server: Event-Driven Graph Sync
+## Server: Event-Driven Graph Sync
 
 `GraphSyncer` in `platform/graph/sync.go` subscribes to the event bus and maintains graph consistency:
 
@@ -197,7 +197,7 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 | `core/graph/labels.go` | SKOS-aligned edge label constants |
 | `cli/storage/graph/sqlite.go` | SQLite adjacency table backend |
 
-### Bowrain Server (`platform/`)
+### Server (`platform/`)
 
 | File | Purpose |
 |------|---------|

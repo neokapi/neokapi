@@ -21,23 +21,12 @@ Each tier can produce exact (100%) or fuzzy matches. When a generalized exact ma
 
 ## Storage Backends
 
-Four storage tiers support progressive complexity:
+Two storage tiers ship with the framework:
 
 1. **In-memory** (`core/sievepen/`) — fast, ephemeral. Used for session-scoped batch processing.
-2. **CLI SQLite** (`cli/storage/sievepen/`) — persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows.
-3. **Server SQLite** (`bowrain/sievepen/`) — server-managed with project scoping and terminology streams.
-4. **Server PostgreSQL** (`bowrain/sievepen/`) — multi-user, multi-workspace with full stream inheritance and project boosting.
+2. **SQLite** (`cli/storage/sievepen/`) — persistent file-based storage for CLI tools. Designed for single-user, file-based workflows.
 
-All backends implement the same `TranslationMemory` interface and support all matching tiers.
-
-### kapi vs Bowrain
-
-| Aspect | kapi CLI | Bowrain Server |
-|--------|---------|---------------|
-| Storage | SQLite files on disk | SQLite or PostgreSQL |
-| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
-| Scope | Single user, single machine | Multi-user, multi-workspace |
-| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
+All backends implement the same `TranslationMemory` interface and support all matching tiers. The interface supports server-side backends for multi-user deployments with project scoping, streams, and workspace isolation.
 
 ## Fuzzy Matching
 

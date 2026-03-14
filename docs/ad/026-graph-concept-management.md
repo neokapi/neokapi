@@ -137,9 +137,9 @@ Edge labels in `core/graph/labels.go` are aligned with W3C SKOS vocabulary for t
 
 `InverseLabel()` returns the inverse of directional labels (BROADER/NARROWER, PART_OF/HAS_PART).
 
-### Apache AGE Backend (Bowrain Server)
+### Apache AGE Backend (Server)
 
-Bowrain Server provides an Apache AGE backend (`platform/graph/age.go`) that implements `GraphStore` using PostgreSQL's AGE extension for native Cypher query support. This includes an `agtype` parser for AGE's custom result format and an `AfterConnect` hook for pgx pool connection setup. See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note for AGE-specific details.
+Server deployments can use an Apache AGE backend (`platform/graph/age.go`) that implements `GraphStore` using PostgreSQL's AGE extension for native Cypher query support. This includes an `agtype` parser for AGE's custom result format and an `AfterConnect` hook for pgx pool connection setup. See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note for AGE-specific details.
 
 ### SQLite Backend
 
@@ -178,9 +178,9 @@ Indexes on `source`, `target`, and `label` columns for efficient traversal.
 - Bulk operations use transactions with prepared statements
 - `CypherQuery` / `CypherExec` return `ErrCypherNotSupported`
 
-### Event-Driven Graph Sync (Bowrain Server)
+### Event-Driven Graph Sync (Server)
 
-Bowrain Server includes a `GraphSyncer` (`platform/graph/sync.go`) that subscribes to the event bus ([AD-011](./011-automation.md)) and keeps the AGE graph in sync with relational content changes (block create/update/delete events).
+Server deployments include a `GraphSyncer` (`platform/graph/sync.go`) that subscribes to the event bus ([AD-011](./011-automation.md)) and keeps the AGE graph in sync with relational content changes (block create/update/delete events).
 
 ### Terminology Integration
 

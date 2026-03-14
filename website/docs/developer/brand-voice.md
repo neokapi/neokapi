@@ -55,9 +55,9 @@ type BrandStore interface {
 
 The framework ships with one storage backend:
 
-- **SQLite** (`cli/storage/brand/sqlite.go`) — file-based storage for kapi and bowrain CLI. JSON columns for complex types (tone, style, vocabulary). Uses the shared `core/storage` migration system.
+- **SQLite** (`cli/storage/brand/sqlite.go`) — file-based storage for CLI tools. JSON columns for complex types (tone, style, vocabulary). Uses the shared `core/storage` migration system.
 
-The `BrandStore` interface is designed for extension — Bowrain Server provides a PostgreSQL backend for workspace-scoped multi-user storage.
+The `BrandStore` interface is designed for extension — server deployments can provide a PostgreSQL backend for workspace-scoped multi-user storage.
 
 ## Implementing a Custom BrandStore
 
