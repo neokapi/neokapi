@@ -24,6 +24,11 @@ const sidebars: SidebarsConfig = {
     '019-mt-providers',
     '020-collaborative-editor',
     '021-mcp-integration',
+    '022-entity-term-extraction',
+    '023-identity-system',
+    '024-streams',
+    '025-brand-voice-governance',
+    '026-graph-concept-management',
   ],
 };
 

@@ -83,9 +83,16 @@ See [Terminology Data Model](/docs/notes/terminology-data-model) for pipeline to
 
 ### Brand Voice (Phase 3)
 
-Brand voice rules (tone, style) with a `brand-voice-check` pipeline tool
-using LLM analysis ([AD-008](./008-ai-integration.md)). Positions neokapi as
-the only open-source system bridging terminology and brand governance.
+Brand voice governance extends the terminology system with three additions to the data model:
+
+- **`TermSource`** -- A `Concept` carries a `Source` field (`"terminology"` or `"brand_vocabulary"`) to distinguish traditional terminology from brand vocabulary entries. The `SourceFilter` on `LookupOptions` enables filtering by source type.
+- **`CompetitorTerm`** -- A boolean flag on `Term` marking competitor brand terms. These flow through `term-enforce` as critical-severity violations.
+- **`ConceptRelation`** -- Bridges terminology and graph systems for import/export. Each relation has `SourceID`, `TargetID`, and `RelationType` (using `graph.Label*` constants from [AD-026](./026-graph-concept-management.md)).
+- **`TermDesignation`** -- Pairs a `Term` with a `graph.Validity` for the status-on-edge model, where term lifecycle status can be time-bounded.
+
+Brand vocabulary from `VoiceProfile.VocabularyRules` (preferred, forbidden, competitor terms) flows through the same pipeline tools (`term-lookup`, `term-enforce`) as traditional terminology. The `brand-vocab-filter` tool provides dedicated brand vocabulary filtering. See [AD-025](./025-brand-voice-governance.md) for the full brand voice governance design.
+
+The `brand-voice-check` AI tool ([AD-008](./008-ai-integration.md)) uses LLM analysis to check content against the full brand voice profile (tone, style, vocabulary), producing MQM-scored compliance results.
 
 ### Content Model Extensions
 
