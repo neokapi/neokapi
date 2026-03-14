@@ -6,7 +6,7 @@ title: "Graph Store Schema"
 
 This note provides implementation details for [AD-026](/docs/ad/026-graph-concept-management).
 
-## SQLite Adjacency Table DDL
+## Framework: SQLite Adjacency Table DDL
 
 ```sql
 -- cli/storage/graph/sqlite.go
@@ -44,7 +44,7 @@ CREATE INDEX IF NOT EXISTS idx_graph_nodes_label ON graph_nodes(label);
 - Foreign keys enforce referential integrity on edges
 - Indexes on source, target, label enable efficient traversal queries
 
-## Apache AGE Cypher DDL
+## Bowrain Server: Apache AGE Cypher DDL
 
 AGE uses a property graph model accessed through Cypher queries via `ag_catalog.cypher()`:
 
@@ -111,7 +111,7 @@ SELECT * FROM ag_catalog.cypher('bowrain_graph', $$
 $$) as (p agtype);
 ```
 
-## agtype Parsing
+## Bowrain Server: agtype Parsing
 
 AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `platform/graph/agtype.go` handles three formats:
 
@@ -145,7 +145,7 @@ AGE returns results as `agtype`, a custom PostgreSQL type. The parser in `platfo
 ### Scalar values
 `ParseScalar` handles: `null`, `true`/`false`, integers, floats, quoted strings.
 
-## SQLite Shortest Path (Recursive CTE)
+## Framework: SQLite Shortest Path (Recursive CTE)
 
 The SQLite backend implements `ShortestPath` using BFS via a recursive CTE:
 
@@ -173,7 +173,7 @@ SELECT path_nodes, path_edges FROM bfs WHERE node = ? LIMIT 1
 4. Stop at max depth or when target is found
 5. Result is comma-separated node IDs and edge IDs, resolved to full objects after the CTE query completes
 
-## Event-Driven Graph Sync
+## Bowrain Server: Event-Driven Graph Sync
 
 `GraphSyncer` in `platform/graph/sync.go` subscribes to the event bus and maintains graph consistency:
 
@@ -187,6 +187,8 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 
 ## Implementation Files
 
+### Framework (`core/`, `cli/`)
+
 | File | Purpose |
 |------|---------|
 | `core/graph/types.go` | Node, Edge, Path, Direction types |
@@ -194,6 +196,11 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 | `core/graph/validity.go` | Validity, Scope, matching logic |
 | `core/graph/labels.go` | SKOS-aligned edge label constants |
 | `cli/storage/graph/sqlite.go` | SQLite adjacency table backend |
+
+### Bowrain Server (`platform/`)
+
+| File | Purpose |
+|------|---------|
 | `platform/graph/age.go` | Apache AGE backend |
 | `platform/graph/agtype.go` | agtype parser (vertex, edge, path, scalar) |
 | `platform/graph/time.go` | Time formatting helpers for AGE |

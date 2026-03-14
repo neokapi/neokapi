@@ -117,39 +117,9 @@ See [MCP Tools Reference](/docs/notes/mcp-tools-reference) for the complete tool
 
 ### Cloud MCP Server (Bowrain Server)
 
-In addition to the CLI-based stdio MCP servers, Bowrain Server exposes a cloud MCP server at `/mcp/` using **Streamable HTTP** transport (`platform/server/mcp/`). This enables AI agents to access brand voice capabilities over HTTP without running a local CLI process.
+In addition to the CLI-based stdio MCP servers, Bowrain Server exposes a cloud MCP endpoint at `/mcp/` using **Streamable HTTP** transport. This enables AI agents to access brand voice profiles, vocabulary tools, and compliance scoring over HTTP without running a local CLI process. Authentication uses OAuth 2.1 with Keycloak token validation.
 
-**Transport:** Streamable HTTP via `mcp.NewStreamableHTTPHandler`, mounted on the Echo server at `/mcp/*`. Authentication will use OAuth 2.1 with Keycloak token validation (planned).
-
-**Resources** (read-only brand voice data):
-
-| URI Template | Description |
-|---|---|
-| `brand://profiles/{id}` | Full voice profile (tone, style, vocabulary, examples) |
-| `brand://profiles/{id}/vocabulary` | Vocabulary rules only (preferred, forbidden, competitor terms) |
-| `brand://profiles/{id}/examples` | Before/after transformation examples |
-| `brand://terminology/{workspace}` | Terminology index with term counts per profile |
-
-**Tools** (brand voice actions):
-
-| Tool | Description |
-|---|---|
-| `check_vocabulary` | Validate text against vocabulary rules; returns findings + compliance score |
-| `list_profiles` | List all profiles in a workspace |
-| `get_voice_guide` | Formatted markdown guide optimized for LLM consumption |
-| `score_brand_compliance` | Full scoring with per-dimension breakdown (tone, style, vocabulary, clarity, brand_compliance) |
-| `suggest_corrections` | Generate rewrites for vocabulary findings |
-| `rewrite_in_voice` | Apply vocabulary rules and return rewritten text with change summary |
-
-**Prompts** (LLM workflow templates):
-
-| Prompt | Description |
-|---|---|
-| `write_in_voice` | Write new content following a brand voice profile |
-| `rewrite_in_voice` | Rewrite text to match a brand voice |
-| `check_draft` | Review draft against guidelines with scoring |
-
-The cloud MCP server reuses the same `BrandStore` interface as the REST API, ensuring consistency between MCP and REST access to brand voice data. See [AD-025](./025-brand-voice-governance.md) for the full brand voice governance design.
+The cloud MCP server provides brand voice resources (profiles, vocabulary, examples), tools (vocabulary checking, compliance scoring, rewriting), and prompt templates (write/rewrite/check workflows). It reuses the same `BrandStore` interface as the REST API. See [AD-025](./025-brand-voice-governance.md) for the brand voice governance design and the [Brand Voice Data Model](/docs/notes/brand-voice-data-model) note for the full MCP resource/tool/prompt specification.
 
 ## Alternatives Considered
 

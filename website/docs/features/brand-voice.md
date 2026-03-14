@@ -5,7 +5,7 @@ title: Brand Voice
 
 # Brand Voice Governance
 
-neokapi includes a brand voice governance system that helps teams maintain consistent tone, style, and vocabulary across all content and languages. It bridges terminology management and brand governance in a single platform.
+neokapi includes a brand voice governance system that helps teams maintain consistent tone, style, and vocabulary across all content and languages. It bridges terminology management and brand governance in a single framework.
 
 ## What is Brand Voice?
 
@@ -143,44 +143,26 @@ It uses an LLM to analyze content against the voice profile and attaches complia
 
 ## MCP Integration
 
-AI agents (Claude, Cursor, etc.) can access brand voice profiles via the cloud MCP server. This enables agents to:
-
-- Read your brand voice guide before writing content
-- Check drafts against vocabulary rules
-- Score content for brand compliance
-- Rewrite text to match your brand voice
-
-### Connecting to the MCP Server
-
-Configure your MCP client to connect to the Bowrain Server's MCP endpoint:
+AI agents (Claude, Cursor, etc.) can access brand voice capabilities via MCP. The `kapi mcp` server exposes brand voice checking as part of its processing toolkit:
 
 ```json
 {
   "mcpServers": {
-    "bowrain-brand": {
-      "url": "https://your-bowrain-server.com/mcp/"
+    "kapi": {
+      "command": "kapi",
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-### Available MCP Capabilities
+This enables agents to:
 
-**Resources** -- read brand voice data:
-- `brand://profiles/{id}` -- full profile
-- `brand://profiles/{id}/vocabulary` -- vocabulary rules
-- `brand://profiles/{id}/examples` -- before/after examples
+- Run brand voice checks on files via `run_flow`
+- Extract content and review against vocabulary rules
+- Score content for brand compliance
 
-**Tools** -- check and score content:
-- `check_vocabulary` -- validate against vocabulary rules
-- `score_brand_compliance` -- full scoring with dimension breakdown
-- `suggest_corrections` -- generate rewrites for findings
-- `get_voice_guide` -- formatted guide for LLM use
-
-**Prompts** -- guided workflows:
-- `write_in_voice` -- write new content in brand voice
-- `rewrite_in_voice` -- adapt text to brand voice
-- `check_draft` -- review draft against guidelines
+Bowrain Server extends this with a cloud MCP endpoint (`/mcp/`) that provides HTTP-based access to brand voice profiles, vocabulary tools, scoring, and guided prompts — enabling AI agents to consume brand voice data without running a local CLI process.
 
 ## Terminology Integration
 

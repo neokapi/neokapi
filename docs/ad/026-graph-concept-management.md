@@ -137,26 +137,9 @@ Edge labels in `core/graph/labels.go` are aligned with W3C SKOS vocabulary for t
 
 `InverseLabel()` returns the inverse of directional labels (BROADER/NARROWER, PART_OF/HAS_PART).
 
-### Apache AGE Backend
+### Apache AGE Backend (Bowrain Server)
 
-`platform/graph/age.go` implements `GraphStore` using Apache AGE, a PostgreSQL extension that adds Cypher query support via `ag_catalog.cypher()`.
-
-**Key design decisions:**
-- All Cypher queries go through `ag_catalog.cypher('bowrain_graph', $$ ... $$)`
-- Application-level `id` property stored as a node/edge property (AGE's internal IDs are opaque integers)
-- Validity fields (`valid_from`, `valid_to`, `tags`) stored as edge properties
-- `ShortestPath` uses AGE's native `shortestPath()` function
-
-**agtype parser** (`platform/graph/agtype.go`):
-- AGE returns results as `agtype` -- a custom PostgreSQL type with suffixes like `::vertex`, `::edge`, `::path`
-- `ParseVertex(raw)` strips `::vertex` suffix, parses JSON body, extracts application-level ID from properties
-- `ParseEdge(raw)` strips `::edge` suffix, parses JSON body, reconstructs `Validity` from properties
-- `ParsePath(raw)` strips `::path` suffix, splits alternating vertex/edge elements from the array
-- `ParseScalar(raw)` handles scalar values (string, int, float, bool, null)
-
-**AfterConnect hook** (`platform/graph/afterconnect.go`):
-- Sets `search_path` to include `ag_catalog` and loads the AGE extension
-- Applied via `pgxpool.Config.AfterConnect` for every new connection in the pool
+Bowrain Server provides an Apache AGE backend (`platform/graph/age.go`) that implements `GraphStore` using PostgreSQL's AGE extension for native Cypher query support. This includes an `agtype` parser for AGE's custom result format and an `AfterConnect` hook for pgx pool connection setup. See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note for AGE-specific details.
 
 ### SQLite Backend
 
@@ -195,15 +178,9 @@ Indexes on `source`, `target`, and `label` columns for efficient traversal.
 - Bulk operations use transactions with prepared statements
 - `CypherQuery` / `CypherExec` return `ErrCypherNotSupported`
 
-### Event-Driven Graph Sync
+### Event-Driven Graph Sync (Bowrain Server)
 
-`platform/graph/sync.go` provides `GraphSyncer` which subscribes to the event bus ([AD-011](./011-automation.md)) and keeps the graph in sync with relational content changes:
-
-- `EventBlockCreated` -- creates a Concept node with project_id and name properties
-- `EventBlockUpdated` -- updates the node properties
-- `EventBlockDeleted` -- deletes the node (edges are cascade-deleted in AGE via DETACH DELETE)
-
-This ensures the graph reflects the current state of terminology without manual synchronization.
+Bowrain Server includes a `GraphSyncer` (`platform/graph/sync.go`) that subscribes to the event bus ([AD-011](./011-automation.md)) and keeps the AGE graph in sync with relational content changes (block create/update/delete events).
 
 ### Terminology Integration
 

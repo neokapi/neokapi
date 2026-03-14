@@ -5,7 +5,7 @@ title: Graph Store
 
 # Graph Store Library
 
-The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. It supports two backends: Apache AGE (PostgreSQL) for production and SQLite (adjacency tables) for CLI and development.
+The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. Bowrain Server extends this with an Apache AGE (PostgreSQL) backend for production deployments.
 
 ## Architecture
 
@@ -193,9 +193,7 @@ graph.LabelCompetitor  // "COMPETITOR" — brand → competitor term
 
 `InverseLabel()` returns the inverse of directional labels (e.g., `BROADER` -> `NARROWER`).
 
-## Backends
-
-### SQLite
+## SQLite Backend
 
 ```go
 import (
@@ -210,17 +208,7 @@ defer store.Close()
 
 Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval. `CypherQuery`/`CypherExec` return `ErrCypherNotSupported`.
 
-### Apache AGE
-
-```go
-import graphstore "github.com/neokapi/neokapi/platform/graph"
-
-store := graphstore.NewAGEGraphStore(pgxPool)
-store.EnsureGraph(ctx)  // CREATE GRAPH 'bowrain_graph'
-defer store.Close()
-```
-
-Uses Cypher queries via `ag_catalog.cypher()`. Requires the AGE PostgreSQL extension. The `AfterConnect` hook on the pgx pool loads AGE and sets the search path. Results are parsed from the `agtype` format.
+The `GraphStore` interface is designed for extension — Bowrain Server provides an Apache AGE (PostgreSQL) backend with native Cypher query support for production deployments.
 
 ## Usage Examples
 
@@ -272,18 +260,14 @@ scope := graph.Scope{At: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), Tags: map[
 neighbors, _ := store.NeighborsScoped(ctx, "old-term", graph.Outgoing, scope, graph.LabelReplacedBy)
 ```
 
-### Cypher Queries (AGE Only)
+### Cypher Queries (AGE Backend Only)
+
+The `CypherQuery` and `CypherExec` methods provide an escape hatch for complex graph queries on the AGE backend:
 
 ```go
-// Direct Cypher for complex queries
 nodes, _ := store.CypherQuery(ctx,
     "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
     map[string]any{"root": "animal"})
-
-// Cypher execution (no return values)
-store.CypherExec(ctx,
-    "MATCH (n {id: $id}) SET n.updated = $time",
-    map[string]any{"id": "dog", "time": time.Now().Format(time.RFC3339)})
 ```
 
-The SQLite backend returns `graph.ErrCypherNotSupported` for these methods. Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries.
+The SQLite backend returns `graph.ErrCypherNotSupported` for these methods. Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries that work across all backends.
