@@ -201,7 +201,8 @@ The syncer uses a 10-second context timeout per event and logs errors without fa
 
 | File | Purpose |
 |------|---------|
-| `platform/graph/age.go` | Apache AGE backend |
+| `platform/graph/cypher.go` | CypherStore sub-interface |
+| `platform/graph/age.go` | Apache AGE backend (implements GraphStore + CypherStore) |
 | `platform/graph/agtype.go` | agtype parser (vertex, edge, path, scalar) |
 | `platform/graph/time.go` | Time formatting helpers for AGE |
 | `platform/graph/afterconnect.go` | pgx AfterConnect hook for AGE extension |

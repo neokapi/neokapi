@@ -15,10 +15,12 @@ import (
 
 const graphName = "bowrain_graph"
 
-// AGEGraphStore implements coreg.GraphStore using Apache AGE on PostgreSQL.
+// AGEGraphStore implements coreg.GraphStore and CypherStore using Apache AGE on PostgreSQL.
 type AGEGraphStore struct {
 	pool *pgxpool.Pool
 }
+
+var _ CypherStore = (*AGEGraphStore)(nil)
 
 // NewAGEGraphStore creates a new AGE-backed GraphStore.
 func NewAGEGraphStore(pool *pgxpool.Pool) *AGEGraphStore {
