@@ -82,6 +82,7 @@
     },
     {
       "alias": "apple",
+      "displayName": "Apple",
       "providerId": "apple",
       "enabled": true,
       "trustEmail": true,
