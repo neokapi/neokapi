@@ -7,4 +7,4 @@ FROM quay.io/keycloak/keycloak:26.1
 
 # Install Apple identity provider extension (Sign in with Apple).
 # https://github.com/klausbetz/apple-identity-provider-keycloak
-ADD --chmod=644 https://github.com/klausbetz/apple-identity-provider-keycloak/releases/download/1.14.0/apple-identity-provider-1.14.0.jar /opt/keycloak/providers/apple-identity-provider.jar
+ADD --chmod=644 --checksum=sha256:4091dee2a1ec9e0771bef4bd46005197d86b0a2b1f25198c41738476b1d102bb https://github.com/klausbetz/apple-identity-provider-keycloak/releases/download/1.17.0/apple-identity-provider-1.17.0.jar /opt/keycloak/providers/apple-identity-provider.jar
