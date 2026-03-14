@@ -14,8 +14,7 @@ type AppConfig struct {
 }
 
 // NewAppConfig creates a config reader that searches for kapi.yaml
-// in standard locations. This is the shared config used by both kapi
-// and bowrain for common settings (plugins, formats, flow config).
+// in standard locations (plugins, formats, flow config).
 func NewAppConfig() *AppConfig {
 	v := viper.New()
 	v.SetConfigName("kapi")
@@ -38,19 +37,17 @@ func NewAppConfig() *AppConfig {
 	return &AppConfig{v: v}
 }
 
-// NewBowrainAppConfig creates a config reader for bowrain that layers
-// bowrain-specific config (~/.config/bowrain/bowrain.yaml) on top of the
-// shared kapi config. Bowrain-specific settings like server.url are read
-// from the bowrain config; shared settings (plugins, formats, flow) come
-// from the kapi config.
-func NewBowrainAppConfig() *AppConfig {
+// NewOverlayAppConfig creates a config reader that layers app-specific config
+// on top of the shared kapi config. App-specific settings are read from
+// ~/.config/<appName>/<appName>.yaml; shared settings (plugins, formats, flow)
+// come from the kapi config.
+func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppConfig {
 	cfg := NewAppConfig()
 
-	// Overlay bowrain-specific config.
-	bowrainPath := GlobalConfigFilePath("bowrain")
-	if _, err := os.Stat(bowrainPath); err == nil {
+	overlayPath := GlobalConfigFilePath(appName)
+	if _, err := os.Stat(overlayPath); err == nil {
 		overlay := viper.New()
-		overlay.SetConfigFile(bowrainPath)
+		overlay.SetConfigFile(overlayPath)
 		overlay.SetConfigType("yaml")
 		if err := overlay.ReadInConfig(); err == nil {
 			for _, key := range overlay.AllKeys() {
@@ -59,11 +56,9 @@ func NewBowrainAppConfig() *AppConfig {
 		}
 	}
 
-	// Bowrain-specific defaults and env bindings.
-	if cfg.v.GetString("server.url") == "" {
-		cfg.v.SetDefault("server.url", "http://localhost:8080")
+	if configure != nil {
+		configure(cfg)
 	}
-	_ = cfg.v.BindEnv("server.url", "BOWRAIN_SERVER_URL")
 
 	return cfg
 }
@@ -206,15 +201,8 @@ func parseStringSlice(raw any) []string {
 	}
 }
 
-// ServerURL returns the configured Bowrain Server URL.
-// Resolved from bowrain config file (server.url) or BOWRAIN_SERVER_URL env var.
-// Only available when using NewBowrainAppConfig.
-func (c *AppConfig) ServerURL() string {
-	return c.v.GetString("server.url")
-}
-
 // GlobalConfigFilePath returns the path to the global config file
-// for the given app name (e.g. ~/.config/bowrain/bowrain.yaml).
+// for the given app name (e.g. ~/.config/kapi/kapi.yaml).
 // If no app name is provided, defaults to "kapi".
 func GlobalConfigFilePath(appName ...string) string {
 	name := "kapi"

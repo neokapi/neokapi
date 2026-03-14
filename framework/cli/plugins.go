@@ -529,7 +529,7 @@ func channelRegistryURL(baseURL, channel string) string {
 func (a *App) resolveRegistries(cmd *cobra.Command) []config.RegistryEntry {
 	var entries []config.RegistryEntry
 
-	// Try hook-provided registries first (e.g., from .bowrain/ project config).
+	// Try hook-provided registries first (e.g., from project config).
 	if a.RegistryResolver != nil {
 		if resolved := a.RegistryResolver(); len(resolved) > 0 {
 			entries = resolved

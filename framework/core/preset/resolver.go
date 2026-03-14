@@ -17,8 +17,7 @@ type SchemaValidator interface {
 	ValidateParams(filterID string, params map[string]any) error
 }
 
-// LocalFormatPreset mirrors the platform/project type for use in the resolver.
-// This avoids a framework → platform dependency.
+// LocalFormatPreset represents a project-local format preset definition.
 type LocalFormatPreset struct {
 	Description string
 	Base        string

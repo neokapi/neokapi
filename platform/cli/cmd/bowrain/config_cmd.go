@@ -52,7 +52,7 @@ func runConfigGlobal(cmd *cobra.Command, args []string) error {
 	key := args[0]
 
 	if len(args) == 1 {
-		cfg := config.NewBowrainAppConfig()
+		cfg := newBowrainAppConfig()
 		_ = cfg.Load()
 		val := cfg.GetString(key)
 		if val == "" {
