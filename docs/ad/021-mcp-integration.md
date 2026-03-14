@@ -115,6 +115,42 @@ The MCP SDK is added independently to `kapi/go.mod` and `bowrain-cli/go.mod`. No
 
 See [MCP Tools Reference](/docs/notes/mcp-tools-reference) for the complete tool specifications with input/output schemas.
 
+### Cloud MCP Server (Bowrain Server)
+
+In addition to the CLI-based stdio MCP servers, Bowrain Server exposes a cloud MCP server at `/mcp/` using **Streamable HTTP** transport (`platform/server/mcp/`). This enables AI agents to access brand voice capabilities over HTTP without running a local CLI process.
+
+**Transport:** Streamable HTTP via `mcp.NewStreamableHTTPHandler`, mounted on the Echo server at `/mcp/*`. Authentication will use OAuth 2.1 with Keycloak token validation (planned).
+
+**Resources** (read-only brand voice data):
+
+| URI Template | Description |
+|---|---|
+| `brand://profiles/{id}` | Full voice profile (tone, style, vocabulary, examples) |
+| `brand://profiles/{id}/vocabulary` | Vocabulary rules only (preferred, forbidden, competitor terms) |
+| `brand://profiles/{id}/examples` | Before/after transformation examples |
+| `brand://terminology/{workspace}` | Terminology index with term counts per profile |
+
+**Tools** (brand voice actions):
+
+| Tool | Description |
+|---|---|
+| `check_vocabulary` | Validate text against vocabulary rules; returns findings + compliance score |
+| `list_profiles` | List all profiles in a workspace |
+| `get_voice_guide` | Formatted markdown guide optimized for LLM consumption |
+| `score_brand_compliance` | Full scoring with per-dimension breakdown (tone, style, vocabulary, clarity, brand_compliance) |
+| `suggest_corrections` | Generate rewrites for vocabulary findings |
+| `rewrite_in_voice` | Apply vocabulary rules and return rewritten text with change summary |
+
+**Prompts** (LLM workflow templates):
+
+| Prompt | Description |
+|---|---|
+| `write_in_voice` | Write new content following a brand voice profile |
+| `rewrite_in_voice` | Rewrite text to match a brand voice |
+| `check_draft` | Review draft against guidelines with scoring |
+
+The cloud MCP server reuses the same `BrandStore` interface as the REST API, ensuring consistency between MCP and REST access to brand voice data. See [AD-025](./025-brand-voice-governance.md) for the full brand voice governance design.
+
 ## Alternatives Considered
 
 - **REST API endpoints**: Would require running a server process. MCP's stdio transport is simpler for agent integration — no port management, no auth, no CORS.

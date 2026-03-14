@@ -54,6 +54,7 @@ const sidebars: SidebarsConfig = {
         'features/ai-translation',
         'features/mt-services',
         'features/qa-checks',
+        'features/brand-voice',
       ],
     },
     {
@@ -70,6 +71,8 @@ const sidebars: SidebarsConfig = {
         'developer/java-bridge',
         'developer/testing',
         'developer/vocabularies',
+        'developer/brand-voice',
+        'developer/graph',
       ],
     },
     {

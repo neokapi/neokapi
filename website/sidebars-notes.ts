@@ -18,6 +18,8 @@ const sidebars: SidebarsConfig = {
     'mcp-tools-reference',
     'skeleton-store',
     'implementing-formats',
+    'brand-voice-data-model',
+    'graph-store-schema',
   ],
 };
 
