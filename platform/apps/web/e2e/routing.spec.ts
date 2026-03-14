@@ -3,6 +3,8 @@ import {
   authenticate,
   getOrCreateWorkspace,
   createEditorProject,
+  getEditorProject,
+  findItemId,
   uploadSeedFiles,
   deleteAllEditorProjects,
   waitForServer,
@@ -57,24 +59,27 @@ test.describe("Routing", () => {
 
   test("deep link to project detail loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
 
     // Project view should load
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
     // URL should contain the project ID and stream
-    expect(page.url()).toContain(`/project/${projectId}/stream/main`);
+    expect(page.url()).toContain(`/p/${projectId}/s/main`);
   });
 
   test("deep link to editor loads correctly", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/project/${projectId}/stream/main/translate/about-us.html`);
+    // Resolve item ID from the project
+    const proj = await getEditorProject(token, wsSlug, projectId);
+    const itemId = findItemId(proj, "about-us.html");
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main/${itemId}/translate`);
 
     // Editor should load (layout switcher is always visible regardless of mode)
     await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 30000 });
 
-    // URL should contain the file name
-    expect(page.url()).toContain("/stream/main/translate/about-us.html");
+    // URL should contain the item ID
+    expect(page.url()).toContain(`/s/main/${itemId}/translate`);
   });
 
   test("deep link to TM explorer loads correctly", async ({ page }) => {
@@ -105,7 +110,7 @@ test.describe("Routing", () => {
 
   test("URL persists on page refresh", async ({ page }) => {
     await injectAuthCookie(page, token);
-    await page.goto(`/${wsSlug}/project/${projectId}/stream/main`);
+    await page.goto(`/${wsSlug}/p/${projectId}/s/main`);
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
 
     // Refresh the page
@@ -113,7 +118,7 @@ test.describe("Routing", () => {
 
     // Project view should still be loaded after refresh
     await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 10000 });
-    expect(page.url()).toContain(`/project/${projectId}/stream/main`);
+    expect(page.url()).toContain(`/p/${projectId}/s/main`);
   });
 
   test("sidebar navigation updates URL", async ({ page }) => {

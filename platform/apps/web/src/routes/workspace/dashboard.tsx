@@ -24,7 +24,7 @@ export function ProjectDashboardRoute() {
       const info = await adapter.createProject(ws, name, sourceLang, targetLangs);
       void queryClient.invalidateQueries({ queryKey: ["projects", ws] });
       void navigate({
-        to: "/$workspace/project/$projectId/stream/$stream",
+        to: "/$workspace/p/$projectId/s/$stream",
         params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
       });
     },
@@ -34,18 +34,29 @@ export function ProjectDashboardRoute() {
   const handleOpenProject = useCallback(
     (project: ProjectInfo) => {
       void navigate({
-        to: "/$workspace/project/$projectId/stream/$stream",
+        to: "/$workspace/p/$projectId/s/$stream",
         params: { workspace: workspace ?? ws, projectId: project.id, stream: "main" },
       });
     },
     [navigate, workspace, ws],
   );
 
+  const handleCreateSampleProject = useCallback(async () => {
+    const info = await adapter.createProject(ws, "Sample Project", "en", ["fr", "de", "ja"]);
+    void queryClient.invalidateQueries({ queryKey: ["projects", ws] });
+    void navigate({
+      to: "/$workspace/p/$projectId/s/$stream",
+      params: { workspace: workspace ?? ws, projectId: info.id, stream: "main" },
+    });
+  }, [ws, workspace, adapter, navigate, queryClient]);
+
   return (
     <ProjectDashboard
       projects={projects}
       onCreateProject={handleCreateProject}
       onOpenProject={handleOpenProject}
+      onCreateSampleProject={handleCreateSampleProject}
+      workspaceName={activeWorkspace.name}
     />
   );
 }

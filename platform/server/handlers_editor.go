@@ -88,6 +88,7 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 			if err == nil {
 				for _, item := range items {
 					info.Items = append(info.Items, ProjectItemResponse{
+						ID:     item.ID,
 						Name:   item.Name,
 						Format: item.Format,
 						Type:   item.ItemType,

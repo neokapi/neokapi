@@ -38,6 +38,7 @@ type ContentStore interface {
 	GetItem(ctx context.Context, projectID, stream, itemName string) (*Item, error)
 	ListItems(ctx context.Context, projectID, stream string) ([]*Item, error)
 	DeleteItem(ctx context.Context, projectID, stream, itemName string) error
+	GetItemByID(ctx context.Context, projectID, stream, itemID string) (*Item, error)
 
 	// Block storage — stream-scoped
 	StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error

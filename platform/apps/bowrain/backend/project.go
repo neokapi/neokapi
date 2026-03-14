@@ -31,6 +31,7 @@ type ProjectInfo struct {
 
 // ProjectItem describes an item within a project.
 type ProjectItem struct {
+	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Format     string `json:"format"`
 	Type       string `json:"type"` // "file", "data", etc.
@@ -323,6 +324,7 @@ func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 		}
 
 		result = append(result, ProjectItem{
+			ID:         item.ID,
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,
@@ -378,6 +380,7 @@ func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Pr
 		}
 
 		info.Items = append(info.Items, ProjectItem{
+			ID:         item.ID,
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,

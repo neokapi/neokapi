@@ -738,6 +738,7 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 		}
 
 		info.Items = append(info.Items, &pb.EditorProjectItem{
+			Id:         item.ID,
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,

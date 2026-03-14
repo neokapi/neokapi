@@ -136,6 +136,7 @@ type ProjectInfoResponse struct {
 
 // ProjectItemResponse describes an item within a project.
 type ProjectItemResponse struct {
+	ID         string `json:"id"`
 	Name       string `json:"name"`
 	Format     string `json:"format"`
 	Type       string `json:"type"`
@@ -1066,6 +1067,7 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		}
 
 		info.Items = append(info.Items, ProjectItemResponse{
+			ID:         item.ID,
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,

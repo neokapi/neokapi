@@ -24,6 +24,9 @@ export interface AppShellProps<V extends string = string> extends Omit<
   topBar?: boolean;
 }
 
+// Re-export SidebarContext type for consumers
+export type { SidebarContext } from "./AppSidebar";
+
 function HeaderBar({ headerSlot }: { headerSlot?: ReactNode }) {
   const breadcrumb = useBreadcrumb();
   return (

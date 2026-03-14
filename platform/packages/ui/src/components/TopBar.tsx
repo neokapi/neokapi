@@ -20,6 +20,8 @@ export interface TopBarProps {
   onMarkAllNotificationsRead?: () => void;
   onDeleteNotification?: (id: string) => void;
   onNotificationClick?: (notification: NotificationInfo) => void;
+  /** Optional slot rendered left of the theme toggle (e.g. stream selector). */
+  leftSlot?: React.ReactNode;
 }
 
 const nextTheme: Record<Theme, Theme> = { light: "dark", dark: "system", system: "light" };
@@ -57,6 +59,7 @@ export function TopBar({
   onMarkAllNotificationsRead,
   onDeleteNotification,
   onNotificationClick,
+  leftSlot,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const isOffline = connectionState === "offline";
@@ -85,6 +88,9 @@ export function TopBar({
           onNotificationClick={onNotificationClick}
         />
       ) : null}
+
+      {/* Left slot (e.g. stream selector) */}
+      {leftSlot}
 
       {/* Theme toggle */}
       <button

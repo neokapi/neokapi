@@ -3,6 +3,8 @@ import {
   authenticate,
   getOrCreateWorkspace,
   createEditorProject,
+  getEditorProject,
+  findItemId,
   uploadSeedFiles,
   deleteAllEditorProjects,
   seedTMEntries,
@@ -211,9 +213,11 @@ test.describe("Web App Recordings", () => {
       const p = await createEditorProject(token, wsSlug, "Release Notes", "en", ["fr"]);
       await uploadSeedFiles(token, wsSlug, p.id, ["release-notes.md"]);
 
-      // Navigate directly to the editor route
+      // Navigate directly to the editor route (resolve item ID first)
+      const projRelease = await getEditorProject(token, wsSlug, p.id);
+      const releaseItemId = findItemId(projRelease, "release-notes.md");
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/release-notes.md`);
+      await page.goto(`/${wsSlug}/p/${p.id}/s/main/${releaseItemId}/translate`);
       await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
@@ -261,9 +265,11 @@ test.describe("Web App Recordings", () => {
       const p = await createEditorProject(token, wsSlug, "Mobile App", "en", ["fr", "de"]);
       await uploadSeedFiles(token, wsSlug, p.id, ["app-strings.json"]);
 
-      // Navigate directly to the editor route
+      // Navigate directly to the editor route (resolve item ID first)
+      const projMobile = await getEditorProject(token, wsSlug, p.id);
+      const mobileItemId = findItemId(projMobile, "app-strings.json");
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/app-strings.json`);
+      await page.goto(`/${wsSlug}/p/${p.id}/s/main/${mobileItemId}/translate`);
       await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);
@@ -378,9 +384,11 @@ test.describe("Web App Recordings", () => {
       await seedTMEntries(token, wsSlug);
       await seedConcepts(token, wsSlug);
 
-      // Navigate directly to the editor route
+      // Navigate directly to the editor route (resolve item ID first)
+      const projWebsite = await getEditorProject(token, wsSlug, p.id);
+      const websiteItemId = findItemId(projWebsite, "about-us.html");
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/project/${p.id}/stream/main/translate/about-us.html`);
+      await page.goto(`/${wsSlug}/p/${p.id}/s/main/${websiteItemId}/translate`);
       await switchToGrid(page);
       await setTheme(page, theme);
       await injectCursor(page);

@@ -7,8 +7,8 @@ describe("viewFromPath", () => {
   });
 
   it("returns 'translate' for project routes", () => {
-    expect(viewFromPath("/acme/project/abc", "acme")).toBe("translate");
-    expect(viewFromPath("/acme/project/abc/translate/file.html", "acme")).toBe("translate");
+    expect(viewFromPath("/acme/p/abc/s/main", "acme")).toBe("translate");
+    expect(viewFromPath("/acme/p/abc/s/main/file.html/translate", "acme")).toBe("translate");
   });
 
   it("returns 'termbase' for termbase route", () => {

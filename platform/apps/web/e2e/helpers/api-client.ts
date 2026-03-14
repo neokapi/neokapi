@@ -143,6 +143,25 @@ export async function listEditorProjects(
   return apiGet(`/workspaces/${wsSlug}/editor/projects`, token);
 }
 
+/** Fetch a single project with its items (needed to resolve item IDs for URLs). */
+export async function getEditorProject(
+  token: string,
+  wsSlug: string,
+  projectId: string,
+): Promise<{ id: string; name: string; items: Array<{ id: string; name: string }> }> {
+  return apiGet(`/workspaces/${wsSlug}/editor/projects/${projectId}`, token);
+}
+
+/** Find an item ID by filename within a project's items array. */
+export function findItemId(
+  project: { items: Array<{ id: string; name: string }> },
+  fileName: string,
+): string {
+  const item = project.items.find((i) => i.name === fileName);
+  if (!item) throw new Error(`Item not found: ${fileName}`);
+  return item.id;
+}
+
 export async function deleteEditorProject(
   token: string,
   wsSlug: string,

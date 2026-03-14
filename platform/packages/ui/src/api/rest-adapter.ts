@@ -1077,7 +1077,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Brand Voice ──────────────────────────────────────────────────────────
 
   private brandEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/brand/profiles`;
+    return `/api/v1/workspaces/${ws}/brand-profiles`;
   }
 
   async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {

@@ -16,6 +16,7 @@ import {
   cn,
   type View,
   type NavItem,
+  type SidebarContext,
 } from "@neokapi/ui";
 import { FlowBuilder } from "./components/FlowBuilder";
 import { ConnectorPanel } from "./components/ConnectorPanel";
@@ -335,9 +336,11 @@ function App() {
     [activeProject],
   );
 
-  const handleOpenFile = useCallback((fileName: string) => {
-    setActiveFile(fileName);
-  }, []);
+  const handleOpenFile = useCallback((itemId: string) => {
+    // Resolve item ID to filename from active project's items.
+    const item = activeProject?.items?.find((i) => i.id === itemId);
+    setActiveFile(item?.name ?? itemId);
+  }, [activeProject]);
 
   const handleBackToProjects = useCallback(() => {
     setActiveProject(null);
@@ -446,6 +449,24 @@ function App() {
 
   // --- Main app (mode === "ready") ---
 
+  // Build sidebar context so the sidebar transforms based on navigation depth.
+  const sidebarContext = useMemo<SidebarContext | undefined>(() => {
+    if (activeView !== "translate" || !activeProject) {
+      return { level: "workspace", activeView: activeView as View };
+    }
+    return {
+      level: "project",
+      project: activeProject,
+      activeStream: "main",
+      activeProjectView: "dashboard" as const,
+      // Home goes up one level: editor → project, project → workspace
+      onBack: activeFile ? handleBackToProject : handleBackToProjects,
+      onOpenDashboard: handleBackToProject,
+      onOpenFile: handleOpenFile,
+      onStreamChange: () => {},
+    };
+  }, [activeView, activeProject, activeFile, handleBackToProjects, handleBackToProject, handleOpenFile]);
+
   const renderView = () => {
     if (activeView === "translate" && activeProject && showTermExplorer) {
       return (
@@ -545,6 +566,7 @@ function App() {
             connectionState={connectionState}
             pendingChanges={pendingChanges}
             showThemeToggle={false}
+            sidebarContext={sidebarContext}
             headerSlot={
               <TopBar
                 user={sidebarUser}

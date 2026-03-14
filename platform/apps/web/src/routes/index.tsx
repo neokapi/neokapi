@@ -204,7 +204,7 @@ const dashboardRoute = createRoute({
 // Stream-scoped project routes.
 const projectRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "project/$projectId/stream/$stream",
+  path: "p/$projectId/s/$stream",
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
       projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
@@ -215,7 +215,7 @@ const projectRoute = createRoute({
 
 const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "project/$projectId/stream/$stream/translate/$fileName",
+  path: "p/$projectId/s/$stream/$itemId/translate",
   component: lazyRouteComponent(() => import("./workspace/translate"), "TranslateRoute"),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
@@ -233,7 +233,7 @@ const translateRoute = createRoute({
 
 const automationsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
-  path: "project/$projectId/stream/$stream/automations",
+  path: "p/$projectId/s/$stream/automations",
   component: lazyRouteComponent(() => import("./workspace/automations"), "AutomationsRoute"),
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(

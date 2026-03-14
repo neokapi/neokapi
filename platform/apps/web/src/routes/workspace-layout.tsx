@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
-import { Outlet, useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
+import { useState, useCallback, useMemo } from "react";
+import { Outlet, useNavigate, useParams, useRouteContext, useLocation } from "@tanstack/react-router";
 import {
   AppShell,
   TopBar,
+  StreamSelector,
   AuthProvider,
   WorkspaceProvider,
   StreamProvider,
@@ -15,11 +16,43 @@ import {
   CardTitle,
   type View,
   type Workspace,
+  type SidebarContext,
+  type ProjectInfo,
+  type StreamInfo,
 } from "@neokapi/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
 import { viewFromPath } from "./view-from-path";
 import type { WorkspaceRouteContext } from ".";
+
+// ---------------------------------------------------------------------------
+// Helpers to extract project context from URL
+// ---------------------------------------------------------------------------
+
+/** Parse project-level params from the current URL path. */
+function parseProjectParams(pathname: string, workspaceSlug: string) {
+  // Pattern: /$workspace/p/$projectId/s/$stream[/$itemId/translate]
+  const prefix = `/${workspaceSlug}/p/`;
+  if (!pathname.startsWith(prefix)) return null;
+
+  const rest = pathname.slice(prefix.length);
+  const parts = rest.split("/");
+  // parts: [projectId, "s", streamName, ...]
+  if (parts.length < 3 || parts[1] !== "s") return null;
+
+  const projectId = decodeURIComponent(parts[0]);
+  const stream = decodeURIComponent(parts[2]);
+  let itemId: string | undefined;
+
+  // Check for /$itemId/translate
+  if (parts.length >= 5 && parts[4] === "translate") {
+    itemId = decodeURIComponent(parts[3]);
+  }
+
+  const isAutomations = parts.length >= 4 && parts[3] === "automations";
+
+  return { projectId, stream, itemId, isAutomations };
+}
 
 // ---------------------------------------------------------------------------
 // Workspace layout shell
@@ -39,17 +72,17 @@ export function WorkspaceLayout() {
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
   const setLastWorkspaceSlug = useUIStore((s) => s.setLastWorkspaceSlug);
 
-  // Stream from URL path param (e.g. /$workspace/project/$pid/stream/$stream/...).
+  // Stream from URL path param (e.g. /$workspace/p/$pid/s/$stream/...).
   // Falls back to "main" when on non-project routes (dashboard, settings, etc.).
   const currentStream = (stream as string | undefined) || "main";
 
   const handleStreamChange = useCallback(
     (newStream: string) => {
       // Replace the stream segment in the current URL.
-      const path = window.location.pathname;
-      const streamPattern = /\/stream\/[^/]+/;
+      const path = pathname;
+      const streamPattern = /\/s\/[^/]+/;
       if (streamPattern.test(path)) {
-        const newPath = path.replace(streamPattern, `/stream/${encodeURIComponent(newStream)}`);
+        const newPath = path.replace(streamPattern, `/s/${encodeURIComponent(newStream)}`);
         void navigate({ to: newPath as string, replace: true } as Parameters<typeof navigate>[0]);
       }
     },
@@ -59,8 +92,106 @@ export function WorkspaceLayout() {
   const [showCreateWs, setShowCreateWs] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
 
+  // Reactive pathname — triggers re-render on every navigation.
+  const { pathname } = useLocation();
+
   // Derive activeView from current URL for sidebar highlighting.
-  const activeView = viewFromPath(window.location.pathname, workspaceSlug ?? "");
+  const activeView = viewFromPath(pathname, workspaceSlug ?? "");
+
+  // -----------------------------------------------------------------------
+  // Sidebar context: determine from URL + query cache
+  // -----------------------------------------------------------------------
+
+  const ws = activeWorkspace.slug;
+
+  const sidebarContext = useMemo<SidebarContext | undefined>(() => {
+    const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
+    if (!projectParams) {
+      // Workspace-level: use default flat nav
+      return { level: "workspace", activeView };
+    }
+
+    // Try to read project from React Query cache (populated by child route loaders)
+    const project = queryClient.getQueryData<ProjectInfo>([
+      "project",
+      ws,
+      projectParams.projectId,
+      projectParams.stream,
+    ]);
+
+    if (!project) {
+      // Project data not yet in cache — fall back to workspace nav.
+      // This can happen briefly during navigation; child loader will populate it.
+      return { level: "workspace", activeView };
+    }
+
+    // Determine which project sub-page is active.
+    const activeProjectView = projectParams.isAutomations ? "automations" as const : "dashboard" as const;
+
+    return {
+      level: "project",
+      project,
+      activeStream: projectParams.stream,
+      activeProjectView,
+      onBack: projectParams.itemId || projectParams.isAutomations
+        ? () => {
+            // Editor/automations → project detail (up one level)
+            void navigate({
+              to: "/$workspace/p/$projectId/s/$stream",
+              params: {
+                workspace: workspaceSlug ?? ws,
+                projectId: project.id,
+                stream: projectParams.stream,
+              },
+            });
+          }
+        : () => {
+            // Project detail → workspace dashboard (up one level)
+            void navigate({ to: "/$workspace", params: { workspace: workspaceSlug ?? ws } });
+          },
+      onOpenDashboard: () => {
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream",
+          params: {
+            workspace: workspaceSlug ?? ws,
+            projectId: project.id,
+            stream: projectParams.stream,
+          },
+        });
+      },
+      onOpenFile: (itemId: string) => {
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream/$itemId/translate",
+          params: {
+            workspace: workspaceSlug ?? ws,
+            projectId: project.id,
+            stream: projectParams.stream,
+            itemId,
+          },
+        });
+      },
+      onStreamChange: handleStreamChange,
+      onOpenAutomations: () => {
+        void navigate({
+          to: "/$workspace/p/$projectId/s/$stream/automations",
+          params: {
+            workspace: workspaceSlug ?? ws,
+            projectId: project.id,
+            stream: projectParams.stream,
+          },
+        });
+      },
+    };
+  }, [
+    pathname,
+    workspaceSlug,
+    stream,
+    activeView,
+    ws,
+    queryClient,
+    navigate,
+    handleStreamChange,
+  ]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -97,22 +228,22 @@ export function WorkspaceLayout() {
 
   const handleViewChange = useCallback(
     (view: View) => {
-      const ws = workspaceSlug ?? "";
+      const wsSlug = workspaceSlug ?? "";
       switch (view) {
         case "translate":
-          void navigate({ to: "/$workspace", params: { workspace: ws } });
+          void navigate({ to: "/$workspace", params: { workspace: wsSlug } });
           break;
         case "brand":
-          void navigate({ to: "/$workspace/brand", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/brand", params: { workspace: wsSlug } });
           break;
         case "termbase":
-          void navigate({ to: "/$workspace/termbase", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/termbase", params: { workspace: wsSlug } });
           break;
         case "memory":
-          void navigate({ to: "/$workspace/memory", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/memory", params: { workspace: wsSlug } });
           break;
         case "settings":
-          void navigate({ to: "/$workspace/settings", params: { workspace: ws } });
+          void navigate({ to: "/$workspace/settings", params: { workspace: wsSlug } });
           break;
       }
     },
@@ -120,19 +251,19 @@ export function WorkspaceLayout() {
   );
 
   const handleSelectWorkspace = useCallback(
-    (ws: Workspace) => {
-      setLastWorkspaceSlug(ws.slug);
-      void navigate({ to: "/$workspace", params: { workspace: ws.slug } });
+    (selectedWs: Workspace) => {
+      setLastWorkspaceSlug(selectedWs.slug);
+      void navigate({ to: "/$workspace", params: { workspace: selectedWs.slug } });
     },
     [navigate, setLastWorkspaceSlug],
   );
 
   const handleWorkspaceCreated = useCallback(
-    async (ws: Workspace) => {
-      setLastWorkspaceSlug(ws.slug);
+    async (createdWs: Workspace) => {
+      setLastWorkspaceSlug(createdWs.slug);
       setShowCreateWs(false);
       await queryClient.refetchQueries({ queryKey: ["workspaces"] });
-      void navigate({ to: "/$workspace", params: { workspace: ws.slug } });
+      void navigate({ to: "/$workspace", params: { workspace: createdWs.slug } });
     },
     [setLastWorkspaceSlug, navigate, queryClient],
   );
@@ -197,8 +328,27 @@ export function WorkspaceLayout() {
           collapsed={sidebarCollapsed}
           onCollapsedChange={setSidebarCollapsed}
           showThemeToggle={false}
+          sidebarContext={sidebarContext}
           headerSlot={
-            <TopBar user={user} onSignOut={serverMode === "server" ? handleSignOut : undefined} />
+            <TopBar
+              user={user}
+              onSignOut={serverMode === "server" ? handleSignOut : undefined}
+              leftSlot={
+                sidebarContext?.level === "project" &&
+                sidebarContext.project.streams &&
+                sidebarContext.project.streams.length > 0 ? (
+                  <StreamSelector
+                    streams={sidebarContext.project.streams}
+                    activeStream={
+                      sidebarContext.project.streams.find(
+                        (s: StreamInfo) => s.name === sidebarContext.activeStream,
+                      ) ?? null
+                    }
+                    onStreamChange={(s: StreamInfo) => handleStreamChange(s.name)}
+                  />
+                ) : undefined
+              }
+            />
           }
           contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
         >

@@ -572,6 +572,7 @@ func protoProjectToInfo(p *pb.EditorProjectInfo) ProjectInfo {
 	items := make([]ProjectItem, len(p.Items))
 	for i, item := range p.Items {
 		items[i] = ProjectItem{
+			ID:         item.Id,
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.Type,

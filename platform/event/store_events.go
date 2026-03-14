@@ -129,6 +129,10 @@ func (s *EventEmittingStore) DeleteItem(ctx context.Context, projectID, stream, 
 	return s.inner.DeleteItem(ctx, projectID, stream, itemName)
 }
 
+func (s *EventEmittingStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*store.Item, error) {
+	return s.inner.GetItemByID(ctx, projectID, stream, itemID)
+}
+
 // --- Blocks (stream-scoped) ---
 
 func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID, stream string, blocks []*model.Block) error {

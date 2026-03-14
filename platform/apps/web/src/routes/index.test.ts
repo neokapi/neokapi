@@ -29,8 +29,8 @@ describe("route tree", () => {
       (r: AnyRoute) => r.path as string,
     );
     expect(childPaths).toContain("/");
-    expect(childPaths).toContain("project/$projectId/stream/$stream");
-    expect(childPaths).toContain("project/$projectId/stream/$stream/translate/$fileName");
+    expect(childPaths).toContain("p/$projectId/s/$stream");
+    expect(childPaths).toContain("p/$projectId/s/$stream/$itemId/translate");
     expect(childPaths).toContain("termbase");
     expect(childPaths).toContain("memory");
     expect(childPaths).toContain("settings");
