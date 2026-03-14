@@ -14,26 +14,57 @@ import (
 )
 
 // PgDB wraps a sql.DB connected to PostgreSQL with shared configuration applied.
+// When opened via OpenPostgresWithPool or OpenPostgresAzure, a pgxpool.Pool is
+// available for subsystems (like AGE graph) that need native pgx features.
 type PgDB struct {
 	*sql.DB
 	connStr string
+	pool    *pgxpool.Pool // nil when opened via sql.Open (no pgx pool)
 }
+
+// Pool returns the underlying pgxpool.Pool, or nil if not available.
+// The AGE graph store requires a pool for AfterConnect hooks.
+func (db *PgDB) Pool() *pgxpool.Pool {
+	return db.pool
+}
+
+// AfterConnectFunc is the type for pgx AfterConnect hooks.
+type AfterConnectFunc func(ctx context.Context, conn *pgx.Conn) error
 
 // OpenPostgres opens a PostgreSQL database with the given connection string.
 // The connection string should be a PostgreSQL DSN or URL, e.g.:
 //
 //	"postgres://user:pass@host:5432/dbname?sslmode=disable"
-//
-// TODO(graph): This uses database/sql which does not support pgx AfterConnect
-// hooks. AGE graph queries require the AfterConnect hook from
-// platform/graph.AfterConnect to load the AGE extension on each connection.
-// To enable graph support, switch to pgxpool with AfterConnect wired in.
 func OpenPostgres(connStr string) (*PgDB, error) {
-	db, err := sql.Open("pgx", connStr)
+	return OpenPostgresWithPool(connStr, nil)
+}
+
+// OpenPostgresWithPool opens a PostgreSQL database via pgxpool, optionally
+// wiring an AfterConnect hook (e.g., graph.AfterConnect for AGE). The pool
+// is exposed via PgDB.Pool() for subsystems that need native pgx access.
+func OpenPostgresWithPool(connStr string, afterConnect AfterConnectFunc) (*PgDB, error) {
+	poolConfig, err := pgxpool.ParseConfig(connStr)
 	if err != nil {
-		return nil, fmt.Errorf("open postgres: %w", err)
+		return nil, fmt.Errorf("parse postgres config: %w", err)
 	}
-	return configureAndPing(db, connStr)
+
+	if afterConnect != nil {
+		poolConfig.AfterConnect = afterConnect
+	}
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create postgres pool: %w", err)
+	}
+
+	db := stdlib.OpenDBFromPool(pool)
+	pgDB, err := configureAndPing(db, connStr)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	pgDB.pool = pool
+	return pgDB, nil
 }
 
 // OpenPostgresAzure opens a PostgreSQL database using Azure Managed Identity
@@ -72,9 +103,54 @@ func OpenPostgresAzure(connStr string, clientID string) (*PgDB, error) {
 		return nil
 	}
 
-	// TODO(graph): Wire graph.AfterConnect into poolConfig.AfterConnect
-	// to enable AGE on every connection. Requires plumbing an option
-	// through OpenPostgresAzure or switching the server to pgxpool directly.
+	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("create postgres pool: %w", err)
+	}
+
+	db := stdlib.OpenDBFromPool(pool)
+	pgDB, err := configureAndPing(db, connStr)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	pgDB.pool = pool
+	return pgDB, nil
+}
+
+// OpenPostgresAzureWithHook is like OpenPostgresAzure but also wires an
+// AfterConnect hook (e.g., for AGE graph support).
+func OpenPostgresAzureWithHook(connStr, clientID string, afterConnect AfterConnectFunc) (*PgDB, error) {
+	poolConfig, err := pgxpool.ParseConfig(connStr)
+	if err != nil {
+		return nil, fmt.Errorf("parse postgres pool config: %w", err)
+	}
+
+	var cred *azidentity.ManagedIdentityCredential
+	if clientID != "" {
+		cred, err = azidentity.NewManagedIdentityCredential(&azidentity.ManagedIdentityCredentialOptions{
+			ID: azidentity.ClientID(clientID),
+		})
+	} else {
+		cred, err = azidentity.NewManagedIdentityCredential(nil)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("create managed identity credential: %w", err)
+	}
+
+	poolConfig.BeforeConnect = func(ctx context.Context, cfg *pgx.ConnConfig) error {
+		token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+			Scopes: []string{"https://ossrdbms-aad.database.windows.net/.default"},
+		})
+		if err != nil {
+			return fmt.Errorf("get azure token: %w", err)
+		}
+		cfg.Password = token.Token
+		return nil
+	}
+	if afterConnect != nil {
+		poolConfig.AfterConnect = afterConnect
+	}
 
 	pool, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 	if err != nil {
@@ -82,7 +158,13 @@ func OpenPostgresAzure(connStr string, clientID string) (*PgDB, error) {
 	}
 
 	db := stdlib.OpenDBFromPool(pool)
-	return configureAndPing(db, connStr)
+	pgDB, err := configureAndPing(db, connStr)
+	if err != nil {
+		pool.Close()
+		return nil, err
+	}
+	pgDB.pool = pool
+	return pgDB, nil
 }
 
 func configureAndPing(db *sql.DB, connStr string) (*PgDB, error) {

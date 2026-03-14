@@ -2,27 +2,32 @@ package server
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
+	platbrand "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	corebrand "github.com/neokapi/neokapi/core/brand"
+	coreg "github.com/neokapi/neokapi/core/graph"
+	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
-// openPostgresStores opens PostgreSQL-backed ContentStore and AuthStore
-// from a postgres:// connection URL, sharing a single connection pool.
 // pgStores holds all PostgreSQL-backed stores opened from a shared connection pool.
 type pgStores struct {
-	Content store.ContentStore
-	Auth    auth.AuthStore
-	Job     jobs.JobStore
-	Quota   jobs.QuotaStore
-	DB      *storage.PgDB // shared connection pool for TM/TB
+	Content    store.ContentStore
+	Auth       auth.AuthStore
+	Job        jobs.JobStore
+	Quota      jobs.QuotaStore
+	Brand      corebrand.BrandStore
+	GraphStore coreg.GraphStore
+	DB         *storage.PgDB // shared connection pool for TM/TB
 }
 
 func openPostgresStores(databaseURL string) (*pgStores, error) {
-	db, err := storage.OpenPostgres(databaseURL)
+	db, err := storage.OpenPostgresWithPool(databaseURL, platgraph.AfterConnect)
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL: %w", err)
 	}
@@ -32,7 +37,7 @@ func openPostgresStores(databaseURL string) (*pgStores, error) {
 // openPostgresStoresAzure opens PostgreSQL-backed stores using Azure
 // Managed Identity for authentication (passwordless).
 func openPostgresStoresAzure(databaseURL, clientID string) (*pgStores, error) {
-	db, err := storage.OpenPostgresAzure(databaseURL, clientID)
+	db, err := storage.OpenPostgresAzureWithHook(databaseURL, clientID, platgraph.AfterConnect)
 	if err != nil {
 		return nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
 	}
@@ -62,5 +67,18 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		return nil, fmt.Errorf("init PostgreSQL quota store: %w", err)
 	}
 
-	return &pgStores{Content: cs, Auth: as, Job: js, Quota: qs, DB: db}, nil
+	bs, err := platbrand.NewPostgresBrandStore(db)
+	if err != nil {
+		log.Printf("WARNING: failed to init brand store: %v (brand voice features disabled)", err)
+	}
+
+	stores := &pgStores{Content: cs, Auth: as, Job: js, Quota: qs, Brand: bs, DB: db}
+
+	// Initialize graph store if pgxpool is available (AfterConnect was wired).
+	if pool := db.Pool(); pool != nil {
+		gs := platgraph.NewAGEGraphStore(pool)
+		stores.GraphStore = gs
+	}
+
+	return stores, nil
 }
