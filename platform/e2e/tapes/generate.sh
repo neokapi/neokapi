@@ -59,24 +59,37 @@ if curl -sf "${BOWRAIN_SERVER_URL}/api/v1/health" > /dev/null 2>&1; then
   # Obtain auth token for server-backed tapes if not already provided.
   if [ -z "${BOWRAIN_TOKEN:-}" ]; then
     echo "  Acquiring auth token..."
-    if START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
-      "${BOWRAIN_SERVER_URL}/api/v1/auth/device/start" 2>/dev/null); then
+    # Disable set -e for the auth flow since curl failures are expected
+    # when the server doesn't support device auth.
+    set +e
+    START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
+      "${BOWRAIN_SERVER_URL}/api/v1/auth/device/start" 2>/dev/null)
+    auth_ok=$?
+    set -e
+    if [ $auth_ok -eq 0 ]; then
       DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
       USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
+      set +e
       curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
-        "${BOWRAIN_SERVER_URL}/api/v1/auth/device/verify" > /dev/null
+        "${BOWRAIN_SERVER_URL}/api/v1/auth/device/verify" > /dev/null 2>&1
       TOKEN_RESP=$(curl -sf -X POST \
         -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
-        "${BOWRAIN_SERVER_URL}/api/v1/auth/device/poll")
-      export BOWRAIN_TOKEN
-      BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-      # Create default workspace for demos.
-      curl -sf -X POST \
-        -H "Authorization: Bearer $BOWRAIN_TOKEN" \
-        -H "Content-Type: application/json" \
-        -d '{"name":"Personal","slug":"personal"}' \
-        "${BOWRAIN_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
-      echo "  Token obtained."
+        "${BOWRAIN_SERVER_URL}/api/v1/auth/device/poll" 2>/dev/null)
+      token_ok=$?
+      set -e
+      if [ $token_ok -eq 0 ]; then
+        export BOWRAIN_TOKEN
+        BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+        # Create default workspace for demos.
+        curl -sf -X POST \
+          -H "Authorization: Bearer $BOWRAIN_TOKEN" \
+          -H "Content-Type: application/json" \
+          -d '{"name":"Personal","slug":"personal"}' \
+          "${BOWRAIN_SERVER_URL}/api/v1/workspaces" > /dev/null 2>&1 || true
+        echo "  Token obtained."
+      else
+        echo "  Warning: device auth poll failed. Server-backed tapes will use unauthenticated mode."
+      fi
     else
       echo "  Warning: could not acquire auth token (device auth endpoint returned error)."
       echo "  Server-backed tapes that need auth will use unauthenticated mode."
@@ -87,18 +100,27 @@ elif command -v docker &> /dev/null && docker compose version &> /dev/null 2>&1;
   echo "Starting server for live recordings..."
   E2E_DIR="$SCRIPT_DIR/../../../e2e"
   if bash "$E2E_DIR/setup.sh"; then
-    # Perform device auth flow
+    # Perform device auth flow (disable set -e for curl calls)
+    set +e
     START_RESP=$(curl -sf -X POST -d "client_id=vhs-recorder" \
-      http://localhost:8080/api/v1/auth/device/start)
-    DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
-    USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
-    curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
-      http://localhost:8080/api/v1/auth/device/verify > /dev/null
-    TOKEN_RESP=$(curl -sf -X POST \
-      -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
-      http://localhost:8080/api/v1/auth/device/poll)
-    export BOWRAIN_TOKEN
-    BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+      http://localhost:8080/api/v1/auth/device/start 2>/dev/null)
+    auth_ok=$?
+    set -e
+    if [ $auth_ok -eq 0 ]; then
+      DEVICE_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['device_code'])")
+      USER_CODE=$(echo "$START_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['user_code'])")
+      set +e
+      curl -sf -X POST -d "user_code=$USER_CODE&email=admin@example.com&name=Admin User" \
+        http://localhost:8080/api/v1/auth/device/verify > /dev/null 2>&1
+      TOKEN_RESP=$(curl -sf -X POST \
+        -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+        http://localhost:8080/api/v1/auth/device/poll 2>/dev/null)
+      token_ok=$?
+      set -e
+    fi
+    if [ "${token_ok:-1}" -eq 0 ]; then
+      export BOWRAIN_TOKEN
+      BOWRAIN_TOKEN=$(echo "$TOKEN_RESP" | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
     # Create default workspace
     curl -sf -X POST \
       -H "Authorization: Bearer $BOWRAIN_TOKEN" \
