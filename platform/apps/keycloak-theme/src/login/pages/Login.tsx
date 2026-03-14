@@ -138,7 +138,7 @@ export default function Login(props: {
                       <SocialIcon alias={provider.alias} />
                     </div>
                     <span className="text-xs text-[var(--semantic-text-muted)] group-hover:text-[var(--semantic-text)] transition-colors duration-300">
-                      {provider.displayName}
+                      {provider.displayName.replace(/^Sign in with /i, "")}
                     </span>
                   </a>
                 ))}
