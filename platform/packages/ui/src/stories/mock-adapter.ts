@@ -485,5 +485,14 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       modified_blocks: 0,
       removed_blocks: 0,
     }),
+
+    // --- Brand Voice -------------------------------------------------------
+    listBrandProfiles: async () => [],
+    getBrandProfile: notImpl,
+    createBrandProfile: notImpl,
+    updateBrandProfile: notImpl,
+    deleteBrandProfile: noop,
+    getBrandScores: async () => [],
+    getBrandTrends: async () => [],
   };
 }

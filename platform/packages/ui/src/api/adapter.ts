@@ -44,6 +44,13 @@ import type {
   StreamMergeResult,
   CreateStreamRequest,
 } from "../types/api";
+import type {
+  VoiceProfile,
+  StoredScore,
+  ScoreTrend,
+  CreateVoiceProfileRequest,
+  UpdateVoiceProfileRequest,
+} from "../brand/types";
 
 /**
  * ApiAdapter abstracts the communication layer so that the same
@@ -357,6 +364,21 @@ export interface ApiAdapter {
     blockId: string,
     entityKey: string,
   ): Promise<void>;
+
+  // Brand Voice
+  listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]>;
+  getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile>;
+  createBrandProfile(
+    workspaceSlug: string,
+    data: CreateVoiceProfileRequest,
+  ): Promise<VoiceProfile>;
+  updateBrandProfile(
+    workspaceSlug: string,
+    data: UpdateVoiceProfileRequest,
+  ): Promise<VoiceProfile>;
+  deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
+  getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
+  getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

@@ -99,6 +99,9 @@ export function WorkspaceLayout() {
         case "translate":
           void navigate({ to: "/$workspace", params: { workspace: ws } });
           break;
+        case "brand":
+          void navigate({ to: "/$workspace/brand", params: { workspace: ws } });
+          break;
         case "termbase":
           void navigate({ to: "/$workspace/termbase", params: { workspace: ws } });
           break;

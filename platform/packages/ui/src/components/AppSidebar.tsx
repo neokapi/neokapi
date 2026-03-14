@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { Workspace, User } from "../types/api";
-import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight } from "./icons";
+import { Globe, BookOpen, Brain, Settings, ChevronLeft, ChevronRight, Palette } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useSidebar } from "./ui/sidebar";
 
-export type View = "translate" | "termbase" | "memory" | "settings";
+export type View = "translate" | "brand" | "termbase" | "memory" | "settings";
 
 export interface NavItem {
   id: string;
@@ -35,6 +35,7 @@ export interface AppSidebarProps<V extends string = string> {
 
 const defaultNavItems: NavItem[] = [
   { id: "translate", label: "Translate", icon: <Globe className="w-5 h-5" /> },
+  { id: "brand", label: "Brand Voice", icon: <Palette className="w-5 h-5" /> },
   { id: "termbase", label: "Termbase", icon: <BookOpen className="w-5 h-5" /> },
   { id: "memory", label: "Memory", icon: <Brain className="w-5 h-5" /> },
   { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },

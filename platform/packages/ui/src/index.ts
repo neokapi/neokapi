@@ -229,6 +229,50 @@ export type {
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
+// Brand voice
+export {
+  BrandProfileCard,
+  BrandScoreGauge,
+  BrandFindingsList,
+  BrandDimensionBreakdown,
+  BrandExamplePair,
+  BrandProfileEditor,
+  BrandProfileList,
+  BrandDashboard,
+  BrandMCPGuide,
+} from "./brand";
+export type {
+  VoiceProfile,
+  ToneProfile,
+  StyleRules,
+  Pattern,
+  VocabularyRules,
+  TermRule,
+  VoiceExample,
+  LocaleOverride,
+  ChannelOverride,
+  Dimension,
+  BrandSeverity,
+  BrandVoiceFinding,
+  DimensionScore,
+  BrandComplianceScore,
+  StoredScore,
+  ScoreTrend,
+  CreateVoiceProfileRequest,
+  UpdateVoiceProfileRequest,
+} from "./brand";
+
+// Brand voice hooks
+export {
+  useBrandProfiles,
+  useBrandProfile,
+  useCreateBrandProfile,
+  useUpdateBrandProfile,
+  useDeleteBrandProfile,
+  useBrandScores,
+  useBrandTrends,
+} from "./hooks/useBrandApi";
+
 // Filter config editor
 export { FilterConfigEditor } from "./components/filter";
 export type {

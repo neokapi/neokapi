@@ -242,6 +242,48 @@ const automationsRoute = createRoute({
   },
 });
 
+const brandRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "brand",
+  component: Outlet,
+});
+
+const brandIndexRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "/",
+  component: lazyRouteComponent(
+    () => import("./workspace/brand-profiles"),
+    "BrandProfilesRoute",
+  ),
+});
+
+const brandEditorRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "$profileId",
+  component: lazyRouteComponent(
+    () => import("./workspace/brand-editor"),
+    "BrandEditorRoute",
+  ),
+});
+
+const brandDashboardRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "dashboard",
+  component: lazyRouteComponent(
+    () => import("./workspace/brand-dashboard"),
+    "BrandDashboardRoute",
+  ),
+});
+
+const brandMCPGuideRoute = createRoute({
+  getParentRoute: () => brandRoute,
+  path: "mcp-guide",
+  component: lazyRouteComponent(
+    () => import("./workspace/brand-mcp-guide"),
+    "BrandMCPGuideRoute",
+  ),
+});
+
 const termbaseRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "termbase",
@@ -296,6 +338,7 @@ const routeTree = rootRoute.addChildren([
     projectRoute,
     translateRoute,
     automationsRoute,
+    brandRoute.addChildren([brandIndexRoute, brandDashboardRoute, brandMCPGuideRoute, brandEditorRoute]),
     termbaseRoute,
     memoryRoute,
     settingsRoute.addChildren([settingsIndexRoute, settingsMembersRoute, settingsProvidersRoute]),

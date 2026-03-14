@@ -32,7 +32,7 @@ export function BrandProfileCard({ profile, onClick, onDelete }: BrandProfileCar
               variant="ghost"
               size="icon"
               className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 onDelete(profile);
               }}
