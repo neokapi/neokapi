@@ -9,6 +9,7 @@ import (
 )
 
 func TestRoundTrip_Simple(t *testing.T) {
+	t.Parallel()
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	tmx := []byte(wrapTMX(`
@@ -20,6 +21,7 @@ func TestRoundTrip_Simple(t *testing.T) {
 }
 
 func TestRoundTrip_InlineCodes(t *testing.T) {
+	t.Parallel()
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	tmx := []byte(`<?xml version="1.0"?>
@@ -42,6 +44,7 @@ func TestRoundTrip_InlineCodes(t *testing.T) {
 }
 
 func TestRoundTrip_MultipleUnits(t *testing.T) {
+	t.Parallel()
 	pool, cfg := bridgetest.SharedBridge(t)
 
 	tmx := []byte(wrapTMX(`
@@ -62,6 +65,7 @@ func TestRoundTrip_MultipleUnits(t *testing.T) {
 
 // okapi: RoundTripTmxIT#tmxFiles
 func TestRoundTrip_TestFiles(t *testing.T) {
+	t.Parallel()
 	pool, cfg := bridgetest.SharedBridge(t)
 	tdDir := bridgetest.TestdataDir(t)
 
@@ -80,5 +84,6 @@ func TestRoundTrip_TestFiles(t *testing.T) {
 
 // okapi: TmxXliffCompareIT
 func TestRoundTrip_SampleTMX2(t *testing.T) {
+	t.Parallel()
 	fileRoundtripEvents(t, "okapi/filters/tmx/src/test/resources/sampleTMX2.tmx", nil)
 }

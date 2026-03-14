@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -36,6 +37,7 @@ type JavaBridge struct {
 	mu      sync.RWMutex
 	logger  *log.Logger
 	running bool
+	healthy atomic.Bool // set after successful operations; checked by pool.Release to skip RPC health check
 }
 
 // NewJavaBridge creates a new bridge with the given config.
@@ -268,6 +270,8 @@ func (b *JavaBridge) Read() ([]*pb.PartMessage, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	b.healthy.Store(false)
+
 	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.streamTimeout())
 	defer cancel()
 
@@ -287,6 +291,7 @@ func (b *JavaBridge) Read() ([]*pb.PartMessage, error) {
 		}
 		parts = append(parts, msg)
 	}
+	b.healthy.Store(true)
 	return parts, nil
 }
 
@@ -360,6 +365,8 @@ func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	b.healthy.Store(false)
+
 	ctx, cancel := context.WithTimeout(ctx, b.cfg.streamTimeout())
 	defer cancel()
 
@@ -417,6 +424,7 @@ func (b *JavaBridge) WriteStream(ctx context.Context, params WriteStreamParams,
 	if resp.Error != "" {
 		return nil, fmt.Errorf("write: %s", resp.Error)
 	}
+	b.healthy.Store(true)
 	return &WriteStreamResult{
 		Output:     resp.Output,
 		OutputPath: resp.OutputPath,
@@ -428,6 +436,8 @@ func (b *JavaBridge) CloseFilter() error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
+	b.healthy.Store(false)
+
 	ctx, cancel := context.WithTimeout(context.Background(), b.cfg.CommandTimeout)
 	defer cancel()
 
@@ -438,6 +448,7 @@ func (b *JavaBridge) CloseFilter() error {
 	if resp.Error != "" {
 		return fmt.Errorf("close: %s", resp.Error)
 	}
+	b.healthy.Store(true)
 	return nil
 }
 
@@ -459,6 +470,12 @@ func (b *JavaBridge) IsHealthy() bool {
 
 	// No client means this is a mock/test bridge — skip the health check.
 	if client == nil {
+		return true
+	}
+
+	// Fast path: if the last operation succeeded, the bridge is healthy.
+	// This avoids a full gRPC round-trip on every pool.Release().
+	if b.healthy.Load() {
 		return true
 	}
 
@@ -515,6 +532,7 @@ type RoundTripParams struct {
 	Encoding     string
 	MimeType     string
 	FilterParams map[string]any
+	Content      []byte // Inline content bytes (sent via gRPC, Java writes to temp file)
 	SourcePath   string // Input file path (Java reads from disk)
 	OutputPath   string // Output file path (Java writes to disk)
 	OutputLocale string // Locale for the output document
@@ -549,6 +567,8 @@ func (b *JavaBridge) RoundTrip(ctx context.Context, params RoundTripParams,
 	ctx, cancel := context.WithTimeout(ctx, b.cfg.streamTimeout())
 	defer cancel()
 
+	b.healthy.Store(false)
+
 	stream, err := client.RoundTrip(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("roundtrip: %w", err)
@@ -565,7 +585,11 @@ func (b *JavaBridge) RoundTrip(ctx context.Context, params RoundTripParams,
 		FilterParams: encodeFilterParams(params.FilterParams),
 		OutputLocale: params.OutputLocale,
 	}
-	if params.SourcePath != "" {
+	if params.Content != nil {
+		header.ContentRef = &pb.ContentRef{
+			Location: &pb.ContentRef_Inline{Inline: params.Content},
+		}
+	} else if params.SourcePath != "" {
 		header.ContentRef = &pb.ContentRef{
 			Location: &pb.ContentRef_Path{Path: params.SourcePath},
 		}
@@ -659,6 +683,7 @@ func (b *JavaBridge) RoundTrip(ctx context.Context, params RoundTripParams,
 			if c.Complete.Error != "" {
 				return nil, fmt.Errorf("roundtrip: %s", c.Complete.Error)
 			}
+			b.healthy.Store(true)
 			return &RoundTripResult{
 				Output:     c.Complete.Output,
 				OutputPath: c.Complete.OutputPath,
