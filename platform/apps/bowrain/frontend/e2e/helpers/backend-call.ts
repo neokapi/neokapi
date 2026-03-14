@@ -12,15 +12,15 @@ import type { Page } from "@playwright/test";
  * These must match the IDs in mock-backend.ts and the generated bindings.
  */
 const METHOD_IDS: Record<string, number> = {
-  AddConcept: 719452361,
-  AddItems: 1434721329,
-  AddTMEntry: 877455352,
-  CloseProject: 637964653,
-  CreateProject: 2130069333,
-  GetItemBlocks: 2088446217,
-  ListProjects: 1255557302,
-  ListProjectFiles: 882190332,
-  PseudoTranslateItem: 3367128751,
+  AddConcept: 1629877469,
+  AddItems: 3605832733,
+  AddTMEntry: 2110941316,
+  CloseProject: 3843799473,
+  CreateProject: 4069855585,
+  GetItemBlocks: 3766337077,
+  ListProjects: 371450674,
+  ListProjectFiles: 2403520224,
+  PseudoTranslateItem: 274883483,
 };
 
 /**
