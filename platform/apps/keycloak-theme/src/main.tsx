@@ -3,17 +3,19 @@ import { StrictMode } from "react";
 import { ThemeProvider } from "@neokapi/ui/context/ThemeContext";
 import { KcPage } from "./kc.gen";
 
-// Uncomment to test a specific page with `npm run dev`:
-/*
-import { getKcContextMock } from "./login/KcPageStory";
-
-if (import.meta.env.DEV) {
+// In dev mode, allow rendering any page via ?kcPageId= query parameter.
+// This enables E2E testing of all theme pages with mock contexts.
+if (import.meta.env.DEV && !window.kcContext) {
+  const params = new URLSearchParams(window.location.search);
+  const pageId = params.get("kcPageId");
+  if (pageId) {
+    const { getKcContextMock } = await import("./login/KcPageStory");
     window.kcContext = getKcContextMock({
-        pageId: "login.ftl",
-        overrides: {}
+      pageId: pageId as any,
+      overrides: {},
     });
+  }
 }
-*/
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

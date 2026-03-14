@@ -862,6 +862,9 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	// Set HttpOnly cookies and redirect to frontend (no tokens in URL).
 	setSessionCookies(c, token, refreshToken)
 
+	// Store the raw OIDC ID token for RP-Initiated Logout (id_token_hint).
+	_ = s.SessionStore.Set(ctx, prefixIDToken+user.ID, []byte(rawIDToken), 24*time.Hour)
+
 	// Check for a return-path cookie (e.g. from /join/:code before OIDC redirect).
 	returnPath := "/"
 	if rp, err := c.Cookie("bowrain_return_path"); err == nil && rp.Value != "" {
@@ -974,9 +977,17 @@ func (s *Server) HandleAuthMe(c echo.Context) error {
 func (s *Server) HandleAuthLogout(c echo.Context) error {
 	ctx := c.Request().Context()
 
+	var rawIDToken string
+
 	// Revoke all refresh tokens for this user so the session cannot be resumed.
 	if userID, ok := c.Get("user_id").(string); ok && userID != "" && s.AuthStore != nil {
 		_ = s.AuthStore.RevokeUserRefreshTokens(ctx, userID)
+
+		// Retrieve the stored OIDC ID token for the logout hint.
+		if data, err := s.SessionStore.Get(ctx, prefixIDToken+userID); err == nil {
+			rawIDToken = string(data)
+		}
+		_ = s.SessionStore.Delete(ctx, prefixIDToken+userID)
 	}
 
 	clearSessionCookies(c)
@@ -986,6 +997,9 @@ func (s *Server) HandleAuthLogout(c echo.Context) error {
 	// Discover the OIDC end_session_endpoint for RP-Initiated Logout.
 	if endSessionURL := s.discoverEndSessionEndpoint(ctx); endSessionURL != "" {
 		resp["end_session_url"] = endSessionURL
+		if rawIDToken != "" {
+			resp["id_token_hint"] = rawIDToken
+		}
 	}
 
 	return c.JSON(http.StatusOK, resp)

@@ -225,7 +225,7 @@ dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
 	BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
 	BOWRAIN_SMTP_HOST=localhost:1025 \
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
-	BOWRAIN_STORE=bowrain-dev.db \
+	BOWRAIN_DATABASE_URL=postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable \
 	BOWRAIN_REDIS_URL=redis://localhost:6379 \
 	$(BIN_DIR)/bowrain-server
 
