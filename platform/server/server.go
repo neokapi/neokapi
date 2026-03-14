@@ -543,6 +543,12 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/projects/:id/brand-voice/trends", s.HandleGetBrandVoiceTrends)
 	g.POST("/projects/:id/brand-voice/corrections", s.HandleCreateBrandVoiceCorrection)
 
+	// Graph query endpoints (dashboard analytics)
+	g.GET("/graph/concepts", s.HandleGetConceptHierarchy)
+	g.GET("/graph/nodes/:nodeId/neighbors", s.HandleGetGraphNeighbors)
+	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
+	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
+
 	// Stream management (project-scoped)
 	g.GET("/projects/:id/streams", s.HandleListStreams)
 	g.POST("/projects/:id/streams", s.HandleCreateStream)
