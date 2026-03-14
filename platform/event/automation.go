@@ -173,6 +173,11 @@ func chainDepth(causationID string) int {
 	return depth
 }
 
+// IsBrandVoiceEvent returns true if the event type is a brand voice event.
+func IsBrandVoiceEvent(t platev.EventType) bool {
+	return strings.HasPrefix(string(t), "brand.")
+}
+
 // NextCausationID increments the causation chain.
 func NextCausationID(event platev.Event) string {
 	depth := chainDepth(event.CausationID)
