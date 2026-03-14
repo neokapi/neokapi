@@ -62,8 +62,11 @@ services:
       timeout: 5s
       retries: 5
 
+  # Apache AGE extends PostgreSQL with graph database capabilities.
+  # It is a drop-in replacement for the standard postgres image — all
+  # existing services (Keycloak, bowrain-server) work unchanged.
   postgres:
-    image: postgres:16-alpine
+    image: apache/age:PG16_latest
     environment:
       POSTGRES_USER: bowrain
       POSTGRES_PASSWORD: bowrain
@@ -77,6 +80,7 @@ services:
       retries: 10
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./migrations/init-age.sql:/docker-entrypoint-initdb.d/01-init-age.sql
 
 volumes:
   nats-data:
