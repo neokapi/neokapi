@@ -23,6 +23,7 @@ import (
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/registry"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
+	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/store"
@@ -96,6 +97,9 @@ type Server struct {
 
 	// graphSyncer keeps the graph in sync with content events. Nil when graph is not configured.
 	graphSyncer *platgraph.GraphSyncer
+
+	// mcpServer is the MCP protocol server for brand voice. Nil when brand store is not configured.
+	mcpServer *mcpserver.MCPServer
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
@@ -206,6 +210,21 @@ func NewServer(cfg ServerConfig) *Server {
 	// Wire up graph sync if graph store is available.
 	if s.GraphStore != nil {
 		s.graphSyncer = platgraph.NewGraphSyncer(s.GraphStore, s.EventBus)
+	}
+
+	// Initialize MCP server for brand voice when brand store is available.
+	if s.BrandStore != nil {
+		mcpCfg := mcpserver.Config{
+			JWTSecret:     cfg.JWTSecret,
+			OIDCIssuerURL: cfg.OIDCIssuerURL,
+			PublicURL:      cfg.OIDCPublicURL,
+		}
+		ms, err := mcpserver.NewMCPServer(s.BrandStore, mcpCfg)
+		if err != nil {
+			log.Printf("WARNING: failed to initialize MCP server: %v", err)
+		} else {
+			s.mcpServer = ms
+		}
 	}
 
 	return s
@@ -352,6 +371,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.DELETE("/tokens/:id", s.HandleDeleteToken)
 
 		s.registerWorkspaceContentRoutes(wsSpecific)
+	}
+
+	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).
+	if s.mcpServer != nil {
+		s.mcpServer.RegisterRoutes(e)
 	}
 
 	// Web UI static file serving (development and E2E only).
