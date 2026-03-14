@@ -240,7 +240,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Formality</Label>
                 <Select
                   value={tone.formality}
-                  onValueChange={(v) => setTone((prev) => ({ ...prev, formality: v as ToneProfile["formality"] }))}
+                  onValueChange={(v: string) => setTone((prev) => ({ ...prev, formality: v as ToneProfile["formality"] }))}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -256,7 +256,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Emotion</Label>
                 <Select
                   value={tone.emotion}
-                  onValueChange={(v) => setTone((prev) => ({ ...prev, emotion: v as ToneProfile["emotion"] }))}
+                  onValueChange={(v: string) => setTone((prev) => ({ ...prev, emotion: v as ToneProfile["emotion"] }))}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -271,7 +271,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Humor</Label>
                 <Select
                   value={tone.humor}
-                  onValueChange={(v) => setTone((prev) => ({ ...prev, humor: v as ToneProfile["humor"] }))}
+                  onValueChange={(v: string) => setTone((prev) => ({ ...prev, humor: v as ToneProfile["humor"] }))}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -293,7 +293,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Active Voice</Label>
                 <Switch
                   checked={style.active_voice}
-                  onCheckedChange={(v) => setStyle((prev) => ({ ...prev, active_voice: v }))}
+                  onCheckedChange={(v: boolean) => setStyle((prev) => ({ ...prev, active_voice: v }))}
                 />
               </div>
 
@@ -301,7 +301,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Sentence Length</Label>
                 <Select
                   value={style.sentence_length}
-                  onValueChange={(v) =>
+                  onValueChange={(v: string) =>
                     setStyle((prev) => ({ ...prev, sentence_length: v as StyleRules["sentence_length"] }))
                   }
                 >
@@ -318,7 +318,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Point of View</Label>
                 <Select
                   value={style.person_pov}
-                  onValueChange={(v) =>
+                  onValueChange={(v: string) =>
                     setStyle((prev) => ({ ...prev, person_pov: v as StyleRules["person_pov"] }))
                   }
                 >
@@ -335,7 +335,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Contractions</Label>
                 <Select
                   value={style.contractions}
-                  onValueChange={(v) =>
+                  onValueChange={(v: string) =>
                     setStyle((prev) => ({ ...prev, contractions: v as StyleRules["contractions"] }))
                   }
                 >
@@ -372,7 +372,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   />
                   <Select
                     value={pat.severity}
-                    onValueChange={(v) => updatePattern("prohibited_patterns", i, "severity", v)}
+                    onValueChange={(v: string) => updatePattern("prohibited_patterns", i, "severity", v)}
                   >
                     <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -411,7 +411,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   />
                   <Select
                     value={pat.severity}
-                    onValueChange={(v) => updatePattern("required_patterns", i, "severity", v)}
+                    onValueChange={(v: string) => updatePattern("required_patterns", i, "severity", v)}
                   >
                     <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
                     <SelectContent>

@@ -45,6 +45,13 @@ import type {
   StreamMergeResult,
   CreateStreamRequest,
 } from "../types/api";
+import type {
+  VoiceProfile,
+  StoredScore,
+  ScoreTrend,
+  CreateVoiceProfileRequest,
+  UpdateVoiceProfileRequest,
+} from "../brand/types";
 
 /**
  * RestApiAdapter talks to the neokapi REST server.
@@ -1064,6 +1071,58 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(
       `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}/promote`,
       { method: "POST", body: JSON.stringify({ item_name: itemName }) },
+    );
+  }
+
+  // ── Brand Voice ──────────────────────────────────────────────────────────
+
+  private brandEp(ws: string) {
+    return `/api/v1/workspaces/${ws}/brand/profiles`;
+  }
+
+  async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
+    return this.fetchJSON(this.brandEp(workspaceSlug));
+  }
+
+  async getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile> {
+    return this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`);
+  }
+
+  async createBrandProfile(
+    workspaceSlug: string,
+    data: CreateVoiceProfileRequest,
+  ): Promise<VoiceProfile> {
+    return this.fetchJSON(this.brandEp(workspaceSlug), {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateBrandProfile(
+    workspaceSlug: string,
+    data: UpdateVoiceProfileRequest,
+  ): Promise<VoiceProfile> {
+    return this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(data.id)}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void> {
+    await this.fetchJSON(`${this.brandEp(workspaceSlug)}/${encodeURIComponent(profileId)}`, {
+      method: "DELETE",
+    });
+  }
+
+  async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
+    return this.fetchJSON(
+      `/api/v1/workspaces/${workspaceSlug}/brand/scores?project_id=${encodeURIComponent(projectId)}`,
+    );
+  }
+
+  async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
+    return this.fetchJSON(
+      `/api/v1/workspaces/${workspaceSlug}/brand/trends?project_id=${encodeURIComponent(projectId)}`,
     );
   }
 
