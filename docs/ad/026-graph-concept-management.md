@@ -51,10 +51,6 @@ type GraphStore interface {
     BulkCreateNodes(ctx context.Context, nodes []*Node) error
     BulkCreateEdges(ctx context.Context, edges []*Edge) error
 
-    // Cypher escape hatch (AGE backend only; SQLite returns ErrCypherNotSupported)
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*Node, error)
-    CypherExec(ctx context.Context, query string, params map[string]any) error
-
     Close() error
 }
 ```
@@ -137,26 +133,22 @@ Edge labels in `core/graph/labels.go` are aligned with W3C SKOS vocabulary for t
 
 `InverseLabel()` returns the inverse of directional labels (BROADER/NARROWER, PART_OF/HAS_PART).
 
-### Apache AGE Backend
+### Apache AGE Backend (Server)
 
-`platform/graph/age.go` implements `GraphStore` using Apache AGE, a PostgreSQL extension that adds Cypher query support via `ag_catalog.cypher()`.
+Server deployments can use an Apache AGE backend (`platform/graph/age.go`) that implements `GraphStore` using PostgreSQL's AGE extension. The AGE backend also implements a `CypherStore` sub-interface that adds native Cypher query support:
 
-**Key design decisions:**
-- All Cypher queries go through `ag_catalog.cypher('bowrain_graph', $$ ... $$)`
-- Application-level `id` property stored as a node/edge property (AGE's internal IDs are opaque integers)
-- Validity fields (`valid_from`, `valid_to`, `tags`) stored as edge properties
-- `ShortestPath` uses AGE's native `shortestPath()` function
+```go
+// platform/graph/cypher.go
+type CypherStore interface {
+    graph.GraphStore
+    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*graph.Node, error)
+    CypherExec(ctx context.Context, query string, params map[string]any) error
+}
+```
 
-**agtype parser** (`platform/graph/agtype.go`):
-- AGE returns results as `agtype` -- a custom PostgreSQL type with suffixes like `::vertex`, `::edge`, `::path`
-- `ParseVertex(raw)` strips `::vertex` suffix, parses JSON body, extracts application-level ID from properties
-- `ParseEdge(raw)` strips `::edge` suffix, parses JSON body, reconstructs `Validity` from properties
-- `ParsePath(raw)` strips `::path` suffix, splits alternating vertex/edge elements from the array
-- `ParseScalar(raw)` handles scalar values (string, int, float, bool, null)
+Cypher methods are not part of the core `GraphStore` interface — they are a server-specific extension. Callers type-assert to `CypherStore` when they need Cypher access. This keeps the framework interface clean and fully implementable by the SQLite backend.
 
-**AfterConnect hook** (`platform/graph/afterconnect.go`):
-- Sets `search_path` to include `ag_catalog` and loads the AGE extension
-- Applied via `pgxpool.Config.AfterConnect` for every new connection in the pool
+See the [Graph Store Schema](/docs/notes/graph-store-schema) implementation note for AGE-specific details (agtype parsing, AfterConnect hook).
 
 ### SQLite Backend
 
@@ -193,17 +185,10 @@ Indexes on `source`, `target`, and `label` columns for efficient traversal.
 - Validity filtering done in Go after edge retrieval (for scoped queries)
 - `ShortestPath` uses a recursive CTE with BFS, tracking visited nodes to avoid cycles
 - Bulk operations use transactions with prepared statements
-- `CypherQuery` / `CypherExec` return `ErrCypherNotSupported`
 
-### Event-Driven Graph Sync
+### Event-Driven Graph Sync (Server)
 
-`platform/graph/sync.go` provides `GraphSyncer` which subscribes to the event bus ([AD-011](./011-automation.md)) and keeps the graph in sync with relational content changes:
-
-- `EventBlockCreated` -- creates a Concept node with project_id and name properties
-- `EventBlockUpdated` -- updates the node properties
-- `EventBlockDeleted` -- deletes the node (edges are cascade-deleted in AGE via DETACH DELETE)
-
-This ensures the graph reflects the current state of terminology without manual synchronization.
+Server deployments include a `GraphSyncer` (`platform/graph/sync.go`) that subscribes to the event bus ([AD-011](./011-automation.md)) and keeps the AGE graph in sync with relational content changes (block create/update/delete events).
 
 ### Terminology Integration
 
@@ -223,7 +208,7 @@ type ConceptRelation struct {
 
 - **Native graph database (Neo4j, DGraph)**: Adds deployment complexity and a separate database dependency. Apache AGE runs as a PostgreSQL extension on the existing database, requiring no additional infrastructure.
 
-- **Graph operations in SQL only**: Recursive CTEs handle simple traversals but become unwieldy for complex graph patterns. The Cypher escape hatch on AGE provides full graph query power when needed.
+- **Graph operations in SQL only**: Recursive CTEs handle simple traversals but become unwieldy for complex graph patterns. The AGE backend's `CypherStore` sub-interface provides full graph query power when needed.
 
 - **Hard-coded validity dimensions**: The tag-based model with workspace-configurable dimensions is more flexible than fixed fields like `market`, `product`, `channel`. It supports any scoping vocabulary without schema changes.
 
@@ -235,6 +220,6 @@ type ConceptRelation struct {
 - Two backends serve different deployment needs: AGE for production with native Cypher queries, SQLite for CLI and development with no external dependencies
 - Temporal validity enables modeling of relationships that change over time (term supersession, seasonal terminology, product lifecycle)
 - SKOS-aligned labels ensure interoperability with standard terminology interchange formats
-- The Cypher escape hatch on AGE allows power users to write complex graph queries directly, while the structured API covers common operations
+- The `CypherStore` sub-interface on the AGE backend allows power users to write complex graph queries directly, while the core `GraphStore` API covers common operations portably
 - Event-driven sync keeps the graph consistent with relational data without manual intervention
 - The `GraphStore` interface enables backend substitution -- a project can start with SQLite and migrate to AGE when needed
