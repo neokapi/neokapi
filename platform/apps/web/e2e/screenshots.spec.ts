@@ -18,7 +18,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const SCREENSHOT_BASE = path.resolve(__dirname, "../../../../website/static/img/web-app");
 
-const BASE_URL = process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080";
+const BASE_URL =
+  process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080";
 
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {
