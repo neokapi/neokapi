@@ -4,9 +4,17 @@
   "loginTheme": "bowrain",
   "registrationAllowed": true,
   "registrationEmailAsUsername": true,
+  "resetPasswordAllowed": false,
   "verifyEmail": true,
   "loginWithEmailAllowed": true,
   "sslRequired": "none",
+  "webAuthnPolicyPasswordless": {
+    "rpEntityName": "Bowrain",
+    "signatureAlgorithms": ["ES256"],
+    "requireResidentKey": "Yes",
+    "userVerificationRequirement": "required"
+  },
+  "browserFlow": "passkey browser",
   "smtpServer": {
     "host": "mailpit",
     "port": "1025",
@@ -24,7 +32,7 @@
       "publicClient": false,
       "secret": "bowrain-secret",
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": true,
+      "directAccessGrantsEnabled": false,
       "redirectUris": [
         "http://localhost:8080/api/v1/auth/callback",
         "http://localhost:8080/api/v1/auth/desktop/callback",
@@ -104,13 +112,67 @@
       "enabled": true,
       "firstName": "Admin",
       "lastName": "User",
-      "credentials": [
+      "credentials": []
+    }
+  ],
+  "authenticationFlows": [
+    {
+      "alias": "passkey browser",
+      "description": "Passkey-based browser authentication",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": false,
+      "authenticationExecutions": [
         {
-          "type": "password",
-          "value": "password",
-          "temporary": false
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE"
+        },
+        {
+          "authenticator": "identity-provider-redirector",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE"
+        },
+        {
+          "authenticator": "auth-passkeys-conditional",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE"
+        },
+        {
+          "flowAlias": "passkey browser forms",
+          "authenticatorFlow": true,
+          "requirement": "ALTERNATIVE"
         }
       ]
+    },
+    {
+      "alias": "passkey browser forms",
+      "description": "Username + passwordless WebAuthn",
+      "providerId": "basic-flow",
+      "topLevel": false,
+      "builtIn": false,
+      "authenticationExecutions": [
+        {
+          "authenticator": "auth-username-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED"
+        },
+        {
+          "authenticator": "webauthn-authenticator-passwordless",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED"
+        }
+      ]
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "webauthn-register-passwordless",
+      "name": "Webauthn Register Passwordless",
+      "providerId": "webauthn-register-passwordless",
+      "enabled": true,
+      "defaultAction": true,
+      "priority": 70
     }
   ]
 }

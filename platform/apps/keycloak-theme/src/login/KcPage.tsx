@@ -10,6 +10,8 @@ import "./main.css";
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const ErrorPage = lazy(() => import("./pages/Error"));
+const LoginPasskeysConditionalAuthenticate = lazy(() => import("./pages/LoginPasskeysConditionalAuthenticate"));
+const WebauthnRegister = lazy(() => import("./pages/WebauthnRegister"));
 const UserProfileFormFields = lazy(() => import("keycloakify/login/UserProfileFormFields"));
 
 export default function KcPage(props: { kcContext: KcContext }) {
@@ -28,6 +30,10 @@ export default function KcPage(props: { kcContext: KcContext }) {
               return <Register kcContext={kcContext} i18n={i18n} />;
             case "error.ftl":
               return <ErrorPage kcContext={kcContext} i18n={i18n} />;
+            case "login-passkeys-conditional-authenticate.ftl":
+              return <LoginPasskeysConditionalAuthenticate kcContext={kcContext} i18n={i18n} />;
+            case "webauthn-register.ftl":
+              return <WebauthnRegister kcContext={kcContext} i18n={i18n} />;
             default:
               return (
                 <DefaultPage
