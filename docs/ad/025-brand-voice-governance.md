@@ -123,10 +123,11 @@ type BrandStore interface {
 }
 ```
 
-Three storage tiers:
+The framework provides:
 
-1. **CLI SQLite** (`cli/storage/brand/`) -- persistent file-based storage for kapi and bowrain CLI. JSON columns for tone, style, vocabulary, examples, locales, channels.
-2. **Server PostgreSQL** (`bowrain/brand/`) -- workspace-scoped storage for Bowrain Server.
+1. **SQLite** (`cli/storage/brand/`) — persistent file-based storage for CLI tools. JSON columns for tone, style, vocabulary, examples, locales, channels.
+
+The `BrandStore` interface supports server-side backends with workspace scoping and PostgreSQL storage.
 
 Score storage tracks compliance over time per block, enabling trend analysis. The correction feedback loop (`StoreCorrection` / `GetSuggestedRules`) surfaces repeated user corrections as candidate vocabulary rules.
 
@@ -147,26 +148,12 @@ This means brand vocabulary flows through the same pipeline tools (`term-lookup`
 
 ### MCP Distribution
 
-Brand voice profiles are distributed to AI agents via a cloud MCP server (`platform/server/mcp/`) using Streamable HTTP transport. See [AD-021](./021-mcp-integration.md) for the full MCP design.
+Brand voice capabilities are exposed to AI agents via MCP ([AD-021](./021-mcp-integration.md)):
 
-**Resources** (read-only data):
-- `brand://profiles/{id}` -- full voice profile
-- `brand://profiles/{id}/vocabulary` -- vocabulary rules only
-- `brand://profiles/{id}/examples` -- before/after pairs
-- `brand://terminology/{workspace}` -- workspace termbase index
+- **`kapi mcp`** (stdio) — brand voice checking via `run_flow` with the `brand-voice-check` and `brand-vocab-filter` tools. No server required.
+- **Project CLI MCP** (stdio) — same capabilities within a project context.
 
-**Tools** (actions):
-- `check_vocabulary` -- validate text against brand terms (returns findings + score)
-- `list_profiles` -- list profiles in a workspace
-- `get_voice_guide` -- formatted markdown guide for LLM consumption
-- `score_brand_compliance` -- full scoring with per-dimension breakdown
-- `suggest_corrections` -- generate rewrites for findings
-- `rewrite_in_voice` -- apply vocabulary rules and return rewritten text
-
-**Prompts** (LLM workflows):
-- `write_in_voice` -- write new content in a brand voice
-- `rewrite_in_voice` -- rewrite text to match brand voice
-- `check_draft` -- review draft against guidelines
+Server deployments can extend this with a cloud MCP endpoint using Streamable HTTP transport, providing HTTP-based access to brand voice profiles, vocabulary tools, scoring, and guided prompts for AI agents.
 
 ### Starter Packs
 

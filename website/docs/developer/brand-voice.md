@@ -53,11 +53,11 @@ type BrandStore interface {
 
 ### Backends
 
-Three storage backends implement `BrandStore`:
+The framework ships with one storage backend:
 
-1. **CLI SQLite** (`cli/storage/brand/sqlite.go`) -- file-based storage for kapi/bowrain CLI. JSON columns for complex types (tone, style, vocabulary). Uses the shared `core/storage` migration system.
+- **SQLite** (`cli/storage/brand/sqlite.go`) — file-based storage for CLI tools. JSON columns for complex types (tone, style, vocabulary). Uses the shared `core/storage` migration system.
 
-2. **Server PostgreSQL** (`bowrain/brand/`) -- workspace-scoped storage for Bowrain Server with the same schema adapted for PostgreSQL types.
+The `BrandStore` interface is designed for extension — server deployments can provide a PostgreSQL backend for workspace-scoped multi-user storage.
 
 ## Implementing a Custom BrandStore
 
@@ -219,7 +219,7 @@ type BrandVoiceAnnotation struct {
 func (a *BrandVoiceAnnotation) AnnotationType() string { return "brand-voice" }
 ```
 
-This integrates with the Block annotation system alongside `TermAnnotation` and `EntityAnnotation`, enabling inline highlighting in Bowrain's editor.
+This integrates with the Block annotation system alongside `TermAnnotation` and `EntityAnnotation`, enabling inline highlighting in editors.
 
 ## Extending Profiles
 

@@ -8,7 +8,7 @@ This note provides implementation details for [AD-003](/docs/ad/003-content-stor
 
 ## Database Schema
 
-Bowrain Server uses PostgreSQL as its storage backend, sharing the `bowrain/storage/` infrastructure layer with the Sievepen TM system ([AD-009](/docs/ad/009-translation-memory)) and the TermBase ([AD-010](/docs/ad/010-terminology)). The schema below shows the table definitions (using SQLite syntax for readability; the PostgreSQL schema uses equivalent types with `$N` parameter placeholders instead of `?`).
+The Content Store schema is shared across SQLite (CLI) and PostgreSQL (server) backends, with the Sievepen TM system ([AD-009](/docs/ad/009-translation-memory)) and TermBase ([AD-010](/docs/ad/010-terminology)). The schema below shows the table definitions using SQLite syntax for readability; server backends use equivalent types with `$N` parameter placeholders instead of `?`.
 
 ```sql
 CREATE TABLE projects (

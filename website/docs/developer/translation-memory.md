@@ -109,9 +109,9 @@ type LookupOptions struct {
 
 ## Backends
 
-Four storage tiers, all implementing `TranslationMemory` with full matching support:
+Two storage tiers ship with the framework, both implementing `TranslationMemory` with full matching support:
 
-### 1. In-Memory (`core/sievepen/`)
+### In-Memory (`core/sievepen/`)
 
 ```go
 tm := sievepen.NewInMemoryTM()
@@ -120,7 +120,7 @@ defer tm.Close()
 
 Fast, ephemeral. Used for session-scoped batch processing.
 
-### 2. CLI SQLite (`cli/storage/sievepen/`)
+### SQLite (`cli/storage/sievepen/`)
 
 ```go
 import sqltm "github.com/neokapi/neokapi/cli/storage/sievepen"
@@ -129,32 +129,9 @@ tm, err := sqltm.NewSQLiteTM("/path/to/tm.db")
 defer tm.Close()
 ```
 
-Persistent file-based storage for kapi and bowrain CLI. No project_id or stream columns — designed for single-user, file-based workflows. Resources are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file` (explicit path). Created on demand.
+Persistent file-based storage for CLI tools. Designed for single-user, file-based workflows. Resources are resolved via `--name` (KAPI_HOME), `--local` (cwd), or `--file` (explicit path). Created on demand.
 
-### 3. Server SQLite (`bowrain/sievepen/`)
-
-```go
-tm, err := bowrainsievepen.NewSQLiteTM(db, projectID)
-```
-
-Server-managed with project scoping and terminology streams.
-
-### 4. Server PostgreSQL (`bowrain/sievepen/`)
-
-```go
-tm, err := bowrainsievepen.NewPostgresTM(db, workspaceID, projectID)
-```
-
-Multi-user, multi-workspace with full stream inheritance and project boosting.
-
-### kapi vs Bowrain
-
-| Aspect | kapi CLI | Bowrain Server |
-|--------|---------|---------------|
-| Storage | SQLite files on disk | SQLite or PostgreSQL |
-| Location | Named in KAPI_HOME, local dir, or file path | Server-managed per workspace |
-| Scope | Single user, single machine | Multi-user, multi-workspace |
-| Features | CRUD, import/export, lookup, search | + streams, project scoping, REST API |
+The `TranslationMemory` interface supports server-side backends for multi-user deployments with project scoping, streams, and workspace isolation.
 
 All backends implement `EntryProvider` with `Entries() []TMEntry` for export operations, and `SearchEntries(query, sourceLocale, targetLocale string, offset, limit int) ([]TMEntry, int)` for paginated search.
 

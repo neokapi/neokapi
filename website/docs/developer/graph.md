@@ -5,17 +5,18 @@ title: Graph Store
 
 # Graph Store Library
 
-The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. It supports two backends: Apache AGE (PostgreSQL) for production and SQLite (adjacency tables) for CLI and development.
+The graph store library (`core/graph/`) provides a backend-agnostic graph database abstraction for concept management. The framework includes a SQLite backend (adjacency tables) for local and CLI use. Server deployments can use an Apache AGE (PostgreSQL) backend for production use.
 
 ## Architecture
 
 ```mermaid
 graph TD
-    GS[GraphStore Interface] --> AGE[AGE Backend]
-    GS --> SQLite[SQLite Backend]
+    GS[GraphStore Interface] --> SQLite[SQLite Backend]
+    GS --> CS[CypherStore Interface]
+    CS --> AGE[AGE Backend]
 
-    AGE --> PG[(PostgreSQL + AGE)]
     SQLite --> DB[(SQLite)]
+    AGE --> PG[(PostgreSQL + AGE)]
 
     N[Node] --> P[Properties]
     E[Edge] --> V[Validity]
@@ -54,10 +55,6 @@ type GraphStore interface {
     // Bulk operations
     BulkCreateNodes(ctx context.Context, nodes []*Node) error
     BulkCreateEdges(ctx context.Context, edges []*Edge) error
-
-    // Cypher escape hatch (AGE only; SQLite returns ErrCypherNotSupported)
-    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*Node, error)
-    CypherExec(ctx context.Context, query string, params map[string]any) error
 
     Close() error
 }
@@ -193,9 +190,7 @@ graph.LabelCompetitor  // "COMPETITOR" — brand → competitor term
 
 `InverseLabel()` returns the inverse of directional labels (e.g., `BROADER` -> `NARROWER`).
 
-## Backends
-
-### SQLite
+## SQLite Backend
 
 ```go
 import (
@@ -208,19 +203,9 @@ store, _ := graphstore.NewSQLiteGraphStore(db)
 defer store.Close()
 ```
 
-Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval. `CypherQuery`/`CypherExec` return `ErrCypherNotSupported`.
+Uses adjacency tables (`graph_nodes`, `graph_edges`) with JSON properties. Shortest path uses recursive CTE with BFS. Scoped queries filter edges in Go after retrieval.
 
-### Apache AGE
-
-```go
-import graphstore "github.com/neokapi/neokapi/platform/graph"
-
-store := graphstore.NewAGEGraphStore(pgxPool)
-store.EnsureGraph(ctx)  // CREATE GRAPH 'bowrain_graph'
-defer store.Close()
-```
-
-Uses Cypher queries via `ag_catalog.cypher()`. Requires the AGE PostgreSQL extension. The `AfterConnect` hook on the pgx pool loads AGE and sets the search path. Results are parsed from the `agtype` format.
+The `GraphStore` interface is designed for extension — server deployments can use an Apache AGE (PostgreSQL) backend.
 
 ## Usage Examples
 
@@ -272,18 +257,27 @@ scope := graph.Scope{At: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC), Tags: map[
 neighbors, _ := store.NeighborsScoped(ctx, "old-term", graph.Outgoing, scope, graph.LabelReplacedBy)
 ```
 
-### Cypher Queries (AGE Only)
+### Cypher Queries (AGE Backend Only)
+
+The AGE backend implements a `CypherStore` sub-interface (`platform/graph/`) that adds Cypher query support on top of `GraphStore`:
 
 ```go
-// Direct Cypher for complex queries
-nodes, _ := store.CypherQuery(ctx,
-    "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
-    map[string]any{"root": "animal"})
-
-// Cypher execution (no return values)
-store.CypherExec(ctx,
-    "MATCH (n {id: $id}) SET n.updated = $time",
-    map[string]any{"id": "dog", "time": time.Now().Format(time.RFC3339)})
+// platform/graph/cypher.go
+type CypherStore interface {
+    graph.GraphStore
+    CypherQuery(ctx context.Context, query string, params map[string]any) ([]*graph.Node, error)
+    CypherExec(ctx context.Context, query string, params map[string]any) error
+}
 ```
 
-The SQLite backend returns `graph.ErrCypherNotSupported` for these methods. Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries.
+Callers that need Cypher access type-assert at the call site:
+
+```go
+if cs, ok := store.(graphstore.CypherStore); ok {
+    nodes, _ := cs.CypherQuery(ctx,
+        "MATCH (n:Concept)-[:BROADER*1..3]->(m:Concept {id: $root}) RETURN n",
+        map[string]any{"root": "animal"})
+}
+```
+
+Use `FindNodes`, `Neighbors`, and `ShortestPath` for portable queries that work across all backends.

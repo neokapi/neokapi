@@ -51,7 +51,7 @@ type TermBase interface {
 }
 ```
 
-Import and export are standalone functions rather than interface methods: `ImportJSON`, `ExportJSON`, `ImportCSV`, `ExportCSV`. Backends: In-memory (CLI batch), SQLite (persistent), and PostgreSQL (persistent, workspace-scoped). Persistent backends use the shared `bowrain/storage` layer from [AD-003](/docs/ad/003-content-store).
+Import and export are standalone functions rather than interface methods: `ImportJSON`, `ExportJSON`, `ImportCSV`, `ExportCSV`. Framework backends: In-memory (CLI batch) and SQLite (persistent). The `TermBase` interface supports server-side backends for multi-user deployments.
 
 ## Fuzzy Matching and Search
 
