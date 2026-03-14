@@ -21,7 +21,8 @@ import {
 
 const isCI = !!process.env.CI && !process.env.FORCE_RECORDINGS;
 
-const BASE_URL = process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080";
+const BASE_URL =
+  process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080";
 
 /** Inject the auth token as an HttpOnly cookie via Playwright's cookie API. */
 async function injectAuthCookie(page: Page, authToken: string) {

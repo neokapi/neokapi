@@ -60,6 +60,7 @@ jobs:
         run: |
           go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.73
           wails3 generate bindings -f '-tags server' -clean=true
+          # shellcheck disable=SC2016
           sed -i 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
 
       - name: Build frontend
