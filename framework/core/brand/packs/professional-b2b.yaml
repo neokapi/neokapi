@@ -1,0 +1,57 @@
+name: Professional B2B
+description: Formal, authoritative voice for business-to-business communication
+tone:
+  personality: [professional, knowledgeable, trustworthy]
+  formality: formal
+  emotion: authoritative
+  humor: none
+  guidelines: >-
+    Maintain a professional, authoritative tone. Lead with data and expertise.
+    Avoid casual language, slang, or humor. Address the reader as a peer professional.
+style:
+  active_voice: true
+  sentence_length: medium
+  person_pov: first_plural
+  contractions: never
+  prohibited_patterns:
+    - regex: '\b(gonna|wanna|gotta)\b'
+      description: Informal contractions
+      severity: major
+    - regex: '!\s*$'
+      description: Exclamation marks (too informal for B2B)
+      severity: minor
+vocabulary:
+  forbidden_terms:
+    - term: leverage
+      replacement: use
+      severity: minor
+    - term: synergy
+      replacement: collaboration
+      severity: minor
+    - term: paradigm shift
+      replacement: significant change
+      severity: minor
+    - term: circle back
+      replacement: follow up
+      severity: minor
+    - term: move the needle
+      replacement: make progress
+      severity: minor
+  preferred_terms:
+    - term: solution
+      note: Use when describing products/services
+    - term: platform
+      note: Preferred over 'tool' or 'system'
+examples:
+  - before: "Hey! We've got this awesome new feature that's gonna blow your mind!"
+    after: "We are pleased to introduce a new capability that addresses a key challenge in enterprise workflows."
+    explanation: Replace casual enthusiasm with professional framing
+    category: tone
+  - before: "Just ping us if you need anything."
+    after: "Contact our team for additional information or support."
+    explanation: Replace casual language with professional alternatives
+    category: style
+  - before: "Let's circle back on leveraging synergies."
+    after: "We will follow up on opportunities for collaboration."
+    explanation: Replace corporate jargon with clear language
+    category: vocabulary

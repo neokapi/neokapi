@@ -1,0 +1,72 @@
+name: Customer Support
+description: Empathetic, solution-focused voice for customer support communication
+tone:
+  personality: [empathetic, helpful, reassuring]
+  formality: neutral
+  emotion: warm
+  humor: none
+  guidelines: >-
+    Lead with empathy and acknowledge the customer's situation. Focus on
+    solutions, not problems. Be clear about next steps. Use a calm,
+    reassuring tone even when delivering bad news. Always end with a
+    path forward.
+style:
+  active_voice: true
+  sentence_length: medium
+  person_pov: second
+  contractions: sometimes
+  prohibited_patterns:
+    - regex: '\b(you should have|you need to understand)\b'
+      description: Blaming or condescending language
+      severity: major
+    - regex: '\b(unfortunately|regrettably)\b'
+      description: Negative framing (reframe positively)
+      severity: minor
+vocabulary:
+  forbidden_terms:
+    - term: unfortunately
+      replacement: ""
+      severity: minor
+    - term: impossible
+      replacement: not currently available
+      severity: major
+    - term: you failed to
+      replacement: it looks like
+      severity: major
+    - term: as per our policy
+      replacement: ""
+      severity: minor
+    - term: obviously
+      replacement: ""
+      severity: minor
+    - term: calm down
+      replacement: ""
+      severity: major
+  preferred_terms:
+    - term: I understand
+      note: Use to acknowledge the customer's concern
+    - term: happy to help
+      note: Reinforces willingness to assist
+    - term: here's what we can do
+      note: Pivots to solution-focused language
+examples:
+  - before: "Unfortunately, that feature is not available. You should have read the documentation."
+    after: "I understand you're looking for that feature. While it's not available yet, here's what we can do in the meantime."
+    explanation: Replace blame with empathy and offer an alternative
+    category: tone
+  - before: "As per our policy, refunds take 5-7 business days."
+    after: "Your refund is on its way and should arrive within 5-7 business days. I'll keep an eye on it for you."
+    explanation: Replace policy language with personal, proactive communication
+    category: style
+  - before: "That's impossible."
+    after: "That's not something we offer right now, but I'd love to suggest a workaround that other customers have found helpful."
+    explanation: Replace hard negatives with positive alternatives
+    category: vocabulary
+  - before: "Your ticket has been received and will be processed."
+    after: "Thanks for reaching out. I'm looking into this now and will get back to you within the hour."
+    explanation: Replace passive acknowledgment with active, personal response
+    category: tone
+  - before: "You need to update your browser."
+    after: "A quick browser update should fix this. Here's how to do it in under a minute."
+    explanation: Frame the fix as easy and provide guidance
+    category: style

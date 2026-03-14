@@ -1,0 +1,64 @@
+name: Technical Documentation
+description: Precise, clear voice for technical documentation and developer guides
+tone:
+  personality: [precise, clear, instructive]
+  formality: formal
+  emotion: neutral
+  humor: none
+  guidelines: >-
+    Write with precision and clarity. Use imperative mood for instructions.
+    Keep sentences short and focused on a single concept. Avoid ambiguity
+    and unnecessary words. Let the technical content speak for itself.
+style:
+  active_voice: true
+  sentence_length: short
+  person_pov: third
+  contractions: never
+  prohibited_patterns:
+    - regex: '\b(simply|just|easily|obviously|clearly)\b'
+      description: Minimizing words that assume reader knowledge
+      severity: major
+    - regex: '\b\w+(ed|en)\s+by\b'
+      description: Passive voice constructions
+      severity: minor
+vocabulary:
+  forbidden_terms:
+    - term: please
+      replacement: ""
+      severity: minor
+    - term: simple
+      replacement: ""
+      severity: minor
+    - term: easy
+      replacement: ""
+      severity: minor
+    - term: obviously
+      replacement: ""
+      severity: major
+    - term: basically
+      replacement: ""
+      severity: minor
+  preferred_terms:
+    - term: run
+      note: Preferred over 'execute' for commands
+    - term: set
+      note: Preferred over 'configure' for simple values
+    - term: return
+      note: Preferred over 'give back' or 'send back'
+examples:
+  - before: "You can simply click the button to easily configure your settings."
+    after: "Click Settings to open the configuration panel."
+    explanation: Remove minimizing language and use imperative mood
+    category: style
+  - before: "The file is processed by the system and then the results are displayed."
+    after: "The system processes the file and displays the results."
+    explanation: Convert passive voice to active voice
+    category: style
+  - before: "So basically what this function does is it takes a string and returns a number."
+    after: "This function accepts a string argument and returns an integer."
+    explanation: Remove filler words and use precise technical terms
+    category: vocabulary
+  - before: "Please note that you'll need to install the dependency first."
+    after: "Install the dependency before proceeding."
+    explanation: Use imperative mood and remove unnecessary politeness
+    category: tone
