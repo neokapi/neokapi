@@ -1,7 +1,7 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import type { LucideIcon } from "lucide-react";
-import { Mail, Lock, User, ArrowLeft } from "lucide-react";
+import { Mail, User, ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
 import { Input as BaseInput } from "@neokapi/ui/components/ui/input";
@@ -17,7 +17,7 @@ export default function Register(props: {
   i18n: I18n;
 }) {
   const { kcContext, i18n } = props;
-  const { url, message, profile, passwordRequired, messagesPerField } = kcContext;
+  const { url, message, profile, messagesPerField } = kcContext;
   const { msg, msgStr, advancedMsg } = i18n;
 
   const fieldIcons: Record<string, LucideIcon> = {
@@ -79,47 +79,6 @@ export default function Register(props: {
                 </div>
               );
             })}
-
-            {passwordRequired && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="password">
-                    {msg("password")}
-                    <span className="text-destructive ml-1">*</span>
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    icon={Lock}
-                    autoComplete="new-password"
-                    aria-invalid={messagesPerField.existsError("password", "password-confirm")}
-                  />
-                  {messagesPerField.existsError("password") && (
-                    <p className="text-xs text-destructive">{messagesPerField.get("password")}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password-confirm">
-                    {msg("passwordConfirm")}
-                    <span className="text-destructive ml-1">*</span>
-                  </Label>
-                  <Input
-                    id="password-confirm"
-                    name="password-confirm"
-                    type="password"
-                    icon={Lock}
-                    autoComplete="new-password"
-                    aria-invalid={messagesPerField.existsError("password-confirm")}
-                  />
-                  {messagesPerField.existsError("password-confirm") && (
-                    <p className="text-xs text-destructive">
-                      {messagesPerField.get("password-confirm")}
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
 
             <div className="flex gap-3 pt-2">
               <Button

@@ -7,19 +7,28 @@ import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/component
 import { Button } from "@neokapi/ui/components/ui/button";
 import { Input as BaseInput } from "@neokapi/ui/components/ui/input";
 import { Label } from "@neokapi/ui/components/ui/label";
+import { useScript } from "keycloakify/login/pages/LoginPasskeysConditionalAuthenticate.useScript";
 
 const Input = BaseInput as React.ForwardRefExoticComponent<
   React.InputHTMLAttributes<HTMLInputElement> &
     React.RefAttributes<HTMLInputElement> & { icon?: LucideIcon; iconPosition?: "left" | "right" }
 >;
 
-export default function Login(props: {
-  kcContext: Extract<KcContext, { pageId: "login.ftl" }>;
+export default function LoginPasskeysConditionalAuthenticate(props: {
+  kcContext: Extract<KcContext, { pageId: "login-passkeys-conditional-authenticate.ftl" }>;
   i18n: I18n;
 }) {
   const { kcContext, i18n } = props;
-  const { url, realm, login, messagesPerField, message, social } = kcContext;
-  const { msg, msgStr } = i18n;
+  const { url, realm, login, messagesPerField, message, usernameHidden, shouldDisplayAuthenticators, authenticators } = kcContext;
+  const { msg, msgStr, advancedMsg } = i18n;
+
+  // Social providers are passed at runtime but not in keycloakify's type for this page.
+  const social = (kcContext as any).social as
+    | { displayInfo: boolean; providers?: { loginUrl: string; alias: string; providerId: string; displayName: string }[] }
+    | undefined;
+
+  const authButtonId = "authenticateWebAuthnButton";
+  useScript({ authButtonId, kcContext, i18n });
 
   return (
     <div className="w-full max-w-md px-4">
@@ -28,7 +37,7 @@ export default function Login(props: {
       </div>
       <Card className="glass-surface">
         <CardHeader className="text-center space-y-1 pb-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{msg("loginAccountTitle")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{msg("passkey-login-title")}</h1>
           <p className="text-sm text-muted-foreground">
             {msg("loginTitleHtml", realm.displayNameHtml || realm.displayName)}
           </p>
@@ -43,54 +52,108 @@ export default function Login(props: {
                     ? "bg-success/15 text-success"
                     : "bg-muted text-muted-foreground"
               }`}
+              // Keycloak server-provided message HTML, same pattern as Login.tsx
               dangerouslySetInnerHTML={{ __html: message.summary }}
             />
           )}
 
-          <form action={url.loginAction} method="post" className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="username">
-                {!realm.loginWithEmailAllowed
-                  ? msg("username")
-                  : !realm.registrationEmailAsUsername
-                    ? msg("usernameOrEmail")
-                    : msg("email")}
-              </Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                icon={realm.registrationEmailAsUsername ? Mail : User}
-                autoFocus
-                autoComplete="username"
-                defaultValue={login?.username ?? ""}
-                aria-invalid={messagesPerField.existsError("username")}
-              />
-              {messagesPerField.existsError("username") && (
-                <p className="text-xs text-destructive">{messagesPerField.get("username")}</p>
-              )}
-            </div>
-
-            {realm.rememberMe && (
-              <div className="flex items-center gap-2">
-                <input
-                  id="rememberMe"
-                  name="rememberMe"
-                  type="checkbox"
-                  defaultChecked={!!login?.rememberMe}
-                  className="h-4 w-4 rounded border-border"
-                  tabIndex={3}
-                />
-                <Label htmlFor="rememberMe" className="text-sm font-normal">
-                  {msg("rememberMe")}
-                </Label>
-              </div>
-            )}
-
-            <Button id="kc-login" type="submit" className="w-full" tabIndex={4}>
-              {msgStr("doLogIn")}
-            </Button>
+          {/* Hidden form for WebAuthn response data */}
+          <form id="webauth" action={url.loginAction} method="post">
+            <input type="hidden" id="clientDataJSON" name="clientDataJSON" />
+            <input type="hidden" id="authenticatorData" name="authenticatorData" />
+            <input type="hidden" id="signature" name="signature" />
+            <input type="hidden" id="credentialId" name="credentialId" />
+            <input type="hidden" id="userHandle" name="userHandle" />
+            <input type="hidden" id="error" name="error" />
           </form>
+
+          {/* Hidden form for authenticator selection */}
+          {authenticators !== undefined && Object.keys(authenticators).length !== 0 && (
+            <form id="authn_select">
+              {authenticators.authenticators.map((authenticator, i) => (
+                <input type="hidden" name="authn_use_chk" readOnly value={authenticator.credentialId} key={i} />
+              ))}
+            </form>
+          )}
+
+          {/* Display registered authenticators */}
+          {shouldDisplayAuthenticators && authenticators !== undefined && authenticators.authenticators.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {authenticators.authenticators.length > 1 && (
+                <p className="text-sm text-muted-foreground">{msg("passkey-available-authenticators")}</p>
+              )}
+              <div className="space-y-2">
+                {authenticators.authenticators.map((authenticator, i) => (
+                  <div
+                    key={i}
+                    id={`kc-webauthn-authenticator-item-${i}`}
+                    className="flex items-center gap-3 rounded-lg border border-[var(--semantic-border)] bg-[var(--semantic-surface)] p-3"
+                  >
+                    <div className="flex-1">
+                      <div id={`kc-webauthn-authenticator-label-${i}`} className="text-sm font-medium">
+                        {advancedMsg(authenticator.label)}
+                      </div>
+                      {authenticator.transports?.displayNameProperties !== undefined &&
+                        authenticator.transports.displayNameProperties.length !== 0 && (
+                          <div id={`kc-webauthn-authenticator-transport-${i}`} className="text-xs text-muted-foreground">
+                            {authenticator.transports.displayNameProperties.map((nameProperty, j, arr) => (
+                              <span key={j}>
+                                {advancedMsg(nameProperty)}
+                                {j !== arr.length - 1 && ", "}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      <div className="text-xs text-muted-foreground">
+                        <span id={`kc-webauthn-authenticator-createdlabel-${i}`}>{msg("passkey-createdAt-label")}</span>{" "}
+                        <span id={`kc-webauthn-authenticator-created-${i}`}>{authenticator.createdAt}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Username field for passkey autofill — visibility managed by useScript */}
+          {realm.password && !usernameHidden && (
+            <form
+              id="kc-form-login"
+              action={url.loginAction}
+              method="post"
+              style={{ display: "none" }}
+              className="space-y-4"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="username">
+                  {realm.registrationEmailAsUsername
+                    ? msg("email")
+                    : msg("username")}
+                </Label>
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  icon={realm.registrationEmailAsUsername ? Mail : User}
+                  autoFocus
+                  autoComplete="username webauthn"
+                  defaultValue={login?.username ?? ""}
+                  aria-invalid={messagesPerField.existsError("username")}
+                  tabIndex={1}
+                />
+                {messagesPerField.existsError("username") && (
+                  <p className="text-xs text-destructive">{messagesPerField.get("username")}</p>
+                )}
+              </div>
+            </form>
+          )}
+
+          {/* Sign in with passkey button — visibility managed by useScript */}
+          <div id="kc-form-passkey-button" style={{ display: "none" }} className="mt-4">
+            <Button id={authButtonId} type="button" className="w-full" autoFocus tabIndex={2}>
+              {msgStr("passkey-doAuthenticate")}
+            </Button>
+          </div>
 
           {social?.providers && social.providers.length > 0 && (
             <div className="mt-6">
