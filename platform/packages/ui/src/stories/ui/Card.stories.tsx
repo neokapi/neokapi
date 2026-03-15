@@ -6,7 +6,6 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-  GlassCard,
 } from "../../components/ui/card";
 import { Button } from "../../components/ui/button";
 
@@ -47,7 +46,7 @@ export const Default: Story = {
 
 export const Glass: Story = {
   render: () => (
-    <GlassCard>
+    <Card>
       <CardHeader>
         <CardTitle>Translation Memory</CardTitle>
         <CardDescription>1,234 entries across 3 locale pairs</CardDescription>
@@ -57,7 +56,7 @@ export const Glass: Story = {
           Last updated 2 hours ago. 98% fuzzy match rate.
         </p>
       </CardContent>
-    </GlassCard>
+    </Card>
   ),
 };
 

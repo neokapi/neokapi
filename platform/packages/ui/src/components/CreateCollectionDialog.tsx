@@ -59,7 +59,7 @@ export function CreateCollectionDialog({ open, onClose, onSubmit, editCollection
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Collection" : "Create Collection"}</DialogTitle>
         </DialogHeader>

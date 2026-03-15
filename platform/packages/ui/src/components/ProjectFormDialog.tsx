@@ -85,7 +85,7 @@ export function ProjectFormDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        size="md"
+        className="sm:max-w-[640px]"
         data-testid={isEdit ? "edit-project-dialog" : "create-project-dialog"}
         onInteractOutside={(e: Event) => e.preventDefault()}
       >

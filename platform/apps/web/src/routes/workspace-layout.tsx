@@ -8,7 +8,7 @@ import {
   WorkspaceProvider,
   StreamProvider,
   CreateWorkspaceDialog,
-  AnimatedBackgroundGlass,
+
   Button,
   Card,
   CardContent,
@@ -127,6 +127,57 @@ export function WorkspaceLayout() {
   // Derive activeView from current URL for sidebar highlighting.
   const activeView = viewFromPath(pathname, workspaceSlug ?? "");
 
+  // Map auditlog and bin to settings for sidebar highlighting (they're now sub-items of settings).
+  const effectiveView = (activeView === "auditlog" || activeView === "bin") ? "settings" as const : activeView;
+
+  // Derive settings sub-nav from URL.
+  const settingsSubNav = useMemo(() => {
+    if (activeView === "auditlog") return "auditlog";
+    if (activeView === "bin") return "bin";
+    if (activeView !== "settings") return undefined;
+    const settingsPath = `/${workspaceSlug}/settings`;
+    const rest = pathname.slice(settingsPath.length).replace(/^\//, "");
+    if (rest === "languages") return "languages";
+    if (rest === "members") return "members";
+    if (rest === "providers") return "providers";
+    if (rest === "tokens") return "tokens";
+    if (rest === "system") return "system";
+    return "general";
+  }, [activeView, pathname, workspaceSlug]);
+
+  const handleSubNavChange = useCallback(
+    (id: string) => {
+      const wsSlug = workspaceSlug ?? "";
+      switch (id) {
+        case "general":
+          void navigate({ to: "/$workspace/settings", params: { workspace: wsSlug } });
+          break;
+        case "languages":
+          void navigate({ to: "/$workspace/settings/languages", params: { workspace: wsSlug } });
+          break;
+        case "members":
+          void navigate({ to: "/$workspace/settings/members", params: { workspace: wsSlug } });
+          break;
+        case "providers":
+          void navigate({ to: "/$workspace/settings/providers", params: { workspace: wsSlug } });
+          break;
+        case "tokens":
+          void navigate({ to: "/$workspace/settings/tokens", params: { workspace: wsSlug } });
+          break;
+        case "auditlog":
+          void navigate({ to: "/$workspace/auditlog", params: { workspace: wsSlug } });
+          break;
+        case "bin":
+          void navigate({ to: "/$workspace/bin", params: { workspace: wsSlug } });
+          break;
+        case "system":
+          void navigate({ to: "/$workspace/settings/system", params: { workspace: wsSlug } });
+          break;
+      }
+    },
+    [navigate, workspaceSlug],
+  );
+
   // -----------------------------------------------------------------------
   // Sidebar context: determine from URL + query cache
   // -----------------------------------------------------------------------
@@ -137,7 +188,7 @@ export function WorkspaceLayout() {
     const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
     if (!projectParams) {
       // Workspace-level: use default flat nav
-      return { level: "workspace", activeView };
+      return { level: "workspace", activeView: effectiveView };
     }
 
     // Try to read project from React Query cache (populated by child route loaders)
@@ -151,7 +202,7 @@ export function WorkspaceLayout() {
     if (!project) {
       // Project data not yet in cache — fall back to workspace nav.
       // This can happen briefly during navigation; child loader will populate it.
-      return { level: "workspace", activeView };
+      return { level: "workspace", activeView: effectiveView };
     }
 
     // Determine which project sub-page is active.
@@ -312,7 +363,6 @@ export function WorkspaceLayout() {
     if (serverMode === "server") {
       return (
         <>
-          <AnimatedBackgroundGlass />
           <div className="relative z-10 flex items-center justify-center h-screen flex-col gap-6 text-foreground">
             <Card className="min-w-[360px]">
               <CardHeader className="items-center text-center">
@@ -357,7 +407,7 @@ export function WorkspaceLayout() {
           activeWorkspace={activeWorkspace}
           onSelectWorkspace={handleSelectWorkspace}
           onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
-          activeView={activeView}
+          activeView={effectiveView}
           onViewChange={handleViewChange}
           user={user}
           onSignOut={serverMode === "server" ? handleSignOut : undefined}
@@ -365,6 +415,8 @@ export function WorkspaceLayout() {
           onCollapsedChange={setSidebarCollapsed}
           showThemeToggle={false}
           sidebarContext={sidebarContext}
+          activeSubNav={settingsSubNav}
+          onSubNavChange={handleSubNavChange}
           headerSlot={
             <TopBar
               user={user}

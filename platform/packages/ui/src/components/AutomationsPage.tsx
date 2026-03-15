@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import type { AutomationRule, AutomationCondition, AutomationAction } from "../types/api";
 import { Button } from "./ui/button";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import { Switch } from "./ui/switch";
 import { Badge } from "./ui/badge";
 import { AutomationRuleEditor } from "./AutomationRuleEditor";
@@ -132,7 +132,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
   return (
     <div className="space-y-6 max-w-[720px]">
       {/* Active Rules */}
-      <GlassCard intensity="subtle" className="p-6">
+      <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold">Automation Rules</h2>
@@ -204,10 +204,10 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
             ))}
           </div>
         )}
-      </GlassCard>
+      </Card>
 
       {/* Execution History */}
-      <GlassCard intensity="subtle" className="p-6">
+      <Card className="p-6">
         <div className="mb-4">
           <h2 className="text-xl font-semibold">Execution History</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">Recent automation executions</p>
@@ -217,7 +217,7 @@ export function AutomationsPage({ workspaceSlug, projectId }: AutomationsPagePro
           projectId={projectId}
           ruleNames={ruleNames}
         />
-      </GlassCard>
+      </Card>
 
       {/* Rule editor dialog */}
       <AutomationRuleEditor

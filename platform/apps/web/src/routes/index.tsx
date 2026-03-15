@@ -320,6 +320,15 @@ const settingsIndexRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/settings"), "SettingsIndexRoute"),
 });
 
+const settingsLanguagesRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "languages",
+  component: lazyRouteComponent(
+    () => import("./workspace/settings-languages"),
+    "SettingsLanguagesRoute",
+  ),
+});
+
 const settingsMembersRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "members",
@@ -335,6 +344,24 @@ const settingsProvidersRoute = createRoute({
   component: lazyRouteComponent(
     () => import("./workspace/settings-providers"),
     "SettingsProvidersRoute",
+  ),
+});
+
+const settingsTokensRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "tokens",
+  component: lazyRouteComponent(
+    () => import("./workspace/settings-tokens"),
+    "SettingsTokensRoute",
+  ),
+});
+
+const settingsSystemRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "system",
+  component: lazyRouteComponent(
+    () => import("./workspace/settings-system"),
+    "SettingsSystemRoute",
   ),
 });
 
@@ -355,7 +382,7 @@ const routeTree = rootRoute.addChildren([
     memoryRoute,
     auditlogRoute,
     binRoute,
-    settingsRoute.addChildren([settingsIndexRoute, settingsMembersRoute, settingsProvidersRoute]),
+    settingsRoute.addChildren([settingsIndexRoute, settingsLanguagesRoute, settingsMembersRoute, settingsProvidersRoute, settingsTokensRoute, settingsSystemRoute]),
   ]),
 ]);
 

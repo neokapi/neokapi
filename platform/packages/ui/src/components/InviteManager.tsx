@@ -5,10 +5,10 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Badge } from "./ui/badge";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { AlertGlass, AlertGlassDescription } from "./ui/alert";
+import { Alert, AlertDescription } from "./ui/alert";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
 
 interface InviteManagerProps {
@@ -92,7 +92,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
 
   return (
     <>
-      <GlassCard intensity="subtle" className="p-6" data-testid="invite-manager">
+      <Card className="p-6" data-testid="invite-manager">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -114,14 +114,12 @@ export function InviteManager({ workspace }: InviteManagerProps) {
         </div>
 
         {error && (
-          <AlertGlass
+          <Alert
             variant="destructive"
-            dismissible
-            onDismiss={() => setError("")}
             className="mb-4"
           >
-            <AlertGlassDescription>{error}</AlertGlassDescription>
-          </AlertGlass>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Invite list */}
@@ -215,11 +213,11 @@ export function InviteManager({ workspace }: InviteManagerProps) {
             </table>
           </div>
         )}
-      </GlassCard>
+      </Card>
 
       {/* Invite dialog */}
       <Dialog open={showInviteDialog} onOpenChange={handleDialogChange}>
-        <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Invite Member</DialogTitle>
           </DialogHeader>
@@ -251,9 +249,9 @@ export function InviteManager({ workspace }: InviteManagerProps) {
               </Select>
             </div>
             {error && (
-              <AlertGlass variant="destructive">
-                <AlertGlassDescription>{error}</AlertGlassDescription>
-              </AlertGlass>
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
           </div>
 

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import type { AutomationHistoryEntry } from "../types/api";
 import { Badge } from "./ui/badge";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 
 // ---------------------------------------------------------------------------
 // Status badge
@@ -78,7 +78,7 @@ export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: Autom
   return (
     <div className="space-y-2">
       {entries.map((entry) => (
-        <GlassCard key={entry.id} intensity="subtle" className="p-4">
+        <Card key={entry.id} className="p-4">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -98,7 +98,7 @@ export function AutomationHistory({ workspaceSlug, projectId, ruleNames }: Autom
               {relativeTime(entry.started_at)}
             </div>
           </div>
-        </GlassCard>
+        </Card>
       ))}
     </div>
   );

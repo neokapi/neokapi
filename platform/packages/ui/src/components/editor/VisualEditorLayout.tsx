@@ -242,7 +242,7 @@ export function VisualEditorLayout({
       {/* ── Sticky toolbar ───────────────────────────────────────── */}
       <div
         className={cn(
-          "sticky top-0 z-20 flex items-center gap-2 px-4 py-2 glass-surface bg-background/80",
+          "sticky top-0 z-20 flex items-center gap-2 px-4 py-2 bg-background",
           showTermSidebar ? "mr-[260px]" : "",
         )}
       >
@@ -257,7 +257,7 @@ export function VisualEditorLayout({
             size="sm"
             variant="ghost"
             className={cn(
-              "h-7 text-[11px] px-2 glass-surface",
+              "h-7 text-[11px] px-2",
               showProblemsPanel && "bg-primary/15 text-primary",
             )}
             onClick={() => {
@@ -283,7 +283,7 @@ export function VisualEditorLayout({
               size="sm"
               variant="ghost"
               className={cn(
-                "h-7 text-[11px] px-2 glass-surface",
+                "h-7 text-[11px] px-2",
                 referenceLocales.length > 0 && "bg-primary/15 text-primary",
               )}
               onClick={() => setShowRefPicker((v) => !v)}
@@ -295,7 +295,7 @@ export function VisualEditorLayout({
               )}
             </Button>
             {showRefPicker && (
-              <div className="absolute top-full right-0 mt-1 w-48 p-2 rounded-md border border-border glass-surface bg-card/95 shadow-lg z-20">
+              <div className="absolute top-full right-0 mt-1 w-48 p-2 rounded-md border border-border bg-card shadow-lg z-20">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
                   Reference Languages (max 2)
                 </div>
@@ -324,7 +324,7 @@ export function VisualEditorLayout({
           value={previewContentMode}
           onValueChange={(v: string) => onPreviewContentModeChange(v as PreviewContentMode)}
         >
-          <TabsList className="h-7 glass-surface">
+          <TabsList className="h-7">
             <TabsTrigger value="source" className="text-[11px] px-2 h-6">
               Source
             </TabsTrigger>

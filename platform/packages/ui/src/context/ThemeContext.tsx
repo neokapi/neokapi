@@ -18,11 +18,8 @@ function isValidTheme(value: string): value is Theme {
   return VALID_THEMES.includes(value as Theme);
 }
 
-/** Migrate legacy theme values from the old glass/aurora system. */
 function migrateTheme(stored: string): Theme {
   if (isValidTheme(stored)) return stored;
-  // "glass" and "aurora" were both dark themes — map to "dark"
-  if (stored === "glass" || stored === "aurora") return "dark";
   return "system";
 }
 
@@ -82,10 +79,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         isDark = theme === "dark";
       }
       document.documentElement.classList.toggle("dark", isDark);
-      // Tell native browser controls (date pickers, scrollbars, etc.) to use the right scheme.
       document.documentElement.style.colorScheme = isDark ? "dark" : "light";
-      // Activate shadcn-glass-ui semantic tokens (--semantic-*, --orb-*, --bg-*, --sidebar-*).
-      document.documentElement.setAttribute("data-theme", isDark ? "aurora" : "light");
     };
 
     applyTheme();

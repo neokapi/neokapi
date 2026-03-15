@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Tabs, TabsList, TabsTrigger, TabsContent, TabsGlass } from "../../components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 
 const meta: Meta<typeof Tabs> = {
   title: "UI/Tabs",
@@ -40,7 +40,7 @@ export const Default: Story = {
 
 export const Glass: Story = {
   render: () => (
-    <TabsGlass defaultValue="tm">
+    <Tabs defaultValue="tm">
       <TabsList>
         <TabsTrigger value="tm">Translation Memory</TabsTrigger>
         <TabsTrigger value="terms">Terminology</TabsTrigger>
@@ -51,6 +51,6 @@ export const Glass: Story = {
       <TabsContent value="terms">
         <p className="text-sm text-muted-foreground p-4">Term suggestions will appear here</p>
       </TabsContent>
-    </TabsGlass>
+    </Tabs>
   ),
 };

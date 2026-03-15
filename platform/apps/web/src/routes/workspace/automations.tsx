@@ -1,5 +1,5 @@
 import { useParams, useRouteContext } from "@tanstack/react-router";
-import { GlassCard, AutomationsPage } from "@neokapi/ui";
+import { Card, AutomationsPage } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 
 export function AutomationsRoute() {
@@ -8,14 +8,17 @@ export function AutomationsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <GlassCard
-        intensity="subtle"
+      <Card
         className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
       >
         Select a project to view automations
-      </GlassCard>
+      </Card>
     );
   }
 
-  return <AutomationsPage workspaceSlug={activeWorkspace.slug} projectId={projectId} />;
+  return (
+    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      <AutomationsPage workspaceSlug={activeWorkspace.slug} projectId={projectId} />
+    </div>
+  );
 }

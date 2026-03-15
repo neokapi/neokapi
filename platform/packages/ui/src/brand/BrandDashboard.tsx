@@ -2,7 +2,7 @@ import type { BrandComplianceScore, ScoreTrend, StoredScore } from "./types";
 import { BrandScoreGauge } from "./BrandScoreGauge";
 import { BrandDimensionBreakdown } from "./BrandDimensionBreakdown";
 import { BrandFindingsList } from "./BrandFindingsList";
-import { GlassCard, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { cn } from "../lib/utils";
 
 interface BrandDashboardProps {
@@ -17,12 +17,12 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
     return (
       <div className={cn("space-y-6", className)}>
         <h1 className="text-lg font-semibold mb-6">Brand Compliance Dashboard</h1>
-        <GlassCard intensity="subtle" className="p-8 text-center">
+        <Card className="p-8 text-center">
           <p className="text-sm text-muted-foreground">
             No compliance data yet. Run a brand voice check on your project content to see results
             here.
           </p>
-        </GlassCard>
+        </Card>
       </div>
     );
   }
@@ -33,7 +33,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Overall Score */}
-        <GlassCard intensity="subtle">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Overall Score</CardTitle>
           </CardHeader>
@@ -42,20 +42,20 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
               <BrandScoreGauge score={score.overall} size={140} />
             </div>
           </CardContent>
-        </GlassCard>
+        </Card>
 
         {/* Dimension Breakdown */}
-        <GlassCard intensity="subtle">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Dimensions</CardTitle>
           </CardHeader>
           <CardContent>
             <BrandDimensionBreakdown dimensions={score.dimensions} />
           </CardContent>
-        </GlassCard>
+        </Card>
 
         {/* Trend */}
-        <GlassCard intensity="subtle">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Score Trend</CardTitle>
           </CardHeader>
@@ -88,12 +88,12 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
               </div>
             )}
           </CardContent>
-        </GlassCard>
+        </Card>
       </div>
 
       {/* Issue Density */}
       {recentScores.length > 0 && (
-        <GlassCard intensity="subtle">
+        <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Recent Checks</CardTitle>
           </CardHeader>
@@ -127,11 +127,11 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
               ))}
             </div>
           </CardContent>
-        </GlassCard>
+        </Card>
       )}
 
       {/* Findings */}
-      <GlassCard intensity="subtle">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">
             Findings ({score.findings.length})
@@ -140,7 +140,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
         <CardContent>
           <BrandFindingsList findings={score.findings} />
         </CardContent>
-      </GlassCard>
+      </Card>
     </div>
   );
 }

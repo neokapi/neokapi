@@ -1,30 +1,147 @@
-@import "shadcn-glass-ui/styles.css";
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-@theme {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
-  --color-success: hsl(var(--success));
-  --color-warning: hsl(var(--warning));
+@custom-variant dark (&:is(.dark *));
 
-  --color-sidebar: var(--sidebar-bg);
+/*
+ * Bowrain — "Sandstone & Terracotta" theme
+ *
+ * Warm neutrals with terracotta primary. Every gray carries a subtle
+ * amber tint (OKLCH hue 55–75) so surfaces feel like sunlit stone
+ * rather than cold concrete.
+ */
+
+:root {
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --background: oklch(0.985 0.007 70);
+  --foreground: oklch(0.18 0.02 55);
+  --card: oklch(0.995 0.004 70);
+  --card-foreground: oklch(0.18 0.02 55);
+  --popover: oklch(0.995 0.004 70);
+  --popover-foreground: oklch(0.18 0.02 55);
+
+  /* ── Primary — terracotta ──────────────────────────────── */
+  --primary: oklch(0.52 0.13 42);
+  --primary-foreground: oklch(0.985 0.01 70);
+
+  /* ── Secondary — warm sand ─────────────────────────────── */
+  --secondary: oklch(0.95 0.015 70);
+  --secondary-foreground: oklch(0.22 0.02 55);
+
+  /* ── Muted — warm gray ─────────────────────────────────── */
+  --muted: oklch(0.95 0.012 70);
+  --muted-foreground: oklch(0.5 0.02 55);
+
+  /* ── Accent — peach sand ───────────────────────────────── */
+  --accent: oklch(0.94 0.022 65);
+  --accent-foreground: oklch(0.22 0.02 55);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.577 0.2 25);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.9 0.015 70);
+  --input: oklch(0.9 0.015 70);
+  --ring: oklch(0.52 0.13 42);
+
+  --radius: 0.625rem;
+
+  /* ── Chart palette — warm spectrum ─────────────────────── */
+  --chart-1: oklch(0.6 0.14 42);
+  --chart-2: oklch(0.7 0.14 70);
+  --chart-3: oklch(0.6 0.1 155);
+  --chart-4: oklch(0.65 0.12 15);
+  --chart-5: oklch(0.55 0.1 250);
+
+  /* ── Sidebar — slightly deeper warm tone ───────────────── */
+  --sidebar: oklch(0.975 0.01 65);
+  --sidebar-foreground: oklch(0.18 0.02 55);
+  --sidebar-primary: oklch(0.52 0.13 42);
+  --sidebar-primary-foreground: oklch(0.985 0.01 70);
+  --sidebar-accent: oklch(0.94 0.02 65);
+  --sidebar-accent-foreground: oklch(0.22 0.02 55);
+  --sidebar-border: oklch(0.9 0.015 70);
+  --sidebar-ring: oklch(0.52 0.13 42);
+}
+
+.dark {
+  /* ── Surfaces — warm charcoal, not pure black ──────────── */
+  --background: oklch(0.16 0.015 55);
+  --foreground: oklch(0.94 0.012 70);
+  --card: oklch(0.2 0.015 55);
+  --card-foreground: oklch(0.94 0.012 70);
+  --popover: oklch(0.22 0.015 55);
+  --popover-foreground: oklch(0.94 0.012 70);
+
+  /* ── Primary — lighter terracotta for dark bg ──────────── */
+  --primary: oklch(0.72 0.13 45);
+  --primary-foreground: oklch(0.16 0.015 55);
+
+  /* ── Secondary ─────────────────────────────────────────── */
+  --secondary: oklch(0.26 0.015 55);
+  --secondary-foreground: oklch(0.94 0.012 70);
+
+  /* ── Muted ─────────────────────────────────────────────── */
+  --muted: oklch(0.26 0.012 55);
+  --muted-foreground: oklch(0.65 0.02 65);
+
+  /* ── Accent ────────────────────────────────────────────── */
+  --accent: oklch(0.28 0.02 55);
+  --accent-foreground: oklch(0.94 0.012 70);
+
+  /* ── Destructive ───────────────────────────────────────── */
+  --destructive: oklch(0.68 0.17 25);
+
+  /* ── Borders & controls ────────────────────────────────── */
+  --border: oklch(0.32 0.015 55);
+  --input: oklch(0.32 0.015 55);
+  --ring: oklch(0.72 0.13 45);
+
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.7 0.14 45);
+  --chart-2: oklch(0.75 0.12 70);
+  --chart-3: oklch(0.65 0.1 155);
+  --chart-4: oklch(0.7 0.1 15);
+  --chart-5: oklch(0.6 0.1 250);
+
+  /* ── Sidebar — warm deep tone ──────────────────────────── */
+  --sidebar: oklch(0.18 0.015 55);
+  --sidebar-foreground: oklch(0.94 0.012 70);
+  --sidebar-primary: oklch(0.72 0.13 45);
+  --sidebar-primary-foreground: oklch(0.16 0.015 55);
+  --sidebar-accent: oklch(0.28 0.02 55);
+  --sidebar-accent-foreground: oklch(0.94 0.012 70);
+  --sidebar-border: oklch(0.32 0.015 55);
+  --sidebar-ring: oklch(0.72 0.13 45);
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
@@ -32,176 +149,20 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-}
-
-/* Light theme (default) — clean white with copper accents */
-:root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --primary: 22 75% 50%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 210 40% 96%;
-  --accent-foreground: 222 47% 11%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 22 75% 50%;
-  --success: 142 76% 36%;
-  --warning: 43 74% 49%;
-
-  --radius: 1rem;
-}
-
-/* Dark theme (aurora) — deep navy with copper/bronze glow, slate-tinted surfaces */
-.dark {
-  --background: 222 84% 5%;
-  --foreground: 210 40% 98%;
-  --card: 222 47% 11%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222 47% 11%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 22 75% 50%;
-  --primary-foreground: 210 40% 98%;
-  --secondary: 217 33% 17%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217 33% 17%;
-  --muted-foreground: 215 20% 65%;
-  --accent: 217 33% 17%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217 33% 17%;
-  --input: 217 33% 17%;
-  --ring: 22 75% 50%;
-  --success: 158 64% 52%;
-  --warning: 43 96% 56%;
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border outline-ring/50;
   }
   body {
     @apply bg-background text-foreground;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
-}
-
-/* Glass surface utility for layout elements */
-.glass-surface {
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-/* Visual Editor */
-.visual-editor-card {
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  background: hsl(var(--card) / 0.92);
-  border: 1px solid hsl(var(--border) / 0.5);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
-}
-
-.dark .visual-editor-card {
-  background: hsl(var(--card) / 0.82);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-}
-
-.visual-editor-source {
-  background: hsl(var(--success) / 0.08);
-  border-left: 3px solid hsl(var(--success));
-}
-
-/* ── Copper primary color overrides ─────────────────────── */
-
-/* Shared copper OKLCH primitives */
-:root {
-  --oklch-copper-300: oklch(78% 0.1 48);
-  --oklch-copper-400: oklch(70% 0.14 48);
-  --oklch-copper-500: oklch(62% 0.16 48);
-  --oklch-copper-500-10: oklch(62% 0.16 48 / 0.1);
-  --oklch-copper-500-15: oklch(62% 0.16 48 / 0.15);
-  --oklch-copper-500-20: oklch(62% 0.16 48 / 0.2);
-  --oklch-copper-500-25: oklch(62% 0.16 48 / 0.25);
-  --oklch-copper-500-30: oklch(62% 0.16 48 / 0.3);
-  --oklch-copper-500-40: oklch(62% 0.16 48 / 0.4);
-  --oklch-copper-500-60: oklch(62% 0.16 48 / 0.6);
-  --oklch-copper-600-15: oklch(54% 0.16 46 / 0.15);
-  --oklch-copper-600-20: oklch(54% 0.16 46 / 0.2);
-  --oklch-bronze-500: oklch(58% 0.14 35);
-  --oklch-bronze-500-20: oklch(58% 0.14 35 / 0.2);
-}
-
-/* Aurora (dark) semantic overrides */
-[data-theme="aurora"] {
-  --semantic-primary: var(--oklch-copper-500);
-  --semantic-primary-hover: var(--oklch-copper-400);
-  --semantic-primary-muted: var(--oklch-copper-500-25);
-  --semantic-primary-subtle: var(--oklch-copper-500-15);
-  --semantic-primary-text: var(--oklch-copper-400);
-  --semantic-secondary: var(--oklch-bronze-500);
-  --semantic-secondary-muted: var(--oklch-bronze-500-20);
-  --glow-primary: 0 0 25px var(--oklch-copper-500-40);
-  --glow-violet: 0 0 18px var(--oklch-copper-500-30);
-  --orb-2: var(--oklch-copper-600-20);
-  --orb-4: var(--oklch-copper-600-15);
-}
-
-/* ── Entity type colors ───────────────────────────────── */
-
-/* Entity highlight colors — per-type, light theme */
-:root {
-  --entity-person-bg: oklch(85% 0.08 25 / 0.25);
-  --entity-person-border: oklch(65% 0.12 25);
-  --entity-org-bg: oklch(85% 0.08 260 / 0.25);
-  --entity-org-border: oklch(55% 0.12 260);
-  --entity-location-bg: oklch(85% 0.08 145 / 0.25);
-  --entity-location-border: oklch(55% 0.12 145);
-  --entity-date-bg: oklch(85% 0.08 80 / 0.25);
-  --entity-date-border: oklch(60% 0.12 80);
-  --entity-product-bg: oklch(85% 0.08 310 / 0.25);
-  --entity-product-border: oklch(55% 0.12 310);
-  --entity-default-bg: oklch(85% 0.06 220 / 0.2);
-  --entity-default-border: oklch(60% 0.08 220);
-}
-
-/* Entity highlight colors — dark theme */
-.dark {
-  --entity-person-bg: oklch(45% 0.08 25 / 0.3);
-  --entity-person-border: oklch(70% 0.1 25);
-  --entity-org-bg: oklch(40% 0.08 260 / 0.3);
-  --entity-org-border: oklch(72% 0.1 260);
-  --entity-location-bg: oklch(40% 0.08 145 / 0.3);
-  --entity-location-border: oklch(72% 0.1 145);
-  --entity-date-bg: oklch(45% 0.08 80 / 0.3);
-  --entity-date-border: oklch(72% 0.1 80);
-  --entity-product-bg: oklch(40% 0.08 310 / 0.3);
-  --entity-product-border: oklch(72% 0.1 310);
-  --entity-default-bg: oklch(40% 0.06 220 / 0.25);
-  --entity-default-border: oklch(68% 0.08 220);
-}
-
-/* Light theme semantic overrides */
-[data-theme="light"] {
-  --semantic-primary: var(--oklch-copper-500);
-  --semantic-primary-hover: var(--oklch-copper-400);
-  --semantic-primary-muted: var(--oklch-copper-500-25);
-  --semantic-primary-subtle: var(--oklch-copper-500-15);
-  --semantic-primary-text: var(--oklch-copper-400);
-  --semantic-secondary: var(--oklch-bronze-500);
-  --semantic-secondary-muted: var(--oklch-bronze-500-20);
 }
