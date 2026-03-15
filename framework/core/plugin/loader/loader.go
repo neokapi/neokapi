@@ -496,6 +496,17 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 	// when format readers/writers first acquire them.
 	if l.registry == nil {
 		l.registry = bridge.NewBridgeRegistry(runtime.NumCPU(), 8, l.logger)
+		// Enable daemon mode if KAPI_BRIDGE_DAEMON is set.
+		if os.Getenv("KAPI_BRIDGE_DAEMON") == "1" {
+			timeout := 30 * time.Second
+			if v := os.Getenv("KAPI_BRIDGE_IDLE_TIMEOUT"); v != "" {
+				if d, err := time.ParseDuration(v); err == nil {
+					timeout = d
+				}
+			}
+			l.registry.SetDaemonMode(true, timeout)
+			l.logf("bridge daemon mode enabled (idle timeout: %s)", timeout)
+		}
 	}
 
 	mb := &managedBridge{

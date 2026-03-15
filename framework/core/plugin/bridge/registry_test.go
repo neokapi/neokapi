@@ -45,7 +45,7 @@ func TestRegistryAcquireAndRelease(t *testing.T) {
 	sem := make(chan struct{}, 2)
 	sem <- struct{}{}
 	sem <- struct{}{}
-	r.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: cfg}
+	ready := make(chan struct{}); close(ready); r.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: cfg, ready: ready}
 	r.mu.Unlock()
 
 	got, release, err := r.Acquire(cfg)
@@ -89,7 +89,7 @@ func TestRegistryConcurrentAcquireRelease(t *testing.T) {
 	for range 4 {
 		sem <- struct{}{}
 	}
-	r.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: cfg}
+	ready := make(chan struct{}); close(ready); r.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: cfg, ready: ready}
 	r.mu.Unlock()
 
 	var wg sync.WaitGroup
@@ -117,7 +117,7 @@ func TestRegistryStats(t *testing.T) {
 	sem := make(chan struct{}, 2)
 	sem <- struct{}{}
 	sem <- struct{}{}
-	r.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: cfg}
+	ready := make(chan struct{}); close(ready); r.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: cfg, ready: ready}
 	r.mu.Unlock()
 
 	stats := r.Stats()

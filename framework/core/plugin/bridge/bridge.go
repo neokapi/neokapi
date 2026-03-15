@@ -36,6 +36,7 @@ type JavaBridge struct {
 	logger  *log.Logger
 	running bool
 	healthy atomic.Bool
+	addr    string // gRPC address (set after Start)
 }
 
 // NewJavaBridge creates a new bridge with the given config.
@@ -72,6 +73,7 @@ func (b *JavaBridge) Start() error {
 		b.conn = conn
 		b.client = pb.NewBridgeServiceClient(conn)
 		b.running = true
+		b.addr = b.cfg.Address
 		b.logger.Printf("[bridge] connected to external bridge at %s", b.cfg.Address)
 		return nil
 	}
@@ -149,7 +151,24 @@ func (b *JavaBridge) Start() error {
 	b.conn = conn
 	b.client = pb.NewBridgeServiceClient(conn)
 	b.running = true
+	b.addr = addr
 	return nil
+}
+
+// Address returns the gRPC address of this bridge (set after Start).
+func (b *JavaBridge) Address() string {
+	return b.addr
+}
+
+// Disconnect closes the gRPC connection without sending Shutdown.
+// Used in daemon mode to disconnect from a JVM that should keep running.
+func (b *JavaBridge) Disconnect() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.running = false
+	if b.conn != nil {
+		_ = b.conn.Close()
+	}
 }
 
 type addrResult struct {
