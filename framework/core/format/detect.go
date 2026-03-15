@@ -6,6 +6,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // DefaultBuiltInPriority is the default priority for built-in formats.
@@ -16,6 +17,7 @@ const DefaultPluginPriority = 100
 
 // FormatDetector determines the data format of a document using multiple strategies.
 type FormatDetector struct {
+	mu         sync.RWMutex
 	signatures map[string]FormatSignature // format name → signature
 	priorities map[string]int             // format name → priority (higher = preferred)
 }
@@ -30,8 +32,9 @@ func NewFormatDetector() *FormatDetector {
 
 // Register adds a format signature for detection.
 func (d *FormatDetector) Register(name string, sig FormatSignature) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.signatures[name] = sig
-	// Set default priority if not already set.
 	if _, ok := d.priorities[name]; !ok {
 		d.priorities[name] = DefaultBuiltInPriority
 	}
@@ -40,11 +43,15 @@ func (d *FormatDetector) Register(name string, sig FormatSignature) {
 // SetPriority sets the detection priority for a named format. Higher values
 // are preferred when multiple formats match the same MIME type or extension.
 func (d *FormatDetector) SetPriority(name string, priority int) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	d.priorities[name] = priority
 }
 
 // Priority returns the priority for a named format, or 0 if not set.
 func (d *FormatDetector) Priority(name string) int {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	return d.priorities[name]
 }
 
@@ -78,6 +85,8 @@ func (d *FormatDetector) Detect(path string, reader io.ReadSeeker, mimeType stri
 // formats match, the one with the highest priority is returned.
 // When priorities are equal, the lexicographically first name wins.
 func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	mimeType = strings.ToLower(strings.TrimSpace(mimeType))
 	bestName := ""
 	bestPriority := -1
@@ -103,6 +112,8 @@ func (d *FormatDetector) DetectByMIME(mimeType string) (string, error) {
 // When priorities are equal, the lexicographically first name wins for
 // deterministic results (e.g. okf_xliff before okf_xliff2 for ".xlf").
 func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 	ext = strings.ToLower(ext)
 	if ext == "" {
 		return "", fmt.Errorf("empty extension")

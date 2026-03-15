@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/stretchr/testify/assert"
@@ -22,16 +21,6 @@ func bridgeJAR(t *testing.T) string {
 	return jar
 }
 
-// javaPath returns the Java binary to use. Respects JAVA_HOME if set,
-// otherwise defaults to "java".
-func javaPath(t *testing.T) string {
-	t.Helper()
-	if home := os.Getenv("JAVA_HOME"); home != "" {
-		return filepath.Join(home, "bin", "java")
-	}
-	return "java"
-}
-
 // bridgeSchemasDir returns the schemas directory adjacent to the JAR.
 func bridgeSchemasDir(t *testing.T, jar string) string {
 	t.Helper()
@@ -40,75 +29,6 @@ func bridgeSchemasDir(t *testing.T, jar string) string {
 		t.Skipf("schemas directory not found at %s", dir)
 	}
 	return dir
-}
-
-func TestIntegrationListFilters(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping bridge integration test in short mode")
-	}
-	jar := bridgeJAR(t)
-
-	b := bridge.NewJavaBridge(bridge.BridgeConfig{
-		Command: javaPath(t),
-		Args:    []string{"-jar", jar},
-	}, nil)
-	require.NoError(t, b.Start())
-	defer func() { _ = b.Stop() }()
-
-	lf, err := b.ListFilters()
-	require.NoError(t, err)
-
-	// The shaded JAR includes 9 filter JARs producing ~10 filter classes.
-	assert.GreaterOrEqual(t, len(lf.Filters), 8,
-		"expected at least 8 filters, got %d", len(lf.Filters))
-
-	// Spot-check a few well-known filters.
-	filterNames := make(map[string]bool)
-	for _, f := range lf.Filters {
-		filterNames[f.Name] = true
-	}
-	assert.True(t, filterNames["html"], "expected html filter")
-	assert.True(t, filterNames["json"], "expected json filter")
-	assert.True(t, filterNames["xml"], "expected xml filter")
-	assert.True(t, filterNames["xliff"], "expected xliff filter")
-}
-
-func TestIntegrationFilterParamsApplied(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping bridge integration test in short mode")
-	}
-	jar := bridgeJAR(t)
-
-	b := bridge.NewJavaBridge(bridge.BridgeConfig{
-		Command: javaPath(t),
-		Args:    []string{"-jar", jar},
-	}, nil)
-	require.NoError(t, b.Start())
-	defer func() { _ = b.Stop() }()
-
-	// Use a JSON document with filter_params to test parameter application.
-	jsonDoc := `{"greeting": "Hello World", "count": 42}`
-
-	err := b.Open(bridge.OpenParams{
-		FilterClass:  "net.sf.okapi.filters.json.JSONFilter",
-		URI:          "test.json",
-		SourceLocale: "en",
-		Encoding:     "UTF-8",
-		Content:      []byte(jsonDoc),
-		MimeType:     "application/json",
-		FilterParams: map[string]any{
-			"extractAllPairs": true,
-			"useFullKeyPath":  true,
-			"useCodeFinder":   false,
-		},
-	})
-	require.NoError(t, err)
-
-	parts, err := b.Read()
-	require.NoError(t, err)
-	assert.NotEmpty(t, parts, "should have extracted parts from JSON")
-
-	require.NoError(t, b.CloseFilter())
 }
 
 func TestIntegrationSchemaLoading(t *testing.T) {

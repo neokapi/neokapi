@@ -84,22 +84,6 @@ func TestODF_ITSMarkup(t *testing.T) {
 	assert.True(t, hasSpans, "ITS markup should produce inline codes (spans)")
 }
 
-// okapi: ODFFilterTest#testDefaultInfo
-func TestODF_DefaultInfo(t *testing.T) {
-	pool, cfg := bridgetest.SharedBridge(t)
-	bridgetest.RequireFilter(t, pool, cfg, odfFilterClass)
-
-	// Verify the filter is available and can provide info.
-	b, err := pool.Acquire(cfg)
-	require.NoError(t, err)
-	defer pool.Release(b)
-
-	info, err := b.Info(odfFilterClass)
-	require.NoError(t, err)
-	assert.NotEmpty(t, info.Name, "filter should have a name")
-	assert.NotEmpty(t, info.DisplayName, "filter should have a display name")
-}
-
 // okapi: ODFFilterTest#testDoubleExtraction
 func TestODF_DoubleExtraction(t *testing.T) {
 	pool, cfg := bridgetest.SharedBridge(t)

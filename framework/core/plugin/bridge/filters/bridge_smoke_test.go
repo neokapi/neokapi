@@ -21,31 +21,14 @@ import (
 // okapi-unmapped: CascadingFilterTest#extractNormally — Java-internal cascading filter extraction test
 // okapi-unmapped: CascadingFilterTest#extractWithStream — Java-internal cascading filter extraction test
 
-// TestBridgeSmoke_ListFilters verifies the bridge can start and list all
-// available Okapi filters. This is the most basic sanity check.
-func TestBridgeSmoke_ListFilters(t *testing.T) {
-	pool, cfg := bridgetest.SharedBridge(t)
+// TestBridgeSmoke_RegistryStats verifies the bridge registry is operational
+// and can report stats. This is the most basic sanity check.
+func TestBridgeSmoke_RegistryStats(t *testing.T) {
+	registry, _ := bridgetest.SharedBridge(t)
 
-	b, err := pool.Acquire(cfg)
-	require.NoError(t, err)
-	defer pool.Release(b)
-
-	filters, err := b.ListFilters()
-	require.NoError(t, err)
-	require.NotNil(t, filters)
-
-	// The shaded JAR discovers 10+ filter classes from ~9 filter JARs.
-	assert.GreaterOrEqual(t, len(filters.Filters), 8,
-		"should discover Okapi filters")
-
-	// Spot-check a few well-known filters.
-	filterNames := make(map[string]bool)
-	for _, f := range filters.Filters {
-		filterNames[f.FilterClass] = true
-	}
-	assert.True(t, filterNames["net.sf.okapi.filters.html.HtmlFilter"], "HTML filter should be available")
-	assert.True(t, filterNames["net.sf.okapi.filters.json.JSONFilter"], "JSON filter should be available")
-	assert.True(t, filterNames["net.sf.okapi.filters.properties.PropertiesFilter"], "Properties filter should be available")
+	stats := registry.Stats()
+	assert.GreaterOrEqual(t, stats.BridgeCount, 1,
+		"registry should have at least one bridge")
 }
 
 // TestBridgeSmoke_HTMLExtraction verifies HTML content extraction through

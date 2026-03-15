@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,33 +45,6 @@ func TestIntegrationBridgeStartStop(t *testing.T) {
 	require.NoError(t, bridge.Stop())
 }
 
-func TestIntegrationListFilters(t *testing.T) {
-	jarPath := skipIfNoJAR(t)
-
-	bridge := NewJavaBridge(BridgeConfig{
-		Command: "java",
-		Args:    []string{"-jar", jarPath},
-	}, log.Default())
-
-	require.NoError(t, bridge.Start())
-	defer bridge.Stop()
-
-	lf, err := bridge.ListFilters()
-	require.NoError(t, err)
-	require.NotEmpty(t, lf.Filters)
-
-	// Should have the HTML filter registered.
-	found := false
-	for _, f := range lf.Filters {
-		if f.Name == "html" {
-			found = true
-			assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", f.FilterClass)
-			break
-		}
-	}
-	assert.True(t, found, "html filter should be in the registry")
-}
-
 func TestIntegrationReadHTML(t *testing.T) {
 	jarPath := skipIfNoJAR(t)
 
@@ -78,16 +52,14 @@ func TestIntegrationReadHTML(t *testing.T) {
 		Command: "java",
 		Args:    []string{"-jar", jarPath},
 	}
-	b := NewJavaBridge(cfg, log.Default())
-	require.NoError(t, b.Start())
 
-	pool := NewBridgePool(1, log.Default())
-	pool.Seed(b)
-	defer pool.Shutdown()
+	registry := NewBridgeRegistry(1, 1, log.Default())
+	require.NoError(t, registry.Warmup(cfg))
+	defer registry.Shutdown()
 
 	htmlContent := []byte("<html><body><p>Hello world</p></body></html>")
 
-	reader := NewBridgeFormatReader(pool, cfg, "net.sf.okapi.filters.html.HtmlFilter")
+	reader := NewBridgeFormatReader(registry, cfg, "net.sf.okapi.filters.html.HtmlFilter", format.FormatSignature{})
 
 	doc := &model.RawDocument{
 		URI:          "test.html",

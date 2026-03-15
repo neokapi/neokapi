@@ -97,6 +97,7 @@ func cmdRun(args []string) {
 	kapiBins := fs.String("kapi", "", "kapi binary path(s), use version=path for labels")
 	okapiBins := fs.String("okapi", "", "tikal path(s), use version=path for labels")
 	bridge := fs.Bool("bridge", false, "also benchmark kapi with bridge formats")
+	bridgeDaemon := fs.Bool("bridge-daemon", false, "also benchmark kapi bridge in daemon mode (warm JVM)")
 	formats := fs.String("formats", strings.Join(defaultFormats, ","), "formats to benchmark")
 	sizes := fs.String("sizes", strings.Join(defaultSizes, ","), "size tiers to benchmark")
 	categories := fs.String("categories", strings.Join(defaultCategories, ","), "benchmark categories: single,collection")
@@ -114,7 +115,8 @@ func cmdRun(args []string) {
 		Warmup:      *warmup,
 		TestdataDir: *testdata,
 		OutputFile:  *output,
-		Bridge:      *bridge,
+		Bridge:       *bridge,
+		BridgeDaemon: *bridgeDaemon,
 	}
 
 	if *kapiBins != "" {

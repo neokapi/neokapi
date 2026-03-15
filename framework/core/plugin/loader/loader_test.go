@@ -99,7 +99,7 @@ func TestShutdownAfterLoad(t *testing.T) {
 	require.NoError(t, err)
 	// Shutdown after a successful (empty) load.
 	l.Shutdown()
-	assert.Nil(t, l.pool)
+	assert.Nil(t, l.registry)
 	assert.Empty(t, l.bridges)
 }
 
@@ -217,7 +217,7 @@ func TestScanMetadataBridgePlugin(t *testing.T) {
 
 	// Bridge should NOT be started yet.
 	assert.False(t, l.BridgesLoaded())
-	assert.Nil(t, l.pool)
+	assert.Nil(t, l.registry)
 	assert.Len(t, l.pendingBridges, 1)
 }
 

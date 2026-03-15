@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -29,7 +30,7 @@ func readPackageFileWithLocales(t *testing.T, relPath string, srcLocale, tgtLoca
 	content, err := os.ReadFile(path)
 	require.NoError(t, err, "reading test file %s", path)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 
 	doc := &model.RawDocument{
 		URI:          path,
@@ -61,7 +62,7 @@ func readPackageFileFromPath(t *testing.T, absPath string, srcLocale, tgtLocale 
 	content, err := os.ReadFile(absPath)
 	require.NoError(t, err, "reading file %s", absPath)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 
 	doc := &model.RawDocument{
 		URI:          absPath,

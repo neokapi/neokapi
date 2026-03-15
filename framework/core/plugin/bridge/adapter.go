@@ -10,290 +10,255 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/plugin/shared"
 )
 
 // BridgeFormatReader implements format.DataFormatReader by delegating to
-// a Java bridge subprocess running an Okapi filter. It acquires a bridge
-// from the pool on Open and releases it on Close, ensuring exclusive
-// access to the stateful JVM filter for the entire lifecycle.
+// a Java bridge subprocess running an Okapi filter via the Process RPC.
+// It acquires a bridge from the registry for the duration of a read operation.
 type BridgeFormatReader struct {
 	format.BaseFormatReader
-	pool         *BridgePool
+	registry     *BridgeRegistry
 	cfg          BridgeConfig
-	bridge       *JavaBridge // acquired from pool during Open
 	filterClass  string
-	filterParams map[string]any // optional filter parameters
-	info         *InfoData
-	content      []byte // raw document content
-	sourcePath   string // absolute file path for direct disk access
+	sig          format.FormatSignature // pre-populated from schema metadata
+	filterParams map[string]any         // optional filter parameters
+	content      []byte                 // raw document content (fallback when no file path)
+	sourcePath   string                 // absolute file path for direct disk access
 }
 
 var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
 
-// NewBridgeFormatReader creates a reader that acquires bridges from the pool.
-// The cfg specifies which JAR to use when acquiring a bridge.
-func NewBridgeFormatReader(pool *BridgePool, cfg BridgeConfig, filterClass string) *BridgeFormatReader {
+// NewBridgeFormatReader creates a reader that acquires bridges from the registry.
+// The sig is pre-populated from schema metadata so no JVM query is needed.
+func NewBridgeFormatReader(registry *BridgeRegistry, cfg BridgeConfig, filterClass string, sig format.FormatSignature) *BridgeFormatReader {
 	return &BridgeFormatReader{
-		pool:        pool,
+		registry:    registry,
 		cfg:         cfg,
 		filterClass: filterClass,
+		sig:         sig,
 	}
 }
 
 // SetFilterParams sets optional filter-specific parameters.
-// These are passed to the Java bridge when opening the filter.
 func (r *BridgeFormatReader) SetFilterParams(params map[string]any) {
 	r.filterParams = params
 }
 
-// NewRoundTripper creates a BridgeRoundTripper that shares this reader's pool
-// and configuration. This enables concurrent file processing through a single
-// JVM using the pool's shared access mode.
-func (r *BridgeFormatReader) NewRoundTripper() *BridgeRoundTripper {
-	return NewBridgeRoundTripper(r.pool, r.cfg, r.filterClass)
-}
-
-// Signature returns the format detection signature from the Java filter.
-// It acquires and releases a bridge just for the info query.
+// Signature returns the format detection signature from schema metadata.
 func (r *BridgeFormatReader) Signature() format.FormatSignature {
-	info, err := r.fetchInfo()
-	if err != nil {
-		return format.FormatSignature{}
-	}
-	return format.FormatSignature{
-		MIMETypes:  info.MimeTypes,
-		Extensions: info.Extensions,
-	}
+	return r.sig
 }
 
-// Open reads the document content and sends it to the Java bridge.
-// It acquires a bridge from the pool, which is released by Close.
+// Open stores document metadata for the subsequent Read call.
+// It does NOT start the JVM — that happens lazily on Read.
 func (r *BridgeFormatReader) Open(_ context.Context, doc *model.RawDocument) error {
-	b, err := r.pool.Acquire(r.cfg)
-	if err != nil {
-		return fmt.Errorf("acquiring bridge: %w", err)
-	}
-
-	r.bridge = b
 	r.Doc = doc
 
-	// Detect absolute file paths for direct disk access.
-	// This enables relative URI resolution for auxiliary files (e.g. ITS standoff annotations).
-	var content []byte
-	var sourcePath string
-
 	if filepath.IsAbs(doc.URI) {
-		if _, serr := os.Stat(doc.URI); serr == nil {
-			sourcePath = doc.URI
+		if _, err := os.Stat(doc.URI); err == nil {
+			r.sourcePath = doc.URI
 		}
 	}
 
-	// When source_path is available, Java reads from disk via content_ref.
-	// Only read content bytes as fallback for non-file-based documents.
-	if sourcePath == "" && doc.Reader != nil {
-		content, err = io.ReadAll(doc.Reader)
+	if r.sourcePath == "" && doc.Reader != nil {
+		var err error
+		r.content, err = io.ReadAll(doc.Reader)
 		if err != nil {
-			r.pool.Release(b)
-			r.bridge = nil
 			return fmt.Errorf("reading document content: %w", err)
 		}
 	}
-	r.content = content
-	r.sourcePath = sourcePath
 
-	if err := r.bridge.Open(OpenParams{
-		FilterClass:  r.filterClass,
-		URI:          doc.URI,
-		SourceLocale: string(doc.SourceLocale),
-		TargetLocale: string(doc.TargetLocale),
-		Encoding:     doc.Encoding,
-		Content:      content,
-		MimeType:     doc.MimeType,
-		FilterParams: r.filterParams,
-		SourcePath:   sourcePath,
-	}); err != nil {
-		r.pool.Release(b)
-		r.bridge = nil
-		return err
-	}
 	return nil
 }
 
-// Read sends a read command to the bridge and emits Parts on the returned channel.
+// Read starts the Process RPC in read-only mode (no output config) and
+// streams parts from the Java bridge to the returned channel.
 func (r *BridgeFormatReader) Read(ctx context.Context) <-chan model.PartResult {
 	ch := make(chan model.PartResult)
 	go func() {
 		defer close(ch)
 
-		msgs, err := r.bridge.Read()
+		bridge, release, err := r.registry.Acquire(r.cfg)
 		if err != nil {
-			ch <- model.PartResult{Error: fmt.Errorf("bridge read: %w", err)}
+			ch <- model.PartResult{Error: fmt.Errorf("acquiring bridge: %w", err)}
 			return
 		}
+		defer release()
 
-		for _, msg := range msgs {
-			part := shared.ProtoToPart(msg)
-			select {
-			case ch <- model.PartResult{Part: part}:
-			case <-ctx.Done():
-				ch <- model.PartResult{Error: ctx.Err()}
-				return
+		_, err = bridge.Process(ctx, ProcessParams{
+			FilterClass:  r.filterClass,
+			SourceLocale: string(r.Doc.SourceLocale),
+			TargetLocale: string(r.Doc.TargetLocale),
+			Encoding:     r.Doc.Encoding,
+			MimeType:     r.Doc.MimeType,
+			FilterParams: r.filterParams,
+			Content:      r.content,
+			SourcePath:   r.sourcePath,
+		}, func(parts <-chan *model.Part, done <-chan struct{}) <-chan *model.Part {
+			for part := range parts {
+				select {
+				case ch <- model.PartResult{Part: part}:
+				case <-ctx.Done():
+					ch <- model.PartResult{Error: ctx.Err()}
+					return nil
+				}
 			}
+			return nil
+		})
+		if err != nil {
+			ch <- model.PartResult{Error: fmt.Errorf("bridge read: %w", err)}
 		}
 	}()
 	return ch
 }
 
-// Close releases the filter resources in the Java bridge and returns
-// the bridge to the pool.
+// Close is a no-op — the bridge is released when Read completes.
 func (r *BridgeFormatReader) Close() error {
-	if r.bridge == nil {
-		return nil
-	}
-	err := r.bridge.CloseFilter()
-	r.pool.Release(r.bridge)
-	r.bridge = nil
-	return err
+	return nil
 }
 
-// fetchInfo caches and returns the filter's metadata.
-// It acquires and releases a bridge from the pool for the info query.
-func (r *BridgeFormatReader) fetchInfo() (*InfoData, error) {
-	if r.info != nil {
-		return r.info, nil
+// NewProcessor creates a BridgeProcessor sharing this reader's registry and config.
+func (r *BridgeFormatReader) NewProcessor() *BridgeProcessor {
+	return &BridgeProcessor{
+		registry:     r.registry,
+		cfg:          r.cfg,
+		filterClass:  r.filterClass,
+		filterParams: r.filterParams,
 	}
-	b, err := r.pool.Acquire(r.cfg)
-	if err != nil {
-		return nil, fmt.Errorf("acquiring bridge for info: %w", err)
-	}
-	defer r.pool.Release(b)
-
-	info, err := b.Info(r.filterClass)
-	if err != nil {
-		return nil, err
-	}
-	r.info = info
-	r.FormatName = info.Name
-	r.FormatDisplayName = info.DisplayName
-	return info, nil
 }
 
-// BridgeFormatWriter implements format.DataFormatWriter by delegating to
-// a Java bridge subprocess running an Okapi filter writer.
-type BridgeFormatWriter struct {
-	format.BaseFormatWriter
-	pool            *BridgePool
-	cfg             BridgeConfig
-	filterClass     string
-	filterParams    map[string]any // optional filter parameters
-	originalContent []byte         // original document needed by Okapi for skeleton
-	sourcePath      string         // absolute file path for direct disk access
-	outputPath      string         // captured from SetOutput for direct disk writing
-	sourceLocale    string         // source locale for skeleton re-read during write
+// BridgeProcessor runs a single-pass Okapi pipeline where Go participates
+// as a step. Java reads each event, sends the part to Go, receives the
+// processed part back, applies translations, and writes — all in a single
+// filter iteration. One read, one write, no document re-read.
+type BridgeProcessor struct {
+	registry     *BridgeRegistry
+	cfg          BridgeConfig
+	filterClass  string
+	filterParams map[string]any
 }
 
-var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
-
-// NewBridgeFormatWriter creates a writer that acquires bridges from the pool.
-// The cfg specifies which JAR to use when acquiring a bridge.
-func NewBridgeFormatWriter(pool *BridgePool, cfg BridgeConfig, filterClass string) *BridgeFormatWriter {
-	return &BridgeFormatWriter{
-		pool:        pool,
+// NewBridgeProcessor creates a processor for the given filter configuration.
+func NewBridgeProcessor(registry *BridgeRegistry, cfg BridgeConfig, filterClass string) *BridgeProcessor {
+	return &BridgeProcessor{
+		registry:    registry,
 		cfg:         cfg,
 		filterClass: filterClass,
 	}
 }
 
-// SetOutput configures the output destination by file path.
-// The path is captured for direct disk writing via output_ref.
-func (w *BridgeFormatWriter) SetOutput(path string) error {
-	w.outputPath = path
-	return w.BaseFormatWriter.SetOutput(path)
-}
-
 // SetFilterParams sets optional filter-specific parameters.
-// These are passed to the Java bridge when writing.
-func (w *BridgeFormatWriter) SetFilterParams(params map[string]any) {
-	w.filterParams = params
+func (p *BridgeProcessor) SetFilterParams(params map[string]any) {
+	p.filterParams = params
 }
 
-// SetOriginalContent sets the original document content, which Okapi needs
-// as a skeleton for the filter writer.
-func (w *BridgeFormatWriter) SetOriginalContent(content []byte) {
-	w.originalContent = content
+// ProcessExecuteParams configures a single-pass Process execution.
+type ProcessExecuteParams struct {
+	InputPath      string  // absolute file path (preferred)
+	Content        []byte  // inline content (fallback)
+	OutputPath     string  // output file path (Java writes to disk)
+	SourceLocale   string
+	TargetLocale   string
+	OutputLocale   string
+	Encoding       string
+	MimeType       string
+	SubscribeParts []int32 // Part types to stream to Go (empty = all)
 }
 
-// SetSourcePath sets the absolute file path for direct disk access.
-// When set, Java reads from this path instead of receiving content bytes.
-func (w *BridgeFormatWriter) SetSourcePath(path string) {
-	w.sourcePath = path
-}
-
-// SetSourceLocale sets the source locale for the write phase.
-// This is passed to the Java bridge so it can re-read the original document
-// with the correct source locale (important for format-specific locale handling).
-func (w *BridgeFormatWriter) SetSourceLocale(locale string) {
-	w.sourceLocale = locale
-}
-
-// Write streams parts from the channel directly to the Java bridge, which
-// applies translations on-demand as it re-reads the original document skeleton.
-// No parts are accumulated in memory — streaming keeps memory constant regardless
-// of document size.
+// Execute runs the single-pass pipeline. The processFn receives parts from
+// Java's read phase and returns processed parts. For each TEXT_UNIT, Java
+// blocks until the processed part arrives, applies the translation, and
+// writes the event immediately — all in one filter iteration.
 //
-// For XLIFF filters, empty target-language attributes are stripped from the
-// original content before sending to avoid duplicate attributes in Okapi's output.
-func (w *BridgeFormatWriter) Write(ctx context.Context, parts <-chan *model.Part) error {
-	b, err := w.pool.Acquire(w.cfg)
+// If processFn is nil, parts pass through unmodified (identity roundtrip).
+func (p *BridgeProcessor) Execute(ctx context.Context, params ProcessExecuteParams,
+	processFn func(parts <-chan *model.Part) <-chan *model.Part,
+) (*ProcessResult, error) {
+
+	bridge, release, err := p.registry.Acquire(p.cfg)
 	if err != nil {
-		return fmt.Errorf("acquiring bridge for write: %w", err)
+		return nil, fmt.Errorf("acquiring bridge: %w", err)
 	}
-	defer w.pool.Release(b)
+	defer release()
 
-	originalContent := w.originalContent
-	sourcePath := w.sourcePath
+	sourcePath := params.InputPath
+	if sourcePath != "" && !filepath.IsAbs(sourcePath) {
+		if abs, err := filepath.Abs(sourcePath); err == nil {
+			sourcePath = abs
+		}
+	}
+	content := params.Content
 
-	// For XLIFF filters, strip empty target-language attributes to prevent
-	// Okapi from producing duplicate attributes in the output XML.
-	if isXLIFFFilter(w.filterClass) {
+	// For XLIFF filters, strip empty target-language attributes.
+	if isXLIFFFilter(p.filterClass) {
 		if sourcePath != "" {
-			// File-based path: create a temp file with stripping applied.
 			stripped, cleanup, serr := stripEmptyTargetLanguageFile(sourcePath)
 			if serr != nil {
-				return fmt.Errorf("preprocessing XLIFF source: %w", serr)
+				return nil, fmt.Errorf("preprocessing XLIFF source: %w", serr)
 			}
 			if cleanup != nil {
 				defer cleanup()
 			}
 			sourcePath = stripped
-		} else if len(originalContent) > 0 {
-			// Byte-based path: strip from in-memory content.
-			originalContent = stripEmptyTargetLanguage(originalContent)
+		} else if len(content) > 0 {
+			content = stripEmptyTargetLanguage(content)
 		}
 	}
 
-	result, err := b.WriteStream(ctx, WriteStreamParams{
-		FilterClass:     w.filterClass,
-		Locale:          string(w.Locale),
-		Encoding:        w.Encoding,
-		OriginalContent: originalContent,
-		FilterParams:    w.filterParams,
-		SourcePath:      sourcePath,
-		OutputPath:      w.outputPath,
-		SourceLocale:    w.sourceLocale,
-	}, parts)
-	if err != nil {
-		return fmt.Errorf("bridge write: %w", err)
-	}
+	return bridge.Process(ctx, ProcessParams{
+		FilterClass:    p.filterClass,
+		SourceLocale:   params.SourceLocale,
+		TargetLocale:   params.TargetLocale,
+		Encoding:       params.Encoding,
+		MimeType:       params.MimeType,
+		FilterParams:   p.filterParams,
+		Content:        content,
+		SourcePath:     sourcePath,
+		OutputPath:     absPath(params.OutputPath),
+		OutputLocale:   params.OutputLocale,
+		SubscribeParts: params.SubscribeParts,
+	}, func(parts <-chan *model.Part, done <-chan struct{}) <-chan *model.Part {
+		if processFn == nil {
+			// Identity: pass parts through unmodified.
+			out := make(chan *model.Part, 64)
+			go func() {
+				defer close(out)
+				for p := range parts {
+					out <- p
+				}
+			}()
+			return out
+		}
+		return processFn(parts)
+	})
+}
 
-	// When output_ref was used, Java wrote directly to disk — no bytes to copy.
-	// When inline bytes are returned, copy them to the output writer.
-	if result.OutputPath == "" && w.Output != nil && len(result.Output) > 0 {
-		if _, err := io.Copy(w.Output, bytes.NewReader(result.Output)); err != nil {
+// ExecuteWithWriter runs Execute and copies inline output bytes to w.
+// When the Java side writes to a file path (OutputPath set), this is a no-op
+// on the writer side.
+func (p *BridgeProcessor) ExecuteWithWriter(ctx context.Context, params ProcessExecuteParams,
+	processFn func(parts <-chan *model.Part) <-chan *model.Part,
+	w io.Writer,
+) error {
+	result, err := p.Execute(ctx, params, processFn)
+	if err != nil {
+		return err
+	}
+	if result.OutputPath == "" && w != nil && len(result.Output) > 0 {
+		if _, err := io.Copy(w, bytes.NewReader(result.Output)); err != nil {
 			return fmt.Errorf("writing output: %w", err)
 		}
 	}
-
 	return nil
+}
+
+// absPath resolves a path to absolute, returning it unchanged if empty or already absolute.
+func absPath(p string) string {
+	if p == "" || filepath.IsAbs(p) {
+		return p
+	}
+	if abs, err := filepath.Abs(p); err == nil {
+		return abs
+	}
+	return p
 }

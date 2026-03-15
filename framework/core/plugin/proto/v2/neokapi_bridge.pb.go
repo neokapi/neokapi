@@ -1225,292 +1225,7 @@ func (x *PartMessage) GetMedia() *MediaMessage {
 	return nil
 }
 
-type InfoRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterClass   string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InfoRequest) Reset() {
-	*x = InfoRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InfoRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InfoRequest) ProtoMessage() {}
-
-func (x *InfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InfoRequest.ProtoReflect.Descriptor instead.
-func (*InfoRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{15}
-}
-
-func (x *InfoRequest) GetFilterClass() string {
-	if x != nil {
-		return x.FilterClass
-	}
-	return ""
-}
-
-type InfoResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	MimeTypes     []string               `protobuf:"bytes,3,rep,name=mime_types,json=mimeTypes,proto3" json:"mime_types,omitempty"`
-	Extensions    []string               `protobuf:"bytes,4,rep,name=extensions,proto3" json:"extensions,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *InfoResponse) Reset() {
-	*x = InfoResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *InfoResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*InfoResponse) ProtoMessage() {}
-
-func (x *InfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use InfoResponse.ProtoReflect.Descriptor instead.
-func (*InfoResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *InfoResponse) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *InfoResponse) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *InfoResponse) GetMimeTypes() []string {
-	if x != nil {
-		return x.MimeTypes
-	}
-	return nil
-}
-
-func (x *InfoResponse) GetExtensions() []string {
-	if x != nil {
-		return x.Extensions
-	}
-	return nil
-}
-
-type ListFiltersRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListFiltersRequest) Reset() {
-	*x = ListFiltersRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListFiltersRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListFiltersRequest) ProtoMessage() {}
-
-func (x *ListFiltersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListFiltersRequest.ProtoReflect.Descriptor instead.
-func (*ListFiltersRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{17}
-}
-
-type FilterEntry struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterClass   string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	DisplayName   string                 `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
-	MimeTypes     []string               `protobuf:"bytes,4,rep,name=mime_types,json=mimeTypes,proto3" json:"mime_types,omitempty"`
-	Extensions    []string               `protobuf:"bytes,5,rep,name=extensions,proto3" json:"extensions,omitempty"`
-	FilterId      string                 `protobuf:"bytes,6,opt,name=filter_id,json=filterId,proto3" json:"filter_id,omitempty"` // Natural Okapi filter ID (e.g., "okf_html")
-	Capabilities  []string               `protobuf:"bytes,7,rep,name=capabilities,proto3" json:"capabilities,omitempty"`         // Operations supported (e.g., "read", "write")
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FilterEntry) Reset() {
-	*x = FilterEntry{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FilterEntry) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FilterEntry) ProtoMessage() {}
-
-func (x *FilterEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FilterEntry.ProtoReflect.Descriptor instead.
-func (*FilterEntry) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *FilterEntry) GetFilterClass() string {
-	if x != nil {
-		return x.FilterClass
-	}
-	return ""
-}
-
-func (x *FilterEntry) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *FilterEntry) GetDisplayName() string {
-	if x != nil {
-		return x.DisplayName
-	}
-	return ""
-}
-
-func (x *FilterEntry) GetMimeTypes() []string {
-	if x != nil {
-		return x.MimeTypes
-	}
-	return nil
-}
-
-func (x *FilterEntry) GetExtensions() []string {
-	if x != nil {
-		return x.Extensions
-	}
-	return nil
-}
-
-func (x *FilterEntry) GetFilterId() string {
-	if x != nil {
-		return x.FilterId
-	}
-	return ""
-}
-
-func (x *FilterEntry) GetCapabilities() []string {
-	if x != nil {
-		return x.Capabilities
-	}
-	return nil
-}
-
-type ListFiltersResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Filters       []*FilterEntry         `protobuf:"bytes,1,rep,name=filters,proto3" json:"filters,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListFiltersResponse) Reset() {
-	*x = ListFiltersResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListFiltersResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListFiltersResponse) ProtoMessage() {}
-
-func (x *ListFiltersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListFiltersResponse.ProtoReflect.Descriptor instead.
-func (*ListFiltersResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *ListFiltersResponse) GetFilters() []*FilterEntry {
-	if x != nil {
-		return x.Filters
-	}
-	return nil
-}
-
 // ContentRef allows passing content as a file path instead of inline bytes.
-// Java prefers content_ref when set, falling back to legacy content/source_path.
 type ContentRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Location:
@@ -1525,7 +1240,7 @@ type ContentRef struct {
 
 func (x *ContentRef) Reset() {
 	*x = ContentRef{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1537,7 +1252,7 @@ func (x *ContentRef) String() string {
 func (*ContentRef) ProtoMessage() {}
 
 func (x *ContentRef) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1550,7 +1265,7 @@ func (x *ContentRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ContentRef.ProtoReflect.Descriptor instead.
 func (*ContentRef) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{20}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ContentRef) GetLocation() isContentRef_Location {
@@ -1592,7 +1307,7 @@ type isContentRef_Location interface {
 }
 
 type ContentRef_Inline struct {
-	Inline []byte `protobuf:"bytes,1,opt,name=inline,proto3,oneof"` // Inline bytes (same as legacy content field)
+	Inline []byte `protobuf:"bytes,1,opt,name=inline,proto3,oneof"` // Inline bytes
 }
 
 type ContentRef_Path struct {
@@ -1610,7 +1325,6 @@ func (*ContentRef_Path) isContentRef_Location() {}
 func (*ContentRef_Uri) isContentRef_Location() {}
 
 // OutputRef specifies where to write output directly on disk.
-// When set, Java writes output directly to this path instead of returning bytes.
 type OutputRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Destination:
@@ -1624,7 +1338,7 @@ type OutputRef struct {
 
 func (x *OutputRef) Reset() {
 	*x = OutputRef{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1636,7 +1350,7 @@ func (x *OutputRef) String() string {
 func (*OutputRef) ProtoMessage() {}
 
 func (x *OutputRef) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1649,7 +1363,7 @@ func (x *OutputRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OutputRef.ProtoReflect.Descriptor instead.
 func (*OutputRef) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{21}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *OutputRef) GetDestination() isOutputRef_Destination {
@@ -1693,229 +1407,33 @@ func (*OutputRef_Path) isOutputRef_Destination() {}
 
 func (*OutputRef_Uri) isOutputRef_Destination() {}
 
-type OpenRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterClass   string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
-	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
-	SourceLocale  string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
-	Encoding      string                 `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	Content       []byte                 `protobuf:"bytes,5,opt,name=content,proto3" json:"content,omitempty"` // Legacy: inline document bytes
-	MimeType      string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
-	FilterParams  map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	TargetLocale  string                 `protobuf:"bytes,8,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
-	SourcePath    string                 `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`  // Legacy: absolute file path on disk
-	ContentRef    *ContentRef            `protobuf:"bytes,10,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"` // Preferred: file reference (path avoids byte transfer)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenRequest) Reset() {
-	*x = OpenRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenRequest) ProtoMessage() {}
-
-func (x *OpenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenRequest.ProtoReflect.Descriptor instead.
-func (*OpenRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{22}
-}
-
-func (x *OpenRequest) GetFilterClass() string {
-	if x != nil {
-		return x.FilterClass
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetUri() string {
-	if x != nil {
-		return x.Uri
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetSourceLocale() string {
-	if x != nil {
-		return x.SourceLocale
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetEncoding() string {
-	if x != nil {
-		return x.Encoding
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetContent() []byte {
-	if x != nil {
-		return x.Content
-	}
-	return nil
-}
-
-func (x *OpenRequest) GetMimeType() string {
-	if x != nil {
-		return x.MimeType
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetFilterParams() map[string]string {
-	if x != nil {
-		return x.FilterParams
-	}
-	return nil
-}
-
-func (x *OpenRequest) GetTargetLocale() string {
-	if x != nil {
-		return x.TargetLocale
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetSourcePath() string {
-	if x != nil {
-		return x.SourcePath
-	}
-	return ""
-}
-
-func (x *OpenRequest) GetContentRef() *ContentRef {
-	if x != nil {
-		return x.ContentRef
-	}
-	return nil
-}
-
-type OpenResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *OpenResponse) Reset() {
-	*x = OpenResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *OpenResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*OpenResponse) ProtoMessage() {}
-
-func (x *OpenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use OpenResponse.ProtoReflect.Descriptor instead.
-func (*OpenResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *OpenResponse) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
-}
-
-type ReadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReadRequest) Reset() {
-	*x = ReadRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReadRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReadRequest) ProtoMessage() {}
-
-func (x *ReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[24]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReadRequest.ProtoReflect.Descriptor instead.
-func (*ReadRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{24}
-}
-
-// WriteChunk is sent as a client stream for the Write RPC.
-type WriteChunk struct {
+// ProcessRequest is sent by the client (Go) to the server (Java).
+type ProcessRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Chunk:
+	// Types that are valid to be assigned to Request:
 	//
-	//	*WriteChunk_Header
-	//	*WriteChunk_Part
-	Chunk         isWriteChunk_Chunk `protobuf_oneof:"chunk"`
+	//	*ProcessRequest_Header
+	//	*ProcessRequest_Part
+	Request       isProcessRequest_Request `protobuf_oneof:"request"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WriteChunk) Reset() {
-	*x = WriteChunk{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
+func (x *ProcessRequest) Reset() {
+	*x = ProcessRequest{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WriteChunk) String() string {
+func (x *ProcessRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WriteChunk) ProtoMessage() {}
+func (*ProcessRequest) ProtoMessage() {}
 
-func (x *WriteChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25]
+func (x *ProcessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1926,83 +1444,80 @@ func (x *WriteChunk) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WriteChunk.ProtoReflect.Descriptor instead.
-func (*WriteChunk) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{25}
+// Deprecated: Use ProcessRequest.ProtoReflect.Descriptor instead.
+func (*ProcessRequest) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *WriteChunk) GetChunk() isWriteChunk_Chunk {
+func (x *ProcessRequest) GetRequest() isProcessRequest_Request {
 	if x != nil {
-		return x.Chunk
+		return x.Request
 	}
 	return nil
 }
 
-func (x *WriteChunk) GetHeader() *WriteHeader {
+func (x *ProcessRequest) GetHeader() *ProcessHeader {
 	if x != nil {
-		if x, ok := x.Chunk.(*WriteChunk_Header); ok {
+		if x, ok := x.Request.(*ProcessRequest_Header); ok {
 			return x.Header
 		}
 	}
 	return nil
 }
 
-func (x *WriteChunk) GetPart() *PartMessage {
+func (x *ProcessRequest) GetPart() *PartMessage {
 	if x != nil {
-		if x, ok := x.Chunk.(*WriteChunk_Part); ok {
+		if x, ok := x.Request.(*ProcessRequest_Part); ok {
 			return x.Part
 		}
 	}
 	return nil
 }
 
-type isWriteChunk_Chunk interface {
-	isWriteChunk_Chunk()
+type isProcessRequest_Request interface {
+	isProcessRequest_Request()
 }
 
-type WriteChunk_Header struct {
-	Header *WriteHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"`
+type ProcessRequest_Header struct {
+	Header *ProcessHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"` // First message: input/output config
 }
 
-type WriteChunk_Part struct {
-	Part *PartMessage `protobuf:"bytes,2,opt,name=part,proto3,oneof"`
+type ProcessRequest_Part struct {
+	Part *PartMessage `protobuf:"bytes,2,opt,name=part,proto3,oneof"` // Processed part sent back after tool chain
 }
 
-func (*WriteChunk_Header) isWriteChunk_Chunk() {}
+func (*ProcessRequest_Header) isProcessRequest_Request() {}
 
-func (*WriteChunk_Part) isWriteChunk_Chunk() {}
+func (*ProcessRequest_Part) isProcessRequest_Request() {}
 
-// WriteHeader is the first message in a Write stream.
-type WriteHeader struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	FilterClass        string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
-	Locale             string                 `protobuf:"bytes,2,opt,name=locale,proto3" json:"locale,omitempty"`
-	Encoding           string                 `protobuf:"bytes,3,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	OriginalContent    []byte                 `protobuf:"bytes,4,opt,name=original_content,json=originalContent,proto3" json:"original_content,omitempty"` // Legacy: inline original document bytes
-	FilterParams       map[string]string      `protobuf:"bytes,5,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	SourcePath         string                 `protobuf:"bytes,6,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`                           // Legacy: absolute path to original file
-	OriginalContentRef *ContentRef            `protobuf:"bytes,7,opt,name=original_content_ref,json=originalContentRef,proto3" json:"original_content_ref,omitempty"` // Preferred: file reference for original content
-	OutputRef          *OutputRef             `protobuf:"bytes,8,opt,name=output_ref,json=outputRef,proto3" json:"output_ref,omitempty"`                              // When set, Java writes output directly to this path
-	SourceLocale       string                 `protobuf:"bytes,9,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`                     // Source locale for skeleton re-read during write
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+// ProcessResponse is sent by the server (Java) to the client (Go).
+type ProcessResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Response:
+	//
+	//	*ProcessResponse_Part
+	//	*ProcessResponse_ReadDone
+	//	*ProcessResponse_Complete
+	Response      isProcessResponse_Response `protobuf_oneof:"response"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *WriteHeader) Reset() {
-	*x = WriteHeader{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
+func (x *ProcessResponse) Reset() {
+	*x = ProcessResponse{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *WriteHeader) String() string {
+func (x *ProcessResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*WriteHeader) ProtoMessage() {}
+func (*ProcessResponse) ProtoMessage() {}
 
-func (x *WriteHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[26]
+func (x *ProcessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2013,208 +1528,276 @@ func (x *WriteHeader) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use WriteHeader.ProtoReflect.Descriptor instead.
-func (*WriteHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{26}
+// Deprecated: Use ProcessResponse.ProtoReflect.Descriptor instead.
+func (*ProcessResponse) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *WriteHeader) GetFilterClass() string {
+func (x *ProcessResponse) GetResponse() isProcessResponse_Response {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *ProcessResponse) GetPart() *PartMessage {
+	if x != nil {
+		if x, ok := x.Response.(*ProcessResponse_Part); ok {
+			return x.Part
+		}
+	}
+	return nil
+}
+
+func (x *ProcessResponse) GetReadDone() *ProcessReadDone {
+	if x != nil {
+		if x, ok := x.Response.(*ProcessResponse_ReadDone); ok {
+			return x.ReadDone
+		}
+	}
+	return nil
+}
+
+func (x *ProcessResponse) GetComplete() *ProcessComplete {
+	if x != nil {
+		if x, ok := x.Response.(*ProcessResponse_Complete); ok {
+			return x.Complete
+		}
+	}
+	return nil
+}
+
+type isProcessResponse_Response interface {
+	isProcessResponse_Response()
+}
+
+type ProcessResponse_Part struct {
+	Part *PartMessage `protobuf:"bytes,1,opt,name=part,proto3,oneof"` // Part read from the document
+}
+
+type ProcessResponse_ReadDone struct {
+	ReadDone *ProcessReadDone `protobuf:"bytes,2,opt,name=read_done,json=readDone,proto3,oneof"` // All parts have been read
+}
+
+type ProcessResponse_Complete struct {
+	Complete *ProcessComplete `protobuf:"bytes,3,opt,name=complete,proto3,oneof"` // Output written, cycle complete
+}
+
+func (*ProcessResponse_Part) isProcessResponse_Response() {}
+
+func (*ProcessResponse_ReadDone) isProcessResponse_Response() {}
+
+func (*ProcessResponse_Complete) isProcessResponse_Response() {}
+
+// ProcessHeader configures the Process RPC.
+type ProcessHeader struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	FilterClass    string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
+	Input          *ContentRef            `protobuf:"bytes,2,opt,name=input,proto3" json:"input,omitempty"` // Input document reference
+	SourceLocale   string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
+	TargetLocale   string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	Encoding       string                 `protobuf:"bytes,5,opt,name=encoding,proto3" json:"encoding,omitempty"`
+	MimeType       string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
+	FilterParams   map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Output         *OutputRef             `protobuf:"bytes,8,opt,name=output,proto3" json:"output,omitempty"`                                                // Where to write output (optional; omit for read-only)
+	OutputLocale   string                 `protobuf:"bytes,9,opt,name=output_locale,json=outputLocale,proto3" json:"output_locale,omitempty"`                // Locale for the output document
+	SubscribeParts []int32                `protobuf:"varint,10,rep,packed,name=subscribe_parts,json=subscribeParts,proto3" json:"subscribe_parts,omitempty"` // Part types to stream to Go (empty = all).
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProcessHeader) Reset() {
+	*x = ProcessHeader{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessHeader) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessHeader) ProtoMessage() {}
+
+func (x *ProcessHeader) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessHeader.ProtoReflect.Descriptor instead.
+func (*ProcessHeader) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *ProcessHeader) GetFilterClass() string {
 	if x != nil {
 		return x.FilterClass
 	}
 	return ""
 }
 
-func (x *WriteHeader) GetLocale() string {
+func (x *ProcessHeader) GetInput() *ContentRef {
 	if x != nil {
-		return x.Locale
-	}
-	return ""
-}
-
-func (x *WriteHeader) GetEncoding() string {
-	if x != nil {
-		return x.Encoding
-	}
-	return ""
-}
-
-func (x *WriteHeader) GetOriginalContent() []byte {
-	if x != nil {
-		return x.OriginalContent
+		return x.Input
 	}
 	return nil
 }
 
-func (x *WriteHeader) GetFilterParams() map[string]string {
-	if x != nil {
-		return x.FilterParams
-	}
-	return nil
-}
-
-func (x *WriteHeader) GetSourcePath() string {
-	if x != nil {
-		return x.SourcePath
-	}
-	return ""
-}
-
-func (x *WriteHeader) GetOriginalContentRef() *ContentRef {
-	if x != nil {
-		return x.OriginalContentRef
-	}
-	return nil
-}
-
-func (x *WriteHeader) GetOutputRef() *OutputRef {
-	if x != nil {
-		return x.OutputRef
-	}
-	return nil
-}
-
-func (x *WriteHeader) GetSourceLocale() string {
+func (x *ProcessHeader) GetSourceLocale() string {
 	if x != nil {
 		return x.SourceLocale
 	}
 	return ""
 }
 
-type WriteResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Output        []byte                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"` // Inline output bytes (empty when output_ref was used)
-	Error         string                 `protobuf:"bytes,2,opt,name=error,proto3" json:"error,omitempty"`
-	OutputPath    string                 `protobuf:"bytes,3,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"` // Path where output was written (set when output_ref was used)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *WriteResponse) Reset() {
-	*x = WriteResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *WriteResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*WriteResponse) ProtoMessage() {}
-
-func (x *WriteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[27]
+func (x *ProcessHeader) GetTargetLocale() string {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
+		return x.TargetLocale
 	}
-	return mi.MessageOf(x)
+	return ""
 }
 
-// Deprecated: Use WriteResponse.ProtoReflect.Descriptor instead.
-func (*WriteResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{27}
+func (x *ProcessHeader) GetEncoding() string {
+	if x != nil {
+		return x.Encoding
+	}
+	return ""
 }
 
-func (x *WriteResponse) GetOutput() []byte {
+func (x *ProcessHeader) GetMimeType() string {
+	if x != nil {
+		return x.MimeType
+	}
+	return ""
+}
+
+func (x *ProcessHeader) GetFilterParams() map[string]string {
+	if x != nil {
+		return x.FilterParams
+	}
+	return nil
+}
+
+func (x *ProcessHeader) GetOutput() *OutputRef {
 	if x != nil {
 		return x.Output
 	}
 	return nil
 }
 
-func (x *WriteResponse) GetError() string {
+func (x *ProcessHeader) GetOutputLocale() string {
 	if x != nil {
-		return x.Error
+		return x.OutputLocale
 	}
 	return ""
 }
 
-func (x *WriteResponse) GetOutputPath() string {
+func (x *ProcessHeader) GetSubscribeParts() []int32 {
+	if x != nil {
+		return x.SubscribeParts
+	}
+	return nil
+}
+
+// ProcessReadDone signals that all parts have been read from the document.
+type ProcessReadDone struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessReadDone) Reset() {
+	*x = ProcessReadDone{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessReadDone) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessReadDone) ProtoMessage() {}
+
+func (x *ProcessReadDone) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessReadDone.ProtoReflect.Descriptor instead.
+func (*ProcessReadDone) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{20}
+}
+
+// ProcessComplete signals that the output has been written (or read-only is done).
+type ProcessComplete struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Output        []byte                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`                           // Inline output bytes (empty when OutputRef was used)
+	OutputPath    string                 `protobuf:"bytes,2,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"` // Path where output was written
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProcessComplete) Reset() {
+	*x = ProcessComplete{}
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProcessComplete) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProcessComplete) ProtoMessage() {}
+
+func (x *ProcessComplete) ProtoReflect() protoreflect.Message {
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProcessComplete.ProtoReflect.Descriptor instead.
+func (*ProcessComplete) Descriptor() ([]byte, []int) {
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *ProcessComplete) GetOutput() []byte {
+	if x != nil {
+		return x.Output
+	}
+	return nil
+}
+
+func (x *ProcessComplete) GetOutputPath() string {
 	if x != nil {
 		return x.OutputPath
 	}
 	return ""
 }
 
-type CloseRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CloseRequest) Reset() {
-	*x = CloseRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CloseRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CloseRequest) ProtoMessage() {}
-
-func (x *CloseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[28]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CloseRequest.ProtoReflect.Descriptor instead.
-func (*CloseRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{28}
-}
-
-type CloseResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Error         string                 `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *CloseResponse) Reset() {
-	*x = CloseResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *CloseResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*CloseResponse) ProtoMessage() {}
-
-func (x *CloseResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[29]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use CloseResponse.ProtoReflect.Descriptor instead.
-func (*CloseResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{29}
-}
-
-func (x *CloseResponse) GetError() string {
+func (x *ProcessComplete) GetError() string {
 	if x != nil {
 		return x.Error
 	}
@@ -2229,7 +1812,7 @@ type ShutdownRequest struct {
 
 func (x *ShutdownRequest) Reset() {
 	*x = ShutdownRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2241,7 +1824,7 @@ func (x *ShutdownRequest) String() string {
 func (*ShutdownRequest) ProtoMessage() {}
 
 func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[30]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2254,7 +1837,7 @@ func (x *ShutdownRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownRequest.ProtoReflect.Descriptor instead.
 func (*ShutdownRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{30}
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{22}
 }
 
 type ShutdownResponse struct {
@@ -2265,7 +1848,7 @@ type ShutdownResponse struct {
 
 func (x *ShutdownResponse) Reset() {
 	*x = ShutdownResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2277,7 +1860,7 @@ func (x *ShutdownResponse) String() string {
 func (*ShutdownResponse) ProtoMessage() {}
 
 func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[31]
+	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2290,502 +1873,7 @@ func (x *ShutdownResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShutdownResponse.ProtoReflect.Descriptor instead.
 func (*ShutdownResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{31}
-}
-
-// RoundTripRequest is sent by the client (Go) to the server (Java).
-type RoundTripRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Request:
-	//
-	//	*RoundTripRequest_Header
-	//	*RoundTripRequest_ProcessedPart
-	//	*RoundTripRequest_Flush
-	Request       isRoundTripRequest_Request `protobuf_oneof:"request"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripRequest) Reset() {
-	*x = RoundTripRequest{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripRequest) ProtoMessage() {}
-
-func (x *RoundTripRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripRequest.ProtoReflect.Descriptor instead.
-func (*RoundTripRequest) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{32}
-}
-
-func (x *RoundTripRequest) GetRequest() isRoundTripRequest_Request {
-	if x != nil {
-		return x.Request
-	}
-	return nil
-}
-
-func (x *RoundTripRequest) GetHeader() *RoundTripHeader {
-	if x != nil {
-		if x, ok := x.Request.(*RoundTripRequest_Header); ok {
-			return x.Header
-		}
-	}
-	return nil
-}
-
-func (x *RoundTripRequest) GetProcessedPart() *RoundTripProcessed {
-	if x != nil {
-		if x, ok := x.Request.(*RoundTripRequest_ProcessedPart); ok {
-			return x.ProcessedPart
-		}
-	}
-	return nil
-}
-
-func (x *RoundTripRequest) GetFlush() *RoundTripFlush {
-	if x != nil {
-		if x, ok := x.Request.(*RoundTripRequest_Flush); ok {
-			return x.Flush
-		}
-	}
-	return nil
-}
-
-type isRoundTripRequest_Request interface {
-	isRoundTripRequest_Request()
-}
-
-type RoundTripRequest_Header struct {
-	Header *RoundTripHeader `protobuf:"bytes,1,opt,name=header,proto3,oneof"` // First message: input/output config
-}
-
-type RoundTripRequest_ProcessedPart struct {
-	ProcessedPart *RoundTripProcessed `protobuf:"bytes,2,opt,name=processed_part,json=processedPart,proto3,oneof"` // Processed part sent back after tool chain
-}
-
-type RoundTripRequest_Flush struct {
-	Flush *RoundTripFlush `protobuf:"bytes,3,opt,name=flush,proto3,oneof"` // Signals all processed parts have been sent
-}
-
-func (*RoundTripRequest_Header) isRoundTripRequest_Request() {}
-
-func (*RoundTripRequest_ProcessedPart) isRoundTripRequest_Request() {}
-
-func (*RoundTripRequest_Flush) isRoundTripRequest_Request() {}
-
-// RoundTripResponse is sent by the server (Java) to the client (Go).
-type RoundTripResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Types that are valid to be assigned to Response:
-	//
-	//	*RoundTripResponse_Part
-	//	*RoundTripResponse_ReadDone
-	//	*RoundTripResponse_Complete
-	Response      isRoundTripResponse_Response `protobuf_oneof:"response"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripResponse) Reset() {
-	*x = RoundTripResponse{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripResponse) ProtoMessage() {}
-
-func (x *RoundTripResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripResponse.ProtoReflect.Descriptor instead.
-func (*RoundTripResponse) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *RoundTripResponse) GetResponse() isRoundTripResponse_Response {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
-func (x *RoundTripResponse) GetPart() *PartMessage {
-	if x != nil {
-		if x, ok := x.Response.(*RoundTripResponse_Part); ok {
-			return x.Part
-		}
-	}
-	return nil
-}
-
-func (x *RoundTripResponse) GetReadDone() *RoundTripReadDone {
-	if x != nil {
-		if x, ok := x.Response.(*RoundTripResponse_ReadDone); ok {
-			return x.ReadDone
-		}
-	}
-	return nil
-}
-
-func (x *RoundTripResponse) GetComplete() *RoundTripComplete {
-	if x != nil {
-		if x, ok := x.Response.(*RoundTripResponse_Complete); ok {
-			return x.Complete
-		}
-	}
-	return nil
-}
-
-type isRoundTripResponse_Response interface {
-	isRoundTripResponse_Response()
-}
-
-type RoundTripResponse_Part struct {
-	Part *PartMessage `protobuf:"bytes,1,opt,name=part,proto3,oneof"` // Part read from the document
-}
-
-type RoundTripResponse_ReadDone struct {
-	ReadDone *RoundTripReadDone `protobuf:"bytes,2,opt,name=read_done,json=readDone,proto3,oneof"` // All parts have been read
-}
-
-type RoundTripResponse_Complete struct {
-	Complete *RoundTripComplete `protobuf:"bytes,3,opt,name=complete,proto3,oneof"` // Output written, cycle complete
-}
-
-func (*RoundTripResponse_Part) isRoundTripResponse_Response() {}
-
-func (*RoundTripResponse_ReadDone) isRoundTripResponse_Response() {}
-
-func (*RoundTripResponse_Complete) isRoundTripResponse_Response() {}
-
-// RoundTripHeader configures both the read and write phases.
-type RoundTripHeader struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	FilterClass   string                 `protobuf:"bytes,1,opt,name=filter_class,json=filterClass,proto3" json:"filter_class,omitempty"`
-	Uri           string                 `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
-	SourceLocale  string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
-	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
-	Encoding      string                 `protobuf:"bytes,5,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	MimeType      string                 `protobuf:"bytes,6,opt,name=mime_type,json=mimeType,proto3" json:"mime_type,omitempty"`
-	FilterParams  map[string]string      `protobuf:"bytes,7,rep,name=filter_params,json=filterParams,proto3" json:"filter_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	ContentRef    *ContentRef            `protobuf:"bytes,8,opt,name=content_ref,json=contentRef,proto3" json:"content_ref,omitempty"`       // Input document reference
-	OutputLocale  string                 `protobuf:"bytes,9,opt,name=output_locale,json=outputLocale,proto3" json:"output_locale,omitempty"` // Locale for the output document
-	OutputRef     *OutputRef             `protobuf:"bytes,10,opt,name=output_ref,json=outputRef,proto3" json:"output_ref,omitempty"`         // Where to write output (path or inline)
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripHeader) Reset() {
-	*x = RoundTripHeader{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripHeader) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripHeader) ProtoMessage() {}
-
-func (x *RoundTripHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripHeader.ProtoReflect.Descriptor instead.
-func (*RoundTripHeader) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *RoundTripHeader) GetFilterClass() string {
-	if x != nil {
-		return x.FilterClass
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetUri() string {
-	if x != nil {
-		return x.Uri
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetSourceLocale() string {
-	if x != nil {
-		return x.SourceLocale
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetTargetLocale() string {
-	if x != nil {
-		return x.TargetLocale
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetEncoding() string {
-	if x != nil {
-		return x.Encoding
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetMimeType() string {
-	if x != nil {
-		return x.MimeType
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetFilterParams() map[string]string {
-	if x != nil {
-		return x.FilterParams
-	}
-	return nil
-}
-
-func (x *RoundTripHeader) GetContentRef() *ContentRef {
-	if x != nil {
-		return x.ContentRef
-	}
-	return nil
-}
-
-func (x *RoundTripHeader) GetOutputLocale() string {
-	if x != nil {
-		return x.OutputLocale
-	}
-	return ""
-}
-
-func (x *RoundTripHeader) GetOutputRef() *OutputRef {
-	if x != nil {
-		return x.OutputRef
-	}
-	return nil
-}
-
-// RoundTripProcessed wraps a processed part sent back to the server.
-type RoundTripProcessed struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Part          *PartMessage           `protobuf:"bytes,1,opt,name=part,proto3" json:"part,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripProcessed) Reset() {
-	*x = RoundTripProcessed{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripProcessed) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripProcessed) ProtoMessage() {}
-
-func (x *RoundTripProcessed) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripProcessed.ProtoReflect.Descriptor instead.
-func (*RoundTripProcessed) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *RoundTripProcessed) GetPart() *PartMessage {
-	if x != nil {
-		return x.Part
-	}
-	return nil
-}
-
-// RoundTripReadDone signals that all parts have been read from the document.
-type RoundTripReadDone struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripReadDone) Reset() {
-	*x = RoundTripReadDone{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripReadDone) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripReadDone) ProtoMessage() {}
-
-func (x *RoundTripReadDone) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripReadDone.ProtoReflect.Descriptor instead.
-func (*RoundTripReadDone) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{36}
-}
-
-// RoundTripFlush signals that all processed parts have been sent by the client.
-type RoundTripFlush struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripFlush) Reset() {
-	*x = RoundTripFlush{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[37]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripFlush) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripFlush) ProtoMessage() {}
-
-func (x *RoundTripFlush) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[37]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripFlush.ProtoReflect.Descriptor instead.
-func (*RoundTripFlush) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{37}
-}
-
-// RoundTripComplete signals that the output has been written.
-type RoundTripComplete struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Output        []byte                 `protobuf:"bytes,1,opt,name=output,proto3" json:"output,omitempty"`                           // Inline output bytes (empty when output_ref was used)
-	OutputPath    string                 `protobuf:"bytes,2,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"` // Path where output was written
-	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoundTripComplete) Reset() {
-	*x = RoundTripComplete{}
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoundTripComplete) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoundTripComplete) ProtoMessage() {}
-
-func (x *RoundTripComplete) ProtoReflect() protoreflect.Message {
-	mi := &file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoundTripComplete.ProtoReflect.Descriptor instead.
-func (*RoundTripComplete) Descriptor() ([]byte, []int) {
-	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{38}
-}
-
-func (x *RoundTripComplete) GetOutput() []byte {
-	if x != nil {
-		return x.Output
-	}
-	return nil
-}
-
-func (x *RoundTripComplete) GetOutputPath() string {
-	if x != nil {
-		return x.OutputPath
-	}
-	return ""
-}
-
-func (x *RoundTripComplete) GetError() string {
-	if x != nil {
-		return x.Error
-	}
-	return ""
+	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP(), []int{23}
 }
 
 var File_core_plugin_proto_v2_neokapi_bridge_proto protoreflect.FileDescriptor
@@ -2939,31 +2027,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\vgroup_start\x18\x05 \x01(\v2$.neokapi.bridge.v2.GroupStartMessageR\n" +
 	"groupStart\x12?\n" +
 	"\tgroup_end\x18\x06 \x01(\v2\".neokapi.bridge.v2.GroupEndMessageR\bgroupEnd\x125\n" +
-	"\x05media\x18\a \x01(\v2\x1f.neokapi.bridge.v2.MediaMessageR\x05media\"0\n" +
-	"\vInfoRequest\x12!\n" +
-	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\"\x84\x01\n" +
-	"\fInfoResponse\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1d\n" +
-	"\n" +
-	"mime_types\x18\x03 \x03(\tR\tmimeTypes\x12\x1e\n" +
-	"\n" +
-	"extensions\x18\x04 \x03(\tR\n" +
-	"extensions\"\x14\n" +
-	"\x12ListFiltersRequest\"\xe7\x01\n" +
-	"\vFilterEntry\x12!\n" +
-	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12\x1d\n" +
-	"\n" +
-	"mime_types\x18\x04 \x03(\tR\tmimeTypes\x12\x1e\n" +
-	"\n" +
-	"extensions\x18\x05 \x03(\tR\n" +
-	"extensions\x12\x1b\n" +
-	"\tfilter_id\x18\x06 \x01(\tR\bfilterId\x12\"\n" +
-	"\fcapabilities\x18\a \x03(\tR\fcapabilities\"O\n" +
-	"\x13ListFiltersResponse\x128\n" +
-	"\afilters\x18\x01 \x03(\v2\x1e.neokapi.bridge.v2.FilterEntryR\afilters\"\\\n" +
+	"\x05media\x18\a \x01(\v2\x1f.neokapi.bridge.v2.MediaMessageR\x05media\"\\\n" +
 	"\n" +
 	"ContentRef\x12\x18\n" +
 	"\x06inline\x18\x01 \x01(\fH\x00R\x06inline\x12\x14\n" +
@@ -2974,103 +2038,43 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\tOutputRef\x12\x14\n" +
 	"\x04path\x18\x01 \x01(\tH\x00R\x04path\x12\x12\n" +
 	"\x03uri\x18\x02 \x01(\tH\x00R\x03uriB\r\n" +
-	"\vdestination\"\xd8\x03\n" +
-	"\vOpenRequest\x12!\n" +
-	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
-	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
-	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12\x1a\n" +
-	"\bencoding\x18\x04 \x01(\tR\bencoding\x12\x18\n" +
-	"\acontent\x18\x05 \x01(\fR\acontent\x12\x1b\n" +
-	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12U\n" +
-	"\rfilter_params\x18\a \x03(\v20.neokapi.bridge.v2.OpenRequest.FilterParamsEntryR\ffilterParams\x12#\n" +
-	"\rtarget_locale\x18\b \x01(\tR\ftargetLocale\x12\x1f\n" +
-	"\vsource_path\x18\t \x01(\tR\n" +
-	"sourcePath\x12>\n" +
-	"\vcontent_ref\x18\n" +
-	" \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\n" +
-	"contentRef\x1a?\n" +
-	"\x11FilterParamsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"$\n" +
-	"\fOpenResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\r\n" +
-	"\vReadRequest\"\x85\x01\n" +
+	"\vdestination\"\x8d\x01\n" +
+	"\x0eProcessRequest\x12:\n" +
+	"\x06header\x18\x01 \x01(\v2 .neokapi.bridge.v2.ProcessHeaderH\x00R\x06header\x124\n" +
+	"\x04part\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04partB\t\n" +
+	"\arequest\"\xd8\x01\n" +
+	"\x0fProcessResponse\x124\n" +
+	"\x04part\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04part\x12A\n" +
+	"\tread_done\x18\x02 \x01(\v2\".neokapi.bridge.v2.ProcessReadDoneH\x00R\breadDone\x12@\n" +
+	"\bcomplete\x18\x03 \x01(\v2\".neokapi.bridge.v2.ProcessCompleteH\x00R\bcompleteB\n" +
 	"\n" +
-	"WriteChunk\x128\n" +
-	"\x06header\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.WriteHeaderH\x00R\x06header\x124\n" +
-	"\x04part\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04partB\a\n" +
-	"\x05chunk\"\xfb\x03\n" +
-	"\vWriteHeader\x12!\n" +
-	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x16\n" +
-	"\x06locale\x18\x02 \x01(\tR\x06locale\x12\x1a\n" +
-	"\bencoding\x18\x03 \x01(\tR\bencoding\x12)\n" +
-	"\x10original_content\x18\x04 \x01(\fR\x0foriginalContent\x12U\n" +
-	"\rfilter_params\x18\x05 \x03(\v20.neokapi.bridge.v2.WriteHeader.FilterParamsEntryR\ffilterParams\x12\x1f\n" +
-	"\vsource_path\x18\x06 \x01(\tR\n" +
-	"sourcePath\x12O\n" +
-	"\x14original_content_ref\x18\a \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\x12originalContentRef\x12;\n" +
-	"\n" +
-	"output_ref\x18\b \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\toutputRef\x12#\n" +
-	"\rsource_locale\x18\t \x01(\tR\fsourceLocale\x1a?\n" +
-	"\x11FilterParamsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"^\n" +
-	"\rWriteResponse\x12\x16\n" +
-	"\x06output\x18\x01 \x01(\fR\x06output\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\x12\x1f\n" +
-	"\voutput_path\x18\x03 \x01(\tR\n" +
-	"outputPath\"\x0e\n" +
-	"\fCloseRequest\"%\n" +
-	"\rCloseResponse\x12\x14\n" +
-	"\x05error\x18\x01 \x01(\tR\x05error\"\x11\n" +
-	"\x0fShutdownRequest\"\x12\n" +
-	"\x10ShutdownResponse\"\xe6\x01\n" +
-	"\x10RoundTripRequest\x12<\n" +
-	"\x06header\x18\x01 \x01(\v2\".neokapi.bridge.v2.RoundTripHeaderH\x00R\x06header\x12N\n" +
-	"\x0eprocessed_part\x18\x02 \x01(\v2%.neokapi.bridge.v2.RoundTripProcessedH\x00R\rprocessedPart\x129\n" +
-	"\x05flush\x18\x03 \x01(\v2!.neokapi.bridge.v2.RoundTripFlushH\x00R\x05flushB\t\n" +
-	"\arequest\"\xde\x01\n" +
-	"\x11RoundTripResponse\x124\n" +
-	"\x04part\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04part\x12C\n" +
-	"\tread_done\x18\x02 \x01(\v2$.neokapi.bridge.v2.RoundTripReadDoneH\x00R\breadDone\x12B\n" +
-	"\bcomplete\x18\x03 \x01(\v2$.neokapi.bridge.v2.RoundTripCompleteH\x00R\bcompleteB\n" +
-	"\n" +
-	"\bresponse\"\x87\x04\n" +
-	"\x0fRoundTripHeader\x12!\n" +
-	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x12\x10\n" +
-	"\x03uri\x18\x02 \x01(\tR\x03uri\x12#\n" +
+	"\bresponse\"\x88\x04\n" +
+	"\rProcessHeader\x12!\n" +
+	"\ffilter_class\x18\x01 \x01(\tR\vfilterClass\x123\n" +
+	"\x05input\x18\x02 \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\x05input\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
 	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12\x1a\n" +
 	"\bencoding\x18\x05 \x01(\tR\bencoding\x12\x1b\n" +
-	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12Y\n" +
-	"\rfilter_params\x18\a \x03(\v24.neokapi.bridge.v2.RoundTripHeader.FilterParamsEntryR\ffilterParams\x12>\n" +
-	"\vcontent_ref\x18\b \x01(\v2\x1d.neokapi.bridge.v2.ContentRefR\n" +
-	"contentRef\x12#\n" +
-	"\routput_locale\x18\t \x01(\tR\foutputLocale\x12;\n" +
-	"\n" +
-	"output_ref\x18\n" +
-	" \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\toutputRef\x1a?\n" +
+	"\tmime_type\x18\x06 \x01(\tR\bmimeType\x12W\n" +
+	"\rfilter_params\x18\a \x03(\v22.neokapi.bridge.v2.ProcessHeader.FilterParamsEntryR\ffilterParams\x124\n" +
+	"\x06output\x18\b \x01(\v2\x1c.neokapi.bridge.v2.OutputRefR\x06output\x12#\n" +
+	"\routput_locale\x18\t \x01(\tR\foutputLocale\x12'\n" +
+	"\x0fsubscribe_parts\x18\n" +
+	" \x03(\x05R\x0esubscribeParts\x1a?\n" +
 	"\x11FilterParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"H\n" +
-	"\x12RoundTripProcessed\x122\n" +
-	"\x04part\x18\x01 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageR\x04part\"\x13\n" +
-	"\x11RoundTripReadDone\"\x10\n" +
-	"\x0eRoundTripFlush\"b\n" +
-	"\x11RoundTripComplete\x12\x16\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x11\n" +
+	"\x0fProcessReadDone\"`\n" +
+	"\x0fProcessComplete\x12\x16\n" +
 	"\x06output\x18\x01 \x01(\fR\x06output\x12\x1f\n" +
 	"\voutput_path\x18\x02 \x01(\tR\n" +
 	"outputPath\x12\x14\n" +
-	"\x05error\x18\x03 \x01(\tR\x05error2\x92\x05\n" +
-	"\rBridgeService\x12G\n" +
-	"\x04Info\x12\x1e.neokapi.bridge.v2.InfoRequest\x1a\x1f.neokapi.bridge.v2.InfoResponse\x12\\\n" +
-	"\vListFilters\x12%.neokapi.bridge.v2.ListFiltersRequest\x1a&.neokapi.bridge.v2.ListFiltersResponse\x12G\n" +
-	"\x04Open\x12\x1e.neokapi.bridge.v2.OpenRequest\x1a\x1f.neokapi.bridge.v2.OpenResponse\x12H\n" +
-	"\x04Read\x12\x1e.neokapi.bridge.v2.ReadRequest\x1a\x1e.neokapi.bridge.v2.PartMessage0\x01\x12J\n" +
-	"\x05Write\x12\x1d.neokapi.bridge.v2.WriteChunk\x1a .neokapi.bridge.v2.WriteResponse(\x01\x12J\n" +
-	"\x05Close\x12\x1f.neokapi.bridge.v2.CloseRequest\x1a .neokapi.bridge.v2.CloseResponse\x12S\n" +
-	"\bShutdown\x12\".neokapi.bridge.v2.ShutdownRequest\x1a#.neokapi.bridge.v2.ShutdownResponse\x12Z\n" +
-	"\tRoundTrip\x12#.neokapi.bridge.v2.RoundTripRequest\x1a$.neokapi.bridge.v2.RoundTripResponse(\x010\x01BR\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x11\n" +
+	"\x0fShutdownRequest\"\x12\n" +
+	"\x10ShutdownResponse2\xba\x01\n" +
+	"\rBridgeService\x12T\n" +
+	"\aProcess\x12!.neokapi.bridge.v2.ProcessRequest\x1a\".neokapi.bridge.v2.ProcessResponse(\x010\x01\x12S\n" +
+	"\bShutdown\x12\".neokapi.bridge.v2.ShutdownRequest\x1a#.neokapi.bridge.v2.ShutdownResponseBR\n" +
 	"\x14neokapi.bridge.protoP\x01Z8github.com/neokapi/neokapi/core/plugin/proto/v2;bridgev2b\x06proto3"
 
 var (
@@ -3085,7 +2089,7 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescGZIP() []byte {
 	return file_core_plugin_proto_v2_neokapi_bridge_proto_rawDescData
 }
 
-var file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 50)
+var file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes = make([]protoimpl.MessageInfo, 33)
 var file_core_plugin_proto_v2_neokapi_bridge_proto_goTypes = []any{
 	(*AnnotationEntry)(nil),     // 0: neokapi.bridge.v2.AnnotationEntry
 	(*SpanMessage)(nil),         // 1: neokapi.bridge.v2.SpanMessage
@@ -3102,107 +2106,68 @@ var file_core_plugin_proto_v2_neokapi_bridge_proto_goTypes = []any{
 	(*GroupEndMessage)(nil),     // 12: neokapi.bridge.v2.GroupEndMessage
 	(*MediaMessage)(nil),        // 13: neokapi.bridge.v2.MediaMessage
 	(*PartMessage)(nil),         // 14: neokapi.bridge.v2.PartMessage
-	(*InfoRequest)(nil),         // 15: neokapi.bridge.v2.InfoRequest
-	(*InfoResponse)(nil),        // 16: neokapi.bridge.v2.InfoResponse
-	(*ListFiltersRequest)(nil),  // 17: neokapi.bridge.v2.ListFiltersRequest
-	(*FilterEntry)(nil),         // 18: neokapi.bridge.v2.FilterEntry
-	(*ListFiltersResponse)(nil), // 19: neokapi.bridge.v2.ListFiltersResponse
-	(*ContentRef)(nil),          // 20: neokapi.bridge.v2.ContentRef
-	(*OutputRef)(nil),           // 21: neokapi.bridge.v2.OutputRef
-	(*OpenRequest)(nil),         // 22: neokapi.bridge.v2.OpenRequest
-	(*OpenResponse)(nil),        // 23: neokapi.bridge.v2.OpenResponse
-	(*ReadRequest)(nil),         // 24: neokapi.bridge.v2.ReadRequest
-	(*WriteChunk)(nil),          // 25: neokapi.bridge.v2.WriteChunk
-	(*WriteHeader)(nil),         // 26: neokapi.bridge.v2.WriteHeader
-	(*WriteResponse)(nil),       // 27: neokapi.bridge.v2.WriteResponse
-	(*CloseRequest)(nil),        // 28: neokapi.bridge.v2.CloseRequest
-	(*CloseResponse)(nil),       // 29: neokapi.bridge.v2.CloseResponse
-	(*ShutdownRequest)(nil),     // 30: neokapi.bridge.v2.ShutdownRequest
-	(*ShutdownResponse)(nil),    // 31: neokapi.bridge.v2.ShutdownResponse
-	(*RoundTripRequest)(nil),    // 32: neokapi.bridge.v2.RoundTripRequest
-	(*RoundTripResponse)(nil),   // 33: neokapi.bridge.v2.RoundTripResponse
-	(*RoundTripHeader)(nil),     // 34: neokapi.bridge.v2.RoundTripHeader
-	(*RoundTripProcessed)(nil),  // 35: neokapi.bridge.v2.RoundTripProcessed
-	(*RoundTripReadDone)(nil),   // 36: neokapi.bridge.v2.RoundTripReadDone
-	(*RoundTripFlush)(nil),      // 37: neokapi.bridge.v2.RoundTripFlush
-	(*RoundTripComplete)(nil),   // 38: neokapi.bridge.v2.RoundTripComplete
-	nil,                         // 39: neokapi.bridge.v2.SpanMessage.AnnotationsEntry
-	nil,                         // 40: neokapi.bridge.v2.SegmentMessage.PropertiesEntry
-	nil,                         // 41: neokapi.bridge.v2.BlockMessage.PropertiesEntry
-	nil,                         // 42: neokapi.bridge.v2.BlockMessage.AnnotationsEntry
-	nil,                         // 43: neokapi.bridge.v2.LayerMessage.PropertiesEntry
-	nil,                         // 44: neokapi.bridge.v2.DataMessage.PropertiesEntry
-	nil,                         // 45: neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	nil,                         // 46: neokapi.bridge.v2.MediaMessage.PropertiesEntry
-	nil,                         // 47: neokapi.bridge.v2.OpenRequest.FilterParamsEntry
-	nil,                         // 48: neokapi.bridge.v2.WriteHeader.FilterParamsEntry
-	nil,                         // 49: neokapi.bridge.v2.RoundTripHeader.FilterParamsEntry
+	(*ContentRef)(nil),          // 15: neokapi.bridge.v2.ContentRef
+	(*OutputRef)(nil),           // 16: neokapi.bridge.v2.OutputRef
+	(*ProcessRequest)(nil),      // 17: neokapi.bridge.v2.ProcessRequest
+	(*ProcessResponse)(nil),     // 18: neokapi.bridge.v2.ProcessResponse
+	(*ProcessHeader)(nil),       // 19: neokapi.bridge.v2.ProcessHeader
+	(*ProcessReadDone)(nil),     // 20: neokapi.bridge.v2.ProcessReadDone
+	(*ProcessComplete)(nil),     // 21: neokapi.bridge.v2.ProcessComplete
+	(*ShutdownRequest)(nil),     // 22: neokapi.bridge.v2.ShutdownRequest
+	(*ShutdownResponse)(nil),    // 23: neokapi.bridge.v2.ShutdownResponse
+	nil,                         // 24: neokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	nil,                         // 25: neokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	nil,                         // 26: neokapi.bridge.v2.BlockMessage.PropertiesEntry
+	nil,                         // 27: neokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	nil,                         // 28: neokapi.bridge.v2.LayerMessage.PropertiesEntry
+	nil,                         // 29: neokapi.bridge.v2.DataMessage.PropertiesEntry
+	nil,                         // 30: neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	nil,                         // 31: neokapi.bridge.v2.MediaMessage.PropertiesEntry
+	nil,                         // 32: neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
 }
 var file_core_plugin_proto_v2_neokapi_bridge_proto_depIdxs = []int32{
-	39, // 0: neokapi.bridge.v2.SpanMessage.annotations:type_name -> neokapi.bridge.v2.SpanMessage.AnnotationsEntry
+	24, // 0: neokapi.bridge.v2.SpanMessage.annotations:type_name -> neokapi.bridge.v2.SpanMessage.AnnotationsEntry
 	1,  // 1: neokapi.bridge.v2.FragmentMessage.spans:type_name -> neokapi.bridge.v2.SpanMessage
 	2,  // 2: neokapi.bridge.v2.SegmentMessage.content:type_name -> neokapi.bridge.v2.FragmentMessage
-	40, // 3: neokapi.bridge.v2.SegmentMessage.properties:type_name -> neokapi.bridge.v2.SegmentMessage.PropertiesEntry
+	25, // 3: neokapi.bridge.v2.SegmentMessage.properties:type_name -> neokapi.bridge.v2.SegmentMessage.PropertiesEntry
 	3,  // 4: neokapi.bridge.v2.TargetEntry.segments:type_name -> neokapi.bridge.v2.SegmentMessage
 	6,  // 5: neokapi.bridge.v2.SkeletonMessage.parts:type_name -> neokapi.bridge.v2.SkeletonPartMessage
 	3,  // 6: neokapi.bridge.v2.BlockMessage.source:type_name -> neokapi.bridge.v2.SegmentMessage
 	4,  // 7: neokapi.bridge.v2.BlockMessage.targets:type_name -> neokapi.bridge.v2.TargetEntry
-	41, // 8: neokapi.bridge.v2.BlockMessage.properties:type_name -> neokapi.bridge.v2.BlockMessage.PropertiesEntry
-	42, // 9: neokapi.bridge.v2.BlockMessage.annotations:type_name -> neokapi.bridge.v2.BlockMessage.AnnotationsEntry
+	26, // 8: neokapi.bridge.v2.BlockMessage.properties:type_name -> neokapi.bridge.v2.BlockMessage.PropertiesEntry
+	27, // 9: neokapi.bridge.v2.BlockMessage.annotations:type_name -> neokapi.bridge.v2.BlockMessage.AnnotationsEntry
 	7,  // 10: neokapi.bridge.v2.BlockMessage.display_hint:type_name -> neokapi.bridge.v2.DisplayHintMessage
 	5,  // 11: neokapi.bridge.v2.BlockMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
-	43, // 12: neokapi.bridge.v2.LayerMessage.properties:type_name -> neokapi.bridge.v2.LayerMessage.PropertiesEntry
-	44, // 13: neokapi.bridge.v2.DataMessage.properties:type_name -> neokapi.bridge.v2.DataMessage.PropertiesEntry
+	28, // 12: neokapi.bridge.v2.LayerMessage.properties:type_name -> neokapi.bridge.v2.LayerMessage.PropertiesEntry
+	29, // 13: neokapi.bridge.v2.DataMessage.properties:type_name -> neokapi.bridge.v2.DataMessage.PropertiesEntry
 	5,  // 14: neokapi.bridge.v2.DataMessage.skeleton:type_name -> neokapi.bridge.v2.SkeletonMessage
-	45, // 15: neokapi.bridge.v2.GroupStartMessage.properties:type_name -> neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
-	46, // 16: neokapi.bridge.v2.MediaMessage.properties:type_name -> neokapi.bridge.v2.MediaMessage.PropertiesEntry
+	30, // 15: neokapi.bridge.v2.GroupStartMessage.properties:type_name -> neokapi.bridge.v2.GroupStartMessage.PropertiesEntry
+	31, // 16: neokapi.bridge.v2.MediaMessage.properties:type_name -> neokapi.bridge.v2.MediaMessage.PropertiesEntry
 	8,  // 17: neokapi.bridge.v2.PartMessage.block:type_name -> neokapi.bridge.v2.BlockMessage
 	9,  // 18: neokapi.bridge.v2.PartMessage.layer:type_name -> neokapi.bridge.v2.LayerMessage
 	10, // 19: neokapi.bridge.v2.PartMessage.data:type_name -> neokapi.bridge.v2.DataMessage
 	11, // 20: neokapi.bridge.v2.PartMessage.group_start:type_name -> neokapi.bridge.v2.GroupStartMessage
 	12, // 21: neokapi.bridge.v2.PartMessage.group_end:type_name -> neokapi.bridge.v2.GroupEndMessage
 	13, // 22: neokapi.bridge.v2.PartMessage.media:type_name -> neokapi.bridge.v2.MediaMessage
-	18, // 23: neokapi.bridge.v2.ListFiltersResponse.filters:type_name -> neokapi.bridge.v2.FilterEntry
-	47, // 24: neokapi.bridge.v2.OpenRequest.filter_params:type_name -> neokapi.bridge.v2.OpenRequest.FilterParamsEntry
-	20, // 25: neokapi.bridge.v2.OpenRequest.content_ref:type_name -> neokapi.bridge.v2.ContentRef
-	26, // 26: neokapi.bridge.v2.WriteChunk.header:type_name -> neokapi.bridge.v2.WriteHeader
-	14, // 27: neokapi.bridge.v2.WriteChunk.part:type_name -> neokapi.bridge.v2.PartMessage
-	48, // 28: neokapi.bridge.v2.WriteHeader.filter_params:type_name -> neokapi.bridge.v2.WriteHeader.FilterParamsEntry
-	20, // 29: neokapi.bridge.v2.WriteHeader.original_content_ref:type_name -> neokapi.bridge.v2.ContentRef
-	21, // 30: neokapi.bridge.v2.WriteHeader.output_ref:type_name -> neokapi.bridge.v2.OutputRef
-	34, // 31: neokapi.bridge.v2.RoundTripRequest.header:type_name -> neokapi.bridge.v2.RoundTripHeader
-	35, // 32: neokapi.bridge.v2.RoundTripRequest.processed_part:type_name -> neokapi.bridge.v2.RoundTripProcessed
-	37, // 33: neokapi.bridge.v2.RoundTripRequest.flush:type_name -> neokapi.bridge.v2.RoundTripFlush
-	14, // 34: neokapi.bridge.v2.RoundTripResponse.part:type_name -> neokapi.bridge.v2.PartMessage
-	36, // 35: neokapi.bridge.v2.RoundTripResponse.read_done:type_name -> neokapi.bridge.v2.RoundTripReadDone
-	38, // 36: neokapi.bridge.v2.RoundTripResponse.complete:type_name -> neokapi.bridge.v2.RoundTripComplete
-	49, // 37: neokapi.bridge.v2.RoundTripHeader.filter_params:type_name -> neokapi.bridge.v2.RoundTripHeader.FilterParamsEntry
-	20, // 38: neokapi.bridge.v2.RoundTripHeader.content_ref:type_name -> neokapi.bridge.v2.ContentRef
-	21, // 39: neokapi.bridge.v2.RoundTripHeader.output_ref:type_name -> neokapi.bridge.v2.OutputRef
-	14, // 40: neokapi.bridge.v2.RoundTripProcessed.part:type_name -> neokapi.bridge.v2.PartMessage
-	0,  // 41: neokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	0,  // 42: neokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
-	15, // 43: neokapi.bridge.v2.BridgeService.Info:input_type -> neokapi.bridge.v2.InfoRequest
-	17, // 44: neokapi.bridge.v2.BridgeService.ListFilters:input_type -> neokapi.bridge.v2.ListFiltersRequest
-	22, // 45: neokapi.bridge.v2.BridgeService.Open:input_type -> neokapi.bridge.v2.OpenRequest
-	24, // 46: neokapi.bridge.v2.BridgeService.Read:input_type -> neokapi.bridge.v2.ReadRequest
-	25, // 47: neokapi.bridge.v2.BridgeService.Write:input_type -> neokapi.bridge.v2.WriteChunk
-	28, // 48: neokapi.bridge.v2.BridgeService.Close:input_type -> neokapi.bridge.v2.CloseRequest
-	30, // 49: neokapi.bridge.v2.BridgeService.Shutdown:input_type -> neokapi.bridge.v2.ShutdownRequest
-	32, // 50: neokapi.bridge.v2.BridgeService.RoundTrip:input_type -> neokapi.bridge.v2.RoundTripRequest
-	16, // 51: neokapi.bridge.v2.BridgeService.Info:output_type -> neokapi.bridge.v2.InfoResponse
-	19, // 52: neokapi.bridge.v2.BridgeService.ListFilters:output_type -> neokapi.bridge.v2.ListFiltersResponse
-	23, // 53: neokapi.bridge.v2.BridgeService.Open:output_type -> neokapi.bridge.v2.OpenResponse
-	14, // 54: neokapi.bridge.v2.BridgeService.Read:output_type -> neokapi.bridge.v2.PartMessage
-	27, // 55: neokapi.bridge.v2.BridgeService.Write:output_type -> neokapi.bridge.v2.WriteResponse
-	29, // 56: neokapi.bridge.v2.BridgeService.Close:output_type -> neokapi.bridge.v2.CloseResponse
-	31, // 57: neokapi.bridge.v2.BridgeService.Shutdown:output_type -> neokapi.bridge.v2.ShutdownResponse
-	33, // 58: neokapi.bridge.v2.BridgeService.RoundTrip:output_type -> neokapi.bridge.v2.RoundTripResponse
-	51, // [51:59] is the sub-list for method output_type
-	43, // [43:51] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	19, // 23: neokapi.bridge.v2.ProcessRequest.header:type_name -> neokapi.bridge.v2.ProcessHeader
+	14, // 24: neokapi.bridge.v2.ProcessRequest.part:type_name -> neokapi.bridge.v2.PartMessage
+	14, // 25: neokapi.bridge.v2.ProcessResponse.part:type_name -> neokapi.bridge.v2.PartMessage
+	20, // 26: neokapi.bridge.v2.ProcessResponse.read_done:type_name -> neokapi.bridge.v2.ProcessReadDone
+	21, // 27: neokapi.bridge.v2.ProcessResponse.complete:type_name -> neokapi.bridge.v2.ProcessComplete
+	15, // 28: neokapi.bridge.v2.ProcessHeader.input:type_name -> neokapi.bridge.v2.ContentRef
+	32, // 29: neokapi.bridge.v2.ProcessHeader.filter_params:type_name -> neokapi.bridge.v2.ProcessHeader.FilterParamsEntry
+	16, // 30: neokapi.bridge.v2.ProcessHeader.output:type_name -> neokapi.bridge.v2.OutputRef
+	0,  // 31: neokapi.bridge.v2.SpanMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	0,  // 32: neokapi.bridge.v2.BlockMessage.AnnotationsEntry.value:type_name -> neokapi.bridge.v2.AnnotationEntry
+	17, // 33: neokapi.bridge.v2.BridgeService.Process:input_type -> neokapi.bridge.v2.ProcessRequest
+	22, // 34: neokapi.bridge.v2.BridgeService.Shutdown:input_type -> neokapi.bridge.v2.ShutdownRequest
+	18, // 35: neokapi.bridge.v2.BridgeService.Process:output_type -> neokapi.bridge.v2.ProcessResponse
+	23, // 36: neokapi.bridge.v2.BridgeService.Shutdown:output_type -> neokapi.bridge.v2.ShutdownResponse
+	35, // [35:37] is the sub-list for method output_type
+	33, // [33:35] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_core_plugin_proto_v2_neokapi_bridge_proto_init() }
@@ -3210,28 +2175,23 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 	if File_core_plugin_proto_v2_neokapi_bridge_proto != nil {
 		return
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[20].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[15].OneofWrappers = []any{
 		(*ContentRef_Inline)(nil),
 		(*ContentRef_Path)(nil),
 		(*ContentRef_Uri)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[21].OneofWrappers = []any{
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[16].OneofWrappers = []any{
 		(*OutputRef_Path)(nil),
 		(*OutputRef_Uri)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[25].OneofWrappers = []any{
-		(*WriteChunk_Header)(nil),
-		(*WriteChunk_Part)(nil),
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[17].OneofWrappers = []any{
+		(*ProcessRequest_Header)(nil),
+		(*ProcessRequest_Part)(nil),
 	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[32].OneofWrappers = []any{
-		(*RoundTripRequest_Header)(nil),
-		(*RoundTripRequest_ProcessedPart)(nil),
-		(*RoundTripRequest_Flush)(nil),
-	}
-	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[33].OneofWrappers = []any{
-		(*RoundTripResponse_Part)(nil),
-		(*RoundTripResponse_ReadDone)(nil),
-		(*RoundTripResponse_Complete)(nil),
+	file_core_plugin_proto_v2_neokapi_bridge_proto_msgTypes[18].OneofWrappers = []any{
+		(*ProcessResponse_Part)(nil),
+		(*ProcessResponse_ReadDone)(nil),
+		(*ProcessResponse_Complete)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -3239,7 +2199,7 @@ func file_core_plugin_proto_v2_neokapi_bridge_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc), len(file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   50,
+			NumMessages:   33,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
