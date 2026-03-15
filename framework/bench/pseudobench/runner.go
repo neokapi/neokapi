@@ -373,6 +373,12 @@ func buildEngines(cfg *Config) []Engine {
 				VersionStr: bin.Version,
 			})
 		}
+		if cfg.BridgeDaemon {
+			engines = append(engines, &KapiBridgeDaemonEngine{
+				BinaryPath: bin.Path,
+				VersionStr: bin.Version,
+			})
+		}
 	}
 
 	for _, bin := range cfg.OkapiBins {
