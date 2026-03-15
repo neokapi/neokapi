@@ -21,21 +21,6 @@ func TestOpenOffice_StartDocument(t *testing.T) {
 		"first part should be LayerStart")
 }
 
-// okapi: OpenOfficeFilterTest#testDefaultInfo
-func TestOpenOffice_DefaultInfo(t *testing.T) {
-	pool, cfg := bridgetest.SharedBridge(t)
-	bridgetest.RequireFilter(t, pool, cfg, openOfficeFilterClass)
-
-	b, err := pool.Acquire(cfg)
-	require.NoError(t, err)
-	defer pool.Release(b)
-
-	info, err := b.Info(openOfficeFilterClass)
-	require.NoError(t, err)
-	assert.NotEmpty(t, info.Name, "filter should have a name")
-	assert.NotEmpty(t, info.DisplayName, "filter should have a display name")
-}
-
 // okapi: OpenOfficeFilterTest#testFirstTextUnit
 func TestOpenOffice_FirstTextUnit(t *testing.T) {
 	parts := readOpenOfficeFile(t, "okapi/filters/openoffice/src/test/resources/TestDocument01.odt", nil)

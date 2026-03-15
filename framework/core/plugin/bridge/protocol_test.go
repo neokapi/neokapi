@@ -49,18 +49,6 @@ func TestEncodeFilterParams_ComplexValues(t *testing.T) {
 	assert.Contains(t, result["codeFinderRules"], "pattern")
 }
 
-func TestInfoData(t *testing.T) {
-	info := InfoData{
-		Name:        "openxml",
-		DisplayName: "Microsoft Office",
-		MimeTypes:   []string{"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
-		Extensions:  []string{".docx", ".xlsx", ".pptx"},
-	}
-	assert.Equal(t, "openxml", info.Name)
-	assert.Contains(t, info.Extensions, ".docx")
-	assert.Len(t, info.MimeTypes, 1)
-}
-
 func TestEncodeFilterParams_HierarchicalParams(t *testing.T) {
 	// Params should be passed in hierarchical schema format.
 	// Section keys like "parser" map to JSON objects with their properties.
@@ -76,12 +64,3 @@ func TestEncodeFilterParams_HierarchicalParams(t *testing.T) {
 	assert.Contains(t, result["parser"], `"assumeWellformed"`)
 }
 
-func TestListFiltersData(t *testing.T) {
-	lf := ListFiltersData{
-		Filters: []FilterEntry{
-			{FilterClass: "net.sf.okapi.filters.html.HtmlFilter", Name: "html", DisplayName: "HTML"},
-		},
-	}
-	assert.Len(t, lf.Filters, 1)
-	assert.Equal(t, "html", lf.Filters[0].Name)
-}

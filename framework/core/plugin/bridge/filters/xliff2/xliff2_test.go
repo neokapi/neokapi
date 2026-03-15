@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -444,7 +445,7 @@ func TestExtract_HandleInvalidCodeTypes(t *testing.T) {
   </file>
 </xliff>`
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 
 	doc := &model.RawDocument{
 		URI:          "test.xlf",
@@ -484,7 +485,7 @@ func TestExtract_InvalidTargetXlf(t *testing.T) {
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
 	path := bridgetest.TestdataFile(t, "okapi/filters/xliff2/src/test/resources/invalid-target.xlf")
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -100,15 +101,14 @@ func findBlockContaining(blocks []*model.Block, substr string) *model.Block {
 }
 
 // readMessageFormatExpectError opens a MessageFormat snippet via the bridge and
-// asserts that the Open call returns an error (e.g. for deprecated CHOICE format
-// or invalid syntax). This bypasses the ReadString helper which fatally fails on
-// Open errors.
+// expects an error during Open or Read (e.g. for deprecated CHOICE format
+// or invalid syntax). Returns the first error encountered.
 func readMessageFormatExpectError(t *testing.T, snippet string) error {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 	bridgetest.RequireFilter(t, pool, cfg, filterClass)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 	doc := &model.RawDocument{
 		URI:          "test.mf",
 		SourceLocale: "en",
@@ -118,13 +118,18 @@ func readMessageFormatExpectError(t *testing.T, snippet string) error {
 		Reader:       io.NopCloser(bytes.NewReader([]byte(snippet))),
 	}
 	err := reader.Open(context.Background(), doc)
-	if err == nil {
-		// If Open succeeded, drain and close to avoid resource leaks.
-		for range reader.Read(context.Background()) {
-		}
-		_ = reader.Close()
+	if err != nil {
+		return err
 	}
-	return err
+	// Open is lazy — errors may surface during Read.
+	for pr := range reader.Read(context.Background()) {
+		if pr.Error != nil {
+			_ = reader.Close()
+			return pr.Error
+		}
+	}
+	_ = reader.Close()
+	return nil
 }
 
 // ---------------------------------------------------------------------------

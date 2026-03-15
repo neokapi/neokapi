@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -18,10 +19,10 @@ import (
 
 // readBytesWithEncoding reads content through the bridge with a custom encoding
 // on the RawDocument. This is needed for BOM tests where the input is not UTF-8.
-func readBytesWithEncoding(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, content []byte, uri, encoding string) []*model.Part {
+func readBytesWithEncoding(t *testing.T, pool *bridge.BridgeRegistry, cfg bridge.BridgeConfig, content []byte, uri, encoding string) []*model.Part {
 	t.Helper()
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 
 	doc := &model.RawDocument{
 		URI:          uri,

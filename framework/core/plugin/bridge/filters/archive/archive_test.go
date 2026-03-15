@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -107,7 +108,7 @@ func TestExtract_MissingFilter(t *testing.T) {
 	content, err := os.ReadFile(path)
 	require.NoError(t, err)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 	reader.SetFilterParams(params)
 
 	doc := &model.RawDocument{

@@ -196,8 +196,8 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 	return n
 }
 
-// sharedPool returns the shared bridge pool and config.
-func sharedPool(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
+// sharedPool returns the shared bridge registry and config.
+func sharedPool(t *testing.T) (*bridge.BridgeRegistry, bridge.BridgeConfig) {
 	t.Helper()
 	return bridgetest.SharedBridge(t)
 }
