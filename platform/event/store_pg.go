@@ -6,34 +6,24 @@ import (
 	"encoding/json"
 	"time"
 
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // RuleStore implements AutomationRuleStore and AutomationHistoryStore.
+// PostgreSQL-only — the server and worker always use PostgreSQL.
 type RuleStore struct {
-	db      *sql.DB
-	dialect bstore.Dialect
-}
-
-// NewSQLiteRuleStore creates a new SQLite-backed automation rule store.
-func NewSQLiteRuleStore(db *sql.DB) *RuleStore {
-	return &RuleStore{db: db, dialect: bstore.DialectSQLite}
+	db *sql.DB
 }
 
 // NewPostgresRuleStore creates a new PostgreSQL-backed automation rule store.
 func NewPostgresRuleStore(db *sql.DB) *RuleStore {
-	return &RuleStore{db: db, dialect: bstore.DialectPostgres}
-}
-
-func (s *RuleStore) q(query string) string {
-	return bstore.Rebind(s.dialect, query)
+	return &RuleStore{db: db}
 }
 
 func (s *RuleStore) ListRules(ctx context.Context, projectID string) ([]StoredRule, error) {
-	rows, err := s.db.QueryContext(ctx, s.q(
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, project_id, name, trigger, conditions, actions, enabled, builtin, created_at, updated_at
-		 FROM automation_rules WHERE project_id = ? ORDER BY created_at`),
+		 FROM automation_rules WHERE project_id = $1 ORDER BY created_at`,
 		projectID)
 	if err != nil {
 		return nil, err
@@ -42,7 +32,7 @@ func (s *RuleStore) ListRules(ctx context.Context, projectID string) ([]StoredRu
 
 	var rules []StoredRule
 	for rows.Next() {
-		r, err := s.scanRule(rows)
+		r, err := scanRule(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -52,66 +42,54 @@ func (s *RuleStore) ListRules(ctx context.Context, projectID string) ([]StoredRu
 }
 
 func (s *RuleStore) GetRule(ctx context.Context, id string) (*StoredRule, error) {
-	row := s.db.QueryRowContext(ctx, s.q(
+	row := s.db.QueryRowContext(ctx,
 		`SELECT id, project_id, name, trigger, conditions, actions, enabled, builtin, created_at, updated_at
-		 FROM automation_rules WHERE id = ?`), id)
-	return s.scanRule(row)
+		 FROM automation_rules WHERE id = $1`, id)
+	return scanRule(row)
 }
 
 func (s *RuleStore) CreateRule(ctx context.Context, rule *StoredRule) error {
 	condJSON, _ := json.Marshal(rule.Conditions)
 	actJSON, _ := json.Marshal(rule.Actions)
-	now := time.Now().UTC().Format(time.RFC3339)
-	enabled := boolToInt(rule.Enabled)
-	builtin := boolToInt(rule.Builtin)
-	_, err := s.db.ExecContext(ctx, s.q(
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO automation_rules (id, project_id, name, trigger, conditions, actions, enabled, builtin, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		rule.ID, rule.ProjectID, rule.Name, string(rule.Trigger), string(condJSON), string(actJSON),
-		enabled, builtin, now, now)
+		rule.Enabled, rule.Builtin, now, now)
 	return err
 }
 
 func (s *RuleStore) UpdateRule(ctx context.Context, rule *StoredRule) error {
 	condJSON, _ := json.Marshal(rule.Conditions)
 	actJSON, _ := json.Marshal(rule.Actions)
-	now := time.Now().UTC().Format(time.RFC3339)
-	enabled := boolToInt(rule.Enabled)
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE automation_rules SET name=?, trigger=?, conditions=?, actions=?, enabled=?, updated_at=?
-		 WHERE id=? AND builtin=0`),
-		rule.Name, string(rule.Trigger), string(condJSON), string(actJSON), enabled, now, rule.ID)
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE automation_rules SET name=$1, trigger=$2, conditions=$3, actions=$4, enabled=$5, updated_at=$6
+		 WHERE id=$7 AND builtin=FALSE`,
+		rule.Name, string(rule.Trigger), string(condJSON), string(actJSON), rule.Enabled, now, rule.ID)
 	return err
 }
 
 func (s *RuleStore) DeleteRule(ctx context.Context, id string) error {
-	_, err := s.db.ExecContext(ctx, s.q(
-		`DELETE FROM automation_rules WHERE id=? AND builtin=0`), id)
+	_, err := s.db.ExecContext(ctx,
+		`DELETE FROM automation_rules WHERE id=$1 AND builtin=FALSE`, id)
 	return err
 }
 
 func (s *RuleStore) ToggleRule(ctx context.Context, id string, enabled bool) error {
-	now := time.Now().UTC().Format(time.RFC3339)
-	e := boolToInt(enabled)
-	_, err := s.db.ExecContext(ctx, s.q(
-		`UPDATE automation_rules SET enabled=?, updated_at=? WHERE id=?`), e, now, id)
+	now := time.Now().UTC()
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE automation_rules SET enabled=$1, updated_at=$2 WHERE id=$3`, enabled, now, id)
 	return err
 }
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func (s *RuleStore) RecordExecution(ctx context.Context, entry *HistoryEntry) error {
-	_, err := s.db.ExecContext(ctx, s.q(
+	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO automation_history (id, rule_id, project_id, event_id, status, error, started_at, ended_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`),
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		entry.ID, entry.RuleID, entry.ProjectID, entry.EventID, entry.Status, entry.Error,
-		entry.StartedAt.UTC().Format(time.RFC3339),
-		entry.EndedAt.UTC().Format(time.RFC3339))
+		entry.StartedAt, entry.EndedAt)
 	return err
 }
 
@@ -119,9 +97,9 @@ func (s *RuleStore) ListHistory(ctx context.Context, projectID string, limit int
 	if limit <= 0 {
 		limit = 50
 	}
-	rows, err := s.db.QueryContext(ctx, s.q(
+	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, rule_id, project_id, event_id, status, error, started_at, ended_at
-		 FROM automation_history WHERE project_id = ? ORDER BY started_at DESC LIMIT ?`),
+		 FROM automation_history WHERE project_id = $1 ORDER BY started_at DESC LIMIT $2`,
 		projectID, limit)
 	if err != nil {
 		return nil, err
@@ -131,12 +109,9 @@ func (s *RuleStore) ListHistory(ctx context.Context, projectID string, limit int
 	var entries []HistoryEntry
 	for rows.Next() {
 		var e HistoryEntry
-		var startedAt, endedAt string
-		if err := rows.Scan(&e.ID, &e.RuleID, &e.ProjectID, &e.EventID, &e.Status, &e.Error, &startedAt, &endedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.RuleID, &e.ProjectID, &e.EventID, &e.Status, &e.Error, &e.StartedAt, &e.EndedAt); err != nil {
 			return nil, err
 		}
-		e.StartedAt = parseTime(startedAt)
-		e.EndedAt = parseTime(endedAt)
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
@@ -147,31 +122,17 @@ type scanner interface {
 	Scan(dest ...any) error
 }
 
-func (s *RuleStore) scanRule(row scanner) (*StoredRule, error) {
+func scanRule(row scanner) (*StoredRule, error) {
 	var r StoredRule
-	var trigger, condJSON, actJSON, createdAt, updatedAt string
-	var enabled, builtin int
+	var trigger, condJSON, actJSON string
 
 	if err := row.Scan(&r.ID, &r.ProjectID, &r.Name, &trigger, &condJSON, &actJSON,
-		&enabled, &builtin, &createdAt, &updatedAt); err != nil {
+		&r.Enabled, &r.Builtin, &r.CreatedAt, &r.UpdatedAt); err != nil {
 		return nil, err
 	}
 
 	r.Trigger = platev.EventType(trigger)
-	r.Enabled = enabled != 0
-	r.Builtin = builtin != 0
 	_ = json.Unmarshal([]byte(condJSON), &r.Conditions)
 	_ = json.Unmarshal([]byte(actJSON), &r.Actions)
-	r.CreatedAt = parseTime(createdAt)
-	r.UpdatedAt = parseTime(updatedAt)
 	return &r, nil
-}
-
-// parseTime parses a timestamp string in various formats.
-func parseTime(s string) time.Time {
-	if t, err := time.Parse(time.RFC3339, s); err == nil {
-		return t
-	}
-	t, _ := time.Parse("2006-01-02 15:04:05", s)
-	return t
 }

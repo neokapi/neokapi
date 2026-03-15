@@ -1,7 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { VoiceProfile } from "./types";
 import { BrandProfileCard } from "./BrandProfileCard";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "../components/ui/dialog";
-import { Plus, Sparkles } from "../components/icons";
+import { Plus, Sparkles, Search } from "../components/icons";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 
 interface BrandProfileListProps {
@@ -30,6 +31,17 @@ export function BrandProfileList({
   useSetBreadcrumb(null);
   const [deleteTarget, setDeleteTarget] = useState<VoiceProfile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredProfiles = useMemo(() => {
+    if (!searchQuery.trim()) return profiles;
+    const q = searchQuery.toLowerCase();
+    return profiles.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.description && p.description.toLowerCase().includes(q)),
+    );
+  }, [profiles, searchQuery]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
@@ -43,7 +55,7 @@ export function BrandProfileList({
   }, [deleteTarget, onDelete]);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Brand Voice Profiles</h1>
         <div className="flex gap-2">
@@ -55,6 +67,19 @@ export function BrandProfileList({
           </Button>
         </div>
       </div>
+
+      {/* Search — only shown when there are profiles to search through */}
+      {profiles.length > 0 && (
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search profiles..."
+            className="pl-9 h-9 text-sm"
+          />
+        </div>
+      )}
 
       {profiles.length === 0 ? (
         <div className="text-center py-16 space-y-4">
@@ -70,9 +95,15 @@ export function BrandProfileList({
             </Button>
           </div>
         </div>
+      ) : filteredProfiles.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-sm text-muted-foreground">
+            No profiles matching &ldquo;{searchQuery}&rdquo;
+          </p>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {profiles.map((profile) => (
+          {filteredProfiles.map((profile) => (
             <BrandProfileCard
               key={profile.id}
               profile={profile}

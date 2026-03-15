@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { StreamInfo, StreamVisibility } from "../types/api";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -25,9 +25,18 @@ export interface StreamCreateDialogProps {
 /** Modal dialog for creating a new stream. */
 export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamCreateDialogProps) {
   const [name, setName] = useState("");
-  const [parent, setParent] = useState(streams[0]?.name ?? "");
+  const [parent, setParent] = useState("");
   const [visibility, setVisibility] = useState<StreamVisibility>("private");
   const [description, setDescription] = useState("");
+
+  // Set parent to a sensible default when dialog opens or streams change
+  useEffect(() => {
+    if (open) {
+      const parentStreams = streams.filter((s) => !s.archived);
+      const mainStream = parentStreams.find((s) => s.name === "main");
+      setParent(mainStream?.name ?? parentStreams[0]?.name ?? "");
+    }
+  }, [open, streams]);
 
   const handleSubmit = () => {
     if (!name.trim() || !parent) return;

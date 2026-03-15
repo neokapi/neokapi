@@ -43,6 +43,9 @@ import type {
   StreamInfo,
   StreamDiffResult,
   StreamMergeResult,
+  CollectionInfo,
+  AuditEntry,
+  ArchivedProject,
 } from "@neokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -142,6 +145,7 @@ export class WailsApiAdapter implements ApiAdapter {
   async getStream(): Promise<StreamInfo> {
     throw new Error("Streams not yet supported in desktop mode");
   }
+  async updateStream(): Promise<StreamInfo> { throw new Error("Streams not yet supported in desktop mode"); }
   async deleteStream(): Promise<void> {
     throw new Error("Streams not yet supported in desktop mode");
   }
@@ -178,6 +182,7 @@ export class WailsApiAdapter implements ApiAdapter {
   async getProject(_ws: string, projectId: string): Promise<ProjectInfo> {
     return Backend.GetProject(projectId) as Promise<ProjectInfo>;
   }
+  async updateProject(): Promise<ProjectInfo> { throw new Error("Not implemented"); }
   async deleteProject(_ws: string, projectId: string): Promise<void> {
     return Backend.CloseProject(projectId);
   }
@@ -189,6 +194,23 @@ export class WailsApiAdapter implements ApiAdapter {
   async removeFile(_ws: string, projectId: string, fileName: string): Promise<ProjectInfo> {
     return Backend.RemoveItem(projectId, fileName) as Promise<ProjectInfo>;
   }
+
+  // --- Archive / Bin (not applicable in desktop) ---
+  async restoreProject(): Promise<void> {}
+  async permanentlyDeleteProject(): Promise<void> {}
+  async listArchivedProjects(): Promise<ArchivedProject[]> { return []; }
+  async restoreStream(): Promise<void> {}
+
+  // --- Audit Log (not applicable in desktop) ---
+  async listWorkspaceAuditLog(): Promise<AuditEntry[]> { return []; }
+
+  // --- Collections (not yet implemented in desktop) ---
+  async listCollections(): Promise<CollectionInfo[]> { return []; }
+  async createCollection(): Promise<CollectionInfo> { throw new Error("Not implemented"); }
+  async getCollection(): Promise<CollectionInfo> { throw new Error("Not implemented"); }
+  async updateCollection(): Promise<CollectionInfo> { throw new Error("Not implemented"); }
+  async deleteCollection(): Promise<void> { throw new Error("Not implemented"); }
+  async uploadToCollection(): Promise<ProjectInfo> { throw new Error("Not implemented"); }
 
   // --- Editor ---
   async getFileBlocks(_ws: string, projectId: string, fileName: string): Promise<BlockInfo[]> {

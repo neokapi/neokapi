@@ -19,6 +19,8 @@ import {
   type SidebarContext,
   type ProjectInfo,
   type StreamInfo,
+  StreamActionsProvider,
+  useStreamActions,
 } from "@neokapi/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
@@ -57,6 +59,33 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
 // ---------------------------------------------------------------------------
 // Workspace layout shell
 // ---------------------------------------------------------------------------
+
+/** Stream selector in the top bar — reads action callbacks from StreamActionsContext. */
+function TopBarStreamSelector({
+  sidebarContext,
+  onStreamChange,
+}: {
+  sidebarContext: Extract<SidebarContext, { level: "project" }>;
+  onStreamChange: (name: string) => void;
+}) {
+  const { actions } = useStreamActions();
+  const streams = sidebarContext.project.streams ?? [];
+
+  return (
+    <StreamSelector
+      streams={streams}
+      activeStream={
+        streams.find((s: StreamInfo) => s.name === sidebarContext.activeStream) ?? null
+      }
+      onStreamChange={(s: StreamInfo) => onStreamChange(s.name)}
+      onCreateStream={actions.onCreateStream}
+      onEditStream={actions.onEditStream}
+      onMergeStream={actions.onMergeStream}
+      onDiffStream={actions.onDiffStream}
+      onDeleteStream={actions.onDeleteStream}
+    />
+  );
+}
 
 export function WorkspaceLayout() {
   const navigate = useNavigate();
@@ -242,6 +271,12 @@ export function WorkspaceLayout() {
         case "memory":
           void navigate({ to: "/$workspace/memory", params: { workspace: wsSlug } });
           break;
+        case "auditlog":
+          void navigate({ to: "/$workspace/auditlog", params: { workspace: wsSlug } });
+          break;
+        case "bin":
+          void navigate({ to: "/$workspace/bin", params: { workspace: wsSlug } });
+          break;
         case "settings":
           void navigate({ to: "/$workspace/settings", params: { workspace: wsSlug } });
           break;
@@ -316,6 +351,7 @@ export function WorkspaceLayout() {
         initialWorkspace={activeWorkspace}
         initialWorkspaces={workspaces}
       >
+        <StreamActionsProvider>
         <AppShell
           workspaces={workspaces}
           activeWorkspace={activeWorkspace}
@@ -337,14 +373,9 @@ export function WorkspaceLayout() {
                 sidebarContext?.level === "project" &&
                 sidebarContext.project.streams &&
                 sidebarContext.project.streams.length > 0 ? (
-                  <StreamSelector
-                    streams={sidebarContext.project.streams}
-                    activeStream={
-                      sidebarContext.project.streams.find(
-                        (s: StreamInfo) => s.name === sidebarContext.activeStream,
-                      ) ?? null
-                    }
-                    onStreamChange={(s: StreamInfo) => handleStreamChange(s.name)}
+                  <TopBarStreamSelector
+                    sidebarContext={sidebarContext}
+                    onStreamChange={handleStreamChange}
                   />
                 ) : undefined
               }
@@ -356,6 +387,7 @@ export function WorkspaceLayout() {
             <Outlet />
           </StreamProvider>
         </AppShell>
+        </StreamActionsProvider>
 
         <CreateWorkspaceDialog
           open={showCreateWs}

@@ -65,10 +65,31 @@ func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error
 	return nil
 }
 
+func (s *EventEmittingStore) ArchiveProject(ctx context.Context, id string) error {
+	return s.inner.ArchiveProject(ctx, id)
+}
+
+func (s *EventEmittingStore) RestoreProject(ctx context.Context, id string) error {
+	return s.inner.RestoreProject(ctx, id)
+}
+
+func (s *EventEmittingStore) ListArchivedProjects(ctx context.Context, workspaceID string) ([]*store.Project, error) {
+	return s.inner.ListArchivedProjects(ctx, workspaceID)
+}
+
 // --- Stream management ---
 
 func (s *EventEmittingStore) CreateStream(ctx context.Context, st *store.Stream) error {
-	return s.inner.CreateStream(ctx, st)
+	if err := s.inner.CreateStream(ctx, st); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventStreamCreated,
+		Source:    "store",
+		ProjectID: st.ProjectID,
+		Data:      map[string]string{"stream": st.Name, "parent": st.Parent},
+	})
+	return nil
 }
 
 func (s *EventEmittingStore) GetStream(ctx context.Context, projectID, name string) (*store.Stream, error) {
@@ -84,13 +105,34 @@ func (s *EventEmittingStore) UpdateStream(ctx context.Context, st *store.Stream)
 }
 
 func (s *EventEmittingStore) DeleteStream(ctx context.Context, projectID, name string) error {
-	return s.inner.DeleteStream(ctx, projectID, name)
+	if err := s.inner.DeleteStream(ctx, projectID, name); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventStreamDeleted,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"stream": name},
+	})
+	return nil
 }
 
 // --- Stream operations ---
 
 func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamName string, opts store.MergeOptions) (*store.MergeResult, error) {
-	return s.inner.MergeStream(ctx, projectID, streamName, opts)
+	result, err := s.inner.MergeStream(ctx, projectID, streamName, opts)
+	if err != nil {
+		return nil, err
+	}
+	if !opts.DryRun {
+		s.bus.Publish(platev.Event{
+			Type:      platev.EventStreamMerged,
+			Source:    "store",
+			ProjectID: projectID,
+			Data:      map[string]string{"stream": streamName},
+		})
+	}
+	return result, nil
 }
 
 func (s *EventEmittingStore) DiffStream(ctx context.Context, projectID, streamName string) (*store.StreamDiff, error) {
@@ -111,10 +153,76 @@ func (s *EventEmittingStore) ListStreamMembers(ctx context.Context, projectID, s
 	return s.inner.ListStreamMembers(ctx, projectID, streamName)
 }
 
+// --- Collections (project-scoped) ---
+
+func (s *EventEmittingStore) CreateCollection(ctx context.Context, c *store.Collection) error {
+	if err := s.inner.CreateCollection(ctx, c); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventCollectionCreated,
+		Source:    "store",
+		ProjectID: c.ProjectID,
+		Data:      map[string]string{"collection_id": c.ID, "name": c.Name, "kind": string(c.Kind)},
+	})
+	return nil
+}
+
+func (s *EventEmittingStore) GetCollection(ctx context.Context, projectID, collectionID string) (*store.Collection, error) {
+	return s.inner.GetCollection(ctx, projectID, collectionID)
+}
+
+func (s *EventEmittingStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*store.Collection, error) {
+	return s.inner.GetCollectionByName(ctx, projectID, name, stream)
+}
+
+func (s *EventEmittingStore) GetDefaultCollection(ctx context.Context, projectID string) (*store.Collection, error) {
+	return s.inner.GetDefaultCollection(ctx, projectID)
+}
+
+func (s *EventEmittingStore) ListCollections(ctx context.Context, projectID, stream string) ([]*store.Collection, error) {
+	return s.inner.ListCollections(ctx, projectID, stream)
+}
+
+func (s *EventEmittingStore) UpdateCollection(ctx context.Context, c *store.Collection) error {
+	if err := s.inner.UpdateCollection(ctx, c); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventCollectionUpdated,
+		Source:    "store",
+		ProjectID: c.ProjectID,
+		Data:      map[string]string{"collection_id": c.ID, "name": c.Name},
+	})
+	return nil
+}
+
+func (s *EventEmittingStore) DeleteCollection(ctx context.Context, projectID, collectionID string) error {
+	if err := s.inner.DeleteCollection(ctx, projectID, collectionID); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventCollectionDeleted,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"collection_id": collectionID},
+	})
+	return nil
+}
+
 // --- Items (stream-scoped) ---
 
 func (s *EventEmittingStore) StoreItem(ctx context.Context, projectID, stream string, item *store.Item) error {
-	return s.inner.StoreItem(ctx, projectID, stream, item)
+	if err := s.inner.StoreItem(ctx, projectID, stream, item); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventItemCreated,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"item_name": item.Name, "stream": stream, "format": item.Format},
+	})
+	return nil
 }
 
 func (s *EventEmittingStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*store.Item, error) {
@@ -126,7 +234,16 @@ func (s *EventEmittingStore) ListItems(ctx context.Context, projectID, stream st
 }
 
 func (s *EventEmittingStore) DeleteItem(ctx context.Context, projectID, stream, itemName string) error {
-	return s.inner.DeleteItem(ctx, projectID, stream, itemName)
+	if err := s.inner.DeleteItem(ctx, projectID, stream, itemName); err != nil {
+		return err
+	}
+	s.bus.Publish(platev.Event{
+		Type:      platev.EventItemDeleted,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"item_name": itemName, "stream": stream},
+	})
+	return nil
 }
 
 func (s *EventEmittingStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*store.Item, error) {

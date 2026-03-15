@@ -124,6 +124,46 @@ export interface CreateStreamRequest {
   description?: string;
 }
 
+/** Collection kind */
+export type CollectionKind = "uploaded" | "connected";
+
+/** Collection info */
+export interface CollectionInfo {
+  id: string;
+  project_id: string;
+  name: string;
+  kind: CollectionKind;
+  item_label: string;
+  is_default: boolean;
+  stream?: string;
+  connector_config?: Record<string, string>;
+  item_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Create collection request */
+export interface CreateCollectionRequest {
+  name: string;
+  kind: CollectionKind;
+  item_label?: string;
+  stream?: string;
+  connector_config?: Record<string, string>;
+}
+
+/** Archived project info (from the bin) */
+export interface ArchivedProject {
+  id: string;
+  name: string;
+  source_locale: string;
+  target_locales: string[];
+  workspace_id?: string;
+  archived: boolean;
+  archived_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Project info */
 export interface ProjectInfo {
   id: string;
@@ -133,6 +173,7 @@ export interface ProjectInfo {
   workspace_id?: string;
   path?: string;
   items?: ProjectItem[];
+  collections?: CollectionInfo[];
   streams?: StreamInfo[];
   active_stream?: string;
   created_at: string;
@@ -145,9 +186,31 @@ export interface ProjectItem {
   name: string;
   format: string;
   type: string;
+  collection_id?: string;
   size: number;
   block_count: number;
   word_count: number;
+}
+
+/** Audit log entry */
+export interface AuditEntry {
+  id: number;
+  project_id: string;
+  event_type: string;
+  actor: string;
+  source: string;
+  data: string; // JSON string
+  created_at: string;
+}
+
+/** Audit log query parameters */
+export interface AuditQuery {
+  project?: string;
+  type?: string;
+  actor?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
 }
 
 /** Server config response */

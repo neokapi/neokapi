@@ -57,14 +57,70 @@ func (s *Server) registerDefaultAutomations() {
 // loadStoredAutomationRules loads all enabled user-defined rules from the database
 // and registers them with the automation engine.
 func (s *Server) loadStoredAutomationRules() {
-	// Rules will be loaded per-project when events occur.
-	// The automation engine's event handler checks the rule's project scope
-	// against the event's project ID. For now, this is a placeholder for
-	// future project-scoped rule loading on startup.
+	if s.AutomationRuleStore == nil || s.ContentStore == nil {
+		return
+	}
+
+	ctx := context.Background()
+	projects, err := s.ContentStore.ListProjects(ctx)
+	if err != nil {
+		log.Printf("WARNING: failed to list projects for automation rule loading: %v", err)
+		return
+	}
+
+	loaded := 0
+	for _, proj := range projects {
+		rules, err := s.AutomationRuleStore.ListRules(ctx, proj.ID)
+		if err != nil {
+			log.Printf("WARNING: failed to load automation rules for project %s: %v", proj.ID, err)
+			continue
+		}
+		for _, r := range rules {
+			if !r.Enabled {
+				continue
+			}
+			s.AutomationEngine.AddRule(event.AutomationRule{
+				Name:       r.Name,
+				EventType:  r.Trigger,
+				Conditions: r.Conditions,
+				Actions:    r.Actions,
+			})
+			loaded++
+		}
+	}
+	if loaded > 0 {
+		log.Printf("Loaded %d user-defined automation rules", loaded)
+	}
 }
 
 // executeAutomationAction is the callback for the automation engine.
 func (s *Server) executeAutomationAction(action event.AutomationAction, ev platev.Event) error {
+	startedAt := ev.Timestamp
+	err := s.doExecuteAction(action, ev)
+
+	// Record execution in history.
+	if s.AutomationRuleStore != nil {
+		status := "success"
+		errMsg := ""
+		if err != nil {
+			status = "failed"
+			errMsg = err.Error()
+		}
+		_ = s.AutomationRuleStore.RecordExecution(context.Background(), &event.HistoryEntry{
+			ID:        id.New(),
+			ProjectID: ev.ProjectID,
+			EventID:   ev.ID,
+			Status:    status,
+			Error:     errMsg,
+			StartedAt: startedAt,
+			EndedAt:   ev.Timestamp,
+		})
+	}
+
+	return err
+}
+
+func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event) error {
 	switch action.Type {
 	case "auto_translate":
 		items := ev.Data["items"]

@@ -15,7 +15,7 @@ interface BrandDashboardProps {
 export function BrandDashboard({ score, trends, recentScores, className }: BrandDashboardProps) {
   if (!score) {
     return (
-      <div className={cn("max-w-5xl mx-auto px-4 py-6", className)}>
+      <div className={cn("space-y-6", className)}>
         <h1 className="text-lg font-semibold mb-6">Brand Compliance Dashboard</h1>
         <GlassCard intensity="subtle" className="p-8 text-center">
           <p className="text-sm text-muted-foreground">
@@ -28,7 +28,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
   }
 
   return (
-    <div className={cn("max-w-5xl mx-auto px-4 py-6 space-y-6", className)}>
+    <div className={cn("space-y-6", className)}>
       <h1 className="text-lg font-semibold">Brand Compliance Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

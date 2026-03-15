@@ -296,6 +296,18 @@ const memoryRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
 });
 
+const binRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "bin",
+  component: lazyRouteComponent(() => import("./workspace/bin"), "BinRoute"),
+});
+
+const auditlogRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "auditlog",
+  component: lazyRouteComponent(() => import("./workspace/auditlog"), "AuditLogRoute"),
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "settings",
@@ -341,6 +353,8 @@ const routeTree = rootRoute.addChildren([
     brandRoute.addChildren([brandIndexRoute, brandDashboardRoute, brandMCPGuideRoute, brandEditorRoute]),
     termbaseRoute,
     memoryRoute,
+    auditlogRoute,
+    binRoute,
     settingsRoute.addChildren([settingsIndexRoute, settingsMembersRoute, settingsProvidersRoute]),
   ]),
 ]);

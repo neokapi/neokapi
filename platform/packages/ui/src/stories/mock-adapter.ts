@@ -242,9 +242,27 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     listProjects: async () => [sampleProject],
     createProject: notImpl,
     getProject: async () => sampleProject,
+    updateProject: async () => sampleProject,
     deleteProject: noop,
     uploadFiles: notImpl,
     removeFile: notImpl,
+
+    // --- Archive / Bin ----------------------------------------------------
+    restoreProject: noop,
+    permanentlyDeleteProject: noop,
+    listArchivedProjects: async () => [],
+    restoreStream: noop,
+
+    // --- Audit Log -------------------------------------------------------
+    listWorkspaceAuditLog: async () => [],
+
+    // --- Collections ----------------------------------------------------
+    listCollections: async () => [],
+    createCollection: notImpl,
+    getCollection: notImpl,
+    updateCollection: notImpl,
+    deleteCollection: noop,
+    uploadToCollection: notImpl,
 
     // --- Editor ---------------------------------------------------------
     getFileBlocks: async () => _blocks,
@@ -477,6 +495,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     getStream: async () => {
       throw new Error("Not implemented");
     },
+    updateStream: async () => ({ name: "main", parent: "", base_cursor: 0, archived: false, visibility: "public" as const, description: "", created_at: "", created_by: "" }),
     deleteStream: noop,
     diffStream: async () => ({ stream_name: "", parent_name: "", changes: [] }),
     mergeStream: async () => ({

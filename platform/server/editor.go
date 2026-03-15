@@ -128,6 +128,7 @@ type ProjectInfoResponse struct {
 	SourceLocale  string                `json:"source_locale"`
 	TargetLocales []string              `json:"target_locales"`
 	Items         []ProjectItemResponse `json:"items"`
+	Collections   []CollectionResponse  `json:"collections,omitempty"`
 	Streams       []store.Stream        `json:"streams,omitempty"`
 	ActiveStream  string                `json:"active_stream,omitempty"`
 	CreatedAt     string                `json:"created_at"`
@@ -136,13 +137,14 @@ type ProjectInfoResponse struct {
 
 // ProjectItemResponse describes an item within a project.
 type ProjectItemResponse struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Format     string `json:"format"`
-	Type       string `json:"type"`
-	Size       int64  `json:"size"`
-	BlockCount int    `json:"block_count"`
-	WordCount  int    `json:"word_count"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Format       string `json:"format"`
+	Type         string `json:"type"`
+	CollectionID string `json:"collection_id,omitempty"`
+	Size         int64  `json:"size"`
+	BlockCount   int    `json:"block_count"`
+	WordCount    int    `json:"word_count"`
 }
 
 // SpanInfoResponse describes an inline span element.
@@ -444,6 +446,10 @@ func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, s
 		return nil, fmt.Errorf("create project: %w", err)
 	}
 
+	// Create the default collection and main stream for the new project.
+	_ = EnsureDefaultCollection(ctx, cs, p.ID)
+	_ = EnsureMainStream(ctx, cs, p.ID)
+
 	return projectToInfoResponse(p), nil
 }
 
@@ -505,6 +511,81 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 		}
 
 		// Extract blocks and store them.
+		var blocks []*model.Block
+		for _, pt := range parts {
+			if pt.Type != model.PartBlock {
+				continue
+			}
+			if block, ok := pt.Resource.(*model.Block); ok {
+				blocks = append(blocks, block)
+			}
+		}
+		if len(blocks) > 0 {
+			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
+				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
+			}
+		}
+	}
+
+	return editorBuildProjectInfo(ctx, cs, proj, stream)
+}
+
+// editorAddFilesToCollection parses uploaded files and stores them in a specific collection.
+func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, collectionID string, files map[string][]byte) (*ProjectInfoResponse, error) {
+	proj, err := cs.GetProject(ctx, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("get project: %w", err)
+	}
+
+	for itemName, data := range files {
+		ext := filepath.Ext(itemName)
+		fmtName, err := formatReg.Detector().DetectByExtension(ext)
+		if err != nil {
+			continue
+		}
+
+		reader, err := formatReg.NewReader(fmtName)
+		if err != nil {
+			continue
+		}
+
+		doc := &model.RawDocument{
+			URI:          itemName,
+			SourceLocale: proj.SourceLocale,
+			Encoding:     "UTF-8",
+			Reader:       io.NopCloser(bytes.NewReader(data)),
+		}
+
+		if err := reader.Open(ctx, doc); err != nil {
+			return nil, fmt.Errorf("parse %q: %w", itemName, err)
+		}
+
+		var parts []*model.Part
+		for result := range reader.Read(ctx) {
+			if result.Error != nil {
+				reader.Close()
+				return nil, fmt.Errorf("read %q: %w", itemName, result.Error)
+			}
+			parts = append(parts, result.Part)
+		}
+		reader.Close()
+
+		blockIndex := editor.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndexJSON, _ := json.Marshal(blockIndex)
+
+		item := &store.Item{
+			Name:         itemName,
+			Format:       fmtName,
+			ItemType:     "file",
+			CollectionID: collectionID,
+			SourceBytes:  data,
+			BlockIndex:   string(blockIndexJSON),
+			Properties:   map[string]string{},
+		}
+		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
+			return nil, fmt.Errorf("store item %q: %w", itemName, err)
+		}
+
 		var blocks []*model.Block
 		for _, pt := range parts {
 			if pt.Type != model.PartBlock {
@@ -1049,6 +1130,9 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		return nil, fmt.Errorf("list items: %w", err)
 	}
 
+	// Count items per collection for the response.
+	itemCounts := map[string]int{}
+
 	for _, item := range items {
 		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
 			ProjectID: proj.ID,
@@ -1067,14 +1151,26 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 		}
 
 		info.Items = append(info.Items, ProjectItemResponse{
-			ID:         item.ID,
-			Name:       item.Name,
-			Format:     item.Format,
-			Type:       item.ItemType,
-			Size:       int64(len(item.SourceBytes)),
-			BlockCount: len(blocks),
-			WordCount:  wordCount,
+			ID:           item.ID,
+			Name:         item.Name,
+			Format:       item.Format,
+			Type:         item.ItemType,
+			CollectionID: item.CollectionID,
+			Size:         int64(len(item.SourceBytes)),
+			BlockCount:   len(blocks),
+			WordCount:    wordCount,
 		})
+		itemCounts[item.CollectionID]++
+	}
+
+	// Include collections in the response.
+	colls, _ := cs.ListCollections(ctx, proj.ID, stream)
+	if colls != nil {
+		for _, coll := range colls {
+			cr := collectionToResponse(coll)
+			cr.ItemCount = itemCounts[coll.ID]
+			info.Collections = append(info.Collections, cr)
+		}
 	}
 
 	streams, _ := cs.ListStreams(ctx, proj.ID, false)

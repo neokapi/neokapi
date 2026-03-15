@@ -152,8 +152,15 @@ func (s *Server) HandleArchiveStream(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "cannot archive the main stream"})
 	}
 
-	if err := s.ContentStore.DeleteStream(c.Request().Context(), projectID, streamName); err != nil {
+	ctx := c.Request().Context()
+	stream, err := s.ContentStore.GetStream(ctx, projectID, streamName)
+	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	stream.Archived = true
+	if err := s.ContentStore.UpdateStream(ctx, stream); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	return c.NoContent(http.StatusNoContent)

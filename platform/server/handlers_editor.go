@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/platform/store"
 	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
@@ -105,15 +106,174 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
-// HandleDeleteEditorProject deletes a project from the ContentStore.
+// HandleUpdateEditorProject updates a project's name and locales.
+func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	ctx := c.Request().Context()
+
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	var req struct {
+		Name          string   `json:"name"`
+		TargetLocales []string `json:"target_locales"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	if req.Name != "" {
+		proj.Name = req.Name
+	}
+	if req.TargetLocales != nil {
+		locales := make([]model.LocaleID, len(req.TargetLocales))
+		for i, l := range req.TargetLocales {
+			locales[i] = model.LocaleID(l)
+		}
+		proj.TargetLocales = locales
+	}
+
+	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParam(c))
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, info)
+}
+
+// HandleUpdateStreamName renames a stream's description.
+func (s *Server) HandleUpdateStreamName(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+	ctx := c.Request().Context()
+
+	stream, err := s.ContentStore.GetStream(ctx, projectID, streamName)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	var req struct {
+		Description string `json:"description"`
+		Visibility  string `json:"visibility"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+
+	if req.Description != "" {
+		stream.Description = req.Description
+	}
+	if req.Visibility != "" {
+		stream.Visibility = store.StreamVisibility(req.Visibility)
+	}
+
+	if err := s.ContentStore.UpdateStream(ctx, stream); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, stream)
+}
+
+// HandleDeleteEditorProject archives a project (soft delete).
 func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
 	pid := c.Param("pid")
-	if err := s.ContentStore.DeleteProject(c.Request().Context(), pid); err != nil {
+	if err := s.ContentStore.ArchiveProject(c.Request().Context(), pid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleRestoreProject restores an archived project.
+func (s *Server) HandleRestoreProject(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	if err := s.ContentStore.RestoreProject(c.Request().Context(), pid); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleRestoreStream restores an archived stream.
+func (s *Server) HandleRestoreStream(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+	ctx := c.Request().Context()
+
+	stream, err := s.ContentStore.GetStream(ctx, projectID, streamName)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	stream.Archived = false
+	if err := s.ContentStore.UpdateStream(ctx, stream); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleListArchivedProjects lists archived projects in a workspace (the "bin").
+func (s *Server) HandleListArchivedProjects(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	wsID, _ := c.Get("workspace_id").(string)
+	projects, err := s.ContentStore.ListArchivedProjects(c.Request().Context(), wsID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, projects)
+}
+
+// HandlePermanentlyDeleteProject permanently deletes an archived project.
+func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	ctx := c.Request().Context()
+
+	// Only allow permanent deletion of archived projects.
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+	if !proj.Archived {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "project must be archived before permanent deletion"})
+	}
+
+	if err := s.ContentStore.DeleteProject(ctx, pid); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	return c.NoContent(http.StatusNoContent)

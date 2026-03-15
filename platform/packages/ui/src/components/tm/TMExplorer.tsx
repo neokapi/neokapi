@@ -3,6 +3,8 @@ import { useTMApi } from "../../hooks/useTMApi";
 import { useLocales } from "../../hooks/useLocales";
 import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { TMEntryInfo } from "../../types/api";
+import type { FilterToken, FilterField, FilterPreset } from "../FilterBar";
+import { FilterBar } from "../FilterBar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -14,12 +16,14 @@ import { ArrowLeft } from "../icons";
 interface TMExplorerProps {
   sourceLocale: string;
   targetLocales: string[];
+  /** Projects in the workspace — used for project filter suggestions */
+  projects?: { id: string; name: string }[];
   onBack: () => void;
 }
 
 const PAGE_SIZE = 50;
 
-export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerProps) {
+export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TMExplorerProps) {
   const { getDisplayName } = useLocales();
 
   const breadcrumbNode = useMemo(
@@ -38,9 +42,8 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   const { getTMEntries, addTMEntry, updateTMEntry, deleteTMEntry } = useTMApi();
   const [entries, setEntries] = useState<TMEntryInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [query, setQuery] = useState("");
-  const [sourceLocaleFilter, setSourceLocaleFilter] = useState("");
-  const [targetLocaleFilter, setTargetLocaleFilter] = useState("");
+  const [filters, setFilters] = useState<FilterToken[]>([]);
+  const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(0);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState("");
@@ -49,7 +52,70 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   const [addTarget, setAddTarget] = useState("");
   const [addSourceLocale, setAddSourceLocale] = useState(sourceLocale);
   const [addTargetLocale, setAddTargetLocale] = useState(targetLocales[0] || "");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Derive filter values from tokens
+  const query = searchText;
+  const sourceLocaleFilter = filters.find((f) => f.key === "source")?.value ?? "";
+  const targetLocaleFilter = filters.find((f) => f.key === "target")?.value ?? "";
+
+  // FilterBar field definitions
+  const allLocales = useMemo(() => {
+    const set = new Set([sourceLocale, ...targetLocales].filter(Boolean));
+    return [...set];
+  }, [sourceLocale, targetLocales]);
+
+  const filterFields = useMemo<FilterField[]>(() => {
+    const fields: FilterField[] = [
+      {
+        key: "source",
+        label: "Source locale",
+        hint: "filter by source language",
+        values: allLocales.map((l) => ({ value: l, label: getDisplayName(l) })),
+      },
+      {
+        key: "target",
+        label: "Target locale",
+        hint: "filter by target language",
+        values: allLocales.map((l) => ({ value: l, label: getDisplayName(l) })),
+      },
+    ];
+    if (projects && projects.length > 0) {
+      fields.unshift({
+        key: "project",
+        label: "Project",
+        hint: "filter by project",
+        values: projects.map((p) => ({ value: p.id, label: p.name })),
+      });
+    }
+    return fields;
+  }, [allLocales, getDisplayName, projects]);
+
+  const filterPresets = useMemo<FilterPreset[]>(() => {
+    const presets: FilterPreset[] = [];
+    if (sourceLocale) {
+      presets.push({
+        label: "Source: " + getDisplayName(sourceLocale),
+        filters: [{ key: "source", value: sourceLocale }],
+      });
+    }
+    for (const t of targetLocales.slice(0, 3)) {
+      presets.push({
+        label: "Target: " + getDisplayName(t),
+        filters: [{ key: "target", value: t }],
+      });
+    }
+    return presets;
+  }, [sourceLocale, targetLocales, getDisplayName]);
+
+  const handleFiltersChange = useCallback((newFilters: FilterToken[]) => {
+    setFilters(newFilters);
+    setPage(0);
+  }, []);
+
+  const handleSearchChange = useCallback((newSearch: string) => {
+    setSearchText(newSearch);
+    setPage(0);
+  }, []);
 
   const fetchEntries = useCallback(
     async (q: string, srcLocale: string, tgtLocale: string, p: number) => {
@@ -68,13 +134,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     void fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
   }, [fetchEntries, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
-  const handleQueryChange = useCallback((value: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setQuery(value);
-      setPage(0);
-    }, 300);
-  }, []);
+  // (query/filter changes handled by FilterBar callbacks above)
 
   const handleEdit = useCallback((entry: TMEntryInfo) => {
     setEditingId(entry.id);
@@ -85,7 +145,7 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
     async (entry: TMEntryInfo) => {
       try {
         await updateTMEntry({
-          project_id: "",
+          project_id: entry.project_id ?? "",
           entry_id: entry.id,
           source: entry.source,
           target: editTarget,
@@ -155,7 +215,6 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
   );
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const allLocales = [sourceLocale, ...targetLocales];
 
   return (
     <div data-testid="tm-explorer">
@@ -174,65 +233,33 @@ export function TMExplorer({ sourceLocale, targetLocales, onBack }: TMExplorerPr
         </div>
 
         {/* Search and filters */}
-        <div className="flex gap-2 mb-6">
-          <Input
-            type="text"
-            placeholder="Search entries..."
-            defaultValue={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            className="flex-1"
-            data-testid="tm-search-input"
+        <div className="mb-6" data-testid="tm-search-input">
+          <FilterBar
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            search={searchText}
+            onSearchChange={handleSearchChange}
+            fields={filterFields}
+            presets={filterPresets}
+            placeholder="Search translation memory..."
           />
-          <select
-            value={sourceLocaleFilter}
-            onChange={(e) => {
-              setSourceLocaleFilter(e.target.value);
-              setPage(0);
-            }}
-            className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm"
-            data-testid="tm-source-locale-filter"
-          >
-            <option value="">All source locales</option>
-            {allLocales.map((l) => (
-              <option key={l} value={l}>
-                {getDisplayName(l)} ({l})
-              </option>
-            ))}
-          </select>
-          <select
-            value={targetLocaleFilter}
-            onChange={(e) => {
-              setTargetLocaleFilter(e.target.value);
-              setPage(0);
-            }}
-            className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm"
-            data-testid="tm-target-locale-filter"
-          >
-            <option value="">All target locales</option>
-            {allLocales.map((l) => (
-              <option key={l} value={l}>
-                {getDisplayName(l)} ({l})
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* Table */}
         {entries.length === 0 ? (
           <div className="py-12 text-center text-muted-foreground" data-testid="tm-empty-state">
             <p className="mb-2">
-              {query || sourceLocaleFilter || targetLocaleFilter
-                ? "No entries match your search."
+              {filters.length > 0 || searchText
+                ? "No entries match your filters."
                 : "No translation memory entries yet. Add entries to build your TM."}
             </p>
-            {(query || sourceLocaleFilter || targetLocaleFilter) && (
+            {(filters.length > 0 || searchText) && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  setQuery("");
-                  setSourceLocaleFilter("");
-                  setTargetLocaleFilter("");
+                  setFilters([]);
+                  setSearchText("");
                 }}
               >
                 Clear filters

@@ -24,22 +24,25 @@ type Project struct {
 	TargetLocales []model.LocaleID  `json:"target_locales"`
 	Properties    map[string]string `json:"properties,omitempty"`
 	WorkspaceID   string            `json:"workspace_id,omitempty"`
+	Archived      bool              `json:"archived"`
+	ArchivedAt    *time.Time        `json:"archived_at,omitempty"`
 	CreatedAt     time.Time         `json:"created_at"`
 	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
 // Item represents a file or data object within a project.
 type Item struct {
-	ID          string            `json:"id"`
-	ProjectID   string            `json:"project_id"`
-	Name        string            `json:"name"`
-	Format      string            `json:"format"`
-	ItemType    string            `json:"item_type"`
-	SourceBytes []byte            `json:"source_bytes,omitempty"`
-	BlockIndex  string            `json:"block_index"`
-	Properties  map[string]string `json:"properties,omitempty"`
-	CreatedAt   time.Time         `json:"created_at"`
-	UpdatedAt   time.Time         `json:"updated_at"`
+	ID           string            `json:"id"`
+	ProjectID    string            `json:"project_id"`
+	Name         string            `json:"name"`
+	Format       string            `json:"format"`
+	ItemType     string            `json:"item_type"`
+	CollectionID string            `json:"collection_id,omitempty"`
+	SourceBytes  []byte            `json:"source_bytes,omitempty"`
+	BlockIndex   string            `json:"block_index"`
+	Properties   map[string]string `json:"properties,omitempty"`
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
 // StoredBlock wraps a model.Block with store metadata.
@@ -100,6 +103,36 @@ type BlockChange struct {
 	ChangeType ChangeType
 	OldHash    string // Empty for added blocks
 	NewHash    string // Empty for removed blocks
+}
+
+// ---------------------------------------------------------------------------
+// Collections
+// ---------------------------------------------------------------------------
+
+// CollectionKind controls how a collection is populated.
+type CollectionKind string
+
+const (
+	// CollectionUploaded allows ad-hoc file uploads and manual item creation.
+	CollectionUploaded CollectionKind = "uploaded"
+	// CollectionConnected is linked to integration connectors; no manual upload.
+	CollectionConnected CollectionKind = "connected"
+)
+
+// Collection groups items within a project.
+// Collections are project-scoped by default. When Stream is non-empty,
+// the collection is visible only within that stream.
+type Collection struct {
+	ID              string            `json:"id"`
+	ProjectID       string            `json:"project_id"`
+	Name            string            `json:"name"`
+	Kind            CollectionKind    `json:"kind"`
+	ItemLabel       string            `json:"item_label"`  // e.g. "item", "page", "post", "document"
+	IsDefault       bool              `json:"is_default"`
+	Stream          string            `json:"stream,omitempty"`           // empty = project-wide
+	ConnectorConfig map[string]string `json:"connector_config,omitempty"` // connector type + settings
+	CreatedAt       time.Time         `json:"created_at"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------

@@ -87,7 +87,7 @@ export function SettingsIndexRoute() {
   }
 
   return (
-    <div className="space-y-4 max-w-[560px]">
+    <div className="space-y-4">
       <GlassCard intensity="subtle" className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold">Settings</h2>

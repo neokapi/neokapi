@@ -2,12 +2,21 @@ import { useState } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
+import { ProjectFormDialog } from "./ProjectFormDialog";
+import type { ProjectFormData } from "./ProjectFormDialog";
 import { Button } from "./ui/button";
 import { CardContent, GlassCard } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "./ui/dropdown-menu";
 import {
   FolderOpen,
   ArrowRight,
@@ -17,6 +26,9 @@ import {
   Plus,
   Clock,
   Sparkles,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "./icons";
 
 // ---------------------------------------------------------------------------
@@ -66,6 +78,10 @@ export interface ProjectDashboardProps {
   onCreateSampleProject?: () => void;
   /** Workspace name shown in the greeting. */
   workspaceName?: string;
+  /** Called to update a project's name and target locales. */
+  onEditProject?: (projectId: string, data: { name?: string; target_locales?: string[] }) => void;
+  /** Called to archive (soft delete) a project. */
+  onArchiveProject?: (projectId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,10 +124,14 @@ function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
 function ProjectCard({
   project,
   onOpen,
+  onRename,
+  onArchive,
   getDisplayName,
 }: {
   project: ProjectInfo;
   onOpen: () => void;
+  onRename?: () => void;
+  onArchive?: () => void;
   getDisplayName: (code: string) => string;
 }) {
   const wordCount = sumItems(project, "word_count");
@@ -131,9 +151,44 @@ function ProjectCard({
         {/* Header: name + language count */}
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-semibold text-base leading-snug pr-2">{project.name}</h3>
-          <Badge variant="secondary" className="shrink-0 text-[11px]">
-            {project.target_locales.length} lang{project.target_locales.length !== 1 ? "s" : ""}
-          </Badge>
+          <div className="flex items-center gap-1 shrink-0">
+            <Badge variant="secondary" className="text-[11px]">
+              {project.target_locales.length} lang{project.target_locales.length !== 1 ? "s" : ""}
+            </Badge>
+            {(onRename || onArchive) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-1 rounded text-muted-foreground/50 hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer bg-transparent border-none opacity-0 group-hover:opacity-100"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[150px]">
+                  {onRename && (
+                    <DropdownMenuItem
+                      onClick={(e: React.MouseEvent) => { e.stopPropagation(); onRename(); }}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Rename
+                    </DropdownMenuItem>
+                  )}
+                  {onArchive && (
+                    <>
+                      {onRename && <DropdownMenuSeparator />}
+                      <DropdownMenuItem
+                        onClick={(e: React.MouseEvent) => { e.stopPropagation(); onArchive(); }}
+                        className="flex items-center gap-2 text-sm text-destructive"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Archive
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
         </div>
 
         {/* Locale mapping */}
@@ -290,30 +345,12 @@ export function ProjectDashboard({
   onOpenProject,
   onCreateSampleProject,
   workspaceName,
+  onEditProject,
+  onArchiveProject,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
-  const [name, setName] = useState("");
-  const [sourceLang, setSourceLang] = useState("en");
-  const [targetLangsList, setTargetLangsList] = useState<string[]>(["fr"]);
-
-  const handleCreate = () => {
-    if (!name.trim()) return;
-    if (targetLangsList.length === 0) return;
-    onCreateProject(name.trim(), sourceLang, targetLangsList);
-    setShowCreate(false);
-    setName("");
-    setTargetLangsList(["fr"]);
-  };
-
-  const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      setName("");
-      setSourceLang("en");
-      setTargetLangsList(["fr"]);
-    }
-    setShowCreate(open);
-  };
+  const [editingProject, setEditingProject] = useState<ProjectInfo | null>(null);
 
   const isEmpty = projects.length === 0;
 
@@ -353,6 +390,8 @@ export function ProjectDashboard({
                 key={p.id}
                 project={p}
                 onOpen={() => onOpenProject(p)}
+                onRename={onEditProject ? () => setEditingProject(p) : undefined}
+                onArchive={onArchiveProject ? () => onArchiveProject(p.id) : undefined}
                 getDisplayName={getDisplayName}
               />
             ))}
@@ -361,61 +400,32 @@ export function ProjectDashboard({
       )}
 
       {/* Create project dialog */}
-      <Dialog open={showCreate} onOpenChange={handleOpenChange}>
-        <DialogContent
-          size="md"
-          data-testid="create-project-dialog"
-          onInteractOutside={(e: Event) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>Create Translation Project</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-2">
-            <div>
-              <Label className="text-muted-foreground">Project Name</Label>
-              <Input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="My Translation Project"
-                data-testid="project-name-input"
-                autoFocus
-                className="mt-1"
-              />
-            </div>
-            <div className="flex gap-3">
-              <div className="flex flex-col gap-1 flex-1">
-                <Label className="text-muted-foreground">Source Language</Label>
-                <LocaleSelect
-                  value={sourceLang}
-                  onChange={setSourceLang}
-                  data-testid="source-lang-input"
-                />
-              </div>
-              <div className="flex flex-col gap-1 flex-1">
-                <Label className="text-muted-foreground">Target Languages</Label>
-                <MultiLocaleSelect
-                  value={targetLangsList}
-                  onChange={setTargetLangsList}
-                  data-testid="target-langs-input"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={!name.trim() || targetLangsList.length === 0}
-              data-testid="create-project-submit"
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProjectFormDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        onSubmit={(data: ProjectFormData) => {
+          onCreateProject(data.name, data.source_locale, data.target_locales);
+          setShowCreate(false);
+        }}
+      />
+
+      {/* Edit project dialog */}
+      {onEditProject && (
+        <ProjectFormDialog
+          open={editingProject !== null}
+          onOpenChange={(v) => { if (!v) setEditingProject(null); }}
+          editProject={editingProject ?? undefined}
+          onSubmit={(data: ProjectFormData) => {
+            if (editingProject) {
+              onEditProject(editingProject.id, {
+                name: data.name,
+                target_locales: data.target_locales,
+              });
+              setEditingProject(null);
+            }
+          }}
+        />
+      )}
     </>
   );
 }

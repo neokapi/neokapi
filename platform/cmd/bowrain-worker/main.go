@@ -21,12 +21,10 @@ func main() {
 
 	dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
 	if dbURL == "" {
-		if sp := os.Getenv("BOWRAIN_STORE"); sp != "" {
-			dbURL = "sqlite:///" + sp
-		}
+		log.Fatal("BOWRAIN_DATABASE_URL is required (must be a postgres:// URL)")
 	}
-	if dbURL == "" {
-		log.Fatal("BOWRAIN_DATABASE_URL or BOWRAIN_STORE is required")
+	if !strings.HasPrefix(dbURL, "postgres://") && !strings.HasPrefix(dbURL, "postgresql://") {
+		log.Fatal("BOWRAIN_DATABASE_URL must start with postgres:// or postgresql://")
 	}
 
 	dbAuth := os.Getenv("BOWRAIN_DATABASE_AUTH")
@@ -40,75 +38,44 @@ func main() {
 		credentialsPath = credentials.DefaultPath()
 	}
 
-	// Open stores.
-	var cs store.ContentStore
-	var jobStore jobs.JobStore
-	var quotaStore jobs.QuotaStore
-
-	if strings.HasPrefix(dbURL, "postgres://") || strings.HasPrefix(dbURL, "postgresql://") {
-		var pgdb *storage.PgDB
-		var err error
-		if dbAuth == "azure" {
-			pgdb, err = storage.OpenPostgresAzure(dbURL, azureClientID)
-		} else {
-			pgdb, err = storage.OpenPostgres(dbURL)
-		}
-		if err != nil {
-			log.Fatalf("Worker: open PostgreSQL: %v", err)
-		}
-		defer pgdb.Close()
-
-		pgCS, err := bstore.NewPostgresStoreFromDB(pgdb)
-		if err != nil {
-			log.Fatalf("Worker: open PostgreSQL content store: %v", err)
-		}
-		cs = pgCS
-
-		pgJS, err := jobs.NewPgJobStore(pgdb)
-		if err != nil {
-			log.Fatalf("Worker: open PostgreSQL job store: %v", err)
-		}
-		jobStore = pgJS
-
-		pgQS, err := jobs.NewPgQuotaStore(pgdb)
-		if err != nil {
-			log.Fatalf("Worker: open PostgreSQL quota store: %v", err)
-		}
-		quotaStore = pgQS
+	// Open PostgreSQL stores.
+	var pgdb *storage.PgDB
+	var err error
+	if dbAuth == "azure" {
+		pgdb, err = storage.OpenPostgresAzure(dbURL, azureClientID)
 	} else {
-		storePath := strings.TrimPrefix(dbURL, "sqlite:///")
+		pgdb, err = storage.OpenPostgres(dbURL)
+	}
+	if err != nil {
+		log.Fatalf("Worker: open PostgreSQL: %v", err)
+	}
+	defer pgdb.Close()
 
-		sqCS, err := bstore.NewSQLiteStore(storePath)
-		if err != nil {
-			log.Fatalf("Worker: open SQLite content store: %v", err)
-		}
-		defer sqCS.Close()
-		cs = sqCS
+	pgCS, err := bstore.NewPostgresStoreFromDB(pgdb)
+	if err != nil {
+		log.Fatalf("Worker: open PostgreSQL content store: %v", err)
+	}
+	var cs store.ContentStore = pgCS
 
-		db, err := storage.Open(storePath + ".jobs")
-		if err != nil {
-			log.Fatalf("Worker: open SQLite job store: %v", err)
-		}
-		defer db.Close()
+	pgJS, err := jobs.NewPgJobStore(pgdb)
+	if err != nil {
+		log.Fatalf("Worker: open PostgreSQL job store: %v", err)
+	}
 
-		sqJS, err := jobs.NewSQLiteJobStore(db)
-		if err != nil {
-			log.Fatalf("Worker: init SQLite job store: %v", err)
-		}
-		jobStore = sqJS
+	pgQS, err := jobs.NewPgQuotaStore(pgdb)
+	if err != nil {
+		log.Fatalf("Worker: open PostgreSQL quota store: %v", err)
 	}
 
 	// Set up message queue.
 	var queue jobs.Queue
 	switch {
 	case serviceBusConn != "":
-		var err error
 		queue, err = jobs.NewServiceBusQueue(serviceBusConn, "translation-jobs")
 		if err != nil {
 			log.Fatalf("Worker: connect to Service Bus: %v", err)
 		}
 	case natsURL != "":
-		var err error
 		queue, err = jobs.NewNATSQueue(natsURL)
 		if err != nil {
 			log.Fatalf("Worker: connect to NATS: %v", err)
@@ -122,11 +89,11 @@ func main() {
 
 	// Build worker dependencies.
 	deps := &jobs.WorkerDeps{
-		JobStore:     jobStore,
+		JobStore:     pgJS,
 		ContentStore: cs,
 		CredStore:    credStore,
 		Queue:        queue,
-		QuotaStore:   quotaStore,
+		QuotaStore:   pgQS,
 	}
 
 	// Configure platform Azure OpenAI if endpoint is set.

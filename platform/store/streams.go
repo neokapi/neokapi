@@ -19,9 +19,7 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	if st.Name == "" {
 		return fmt.Errorf("stream name cannot be empty")
 	}
-	if st.Name == "main" {
-		return fmt.Errorf("cannot create the implicit main stream")
-	}
+	// "main" can now be created explicitly (e.g. during project setup).
 	if st.Visibility == "" {
 		st.Visibility = platstore.StreamPublic
 	}
@@ -52,6 +50,19 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	if err != nil {
 		return fmt.Errorf("insert stream: %w", err)
 	}
+
+	// Copy items from the parent stream into the new stream.
+	parentStream := defaultStream(st.Parent)
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
+		 SELECT lower(hex(randomblob(4))), project_id, ?, name, format, item_type, source_bytes, block_index, properties, collection_id, ?, ?
+		 FROM items WHERE project_id = ? AND stream = ?`,
+		st.Name, now.Format(time.RFC3339), now.Format(time.RFC3339),
+		st.ProjectID, parentStream)
+	if err != nil {
+		return fmt.Errorf("copy parent items: %w", err)
+	}
+
 	return nil
 }
 

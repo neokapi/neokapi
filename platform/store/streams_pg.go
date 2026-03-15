@@ -16,9 +16,7 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 	if st.Name == "" {
 		return fmt.Errorf("stream name cannot be empty")
 	}
-	if st.Name == "main" {
-		return fmt.Errorf("cannot create the implicit main stream")
-	}
+	// "main" can now be created explicitly (e.g. during project setup).
 	if st.Visibility == "" {
 		st.Visibility = platstore.StreamPublic
 	}
@@ -42,6 +40,18 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 	if err != nil {
 		return fmt.Errorf("insert stream: %w", err)
 	}
+
+	// Copy items from the parent stream into the new stream.
+	parentStream := defaultStream(st.Parent)
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
+		 SELECT substr(md5(random()::text), 1, 8), project_id, $1, name, format, item_type, source_bytes, block_index, properties, collection_id, $2, $2
+		 FROM items WHERE project_id = $3 AND stream = $4`,
+		st.Name, now, st.ProjectID, parentStream)
+	if err != nil {
+		return fmt.Errorf("copy parent items: %w", err)
+	}
+
 	return nil
 }
 
