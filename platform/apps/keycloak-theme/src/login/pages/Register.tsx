@@ -29,7 +29,7 @@ export default function Register(props: {
 
   return (
     <div className="w-full max-w-md px-4">
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("registerTitle")}</h1>
         </CardHeader>
@@ -82,6 +82,7 @@ export default function Register(props: {
 
             <div className="flex gap-3 pt-2">
               <Button
+                type="button"
                 variant="secondary"
                 className="flex-1"
                 icon={ArrowLeft}

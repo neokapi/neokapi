@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { WorkspaceSwitcher } from "../../components/WorkspaceSwitcher";
-import { SidebarGlass } from "../../components/ui/sidebar";
+import { SidebarProvider } from "../../components/ui/sidebar";
 import type { Workspace } from "../../types/api";
 
 const workspaces: Workspace[] = [
@@ -40,11 +40,11 @@ const meta: Meta<typeof WorkspaceSwitcher> = {
   tags: ["autodocs"],
   decorators: [
     (Story) => (
-      <SidebarGlass.Provider open keyboardShortcut={false}>
+      <SidebarProvider open>
         <div style={{ width: 220, padding: 8 }}>
           <Story />
         </div>
-      </SidebarGlass.Provider>
+      </SidebarProvider>
     ),
   ],
 };

@@ -1,28 +1,24 @@
 // Utilities
 export { cn } from "./lib/utils";
 
-// Glass UI (shadcn-glass-ui)
-export { AnimatedBackgroundGlass } from "./components/ui/animated-background";
-export { SidebarGlass, useSidebar } from "./components/ui/sidebar";
-export { ModalGlass } from "./components/ui/dialog";
-
 // UI primitives (shadcn/ui)
-export { Button, type ButtonProps } from "./components/ui/button";
+export { SidebarProvider, SidebarInset, useSidebar } from "./components/ui/sidebar";
+export { TooltipProvider } from "./components/ui/tooltip";
+export { Button, buttonVariants } from "./components/ui/button";
 export {
   Card,
   CardHeader,
   CardTitle,
+  CardAction,
   CardDescription,
   CardContent,
   CardFooter,
-  GlassCard,
 } from "./components/ui/card";
-export type { GlassCardProps } from "./components/ui/card";
 export { Input } from "./components/ui/input";
 export { Label } from "./components/ui/label";
-export { Badge, type BadgeProps } from "./components/ui/badge";
+export { Badge, badgeVariants } from "./components/ui/badge";
 export { Separator } from "./components/ui/separator";
-export { Tabs, TabsList, TabsTrigger, TabsContent, TabsGlass } from "./components/ui/tabs";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export {
   Select,
   SelectTrigger,
@@ -30,16 +26,17 @@ export {
   SelectContent,
   SelectItem,
 } from "./components/ui/select";
-export { Switch, type SwitchProps } from "./components/ui/switch";
-export { AlertGlass, AlertGlassTitle, AlertGlassDescription } from "./components/ui/alert";
-export type { AlertGlassProps } from "./components/ui/alert";
-export { ComboBoxGlass } from "./components/ui/combobox";
+export { Switch } from "./components/ui/switch";
+export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
+export {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "./components/ui/combobox";
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
-export type {
-  CollapsibleProps,
-  CollapsibleTriggerProps,
-  CollapsibleContentProps,
-} from "./components/ui/collapsible";
 export {
   Dialog,
   DialogTrigger,
@@ -50,7 +47,6 @@ export {
   DialogDescription,
   DialogClose,
 } from "./components/ui/dialog";
-export type { DialogProps, DialogContentProps } from "./components/ui/dialog";
 
 // Icons (Lucide)
 export * from "./components/icons";

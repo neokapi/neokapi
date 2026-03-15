@@ -1,5 +1,5 @@
 import type { VoiceProfile } from "./types";
-import { GlassCard } from "../components/ui/card";
+import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Trash2 } from "../components/icons";
@@ -12,8 +12,7 @@ interface BrandProfileCardProps {
 
 export function BrandProfileCard({ profile, onClick, onDelete }: BrandProfileCardProps) {
   return (
-    <GlassCard
-      intensity="subtle"
+    <Card
       className="cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
       onClick={() => onClick(profile)}
     >
@@ -61,6 +60,6 @@ export function BrandProfileCard({ profile, onClick, onDelete }: BrandProfileCar
           </span>
         </div>
       </div>
-    </GlassCard>
+    </Card>
   );
 }

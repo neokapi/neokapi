@@ -1,125 +1,105 @@
-import { useState, useCallback, useEffect, type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { cn } from "../lib/utils";
-import { useIsMobile } from "../hooks/useIsMobile";
-import { AnimatedBackgroundGlass } from "./ui/animated-background";
-import { SidebarGlass } from "./ui/sidebar";
-import { AppSidebar, type AppSidebarProps } from "./AppSidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from "./ui/sidebar";
+import { Separator } from "./ui/separator";
+import { AppSidebar, type AppSidebarProps, type SubNavItem, subNavConfig } from "./AppSidebar";
 import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";
-import { X, Menu } from "./icons";
 
 export interface AppShellProps<V extends string = string> extends Omit<
   AppSidebarProps<V>,
   "collapsed" | "onCollapsedChange" | "collapsedWidth"
 > {
-  /** Controlled collapsed state. true = sidebar collapsed (icon mode). */
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
-  /** Slot rendered above the main content (e.g. TopBar or Header). */
   headerSlot?: ReactNode;
-  /** Main content. */
   children: ReactNode;
-  /** Extra className on the content area. */
   contentClassName?: string;
-  /** Show a full-width top bar above the sidebar+content row (desktop / macOS). */
   topBar?: boolean;
 }
 
-// Re-export SidebarContext type for consumers
 export type { SidebarContext } from "./AppSidebar";
 
-function HeaderBar({ headerSlot }: { headerSlot?: ReactNode }) {
+function Header({ headerSlot }: { headerSlot?: ReactNode }) {
   const breadcrumb = useBreadcrumb();
+  const { isMobile } = useSidebar();
+
   return (
-    <div className="flex flex-wrap items-center shrink-0">
-      {breadcrumb && <div className="flex items-center h-10 pl-4">{breadcrumb}</div>}
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b">
+      <div className="flex items-center gap-2 px-4">
+        {isMobile && (
+          <>
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+          </>
+        )}
+        {breadcrumb}
+      </div>
       <div className="flex-1 min-w-0" />
-      {headerSlot}
-    </div>
+      {headerSlot && <div className="flex items-center gap-1 px-4">{headerSlot}</div>}
+    </header>
   );
 }
 
-function MobileHeader({
-  headerSlot,
-  onOpenMenu,
+function SecondaryPanel({
+  title,
+  items,
+  activeId,
+  onSelect,
+  open,
 }: {
-  headerSlot?: ReactNode;
-  onOpenMenu: () => void;
+  title: string;
+  items: SubNavItem[];
+  activeId?: string;
+  onSelect: (id: string) => void;
+  open: boolean;
 }) {
-  const breadcrumb = useBreadcrumb();
   return (
     <div
-      className="flex items-center shrink-0 h-12 px-3 gap-2"
-      style={{ borderBottom: "1px solid var(--sidebar-border, hsl(var(--border)))" }}
+      className={cn(
+        "shrink-0 bg-sidebar text-sidebar-foreground overflow-hidden transition-[width,border-width] duration-200 ease-in-out hidden md:flex flex-col",
+        open ? "border-r" : "border-r-0",
+      )}
+      style={{ width: open ? 208 : 0 }}
     >
-      <button
-        onClick={onOpenMenu}
-        className="flex items-center justify-center w-8 h-8 rounded bg-transparent border-none cursor-pointer text-foreground"
-        aria-label="Open menu"
-      >
-        <Menu className="w-5 h-5" />
-      </button>
-      {breadcrumb && <div className="flex items-center">{breadcrumb}</div>}
-      <div className="flex-1 min-w-0" />
-      {headerSlot}
-    </div>
-  );
-}
-
-function MobileDrawer<V extends string = string>({
-  open,
-  onClose,
-  sidebarProps,
-}: {
-  open: boolean;
-  onClose: () => void;
-  sidebarProps: Omit<AppSidebarProps<V>, "collapsed" | "onCollapsedChange">;
-}) {
-  // Lock body scroll when drawer is open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-      return () => {
-        document.body.style.overflow = "";
-      };
-    }
-  }, [open]);
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      {/* Drawer panel */}
-      <div
-        className="relative z-10 flex flex-col h-full w-[280px] max-w-[80vw]"
-        style={{
-          background: "var(--sidebar-bg, hsl(var(--card)))",
-          borderRight: "1px solid var(--sidebar-border, hsl(var(--border)))",
-        }}
-      >
-        <div className="flex items-center justify-end px-3 py-2">
-          <button
-            onClick={onClose}
-            className="flex items-center justify-center w-8 h-8 rounded bg-transparent border-none cursor-pointer text-foreground"
-            aria-label="Close menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      <div className="flex flex-col h-full" style={{ width: 208 }}>
+        <div className="px-4 py-3">
+          <h2 className="text-sm font-medium whitespace-nowrap">{title}</h2>
         </div>
-        <AppSidebar
-          collapsed={false}
-          onCollapsedChange={() => onClose()}
-          {...sidebarProps}
-          onViewChange={(view) => {
-            sidebarProps.onViewChange(view);
-            onClose();
-          }}
-        />
+        <nav className="flex-1 px-2 pb-2">
+          <ul className="flex flex-col gap-0.5">
+            {items.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => onSelect(item.id)}
+                  tabIndex={open ? 0 : -1}
+                  className={cn(
+                    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors outline-none border-none cursor-pointer bg-transparent whitespace-nowrap",
+                    activeId === item.id
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                  )}
+                >
+                  <span className="[&_svg]:size-4 shrink-0">{item.icon}</span>
+                  <span>{item.label}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
       </div>
     </div>
   );
 }
+
+const viewLabels: Record<string, string> = {
+  translate: "Projects",
+  brand: "Brand Voice",
+  termbase: "Termbase",
+  memory: "Memory",
+  auditlog: "Audit Log",
+  bin: "Bin",
+  settings: "Settings",
+};
 
 export function AppShell<V extends string = string>({
   collapsed,
@@ -127,98 +107,53 @@ export function AppShell<V extends string = string>({
   headerSlot,
   children,
   contentClassName,
-  topBar: hasTopBar = false,
+  activeSubNav,
+  onSubNavChange,
   ...sidebarProps
 }: AppShellProps<V>) {
-  const isMobile = useIsMobile();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const activeView = sidebarProps.sidebarContext?.level === "workspace"
+    ? sidebarProps.sidebarContext.activeView
+    : undefined;
+  const subNavItems = activeView ? subNavConfig[activeView] : undefined;
+  const showSecondary = !!(subNavItems && onSubNavChange);
 
-  const handleOpenMenu = useCallback(() => setDrawerOpen(true), []);
-  const handleCloseMenu = useCallback(() => setDrawerOpen(false), []);
-
-  if (isMobile) {
-    return (
-      <>
-        <AnimatedBackgroundGlass />
-        <SidebarGlass.Provider
-          open={false}
-          onOpenChange={() => {}}
-          collapsible="icon"
-          keyboardShortcut={false}
-        >
-          <BreadcrumbProvider>
-            <div className="relative z-10 flex flex-col h-screen overflow-hidden">
-              <MobileHeader headerSlot={headerSlot} onOpenMenu={handleOpenMenu} />
-              <div
-                className={cn("flex-1 p-4 flex flex-col min-h-0 overflow-auto", contentClassName)}
-              >
-                {children}
-              </div>
-            </div>
-            <MobileDrawer open={drawerOpen} onClose={handleCloseMenu} sidebarProps={sidebarProps} />
-          </BreadcrumbProvider>
-        </SidebarGlass.Provider>
-      </>
-    );
+  const lastSubNavRef = useRef<{ items: SubNavItem[]; title: string } | null>(null);
+  if (subNavItems && activeView) {
+    lastSubNavRef.current = { items: subNavItems, title: viewLabels[activeView] ?? activeView };
   }
 
+  const panelData = showSecondary
+    ? { items: subNavItems!, title: viewLabels[activeView!] ?? activeView! }
+    : lastSubNavRef.current;
+
   return (
-    <>
-      <AnimatedBackgroundGlass />
-      <SidebarGlass.Provider
-        open={!collapsed}
-        onOpenChange={(open: boolean) => onCollapsedChange(!open)}
-        collapsible="icon"
-        keyboardShortcut={false}
-      >
-        <BreadcrumbProvider>
-          <div
-            className="relative z-10 flex flex-col h-screen overflow-hidden"
-            style={
-              {
-                "--sidebar-width": "220px",
-                "--sidebar-width-icon": "60px",
-              } as React.CSSProperties
-            }
-          >
-            {hasTopBar && (
-              <div
-                className="shrink-0 flex items-center h-12 glass-surface bg-card/80"
-                style={
-                  {
-                    "--wails-draggable": "drag",
-                    borderBottom: "1px solid var(--sidebar-border)",
-                  } as React.CSSProperties
-                }
-              >
-                <div
-                  className="shrink-0 transition-[width] duration-300 ease-in-out"
-                  style={{
-                    width: collapsed ? "var(--sidebar-width-icon)" : "var(--sidebar-width)",
-                    minWidth: 78,
-                  }}
-                />
-                <div className="flex-1 min-w-0">
-                  <HeaderBar headerSlot={headerSlot} />
-                </div>
-              </div>
-            )}
-            <div className="flex flex-1 min-h-0 overflow-hidden">
-              <AppSidebar
-                collapsed={collapsed}
-                onCollapsedChange={onCollapsedChange}
-                {...sidebarProps}
+    <SidebarProvider>
+      <BreadcrumbProvider>
+        <AppSidebar
+          collapsed={collapsed}
+          onCollapsedChange={onCollapsedChange}
+          activeSubNav={activeSubNav}
+          onSubNavChange={onSubNavChange}
+          {...sidebarProps}
+        />
+        <SidebarInset>
+          <Header headerSlot={headerSlot} />
+          <div className="flex flex-1 min-h-0">
+            {panelData && onSubNavChange && (
+              <SecondaryPanel
+                title={panelData.title}
+                items={panelData.items}
+                activeId={activeSubNav}
+                onSelect={onSubNavChange}
+                open={showSecondary}
               />
-              <SidebarGlass.Inset className="bg-transparent !min-h-0 flex flex-col">
-                {!hasTopBar && <HeaderBar headerSlot={headerSlot} />}
-                <div className={cn("flex-1 p-6 flex flex-col min-h-0", contentClassName)}>
-                  {children}
-                </div>
-              </SidebarGlass.Inset>
+            )}
+            <div className={cn("flex-1 flex flex-col min-h-0 overflow-auto p-4", contentClassName)}>
+              {children}
             </div>
           </div>
-        </BreadcrumbProvider>
-      </SidebarGlass.Provider>
-    </>
+        </SidebarInset>
+      </BreadcrumbProvider>
+    </SidebarProvider>
   );
 }

@@ -58,4 +58,9 @@ export {
   Plug,
   Archive,
   Layers,
+  CircleCheck,
+  Terminal,
+  Users,
+  LogIn,
+  Loader2,
 } from "lucide-react";

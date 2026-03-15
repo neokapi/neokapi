@@ -1,7 +1,7 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
-import logoUrl from "../assets/logo.png";
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
 export default function LoginPageExpired(props: {
   kcContext: Extract<KcContext, { pageId: "login-page-expired.ftl" }>;
@@ -16,7 +16,7 @@ export default function LoginPageExpired(props: {
       <div className="flex justify-center mb-8">
         <BowrainLogo />
       </div>
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("pageExpiredTitle")}</h1>
         </CardHeader>

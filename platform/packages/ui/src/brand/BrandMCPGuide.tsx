@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { GlassCard, CardHeader, CardTitle, CardContent } from "../components/ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
@@ -100,7 +100,7 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
         </p>
       </div>
 
-      <GlassCard intensity="subtle">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Prerequisites</CardTitle>
         </CardHeader>
@@ -118,7 +118,7 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
             <span>Add the MCP server configuration to your editor</span>
           </div>
         </CardContent>
-      </GlassCard>
+      </Card>
 
       <Tabs defaultValue="claude-desktop">
         <TabsList className="w-full grid grid-cols-3">
@@ -128,37 +128,37 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
         </TabsList>
 
         <TabsContent value="claude-desktop">
-          <GlassCard intensity="subtle" className="p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
               Add the following to your Claude Desktop configuration file
               (<code className="text-xs bg-muted px-1 rounded">~/Library/Application Support/Claude/claude_desktop_config.json</code>):
             </p>
             <ConfigBlock title="claude_desktop_config.json" config={claudeDesktopConfig} />
-          </GlassCard>
+          </Card>
         </TabsContent>
 
         <TabsContent value="cursor">
-          <GlassCard intensity="subtle" className="p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
               Add the following to your Cursor settings
               (<code className="text-xs bg-muted px-1 rounded">.cursor/mcp.json</code>):
             </p>
             <ConfigBlock title=".cursor/mcp.json" config={cursorConfig} />
-          </GlassCard>
+          </Card>
         </TabsContent>
 
         <TabsContent value="vscode">
-          <GlassCard intensity="subtle" className="p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
               Add the following to your VS Code settings
               (<code className="text-xs bg-muted px-1 rounded">.vscode/settings.json</code>):
             </p>
             <ConfigBlock title=".vscode/settings.json" config={vscodeConfig} />
-          </GlassCard>
+          </Card>
         </TabsContent>
       </Tabs>
 
-      <GlassCard intensity="subtle">
+      <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Available MCP Tools</CardTitle>
         </CardHeader>
@@ -178,7 +178,7 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
             ))}
           </div>
         </CardContent>
-      </GlassCard>
+      </Card>
     </div>
   );
 }

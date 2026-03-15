@@ -28,7 +28,7 @@ import { DocumentPreview } from "./editor/DocumentPreview";
 import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
 import { Button } from "./ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { AlertGlass, AlertGlassDescription } from "./ui/alert";
+import { Alert, AlertDescription } from "./ui/alert";
 import { cn } from "../lib/utils";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
 
@@ -787,7 +787,7 @@ export function TranslationEditor({
       data-testid="block-grid"
     >
       {/* Header row */}
-      <div className="flex px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider sticky top-0 bg-card/80 backdrop-blur-sm z-[1]">
+      <div className="flex px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border uppercase tracking-wider sticky top-0 bg-card backdrop-blur-sm z-[1]">
         <span className="w-10 text-center">#</span>
         <span className="w-4" />
         <span className="flex-1">Source</span>
@@ -1161,14 +1161,12 @@ export function TranslationEditor({
 
         {/* Messages */}
         {error && (
-          <AlertGlass
+          <Alert
             variant="destructive"
-            dismissible
-            onDismiss={() => setError(null)}
             className="mb-2"
           >
-            <AlertGlassDescription>{error}</AlertGlassDescription>
-          </AlertGlass>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Visual Editor Layout */}
@@ -1340,7 +1338,7 @@ export function TranslationEditor({
 
       {/* Progress bar */}
       <div
-        className="relative h-6 bg-muted rounded overflow-hidden mb-2 glass-surface"
+        className="relative h-6 bg-muted rounded overflow-hidden mb-2"
         data-testid="progress-bar"
       >
         {progressSegments}
@@ -1355,24 +1353,19 @@ export function TranslationEditor({
 
       {/* Messages */}
       {error && (
-        <AlertGlass
+        <Alert
           variant="destructive"
-          dismissible
-          onDismiss={() => setError(null)}
           className="mb-2"
         >
-          <AlertGlassDescription>{error}</AlertGlassDescription>
-        </AlertGlass>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       {message && (
-        <AlertGlass
-          variant="success"
-          dismissible
-          onDismiss={() => setMessage(null)}
-          className="mb-2"
+        <Alert
+          className="mb-2 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400"
         >
-          <AlertGlassDescription>{message}</AlertGlassDescription>
-        </AlertGlass>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
       )}
 
       {/* Main content area with optional context panel */}
@@ -1399,7 +1392,7 @@ export function TranslationEditor({
         {/* Context Panel - TM & Terminology */}
         {showContextPanel && (
           <div
-            className="w-[280px] min-w-[280px] border-l border-border bg-card overflow-auto p-3 shrink-0 glass-surface"
+            className="w-[280px] min-w-[280px] border-l border-border bg-card overflow-auto p-3 shrink-0"
             data-testid="context-panel"
           >
             {contextLoading && (

@@ -2,7 +2,7 @@ import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Mail } from "lucide-react";
-import logoUrl from "../assets/logo.png";
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
 export default function LoginIdpLinkEmail(props: {
   kcContext: Extract<KcContext, { pageId: "login-idp-link-email.ftl" }>;
@@ -17,10 +17,10 @@ export default function LoginIdpLinkEmail(props: {
       <div className="flex justify-center mb-8">
         <BowrainLogo />
       </div>
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <div className="flex justify-center mb-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--semantic-border)] bg-[var(--semantic-surface)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-muted">
               <Mail className="h-6 w-6 text-primary" />
             </div>
           </div>
