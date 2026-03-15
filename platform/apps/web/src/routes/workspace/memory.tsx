@@ -29,8 +29,8 @@ export function MemoryRoute() {
     const sources = new Set<string>();
     const targets = new Set<string>();
     for (const p of projects) {
-      sources.add(p.source_locale);
-      for (const t of p.target_locales) {
+      sources.add(p.default_source_language);
+      for (const t of p.target_languages) {
         targets.add(t);
       }
     }

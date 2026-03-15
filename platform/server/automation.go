@@ -175,7 +175,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 	}
 
 	if len(locales) == 0 {
-		for _, l := range proj.TargetLocales {
+		for _, l := range proj.TargetLanguages {
 			locales = append(locales, string(l))
 		}
 	}
@@ -270,7 +270,7 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 		return
 	}
 
-	locale := string(proj.SourceLocale)
+	locale := string(proj.DefaultSourceLanguage)
 	model := "gpt-4o-mini"
 	if proj.Properties != nil && proj.Properties["extraction_model"] != "" {
 		model = proj.Properties["extraction_model"]

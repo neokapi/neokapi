@@ -21,8 +21,8 @@ import (
 type ProjectInfo struct {
 	ID            string        `json:"id"`
 	Name          string        `json:"name"`
-	SourceLocale  string        `json:"source_locale"`
-	TargetLocales []string      `json:"target_locales"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"`
 	Path          string        `json:"path"`
 	Items         []ProjectItem `json:"items"`
 	CreatedAt     string        `json:"created_at"`
@@ -120,8 +120,8 @@ func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*Pro
 
 	p := &store.Project{
 		Name:          name,
-		SourceLocale:  model.LocaleID(sourceLang),
-		TargetLocales: locales,
+		DefaultSourceLanguage: model.LocaleID(sourceLang),
+		TargetLanguages:       locales,
 		Properties:    map[string]string{},
 	}
 
@@ -225,7 +225,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 
 		doc := &model.RawDocument{
 			URI:          filePath,
-			SourceLocale: proj.SourceLocale,
+			SourceLocale: proj.DefaultSourceLanguage,
 			Encoding:     "UTF-8",
 			Reader:       io.NopCloser(bytes.NewReader(data)),
 		}
@@ -246,7 +246,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 		reader.Close()
 
 		// Build block index.
-		blockIndex := editor.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndex := editor.BuildBlockIndex(parts, string(proj.DefaultSourceLanguage), fmtName, itemName)
 		blockIndexJSON, _ := json.Marshal(blockIndex)
 
 		// Store item with source bytes.
@@ -338,15 +338,15 @@ func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 
 // projectToInfo converts a store.Project to a ProjectInfo (without items).
 func projectToInfo(p *store.Project) ProjectInfo {
-	locales := make([]string, len(p.TargetLocales))
-	for i, l := range p.TargetLocales {
+	locales := make([]string, len(p.TargetLanguages))
+	for i, l := range p.TargetLanguages {
 		locales[i] = string(l)
 	}
 	return ProjectInfo{
-		ID:            p.ID,
-		Name:          p.Name,
-		SourceLocale:  string(p.SourceLocale),
-		TargetLocales: locales,
+		ID:                    p.ID,
+		Name:                  p.Name,
+		DefaultSourceLanguage: string(p.DefaultSourceLanguage),
+		TargetLanguages:       locales,
 		Items:         []ProjectItem{},
 		CreatedAt:     p.CreatedAt.Format(time.RFC3339),
 		ModifiedAt:    p.UpdatedAt.Format(time.RFC3339),

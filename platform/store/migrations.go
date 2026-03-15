@@ -469,4 +469,13 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_audit_log_type ON audit_log(project_id, event_type, created_at DESC);
 		`,
 	},
+	{
+		Version:     21,
+		Description: "rename locale columns to language columns",
+		SQL: `
+			ALTER TABLE projects RENAME COLUMN source_locale TO default_source_language;
+			ALTER TABLE projects RENAME COLUMN target_locales TO target_languages;
+			ALTER TABLE projects ADD COLUMN target_language_mode TEXT NOT NULL DEFAULT 'defined';
+		`,
+	},
 }

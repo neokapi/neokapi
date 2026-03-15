@@ -18,7 +18,7 @@ import (
 func createProject(t *testing.T, srv *Server, token string) string {
 	t.Helper()
 	e := srv.GetEcho()
-	body := `{"name":"SyncTest","source_locale":"en"}`
+	body := `{"name":"SyncTest","default_source_language":"en"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)

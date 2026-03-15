@@ -16,8 +16,8 @@ func TestCreateProject(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, info.ID)
 	assert.Equal(t, "Test Project", info.Name)
-	assert.Equal(t, "en", info.SourceLocale)
-	assert.Equal(t, []string{"fr", "de"}, info.TargetLocales)
+	assert.Equal(t, "en", info.DefaultSourceLanguage)
+	assert.Equal(t, []string{"fr", "de"}, info.TargetLanguages)
 	assert.NotEmpty(t, info.CreatedAt)
 	assert.Empty(t, info.Items)
 }

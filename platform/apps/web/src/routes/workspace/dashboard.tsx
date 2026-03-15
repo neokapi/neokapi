@@ -55,7 +55,7 @@ export function ProjectDashboardRoute() {
   }, [ws, workspace, adapter, navigate, invalidateProjects]);
 
   const handleEditProject = useCallback(
-    async (projectId: string, data: { name?: string; target_locales?: string[] }) => {
+    async (projectId: string, data: { name?: string; target_languages?: string[] }) => {
       await adapter.updateProject(ws, projectId, data);
       invalidateProjects();
     },
@@ -80,6 +80,7 @@ export function ProjectDashboardRoute() {
         workspaceName={activeWorkspace.name}
         onEditProject={handleEditProject}
         onArchiveProject={setArchiveProjectId}
+        workspaceLanguages={activeWorkspace.languages}
       />
 
       <ConfirmDialog

@@ -414,7 +414,7 @@ func (a *App) TermEnforceItem(projectID, itemName, targetLocale string) ([]TermE
 		return nil, err
 	}
 
-	srcLocale := proj.SourceLocale
+	srcLocale := proj.DefaultSourceLanguage
 	tgtLocale := model.LocaleID(targetLocale)
 
 	var results []TermEnforceResult

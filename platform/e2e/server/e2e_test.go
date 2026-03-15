@@ -174,7 +174,7 @@ func TestProjectInWorkspace(t *testing.T) {
 	apiRequest(t, http.MethodPost, "/api/v1/workspaces", token, body)
 
 	// Create project in workspace.
-	projBody := `{"name":"Test Project","source_locale":"en","target_locales":["fr","de"]}`
+	projBody := `{"name":"Test Project","default_source_language":"en","target_languages":["fr","de"]}`
 	resp := apiRequest(t, http.MethodPost, "/api/v1/workspaces/proj-ws/projects", token, projBody)
 	require.Equal(t, http.StatusCreated, resp.StatusCode)
 	proj := readJSON(t, resp)

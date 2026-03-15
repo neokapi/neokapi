@@ -110,8 +110,8 @@ export interface HealthResponse {
 export interface ProjectInfo {
   id: string;
   name: string;
-  source_locale: string;
-  target_locales: string[];
+  default_source_language: string;
+  target_languages: string[];
   path: string;
   items: ProjectItem[];
   created_at: string;

@@ -20,8 +20,8 @@ func TestCreateAnonymousProject(t *testing.T) {
 			var req map[string]any
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "my-project", req["name"])
-			assert.Equal(t, "en", req["source_locale"])
-			targets := req["target_locales"].([]any)
+			assert.Equal(t, "en", req["default_source_language"])
+			targets := req["target_languages"].([]any)
 			assert.Equal(t, []any{"nb", "fr"}, targets)
 
 			w.WriteHeader(http.StatusCreated)
@@ -62,7 +62,7 @@ func TestCreateAnonymousProject(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var req map[string]any
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
-			assert.Nil(t, req["target_locales"], "empty targets should not be sent")
+			assert.Nil(t, req["target_languages"], "empty targets should not be sent")
 
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]string{
@@ -117,7 +117,7 @@ func TestCreateAuthenticatedProject(t *testing.T) {
 			var req map[string]any
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
 			assert.Equal(t, "my-project", req["name"])
-			assert.Equal(t, "en", req["source_locale"])
+			assert.Equal(t, "en", req["default_source_language"])
 
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(map[string]any{

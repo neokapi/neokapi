@@ -38,7 +38,7 @@ func TestEventEmittingStoreProject(t *testing.T) {
 		mu.Unlock()
 	})
 
-	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
+	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, es.CreateProject(ctx, p))
 
 	p.Name = "Updated"
@@ -73,7 +73,7 @@ func TestEventEmittingStoreBlocks(t *testing.T) {
 		mu.Unlock()
 	})
 
-	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
+	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, es.CreateProject(ctx, p))
 
 	blocks := []*model.Block{model.NewBlock("b1", "Hello"), model.NewBlock("b2", "World")}
@@ -100,7 +100,7 @@ func TestEventEmittingStoreVersion(t *testing.T) {
 		mu.Unlock()
 	})
 
-	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
+	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, es.CreateProject(ctx, p))
 	require.NoError(t, es.StoreBlocks(ctx, p.ID, "main", []*model.Block{model.NewBlock("b1", "Hi")}))
 

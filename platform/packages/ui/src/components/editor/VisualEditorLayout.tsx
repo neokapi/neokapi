@@ -163,7 +163,7 @@ export function VisualEditorLayout({
   const showTermSidebar = termMatches.length > 0 || editorMode === "enrich";
 
   // Available reference locales = target locales minus the active target locale
-  const availableRefLocales = project.target_locales.filter((l) => l !== targetLocale);
+  const availableRefLocales = project.target_languages.filter((l) => l !== targetLocale);
 
   const toggleRefLocale = useCallback((locale: string) => {
     setReferenceLocales((prev) =>

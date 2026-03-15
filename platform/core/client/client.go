@@ -406,10 +406,10 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]Block
 
 // ProjectMetadata contains server-side project metadata fetched during sync.
 type ProjectMetadata struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	SourceLocale  string   `json:"source_locale"`
-	TargetLocales []string `json:"target_locales"`
+	ID                    string   `json:"id"`
+	Name                  string   `json:"name"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"`
 }
 
 // GetProjectMetadata fetches project metadata from the server.
@@ -446,10 +446,10 @@ func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadat
 func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales []string, email string) (projectID, claimToken string, err error) {
 	payload := map[string]any{
 		"name":          name,
-		"source_locale": sourceLocale,
+		"default_source_language": sourceLocale,
 	}
 	if len(targetLocales) > 0 {
-		payload["target_locales"] = targetLocales
+		payload["target_languages"] = targetLocales
 	}
 	if email != "" {
 		payload["email"] = email
@@ -488,10 +488,10 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
 	payload := map[string]any{
 		"name":          name,
-		"source_locale": sourceLocale,
+		"default_source_language": sourceLocale,
 	}
 	if len(targetLocales) > 0 {
-		payload["target_locales"] = targetLocales
+		payload["target_languages"] = targetLocales
 	}
 	if workspace != "" {
 		payload["workspace"] = workspace
@@ -570,11 +570,11 @@ func ListWorkspaces(serverURL, token string) ([]WorkspaceInfo, error) {
 
 // ProjectInfo contains project metadata returned by GetProject.
 type ProjectInfo struct {
-	ID            string   `json:"id"`
-	Name          string   `json:"name"`
-	SourceLocale  string   `json:"source_locale"`
-	TargetLocales []string `json:"target_locales"`
-	WorkspaceID   string   `json:"workspace_id"`
+	ID                    string   `json:"id"`
+	Name                  string   `json:"name"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"`
+	WorkspaceID           string   `json:"workspace_id"`
 }
 
 // GetProject retrieves a project by ID.

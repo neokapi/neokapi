@@ -37,7 +37,7 @@ export function TranslateRoute() {
     workspace: ws,
     projectId: projectId ?? "",
     fileName,
-    locale: project.target_locales?.[0] ?? "",
+    locale: project.target_languages?.[0] ?? "",
     user: {
       userId: user.id,
       name: user.name,

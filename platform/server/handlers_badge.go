@@ -61,11 +61,11 @@ func (s *Server) HandleProjectBadge(c echo.Context) error {
 }
 
 func localeBadge(p *store.Project) BadgeResponse {
-	locales := make([]string, len(p.TargetLocales))
-	for i, l := range p.TargetLocales {
+	locales := make([]string, len(p.TargetLanguages))
+	for i, l := range p.TargetLanguages {
 		locales[i] = string(l)
 	}
-	msg := fmt.Sprintf("%s → %s", p.SourceLocale, strings.Join(locales, ", "))
+	msg := fmt.Sprintf("%s → %s", p.DefaultSourceLanguage, strings.Join(locales, ", "))
 	return BadgeResponse{
 		SchemaVersion: 1,
 		Label:         "locales",
@@ -116,7 +116,7 @@ func (s *Server) progressBadge(c echo.Context, p *store.Project) BadgeResponse {
 	// Compute per-locale translation progress.
 	localeParts := []string{}
 	allComplete := true
-	for _, locale := range p.TargetLocales {
+	for _, locale := range p.TargetLanguages {
 		translated := 0
 		for _, b := range blocks {
 			if b.Block.TargetText(locale) != "" {

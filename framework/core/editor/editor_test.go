@@ -80,7 +80,7 @@ func TestBuildBlockIndex(t *testing.T) {
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
 
 	assert.Equal(t, "1.0", index.Version)
-	assert.Equal(t, "en", index.SourceLocale)
+	assert.Equal(t, "en", index.SourceLanguage)
 	assert.Equal(t, "html", index.OriginalFormat)
 	assert.Equal(t, "page.html", index.OriginalItem)
 
@@ -146,7 +146,7 @@ func TestBlockIndexRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, index.Version, index2.Version)
-	assert.Equal(t, index.SourceLocale, index2.SourceLocale)
+	assert.Equal(t, index.SourceLanguage, index2.SourceLocale)
 	assert.Equal(t, index.OriginalFormat, index2.OriginalFormat)
 	assert.Equal(t, index.OriginalItem, index2.OriginalItem)
 	require.Len(t, index2.Blocks, 2)
@@ -320,7 +320,7 @@ func TestRenderFragmentHTML(t *testing.T) {
 func TestReadWriteBlockIndex(t *testing.T) {
 	index := &BlockIndex{
 		Version:        "1.0",
-		SourceLocale:   "en",
+		SourceLanguage: "en",
 		OriginalFormat: "html",
 		OriginalItem:   "page.html",
 		Blocks: []Block{

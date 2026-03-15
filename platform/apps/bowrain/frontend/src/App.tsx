@@ -471,8 +471,8 @@ function App() {
     if (activeView === "translate" && activeProject && showTermExplorer) {
       return (
         <TermExplorer
-          sourceLocale={activeProject.source_locale}
-          targetLocales={activeProject.target_locales}
+          sourceLocale={activeProject.default_source_language}
+          targetLocales={activeProject.target_languages}
           projectName={activeProject.name}
           onBack={handleBackToProject}
         />
@@ -482,8 +482,8 @@ function App() {
     if (activeView === "translate" && activeProject && showTMExplorer) {
       return (
         <TMExplorer
-          sourceLocale={activeProject.source_locale}
-          targetLocales={activeProject.target_locales}
+          sourceLocale={activeProject.default_source_language}
+          targetLocales={activeProject.target_languages}
           onBack={handleBackToProject}
         />
       );

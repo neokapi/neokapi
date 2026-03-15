@@ -14,8 +14,8 @@ import (
 // AnonymousProjectRequest is the request body for creating an anonymous project.
 type AnonymousProjectRequest struct {
 	Name          string   `json:"name"`
-	SourceLocale  string   `json:"source_locale"`
-	TargetLocales []string `json:"target_locales"` // optional; empty = dynamic
+	DefaultSourceLanguage  string   `json:"default_source_language"`
+	TargetLanguages []string `json:"target_languages"` // optional; empty = dynamic
 	Email         string   `json:"email"`          // optional; if set, server sends claim email
 }
 
@@ -27,7 +27,7 @@ type AnonymousProjectResponse struct {
 }
 
 // HandleCreateAnonymousProject creates an anonymous project with a claim token.
-// No authentication required. target_locales is optional (empty = dynamic locales).
+// No authentication required. target_languages is optional (empty = dynamic locales).
 // If email is provided, the server sends a claim email to that address.
 func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	if s.Services == nil || s.Services.Auth == nil {
@@ -39,27 +39,27 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	if req.Name == "" || req.SourceLocale == "" {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name and source_locale are required"})
+	if req.Name == "" || req.DefaultSourceLanguage == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name and default_source_language are required"})
 	}
 
 	ctx := c.Request().Context()
-	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.Name, req.SourceLocale, req.TargetLocales)
+	projectID, claimToken, err := s.Services.Auth.CreateAnonymousProject(ctx, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	// Also create the project in the content store so blocks can reference it.
 	if s.Services.Project != nil {
-		targetLocales := make([]model.LocaleID, len(req.TargetLocales))
-		for i, l := range req.TargetLocales {
+		targetLocales := make([]model.LocaleID, len(req.TargetLanguages))
+		for i, l := range req.TargetLanguages {
 			targetLocales[i] = model.LocaleID(l)
 		}
 		p := &store.Project{
 			ID:            projectID,
 			Name:          req.Name,
-			SourceLocale:  model.LocaleID(req.SourceLocale),
-			TargetLocales: targetLocales,
+			DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
+			TargetLanguages: targetLocales,
 		}
 		if err := s.Services.Project.CreateProject(ctx, p); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create content project: " + err.Error()})

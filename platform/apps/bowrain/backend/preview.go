@@ -36,7 +36,7 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 
 	doc := &model.RawDocument{
 		URI:          itemName,
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
 	}
@@ -56,7 +56,7 @@ func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (s
 	}
 	reader.Close()
 
-	preview := editor.BuildPreview(parts, item.SourceBytes, item.Format, proj.SourceLocale)
+	preview := editor.BuildPreview(parts, item.SourceBytes, item.Format, proj.DefaultSourceLanguage)
 	return preview, nil
 }
 

@@ -30,6 +30,7 @@ type Workspace struct {
 	Description string        `json:"description"`
 	LogoURL     string        `json:"logo_url"`
 	Type        WorkspaceType `json:"type"`
+	Languages   []string      `json:"languages,omitempty"`
 	Role        Role          `json:"role,omitempty"` // current user's role (populated by list/get with user context)
 	CreatedAt   time.Time     `json:"created_at"`
 	UpdatedAt   time.Time     `json:"updated_at"`
@@ -66,8 +67,8 @@ type UnclaimedProject struct {
 	ProjectID     string    `json:"project_id"`
 	ClaimToken    string    `json:"-"` // hashed token stored in DB
 	Name          string    `json:"name"`
-	SourceLocale  string    `json:"source_locale"`
-	TargetLocales string    `json:"target_locales"` // comma-separated
+	DefaultSourceLanguage string `json:"default_source_language"`
+	TargetLanguages       string `json:"target_languages"` // comma-separated
 	CreatedAt     time.Time `json:"created_at"`
 	ExpiresAt     time.Time `json:"expires_at"`
 }

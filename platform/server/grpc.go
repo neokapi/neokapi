@@ -37,9 +37,9 @@ func (g *GRPCServer) CreateProject(ctx context.Context, req *pb.CreateProjectReq
 	}
 
 	p := &store.Project{
-		Name:          req.Name,
-		SourceLocale:  model.LocaleID(req.SourceLocale),
-		TargetLocales: locales,
+		Name:                  req.Name,
+		DefaultSourceLanguage: model.LocaleID(req.SourceLocale),
+		TargetLanguages:       locales,
 		Properties:    req.Properties,
 	}
 	if err := g.srv.Services.Project.CreateProject(ctx, p); err != nil {
@@ -325,14 +325,14 @@ func (g *GRPCServer) Subscribe(req *pb.SubscribeRequest, stream pb.NeokapiServic
 // --- Conversion helpers ---
 
 func projectToProto(p *store.Project) *pb.ProjectResponse {
-	locales := make([]string, len(p.TargetLocales))
-	for i, l := range p.TargetLocales {
+	locales := make([]string, len(p.TargetLanguages))
+	for i, l := range p.TargetLanguages {
 		locales[i] = string(l)
 	}
 	return &pb.ProjectResponse{
 		Id:            p.ID,
 		Name:          p.Name,
-		SourceLocale:  string(p.SourceLocale),
+		SourceLocale:  string(p.DefaultSourceLanguage),
 		TargetLocales: locales,
 		Properties:    p.Properties,
 		CreatedAt:     p.CreatedAt.Format(time.RFC3339),

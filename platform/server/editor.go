@@ -123,10 +123,11 @@ func (ws *workspaceStores) getTB(wsSlug string) (termbase.TBStore, error) {
 
 // ProjectInfoResponse is the API response for a translation project.
 type ProjectInfoResponse struct {
-	ID            string                `json:"id"`
-	Name          string                `json:"name"`
-	SourceLocale  string                `json:"source_locale"`
-	TargetLocales []string              `json:"target_locales"`
+	ID                    string                `json:"id"`
+	Name                  string                `json:"name"`
+	DefaultSourceLanguage string                `json:"default_source_language"`
+	TargetLanguages       []string              `json:"target_languages"`
+	TargetLanguageMode    string                `json:"target_language_mode"`
 	Items         []ProjectItemResponse `json:"items"`
 	Collections   []CollectionResponse  `json:"collections,omitempty"`
 	Streams       []store.Stream        `json:"streams,omitempty"`
@@ -264,11 +265,11 @@ type BlockTermMatchResponse struct {
 
 // TMEntryInfoResponse is the API response for a TM entry.
 type TMEntryInfoResponse struct {
-	ID           string `json:"id"`
-	Source       string `json:"source"`
-	Target       string `json:"target"`
-	SourceLocale string `json:"source_locale"`
-	TargetLocale string `json:"target_locale"`
+	ID             string `json:"id"`
+	Source         string `json:"source"`
+	Target         string `json:"target"`
+	SourceLanguage string `json:"source_language"`
+	TargetLanguage string `json:"target_language"`
 	ProjectID    string `json:"project_id,omitempty"`
 	UpdatedAt    string `json:"updated_at"`
 }
@@ -436,11 +437,11 @@ func editorCreateProject(ctx context.Context, cs store.ContentStore, ws, name, s
 	}
 
 	p := &store.Project{
-		Name:          name,
-		SourceLocale:  model.LocaleID(sourceLang),
-		TargetLocales: locales,
-		WorkspaceID:   ws,
-		Properties:    map[string]string{},
+		Name:                  name,
+		DefaultSourceLanguage: model.LocaleID(sourceLang),
+		TargetLanguages:       locales,
+		WorkspaceID:           ws,
+		Properties:            map[string]string{},
 	}
 	if err := cs.CreateProject(ctx, p); err != nil {
 		return nil, fmt.Errorf("create project: %w", err)
@@ -474,7 +475,7 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 
 		doc := &model.RawDocument{
 			URI:          itemName,
-			SourceLocale: proj.SourceLocale,
+			SourceLocale: proj.DefaultSourceLanguage,
 			Encoding:     "UTF-8",
 			Reader:       io.NopCloser(bytes.NewReader(data)),
 		}
@@ -494,7 +495,7 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 		reader.Close()
 
 		// Build block index.
-		blockIndex := editor.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndex := editor.BuildBlockIndex(parts, string(proj.DefaultSourceLanguage), fmtName, itemName)
 		blockIndexJSON, _ := json.Marshal(blockIndex)
 
 		// Store item with source bytes.
@@ -551,7 +552,7 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 
 		doc := &model.RawDocument{
 			URI:          itemName,
-			SourceLocale: proj.SourceLocale,
+			SourceLocale: proj.DefaultSourceLanguage,
 			Encoding:     "UTF-8",
 			Reader:       io.NopCloser(bytes.NewReader(data)),
 		}
@@ -570,7 +571,7 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 		}
 		reader.Close()
 
-		blockIndex := editor.BuildBlockIndex(parts, string(proj.SourceLocale), fmtName, itemName)
+		blockIndex := editor.BuildBlockIndex(parts, string(proj.DefaultSourceLanguage), fmtName, itemName)
 		blockIndexJSON, _ := json.Marshal(blockIndex)
 
 		item := &store.Item{
@@ -751,7 +752,7 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, st
 	}
 
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(req.TargetLocale),
 		BatchSize:    req.BatchSize,
 		Concurrency:  req.Concurrency,
@@ -798,7 +799,7 @@ func editorTMTranslate(ctx context.Context, cs store.ContentStore, wsStores *wor
 	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
@@ -877,7 +878,7 @@ func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, form
 
 	doc := &model.RawDocument{
 		URI:          itemName,
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
 	}
@@ -992,7 +993,7 @@ func editorLookupTMForBlock(ctx context.Context, cs store.ContentStore, wsStores
 	opts := sievepen.DefaultLookupOptions()
 	opts.MaxResults = 5
 	opts.ProjectID = projectID // for scoring boost
-	matches, err := tm.Lookup(sb.Block, proj.SourceLocale, model.LocaleID(targetLocale), opts)
+	matches, err := tm.Lookup(sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1036,7 +1037,7 @@ func editorLookupTermsForBlock(ctx context.Context, cs store.ContentStore, wsSto
 	}
 
 	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 		ProjectID:    projectID,
 	})
@@ -1106,18 +1107,23 @@ func fileParam(c echo.Context) string {
 
 // projectToInfoResponse converts a store.Project to ProjectInfoResponse.
 func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {
-	locales := make([]string, len(p.TargetLocales))
-	for i, l := range p.TargetLocales {
+	locales := make([]string, len(p.TargetLanguages))
+	for i, l := range p.TargetLanguages {
 		locales[i] = string(l)
 	}
+	mode := p.TargetLanguageMode
+	if mode == "" {
+		mode = "defined"
+	}
 	return &ProjectInfoResponse{
-		ID:            p.ID,
-		Name:          p.Name,
-		SourceLocale:  string(p.SourceLocale),
-		TargetLocales: locales,
-		Items:         []ProjectItemResponse{},
-		CreatedAt:     p.CreatedAt.Format(time.RFC3339),
-		ModifiedAt:    p.UpdatedAt.Format(time.RFC3339),
+		ID:                    p.ID,
+		Name:                  p.Name,
+		DefaultSourceLanguage: string(p.DefaultSourceLanguage),
+		TargetLanguages:       locales,
+		TargetLanguageMode:    mode,
+		Items:                 []ProjectItemResponse{},
+		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
+		ModifiedAt:            p.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -1433,8 +1439,8 @@ func editorEntryToInfo(e sievepen.TMEntry) TMEntryInfoResponse {
 		ID:           e.ID,
 		Source:       e.SourceText(),
 		Target:       e.TargetText(),
-		SourceLocale: string(e.SourceLocale),
-		TargetLocale: string(e.TargetLocale),
+		SourceLanguage: string(e.SourceLocale),
+		TargetLanguage: string(e.TargetLocale),
 		ProjectID:    e.ProjectID,
 		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
 	}

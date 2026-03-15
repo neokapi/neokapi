@@ -66,10 +66,10 @@ export function ProjectDetailRoute() {
   const [showEditProject, setShowEditProject] = useState(false);
 
   const handleEditProjectSubmit = useCallback(
-    async (data: { name: string; source_locale: string; target_locales: string[] }) => {
+    async (data: { name: string; default_source_language: string; target_languages: string[] }) => {
       await adapter.updateProject(ws, project.id, {
         name: data.name,
-        target_locales: data.target_locales,
+        target_languages: data.target_languages,
       });
       setShowEditProject(false);
       invalidateProject();
@@ -271,6 +271,7 @@ export function ProjectDetailRoute() {
         open={showEditProject}
         onOpenChange={setShowEditProject}
         editProject={project}
+        workspaceLanguages={activeWorkspace.languages}
         onSubmit={handleEditProjectSubmit}
       />
 

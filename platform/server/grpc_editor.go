@@ -156,8 +156,8 @@ func (g *EditorGRPCServer) GetBlocks(ctx context.Context, req *pb.GetBlocksReque
 		return nil, status.Errorf(codes.NotFound, "project not found: %v", err)
 	}
 
-	targetLocales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
 		targetLocales[i] = string(l)
 	}
 
@@ -701,14 +701,14 @@ func (g *EditorGRPCServer) WatchProject(req *pb.WatchProjectRequest, stream grpc
 // --- Conversion helpers ---
 
 func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *store.Project, stream string) (*pb.EditorProjectInfo, error) {
-	locales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
+	locales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
 		locales[i] = string(l)
 	}
 	info := &pb.EditorProjectInfo{
 		Id:            proj.ID,
 		Name:          proj.Name,
-		SourceLocale:  string(proj.SourceLocale),
+		SourceLocale:  string(proj.DefaultSourceLanguage),
 		TargetLocales: locales,
 		ActiveStream:  stream,
 		CreatedAt:     proj.CreatedAt.Format(time.RFC3339),

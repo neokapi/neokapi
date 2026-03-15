@@ -23,8 +23,8 @@ func createTestProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 	t.Helper()
 	p := &platstore.Project{
 		Name:          "Test Project",
-		SourceLocale:  model.LocaleEnglish,
-		TargetLocales: []model.LocaleID{model.LocaleFrench, model.LocaleGerman},
+		DefaultSourceLanguage:  model.LocaleEnglish,
+		TargetLanguages: []model.LocaleID{model.LocaleFrench, model.LocaleGerman},
 		Properties:    map[string]string{"client": "acme"},
 	}
 	require.NoError(t, s.CreateProject(context.Background(), p))
@@ -46,8 +46,8 @@ func TestProjectCRUD(t *testing.T) {
 		got, err := s.GetProject(ctx, p.ID)
 		require.NoError(t, err)
 		assert.Equal(t, p.Name, got.Name)
-		assert.Equal(t, p.SourceLocale, got.SourceLocale)
-		assert.Equal(t, p.TargetLocales, got.TargetLocales)
+		assert.Equal(t, p.DefaultSourceLanguage, got.DefaultSourceLanguage)
+		assert.Equal(t, p.TargetLanguages, got.TargetLanguages)
 		assert.Equal(t, "acme", got.Properties["client"])
 	})
 

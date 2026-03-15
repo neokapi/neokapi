@@ -15,8 +15,8 @@ import (
 // ProjectRequest is the request body for creating/updating a project.
 type ProjectRequest struct {
 	Name          string   `json:"name"`
-	SourceLocale  string   `json:"source_locale"`
-	TargetLocales []string `json:"target_locales"`
+	DefaultSourceLanguage  string   `json:"default_source_language"`
+	TargetLanguages []string `json:"target_languages"`
 	Workspace     string   `json:"workspace,omitempty"`
 }
 
@@ -80,15 +80,15 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		}
 	}
 
-	locales := make([]model.LocaleID, len(req.TargetLocales))
-	for i, l := range req.TargetLocales {
+	locales := make([]model.LocaleID, len(req.TargetLanguages))
+	for i, l := range req.TargetLanguages {
 		locales[i] = model.LocaleID(l)
 	}
 
 	p := &store.Project{
 		Name:          req.Name,
-		SourceLocale:  model.LocaleID(req.SourceLocale),
-		TargetLocales: locales,
+		DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
+		TargetLanguages: locales,
 		WorkspaceID:   targetWS.ID,
 	}
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
@@ -98,8 +98,8 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 	return c.JSON(http.StatusCreated, map[string]any{
 		"id":             p.ID,
 		"name":           p.Name,
-		"source_locale":  string(p.SourceLocale),
-		"target_locales": req.TargetLocales,
+		"default_source_language":  string(p.DefaultSourceLanguage),
+		"target_languages": req.TargetLanguages,
 		"workspace_id":   p.WorkspaceID,
 		"workspace_slug": targetWS.Slug,
 	})
@@ -146,8 +146,8 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	locales := make([]model.LocaleID, len(req.TargetLocales))
-	for i, l := range req.TargetLocales {
+	locales := make([]model.LocaleID, len(req.TargetLanguages))
+	for i, l := range req.TargetLanguages {
 		locales[i] = model.LocaleID(l)
 	}
 
@@ -163,8 +163,8 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 	p := &store.Project{
 		ID:            projectID,
 		Name:          req.Name,
-		SourceLocale:  model.LocaleID(req.SourceLocale),
-		TargetLocales: locales,
+		DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
+		TargetLanguages: locales,
 		WorkspaceID:   workspaceID,
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
@@ -174,7 +174,7 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 	// Detect new locales and publish event.
 	if s.EventBus != nil {
 		oldLocales := make(map[model.LocaleID]bool)
-		for _, l := range existing.TargetLocales {
+		for _, l := range existing.TargetLanguages {
 			oldLocales[l] = true
 		}
 		var newLocales []string

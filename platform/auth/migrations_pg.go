@@ -92,4 +92,13 @@ var authMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
 		`,
 	},
+	{
+		Version:     3,
+		Description: "add languages to workspaces and rename locale columns in unclaimed_projects",
+		SQL: `
+			ALTER TABLE workspaces ADD COLUMN languages TEXT NOT NULL DEFAULT '[]';
+			ALTER TABLE unclaimed_projects RENAME COLUMN source_locale TO default_source_language;
+			ALTER TABLE unclaimed_projects RENAME COLUMN target_locales TO target_languages;
+		`,
+	},
 }

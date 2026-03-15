@@ -6,10 +6,17 @@ import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
 
+/** Common languages used as fallback when workspace has no languages configured. */
+const DEFAULT_LANGUAGES = [
+  "en", "fr", "de", "es", "it", "pt", "nl", "ja", "ko", "zh",
+  "ar", "ru", "sv", "nb", "da", "fi", "pl", "cs", "tr", "th",
+];
+
 export interface ProjectFormData {
   name: string;
-  source_locale: string;
-  target_locales: string[];
+  default_source_language: string;
+  target_languages: string[];
+  target_language_mode: string;
 }
 
 export interface ProjectFormDialogProps {
@@ -18,37 +25,59 @@ export interface ProjectFormDialogProps {
   onSubmit: (data: ProjectFormData) => void;
   /** When set, the dialog operates in edit mode with pre-populated fields. */
   editProject?: ProjectInfo;
+  /** Workspace languages — when set, locale pickers are restricted to these. */
+  workspaceLanguages?: string[];
 }
 
-export function ProjectFormDialog({ open, onOpenChange, onSubmit, editProject }: ProjectFormDialogProps) {
+export function ProjectFormDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  editProject,
+  workspaceLanguages,
+}: ProjectFormDialogProps) {
   const [name, setName] = useState("");
   const [sourceLang, setSourceLang] = useState("en");
-  const [targetLangs, setTargetLangs] = useState<string[]>(["fr"]);
+  const [targetLangs, setTargetLangs] = useState<string[]>([]);
+  const [targetMode, setTargetMode] = useState<"defined" | "open">("defined");
 
   const isEdit = !!editProject;
+  const effectiveLangs = workspaceLanguages && workspaceLanguages.length > 0
+    ? workspaceLanguages
+    : DEFAULT_LANGUAGES;
 
   useEffect(() => {
     if (open && editProject) {
       setName(editProject.name);
-      setSourceLang(editProject.source_locale);
-      setTargetLangs([...editProject.target_locales]);
+      setSourceLang(editProject.default_source_language);
+      setTargetLangs([...editProject.target_languages]);
+      setTargetMode((editProject.target_language_mode as "defined" | "open") || "defined");
+    } else if (open && !editProject) {
+      // Set sensible defaults from workspace languages
+      if (effectiveLangs.length > 0) {
+        setSourceLang(effectiveLangs[0]);
+        setTargetLangs(effectiveLangs.length > 1 ? [effectiveLangs[1]] : []);
+      }
     }
-  }, [open, editProject]);
+  }, [open, editProject, effectiveLangs.length > 0, workspaceLanguages]);
 
   const handleSubmit = () => {
-    if (!name.trim() || targetLangs.length === 0) return;
+    if (!name.trim()) return;
+    if (targetMode === "defined" && targetLangs.length === 0) return;
     onSubmit({
       name: name.trim(),
-      source_locale: sourceLang,
-      target_locales: targetLangs,
+      default_source_language: sourceLang,
+      target_languages: targetLangs,
+      target_language_mode: targetMode,
     });
   };
 
   const handleOpenChange = (v: boolean) => {
     if (!v) {
       setName("");
-      setSourceLang("en");
-      setTargetLangs(["fr"]);
+      setSourceLang(effectiveLangs.length > 0 ? effectiveLangs[0] : "en");
+      setTargetLangs([]);
+      setTargetMode("defined");
     }
     onOpenChange(v);
   };
@@ -61,7 +90,7 @@ export function ProjectFormDialog({ open, onOpenChange, onSubmit, editProject }:
         onInteractOutside={(e: Event) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Project" : "Create Translation Project"}</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Project" : "Create Project"}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
           <div>
@@ -76,34 +105,70 @@ export function ProjectFormDialog({ open, onOpenChange, onSubmit, editProject }:
               className="mt-1"
             />
           </div>
-          <div className="flex gap-3">
-            <div className="flex flex-col gap-1 flex-1">
-              <Label className="text-muted-foreground">Source Language</Label>
-              {isEdit ? (
-                <>
-                  <div className="px-3 py-2 rounded-md border border-border/50 text-sm text-muted-foreground bg-muted/30">
-                    {sourceLang}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Source language cannot be changed
-                  </p>
-                </>
-              ) : (
-                <LocaleSelect
-                  value={sourceLang}
-                  onChange={setSourceLang}
-                  data-testid="source-lang-input"
-                />
-              )}
-            </div>
-            <div className="flex flex-col gap-1 flex-1">
-              <Label className="text-muted-foreground">Target Languages</Label>
-              <MultiLocaleSelect
-                value={targetLangs}
-                onChange={setTargetLangs}
-                data-testid="target-langs-input"
+
+          <div>
+            <Label className="text-muted-foreground">Default Source Language</Label>
+            <p className="text-[11px] text-muted-foreground mb-1">
+              The primary language of source content. Individual items can override this.
+            </p>
+            {isEdit ? (
+              <div className="px-3 py-2 rounded-md border border-border/50 text-sm text-muted-foreground bg-muted/30">
+                {sourceLang}
+              </div>
+            ) : (
+              <LocaleSelect
+                value={sourceLang}
+                onChange={setSourceLang}
+                codes={effectiveLangs}
+                data-testid="source-lang-input"
               />
+            )}
+          </div>
+
+          <div>
+            <Label className="text-muted-foreground">Target Languages</Label>
+            <div className="flex gap-2 mt-1 mb-2">
+              <button
+                type="button"
+                onClick={() => setTargetMode("defined")}
+                className={`
+                  px-3 py-1.5 rounded-md text-[12px] font-medium border cursor-pointer
+                  transition-colors bg-transparent
+                  ${targetMode === "defined"
+                    ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                  }
+                `}
+              >
+                Defined list
+              </button>
+              <button
+                type="button"
+                onClick={() => setTargetMode("open")}
+                className={`
+                  px-3 py-1.5 rounded-md text-[12px] font-medium border cursor-pointer
+                  transition-colors bg-transparent
+                  ${targetMode === "open"
+                    ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
+                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                  }
+                `}
+              >
+                Open contributions
+              </button>
             </div>
+            <p className="text-[11px] text-muted-foreground mb-2">
+              {targetMode === "defined"
+                ? "Only these languages can be translated to."
+                : "Contributors can add new languages. New languages are auto-added to the list."
+              }
+            </p>
+            <MultiLocaleSelect
+              value={targetLangs}
+              onChange={setTargetLangs}
+              codes={effectiveLangs}
+              data-testid="target-langs-input"
+            />
           </div>
         </div>
         <DialogFooter>
@@ -112,7 +177,7 @@ export function ProjectFormDialog({ open, onOpenChange, onSubmit, editProject }:
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!name.trim() || targetLangs.length === 0}
+            disabled={!name.trim() || (targetMode === "defined" && targetLangs.length === 0)}
             data-testid={isEdit ? "edit-project-submit" : "create-project-submit"}
           >
             {isEdit ? "Save" : "Create"}

@@ -38,7 +38,7 @@ type SyncCache struct {
 
 // CachedProjectMeta caches server-side project metadata locally.
 type CachedProjectMeta struct {
-	TargetLocales []string  `json:"target_locales,omitempty"`
+	TargetLanguages []string `json:"target_languages,omitempty"`
 	FetchedAt     time.Time `json:"fetched_at"`
 }
 

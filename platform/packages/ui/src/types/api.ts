@@ -14,6 +14,7 @@ export interface Workspace {
   description: string;
   logo_url: string;
   type: "personal" | "team";
+  languages?: string[];
   role: string; // current user's role in the workspace
 }
 
@@ -155,8 +156,9 @@ export interface CreateCollectionRequest {
 export interface ArchivedProject {
   id: string;
   name: string;
-  source_locale: string;
-  target_locales: string[];
+  default_source_language: string;
+  target_languages: string[];
+  target_language_mode?: string;
   workspace_id?: string;
   archived: boolean;
   archived_at?: string;
@@ -168,8 +170,9 @@ export interface ArchivedProject {
 export interface ProjectInfo {
   id: string;
   name: string;
-  source_locale: string;
-  target_locales: string[];
+  default_source_language: string;
+  target_languages: string[];
+  target_language_mode?: string;
   workspace_id?: string;
   path?: string;
   items?: ProjectItem[];
@@ -360,8 +363,8 @@ export interface TMEntryInfo {
   id: string;
   source: string;
   target: string;
-  source_locale: string;
-  target_locale: string;
+  source_language: string;
+  target_language: string;
   project_id?: string;
   stream?: string;
   updated_at: string;

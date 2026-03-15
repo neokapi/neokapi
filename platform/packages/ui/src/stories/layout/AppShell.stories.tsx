@@ -32,8 +32,8 @@ const secondWorkspace: Workspace = {
 const sampleProject: ProjectInfo = {
   id: "proj-1",
   name: "Marketing Website",
-  source_locale: "en-US",
-  target_locales: ["fr-FR", "de-DE", "ja-JP", "es-ES"],
+  default_source_language: "en-US",
+  target_languages: ["fr-FR", "de-DE", "ja-JP", "es-ES"],
   workspace_id: "ws-1",
   items: [
     { id: "itm-lnd", name: "landing.html", format: "html", type: "file", size: 12000, block_count: 48, word_count: 1320 },

@@ -41,7 +41,7 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*
 	var prompt strings.Builder
 	prompt.WriteString(fmt.Sprintf(
 		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLocale, req.TargetLocale, req.Source,
+		req.SourceLanguage, req.TargetLocale, req.Source,
 	))
 
 	if len(req.Glossary) > 0 {

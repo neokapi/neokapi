@@ -141,7 +141,7 @@ func executeExtraction(ctx context.Context, deps *ExtractionWorkerDeps, job *Ext
 
 	locale := model.LocaleID(job.Locale)
 	if locale == "" {
-		locale = proj.SourceLocale
+		locale = proj.DefaultSourceLanguage
 	}
 
 	// Collect known terms from the project's termbase to avoid re-proposing.

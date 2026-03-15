@@ -26,7 +26,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, p *store.Project) er
 	if p.Name == "" {
 		return fmt.Errorf("project name is required")
 	}
-	if p.SourceLocale == "" {
+	if p.DefaultSourceLanguage == "" {
 		return fmt.Errorf("source locale is required")
 	}
 	return s.store.CreateProject(ctx, p)

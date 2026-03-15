@@ -26,7 +26,7 @@ func TestProjectServiceCRUD(t *testing.T) {
 
 	p := &store.Project{
 		Name:         "Test",
-		SourceLocale: model.LocaleEnglish,
+		DefaultSourceLanguage: model.LocaleEnglish,
 	}
 	require.NoError(t, svc.CreateProject(ctx, p))
 	assert.NotEmpty(t, p.ID)
@@ -52,7 +52,7 @@ func TestProjectServiceBlocks(t *testing.T) {
 	svc := NewProjectService(s)
 	ctx := context.Background()
 
-	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
+	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, svc.CreateProject(ctx, p))
 
 	b := model.NewBlock("b1", "Hello")
@@ -72,7 +72,7 @@ func TestProjectServiceVersioning(t *testing.T) {
 	svc := NewProjectService(s)
 	ctx := context.Background()
 
-	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
+	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, svc.CreateProject(ctx, p))
 	require.NoError(t, svc.StoreBlocks(ctx, p.ID, []*model.Block{model.NewBlock("b1", "Hello")}))
 

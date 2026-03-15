@@ -159,7 +159,7 @@ type InfoResult struct {
 // OpenArgs holds the arguments for the Open RPC.
 type OpenArgs struct {
 	URI          string `json:"uri"`
-	SourceLocale string `json:"source_locale"`
+	SourceLanguage string `json:"source_language"`
 	Encoding     string `json:"encoding"`
 	Content      []byte `json:"content"`
 	MimeType     string `json:"mime_type"`

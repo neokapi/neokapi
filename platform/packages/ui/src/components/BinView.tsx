@@ -76,7 +76,7 @@ export function BinView({
                         {project.name}
                       </span>
                       <Badge variant="secondary" className="text-[10px]">
-                        {project.source_locale} → {project.target_locales.join(", ")}
+                        {project.default_source_language} → {project.target_languages.join(", ")}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 mt-1 text-[12px] text-muted-foreground/60">

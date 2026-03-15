@@ -37,7 +37,7 @@ func (s *FormatReaderRPCServer) Info(_ struct{}, resp *shared.InfoResult) error 
 func (s *FormatReaderRPCServer) Open(args *shared.OpenArgs, errStr *string) error {
 	doc := &model.RawDocument{
 		URI:          args.URI,
-		SourceLocale: model.LocaleID(args.SourceLocale),
+		SourceLocale: model.LocaleID(args.SourceLanguage),
 		Encoding:     args.Encoding,
 		MimeType:     args.MimeType,
 		FormatID:     args.FormatID,
