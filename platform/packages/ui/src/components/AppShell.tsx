@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { cn } from "../lib/utils";
-import { SidebarProvider, SidebarInset } from "./ui/sidebar";
+import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from "./ui/sidebar";
+import { Separator } from "./ui/separator";
 import { AppSidebar, type AppSidebarProps, type SubNavItem, subNavConfig } from "./AppSidebar";
 import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";
 
@@ -20,10 +21,17 @@ export type { SidebarContext } from "./AppSidebar";
 
 function Header({ headerSlot }: { headerSlot?: ReactNode }) {
   const breadcrumb = useBreadcrumb();
+  const { isMobile } = useSidebar();
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-2 border-b">
       <div className="flex items-center gap-2 px-4">
+        {isMobile && (
+          <>
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
+          </>
+        )}
         {breadcrumb}
       </div>
       <div className="flex-1 min-w-0" />
@@ -48,7 +56,7 @@ function SecondaryPanel({
   return (
     <div
       className={cn(
-        "shrink-0 bg-sidebar text-sidebar-foreground overflow-hidden transition-[width,border-width] duration-200 ease-in-out",
+        "shrink-0 bg-sidebar text-sidebar-foreground overflow-hidden transition-[width,border-width] duration-200 ease-in-out hidden md:flex flex-col",
         open ? "border-r" : "border-r-0",
       )}
       style={{ width: open ? 208 : 0 }}
@@ -109,7 +117,6 @@ export function AppShell<V extends string = string>({
   const subNavItems = activeView ? subNavConfig[activeView] : undefined;
   const showSecondary = !!(subNavItems && onSubNavChange);
 
-  // Keep last known sub-nav items so the panel can animate closed with content still visible.
   const lastSubNavRef = useRef<{ items: SubNavItem[]; title: string } | null>(null);
   if (subNavItems && activeView) {
     lastSubNavRef.current = { items: subNavItems, title: viewLabels[activeView] ?? activeView };
@@ -125,6 +132,8 @@ export function AppShell<V extends string = string>({
         <AppSidebar
           collapsed={collapsed}
           onCollapsedChange={onCollapsedChange}
+          activeSubNav={activeSubNav}
+          onSubNavChange={onSubNavChange}
           {...sidebarProps}
         />
         <SidebarInset>

@@ -17,6 +17,7 @@ import {
   Info,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
+import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +29,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "./ui/sidebar";
 
 // ---------------------------------------------------------------------------
@@ -88,9 +90,7 @@ export interface AppSidebarProps<V extends string = string> {
   pendingChanges?: number;
   showThemeToggle?: boolean;
   sidebarContext?: SidebarContext;
-  /** Active sub-navigation item (e.g. "general", "languages" for settings). */
   activeSubNav?: string;
-  /** Called when a sub-nav item is clicked. */
   onSubNavChange?: (id: string) => void;
 }
 
@@ -124,7 +124,7 @@ export const subNavConfig: Record<string, SubNavItem[]> = {
 };
 
 // ---------------------------------------------------------------------------
-// Icon rail nav
+// Desktop: Icon-only rail
 // ---------------------------------------------------------------------------
 
 function IconNav<V extends string>({
@@ -233,6 +233,164 @@ function IconNav<V extends string>({
 }
 
 // ---------------------------------------------------------------------------
+// Mobile: Full nav with labels + inline sub-nav
+// ---------------------------------------------------------------------------
+
+function MobileNav<V extends string>({
+  activeView,
+  onViewChange,
+  extraNavItems = [],
+  sidebarContext,
+  activeSubNav,
+  onSubNavChange,
+}: {
+  activeView: V;
+  onViewChange: (view: V) => void;
+  extraNavItems?: NavItem[];
+  sidebarContext: SidebarContext;
+  activeSubNav?: string;
+  onSubNavChange?: (id: string) => void;
+}) {
+  const { setOpenMobile } = useSidebar();
+  const mainItems = [...workspaceNavItems, ...extraNavItems];
+  const isProject = sidebarContext.level === "project";
+
+  const handleNav = (id: string) => {
+    onViewChange(id as V);
+    setOpenMobile(false);
+  };
+
+  const handleSubNav = (id: string) => {
+    onSubNavChange?.(id);
+    setOpenMobile(false);
+  };
+
+  if (isProject) {
+    const ctx = sidebarContext as Extract<SidebarContext, { level: "project" }>;
+    return (
+      <>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton onClick={() => { ctx.onBack(); setOpenMobile(false); }} data-testid="sidebar-home">
+                  <ArrowLeft />
+                  <span>Back</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarSeparator />
+        <SidebarGroup>
+          <SidebarGroupLabel>{ctx.project.name}</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  isActive={ctx.activeProjectView === "dashboard"}
+                  onClick={() => { ctx.onOpenDashboard(); setOpenMobile(false); }}
+                  data-testid="sidebar-dashboard"
+                >
+                  <LayoutDashboard />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {ctx.onOpenAutomations && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={ctx.activeProjectView === "automations"}
+                    onClick={() => { ctx.onOpenAutomations!(); setOpenMobile(false); }}
+                    data-testid="sidebar-automations"
+                  >
+                    <Sparkles />
+                    <span>Automations</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </>
+    );
+  }
+
+  // Workspace-level: show main nav items
+  const subItems = subNavConfig[activeView as string];
+
+  return (
+    <>
+      <SidebarGroup>
+        <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {mainItems.map(({ id, label, icon }) => (
+              <SidebarMenuItem key={id}>
+                <SidebarMenuButton
+                  isActive={activeView === id}
+                  onClick={() => handleNav(id)}
+                  data-testid={`nav-${id}`}
+                >
+                  {icon}
+                  <span>{label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      {/* Settings + bottom items */}
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {workspaceBottomItems.map(({ id, label, icon }) => (
+              <SidebarMenuItem key={id}>
+                <SidebarMenuButton
+                  isActive={activeView === id}
+                  onClick={() => handleNav(id)}
+                  data-testid={`nav-${id}`}
+                >
+                  {icon}
+                  <span>{label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+
+      {/* Inline sub-nav for current view (e.g. settings sub-items) */}
+      {subItems && onSubNavChange && (
+        <>
+          <SidebarSeparator />
+          <SidebarGroup>
+            <SidebarGroupLabel>
+              {activeView.charAt(0).toUpperCase() + (activeView as string).slice(1)}
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {subItems.map((item) => (
+                  <SidebarMenuItem key={item.id}>
+                    <SidebarMenuButton
+                      isActive={activeSubNav === item.id}
+                      onClick={() => handleSubNav(item.id)}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -245,8 +403,8 @@ export function AppSidebar<V extends string = string>({
   onViewChange,
   extraNavItems = [],
   sidebarContext,
-  activeSubNav: _activeSubNav,
-  onSubNavChange: _onSubNavChange,
+  activeSubNav,
+  onSubNavChange,
   // Consumed but not passed to Sidebar DOM
   user: _user,
   onSignOut: _onSignOut,
@@ -263,6 +421,35 @@ export function AppSidebar<V extends string = string>({
     [sidebarContext, activeView],
   );
 
+  const { isMobile } = useSidebar();
+
+  if (isMobile) {
+    // Mobile: full sidebar in a Sheet drawer with text labels
+    return (
+      <Sidebar collapsible="offcanvas" {...props}>
+        <SidebarHeader>
+          <MobileWorkspaceSwitcher
+            workspaces={workspaces}
+            activeWorkspace={activeWorkspace}
+            onSelectWorkspace={onSelectWorkspace}
+            onCreateWorkspace={onCreateWorkspace}
+          />
+        </SidebarHeader>
+        <SidebarContent>
+          <MobileNav
+            activeView={activeView}
+            onViewChange={onViewChange}
+            extraNavItems={extraNavItems}
+            sidebarContext={effectiveContext}
+            activeSubNav={activeSubNav}
+            onSubNavChange={onSubNavChange}
+          />
+        </SidebarContent>
+      </Sidebar>
+    );
+  }
+
+  // Desktop: icon-only rail
   return (
     <Sidebar collapsible="none" className="!w-(--sidebar-width-icon)" {...props}>
       <SidebarHeader>
@@ -273,7 +460,6 @@ export function AppSidebar<V extends string = string>({
           onCreateWorkspace={onCreateWorkspace}
         />
       </SidebarHeader>
-
       <SidebarContent className="[&_[data-slot=sidebar-menu]]:gap-1 [&_[data-slot=sidebar-menu-button]]:justify-center [&_[data-slot=sidebar-menu-button]]:aspect-square [&_[data-slot=sidebar-menu-button]]:p-0 [&_[data-slot=sidebar-menu-button]_svg]:size-5 [&_svg]:stroke-[1.5]">
         <IconNav
           activeView={activeView}
