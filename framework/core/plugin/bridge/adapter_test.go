@@ -52,7 +52,7 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 	key := b.cfg.PoolKey()
 	sem := make(chan struct{}, 1)
 	sem <- struct{}{}
-	registry.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: b.cfg}
+	ready := make(chan struct{}); close(ready); registry.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: b.cfg, ready: ready}
 	registry.mu.Unlock()
 
 	reader := NewBridgeFormatReader(registry, b.cfg, "net.sf.okapi.filters.html.HtmlFilter", format.FormatSignature{})
@@ -108,7 +108,7 @@ func TestBridgeProcessorExecute(t *testing.T) {
 	key := b.cfg.PoolKey()
 	sem := make(chan struct{}, 1)
 	sem <- struct{}{}
-	registry.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: b.cfg}
+	ready := make(chan struct{}); close(ready); registry.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: b.cfg, ready: ready}
 	registry.mu.Unlock()
 
 	processor := NewBridgeProcessor(registry, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
