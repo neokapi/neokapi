@@ -9,9 +9,9 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Badge } from "../ui/badge";
-import { GlassCard } from "../ui/card";
+import { Card } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
-import { AlertGlass, AlertGlassDescription } from "../ui/alert";
+import { Alert, AlertDescription } from "../ui/alert";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
 import { cn } from "../../lib/utils";
@@ -365,7 +365,7 @@ export function TermExplorer({
 
   return (
     <div data-testid="term-explorer">
-      <GlassCard intensity="subtle" className="p-6">
+      <Card className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -407,14 +407,11 @@ export function TermExplorer({
 
         {/* Success message */}
         {successMessage && (
-          <AlertGlass
-            variant="success"
-            dismissible
-            onDismiss={() => setSuccessMessage(null)}
-            className="mb-6"
+          <Alert
+            className="mb-6 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400"
           >
-            <AlertGlassDescription>{successMessage}</AlertGlassDescription>
-          </AlertGlass>
+            <AlertDescription>{successMessage}</AlertDescription>
+          </Alert>
         )}
 
         {/* Search and filters */}
@@ -725,11 +722,11 @@ export function TermExplorer({
             )}
           </>
         )}
-      </GlassCard>
+      </Card>
 
       <Dialog open={showAddForm} onOpenChange={handleAddDialogChange}>
         <DialogContent
-          size="md"
+          className="sm:max-w-[640px]"
           data-testid="term-add-form"
           onInteractOutside={(e: Event) => e.preventDefault()}
         >

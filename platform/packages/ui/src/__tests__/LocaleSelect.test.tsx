@@ -107,7 +107,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <ApiProvider adapter={createMockAdapter()}>{children}</ApiProvider>;
 }
 
-/* ── LocaleSelect (backed by ComboBoxGlass) ── */
+/* ── LocaleSelect (backed by Combobox) ── */
 
 describe("LocaleSelect", () => {
   it("renders the trigger with display value", async () => {

@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import { useWorkspace, InviteManager } from "@neokapi/ui";
+import { useWorkspace, ApiTokenManager } from "@neokapi/ui";
 
-export function SettingsMembersRoute() {
+export function SettingsTokensRoute() {
   const { activeWorkspace } = useWorkspace();
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Members — ${activeWorkspace.name} — Bowrain`;
+      document.title = `API Tokens — ${activeWorkspace.name} — Bowrain`;
     }
   }, [activeWorkspace]);
 
@@ -14,7 +14,7 @@ export function SettingsMembersRoute() {
 
   return (
     <div className="mx-auto w-full max-w-3xl py-4">
-      <InviteManager workspace={activeWorkspace} />
+      <ApiTokenManager workspace={activeWorkspace} />
     </div>
   );
 }

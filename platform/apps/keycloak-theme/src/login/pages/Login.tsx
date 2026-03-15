@@ -2,7 +2,7 @@ import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import type { LucideIcon } from "lucide-react";
 import { Mail, User } from "lucide-react";
-import logoUrl from "../assets/logo.png";
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
 import { Input as BaseInput } from "@neokapi/ui/components/ui/input";
@@ -30,7 +30,7 @@ export default function Login(props: {
       <div className="flex justify-center mb-8">
         <BowrainLogo />
       </div>
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("loginAccountTitle")}</h1>
           <p className="text-sm text-muted-foreground">
@@ -99,11 +99,11 @@ export default function Login(props: {
           {social?.providers && social.providers.length > 0 && (
             <div className="mt-6">
               <div className="relative flex items-center gap-4 my-2">
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--semantic-border)] to-transparent" />
-                <span className="text-xs font-medium tracking-wide text-[var(--semantic-text-subtle)]">
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+                <span className="text-xs font-medium tracking-wide text-muted-foreground">
                   or sign in with
                 </span>
-                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[var(--semantic-border)] to-transparent" />
+                <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
               </div>
               <div className="mt-4 flex justify-center gap-6">
                 {social.providers.map((provider) => (
@@ -112,10 +112,10 @@ export default function Login(props: {
                     href={provider.loginUrl}
                     className="group flex flex-col items-center gap-2 transition-all duration-300"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[var(--semantic-border)] bg-[var(--semantic-surface)] backdrop-blur-sm transition-all duration-300 group-hover:border-[var(--semantic-border-strong)] group-hover:bg-[var(--semantic-surface-elevated)] group-hover:shadow-[var(--glow-neutral)]">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-border bg-muted transition-all duration-300 group-hover:border-border group-hover:bg-accent">
                       <SocialIcon alias={provider.alias} />
                     </div>
-                    <span className="text-xs text-[var(--semantic-text-muted)] group-hover:text-[var(--semantic-text)] transition-colors duration-300">
+                    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors duration-300">
                       {provider.displayName.replace(/^Sign in with /i, "")}
                     </span>
                   </a>

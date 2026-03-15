@@ -5,7 +5,7 @@ import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
 import { Button } from "./ui/button";
-import { CardContent, GlassCard } from "./ui/card";
+import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -106,7 +106,7 @@ function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
       {stats.map((s) => (
-        <GlassCard key={s.label} intensity="subtle" hover={false} padding="compact">
+        <Card key={s.label}>
           <div className="flex items-center gap-3 px-4 py-3">
             <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary/10">
               <s.icon className="w-4 h-4 text-primary" />
@@ -116,7 +116,7 @@ function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
               <div className="text-xs text-muted-foreground">{s.label}</div>
             </div>
           </div>
-        </GlassCard>
+        </Card>
       ))}
     </div>
   );
@@ -141,10 +141,7 @@ function ProjectCard({
   const streamCount = project.streams?.length ?? 0;
 
   return (
-    <GlassCard
-      intensity="medium"
-      hover
-      glow="primary"
+    <Card
       onClick={onOpen}
       className="cursor-pointer transition-all group"
       data-testid={`project-card-${project.id}`}
@@ -228,7 +225,7 @@ function ProjectCard({
           </div>
         )}
       </CardContent>
-    </GlassCard>
+    </Card>
   );
 }
 
@@ -247,10 +244,7 @@ interface PathwayCardProps {
 
 function PathwayCard({ icon, title, description, action, onClick, glow }: PathwayCardProps) {
   return (
-    <GlassCard
-      intensity="medium"
-      hover
-      glow={glow}
+    <Card
       className="cursor-pointer transition-all group flex flex-col"
       onClick={onClick}
     >
@@ -267,7 +261,7 @@ function PathwayCard({ icon, title, description, action, onClick, glow }: Pathwa
           <ArrowRight className="w-3 h-3" />
         </span>
       </CardContent>
-    </GlassCard>
+    </Card>
   );
 }
 

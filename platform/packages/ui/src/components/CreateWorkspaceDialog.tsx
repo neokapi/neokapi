@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { AlertGlass, AlertGlassDescription } from "./ui/alert";
+import { Alert, AlertDescription } from "./ui/alert";
 
 export interface CreateWorkspaceDialogProps {
   open: boolean;
@@ -61,7 +61,7 @@ export function CreateWorkspaceDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Create Workspace</DialogTitle>
         </DialogHeader>
@@ -87,9 +87,9 @@ export function CreateWorkspaceDialog({
             />
           </div>
           {error && (
-            <AlertGlass variant="destructive">
-              <AlertGlassDescription>{error}</AlertGlassDescription>
-            </AlertGlass>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
         </div>
 

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import type { AuditEntry, ProjectInfo } from "../types/api";
 import type { FilterToken, FilterField, FilterPreset } from "./FilterBar";
 import { FilterBar } from "./FilterBar";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import {
@@ -242,7 +242,7 @@ export function AuditLogView({
 
   return (
     <div className="flex-1 min-h-0 overflow-auto">
-      <GlassCard intensity="subtle" className="p-6 mb-4">
+      <Card className="p-6 mb-4">
         <div className="mb-6">
           <h2 className="text-xl font-semibold">Audit Log</h2>
           <p className="text-[13px] text-muted-foreground mt-1">
@@ -260,10 +260,10 @@ export function AuditLogView({
           presets={filterPresets}
           placeholder="Search audit logs..."
         />
-      </GlassCard>
+      </Card>
 
       {/* Event list */}
-      <GlassCard intensity="subtle" className="p-0 overflow-hidden">
+      <Card className="p-0 overflow-hidden">
         {entries.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Clock className="w-10 h-10 text-muted-foreground/30 mb-3" />
@@ -384,7 +384,7 @@ export function AuditLogView({
             </Button>
           </div>
         )}
-      </GlassCard>
+      </Card>
     </div>
   );
 }

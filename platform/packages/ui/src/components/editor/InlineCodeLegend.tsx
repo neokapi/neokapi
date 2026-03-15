@@ -71,7 +71,7 @@ export function InlineCodeLegend({ spans, onClose }: InlineCodeLegendProps) {
   if (spans.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-border/50 bg-card/95 shadow-sm overflow-hidden">
+    <div className="rounded-lg border border-border/50 bg-card shadow-sm overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-muted/30 border-b border-border/30">
         <span className="text-[11px] font-semibold text-foreground">

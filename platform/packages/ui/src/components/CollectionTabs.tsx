@@ -45,8 +45,8 @@ export function CollectionTabs({
                   ${showActions ? "rounded-l-md" : "rounded-md"}
                   ${
                     isActive
-                      ? "bg-background/80 text-foreground shadow-sm"
-                      : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-background/40"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-background"
                   }
                 `}
               >
@@ -72,7 +72,7 @@ export function CollectionTabs({
                   <DropdownMenuTrigger asChild>
                     <button
                       className="
-                        px-1.5 py-1.5 rounded-r-md bg-background/80 shadow-sm
+                        px-1.5 py-1.5 rounded-r-md bg-background shadow-sm
                         text-muted-foreground hover:text-foreground
                         transition-colors cursor-pointer border-none
                         border-l border-border/30

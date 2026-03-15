@@ -13,7 +13,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Badge } from "../components/ui/badge";
-import { GlassCard } from "../components/ui/card";
+import { Card } from "../components/ui/card";
 import { Switch } from "../components/ui/switch";
 import {
   Select,
@@ -175,7 +175,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
       </div>
 
       {/* Name & Description */}
-      <GlassCard intensity="subtle" className="p-5 space-y-4">
+      <Card className="p-5 space-y-4">
         <div className="space-y-2">
           <Label htmlFor="profile-name">Name</Label>
           <Input
@@ -194,7 +194,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
             placeholder="Brief description of this voice profile"
           />
         </div>
-      </GlassCard>
+      </Card>
 
       <Tabs defaultValue="tone">
         <TabsList className="w-full grid grid-cols-4">
@@ -206,7 +206,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
 
         {/* Tone Tab */}
         <TabsContent value="tone">
-          <GlassCard intensity="subtle" className="p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <div className="space-y-2">
               <Label>Personality Tags</Label>
               <div className="flex flex-wrap gap-1.5 mb-2">
@@ -282,12 +282,12 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 </Select>
               </div>
             </div>
-          </GlassCard>
+          </Card>
         </TabsContent>
 
         {/* Style Tab */}
         <TabsContent value="style">
-          <GlassCard intensity="subtle" className="p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="flex items-center justify-between">
                 <Label>Active Voice</Label>
@@ -426,12 +426,12 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </Card>
         </TabsContent>
 
         {/* Vocabulary Tab */}
         <TabsContent value="vocabulary">
-          <GlassCard intensity="subtle" className="p-5 space-y-6">
+          <Card className="p-5 space-y-6">
             {(["preferred_terms", "forbidden_terms", "competitor_terms"] as const).map((category) => (
               <div key={category} className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -469,12 +469,12 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 ))}
               </div>
             ))}
-          </GlassCard>
+          </Card>
         </TabsContent>
 
         {/* Examples Tab */}
         <TabsContent value="examples">
-          <GlassCard intensity="subtle" className="p-5 space-y-4">
+          <Card className="p-5 space-y-4">
             <div className="flex items-center justify-between">
               <Label>Voice Examples (Before / After)</Label>
               <Button variant="outline" size="sm" onClick={addExample}>
@@ -521,7 +521,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 </div>
               </div>
             ))}
-          </GlassCard>
+          </Card>
         </TabsContent>
       </Tabs>
 

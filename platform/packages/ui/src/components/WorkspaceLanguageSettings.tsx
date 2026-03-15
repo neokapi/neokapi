@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { X, Plus } from "lucide-react";
 import { useApi } from "../context/ApiContext";
 import { useLocales } from "../hooks/useLocales";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import { LocaleSelect } from "./LocaleSelect";
 import type { Workspace } from "../types/api";
 
@@ -73,7 +73,7 @@ export function WorkspaceLanguageSettings({
   );
 
   return (
-    <GlassCard intensity="subtle" className="p-6">
+    <Card className="p-6">
       <div className="mb-4">
         <h2 className="text-xl font-semibold">Languages</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
@@ -122,6 +122,6 @@ export function WorkspaceLanguageSettings({
             </button>
           )}
         </div>
-    </GlassCard>
+    </Card>
   );
 }

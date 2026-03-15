@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BinView, ConfirmDialog, useWorkspace, useApi, GlassCard } from "@neokapi/ui";
+import { BinView, ConfirmDialog, useWorkspace, useApi, Card } from "@neokapi/ui";
 
 export function BinRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -40,17 +40,16 @@ export function BinRoute() {
 
   if (!activeWorkspace) {
     return (
-      <GlassCard
-        intensity="subtle"
+      <Card
         className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
       >
         Select a workspace
-      </GlassCard>
+      </Card>
     );
   }
 
   return (
-    <>
+    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
       <BinView
         projects={projects ?? []}
         loading={isFetching}
@@ -68,6 +67,6 @@ export function BinRoute() {
         variant="destructive"
         onConfirm={confirmPermanentlyDelete}
       />
-    </>
+    </div>
   );
 }

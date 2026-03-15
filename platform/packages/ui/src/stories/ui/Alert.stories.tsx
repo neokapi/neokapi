@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { AlertGlass, AlertGlassTitle, AlertGlassDescription } from "../../components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "../../components/ui/alert";
 
-const meta: Meta<typeof AlertGlass> = {
+const meta: Meta<typeof Alert> = {
   title: "UI/Alert",
-  component: AlertGlass,
+  component: Alert,
   tags: ["autodocs"],
   decorators: [
     (Story) => (
@@ -15,24 +15,24 @@ const meta: Meta<typeof AlertGlass> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof AlertGlass>;
+type Story = StoryObj<typeof Alert>;
 
 export const Default: Story = {
   render: () => (
-    <AlertGlass>
-      <AlertGlassTitle>Heads up</AlertGlassTitle>
-      <AlertGlassDescription>3 blocks are missing translations for fr-FR.</AlertGlassDescription>
-    </AlertGlass>
+    <Alert>
+      <AlertTitle>Heads up</AlertTitle>
+      <AlertDescription>3 blocks are missing translations for fr-FR.</AlertDescription>
+    </Alert>
   ),
 };
 
 export const Destructive: Story = {
   render: () => (
-    <AlertGlass variant="destructive">
-      <AlertGlassTitle>Error</AlertGlassTitle>
-      <AlertGlassDescription>
+    <Alert variant="destructive">
+      <AlertTitle>Error</AlertTitle>
+      <AlertDescription>
         Failed to export file. The target locale has untranslated blocks.
-      </AlertGlassDescription>
-    </AlertGlass>
+      </AlertDescription>
+    </Alert>
   ),
 };

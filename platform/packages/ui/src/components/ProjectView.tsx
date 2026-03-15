@@ -6,7 +6,7 @@ import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { useStream } from "../context/StreamContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -187,7 +187,7 @@ export function ProjectView({
       )}
 
       {/* Project overview card */}
-      <GlassCard intensity="subtle" className={isMobile ? "p-4 mb-3" : "p-6 mb-4"}>
+      <Card className={isMobile ? "p-4 mb-3" : "p-6 mb-4"}>
         <div
           className={
             isMobile ? "flex flex-col gap-3 mb-4" : "flex items-center justify-between mb-6"
@@ -261,10 +261,10 @@ export function ProjectView({
             <div className="text-xs text-muted-foreground">Words</div>
           </div>
         </div>
-      </GlassCard>
+      </Card>
 
       {/* Content card with collection tabs */}
-      <GlassCard intensity="subtle" className={isMobile ? "p-4" : "p-6"}>
+      <Card className={isMobile ? "p-4" : "p-6"}>
         {/* Collection tabs */}
         {hasCollections && (
           <CollectionTabs
@@ -450,7 +450,7 @@ export function ProjectView({
             </p>
           </div>
         )}
-      </GlassCard>
+      </Card>
     </div>
   );
 }

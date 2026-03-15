@@ -1,6 +1,6 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
-import logoUrl from "../assets/logo.png";
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
 import { useScript } from "keycloakify/login/pages/WebauthnAuthenticate.useScript";
@@ -21,7 +21,7 @@ export default function WebauthnAuthenticate(props: {
       <div className="flex justify-center mb-8">
         <BowrainLogo />
       </div>
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("webauthn-login-title")}</h1>
           <p className="text-sm text-muted-foreground">
@@ -52,7 +52,7 @@ export default function WebauthnAuthenticate(props: {
               {authenticators.authenticators.map((authenticator, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-3 rounded-lg border border-[var(--semantic-border)] bg-[var(--semantic-surface)] p-3"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-muted p-3"
                 >
                   <div className="flex-1">
                     <div className="text-sm font-medium">

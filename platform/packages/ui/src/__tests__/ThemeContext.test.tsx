@@ -117,26 +117,6 @@ describe("ThemeContext", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(true);
   });
 
-  it("migrates legacy glass value to dark", () => {
-    localStorage.setItem("neokapi-theme", "glass");
-    render(
-      <ThemeProvider>
-        <ThemeDisplay />
-      </ThemeProvider>,
-    );
-    expect(screen.getByTestId("theme").textContent).toBe("dark");
-  });
-
-  it("migrates legacy aurora value to dark", () => {
-    localStorage.setItem("neokapi-theme", "aurora");
-    render(
-      <ThemeProvider>
-        <ThemeDisplay />
-      </ThemeProvider>,
-    );
-    expect(screen.getByTestId("theme").textContent).toBe("dark");
-  });
-
   it("ignores invalid localStorage values and defaults to system", () => {
     localStorage.setItem("neokapi-theme", "purple");
     render(

@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { TermExplorer, useWorkspace, useApi, GlassCard } from "@neokapi/ui";
+import { TermExplorer, useWorkspace, useApi, Card } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
 export function TermbaseRoute() {
@@ -43,21 +43,22 @@ export function TermbaseRoute() {
 
   if (!activeWorkspace) {
     return (
-      <GlassCard
-        intensity="subtle"
+      <Card
         className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
       >
         Select a workspace
-      </GlassCard>
+      </Card>
     );
   }
 
   return (
-    <TermExplorer
-      sourceLocale={sourceLocale}
-      targetLocales={targetLocales}
-      projects={projects}
-      onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? "" } })}
-    />
+    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      <TermExplorer
+        sourceLocale={sourceLocale}
+        targetLocales={targetLocales}
+        projects={projects}
+        onBack={() => navigate({ to: "/$workspace", params: { workspace: workspace ?? "" } })}
+      />
+    </div>
   );
 }
