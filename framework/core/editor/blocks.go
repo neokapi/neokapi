@@ -10,7 +10,7 @@ import (
 // It enables O(1) random access to blocks and reconstruction without the original source.
 type BlockIndex struct {
 	Version        string      `json:"kat_version"`
-	SourceLocale   string      `json:"source_locale"`
+	SourceLanguage string      `json:"source_language"`
 	OriginalFormat string      `json:"original_format"`
 	OriginalItem   string      `json:"original_item"`
 	Blocks         []Block     `json:"blocks"`

@@ -136,14 +136,14 @@ export interface ApiAdapter {
   createProject(
     workspaceSlug: string,
     name: string,
-    sourceLocale: string,
-    targetLocales: string[],
+    defaultSourceLanguage: string,
+    targetLanguages: string[],
   ): Promise<ProjectInfo>;
   getProject(workspaceSlug: string, projectId: string, stream?: string): Promise<ProjectInfo>;
   updateProject(
     workspaceSlug: string,
     projectId: string,
-    data: { name?: string; target_locales?: string[] },
+    data: { name?: string; target_languages?: string[] },
   ): Promise<ProjectInfo>;
   deleteProject(workspaceSlug: string, projectId: string): Promise<void>;
   restoreProject(workspaceSlug: string, projectId: string): Promise<void>;

@@ -830,19 +830,19 @@ func (c *BowrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
 	}
 
 	c.cache.ServerMeta = &CachedProjectMeta{
-		TargetLocales: meta.TargetLocales,
-		FetchedAt:     time.Now().UTC(),
+		TargetLanguages: meta.TargetLanguages,
+		FetchedAt:       time.Now().UTC(),
 	}
 }
 
 // ServerTargetLocales returns target locales from the server cache.
 // Returns nil if no cached metadata is available.
 func (c *BowrainSourceConnector) ServerTargetLocales() []model.LocaleID {
-	if c.cache.ServerMeta == nil || len(c.cache.ServerMeta.TargetLocales) == 0 {
+	if c.cache.ServerMeta == nil || len(c.cache.ServerMeta.TargetLanguages) == 0 {
 		return nil
 	}
-	locales := make([]model.LocaleID, len(c.cache.ServerMeta.TargetLocales))
-	for i, l := range c.cache.ServerMeta.TargetLocales {
+	locales := make([]model.LocaleID, len(c.cache.ServerMeta.TargetLanguages))
+	for i, l := range c.cache.ServerMeta.TargetLanguages {
 		locales[i] = model.LocaleID(l)
 	}
 	return locales

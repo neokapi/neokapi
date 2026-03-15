@@ -135,6 +135,15 @@ var authMigrations = []storage.Migration{
 			CREATE INDEX idx_api_tokens_user ON api_tokens(user_id);
 		`,
 	},
+	{
+		Version:     10,
+		Description: "add languages to workspaces and rename locale columns in unclaimed_projects",
+		SQL: `
+			ALTER TABLE workspaces ADD COLUMN languages TEXT NOT NULL DEFAULT '[]';
+			ALTER TABLE unclaimed_projects RENAME COLUMN source_locale TO default_source_language;
+			ALTER TABLE unclaimed_projects RENAME COLUMN target_locales TO target_languages;
+		`,
+	},
 }
 
 // SQLiteAuthStore implements AuthStore using SQLite.
@@ -461,7 +470,7 @@ func scanMembershipRow(rows scanner) (*platauth.Membership, error) {
 
 func (s *SQLiteAuthStore) CreateUnclaimedProject(ctx context.Context, projectID, claimTokenHash, name, sourceLoc, targetLocs string, expiresAt time.Time) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO unclaimed_projects (project_id, claim_token, name, source_locale, target_locales, expires_at)
+		`INSERT INTO unclaimed_projects (project_id, claim_token, name, default_source_language, target_languages, expires_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		projectID, claimTokenHash, name, sourceLoc, targetLocs, expiresAt.Format(time.RFC3339))
 	if err != nil {
@@ -474,9 +483,9 @@ func (s *SQLiteAuthStore) GetUnclaimedByToken(ctx context.Context, claimTokenHas
 	var p platauth.UnclaimedProject
 	var createdStr, expiresStr string
 	err := s.db.QueryRowContext(ctx,
-		`SELECT project_id, claim_token, name, source_locale, target_locales, created_at, expires_at
+		`SELECT project_id, claim_token, name, default_source_language, target_languages, created_at, expires_at
 		 FROM unclaimed_projects WHERE claim_token = ?`, claimTokenHash).
-		Scan(&p.ProjectID, &p.ClaimToken, &p.Name, &p.SourceLocale, &p.TargetLocales, &createdStr, &expiresStr)
+		Scan(&p.ProjectID, &p.ClaimToken, &p.Name, &p.DefaultSourceLanguage, &p.TargetLanguages, &createdStr, &expiresStr)
 	if err != nil {
 		return nil, fmt.Errorf("get unclaimed project: %w", err)
 	}

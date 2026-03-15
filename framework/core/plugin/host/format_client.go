@@ -64,7 +64,7 @@ func (c *FormatReaderRPCClient) Open(_ context.Context, doc *model.RawDocument) 
 	}
 	args := shared.OpenArgs{
 		URI:          doc.URI,
-		SourceLocale: string(doc.SourceLocale),
+		SourceLanguage: string(doc.SourceLocale),
 		Encoding:     doc.Encoding,
 		Content:      content,
 		MimeType:     doc.MimeType,

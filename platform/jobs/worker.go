@@ -168,7 +168,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	}
 
 	translateTool := tools.NewAITranslateTool(prov, tools.AITranslateConfig{
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(job.TargetLocale),
 		BatchSize:    batchSz,
 		Concurrency:  concurrency,

@@ -44,8 +44,8 @@ func (a *App) getItemBlocksLocal(projectID, itemName string) ([]BlockInfo, error
 		return nil, err
 	}
 
-	targetLocales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
 		targetLocales[i] = string(l)
 	}
 
@@ -457,7 +457,7 @@ func (a *App) TMTranslateItem(projectID, itemName, targetLocale string) (*Transl
 	tmTool := sievepen.NewTMLeverageTool(tm, sievepen.TMLeverageConfig{
 		MinScore:     0.7,
 		MaxResults:   5,
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 
@@ -494,8 +494,8 @@ func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error)
 		return nil, err
 	}
 
-	targetLocales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
 		targetLocales[i] = string(l)
 	}
 
@@ -549,7 +549,7 @@ func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (st
 
 	doc := &model.RawDocument{
 		URI:          itemName,
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
 	}
@@ -698,7 +698,7 @@ func (a *App) LookupTMForBlock(projectID, itemName, blockID, targetLocale string
 
 	opts := sievepen.DefaultLookupOptions()
 	opts.MaxResults = 5
-	matches, err := tm.Lookup(sb.Block, proj.SourceLocale, model.LocaleID(targetLocale), opts)
+	matches, err := tm.Lookup(sb.Block, proj.DefaultSourceLanguage, model.LocaleID(targetLocale), opts)
 	if err != nil {
 		return nil, err
 	}
@@ -764,7 +764,7 @@ func (a *App) LookupTermsForBlock(projectID, itemName, blockID, targetLocale str
 	}
 
 	matches := tb.LookupAll(sourceText, termbase.LookupOptions{
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(targetLocale),
 	})
 

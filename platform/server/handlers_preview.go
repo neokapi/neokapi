@@ -44,7 +44,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 
 	doc := &model.RawDocument{
 		URI:          fname,
-		SourceLocale: proj.SourceLocale,
+		SourceLocale: proj.DefaultSourceLanguage,
 		Encoding:     "UTF-8",
 		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
 	}
@@ -64,7 +64,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 	}
 	reader.Close()
 
-	preview := editor.BuildPreview(parts, item.SourceBytes, item.Format, proj.SourceLocale)
+	preview := editor.BuildPreview(parts, item.SourceBytes, item.Format, proj.DefaultSourceLanguage)
 	return c.HTML(http.StatusOK, preview)
 }
 

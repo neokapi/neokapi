@@ -99,7 +99,7 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 	// Plain text translation.
 	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
 		Source:       sourceText,
-		SourceLocale: t.sourceLocale,
+		SourceLanguage: t.sourceLocale,
 		TargetLocale: t.targetLocale,
 		Glossary:     t.glossary,
 	})
@@ -125,7 +125,7 @@ func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 
 	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
 		Source:       prompt,
-		SourceLocale: t.sourceLocale,
+		SourceLanguage: t.sourceLocale,
 		TargetLocale: t.targetLocale,
 		Glossary:     t.glossary,
 	})

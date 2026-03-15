@@ -378,7 +378,7 @@ export function VisualEditorCard({
         <TermCreationPopover
           open={termPopoverOpen}
           selectedText={selectedSourceText}
-          sourceLocale={project.source_locale}
+          sourceLocale={project.default_source_language}
           targetLocale={targetLocale}
           onSubmit={handleTermSubmit}
           onClose={() => setTermPopoverOpen(false)}

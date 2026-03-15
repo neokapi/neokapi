@@ -79,9 +79,11 @@ export interface ProjectDashboardProps {
   /** Workspace name shown in the greeting. */
   workspaceName?: string;
   /** Called to update a project's name and target locales. */
-  onEditProject?: (projectId: string, data: { name?: string; target_locales?: string[] }) => void;
+  onEditProject?: (projectId: string, data: { name?: string; target_languages?: string[] }) => void;
   /** Called to archive (soft delete) a project. */
   onArchiveProject?: (projectId: string) => void;
+  /** Workspace languages for locale pickers. */
+  workspaceLanguages?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +93,7 @@ export interface ProjectDashboardProps {
 /** Summary statistics bar shown above the project grid. */
 function DashboardStats({ projects }: { projects: ProjectInfo[] }) {
   const totalWords = projects.reduce((acc, p) => acc + sumItems(p, "word_count"), 0);
-  const uniqueLocales = new Set(projects.flatMap((p) => p.target_locales));
+  const uniqueLocales = new Set(projects.flatMap((p) => p.target_languages));
   const totalFiles = projects.reduce((acc, p) => acc + (p.items?.length ?? 0), 0);
 
   const stats = [
@@ -153,7 +155,7 @@ function ProjectCard({
           <h3 className="font-semibold text-base leading-snug pr-2">{project.name}</h3>
           <div className="flex items-center gap-1 shrink-0">
             <Badge variant="secondary" className="text-[11px]">
-              {project.target_locales.length} lang{project.target_locales.length !== 1 ? "s" : ""}
+              {project.target_languages.length} lang{project.target_languages.length !== 1 ? "s" : ""}
             </Badge>
             {(onRename || onArchive) && (
               <DropdownMenu>
@@ -193,10 +195,10 @@ function ProjectCard({
 
         {/* Locale mapping */}
         <div className="text-[13px] text-muted-foreground mb-3 flex items-center gap-1.5 flex-wrap">
-          <span className="font-medium text-foreground/80">{getDisplayName(project.source_locale)}</span>
+          <span className="font-medium text-foreground/80">{getDisplayName(project.default_source_language)}</span>
           <ArrowRight className="w-3 h-3 shrink-0 opacity-50" />
           <span className="truncate">
-            {project.target_locales.map((l) => getDisplayName(l)).join(", ")}
+            {project.target_languages.map((l) => getDisplayName(l)).join(", ")}
           </span>
         </div>
 
@@ -347,6 +349,7 @@ export function ProjectDashboard({
   workspaceName,
   onEditProject,
   onArchiveProject,
+  workspaceLanguages,
 }: ProjectDashboardProps) {
   const { getDisplayName } = useLocales();
   const [showCreate, setShowCreate] = useState(false);
@@ -403,8 +406,9 @@ export function ProjectDashboard({
       <ProjectFormDialog
         open={showCreate}
         onOpenChange={setShowCreate}
+        workspaceLanguages={workspaceLanguages}
         onSubmit={(data: ProjectFormData) => {
-          onCreateProject(data.name, data.source_locale, data.target_locales);
+          onCreateProject(data.name, data.default_source_language, data.target_languages);
           setShowCreate(false);
         }}
       />
@@ -415,11 +419,12 @@ export function ProjectDashboard({
           open={editingProject !== null}
           onOpenChange={(v) => { if (!v) setEditingProject(null); }}
           editProject={editingProject ?? undefined}
+          workspaceLanguages={workspaceLanguages}
           onSubmit={(data: ProjectFormData) => {
             if (editingProject) {
               onEditProject(editingProject.id, {
                 name: data.name,
-                target_locales: data.target_locales,
+                target_languages: data.target_languages,
               });
               setEditingProject(null);
             }

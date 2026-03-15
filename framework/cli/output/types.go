@@ -792,8 +792,8 @@ type TMSearchEntry struct {
 	ID           string `json:"id"`
 	Source       string `json:"source"`
 	Target       string `json:"target"`
-	SourceLocale string `json:"source_locale"`
-	TargetLocale string `json:"target_locale"`
+	SourceLanguage string `json:"source_language"`
+	TargetLanguage string `json:"target_language"`
 }
 
 // TMSearchOutput represents the result of a TM search.
@@ -821,7 +821,7 @@ func (o TMSearchOutput) FormatText(w io.Writer) error {
 		if len(target) > 40 {
 			target = target[:37] + "..."
 		}
-		fmt.Fprintf(tw, "  %s\t%s\t%s → %s\n", source, target, e.SourceLocale, e.TargetLocale)
+		fmt.Fprintf(tw, "  %s\t%s\t%s → %s\n", source, target, e.SourceLanguage, e.TargetLanguage)
 	}
 	tw.Flush()
 

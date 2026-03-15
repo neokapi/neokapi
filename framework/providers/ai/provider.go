@@ -46,7 +46,7 @@ type Message struct {
 // TranslateRequest contains parameters for a translation request.
 type TranslateRequest struct {
 	Source       string            `json:"source"`
-	SourceLocale model.LocaleID    `json:"source_locale"`
+	SourceLanguage model.LocaleID  `json:"source_language"`
 	TargetLocale model.LocaleID    `json:"target_locale"`
 	Context      string            `json:"context,omitempty"`
 	Glossary     map[string]string `json:"glossary,omitempty"`

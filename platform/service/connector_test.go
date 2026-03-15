@@ -64,7 +64,7 @@ func TestConnectorServiceFetch(t *testing.T) {
 	ctx := context.Background()
 
 	// Create a project.
-	p := &store.Project{Name: "Test", SourceLocale: model.LocaleEnglish}
+	p := &store.Project{Name: "Test", DefaultSourceLanguage: model.LocaleEnglish}
 	require.NoError(t, s.CreateProject(ctx, p))
 
 	reg := connector.NewRegistry()

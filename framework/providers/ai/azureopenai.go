@@ -72,7 +72,7 @@ func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateReques
 		"You are a software localization specialist. Your task is to translate user interface strings from %s to %s. "+
 			"These are UI labels, error messages, and status texts from a software application. "+
 			"Return ONLY the translated text, nothing else. Preserve any placeholders.",
-		req.SourceLocale, req.TargetLocale,
+		req.SourceLanguage, req.TargetLocale,
 	)
 
 	var user strings.Builder

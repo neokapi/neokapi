@@ -5,6 +5,7 @@ import {
   GlassCard,
   InviteManager,
   ApiTokenManager,
+  WorkspaceLanguageSettings,
   type ConfigResponse,
   type WebVersionInfo,
 } from "@neokapi/ui";
@@ -103,6 +104,7 @@ export function SettingsIndexRoute() {
           <SettingsField label="Your Role" value={activeWorkspace.role} />
         </div>
       </GlassCard>
+      <WorkspaceLanguageSettings workspace={activeWorkspace} />
       <InviteManager workspace={activeWorkspace} />
       <ApiTokenManager workspace={activeWorkspace} />
       <VersionSection />

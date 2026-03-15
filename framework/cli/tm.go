@@ -221,8 +221,8 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 					ID:           e.ID,
 					Source:       e.SourceText(),
 					Target:       e.TargetText(),
-					SourceLocale: string(e.SourceLocale),
-					TargetLocale: string(e.TargetLocale),
+					SourceLanguage: string(e.SourceLocale),
+					TargetLanguage: string(e.TargetLocale),
 				}
 			}
 

@@ -27,15 +27,15 @@ func (s *Server) HandleCreateEditorProject(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 	var req struct {
-		Name          string   `json:"name"`
-		SourceLocale  string   `json:"source_locale"`
-		TargetLocales []string `json:"target_locales"`
+		Name                  string   `json:"name"`
+		DefaultSourceLanguage string   `json:"default_source_language"`
+		TargetLanguages       []string `json:"target_languages"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	info, err := editorCreateProject(c.Request().Context(), s.ContentStore, wsID, req.Name, req.SourceLocale, req.TargetLocales)
+	info, err := editorCreateProject(c.Request().Context(), s.ContentStore, wsID, req.Name, req.DefaultSourceLanguage, req.TargetLanguages)
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
@@ -121,8 +121,8 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	}
 
 	var req struct {
-		Name          string   `json:"name"`
-		TargetLocales []string `json:"target_locales"`
+		Name            string   `json:"name"`
+		TargetLanguages []string `json:"target_languages"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -131,12 +131,12 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	if req.Name != "" {
 		proj.Name = req.Name
 	}
-	if req.TargetLocales != nil {
-		locales := make([]model.LocaleID, len(req.TargetLocales))
-		for i, l := range req.TargetLocales {
+	if req.TargetLanguages != nil {
+		locales := make([]model.LocaleID, len(req.TargetLanguages))
+		for i, l := range req.TargetLanguages {
 			locales[i] = model.LocaleID(l)
 		}
-		proj.TargetLocales = locales
+		proj.TargetLanguages = locales
 	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
@@ -351,8 +351,8 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	targetLocales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
 		targetLocales[i] = string(l)
 	}
 
@@ -492,8 +492,8 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	targetLocales := make([]string, len(proj.TargetLocales))
-	for i, l := range proj.TargetLocales {
+	targetLocales := make([]string, len(proj.TargetLanguages))
+	for i, l := range proj.TargetLanguages {
 		targetLocales[i] = string(l)
 	}
 

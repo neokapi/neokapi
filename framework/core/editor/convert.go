@@ -13,7 +13,7 @@ import (
 func BuildBlockIndex(parts []*model.Part, sourceLocale, format, itemName string) *BlockIndex {
 	index := &BlockIndex{
 		Version:        "1.0",
-		SourceLocale:   sourceLocale,
+		SourceLanguage: sourceLocale,
 		OriginalFormat: format,
 		OriginalItem:   itemName,
 		Blocks:         []Block{},

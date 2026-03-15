@@ -44,7 +44,7 @@ func TestProjectCRUDEndpoints(t *testing.T) {
 	authHeader := "Bearer " + token
 
 	// Create project.
-	body := `{"name":"Test","source_locale":"en","target_locales":["fr","de"]}`
+	body := `{"name":"Test","default_source_language":"en","target_languages":["fr","de"]}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
@@ -77,7 +77,7 @@ func TestProjectCRUDEndpoints(t *testing.T) {
 	assert.Len(t, projects, 1)
 
 	// Update project.
-	body = `{"name":"Updated","source_locale":"en","target_locales":["fr"]}`
+	body = `{"name":"Updated","default_source_language":"en","target_languages":["fr"]}`
 	req = httptest.NewRequest(http.MethodPut, "/api/v1/projects/"+projectID, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
@@ -99,7 +99,7 @@ func TestBlockEndpoints(t *testing.T) {
 	authHeader := "Bearer " + token
 
 	// Create project first.
-	body := `{"name":"Test","source_locale":"en"}`
+	body := `{"name":"Test","default_source_language":"en"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
@@ -133,7 +133,7 @@ func TestVersionEndpoints(t *testing.T) {
 	authHeader := "Bearer " + token
 
 	// Create project + blocks.
-	body := `{"name":"Test","source_locale":"en"}`
+	body := `{"name":"Test","default_source_language":"en"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)

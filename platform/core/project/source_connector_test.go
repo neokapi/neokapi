@@ -667,7 +667,7 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 	assert.Equal(t, "default-col", collections["docs/intro.json"], "docs file should inherit default collection")
 }
 
-func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
+func TestSourceConnector_ServerTargetLanguagesFallback(t *testing.T) {
 	// Mock a server that returns project metadata AND handles sync endpoints.
 	mock := &mockSyncHandler{
 		pullChanges: []apiclient.ChangeEntry{
@@ -682,8 +682,8 @@ func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{
 				ID:            "proj-auto",
 				Name:          "Test",
-				SourceLocale:  "en",
-				TargetLocales: []string{"fr", "de"},
+				DefaultSourceLanguage:  "en",
+				TargetLanguages: []string{"fr", "de"},
 			})
 			return
 		}
@@ -727,7 +727,7 @@ func TestSourceConnector_ServerTargetLocalesFallback(t *testing.T) {
 
 	// Verify metadata was cached.
 	require.NotNil(t, conn.cache.ServerMeta)
-	assert.Equal(t, []string{"fr", "de"}, conn.cache.ServerMeta.TargetLocales)
+	assert.Equal(t, []string{"fr", "de"}, conn.cache.ServerMeta.TargetLanguages)
 }
 
 func TestContentEntry_EffectiveLanguage(t *testing.T) {

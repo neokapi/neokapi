@@ -268,7 +268,7 @@ func (s *PostgresAuthStore) GetMembership(ctx context.Context, workspaceID, user
 
 func (s *PostgresAuthStore) CreateUnclaimedProject(ctx context.Context, projectID, claimTokenHash, name, sourceLoc, targetLocs string, expiresAt time.Time) error {
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO unclaimed_projects (project_id, claim_token, name, source_locale, target_locales, expires_at)
+		`INSERT INTO unclaimed_projects (project_id, claim_token, name, default_source_language, target_languages, expires_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		projectID, claimTokenHash, name, sourceLoc, targetLocs, expiresAt)
 	if err != nil {
@@ -280,9 +280,9 @@ func (s *PostgresAuthStore) CreateUnclaimedProject(ctx context.Context, projectI
 func (s *PostgresAuthStore) GetUnclaimedByToken(ctx context.Context, claimTokenHash string) (*platauth.UnclaimedProject, error) {
 	var p platauth.UnclaimedProject
 	err := s.db.QueryRowContext(ctx,
-		`SELECT project_id, claim_token, name, source_locale, target_locales, created_at, expires_at
+		`SELECT project_id, claim_token, name, default_source_language, target_languages, created_at, expires_at
 		 FROM unclaimed_projects WHERE claim_token = $1`, claimTokenHash).
-		Scan(&p.ProjectID, &p.ClaimToken, &p.Name, &p.SourceLocale, &p.TargetLocales, &p.CreatedAt, &p.ExpiresAt)
+		Scan(&p.ProjectID, &p.ClaimToken, &p.Name, &p.DefaultSourceLanguage, &p.TargetLanguages, &p.CreatedAt, &p.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("get unclaimed project: %w", err)
 	}

@@ -441,8 +441,8 @@ export const sampleBlockHistory: BlockHistoryEntry[] = [
 export const sampleProject: ProjectInfo = {
   id: "proj-demo-1",
   name: "Demo App",
-  source_locale: "en-US",
-  target_locales: ["fr-FR", "de-DE", "ja-JP"],
+  default_source_language: "en-US",
+  target_languages: ["fr-FR", "de-DE", "ja-JP"],
   workspace_id: "ws-1",
   items: [
     {

@@ -446,12 +446,12 @@ export class RestApiAdapter implements ApiAdapter {
   async createProject(
     workspaceSlug: string,
     name: string,
-    sourceLocale: string,
-    targetLocales: string[],
+    defaultSourceLanguage: string,
+    targetLanguages: string[],
   ): Promise<ProjectInfo> {
     return this.fetchJSON(this.ep(workspaceSlug), {
       method: "POST",
-      body: JSON.stringify({ name, source_locale: sourceLocale, target_locales: targetLocales }),
+      body: JSON.stringify({ name, default_source_language: defaultSourceLanguage, target_languages: targetLanguages }),
     });
   }
 
@@ -466,7 +466,7 @@ export class RestApiAdapter implements ApiAdapter {
   async updateProject(
     workspaceSlug: string,
     projectId: string,
-    data: { name?: string; target_locales?: string[] },
+    data: { name?: string; target_languages?: string[] },
   ): Promise<ProjectInfo> {
     return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
       method: "PUT",
@@ -898,14 +898,14 @@ export class RestApiAdapter implements ApiAdapter {
   async getTMEntries(
     workspaceSlug: string,
     query: string,
-    sourceLocale: string,
+    defaultSourceLanguage: string,
     targetLocale: string,
     offset: number,
     limit: number,
   ): Promise<TMSearchResult> {
     const params = new URLSearchParams({
       q: query,
-      source_locale: sourceLocale,
+      default_source_language: defaultSourceLanguage,
       target_locale: targetLocale,
       offset: String(offset),
       limit: String(limit),
@@ -922,7 +922,7 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     source: string,
     target: string,
-    sourceLocale: string,
+    defaultSourceLanguage: string,
     targetLocale: string,
   ): Promise<TMEntryInfo> {
     return this.fetchJSON(this.tmEp(workspaceSlug), {
@@ -930,7 +930,7 @@ export class RestApiAdapter implements ApiAdapter {
       body: JSON.stringify({
         source,
         target,
-        source_locale: sourceLocale,
+        default_source_language: defaultSourceLanguage,
         target_locale: targetLocale,
       }),
     });
@@ -956,14 +956,14 @@ export class RestApiAdapter implements ApiAdapter {
   async getTerms(
     workspaceSlug: string,
     query: string,
-    sourceLocale: string,
+    defaultSourceLanguage: string,
     targetLocale: string,
     offset: number,
     limit: number,
   ): Promise<TermSearchResult> {
     const params = new URLSearchParams({
       q: query,
-      source_locale: sourceLocale,
+      default_source_language: defaultSourceLanguage,
       target_locale: targetLocale,
       offset: String(offset),
       limit: String(limit),
@@ -997,7 +997,7 @@ export class RestApiAdapter implements ApiAdapter {
   async importTermsCSV(
     workspaceSlug: string,
     csvContent: string,
-    sourceLocale: string,
+    defaultSourceLanguage: string,
     targetLocale: string,
     domain: string,
     hasHeader: boolean,
@@ -1008,7 +1008,7 @@ export class RestApiAdapter implements ApiAdapter {
         method: "POST",
         body: JSON.stringify({
           csv_content: csvContent,
-          source_locale: sourceLocale,
+          default_source_language: defaultSourceLanguage,
           target_locale: targetLocale,
           domain,
           has_header: hasHeader,

@@ -149,8 +149,8 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
           entry_id: entry.id,
           source: entry.source,
           target: editTarget,
-          source_locale: entry.source_locale,
-          target_locale: entry.target_locale,
+          source_locale: entry.source_language,
+          target_locale: entry.target_language,
         });
         setEditingId(null);
         void fetchEntries(query, sourceLocaleFilter, targetLocaleFilter, page);
@@ -342,10 +342,10 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
                         )}
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
-                        {getDisplayName(entry.source_locale)}
+                        {getDisplayName(entry.source_language)}
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
-                        {getDisplayName(entry.target_locale)}
+                        {getDisplayName(entry.target_language)}
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
                         {entry.project_id ? (

@@ -36,7 +36,7 @@ func (p *OllamaProvider) Name() string { return "ollama" }
 func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	prompt := fmt.Sprintf(
 		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
-		req.SourceLocale, req.TargetLocale, req.Source,
+		req.SourceLanguage, req.TargetLocale, req.Source,
 	)
 
 	resp, err := p.Chat(ctx, []Message{

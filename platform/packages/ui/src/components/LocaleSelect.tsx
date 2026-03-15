@@ -52,12 +52,14 @@ export function LocaleSelect({
 interface MultiLocaleSelectProps {
   value: string[];
   onChange: (value: string[]) => void;
+  /** Restrict to these locale codes. If omitted, all known locales are shown. */
+  codes?: string[];
   style?: React.CSSProperties;
   "data-testid"?: string;
 }
 
 /** Multi-locale chip input with search. Shows removable chips for each selected locale. */
-export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLocaleSelectProps) {
+export function MultiLocaleSelect({ value, onChange, codes, style, ...rest }: MultiLocaleSelectProps) {
   const { locales, getDisplayName, loading } = useLocales();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -66,7 +68,8 @@ export function MultiLocaleSelect({ value, onChange, style, ...rest }: MultiLoca
 
   const available = useMemo(() => {
     const selected = new Set(value);
-    let list = locales.filter((l) => !selected.has(l.code));
+    const codeSet = codes ? new Set(codes) : null;
+    let list = locales.filter((l) => !selected.has(l.code) && (!codeSet || codeSet.has(l.code)));
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(

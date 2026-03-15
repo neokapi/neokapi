@@ -198,9 +198,9 @@ export function ProjectView({
               {project.name}
             </h2>
             <p className="text-[13px] text-muted-foreground mt-1">
-              {getDisplayName(project.source_locale)}{" "}
+              {getDisplayName(project.default_source_language)}{" "}
               <ArrowRight className="w-3.5 h-3.5 inline-block" />{" "}
-              {project.target_locales.map((l) => getDisplayName(l)).join(", ")}
+              {project.target_languages.map((l) => getDisplayName(l)).join(", ")}
             </p>
           </div>
           <div className="flex gap-2">

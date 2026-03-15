@@ -20,8 +20,9 @@ const (
 type Project struct {
 	ID            string            `json:"id"`
 	Name          string            `json:"name"`
-	SourceLocale  model.LocaleID    `json:"source_locale"`
-	TargetLocales []model.LocaleID  `json:"target_locales"`
+	DefaultSourceLanguage model.LocaleID    `json:"default_source_language"`
+	TargetLanguages      []model.LocaleID  `json:"target_languages"`
+	TargetLanguageMode   string            `json:"target_language_mode"`
 	Properties    map[string]string `json:"properties,omitempty"`
 	WorkspaceID   string            `json:"workspace_id,omitempty"`
 	Archived      bool              `json:"archived"`

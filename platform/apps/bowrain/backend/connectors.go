@@ -224,8 +224,8 @@ func (a *App) StoreProject(name, sourceLocale string, targetLocales []string) (*
 	}
 	p := &store.Project{
 		Name:          name,
-		SourceLocale:  model.LocaleID(sourceLocale),
-		TargetLocales: locales,
+		DefaultSourceLanguage: model.LocaleID(sourceLocale),
+		TargetLanguages:       locales,
 		Properties:    map[string]string{},
 	}
 	if err := a.store.CreateProject(context.Background(), p); err != nil {

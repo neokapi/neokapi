@@ -250,16 +250,16 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	locales := make([]model.LocaleID, len(req.TargetLocales))
-	for i, l := range req.TargetLocales {
+	locales := make([]model.LocaleID, len(req.TargetLanguages))
+	for i, l := range req.TargetLanguages {
 		locales[i] = model.LocaleID(l)
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
 	p := &store.Project{
 		Name:          req.Name,
-		SourceLocale:  model.LocaleID(req.SourceLocale),
-		TargetLocales: locales,
+		DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
+		TargetLanguages: locales,
 		WorkspaceID:   workspaceID,
 	}
 	ctx := c.Request().Context()

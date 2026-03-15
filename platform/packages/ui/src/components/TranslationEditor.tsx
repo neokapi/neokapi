@@ -116,7 +116,7 @@ export function TranslationEditor({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
-  const [targetLocale, setTargetLocale] = useState(project.target_locales[0] || "");
+  const [targetLocale, setTargetLocale] = useState(project.target_languages[0] || "");
   const [wordCount, setWordCount] = useState<WordCountResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1150,7 +1150,7 @@ export function TranslationEditor({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {project.target_locales.map((l) => (
+              {project.target_languages.map((l) => (
                 <SelectItem key={l} value={l}>
                   {getDisplayName(l)} ({l})
                 </SelectItem>
@@ -1259,7 +1259,7 @@ export function TranslationEditor({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {project.target_locales.map((l) => (
+            {project.target_languages.map((l) => (
               <SelectItem key={l} value={l}>
                 {getDisplayName(l)} ({l})
               </SelectItem>
