@@ -3,6 +3,8 @@ import { useTermsApi } from "../../hooks/useTermsApi";
 import { useLocales } from "../../hooks/useLocales";
 import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { ConceptInfo, TermInfo } from "../../types/api";
+import type { FilterToken, FilterField, FilterPreset } from "../FilterBar";
+import { FilterBar } from "../FilterBar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -19,6 +21,8 @@ interface TermExplorerProps {
   targetLocales: string[];
   projectId?: string;
   projectName?: string;
+  /** Projects in the workspace — used for project filter suggestions */
+  projects?: { id: string; name: string }[];
   onBack: () => void;
 }
 
@@ -30,6 +34,7 @@ export function TermExplorer({
   targetLocales,
   projectId,
   projectName,
+  projects,
   onBack,
 }: TermExplorerProps) {
   const { getDisplayName } = useLocales();
@@ -58,16 +63,84 @@ export function TermExplorer({
   } = useTermsApi();
   const [concepts, setConcepts] = useState<ConceptInfo[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [query, setQuery] = useState("");
-  const [sourceLocaleFilter, setSourceLocaleFilter] = useState("");
-  const [targetLocaleFilter, setTargetLocaleFilter] = useState("");
+  const [filters, setFilters] = useState<FilterToken[]>([]);
+  const [searchText, setSearchText] = useState("");
   const [page, setPage] = useState(0);
+
+  // Derive filter values from tokens
+  const query = searchText;
+  const sourceLocaleFilter = filters.find((f) => f.key === "source")?.value ?? "";
+  const targetLocaleFilter = filters.find((f) => f.key === "target")?.value ?? "";
+
+  const allLocales = useMemo(() => {
+    const set = new Set([sourceLocale, ...targetLocales].filter(Boolean));
+    return [...set];
+  }, [sourceLocale, targetLocales]);
+
+  const filterFields = useMemo<FilterField[]>(() => {
+    const fields: FilterField[] = [
+      {
+        key: "source",
+        label: "Source locale",
+        hint: "filter by source language",
+        values: allLocales.map((l) => ({ value: l, label: getDisplayName(l) })),
+      },
+      {
+        key: "target",
+        label: "Target locale",
+        hint: "filter by target language",
+        values: allLocales.map((l) => ({ value: l, label: getDisplayName(l) })),
+      },
+      {
+        key: "status",
+        label: "Status",
+        hint: "filter by term status",
+        values: STATUS_OPTIONS.map((s) => ({ value: s, label: s })),
+      },
+    ];
+    if (projects && projects.length > 0) {
+      fields.unshift({
+        key: "project",
+        label: "Project",
+        hint: "filter by project",
+        values: projects.map((p) => ({ value: p.id, label: p.name })),
+      });
+    }
+    return fields;
+  }, [allLocales, getDisplayName, projects]);
+
+  const filterPresets = useMemo<FilterPreset[]>(() => {
+    const presets: FilterPreset[] = [];
+    if (sourceLocale) {
+      presets.push({
+        label: "Source: " + getDisplayName(sourceLocale),
+        filters: [{ key: "source", value: sourceLocale }],
+      });
+    }
+    for (const t of targetLocales.slice(0, 3)) {
+      presets.push({
+        label: "Target: " + getDisplayName(t),
+        filters: [{ key: "target", value: t }],
+      });
+    }
+    presets.push({ label: "Deprecated terms", filters: [{ key: "status", value: "deprecated" }] });
+    return presets;
+  }, [sourceLocale, targetLocales, getDisplayName]);
+
+  const handleFiltersChange = useCallback((newFilters: FilterToken[]) => {
+    setFilters(newFilters);
+    setPage(0);
+  }, []);
+
+  const handleSearchChange = useCallback((newSearch: string) => {
+    setSearchText(newSearch);
+    setPage(0);
+  }, []);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editConcept, setEditConcept] = useState<ConceptInfo | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [newProjectScoped, setNewProjectScoped] = useState(false);
   const [newDomain, setNewDomain] = useState("");
@@ -94,13 +167,7 @@ export function TermExplorer({
     void fetchConcepts(query, sourceLocaleFilter, targetLocaleFilter, page);
   }, [fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
 
-  const handleQueryChange = useCallback((value: string) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      setQuery(value);
-      setPage(0);
-    }, 300);
-  }, []);
+  // (query/filter changes handled by FilterBar callbacks above)
 
   const handleAdd = useCallback(async () => {
     const validTerms = newTerms.filter((t) => t.text.trim() !== "");
@@ -165,7 +232,7 @@ export function TermExplorer({
     if (!editConcept) return;
     try {
       await updateConcept({
-        project_id: "",
+        project_id: editConcept.project_id ?? "",
         concept_id: editConcept.id,
         domain: editConcept.domain,
         definition: editConcept.definition,
@@ -294,7 +361,6 @@ export function TermExplorer({
     setter(updated);
   };
 
-  const allLocales = [sourceLocale, ...targetLocales];
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   return (
@@ -352,47 +418,16 @@ export function TermExplorer({
         )}
 
         {/* Search and filters */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <Input
-            type="text"
-            placeholder="Search terms..."
-            defaultValue={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
-            className="flex-1"
-            data-testid="term-search-input"
+        <div className="mb-6" data-testid="term-search-input">
+          <FilterBar
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            search={searchText}
+            onSearchChange={handleSearchChange}
+            fields={filterFields}
+            presets={filterPresets}
+            placeholder="Search terminology..."
           />
-          <select
-            value={sourceLocaleFilter}
-            onChange={(e) => {
-              setSourceLocaleFilter(e.target.value);
-              setPage(0);
-            }}
-            className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm"
-            data-testid="term-source-locale-filter"
-          >
-            <option value="">All source locales</option>
-            {allLocales.map((l) => (
-              <option key={l} value={l}>
-                {getDisplayName(l)} ({l})
-              </option>
-            ))}
-          </select>
-          <select
-            value={targetLocaleFilter}
-            onChange={(e) => {
-              setTargetLocaleFilter(e.target.value);
-              setPage(0);
-            }}
-            className="px-3 py-2 border border-input rounded-md bg-transparent text-foreground text-sm"
-            data-testid="term-target-locale-filter"
-          >
-            <option value="">All target locales</option>
-            {allLocales.map((l) => (
-              <option key={l} value={l}>
-                {getDisplayName(l)} ({l})
-              </option>
-            ))}
-          </select>
         </div>
 
         {/* Table */}
@@ -427,9 +462,8 @@ export function TermExplorer({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setQuery("");
-                    setSourceLocaleFilter("");
-                    setTargetLocaleFilter("");
+                    setFilters([]);
+                    setSearchText("");
                   }}
                 >
                   Clear filters

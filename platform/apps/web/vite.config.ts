@@ -13,7 +13,7 @@ export default defineConfig({
     },
   },
   server: {
-    open: true,
+    open: "https://bowrain.mymac",
     port: 5173,
     proxy: {
       "/api": "http://localhost:8080",

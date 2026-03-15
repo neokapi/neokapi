@@ -44,6 +44,11 @@ import type {
   StreamDiffResult,
   StreamMergeResult,
   CreateStreamRequest,
+  CollectionInfo,
+  CreateCollectionRequest,
+  AuditEntry,
+  AuditQuery,
+  ArchivedProject,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -378,6 +383,22 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
+  async updateStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    data: { description?: string; visibility?: string },
+  ): Promise<StreamInfo> {
+    return this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      },
+    );
+  }
+
   async deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void> {
     await this.fetchJSON(
       `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}`,
@@ -442,10 +463,51 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(this.withStream(`${this.ep(workspaceSlug)}/${projectId}`, stream));
   }
 
+  async updateProject(
+    workspaceSlug: string,
+    projectId: string,
+    data: { name?: string; target_locales?: string[] },
+  ): Promise<ProjectInfo> {
+    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  }
+
   async deleteProject(workspaceSlug: string, projectId: string): Promise<void> {
     await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
       method: "DELETE",
     });
+  }
+
+  async restoreProject(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/restore`, {
+      method: "POST",
+    });
+  }
+
+  async permanentlyDeleteProject(workspaceSlug: string, projectId: string): Promise<void> {
+    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/permanent`, {
+      method: "DELETE",
+    });
+  }
+
+  async listArchivedProjects(workspaceSlug: string): Promise<ArchivedProject[]> {
+    return this.fetchJSON(
+      `/api/v1/workspaces/${workspaceSlug}/archived/projects`,
+    );
+  }
+
+  async restoreStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `/api/v1/workspaces/${workspaceSlug}/projects/${projectId}/streams/${streamName}/restore`,
+      { method: "POST" },
+    );
   }
 
   async uploadFiles(
@@ -485,6 +547,93 @@ export class RestApiAdapter implements ApiAdapter {
       ),
       { method: "DELETE" },
     );
+  }
+
+  // ── Collections ─────────────────────────────────────────────────────────
+
+  async listCollections(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<CollectionInfo[]> {
+    return this.fetchJSON(
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/collections`, stream),
+    );
+  }
+
+  async createCollection(
+    workspaceSlug: string,
+    projectId: string,
+    req: CreateCollectionRequest,
+  ): Promise<CollectionInfo> {
+    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
+  }
+
+  async getCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+  ): Promise<CollectionInfo> {
+    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`);
+  }
+
+  async updateCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+    req: Partial<CreateCollectionRequest>,
+  ): Promise<CollectionInfo> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      },
+    );
+  }
+
+  async deleteCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async uploadToCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+    files: File[],
+    stream?: string,
+  ): Promise<ProjectInfo> {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+    const url = this.withStream(
+      `${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}/files`,
+      stream,
+    );
+    const resp = await fetch(`${this.baseUrl}${url}`, {
+      method: "POST",
+      headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
+      credentials: "same-origin",
+      body: formData,
+    });
+    if (!resp.ok) {
+      const body = await resp.text();
+      throw new Error(`${resp.status}: ${body}`);
+    }
+    return resp.json();
   }
 
   // ── Editor ───────────────────────────────────────────────────────────────
@@ -1123,6 +1272,25 @@ export class RestApiAdapter implements ApiAdapter {
   async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
     return this.fetchJSON(
       `/api/v1/workspaces/${workspaceSlug}/brand/trends?project_id=${encodeURIComponent(projectId)}`,
+    );
+  }
+
+  // ── Audit Log ───────────────────────────────────────────────────────────
+
+  async listWorkspaceAuditLog(
+    workspaceSlug: string,
+    query?: AuditQuery,
+  ): Promise<AuditEntry[]> {
+    const params = new URLSearchParams();
+    if (query?.project) params.set("project", query.project);
+    if (query?.type) params.set("type", query.type);
+    if (query?.actor) params.set("actor", query.actor);
+    if (query?.search) params.set("search", query.search);
+    if (query?.limit) params.set("limit", String(query.limit));
+    if (query?.offset) params.set("offset", String(query.offset));
+    const qs = params.toString();
+    return this.fetchJSON(
+      `/api/v1/workspaces/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`,
     );
   }
 

@@ -16,6 +16,9 @@ type ContentStore interface {
 	ListProjects(ctx context.Context) ([]*Project, error)
 	UpdateProject(ctx context.Context, p *Project) error
 	DeleteProject(ctx context.Context, id string) error
+	ArchiveProject(ctx context.Context, id string) error
+	RestoreProject(ctx context.Context, id string) error
+	ListArchivedProjects(ctx context.Context, workspaceID string) ([]*Project, error)
 
 	// Stream management
 	CreateStream(ctx context.Context, s *Stream) error
@@ -32,6 +35,15 @@ type ContentStore interface {
 	AddStreamMember(ctx context.Context, projectID, streamName, userID string) error
 	RemoveStreamMember(ctx context.Context, projectID, streamName, userID string) error
 	ListStreamMembers(ctx context.Context, projectID, streamName string) ([]string, error)
+
+	// Collection management — project-scoped (optionally stream-scoped)
+	CreateCollection(ctx context.Context, c *Collection) error
+	GetCollection(ctx context.Context, projectID, collectionID string) (*Collection, error)
+	GetCollectionByName(ctx context.Context, projectID, name, stream string) (*Collection, error)
+	GetDefaultCollection(ctx context.Context, projectID string) (*Collection, error)
+	ListCollections(ctx context.Context, projectID, stream string) ([]*Collection, error)
+	UpdateCollection(ctx context.Context, c *Collection) error
+	DeleteCollection(ctx context.Context, projectID, collectionID string) error
 
 	// Item management — stream-scoped
 	StoreItem(ctx context.Context, projectID, stream string, item *Item) error

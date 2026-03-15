@@ -6,6 +6,8 @@ export function viewFromPath(pathname: string, workspace: string): View {
   if (after.startsWith("/brand")) return "brand";
   if (after.startsWith("/termbase")) return "termbase";
   if (after.startsWith("/memory")) return "memory";
+  if (after.startsWith("/auditlog")) return "auditlog";
+  if (after.startsWith("/bin")) return "bin";
   if (after.startsWith("/settings")) return "settings";
   return "translate";
 }

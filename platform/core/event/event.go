@@ -40,8 +40,22 @@ const (
 	EventQualityGatePass EventType = "quality.gate.pass"
 	EventQualityGateFail EventType = "quality.gate.fail"
 
+	// Stream events
+	EventStreamCreated EventType = "stream.created"
+	EventStreamMerged  EventType = "stream.merged"
+	EventStreamDeleted EventType = "stream.deleted"
+
+	// Collection events
+	EventCollectionCreated EventType = "collection.created"
+	EventCollectionUpdated EventType = "collection.updated"
+	EventCollectionDeleted EventType = "collection.deleted"
+
+	// Item events
+	EventItemCreated EventType = "item.created"
+	EventItemDeleted EventType = "item.deleted"
+
 	// Brand voice events
-	EventBrandVoiceCheckStarted   EventType = "brand.voice.check.started"
+	EventBrandVoiceCheckStarted EventType = "brand.voice.check.started"
 	EventBrandVoiceCheckCompleted EventType = "brand.voice.check.completed"
 	EventBrandVoiceGateFailed     EventType = "brand.voice.gate.failed"
 	EventBrandVoiceGatePassed     EventType = "brand.voice.gate.passed"
@@ -56,8 +70,9 @@ type Event struct {
 	Type        EventType         `json:"type"`
 	Source      string            `json:"source"` // Component that emitted the event
 	ProjectID   string            `json:"project_id"`
-	Data        map[string]string `json:"data"`         // Event-specific key-value data
-	CausationID string            `json:"causation_id"` // For tracing automation chains
+	Actor       string            `json:"actor,omitempty"` // User or system that triggered the event
+	Data        map[string]string `json:"data"`            // Event-specific key-value data
+	CausationID string            `json:"causation_id"`    // For tracing automation chains
 	Timestamp   time.Time         `json:"timestamp"`
 }
 

@@ -85,10 +85,26 @@ export { StreamBadge } from "./components/StreamBadge";
 export type { StreamBadgeProps } from "./components/StreamBadge";
 export { StreamSelector } from "./components/StreamSelector";
 export type { StreamSelectorProps } from "./components/StreamSelector";
+export { CollectionTabs } from "./components/CollectionTabs";
+export type { CollectionTabsProps } from "./components/CollectionTabs";
+export { CreateCollectionDialog } from "./components/CreateCollectionDialog";
+export type { CreateCollectionDialogProps } from "./components/CreateCollectionDialog";
+export { FilterBar } from "./components/FilterBar";
+export type { FilterBarProps, FilterToken, FilterField, FilterPreset } from "./components/FilterBar";
+export { ConfirmDialog } from "./components/ConfirmDialog";
+export type { ConfirmDialogProps } from "./components/ConfirmDialog";
+export { ProjectFormDialog } from "./components/ProjectFormDialog";
+export type { ProjectFormDialogProps, ProjectFormData } from "./components/ProjectFormDialog";
+export { AuditLogView } from "./components/AuditLogView";
+export type { AuditLogViewProps } from "./components/AuditLogView";
+export { BinView } from "./components/BinView";
+export type { BinViewProps } from "./components/BinView";
 export { StreamCreateDialog } from "./components/StreamCreateDialog";
 export type { StreamCreateDialogProps } from "./components/StreamCreateDialog";
 export { StreamDiffView } from "./components/StreamDiffView";
 export type { StreamDiffViewProps } from "./components/StreamDiffView";
+export { StreamEditDialog } from "./components/StreamEditDialog";
+export type { StreamEditDialogProps } from "./components/StreamEditDialog";
 export { StreamMergeDialog } from "./components/StreamMergeDialog";
 export type { StreamMergeDialogProps } from "./components/StreamMergeDialog";
 
@@ -139,6 +155,7 @@ export { ThemeProvider, useTheme } from "./context/ThemeContext";
 export type { Theme } from "./context/ThemeContext";
 export { BreadcrumbProvider, useBreadcrumb, useSetBreadcrumb } from "./context/BreadcrumbContext";
 export { StreamProvider, useStream } from "./context/StreamContext";
+export { StreamActionsProvider, useStreamActions } from "./context/StreamActionsContext";
 
 // API
 export type { ApiAdapter } from "./api/adapter";
@@ -226,6 +243,12 @@ export type {
   StreamDiffResult,
   StreamMergeResult,
   CreateStreamRequest,
+  CollectionInfo,
+  CollectionKind,
+  CreateCollectionRequest,
+  AuditEntry,
+  AuditQuery,
+  ArchivedProject,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

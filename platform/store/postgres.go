@@ -76,15 +76,15 @@ func (s *PostgresStore) CreateProject(ctx context.Context, p *platstore.Project)
 
 func (s *PostgresStore) GetProject(ctx context.Context, id string) (*platstore.Project, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE id = $1`, id)
 	return scanProjectPg(row)
 }
 
 func (s *PostgresStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
-		 FROM projects ORDER BY name`)
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, archived, archived_at, created_at, updated_at
+		 FROM projects WHERE archived=FALSE ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
@@ -136,6 +136,197 @@ func (s *PostgresStore) DeleteProject(ctx context.Context, id string) error {
 	return nil
 }
 
+func (s *PostgresStore) ArchiveProject(ctx context.Context, id string) error {
+	now := time.Now().UTC()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE projects SET archived=TRUE, archived_at=$1, updated_at=$1 WHERE id=$2`, now, id)
+	if err != nil {
+		return fmt.Errorf("archive project: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project %s not found", id)
+	}
+	return nil
+}
+
+func (s *PostgresStore) RestoreProject(ctx context.Context, id string) error {
+	now := time.Now().UTC()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE projects SET archived=FALSE, archived_at=NULL, updated_at=$1 WHERE id=$2`, now, id)
+	if err != nil {
+		return fmt.Errorf("restore project: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project %s not found", id)
+	}
+	return nil
+}
+
+func (s *PostgresStore) ListArchivedProjects(ctx context.Context, workspaceID string) ([]*platstore.Project, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, archived, archived_at, created_at, updated_at
+		 FROM projects WHERE workspace_id=$1 AND archived=TRUE ORDER BY archived_at DESC`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list archived projects: %w", err)
+	}
+	defer rows.Close()
+	result := make([]*platstore.Project, 0)
+	for rows.Next() {
+		p, err := scanProjectPg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// Collection management
+// ---------------------------------------------------------------------------
+
+func (s *PostgresStore) CreateCollection(ctx context.Context, c *platstore.Collection) error {
+	now := time.Now().UTC()
+	c.CreatedAt = now
+	c.UpdatedAt = now
+	if c.ID == "" {
+		c.ID = id.New()
+	}
+	if c.Kind == "" {
+		c.Kind = platstore.CollectionUploaded
+	}
+	if c.ItemLabel == "" {
+		c.ItemLabel = "item"
+	}
+
+	configJSON, err := json.Marshal(c.ConnectorConfig)
+	if err != nil {
+		return fmt.Errorf("marshal connector config: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
+		string(configJSON), now, now)
+	if err != nil {
+		return fmt.Errorf("create collection: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) GetCollection(ctx context.Context, projectID, collectionID string) (*platstore.Collection, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=$1 AND id=$2`, projectID, collectionID)
+	return scanCollectionPg(row)
+}
+
+func (s *PostgresStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*platstore.Collection, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=$1 AND name=$2 AND (stream='' OR stream=$3)`,
+		projectID, name, stream)
+	return scanCollectionPg(row)
+}
+
+func (s *PostgresStore) GetDefaultCollection(ctx context.Context, projectID string) (*platstore.Collection, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=$1 AND is_default=TRUE`, projectID)
+	return scanCollectionPg(row)
+}
+
+func (s *PostgresStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=$1 AND (stream='' OR stream=$2)
+		 ORDER BY is_default DESC, name`, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list collections: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*platstore.Collection
+	for rows.Next() {
+		c, err := scanCollectionPg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, c)
+	}
+	return result, rows.Err()
+}
+
+func (s *PostgresStore) UpdateCollection(ctx context.Context, c *platstore.Collection) error {
+	c.UpdatedAt = time.Now().UTC()
+
+	configJSON, err := json.Marshal(c.ConnectorConfig)
+	if err != nil {
+		return fmt.Errorf("marshal connector config: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE collections SET name=$1, kind=$2, item_label=$3, stream=$4, connector_config=$5, updated_at=$6
+		 WHERE project_id=$7 AND id=$8`,
+		c.Name, string(c.Kind), c.ItemLabel, c.Stream, string(configJSON), c.UpdatedAt, c.ProjectID, c.ID)
+	if err != nil {
+		return fmt.Errorf("update collection: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) DeleteCollection(ctx context.Context, projectID, collectionID string) error {
+	var isDefault bool
+	err := s.db.QueryRowContext(ctx,
+		`SELECT is_default FROM collections WHERE project_id=$1 AND id=$2`,
+		projectID, collectionID).Scan(&isDefault)
+	if err != nil {
+		return fmt.Errorf("get collection: %w", err)
+	}
+	if isDefault {
+		return fmt.Errorf("cannot delete the default collection")
+	}
+
+	var defaultID string
+	err = s.db.QueryRowContext(ctx,
+		`SELECT id FROM collections WHERE project_id=$1 AND is_default=TRUE`, projectID).Scan(&defaultID)
+	if err != nil {
+		return fmt.Errorf("get default collection: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE items SET collection_id=$1 WHERE project_id=$2 AND collection_id=$3`,
+		defaultID, projectID, collectionID)
+	if err != nil {
+		return fmt.Errorf("reassign items: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`DELETE FROM collections WHERE project_id=$1 AND id=$2`, projectID, collectionID)
+	if err != nil {
+		return fmt.Errorf("delete collection: %w", err)
+	}
+	return nil
+}
+
+func scanCollectionPg(row scanner) (*platstore.Collection, error) {
+	var c platstore.Collection
+	var kindStr, configJSON string
+	err := row.Scan(&c.ID, &c.ProjectID, &c.Name, &kindStr, &c.ItemLabel,
+		&c.IsDefault, &c.Stream, &configJSON, &c.CreatedAt, &c.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("scan collection: %w", err)
+	}
+	c.Kind = platstore.CollectionKind(kindStr)
+	if err := json.Unmarshal([]byte(configJSON), &c.ConnectorConfig); err != nil {
+		c.ConnectorConfig = map[string]string{}
+	}
+	return &c, nil
+}
+
 // ---------------------------------------------------------------------------
 // Item management
 // ---------------------------------------------------------------------------
@@ -160,15 +351,24 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 		item.ID = id.New()
 	}
 
+	// Resolve collection_id to the default collection if not set.
+	if item.CollectionID == "" {
+		defColl, defErr := s.GetDefaultCollection(ctx, projectID)
+		if defErr == nil {
+			item.CollectionID = defColl.ID
+		}
+	}
+
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=EXCLUDED.format, item_type=EXCLUDED.item_type,
 			source_bytes=EXCLUDED.source_bytes, block_index=EXCLUDED.block_index,
-			properties=EXCLUDED.properties, updated_at=EXCLUDED.updated_at`,
+			properties=EXCLUDED.properties, collection_id=CASE WHEN EXCLUDED.collection_id='' THEN items.collection_id ELSE EXCLUDED.collection_id END,
+			updated_at=EXCLUDED.updated_at`,
 		item.ID, projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
-		item.BlockIndex, string(propsJSON), now, now)
+		item.BlockIndex, string(propsJSON), item.CollectionID, now, now)
 	if err != nil {
 		return fmt.Errorf("store item %q: %w", item.Name, err)
 	}
@@ -178,7 +378,7 @@ func (s *PostgresStore) StoreItem(ctx context.Context, projectID, stream string,
 func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 AND name=$3`, projectID, stream, itemName)
 	return scanItemPg(row)
 }
@@ -186,7 +386,7 @@ func (s *PostgresStore) GetItem(ctx context.Context, projectID, stream, itemName
 func (s *PostgresStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
 	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 ORDER BY name`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
@@ -232,7 +432,7 @@ func (s *PostgresStore) DeleteItem(ctx context.Context, projectID, stream, itemN
 func (s *PostgresStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, itemID)
 	return scanItemPg(row)
 }
@@ -621,7 +821,8 @@ func (s *PostgresStore) Diff(ctx context.Context, fromVersionID, toVersionID str
 func scanProjectPg(row scanner) (*platstore.Project, error) {
 	var p platstore.Project
 	var srcLocale, targetLocales, propsJSON string
-	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &p.WorkspaceID, &p.CreatedAt, &p.UpdatedAt)
+	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &p.WorkspaceID,
+		&p.Archived, &p.ArchivedAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan project: %w", err)
 	}
@@ -637,7 +838,7 @@ func scanItemPg(row scanner) (*platstore.Item, error) {
 	var item platstore.Item
 	var propsJSON string
 	err := row.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Format, &item.ItemType,
-		&item.SourceBytes, &item.BlockIndex, &propsJSON, &item.CreatedAt, &item.UpdatedAt)
+		&item.SourceBytes, &item.BlockIndex, &propsJSON, &item.CollectionID, &item.CreatedAt, &item.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan item: %w", err)
 	}

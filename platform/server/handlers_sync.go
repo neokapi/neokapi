@@ -35,11 +35,15 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 
 	// Group blocks by item_name for per-item storage.
 	itemGroups := map[string][]*model.Block{}
+	itemCollections := map[string]string{} // item_name → collection name
 	for _, bi := range req.Blocks {
 		b := model.NewBlock(bi.ID, bi.Text)
 		b.Name = bi.Name
 		b.Type = bi.Type
 		itemGroups[bi.ItemName] = append(itemGroups[bi.ItemName], b)
+		if bi.Collection != "" && bi.ItemName != "" {
+			itemCollections[bi.ItemName] = bi.Collection
+		}
 	}
 
 	projectID := c.Param("id")
@@ -63,6 +67,31 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		}
 	}
 
+	// Resolve collection names to IDs for items that specify a collection.
+	collectionCache := map[string]string{} // collection name → collection ID
+	if s.ContentStore != nil && len(itemCollections) > 0 {
+		for _, collName := range itemCollections {
+			if _, seen := collectionCache[collName]; seen {
+				continue
+			}
+			coll, err := s.ContentStore.GetCollectionByName(ctx, projectID, collName, stream)
+			if err != nil {
+				// Auto-create the collection.
+				coll = &store.Collection{
+					ProjectID: projectID,
+					Name:      collName,
+					Kind:      store.CollectionUploaded,
+					ItemLabel: "item",
+				}
+				if createErr := s.ContentStore.CreateCollection(ctx, coll); createErr == nil {
+					collectionCache[collName] = coll.ID
+				}
+			} else {
+				collectionCache[collName] = coll.ID
+			}
+		}
+	}
+
 	pushID := id.New()
 	totalStored := 0
 	for itemName, blocks := range itemGroups {
@@ -76,11 +105,15 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 			}
 			// Ensure the item exists in the ContentStore so it appears in the editor UI.
 			if s.ContentStore != nil {
-				_ = s.ContentStore.StoreItem(ctx, projectID, stream, &store.Item{
+				item := &store.Item{
 					Name:     itemName,
 					Format:   detectFormatFromName(itemName),
 					ItemType: "file",
-				})
+				}
+				if collName, ok := itemCollections[itemName]; ok {
+					item.CollectionID = collectionCache[collName]
+				}
+				_ = s.ContentStore.StoreItem(ctx, projectID, stream, item)
 			}
 		}
 		totalStored += len(blocks)

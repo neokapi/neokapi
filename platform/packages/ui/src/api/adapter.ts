@@ -43,6 +43,11 @@ import type {
   StreamDiffResult,
   StreamMergeResult,
   CreateStreamRequest,
+  CollectionInfo,
+  CreateCollectionRequest,
+  AuditEntry,
+  AuditQuery,
+  ArchivedProject,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -107,6 +112,12 @@ export interface ApiAdapter {
     req: CreateStreamRequest,
   ): Promise<StreamInfo>;
   getStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
+  updateStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    data: { description?: string; visibility?: string },
+  ): Promise<StreamInfo>;
   deleteStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void>;
   diffStream(
     workspaceSlug: string,
@@ -129,7 +140,16 @@ export interface ApiAdapter {
     targetLocales: string[],
   ): Promise<ProjectInfo>;
   getProject(workspaceSlug: string, projectId: string, stream?: string): Promise<ProjectInfo>;
+  updateProject(
+    workspaceSlug: string,
+    projectId: string,
+    data: { name?: string; target_locales?: string[] },
+  ): Promise<ProjectInfo>;
   deleteProject(workspaceSlug: string, projectId: string): Promise<void>;
+  restoreProject(workspaceSlug: string, projectId: string): Promise<void>;
+  permanentlyDeleteProject(workspaceSlug: string, projectId: string): Promise<void>;
+  listArchivedProjects(workspaceSlug: string): Promise<ArchivedProject[]>;
+  restoreStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void>;
   uploadFiles(
     workspaceSlug: string,
     projectId: string,
@@ -140,6 +160,29 @@ export interface ApiAdapter {
     workspaceSlug: string,
     projectId: string,
     fileName: string,
+    stream?: string,
+  ): Promise<ProjectInfo>;
+
+  // Collections (project-scoped)
+  listCollections(workspaceSlug: string, projectId: string, stream?: string): Promise<CollectionInfo[]>;
+  createCollection(
+    workspaceSlug: string,
+    projectId: string,
+    req: CreateCollectionRequest,
+  ): Promise<CollectionInfo>;
+  getCollection(workspaceSlug: string, projectId: string, collectionId: string): Promise<CollectionInfo>;
+  updateCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+    req: Partial<CreateCollectionRequest>,
+  ): Promise<CollectionInfo>;
+  deleteCollection(workspaceSlug: string, projectId: string, collectionId: string): Promise<void>;
+  uploadToCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+    files: File[],
     stream?: string,
   ): Promise<ProjectInfo>;
 
@@ -379,6 +422,9 @@ export interface ApiAdapter {
   deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
   getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
+
+  // Audit log
+  listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

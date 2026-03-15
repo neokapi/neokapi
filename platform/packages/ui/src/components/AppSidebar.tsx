@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import type { Workspace, User, ProjectInfo } from "../types/api";
+import type { Workspace, User, ProjectInfo, StreamInfo } from "../types/api";
 import {
   BookOpen,
   Brain,
@@ -10,6 +10,8 @@ import {
   Home,
   LayoutDashboard,
   Sparkles,
+  Clock,
+  Trash2,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { useSidebar } from "./ui/sidebar";
@@ -18,7 +20,7 @@ import { useSidebar } from "./ui/sidebar";
 // Types
 // ---------------------------------------------------------------------------
 
-export type View = "translate" | "brand" | "termbase" | "memory" | "settings";
+export type View = "translate" | "brand" | "termbase" | "memory" | "auditlog" | "bin" | "settings";
 
 export interface NavItem {
   id: string;
@@ -51,6 +53,10 @@ export type SidebarContext =
       onOpenFile: (fileName: string) => void;
       onStreamChange: (stream: string) => void;
       onCreateStream?: () => void;
+      onEditStream?: (stream: StreamInfo) => void;
+      onMergeStream?: (streamName: string) => void;
+      onDiffStream?: (streamName: string) => void;
+      onDeleteStream?: (streamName: string) => void;
       onOpenAutomations?: () => void;
     };
 
@@ -140,7 +146,13 @@ const defaultNavItems: NavItem[] = [
   { id: "brand", label: "Brand Voice", icon: <Palette className="w-5 h-5" /> },
   { id: "termbase", label: "Termbase", icon: <BookOpen className="w-5 h-5" /> },
   { id: "memory", label: "Memory", icon: <Brain className="w-5 h-5" /> },
+  { id: "auditlog", label: "Audit Log", icon: <Clock className="w-5 h-5" /> },
   { id: "settings", label: "Settings", icon: <Settings className="w-5 h-5" /> },
+];
+
+/** Items pinned to the bottom of the sidebar, separated from the main nav. */
+const bottomNavItems: NavItem[] = [
+  { id: "bin", label: "Bin", icon: <Trash2 className="w-5 h-5" /> },
 ];
 
 function WorkspaceNav<V extends string>({
@@ -154,16 +166,18 @@ function WorkspaceNav<V extends string>({
   extraNavItems: NavItem[];
   iconsOnly: boolean;
 }) {
-  const navItems = [
+  // Settings is always last in the main list
+  const lastItem = defaultNavItems[defaultNavItems.length - 1];
+  const mainItems = [
     ...defaultNavItems.slice(0, -1),
     ...extraNavItems,
-    defaultNavItems[defaultNavItems.length - 1],
+    lastItem,
   ];
 
   return (
-    <nav className="flex-1 overflow-hidden px-2 py-2">
-      <ul className="flex flex-col gap-1 list-none p-0 m-0">
-        {navItems.map(({ id, label, icon }) => {
+    <nav className="flex-1 overflow-hidden px-2 py-2 flex flex-col">
+      <ul className="flex flex-col gap-1 list-none p-0 m-0 flex-1">
+        {mainItems.map(({ id, label, icon }) => {
           const isActive = activeView === id;
           return (
             <li key={id}>
@@ -179,6 +193,27 @@ function WorkspaceNav<V extends string>({
           );
         })}
       </ul>
+
+      {/* Bottom items — pinned to bottom, visually separated */}
+      {bottomNavItems.length > 0 && (
+        <ul className="flex flex-col gap-1 list-none p-0 m-0 pt-2 mt-2 border-t border-border/20">
+          {bottomNavItems.map(({ id, label, icon }) => {
+            const isActive = activeView === id;
+            return (
+              <li key={id}>
+                <NavButton
+                  isActive={isActive}
+                  onClick={() => onViewChange(id as V)}
+                  icon={icon}
+                  label={label}
+                  iconsOnly={iconsOnly}
+                  testId={`nav-${id}`}
+                />
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </nav>
   );
 }
@@ -211,7 +246,7 @@ function ProjectNav({
       {/* Divider */}
       <div
         className="mx-1 my-2"
-        style={{ borderTop: "1px solid var(--sidebar-border)" }}
+        style={{ borderTop: "1px solid color-mix(in srgb, var(--sidebar-border) 80%, var(--sidebar-foreground) 20%)" }}
       />
 
       {/* Project-level menu items */}

@@ -98,6 +98,9 @@ type Server struct {
 	// graphSyncer keeps the graph in sync with content events. Nil when graph is not configured.
 	graphSyncer *platgraph.GraphSyncer
 
+	// AuditLogger persists all events to the audit_log table. Nil when not configured.
+	AuditLogger *event.AuditLogger
+
 	// mcpServer is the MCP protocol server for brand voice. Nil when brand store is not configured.
 	mcpServer *mcpserver.MCPServer
 
@@ -173,6 +176,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.QuotaStore = pg.Quota
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
+			s.AuditLogger = event.NewAuditLogger(pgSQL, s.EventBus)
 			s.AutomationRuleStore = event.NewPostgresRuleStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewPostgresReviewQueueStore(pgSQL)
 			s.NotificationStore = bstore.NewPostgresNotificationStore(pgSQL)
@@ -200,6 +204,18 @@ func NewServer(cfg ServerConfig) *Server {
 			log.Printf("WARNING: failed to connect to NATS queue: %v", err)
 		} else {
 			s.JobQueue = q
+		}
+	}
+
+	// Wrap ContentStore with EventEmittingStore so all mutations publish events.
+	if s.ContentStore != nil {
+		s.ContentStore = event.NewEventEmittingStore(s.ContentStore, s.EventBus)
+		// Update Services to use the wrapped store.
+		if s.Services != nil {
+			s.Services = service.NewServices(s.ContentStore, connReg, formatReg, toolReg)
+			if s.AuthStore != nil && cfg.JWTSecret != "" {
+				s.Services.Auth = service.NewAuthService(s.AuthStore, cfg.JWTSecret)
+			}
 		}
 	}
 
@@ -421,7 +437,21 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/editor/projects", s.HandleCreateEditorProject)
 	g.GET("/editor/projects", s.HandleListEditorProjects)
 	g.GET("/editor/projects/:pid", s.HandleGetEditorProject)
+	g.PUT("/editor/projects/:pid", s.HandleUpdateEditorProject)
 	g.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
+	g.POST("/editor/projects/:pid/restore", s.HandleRestoreProject)
+	g.DELETE("/editor/projects/:pid/permanent", s.HandlePermanentlyDeleteProject)
+
+	// Archived projects (bin)
+	g.GET("/archived/projects", s.HandleListArchivedProjects)
+
+	// Collection management (project-scoped)
+	g.GET("/editor/projects/:pid/collections", s.HandleListCollections)
+	g.POST("/editor/projects/:pid/collections", s.HandleCreateCollection)
+	g.GET("/editor/projects/:pid/collections/:cid", s.HandleGetCollection)
+	g.PUT("/editor/projects/:pid/collections/:cid", s.HandleUpdateCollection)
+	g.DELETE("/editor/projects/:pid/collections/:cid", s.HandleDeleteCollection)
+	g.POST("/editor/projects/:pid/collections/:cid/files", s.HandleUploadToCollection)
 
 	// File management
 	g.POST("/editor/projects/:pid/files", s.HandleUploadFiles)
@@ -549,12 +579,17 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
 	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
 
+	// Audit log
+	g.GET("/audit-log", s.HandleListWorkspaceAuditLog)
+	g.GET("/projects/:id/audit-log", s.HandleListAuditLog)
+
 	// Stream management (project-scoped)
 	g.GET("/projects/:id/streams", s.HandleListStreams)
 	g.POST("/projects/:id/streams", s.HandleCreateStream)
 	g.GET("/projects/:id/streams/:stream", s.HandleGetStream)
 	g.PATCH("/projects/:id/streams/:stream", s.HandleUpdateStream)
 	g.DELETE("/projects/:id/streams/:stream", s.HandleArchiveStream)
+	g.POST("/projects/:id/streams/:stream/restore", s.HandleRestoreStream)
 	g.POST("/projects/:id/streams/:stream/merge", s.HandleMergeStream)
 	g.GET("/projects/:id/streams/:stream/diff", s.HandleDiffStream)
 }

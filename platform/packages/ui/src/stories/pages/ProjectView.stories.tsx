@@ -30,6 +30,14 @@ export const Default: Story = {
     onRemoveFile: fn(),
     onOpenTM: fn(),
     onOpenTerms: fn(),
+    onCreateCollection: fn(),
+    onEditCollection: fn(),
+    onDeleteCollection: fn(),
+    onUploadToCollection: fn(),
+    onCreateStream: fn(),
+    onMergeStream: fn(),
+    onDiffStream: fn(),
+    onDeleteStream: fn(),
   },
 };
 
@@ -43,6 +51,10 @@ export const WithServerMode: Story = {
     onOpenTM: fn(),
     onOpenTerms: fn(),
     serverMode: { serverURL: "https://bowrain.example.com", workspaceSlug: "demo" },
+    onCreateCollection: fn(),
+    onEditCollection: fn(),
+    onDeleteCollection: fn(),
+    onCreateStream: fn(),
   },
 };
 
@@ -51,6 +63,22 @@ export const EmptyProject: Story = {
     project: {
       ...sampleProject,
       items: [],
+      collections: sampleProject.collections?.map((c) => ({ ...c, item_count: 0 })),
+    },
+    onBack: fn(),
+    onOpenFile: fn(),
+    onUploadFiles: fn(),
+    onRemoveFile: fn(),
+    onCreateCollection: fn(),
+    onCreateStream: fn(),
+  },
+};
+
+export const SingleCollection: Story = {
+  args: {
+    project: {
+      ...sampleProject,
+      collections: sampleProject.collections?.slice(0, 1),
     },
     onBack: fn(),
     onOpenFile: fn(),

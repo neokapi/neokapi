@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo } from "react";
-import type { ProjectInfo, StreamInfo } from "../types/api";
+import type { ProjectInfo, CollectionInfo, StreamInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
 import { useIsMobile } from "../hooks/useIsMobile";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
@@ -7,8 +7,15 @@ import { useStream } from "../context/StreamContext";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { GlassCard } from "./ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "./ui/dropdown-menu";
 import { OpenInDesktop } from "./OpenInDesktop";
-import { StreamSelector } from "./StreamSelector";
+import { CollectionTabs } from "./CollectionTabs";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,9 +29,14 @@ import {
   X,
   Lock,
   Package,
+  Plug,
+  Upload,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
 } from "./icons";
 
-interface ProjectViewProps {
+export interface ProjectViewProps {
   project: ProjectInfo;
   onBack: () => void;
   onOpenFile: (itemId: string) => void;
@@ -35,6 +47,20 @@ interface ProjectViewProps {
   onOpenTerms?: () => void;
   /** When set, shows "Open in Bowrain Desktop" banner with deep link. */
   serverMode?: { serverURL: string; workspaceSlug: string };
+  /** Collection callbacks */
+  onCreateCollection?: () => void;
+  onEditCollection?: (collection: CollectionInfo) => void;
+  onDeleteCollection?: (id: string) => void;
+  onUploadToCollection?: (collectionId: string, files: File[]) => void;
+  /** Project actions */
+  onEditProject?: () => void;
+  onArchiveProject?: () => void;
+  /** Stream callbacks */
+  onCreateStream?: () => void;
+  onEditStream?: (stream: StreamInfo) => void;
+  onMergeStream?: (streamName: string) => void;
+  onDiffStream?: (streamName: string) => void;
+  onDeleteStream?: (streamName: string) => void;
 }
 
 export function ProjectView({
@@ -46,12 +72,24 @@ export function ProjectView({
   onOpenTM,
   onOpenTerms,
   serverMode,
+  onCreateCollection,
+  onEditCollection,
+  onDeleteCollection,
+  onUploadToCollection,
+  onEditProject,
+  onArchiveProject,
+  onCreateStream,
+  onEditStream,
+  onMergeStream,
+  onDiffStream,
+  onDeleteStream,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const isMobile = useIsMobile();
   const { activeStream, setActiveStream } = useStream();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
 
   // Register breadcrumb in the top bar area
   const breadcrumbNode = useMemo(
@@ -68,29 +106,56 @@ export function ProjectView({
   );
   useSetBreadcrumb(breadcrumbNode);
 
-  const items = project.items ?? [];
+  const collections = project.collections ?? [];
+  const hasCollections = collections.length > 0;
+
+  // Determine which collection is active
+  const effectiveCollectionId = activeCollectionId ?? collections[0]?.id ?? null;
+  const activeCollection = collections.find((c) => c.id === effectiveCollectionId) ?? null;
+
+  // Filter items by active collection (if collections exist)
+  const allItems = project.items ?? [];
+  const items = hasCollections && effectiveCollectionId
+    ? allItems.filter((item) => item.collection_id === effectiveCollectionId)
+    : allItems;
+
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
   const totalWords = items.reduce((sum, f) => sum + f.word_count, 0);
+
+  // Is upload allowed for the active collection?
+  const canUpload = !activeCollection || activeCollection.kind === "uploaded";
+  const itemLabel = activeCollection?.item_label ?? "file";
+  const itemLabelPlural = items.length === 1 ? itemLabel : `${itemLabel}s`;
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setDragOver(false);
       if (e.dataTransfer.files.length > 0) {
-        onUploadFiles(Array.from(e.dataTransfer.files));
+        const files = Array.from(e.dataTransfer.files);
+        if (onUploadToCollection && effectiveCollectionId) {
+          onUploadToCollection(effectiveCollectionId, files);
+        } else {
+          onUploadFiles(files);
+        }
       }
     },
-    [onUploadFiles],
+    [onUploadFiles, onUploadToCollection, effectiveCollectionId],
   );
 
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files && e.target.files.length > 0) {
-        onUploadFiles(Array.from(e.target.files));
+        const files = Array.from(e.target.files);
+        if (onUploadToCollection && effectiveCollectionId) {
+          onUploadToCollection(effectiveCollectionId, files);
+        } else {
+          onUploadFiles(files);
+        }
         e.target.value = "";
       }
     },
-    [onUploadFiles],
+    [onUploadFiles, onUploadToCollection, effectiveCollectionId],
   );
 
   const formatIcon = (format: string) => {
@@ -149,12 +214,29 @@ export function ProjectView({
                 Translation Memory
               </Button>
             )}
-            {project.streams && project.streams.length > 0 && (
-              <StreamSelector
-                streams={project.streams}
-                activeStream={project.streams.find((s) => s.name === activeStream) ?? null}
-                onStreamChange={(stream: StreamInfo) => setActiveStream(stream.name)}
-              />
+            {(onEditProject || onArchiveProject) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer bg-transparent border-none">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-[150px]">
+                  {onEditProject && (
+                    <DropdownMenuItem onClick={onEditProject} className="flex items-center gap-2 text-sm">
+                      <Pencil className="w-3.5 h-3.5" /> Edit project
+                    </DropdownMenuItem>
+                  )}
+                  {onArchiveProject && (
+                    <>
+                      {onEditProject && <DropdownMenuSeparator />}
+                      <DropdownMenuItem onClick={onArchiveProject} className="flex items-center gap-2 text-sm text-destructive">
+                        <Trash2 className="w-3.5 h-3.5" /> Archive
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </div>
@@ -164,7 +246,7 @@ export function ProjectView({
             <div className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>
               {items.length}
             </div>
-            <div className="text-xs text-muted-foreground">Files</div>
+            <div className="text-xs text-muted-foreground capitalize">{itemLabelPlural}</div>
           </div>
           <div className="flex-1 text-center rounded-lg border border-border/50 py-3">
             <div className={isMobile ? "text-xl font-bold" : "text-2xl font-bold"}>
@@ -181,33 +263,61 @@ export function ProjectView({
         </div>
       </GlassCard>
 
-      {/* Files card */}
+      {/* Content card with collection tabs */}
       <GlassCard intensity="subtle" className={isMobile ? "p-4" : "p-6"}>
+        {/* Collection tabs */}
+        {hasCollections && (
+          <CollectionTabs
+            collections={collections}
+            activeCollectionId={effectiveCollectionId}
+            onSelectCollection={setActiveCollectionId}
+            onCreateCollection={onCreateCollection}
+            onEditCollection={onEditCollection}
+            onDeleteCollection={onDeleteCollection}
+          />
+        )}
+
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className={isMobile ? "text-base font-semibold" : "text-lg font-semibold"}>
-              Files
+              <span className="capitalize">{itemLabelPlural}</span>
             </h3>
             <p className="text-[13px] text-muted-foreground mt-1">
-              {items.length} file{items.length !== 1 ? "s" : ""} in project
+              {items.length} {itemLabelPlural}
+              {activeCollection && !activeCollection.is_default
+                ? ` in ${activeCollection.name}`
+                : " in project"}
             </p>
           </div>
-          <div>
-            <input
-              ref={inputRef}
-              type="file"
-              multiple
-              onChange={handleFileInputChange}
-              className="hidden"
-            />
-            <Button size="sm" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
-              Add Files
-            </Button>
-          </div>
+
+          {/* Upload button — only for uploaded collections */}
+          {canUpload && (
+            <div>
+              <input
+                ref={inputRef}
+                type="file"
+                multiple
+                onChange={handleFileInputChange}
+                className="hidden"
+              />
+              <Button size="sm" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
+                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                Add {itemLabel === "file" ? "Files" : itemLabel + "s"}
+              </Button>
+            </div>
+          )}
+
+          {/* Connected badge — for connected collections */}
+          {!canUpload && activeCollection && (
+            <Badge variant="secondary" className="gap-1.5">
+              <Plug className="w-3 h-3" />
+              Connected
+            </Badge>
+          )}
         </div>
 
-        {/* Drop zone */}
-        {!isMobile && (
+        {/* Drop zone — only for uploaded collections */}
+        {canUpload && !isMobile && (
           <div
             className={`flex flex-col items-center justify-center gap-2 p-8 mb-6 rounded-lg border border-dashed border-border transition-all ${dragOver ? "ring-2 ring-primary bg-accent/30" : "bg-accent/10"}`}
             onDragOver={(e) => {
@@ -220,12 +330,30 @@ export function ProjectView({
           >
             <Package className="w-8 h-8 text-muted-foreground opacity-30" />
             <span className="text-muted-foreground text-[13px]">
-              Drag and drop files here to add them to the project
+              Drag and drop {itemLabelPlural} here to add them
+              {activeCollection && !activeCollection.is_default
+                ? ` to ${activeCollection.name}`
+                : " to the project"}
             </span>
           </div>
         )}
 
-        {/* File table */}
+        {/* Connected collection info panel */}
+        {!canUpload && activeCollection && (
+          <div className="flex items-center gap-3 p-4 mb-6 rounded-lg border border-border/50 bg-accent/10">
+            <Plug className="w-5 h-5 text-muted-foreground shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground">
+                This collection syncs content from an external source.
+              </p>
+              <p className="text-[12px] text-muted-foreground mt-0.5">
+                Items are managed by the connected integration and cannot be uploaded manually.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Items table */}
         {items.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -234,7 +362,7 @@ export function ProjectView({
                   <th
                     className={`${isMobile ? "px-2" : "px-4"} py-2.5 text-left text-sm font-medium text-muted-foreground`}
                   >
-                    File
+                    <span className="capitalize">{itemLabel}</span>
                   </th>
                   {!isMobile && (
                     <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
@@ -251,9 +379,11 @@ export function ProjectView({
                       Words
                     </th>
                   )}
-                  <th
-                    className={`${isMobile ? "px-1 w-10" : "px-4 w-20"} py-2.5 text-sm font-medium text-muted-foreground`}
-                  ></th>
+                  {canUpload && (
+                    <th
+                      className={`${isMobile ? "px-1 w-10" : "px-4 w-20"} py-2.5 text-sm font-medium text-muted-foreground`}
+                    ></th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -287,22 +417,37 @@ export function ProjectView({
                         {f.word_count}
                       </td>
                     )}
-                    <td className={`${isMobile ? "px-1" : "px-4"} py-2.5 text-sm text-right`}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onRemoveFile(f.name);
-                        }}
-                        className="bg-transparent border-none text-muted-foreground cursor-pointer px-2 py-1 rounded hover:text-destructive transition-colors"
-                        data-testid={`remove-file-${f.name}`}
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
+                    {canUpload && (
+                      <td className={`${isMobile ? "px-1" : "px-4"} py-2.5 text-sm text-right`}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRemoveFile(f.name);
+                          }}
+                          className="bg-transparent border-none text-muted-foreground cursor-pointer px-2 py-1 rounded hover:text-destructive transition-colors"
+                          data-testid={`remove-file-${f.name}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {items.length === 0 && !canUpload && (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <Plug className="w-10 h-10 text-muted-foreground/30 mb-3" />
+            <p className="text-sm text-muted-foreground">
+              No {itemLabelPlural} synced yet
+            </p>
+            <p className="text-[12px] text-muted-foreground/60 mt-1">
+              Content will appear here when the connected source syncs
+            </p>
           </div>
         )}
       </GlassCard>

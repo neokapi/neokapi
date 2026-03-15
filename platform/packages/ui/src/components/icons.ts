@@ -49,4 +49,13 @@ export {
   Menu,
   Home,
   LayoutDashboard,
+  FolderOpen as Folder,
+  GitBranch,
+  GitMerge,
+  GitPullRequest,
+  Pencil,
+  MoreHorizontal,
+  Plug,
+  Archive,
+  Layers,
 } from "lucide-react";

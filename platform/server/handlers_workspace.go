@@ -262,8 +262,13 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 		TargetLocales: locales,
 		WorkspaceID:   workspaceID,
 	}
-	if err := s.Services.Project.CreateProject(c.Request().Context(), p); err != nil {
+	ctx := c.Request().Context()
+	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	if s.ContentStore != nil {
+		_ = EnsureDefaultCollection(ctx, s.ContentStore, p.ID)
+		_ = EnsureMainStream(ctx, s.ContentStore, p.ID)
 	}
 	return c.JSON(http.StatusCreated, p)
 }

@@ -401,4 +401,72 @@ var storeMigrations = []storage.Migration{
 			CREATE UNIQUE INDEX idx_items_id ON items(project_id, stream, id);
 		`,
 	},
+	{
+		Version:     18,
+		Description: "add collections table and collection_id to items",
+		SQL: `
+			CREATE TABLE collections (
+				id               TEXT NOT NULL,
+				project_id       TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				name             TEXT NOT NULL,
+				kind             TEXT NOT NULL DEFAULT 'uploaded',
+				item_label       TEXT NOT NULL DEFAULT 'item',
+				is_default       INTEGER NOT NULL DEFAULT 0,
+				stream           TEXT NOT NULL DEFAULT '',
+				connector_config TEXT NOT NULL DEFAULT '{}',
+				created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, id)
+			);
+			CREATE INDEX idx_collections_project ON collections(project_id);
+			CREATE UNIQUE INDEX idx_collections_default ON collections(project_id)
+				WHERE is_default = 1;
+
+			-- Add collection_id to items.
+			ALTER TABLE items ADD COLUMN collection_id TEXT NOT NULL DEFAULT '';
+			CREATE INDEX idx_items_collection ON items(project_id, collection_id);
+
+			-- Backfill: create a default collection for every existing project.
+			INSERT INTO collections (id, project_id, name, kind, item_label, is_default, created_at, updated_at)
+				SELECT lower(hex(randomblob(4))), id, 'default', 'uploaded', 'item', 1,
+					datetime('now'), datetime('now')
+				FROM projects;
+
+			-- Assign existing items to their project's default collection.
+			UPDATE items SET collection_id = (
+				SELECT c.id FROM collections c WHERE c.project_id = items.project_id AND c.is_default = 1
+			) WHERE collection_id = '';
+
+			-- Backfill: create a "main" stream for every existing project that doesn't have one.
+			INSERT OR IGNORE INTO streams (project_id, name, parent, base_cursor, archived, visibility, description, created_at, created_by)
+				SELECT id, 'main', '', 0, 0, 'public', '', datetime('now'), ''
+				FROM projects
+				WHERE id NOT IN (SELECT project_id FROM streams WHERE name = 'main');
+		`,
+	},
+	{
+		Version:     19,
+		Description: "add archived columns to projects",
+		SQL: `
+			ALTER TABLE projects ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE projects ADD COLUMN archived_at TEXT;
+		`,
+	},
+	{
+		Version:     20,
+		Description: "create audit_log table",
+		SQL: `
+			CREATE TABLE audit_log (
+				id         INTEGER PRIMARY KEY AUTOINCREMENT,
+				project_id TEXT NOT NULL,
+				event_type TEXT NOT NULL,
+				actor      TEXT NOT NULL DEFAULT '',
+				source     TEXT NOT NULL DEFAULT '',
+				data       TEXT NOT NULL DEFAULT '{}',
+				created_at TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_audit_log_project ON audit_log(project_id, created_at DESC);
+			CREATE INDEX idx_audit_log_type ON audit_log(project_id, event_type, created_at DESC);
+		`,
+	},
 }

@@ -82,15 +82,15 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) e
 
 func (s *SQLiteStore) GetProject(ctx context.Context, id string) (*platstore.Project, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE id = ?`, id)
 	return scanProject(row)
 }
 
 func (s *SQLiteStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, source_locale, target_locales, properties, workspace_id, created_at, updated_at
-		 FROM projects ORDER BY name`)
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, archived, archived_at, created_at, updated_at
+		 FROM projects WHERE archived=0 ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
 	}
@@ -142,6 +142,202 @@ func (s *SQLiteStore) DeleteProject(ctx context.Context, id string) error {
 	return nil
 }
 
+func (s *SQLiteStore) ArchiveProject(ctx context.Context, id string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE projects SET archived=1, archived_at=?, updated_at=? WHERE id=?`, now, now, id)
+	if err != nil {
+		return fmt.Errorf("archive project: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project %s not found", id)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) RestoreProject(ctx context.Context, id string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE projects SET archived=0, archived_at=NULL, updated_at=? WHERE id=?`, now, id)
+	if err != nil {
+		return fmt.Errorf("restore project: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project %s not found", id)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) ListArchivedProjects(ctx context.Context, workspaceID string) ([]*platstore.Project, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, name, source_locale, target_locales, properties, workspace_id, archived, archived_at, created_at, updated_at
+		 FROM projects WHERE workspace_id=? AND archived=1 ORDER BY archived_at DESC`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list archived projects: %w", err)
+	}
+	defer rows.Close()
+	result := make([]*platstore.Project, 0)
+	for rows.Next() {
+		p, err := scanProjectRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
+// Collection management
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteStore) CreateCollection(ctx context.Context, c *platstore.Collection) error {
+	now := time.Now().UTC()
+	c.CreatedAt = now
+	c.UpdatedAt = now
+	if c.ID == "" {
+		c.ID = id.New()
+	}
+	if c.Kind == "" {
+		c.Kind = platstore.CollectionUploaded
+	}
+	if c.ItemLabel == "" {
+		c.ItemLabel = "item"
+	}
+
+	configJSON, err := json.Marshal(c.ConnectorConfig)
+	if err != nil {
+		return fmt.Errorf("marshal connector config: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO collections (id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		c.ID, c.ProjectID, c.Name, string(c.Kind), c.ItemLabel, c.IsDefault, c.Stream,
+		string(configJSON), now.Format(time.RFC3339), now.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("create collection: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) GetCollection(ctx context.Context, projectID, collectionID string) (*platstore.Collection, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=? AND id=?`, projectID, collectionID)
+	return scanCollection(row)
+}
+
+func (s *SQLiteStore) GetCollectionByName(ctx context.Context, projectID, name, stream string) (*platstore.Collection, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=? AND name=? AND (stream='' OR stream=?)`,
+		projectID, name, stream)
+	return scanCollection(row)
+}
+
+func (s *SQLiteStore) GetDefaultCollection(ctx context.Context, projectID string) (*platstore.Collection, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=? AND is_default=1`, projectID)
+	return scanCollection(row)
+}
+
+func (s *SQLiteStore) ListCollections(ctx context.Context, projectID, stream string) ([]*platstore.Collection, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, name, kind, item_label, is_default, stream, connector_config, created_at, updated_at
+		 FROM collections WHERE project_id=? AND (stream='' OR stream=?)
+		 ORDER BY is_default DESC, name`, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list collections: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*platstore.Collection
+	for rows.Next() {
+		c, err := scanCollection(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, c)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteStore) UpdateCollection(ctx context.Context, c *platstore.Collection) error {
+	c.UpdatedAt = time.Now().UTC()
+
+	configJSON, err := json.Marshal(c.ConnectorConfig)
+	if err != nil {
+		return fmt.Errorf("marshal connector config: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE collections SET name=?, kind=?, item_label=?, stream=?, connector_config=?, updated_at=?
+		 WHERE project_id=? AND id=?`,
+		c.Name, string(c.Kind), c.ItemLabel, c.Stream, string(configJSON),
+		c.UpdatedAt.Format(time.RFC3339), c.ProjectID, c.ID)
+	if err != nil {
+		return fmt.Errorf("update collection: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteStore) DeleteCollection(ctx context.Context, projectID, collectionID string) error {
+	// Prevent deleting the default collection.
+	var isDefault int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT is_default FROM collections WHERE project_id=? AND id=?`,
+		projectID, collectionID).Scan(&isDefault)
+	if err != nil {
+		return fmt.Errorf("get collection: %w", err)
+	}
+	if isDefault == 1 {
+		return fmt.Errorf("cannot delete the default collection")
+	}
+
+	// Reassign items from this collection to the default collection.
+	var defaultID string
+	err = s.db.QueryRowContext(ctx,
+		`SELECT id FROM collections WHERE project_id=? AND is_default=1`, projectID).Scan(&defaultID)
+	if err != nil {
+		return fmt.Errorf("get default collection: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`UPDATE items SET collection_id=? WHERE project_id=? AND collection_id=?`,
+		defaultID, projectID, collectionID)
+	if err != nil {
+		return fmt.Errorf("reassign items: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`DELETE FROM collections WHERE project_id=? AND id=?`, projectID, collectionID)
+	if err != nil {
+		return fmt.Errorf("delete collection: %w", err)
+	}
+	return nil
+}
+
+func scanCollection(row scanner) (*platstore.Collection, error) {
+	var c platstore.Collection
+	var kindStr, configJSON, createdStr, updatedStr string
+	err := row.Scan(&c.ID, &c.ProjectID, &c.Name, &kindStr, &c.ItemLabel,
+		&c.IsDefault, &c.Stream, &configJSON, &createdStr, &updatedStr)
+	if err != nil {
+		return nil, fmt.Errorf("scan collection: %w", err)
+	}
+	c.Kind = platstore.CollectionKind(kindStr)
+	c.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	c.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(configJSON), &c.ConnectorConfig); err != nil {
+		c.ConnectorConfig = map[string]string{}
+	}
+	return &c, nil
+}
+
 // ---------------------------------------------------------------------------
 // Item management
 // ---------------------------------------------------------------------------
@@ -166,15 +362,24 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 		item.ID = id.New()
 	}
 
+	// Resolve collection_id to the default collection if not set.
+	if item.CollectionID == "" {
+		defColl, defErr := s.GetDefaultCollection(ctx, projectID)
+		if defErr == nil {
+			item.CollectionID = defColl.ID
+		}
+	}
+
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=excluded.format, item_type=excluded.item_type,
 			source_bytes=excluded.source_bytes, block_index=excluded.block_index,
-			properties=excluded.properties, updated_at=excluded.updated_at`,
+			properties=excluded.properties, collection_id=CASE WHEN excluded.collection_id='' THEN items.collection_id ELSE excluded.collection_id END,
+			updated_at=excluded.updated_at`,
 		item.ID, projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
-		item.BlockIndex, string(propsJSON),
+		item.BlockIndex, string(propsJSON), item.CollectionID,
 		now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("store item %q: %w", item.Name, err)
@@ -185,7 +390,7 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
 	return scanItem(row)
 }
@@ -193,7 +398,7 @@ func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName s
 func (s *SQLiteStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
 	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? ORDER BY name`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
@@ -241,7 +446,7 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 func (s *SQLiteStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? AND id=?`, projectID, stream, itemID)
 	return scanItem(row)
 }
@@ -250,7 +455,7 @@ func scanItem(row scanner) (*platstore.Item, error) {
 	var item platstore.Item
 	var propsJSON, createdStr, updatedStr string
 	err := row.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Format, &item.ItemType,
-		&item.SourceBytes, &item.BlockIndex, &propsJSON, &createdStr, &updatedStr)
+		&item.SourceBytes, &item.BlockIndex, &propsJSON, &item.CollectionID, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan item: %w", err)
 	}
@@ -723,12 +928,20 @@ type scanner interface {
 func scanProject(row scanner) (*platstore.Project, error) {
 	var p platstore.Project
 	var srcLocale, targetLocales, propsJSON, createdStr, updatedStr string
-	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &p.WorkspaceID, &createdStr, &updatedStr)
+	var archived int
+	var archivedAtStr sql.NullString
+	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &propsJSON, &p.WorkspaceID,
+		&archived, &archivedAtStr, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan project: %w", err)
 	}
 	p.SourceLocale = model.LocaleID(srcLocale)
 	p.TargetLocales = splitLocales(targetLocales)
+	p.Archived = archived != 0
+	if archivedAtStr.Valid {
+		t, _ := time.Parse(time.RFC3339, archivedAtStr.String)
+		p.ArchivedAt = &t
+	}
 	p.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	p.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 	if err := json.Unmarshal([]byte(propsJSON), &p.Properties); err != nil {
