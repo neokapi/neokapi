@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,97 +17,70 @@ import (
 
 // RoundTripResult holds the output of a roundtrip test.
 type RoundTripResult struct {
-	// Parts extracted during the read phase.
-	Parts []*model.Part
-	// Output is the reconstructed document bytes from the write phase.
+	Parts  []*model.Part
 	Output []byte
 }
 
-// RoundTrip performs a full read → write cycle through the bridge:
-//  1. Read the input content using the specified filter to extract parts
-//  2. Write the parts back through the same filter to reconstruct the document
-//
-// Returns the extracted parts and the reconstructed output bytes.
-func RoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
+// RoundTrip performs a full read → write cycle via BridgeProcessor's single-pass
+// pipeline. Java reads each event, sends the part to Go, receives it back
+// unmodified, applies it, and writes — all in one filter iteration.
+func RoundTrip(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
 	t.Helper()
-	return roundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, "en", "fr")
+	return roundTrip(t, registry, cfg, filterClass, content, uri, mimeType, filterParams, "en", "fr")
 }
 
-// RoundTripWithLocales is like RoundTrip but allows specifying source and target
-// locales instead of the default en/fr. This is needed for tests that validate
-// locale-dependent behavior (e.g., text direction clarification).
-func RoundTripWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
+// RoundTripWithLocales is like RoundTrip but allows specifying source and target locales.
+func RoundTripWithLocales(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
 	t.Helper()
-	return roundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, string(srcLocale), string(tgtLocale))
+	return roundTrip(t, registry, cfg, filterClass, content, uri, mimeType, filterParams, string(srcLocale), string(tgtLocale))
 }
 
-func roundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) RoundTripResult {
+func roundTrip(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) RoundTripResult {
 	t.Helper()
 
-	// --- Read phase ---
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	// Single-pass roundtrip via BridgeProcessor. Java reads each event,
+	// sends part to Go, Go returns it unmodified, Java writes.
+	processor := bridge.NewBridgeProcessor(registry, cfg, filterClass)
 	if filterParams != nil {
-		reader.SetFilterParams(filterParams)
+		processor.SetFilterParams(filterParams)
 	}
 
-	doc := &model.RawDocument{
-		URI:          uri,
-		SourceLocale: model.LocaleID(srcLocale),
-		TargetLocale: model.LocaleID(tgtLocale),
+	// Determine input source.
+	var inputPath string
+	var inputContent []byte
+	if filepath.IsAbs(uri) {
+		if _, err := os.Stat(uri); err == nil {
+			inputPath = uri
+		}
+	}
+	if inputPath == "" {
+		inputContent = content
+	}
+
+	// Capture parts as they flow through the identity processFn.
+	var parts []*model.Part
+	var output bytes.Buffer
+
+	err := processor.ExecuteWithWriter(context.Background(), bridge.ProcessExecuteParams{
+		InputPath:    inputPath,
+		Content:      inputContent,
+		SourceLocale: srcLocale,
+		TargetLocale: tgtLocale,
+		OutputLocale: tgtLocale,
 		Encoding:     "UTF-8",
 		MimeType:     mimeType,
-		Reader:       io.NopCloser(bytes.NewReader(content)),
-	}
-
-	ctx := context.Background()
-	require.NoError(t, reader.Open(ctx, doc))
-	// Ensure the bridge is released even if a require aborts the goroutine.
-	t.Cleanup(func() { _ = reader.Close() })
-
-	var parts []*model.Part
-	var readErr error
-	for pr := range reader.Read(ctx) {
-		if pr.Error != nil {
-			readErr = pr.Error
-			break
-		}
-		parts = append(parts, pr.Part)
-	}
-	require.NoError(t, readErr, "roundtrip read phase")
-
-	// Close the reader eagerly to release the bridge back to the pool
-	// before the write phase acquires one. This prevents pool pressure
-	// (especially with pool size 2) and avoids hangs with complex filters
-	// like OpenXML that hold ZIP archive state.
-	require.NoError(t, reader.Close(), "closing reader after read phase")
-
-	// --- Write phase ---
-	var output bytes.Buffer
-	writer := bridge.NewBridgeFormatWriter(pool, cfg, filterClass)
-	if filterParams != nil {
-		writer.SetFilterParams(filterParams)
-	}
-	writer.SetOriginalContent(content)
-	writer.SetEncoding("UTF-8")
-	writer.SetLocale(model.LocaleID(tgtLocale))
-	writer.SetSourceLocale(srcLocale)
-	require.NoError(t, writer.SetOutputWriter(&output))
-
-	// Pass source_path when the URI is an absolute file path so the Java
-	// write phase can also resolve relative auxiliary files from disk.
-	if filepath.IsAbs(uri) {
-		if _, serr := os.Stat(uri); serr == nil {
-			writer.SetSourcePath(uri)
-		}
-	}
-
-	partsCh := make(chan *model.Part, len(parts))
-	for _, p := range parts {
-		partsCh <- p
-	}
-	close(partsCh)
-
-	require.NoError(t, writer.Write(ctx, partsCh), "roundtrip write phase")
+	}, func(in <-chan *model.Part) <-chan *model.Part {
+		out := make(chan *model.Part, 64)
+		go func() {
+			defer close(out)
+			for p := range in {
+				parts = append(parts, p)
+				out <- p
+			}
+		}()
+		return out
+	}, &output)
+	require.NoError(t, err, "roundtrip via BridgeProcessor")
 
 	return RoundTripResult{
 		Parts:  parts,
@@ -116,45 +88,30 @@ func roundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, f
 	}
 }
 
-// AssertRoundTrip performs a roundtrip and asserts the output matches the input
-// byte-for-byte. This is the strongest form of roundtrip validation.
-func AssertRoundTrip(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
+// AssertRoundTrip performs a roundtrip and asserts the output matches the input byte-for-byte.
+func AssertRoundTrip(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
 	t.Helper()
 
-	result := RoundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams)
+	result := RoundTrip(t, registry, cfg, filterClass, content, uri, mimeType, filterParams)
 	assert.Equal(t, string(content), string(result.Output),
 		"roundtrip output should match original input")
 	return result
 }
 
-// RoundTripTestFiles runs roundtrip tests over all files matching a glob pattern
-// within the testdata directory. Each file becomes a subtest named after the
-// filename.
-//
-// This uses event-level comparison (like Java's EventRoundTripIT): the output
-// is re-read through the same filter and the extracted parts are compared
-// semantically. This tolerates cosmetic differences (whitespace normalization,
-// Unicode escape forms, attribute reordering) that don't affect content.
-//
-// Files listed in knownFailing are expected to fail and are skipped with a log
-// message rather than failing the test (matching Java's knownFailingFiles
-// pattern).
-func RoundTripTestFiles(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, knownFailing ...string) {
+// RoundTripTestFiles runs roundtrip tests over all files matching a glob pattern.
+func RoundTripTestFiles(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, knownFailing ...string) {
 	t.Helper()
-	RoundTripTestFilesWithLocales(t, pool, cfg, filterClass, globPattern, mimeType, filterParams, "en", "fr", knownFailing...)
+	RoundTripTestFilesWithLocales(t, registry, cfg, filterClass, globPattern, mimeType, filterParams, "en", "fr", knownFailing...)
 }
 
-// RoundTripTestFilesWithLocales is like RoundTripTestFiles but with explicit
-// source and target locales. This is needed for filters like TMX where the
-// source locale must match the TUV xml:lang attribute exactly.
-func RoundTripTestFilesWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string, knownFailing ...string) {
+// RoundTripTestFilesWithLocales is like RoundTripTestFiles but with explicit locales.
+func RoundTripTestFilesWithLocales(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass, globPattern, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string, knownFailing ...string) {
 	t.Helper()
 
-	// Log pool stats at the end for CI observability.
 	t.Cleanup(func() {
-		stats := pool.Stats()
-		t.Logf("[pool-stats] filter=%s max=%d active=%d in_use=%d idle=%v",
-			filterClass, stats.MaxSize, stats.Active, stats.InUse, stats.IdleByKey)
+		stats := registry.Stats()
+		t.Logf("[registry-stats] filter=%s max_total=%d bridge_count=%d global_in_use=%d",
+			filterClass, stats.MaxTotal, stats.BridgeCount, stats.GlobalInUse)
 	})
 
 	failing := make(map[string]bool, len(knownFailing))
@@ -178,47 +135,38 @@ func RoundTripTestFilesWithLocales(t *testing.T, pool *bridge.BridgePool, cfg br
 			}
 			content, err := os.ReadFile(f)
 			require.NoError(t, err)
-			AssertRoundTripEventsWithLocales(t, pool, cfg, filterClass, content, f, mimeType, filterParams, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
+			AssertRoundTripEventsWithLocales(t, registry, cfg, filterClass, content, f, mimeType, filterParams, model.LocaleID(srcLocale), model.LocaleID(tgtLocale))
 		})
 	}
 }
 
-// AssertRoundTripEvents performs a roundtrip and validates using event-level
-// comparison: the reconstructed output is re-read through the same filter and
-// the extracted parts are compared with the original parts. This mirrors
-// Java's EventRoundTripIT approach.
-func AssertRoundTripEvents(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
+// AssertRoundTripEvents performs a roundtrip and validates using event-level comparison.
+func AssertRoundTripEvents(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) RoundTripResult {
 	t.Helper()
 
-	result := RoundTrip(t, pool, cfg, filterClass, content, uri, mimeType, filterParams)
-
-	// Re-read the output to get parts for comparison.
-	rereadParts := ReadBytes(t, pool, cfg, filterClass, result.Output, uri, mimeType, filterParams)
+	result := RoundTrip(t, registry, cfg, filterClass, content, uri, mimeType, filterParams)
+	rereadParts := ReadBytes(t, registry, cfg, filterClass, result.Output, uri, mimeType, filterParams)
 	compareParts(t, result.Parts, rereadParts)
 
 	return result
 }
 
-// AssertRoundTripEventsWithLocales is like AssertRoundTripEvents but with
-// explicit source and target locales.
-func AssertRoundTripEventsWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
+// AssertRoundTripEventsWithLocales is like AssertRoundTripEvents but with explicit locales.
+func AssertRoundTripEventsWithLocales(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale model.LocaleID) RoundTripResult {
 	t.Helper()
 
-	result := RoundTripWithLocales(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, srcLocale, tgtLocale)
-
-	rereadParts := ReadBytesWithLocales(t, pool, cfg, filterClass, result.Output, uri, mimeType, filterParams, string(srcLocale), string(tgtLocale))
+	result := RoundTripWithLocales(t, registry, cfg, filterClass, content, uri, mimeType, filterParams, srcLocale, tgtLocale)
+	rereadParts := ReadBytesWithLocales(t, registry, cfg, filterClass, result.Output, uri, mimeType, filterParams, string(srcLocale), string(tgtLocale))
 	compareParts(t, result.Parts, rereadParts)
 
 	return result
 }
 
 // compareParts performs event-level comparison of two part lists.
-// It compares part types, and for each part type: IDs, key fields, and content.
 func compareParts(t *testing.T, expected, actual []*model.Part) {
 	t.Helper()
 
 	if !assert.Equal(t, len(expected), len(actual), "part count mismatch") {
-		// Log what we got for debugging.
 		t.Logf("expected %d parts:", len(expected))
 		for i, p := range expected {
 			t.Logf("  [%d] %s %s", i, p.Type, partSummary(p))
@@ -265,8 +213,6 @@ func compareBlocks(t *testing.T, prefix string, ep, ap *model.Part) {
 	assert.Equal(t, eb.Type, ab.Type, "%s: block type", prefix)
 	assert.Equal(t, eb.PreserveWhitespace, ab.PreserveWhitespace, "%s: preserve whitespace", prefix)
 
-	// Compare annotation keys (annotations may differ in detail after roundtrip
-	// but the key set should be preserved).
 	if len(eb.Annotations) > 0 || len(ab.Annotations) > 0 {
 		assert.Equal(t, len(eb.Annotations), len(ab.Annotations), "%s: annotation count", prefix)
 		for key := range eb.Annotations {
@@ -275,7 +221,6 @@ func compareBlocks(t *testing.T, prefix string, ep, ap *model.Part) {
 		}
 	}
 
-	// Compare source segments in detail.
 	if assert.Equal(t, len(eb.Source), len(ab.Source), "%s: source segment count", prefix) {
 		for j := range eb.Source {
 			sp := fmt.Sprintf("%s.source[%d]", prefix, j)
@@ -324,12 +269,7 @@ func compareLayers(t *testing.T, prefix string, ep, ap *model.Part) {
 	if el == nil || al == nil {
 		return
 	}
-	// Layer ID and Name are derived from the temp file URI on the Java side,
-	// so they differ between reads. Compare stable fields only.
 	assert.Equal(t, el.MimeType, al.MimeType, "%s: layer mime type", prefix)
-	// Encoding names are case-insensitive per IANA charset registry (e.g.,
-	// "utf-8" and "UTF-8" are equivalent). The Java bridge may normalize
-	// the encoding to uppercase on re-read, so use case-insensitive comparison.
 	assert.True(t, strings.EqualFold(el.Encoding, al.Encoding),
 		"%s: layer encoding (case-insensitive): expected %q, got %q", prefix, el.Encoding, al.Encoding)
 	assert.Equal(t, el.Locale, al.Locale, "%s: layer locale", prefix)
@@ -369,7 +309,6 @@ func compareGroupEnd(t *testing.T, prefix string, ep, ap *model.Part) {
 	assert.Equal(t, eg.ID, ag.ID, "%s: group end ID", prefix)
 }
 
-// partSummary returns a short description of a part for debug logging.
 func partSummary(p *model.Part) string {
 	switch p.Type {
 	case model.PartBlock:

@@ -8,6 +8,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -436,7 +437,7 @@ func TestExtraction_DoesNotProcessUnsupportedVersions(t *testing.T) {
 
 	unsupportedContent := []byte("<MIFFile 5.00>\n<TextFlow\n> # end of TextFlow\n")
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 	doc := &model.RawDocument{
 		URI:          "unsupported.mif",
 		SourceLocale: "en",
@@ -448,6 +449,18 @@ func TestExtraction_DoesNotProcessUnsupportedVersions(t *testing.T) {
 
 	ctx := context.Background()
 	err := reader.Open(ctx, doc)
-	assert.Error(t, err, "unsupported MIF version should produce an error on Open")
-	assert.Contains(t, err.Error(), "Unsupported", "error should mention unsupported version")
+	if err == nil {
+		// Open is lazy — errors surface during Read.
+		for pr := range reader.Read(ctx) {
+			if pr.Error != nil {
+				err = pr.Error
+				break
+			}
+		}
+		_ = reader.Close()
+	}
+	assert.Error(t, err, "unsupported MIF version should produce an error")
+	if err != nil {
+		assert.Contains(t, err.Error(), "Unsupported", "error should mention unsupported version")
+	}
 }

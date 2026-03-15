@@ -6,43 +6,30 @@ option go_package = "github.com/neokapi/neokapi/core/plugin/proto/v2;bridgev2";
 option java_package = "neokapi.bridge.proto";
 option java_multiple_files = true;
 
-// BridgeService is the unified gRPC service for the Okapi bridge.
-// It replaces the NDJSON stdin/stdout protocol with streaming RPCs.
+// BridgeService is the gRPC service for the Okapi bridge.
+// A single Process RPC replaces the old Open/Read/Write/Close/RoundTrip RPCs.
 service BridgeService {
-  // Info returns metadata about a specific filter.
-  rpc Info(InfoRequest) returns (InfoResponse);
-
-  // ListFilters returns all available Okapi filters.
-  rpc ListFilters(ListFiltersRequest) returns (ListFiltersResponse);
-
-  // Open opens a document with a filter for reading.
-  rpc Open(OpenRequest) returns (OpenResponse);
-
-  // Read streams extracted parts from an opened document.
-  rpc Read(ReadRequest) returns (stream PartMessage);
-
-  // Write receives a stream of parts and reconstructs the document.
-  rpc Write(stream WriteChunk) returns (WriteResponse);
-
-  // Close releases the current filter resources.
-  rpc Close(CloseRequest) returns (CloseResponse);
+  // Process performs a complete document processing cycle using bidirectional
+  // streaming. It supports three modes based on the ProcessHeader:
+  //
+  //   Read-only (no output in header):
+  //     Java reads document → streams parts → ReadDone → Complete.
+  //     Go calls CloseSend() when done receiving.
+  //
+  //   Read-write (output in header):
+  //     Java reads document, retains Events, streams parts → ReadDone.
+  //     Go sends processed parts back concurrently.
+  //     Java's write thread applies translations to retained Events → Complete.
+  //     Go calls CloseSend() when done sending.
+  //
+  //   Write-only (for Writer path):
+  //     Same as read-write but Go ignores the read-phase parts.
+  //     Go sends processed parts with target translations.
+  //     Java applies and writes → Complete.
+  rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
 
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
-
-  // RoundTrip performs a complete read → process → write cycle on a single
-  // filter instance using bidirectional streaming. This eliminates the need
-  // for separate Open/Read/Write/Close RPCs and ensures only one JVM bridge
-  // is needed for the entire operation.
-  //
-  // Protocol:
-  //   1. Client sends RoundTripHeader (input/output config)
-  //   2. Server reads the document and streams PartMessages to client
-  //   3. Server sends RoundTripReadDone to signal all parts read
-  //   4. Client processes each part and sends back as RoundTripProcessed
-  //   5. Client sends RoundTripFlush to signal all parts processed
-  //   6. Server writes output and sends RoundTripComplete
-  rpc RoundTrip(stream RoundTripRequest) returns (stream RoundTripResponse);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -212,48 +199,19 @@ message PartMessage {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-// Service RPCs
+// Process RPC messages
 // ────────────────────────────────────────────────────────────────────────────
 
-message InfoRequest {
-  string filter_class = 1;
-}
-
-message InfoResponse {
-  string name = 1;
-  string display_name = 2;
-  repeated string mime_types = 3;
-  repeated string extensions = 4;
-}
-
-message ListFiltersRequest {}
-
-message FilterEntry {
-  string filter_class = 1;
-  string name = 2;
-  string display_name = 3;
-  repeated string mime_types = 4;
-  repeated string extensions = 5;
-  string filter_id = 6;              // Natural Okapi filter ID (e.g., "okf_html")
-  repeated string capabilities = 7;  // Operations supported (e.g., "read", "write")
-}
-
-message ListFiltersResponse {
-  repeated FilterEntry filters = 1;
-}
-
 // ContentRef allows passing content as a file path instead of inline bytes.
-// Java prefers content_ref when set, falling back to legacy content/source_path.
 message ContentRef {
   oneof location {
-    bytes  inline = 1;  // Inline bytes (same as legacy content field)
+    bytes  inline = 1;  // Inline bytes
     string path   = 2;  // Local filesystem path
     string uri    = 3;  // Remote/local URI (file://, s3://, gs://)
   }
 }
 
 // OutputRef specifies where to write output directly on disk.
-// When set, Java writes output directly to this path instead of returning bytes.
 message OutputRef {
   oneof destination {
     string path = 1;  // Local filesystem path
@@ -261,110 +219,50 @@ message OutputRef {
   }
 }
 
-message OpenRequest {
-  string filter_class = 1;
-  string uri = 2;
-  string source_locale = 3;
-  string encoding = 4;
-  bytes content = 5;                   // Legacy: inline document bytes
-  string mime_type = 6;
-  map<string, string> filter_params = 7;
-  string target_locale = 8;
-  string source_path = 9;             // Legacy: absolute file path on disk
-  ContentRef content_ref = 10;        // Preferred: file reference (path avoids byte transfer)
-}
-
-message OpenResponse {
-  string error = 1;
-}
-
-message ReadRequest {}
-
-// WriteChunk is sent as a client stream for the Write RPC.
-message WriteChunk {
-  oneof chunk {
-    WriteHeader header = 1;
-    PartMessage part = 2;
-  }
-}
-
-// WriteHeader is the first message in a Write stream.
-message WriteHeader {
-  string filter_class = 1;
-  string locale = 2;
-  string encoding = 3;
-  bytes original_content = 4;              // Legacy: inline original document bytes
-  map<string, string> filter_params = 5;
-  string source_path = 6;                  // Legacy: absolute path to original file
-  ContentRef original_content_ref = 7;     // Preferred: file reference for original content
-  OutputRef output_ref = 8;                // When set, Java writes output directly to this path
-  string source_locale = 9;               // Source locale for skeleton re-read during write
-}
-
-message WriteResponse {
-  bytes output = 1;          // Inline output bytes (empty when output_ref was used)
-  string error = 2;
-  string output_path = 3;   // Path where output was written (set when output_ref was used)
-}
-
-message CloseRequest {}
-message CloseResponse {
-  string error = 1;
-}
-
-message ShutdownRequest {}
-message ShutdownResponse {}
-
-// ────────────────────────────────────────────────────────────────────────────
-// RoundTrip RPC messages
-// ────────────────────────────────────────────────────────────────────────────
-
-// RoundTripRequest is sent by the client (Go) to the server (Java).
-message RoundTripRequest {
+// ProcessRequest is sent by the client (Go) to the server (Java).
+message ProcessRequest {
   oneof request {
-    RoundTripHeader header = 1;           // First message: input/output config
-    RoundTripProcessed processed_part = 2; // Processed part sent back after tool chain
-    RoundTripFlush flush = 3;             // Signals all processed parts have been sent
+    ProcessHeader header = 1;  // First message: input/output config
+    PartMessage part = 2;      // Processed part sent back after tool chain
   }
 }
 
-// RoundTripResponse is sent by the server (Java) to the client (Go).
-message RoundTripResponse {
+// ProcessResponse is sent by the server (Java) to the client (Go).
+message ProcessResponse {
   oneof response {
-    PartMessage part = 1;                 // Part read from the document
-    RoundTripReadDone read_done = 2;      // All parts have been read
-    RoundTripComplete complete = 3;       // Output written, cycle complete
+    PartMessage part = 1;          // Part read from the document
+    ProcessReadDone read_done = 2; // All parts have been read
+    ProcessComplete complete = 3;  // Output written, cycle complete
   }
 }
 
-// RoundTripHeader configures both the read and write phases.
-message RoundTripHeader {
+// ProcessHeader configures the Process RPC.
+message ProcessHeader {
   string filter_class = 1;
-  string uri = 2;
+  ContentRef input = 2;              // Input document reference
   string source_locale = 3;
   string target_locale = 4;
   string encoding = 5;
   string mime_type = 6;
   map<string, string> filter_params = 7;
-  ContentRef content_ref = 8;            // Input document reference
-  string output_locale = 9;             // Locale for the output document
-  OutputRef output_ref = 10;            // Where to write output (path or inline)
+  OutputRef output = 8;             // Where to write output (optional; omit for read-only)
+  string output_locale = 9;        // Locale for the output document
+  repeated int32 subscribe_parts = 10; // Part types to stream to Go (empty = all).
+                                       // Java only sends parts matching these types;
+                                       // all other events are written directly without
+                                       // crossing the gRPC boundary.
+                                       // Values match PartMessage.part_type (e.g. 4 = Block).
 }
 
-// RoundTripProcessed wraps a processed part sent back to the server.
-message RoundTripProcessed {
-  PartMessage part = 1;
-}
+// ProcessReadDone signals that all parts have been read from the document.
+message ProcessReadDone {}
 
-// RoundTripReadDone signals that all parts have been read from the document.
-message RoundTripReadDone {}
-
-// RoundTripFlush signals that all processed parts have been sent by the client.
-message RoundTripFlush {}
-
-// RoundTripComplete signals that the output has been written.
-message RoundTripComplete {
-  bytes output = 1;          // Inline output bytes (empty when output_ref was used)
+// ProcessComplete signals that the output has been written (or read-only is done).
+message ProcessComplete {
+  bytes output = 1;          // Inline output bytes (empty when OutputRef was used)
   string output_path = 2;   // Path where output was written
   string error = 3;
 }
+
+message ShutdownRequest {}
+message ShutdownResponse {}

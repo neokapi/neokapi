@@ -14,10 +14,10 @@ const (
 // BridgeConfig configures the bridge subprocess.
 type BridgeConfig struct {
 	// PoolGroup overrides the default PoolKey derivation. When set, all bridges
-	// sharing the same PoolGroup value are treated as interchangeable by the pool,
-	// regardless of their individual Address or Command/Args. This is used for
-	// external bridge pools where multiple JVMs at different addresses should be
-	// pooled together under a single key.
+	// sharing the same PoolGroup value are treated as interchangeable by the
+	// registry, regardless of their individual Address or Command/Args. This is
+	// used for external bridges where multiple JVMs at different addresses should
+	// be grouped under a single key.
 	PoolGroup string
 
 	// Address is the gRPC address of a pre-started bridge server.
@@ -46,7 +46,7 @@ type BridgeConfig struct {
 }
 
 // PoolKey returns a stable key that uniquely identifies the bridge process
-// configuration (command + args). Used by BridgePool for bucketing.
+// configuration (command + args). Used by BridgeRegistry for keying.
 func (c BridgeConfig) PoolKey() string {
 	if c.PoolGroup != "" {
 		return "group:" + c.PoolGroup
@@ -57,9 +57,9 @@ func (c BridgeConfig) PoolKey() string {
 	return c.Command + "\x00" + strings.Join(c.Args, "\x00")
 }
 
-// streamTimeout returns the timeout for streaming RPCs (Read, Write).
+// streamTimeout returns the timeout for streaming RPCs (Process).
 // Streaming operations can transfer hundreds of thousands of messages, so they
-// need a much longer deadline than unary RPCs like Open or Info.
+// need a much longer deadline than unary RPCs.
 func (c BridgeConfig) streamTimeout() time.Duration {
 	return 10 * c.CommandTimeout
 }

@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -33,10 +34,10 @@ func readVignetteDefault(t *testing.T, snippet string) []*model.Part {
 }
 
 // readVignetteBytes reads Vignette content with en-us / es-es locales.
-func readVignetteBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, content []byte, uri string, filterParams map[string]any) []*model.Part {
+func readVignetteBytes(t *testing.T, pool *bridge.BridgeRegistry, cfg bridge.BridgeConfig, content []byte, uri string, filterParams map[string]any) []*model.Part {
 	t.Helper()
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 	if filterParams != nil {
 		reader.SetFilterParams(filterParams)
 	}

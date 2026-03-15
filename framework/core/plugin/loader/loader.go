@@ -64,7 +64,7 @@ type managedBridge struct {
 type PluginLoader struct {
 	dir     string
 	manager *host.PluginManager
-	pool    *bridge.BridgePool // single shared pool for all bridge plugins
+	registry *bridge.BridgeRegistry // single shared registry for all bridge plugins
 	bridges []*managedBridge
 	plugins []PluginInfo
 	schemas *SchemaRegistry        // filter parameter schemas
@@ -491,11 +491,11 @@ func buildBridgeConfig(manifest *pluginreg.BundledManifest, versionDir string) b
 func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
 	cfg := buildBridgeConfig(manifest, versionDir)
 
-	// Lazily create the shared pool on first bridge load.
-	// No JVM is started here — bridges are created on-demand by the pool
+	// Lazily create the shared registry on first bridge load.
+	// No JVM is started here — bridges are created on-demand by the registry
 	// when format readers/writers first acquire them.
-	if l.pool == nil {
-		l.pool = bridge.NewBridgePool(runtime.NumCPU(), l.logger)
+	if l.registry == nil {
+		l.registry = bridge.NewBridgeRegistry(runtime.NumCPU(), 8, l.logger)
 	}
 
 	mb := &managedBridge{
@@ -504,7 +504,7 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 		version:  version,
 	}
 
-	sharedPool := l.pool
+	sharedRegistry := l.registry
 	bridgeCfg := cfg
 
 	// Register formats using manifest capabilities + schema metadata.
@@ -540,12 +540,21 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 		formats = append(formats, versionedName)
 
 		if formatReg != nil {
+			// Build FormatSignature from schema metadata so the reader
+			// doesn't need to query the JVM for format detection info.
+			var sig format.FormatSignature
+			if s, ok := l.schemas.GetSchema(filterID); ok {
+				sig = format.FormatSignature{
+					MIMETypes:  s.FilterMeta.MimeTypes,
+					Extensions: s.FilterMeta.Extensions,
+				}
+			}
+
 			formatReg.RegisterReader(versionedName, func() format.DataFormatReader {
-				return bridge.NewBridgeFormatReader(sharedPool, bridgeCfg, filterClass)
+				return bridge.NewBridgeFormatReader(sharedRegistry, bridgeCfg, filterClass, sig)
 			})
-			formatReg.RegisterWriter(versionedName, func() format.DataFormatWriter {
-				return bridge.NewBridgeFormatWriter(sharedPool, bridgeCfg, filterClass)
-			})
+			// No separate writer registration — bridge formats use BridgeProcessor
+			// for the single-pass pipeline (Go acts as an Okapi step).
 			formatReg.SetFormatSource(versionedName, manifest.Name)
 		}
 
@@ -598,20 +607,20 @@ func (l *PluginLoader) Presets() *preset.PresetRegistry {
 	return l.presets
 }
 
-// Pool returns the shared bridge pool, or nil if no bridges are loaded.
-func (l *PluginLoader) Pool() *bridge.BridgePool {
-	return l.pool
+// Registry returns the shared bridge registry, or nil if no bridges are loaded.
+func (l *PluginLoader) Registry() *bridge.BridgeRegistry {
+	return l.registry
 }
 
 // WarmupBridges eagerly starts one JVM per bridge configuration so it's
 // ready when files arrive. Call this before concurrent file processing
 // to amortize JVM startup cost.
 func (l *PluginLoader) WarmupBridges() {
-	if l.pool == nil {
+	if l.registry == nil {
 		return
 	}
 	for _, mb := range l.bridges {
-		_ = l.pool.Warmup(mb.cfg)
+		_ = l.registry.Warmup(mb.cfg)
 	}
 }
 
@@ -620,9 +629,9 @@ func (l *PluginLoader) Shutdown() {
 	if l.manager != nil {
 		l.manager.Shutdown()
 	}
-	if l.pool != nil {
-		l.pool.Shutdown()
-		l.pool = nil
+	if l.registry != nil {
+		l.registry.Shutdown()
+		l.registry = nil
 	}
 	l.bridges = nil
 }
