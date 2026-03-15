@@ -1,5 +1,5 @@
 import type { ArchivedProject } from "../types/api";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Trash2, ArrowLeft } from "./icons";
@@ -40,7 +40,7 @@ export function BinView({
 }: BinViewProps) {
   return (
     <div className="flex-1 min-h-0 overflow-auto">
-      <GlassCard intensity="subtle" className="p-6 mb-4">
+      <Card className="p-6 mb-4">
         <div className="mb-2">
           <h2 className="text-xl font-semibold">Bin</h2>
           <p className="text-[13px] text-muted-foreground mt-1">
@@ -48,9 +48,9 @@ export function BinView({
             You can restore them at any time during this period.
           </p>
         </div>
-      </GlassCard>
+      </Card>
 
-      <GlassCard intensity="subtle" className="p-0 overflow-hidden">
+      <Card className="p-0 overflow-hidden">
         {projects.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Trash2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
@@ -117,7 +117,7 @@ export function BinView({
             Loading...
           </div>
         )}
-      </GlassCard>
+      </Card>
     </div>
   );
 }

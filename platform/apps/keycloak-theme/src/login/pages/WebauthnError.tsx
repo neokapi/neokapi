@@ -2,7 +2,7 @@ import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
-import logoUrl from "../assets/logo.png";
+const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
 export default function WebauthnError(props: {
   kcContext: Extract<KcContext, { pageId: "webauthn-error.ftl" }>;
@@ -17,7 +17,7 @@ export default function WebauthnError(props: {
       <div className="flex justify-center mb-8">
         <BowrainLogo />
       </div>
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("webauthn-error-title")}</h1>
         </CardHeader>

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
 import { useLocales } from "../hooks/useLocales";
-import { ComboBoxGlass } from "./ui/combobox";
+import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem, ComboboxEmpty } from "./ui/combobox";
 
 interface LocaleSelectProps {
   value: string;
@@ -35,16 +35,24 @@ export function LocaleSelect({
 
   return (
     <div style={style} className={className} data-testid={rest["data-testid"]}>
-      <ComboBoxGlass
-        options={options}
+      <Combobox
         value={value}
-        onValueChange={(v: string | undefined) => {
-          if (v !== undefined) onChange(v);
+        onValueChange={(v: string | null) => {
+          if (v != null) onChange(v);
         }}
-        placeholder={loading ? "Loading..." : placeholder || "Select locale..."}
-        searchPlaceholder="Search locales..."
-        emptyText="No matching locales"
-      />
+      >
+        <ComboboxInput placeholder={loading ? "Loading..." : placeholder || "Select locale..."} />
+        <ComboboxContent>
+          <ComboboxList>
+            {options.map((opt) => (
+              <ComboboxItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </ComboboxItem>
+            ))}
+            <ComboboxEmpty>No matching locales</ComboboxEmpty>
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
     </div>
   );
 }

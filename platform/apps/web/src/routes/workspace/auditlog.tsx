@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AuditLogView, useWorkspace, useApi, GlassCard } from "@neokapi/ui";
+import { AuditLogView, useWorkspace, useApi, Card } from "@neokapi/ui";
 import type { AuditEntry, AuditQuery, FilterToken } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
@@ -72,26 +72,27 @@ export function AuditLogRoute() {
 
   if (!activeWorkspace) {
     return (
-      <GlassCard
-        intensity="subtle"
+      <Card
         className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
       >
         Select a workspace
-      </GlassCard>
+      </Card>
     );
   }
 
   return (
-    <AuditLogView
-      entries={allEntries}
-      projects={projects}
-      loading={isFetching}
-      hasMore={hasMore}
-      onLoadMore={handleLoadMore}
-      onFiltersChange={handleFiltersChange}
-      onSearchChange={handleSearchChange}
-      activeFilters={filters}
-      activeSearch={search}
-    />
+    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
+      <AuditLogView
+        entries={allEntries}
+        projects={projects}
+        loading={isFetching}
+        hasMore={hasMore}
+        onLoadMore={handleLoadMore}
+        onFiltersChange={handleFiltersChange}
+        onSearchChange={handleSearchChange}
+        activeFilters={filters}
+        activeSearch={search}
+      />
+    </div>
   );
 }

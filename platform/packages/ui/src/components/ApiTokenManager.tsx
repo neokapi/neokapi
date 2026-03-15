@@ -4,10 +4,10 @@ import { useApi } from "../context/ApiContext";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { GlassCard } from "./ui/card";
+import { Card } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { AlertGlass, AlertGlassDescription } from "./ui/alert";
+import { Alert, AlertDescription } from "./ui/alert";
 import { KeyRound, Trash2, Copy, Clock } from "./icons";
 
 interface ApiTokenManagerProps {
@@ -183,7 +183,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
 
   return (
     <>
-      <GlassCard intensity="subtle" className="p-6" data-testid="api-token-manager">
+      <Card className="p-6" data-testid="api-token-manager">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -201,14 +201,12 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
         </div>
 
         {error && (
-          <AlertGlass
+          <Alert
             variant="destructive"
-            dismissible
-            onDismiss={() => setError("")}
             className="mb-4"
           >
-            <AlertGlassDescription>{error}</AlertGlassDescription>
-          </AlertGlass>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         {/* Token list */}
@@ -278,22 +276,22 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
             </table>
           </div>
         )}
-      </GlassCard>
+      </Card>
 
       {/* Create token dialog */}
       <Dialog open={showDialog} onOpenChange={handleDialogChange}>
-        <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>{createdToken ? "Token Created" : "Create API Token"}</DialogTitle>
           </DialogHeader>
 
           {createdToken ? (
             <div className="flex flex-col gap-4 py-2">
-              <AlertGlass variant="default">
-                <AlertGlassDescription>
+              <Alert variant="default">
+                <AlertDescription>
                   Copy this token now. You won't be able to see it again.
-                </AlertGlassDescription>
-              </AlertGlass>
+                </AlertDescription>
+              </Alert>
               <div>
                 <Label className="text-muted-foreground">Token</Label>
                 <div className="mt-1 flex gap-2">
@@ -370,9 +368,9 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 </div>
               )}
               {error && (
-                <AlertGlass variant="destructive">
-                  <AlertGlassDescription>{error}</AlertGlassDescription>
-                </AlertGlass>
+                <Alert variant="destructive">
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
             </div>
           )}
@@ -407,7 +405,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
           if (!open) setDeleteTokenId(null);
         }}
       >
-        <DialogContent size="sm">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Delete API Token</DialogTitle>
           </DialogHeader>

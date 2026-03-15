@@ -192,7 +192,7 @@ export function VisualEditorCard({
   );
 
   return (
-    <div className="visual-editor-card w-full rounded-xl p-0" data-testid="visual-editor-card">
+    <div className="w-full rounded-xl border bg-card p-0" data-testid="visual-editor-card">
       {/* ── Header ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, Button } from "@neokapi/ui";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, LogIn } from "@neokapi/ui";
 
 export function LoginPage() {
   const [serverUrl, _setServerUrl] = useState("");
@@ -10,21 +10,32 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen flex-col gap-6 text-foreground">
-      <Card className="min-w-[360px] glass-surface">
-        <CardHeader className="items-center text-center">
-          <CardTitle className="text-3xl font-bold">neokapi</CardTitle>
-          <p className="text-sm text-muted-foreground">Sign in to your workspace</p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <Button onClick={handleLogin} className="w-full" size="lg">
-            Sign in with SSO
-          </Button>
-          <p className="text-xs text-muted-foreground text-center">
-            You will be redirected to your identity provider
-          </p>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen flex-col items-center justify-center p-4">
+      <p className="mb-6 text-sm font-medium text-muted-foreground">Bowrain</p>
+      <div className="w-full max-w-md">
+        <Card>
+          <CardHeader className="items-center text-center">
+            <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+              <LogIn className="h-6 w-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Welcome to Bowrain</CardTitle>
+            <CardDescription>
+              Localization platform for modern teams
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <Button onClick={handleLogin} className="w-full" size="lg">
+              Sign in with SSO
+            </Button>
+            <p className="text-xs text-muted-foreground text-center">
+              You will be redirected to your identity provider
+            </p>
+          </CardContent>
+        </Card>
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Powered by neokapi
+        </p>
+      </div>
     </div>
   );
 }

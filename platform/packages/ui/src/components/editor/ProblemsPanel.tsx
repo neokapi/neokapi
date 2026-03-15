@@ -57,7 +57,7 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
 
   return (
     <div
-      className="glass-surface fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card/95 dark:bg-card/90 shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col"
       style={{ maxHeight: "40vh" }}
     >
       {/* Header */}
@@ -128,7 +128,7 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
           </div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-card/95 dark:bg-card/90 glass-surface">
+            <thead className="sticky top-0 bg-card">
               <tr className="text-left text-xs text-muted-foreground border-b border-border/30">
                 <th className="px-4 py-1.5 font-medium w-[120px]">Block</th>
                 <th className="px-4 py-1.5 font-medium w-[80px]">Severity</th>

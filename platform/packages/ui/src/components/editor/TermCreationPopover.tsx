@@ -85,7 +85,7 @@ export function TermCreationPopover({
         <span />
       </PopoverTrigger>
       <PopoverContent
-        className="glass-surface w-80 p-4"
+        className="w-80 p-4"
         side="bottom"
         align="start"
         onOpenAutoFocus={(e: Event) => e.preventDefault()}

@@ -316,7 +316,7 @@ export function ProjectDetailRoute() {
 
       {/* Diff View Dialog */}
       <Dialog open={diffResult !== null} onOpenChange={(v: boolean) => { if (!v) setDiffResult(null); }}>
-        <DialogContent size="lg">
+        <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>Stream Comparison</DialogTitle>
           </DialogHeader>

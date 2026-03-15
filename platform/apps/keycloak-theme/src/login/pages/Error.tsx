@@ -14,7 +14,7 @@ export default function ErrorPage(props: {
 
   return (
     <div className="w-full max-w-md px-4">
-      <Card className="glass-surface">
+      <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("errorTitle")}</h1>
         </CardHeader>

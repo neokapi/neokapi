@@ -32,7 +32,7 @@ export function TermSidebar({
 }: TermSidebarProps) {
   return (
     <div
-      className="w-[260px] min-w-[260px] border-l border-border bg-card overflow-y-auto p-3 shrink-0 glass-surface"
+      className="w-[260px] min-w-[260px] border-l border-border bg-card overflow-y-auto p-3 shrink-0"
       data-testid="term-sidebar"
     >
       {/* Header */}

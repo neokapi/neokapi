@@ -8,7 +8,7 @@ import { FilterBar } from "../FilterBar";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { GlassCard } from "../ui/card";
+import { Card } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
@@ -218,7 +218,7 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
 
   return (
     <div data-testid="tm-explorer">
-      <GlassCard intensity="subtle" className="p-6">
+      <Card className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -426,11 +426,11 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
             )}
           </>
         )}
-      </GlassCard>
+      </Card>
 
       <Dialog open={showAddForm} onOpenChange={handleAddDialogChange}>
         <DialogContent
-          size="md"
+          className="sm:max-w-[640px]"
           data-testid="tm-add-form"
           onInteractOutside={(e: Event) => e.preventDefault()}
         >
