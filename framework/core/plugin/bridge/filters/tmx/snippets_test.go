@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
@@ -109,7 +110,7 @@ func readTMXAllowError(t *testing.T, snippet string) ([]*model.Part, error) {
 	t.Helper()
 	pool, cfg := bridgetest.SharedBridge(t)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 	doc := &model.RawDocument{
 		URI:          "test.tmx",
 		SourceLocale: "en",
@@ -584,7 +585,7 @@ func TestPropAndNoteInStartDocument(t *testing.T) {
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass, format.FormatSignature{})
 	doc := &model.RawDocument{
 		URI:          path,
 		SourceLocale: "en-us",

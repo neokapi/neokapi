@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -27,7 +28,15 @@ type BatchEngine interface {
 
 // runProcess executes a command and collects resource usage metrics.
 func runProcess(ctx context.Context, name string, args ...string) (*RunResult, error) {
+	return runProcessWithEnv(ctx, nil, name, args...)
+}
+
+// runProcessWithEnv executes a command with extra env vars and collects metrics.
+func runProcessWithEnv(ctx context.Context, env []string, name string, args ...string) (*RunResult, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
 	// Discard child output to keep benchmark output clean.
 	cmd.Stdout = nil
 	cmd.Stderr = nil
@@ -198,6 +207,103 @@ func (e *KapiBridgeEngine) PseudoTranslateBatch(ctx context.Context, files []Col
 		args = append(args, "-i", f.Path)
 	}
 	result, err := runProcess(ctx, e.BinaryPath, args...)
+	if err != nil {
+		return nil, err
+	}
+	result.OutputBytes = sumDirSize(outputDir)
+	return result, nil
+}
+
+// --- Kapi Bridge Daemon Engine ---
+
+// KapiBridgeDaemonEngine runs kapi with KAPI_BRIDGE_DAEMON=1 so the JVM
+// persists across invocations. The first call pays JVM startup; subsequent
+// calls connect to the warm JVM via address file.
+type KapiBridgeDaemonEngine struct {
+	BinaryPath string
+	VersionStr string
+	warmedUp   bool
+}
+
+func (e *KapiBridgeDaemonEngine) Name() string    { return "kapi-bridge-daemon" }
+func (e *KapiBridgeDaemonEngine) Version() string { return e.VersionStr }
+
+func (e *KapiBridgeDaemonEngine) Available() bool {
+	_, err := os.Stat(e.BinaryPath)
+	return err == nil
+}
+
+// ensureWarm re-warms the daemon if it has died (e.g., idle timeout).
+func (e *KapiBridgeDaemonEngine) ensureWarm(ctx context.Context) error {
+	// Run a quick no-op to check if daemon is alive and re-start if needed.
+	input := filepath.Join("testdata", "json", "small", "input.json")
+	output := filepath.Join(os.TempDir(), "pseudobench-daemon-check.json")
+	defer os.Remove(output)
+	_, err := runProcessWithEnv(ctx, daemonEnv, e.BinaryPath,
+		"flow", "run", "pseudo-translate",
+		"-i", input, "-o", output,
+		"--target-lang", "qps", "-f", "okf_json", "-q")
+	return err
+}
+
+var daemonEnv = []string{"KAPI_BRIDGE_DAEMON=1", "KAPI_BRIDGE_IDLE_TIMEOUT=600s"}
+
+// WarmUp starts the daemon JVM by running a trivial file through it.
+// This ensures the first benchmark iteration doesn't pay startup cost.
+func (e *KapiBridgeDaemonEngine) WarmUp(ctx context.Context, testdataDir string) error {
+	if e.warmedUp {
+		return nil
+	}
+	// Use a small JSON file to trigger JVM startup.
+	input := filepath.Join(testdataDir, "json", "small", "input.json")
+	output := filepath.Join(os.TempDir(), "pseudobench-daemon-warmup.json")
+	defer os.Remove(output)
+	_, err := runProcessWithEnv(ctx, daemonEnv, e.BinaryPath,
+		"flow", "run", "pseudo-translate",
+		"-i", input, "-o", output,
+		"--target-lang", "qps", "-f", "okf_json", "-q")
+	if err != nil {
+		return fmt.Errorf("daemon warmup: %w", err)
+	}
+	e.warmedUp = true
+	return nil
+}
+
+func (e *KapiBridgeDaemonEngine) PseudoTranslate(ctx context.Context, input, output, format string) (*RunResult, error) {
+	bridgeFmt, ok := bridgeFormatName[format]
+	if !ok {
+		return nil, fmt.Errorf("no bridge format mapping for %q", format)
+	}
+	args := []string{
+		"flow", "run", "pseudo-translate",
+		"-i", input,
+		"-o", output,
+		"--target-lang", "qps",
+		"-f", bridgeFmt,
+		"-q",
+	}
+	result, err := runProcessWithEnv(ctx, daemonEnv, e.BinaryPath, args...)
+	if err != nil {
+		return nil, err
+	}
+	if info, serr := os.Stat(output); serr == nil {
+		result.OutputBytes = info.Size()
+	}
+	return result, nil
+}
+
+func (e *KapiBridgeDaemonEngine) SupportsBatch() bool { return true }
+
+func (e *KapiBridgeDaemonEngine) PseudoTranslateBatch(ctx context.Context, files []CollectionFile, outputDir string) (*RunResult, error) {
+	args := []string{
+		"flow", "run", "pseudo-translate",
+		"--target-lang", "qps",
+		"-q",
+	}
+	for _, f := range files {
+		args = append(args, "-i", f.Path)
+	}
+	result, err := runProcessWithEnv(ctx, daemonEnv, e.BinaryPath, args...)
 	if err != nil {
 		return nil, err
 	}

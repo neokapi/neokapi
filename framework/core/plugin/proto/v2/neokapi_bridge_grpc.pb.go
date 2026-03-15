@@ -19,50 +19,37 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	BridgeService_Info_FullMethodName        = "/neokapi.bridge.v2.BridgeService/Info"
-	BridgeService_ListFilters_FullMethodName = "/neokapi.bridge.v2.BridgeService/ListFilters"
-	BridgeService_Open_FullMethodName        = "/neokapi.bridge.v2.BridgeService/Open"
-	BridgeService_Read_FullMethodName        = "/neokapi.bridge.v2.BridgeService/Read"
-	BridgeService_Write_FullMethodName       = "/neokapi.bridge.v2.BridgeService/Write"
-	BridgeService_Close_FullMethodName       = "/neokapi.bridge.v2.BridgeService/Close"
-	BridgeService_Shutdown_FullMethodName    = "/neokapi.bridge.v2.BridgeService/Shutdown"
-	BridgeService_RoundTrip_FullMethodName   = "/neokapi.bridge.v2.BridgeService/RoundTrip"
+	BridgeService_Process_FullMethodName  = "/neokapi.bridge.v2.BridgeService/Process"
+	BridgeService_Shutdown_FullMethodName = "/neokapi.bridge.v2.BridgeService/Shutdown"
 )
 
 // BridgeServiceClient is the client API for BridgeService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// BridgeService is the unified gRPC service for the Okapi bridge.
-// It replaces the NDJSON stdin/stdout protocol with streaming RPCs.
+// BridgeService is the gRPC service for the Okapi bridge.
+// A single Process RPC replaces the old Open/Read/Write/Close/RoundTrip RPCs.
 type BridgeServiceClient interface {
-	// Info returns metadata about a specific filter.
-	Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error)
-	// ListFilters returns all available Okapi filters.
-	ListFilters(ctx context.Context, in *ListFiltersRequest, opts ...grpc.CallOption) (*ListFiltersResponse, error)
-	// Open opens a document with a filter for reading.
-	Open(ctx context.Context, in *OpenRequest, opts ...grpc.CallOption) (*OpenResponse, error)
-	// Read streams extracted parts from an opened document.
-	Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PartMessage], error)
-	// Write receives a stream of parts and reconstructs the document.
-	Write(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[WriteChunk, WriteResponse], error)
-	// Close releases the current filter resources.
-	Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error)
+	// Process performs a complete document processing cycle using bidirectional
+	// streaming. It supports three modes based on the ProcessHeader:
+	//
+	//	Read-only (no output in header):
+	//	  Java reads document → streams parts → ReadDone → Complete.
+	//	  Go calls CloseSend() when done receiving.
+	//
+	//	Read-write (output in header):
+	//	  Java reads document, retains Events, streams parts → ReadDone.
+	//	  Go sends processed parts back concurrently.
+	//	  Java's write thread applies translations to retained Events → Complete.
+	//	  Go calls CloseSend() when done sending.
+	//
+	//	Write-only (for Writer path):
+	//	  Same as read-write but Go ignores the read-phase parts.
+	//	  Go sends processed parts with target translations.
+	//	  Java applies and writes → Complete.
+	Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ProcessRequest, ProcessResponse], error)
 	// Shutdown gracefully shuts down the bridge server.
 	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
-	// RoundTrip performs a complete read → process → write cycle on a single
-	// filter instance using bidirectional streaming. This eliminates the need
-	// for separate Open/Read/Write/Close RPCs and ensures only one JVM bridge
-	// is needed for the entire operation.
-	//
-	// Protocol:
-	//  1. Client sends RoundTripHeader (input/output config)
-	//  2. Server reads the document and streams PartMessages to client
-	//  3. Server sends RoundTripReadDone to signal all parts read
-	//  4. Client processes each part and sends back as RoundTripProcessed
-	//  5. Client sends RoundTripFlush to signal all parts processed
-	//  6. Server writes output and sends RoundTripComplete
-	RoundTrip(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RoundTripRequest, RoundTripResponse], error)
 }
 
 type bridgeServiceClient struct {
@@ -73,77 +60,18 @@ func NewBridgeServiceClient(cc grpc.ClientConnInterface) BridgeServiceClient {
 	return &bridgeServiceClient{cc}
 }
 
-func (c *bridgeServiceClient) Info(ctx context.Context, in *InfoRequest, opts ...grpc.CallOption) (*InfoResponse, error) {
+func (c *bridgeServiceClient) Process(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ProcessRequest, ProcessResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(InfoResponse)
-	err := c.cc.Invoke(ctx, BridgeService_Info_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &BridgeService_ServiceDesc.Streams[0], BridgeService_Process_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
-}
-
-func (c *bridgeServiceClient) ListFilters(ctx context.Context, in *ListFiltersRequest, opts ...grpc.CallOption) (*ListFiltersResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ListFiltersResponse)
-	err := c.cc.Invoke(ctx, BridgeService_ListFilters_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *bridgeServiceClient) Open(ctx context.Context, in *OpenRequest, opts ...grpc.CallOption) (*OpenResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(OpenResponse)
-	err := c.cc.Invoke(ctx, BridgeService_Open_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *bridgeServiceClient) Read(ctx context.Context, in *ReadRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PartMessage], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &BridgeService_ServiceDesc.Streams[0], BridgeService_Read_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[ReadRequest, PartMessage]{ClientStream: stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
+	x := &grpc.GenericClientStream[ProcessRequest, ProcessResponse]{ClientStream: stream}
 	return x, nil
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type BridgeService_ReadClient = grpc.ServerStreamingClient[PartMessage]
-
-func (c *bridgeServiceClient) Write(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[WriteChunk, WriteResponse], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &BridgeService_ServiceDesc.Streams[1], BridgeService_Write_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[WriteChunk, WriteResponse]{ClientStream: stream}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type BridgeService_WriteClient = grpc.ClientStreamingClient[WriteChunk, WriteResponse]
-
-func (c *bridgeServiceClient) Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(CloseResponse)
-	err := c.cc.Invoke(ctx, BridgeService_Close_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
+type BridgeService_ProcessClient = grpc.BidiStreamingClient[ProcessRequest, ProcessResponse]
 
 func (c *bridgeServiceClient) Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
@@ -155,53 +83,33 @@ func (c *bridgeServiceClient) Shutdown(ctx context.Context, in *ShutdownRequest,
 	return out, nil
 }
 
-func (c *bridgeServiceClient) RoundTrip(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[RoundTripRequest, RoundTripResponse], error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	stream, err := c.cc.NewStream(ctx, &BridgeService_ServiceDesc.Streams[2], BridgeService_RoundTrip_FullMethodName, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &grpc.GenericClientStream[RoundTripRequest, RoundTripResponse]{ClientStream: stream}
-	return x, nil
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type BridgeService_RoundTripClient = grpc.BidiStreamingClient[RoundTripRequest, RoundTripResponse]
-
 // BridgeServiceServer is the server API for BridgeService service.
 // All implementations must embed UnimplementedBridgeServiceServer
 // for forward compatibility.
 //
-// BridgeService is the unified gRPC service for the Okapi bridge.
-// It replaces the NDJSON stdin/stdout protocol with streaming RPCs.
+// BridgeService is the gRPC service for the Okapi bridge.
+// A single Process RPC replaces the old Open/Read/Write/Close/RoundTrip RPCs.
 type BridgeServiceServer interface {
-	// Info returns metadata about a specific filter.
-	Info(context.Context, *InfoRequest) (*InfoResponse, error)
-	// ListFilters returns all available Okapi filters.
-	ListFilters(context.Context, *ListFiltersRequest) (*ListFiltersResponse, error)
-	// Open opens a document with a filter for reading.
-	Open(context.Context, *OpenRequest) (*OpenResponse, error)
-	// Read streams extracted parts from an opened document.
-	Read(*ReadRequest, grpc.ServerStreamingServer[PartMessage]) error
-	// Write receives a stream of parts and reconstructs the document.
-	Write(grpc.ClientStreamingServer[WriteChunk, WriteResponse]) error
-	// Close releases the current filter resources.
-	Close(context.Context, *CloseRequest) (*CloseResponse, error)
+	// Process performs a complete document processing cycle using bidirectional
+	// streaming. It supports three modes based on the ProcessHeader:
+	//
+	//	Read-only (no output in header):
+	//	  Java reads document → streams parts → ReadDone → Complete.
+	//	  Go calls CloseSend() when done receiving.
+	//
+	//	Read-write (output in header):
+	//	  Java reads document, retains Events, streams parts → ReadDone.
+	//	  Go sends processed parts back concurrently.
+	//	  Java's write thread applies translations to retained Events → Complete.
+	//	  Go calls CloseSend() when done sending.
+	//
+	//	Write-only (for Writer path):
+	//	  Same as read-write but Go ignores the read-phase parts.
+	//	  Go sends processed parts with target translations.
+	//	  Java applies and writes → Complete.
+	Process(grpc.BidiStreamingServer[ProcessRequest, ProcessResponse]) error
 	// Shutdown gracefully shuts down the bridge server.
 	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
-	// RoundTrip performs a complete read → process → write cycle on a single
-	// filter instance using bidirectional streaming. This eliminates the need
-	// for separate Open/Read/Write/Close RPCs and ensures only one JVM bridge
-	// is needed for the entire operation.
-	//
-	// Protocol:
-	//  1. Client sends RoundTripHeader (input/output config)
-	//  2. Server reads the document and streams PartMessages to client
-	//  3. Server sends RoundTripReadDone to signal all parts read
-	//  4. Client processes each part and sends back as RoundTripProcessed
-	//  5. Client sends RoundTripFlush to signal all parts processed
-	//  6. Server writes output and sends RoundTripComplete
-	RoundTrip(grpc.BidiStreamingServer[RoundTripRequest, RoundTripResponse]) error
 	mustEmbedUnimplementedBridgeServiceServer()
 }
 
@@ -212,29 +120,11 @@ type BridgeServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedBridgeServiceServer struct{}
 
-func (UnimplementedBridgeServiceServer) Info(context.Context, *InfoRequest) (*InfoResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Info not implemented")
-}
-func (UnimplementedBridgeServiceServer) ListFilters(context.Context, *ListFiltersRequest) (*ListFiltersResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ListFilters not implemented")
-}
-func (UnimplementedBridgeServiceServer) Open(context.Context, *OpenRequest) (*OpenResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Open not implemented")
-}
-func (UnimplementedBridgeServiceServer) Read(*ReadRequest, grpc.ServerStreamingServer[PartMessage]) error {
-	return status.Error(codes.Unimplemented, "method Read not implemented")
-}
-func (UnimplementedBridgeServiceServer) Write(grpc.ClientStreamingServer[WriteChunk, WriteResponse]) error {
-	return status.Error(codes.Unimplemented, "method Write not implemented")
-}
-func (UnimplementedBridgeServiceServer) Close(context.Context, *CloseRequest) (*CloseResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Close not implemented")
+func (UnimplementedBridgeServiceServer) Process(grpc.BidiStreamingServer[ProcessRequest, ProcessResponse]) error {
+	return status.Error(codes.Unimplemented, "method Process not implemented")
 }
 func (UnimplementedBridgeServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Shutdown not implemented")
-}
-func (UnimplementedBridgeServiceServer) RoundTrip(grpc.BidiStreamingServer[RoundTripRequest, RoundTripResponse]) error {
-	return status.Error(codes.Unimplemented, "method RoundTrip not implemented")
 }
 func (UnimplementedBridgeServiceServer) mustEmbedUnimplementedBridgeServiceServer() {}
 func (UnimplementedBridgeServiceServer) testEmbeddedByValue()                       {}
@@ -257,95 +147,12 @@ func RegisterBridgeServiceServer(s grpc.ServiceRegistrar, srv BridgeServiceServe
 	s.RegisterService(&BridgeService_ServiceDesc, srv)
 }
 
-func _BridgeService_Info_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InfoRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BridgeServiceServer).Info(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BridgeService_Info_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BridgeServiceServer).Info(ctx, req.(*InfoRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BridgeService_ListFilters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListFiltersRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BridgeServiceServer).ListFilters(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BridgeService_ListFilters_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BridgeServiceServer).ListFilters(ctx, req.(*ListFiltersRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BridgeService_Open_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(OpenRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BridgeServiceServer).Open(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BridgeService_Open_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BridgeServiceServer).Open(ctx, req.(*OpenRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BridgeService_Read_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(ReadRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(BridgeServiceServer).Read(m, &grpc.GenericServerStream[ReadRequest, PartMessage]{ServerStream: stream})
+func _BridgeService_Process_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(BridgeServiceServer).Process(&grpc.GenericServerStream[ProcessRequest, ProcessResponse]{ServerStream: stream})
 }
 
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type BridgeService_ReadServer = grpc.ServerStreamingServer[PartMessage]
-
-func _BridgeService_Write_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(BridgeServiceServer).Write(&grpc.GenericServerStream[WriteChunk, WriteResponse]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type BridgeService_WriteServer = grpc.ClientStreamingServer[WriteChunk, WriteResponse]
-
-func _BridgeService_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloseRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BridgeServiceServer).Close(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: BridgeService_Close_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BridgeServiceServer).Close(ctx, req.(*CloseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
+type BridgeService_ProcessServer = grpc.BidiStreamingServer[ProcessRequest, ProcessResponse]
 
 func _BridgeService_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ShutdownRequest)
@@ -365,13 +172,6 @@ func _BridgeService_Shutdown_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BridgeService_RoundTrip_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(BridgeServiceServer).RoundTrip(&grpc.GenericServerStream[RoundTripRequest, RoundTripResponse]{ServerStream: stream})
-}
-
-// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
-type BridgeService_RoundTripServer = grpc.BidiStreamingServer[RoundTripRequest, RoundTripResponse]
-
 // BridgeService_ServiceDesc is the grpc.ServiceDesc for BridgeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -380,40 +180,14 @@ var BridgeService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*BridgeServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Info",
-			Handler:    _BridgeService_Info_Handler,
-		},
-		{
-			MethodName: "ListFilters",
-			Handler:    _BridgeService_ListFilters_Handler,
-		},
-		{
-			MethodName: "Open",
-			Handler:    _BridgeService_Open_Handler,
-		},
-		{
-			MethodName: "Close",
-			Handler:    _BridgeService_Close_Handler,
-		},
-		{
 			MethodName: "Shutdown",
 			Handler:    _BridgeService_Shutdown_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Read",
-			Handler:       _BridgeService_Read_Handler,
-			ServerStreams: true,
-		},
-		{
-			StreamName:    "Write",
-			Handler:       _BridgeService_Write_Handler,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "RoundTrip",
-			Handler:       _BridgeService_RoundTrip_Handler,
+			StreamName:    "Process",
+			Handler:       _BridgeService_Process_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

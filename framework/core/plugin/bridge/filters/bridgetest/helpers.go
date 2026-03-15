@@ -11,29 +11,27 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/stretchr/testify/require"
 )
 
-// sharedBridge holds the singleton bridge pool used across all filter tests
+// sharedBridge holds the singleton bridge registry used across all filter tests
 // within a single test binary invocation.
 var (
-	sharedOnce    sync.Once
-	sharedPool    *bridge.BridgePool
-	sharedCfg     bridge.BridgeConfig
-	sharedErr     error
-	availableOnce sync.Once
-	availableSet  map[string]bool
-	cleanupOnce   sync.Once
+	sharedOnce     sync.Once
+	sharedRegistry *bridge.BridgeRegistry
+	sharedCfg      bridge.BridgeConfig
+	sharedErr      error
+	cleanupOnce    sync.Once
 )
 
-// Run runs all tests and then cleans up the shared bridge pool. Use this from
+// Run runs all tests and then cleans up the shared bridge registry. Use this from
 // TestMain in any package that calls SharedBridge:
 //
 //	func TestMain(m *testing.M) { os.Exit(bridgetest.Run(m)) }
@@ -43,24 +41,21 @@ func Run(m *testing.M) int {
 	return code
 }
 
-// Cleanup shuts down the shared bridge pool and kills any tracked bridge
+// Cleanup shuts down the shared bridge registry and kills any tracked bridge
 // subprocesses. Safe to call multiple times (idempotent via sync.Once).
 func Cleanup() {
 	cleanupOnce.Do(func() {
-		if sharedPool != nil {
-			sharedPool.Shutdown()
+		if sharedRegistry != nil {
+			sharedRegistry.Shutdown()
 		}
 		bridge.KillTrackedProcesses()
 	})
 }
 
-// SharedBridge returns a shared BridgePool and BridgeConfig for integration tests.
+// SharedBridge returns a shared BridgeRegistry and BridgeConfig for integration tests.
 // It starts a single JVM process and reuses it across all tests in the binary.
 // If Java or the bridge JAR is unavailable, it fails the test.
-//
-// The pool size defaults to 2 but can be overridden with the
-// NEOKAPI_BRIDGE_POOL_SIZE environment variable.
-func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
+func SharedBridge(t *testing.T) (*bridge.BridgeRegistry, bridge.BridgeConfig) {
 	t.Helper()
 
 	sharedOnce.Do(func() {
@@ -79,21 +74,17 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 				return
 			}
 
-			// All external bridges share one PoolGroup so the pool treats them
-			// as interchangeable, preventing eviction from creating duplicate
-			// connections to the same JVM.
-			const poolGroup = "external-bridges"
-			sharedPool = bridge.NewBridgePool(len(trimmed), log.Default())
+			// For external bridges, create a registry with enough capacity.
+			sharedRegistry = bridge.NewBridgeRegistry(len(trimmed), len(trimmed), log.Default())
+			// Pre-warm each external address.
 			for _, addr := range trimmed {
-				cfg := bridge.BridgeConfig{Address: addr, PoolGroup: poolGroup}
-				b := bridge.NewJavaBridge(cfg, log.Default())
-				if err := b.Start(); err != nil {
+				cfg := bridge.BridgeConfig{Address: addr, PoolGroup: "external-bridges"}
+				if err := sharedRegistry.Warmup(cfg); err != nil {
 					sharedErr = errFatalf("connecting to external bridge at %s: %v", addr, err)
 					return
 				}
-				sharedPool.Seed(b)
 			}
-			sharedCfg = bridge.BridgeConfig{PoolGroup: poolGroup}
+			sharedCfg = bridge.BridgeConfig{PoolGroup: "external-bridges"}
 			return
 		}
 
@@ -115,57 +106,33 @@ func SharedBridge(t *testing.T) (*bridge.BridgePool, bridge.BridgeConfig) {
 			Args:    []string{"-jar", jar},
 		}
 
-		b := bridge.NewJavaBridge(sharedCfg, log.Default())
-		if err := b.Start(); err != nil {
+		// Create registry and warmup the bridge.
+		sharedRegistry = bridge.NewBridgeRegistry(8, 8, log.Default())
+		if err := sharedRegistry.Warmup(sharedCfg); err != nil {
 			sharedErr = errFatalf("failed to start bridge: %v", err)
 			return
 		}
-
-		poolSize := 2
-		if s := os.Getenv("NEOKAPI_BRIDGE_POOL_SIZE"); s != "" {
-			if n, err := strconv.Atoi(s); err == nil && n > 0 {
-				poolSize = n
-			}
-		}
-
-		sharedPool = bridge.NewBridgePool(poolSize, log.Default())
-		sharedPool.Seed(b)
 	})
 
 	if sharedErr != nil {
 		t.Fatal(sharedErr.Error())
 	}
 
-	return sharedPool, sharedCfg
+	return sharedRegistry, sharedCfg
 }
 
-// RequireFilter skips the test if the given filter class is not available in
-// the bridge JAR. This allows tests for optional filters (e.g. PlainTextFilter,
-// MarkdownFilter, XLIFF2Filter) to gracefully skip when the filter is missing.
-func RequireFilter(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string) {
+// RequireFilter verifies that a bridge is available for the given config.
+// Since ListFilters has been removed, this acquires a bridge slot and
+// immediately releases it to confirm the bridge is healthy. The actual
+// filter class validation happens when Open is called.
+func RequireFilter(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string) {
 	t.Helper()
-
-	availableOnce.Do(func() {
-		b, err := pool.Acquire(cfg)
-		if err != nil {
-			return
-		}
-		defer pool.Release(b)
-
-		lf, err := b.ListFilters()
-		if err != nil {
-			return
-		}
-
-		availableSet = make(map[string]bool, len(lf.Filters))
-		for _, f := range lf.Filters {
-			availableSet[f.FilterClass] = true
-		}
-	})
-
-	if !availableSet[filterClass] {
-		t.Skipf("filter %s not available in bridge JAR", filterClass)
+	b, release, err := registry.Acquire(cfg)
+	if err != nil {
+		t.Fatalf("bridge not available for filter %s: %v", filterClass, err)
 	}
+	_ = b
+	release()
 }
 
 // javaCommand returns the java binary path, respecting JAVA_HOME.
@@ -177,26 +144,22 @@ func javaCommand() string {
 }
 
 // ReadString extracts parts from a string input using the specified filter.
-// Returns the collected parts. Fails the test on any error.
-func ReadString(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, content, uri, mimeType string, filterParams map[string]any) []*model.Part {
+func ReadString(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass, content, uri, mimeType string, filterParams map[string]any) []*model.Part {
 	t.Helper()
-	return ReadBytes(t, pool, cfg, filterClass, []byte(content), uri, mimeType, filterParams)
+	return ReadBytes(t, registry, cfg, filterClass, []byte(content), uri, mimeType, filterParams)
 }
 
 // ReadBytes extracts parts from byte content using the specified filter.
-// Returns the collected parts. Fails the test on any error.
-func ReadBytes(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) []*model.Part {
+func ReadBytes(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any) []*model.Part {
 	t.Helper()
-	return ReadBytesWithLocales(t, pool, cfg, filterClass, content, uri, mimeType, filterParams, "en", "fr")
+	return ReadBytesWithLocales(t, registry, cfg, filterClass, content, uri, mimeType, filterParams, "en", "fr")
 }
 
-// ReadBytesWithLocales is like ReadBytes but allows specifying source and target
-// locales. This is needed for filters like TMX where the source locale must
-// match the TUV xml:lang attribute exactly.
-func ReadBytesWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) []*model.Part {
+// ReadBytesWithLocales is like ReadBytes but allows specifying source and target locales.
+func ReadBytesWithLocales(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, content []byte, uri, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) []*model.Part {
 	t.Helper()
 
-	reader := bridge.NewBridgeFormatReader(pool, cfg, filterClass)
+	reader := bridge.NewBridgeFormatReader(registry, cfg, filterClass, format.FormatSignature{})
 	if filterParams != nil {
 		reader.SetFilterParams(filterParams)
 	}
@@ -224,25 +187,23 @@ func ReadBytesWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.Brid
 }
 
 // ReadFileWithLocales reads testdata from disk with explicit locales.
-func ReadFileWithLocales(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, path, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) []*model.Part {
+func ReadFileWithLocales(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass, path, mimeType string, filterParams map[string]any, srcLocale, tgtLocale string) []*model.Part {
 	t.Helper()
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err, "reading test file %s", path)
 
-	return ReadBytesWithLocales(t, pool, cfg, filterClass, content, path, mimeType, filterParams, srcLocale, tgtLocale)
+	return ReadBytesWithLocales(t, registry, cfg, filterClass, content, path, mimeType, filterParams, srcLocale, tgtLocale)
 }
 
 // ReadFile reads testdata from disk and extracts parts using the specified filter.
-// The path must be an absolute path (use TestdataFile to resolve relative paths).
-// Fails the test on any error.
-func ReadFile(t *testing.T, pool *bridge.BridgePool, cfg bridge.BridgeConfig, filterClass, path, mimeType string, filterParams map[string]any) []*model.Part {
+func ReadFile(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass, path, mimeType string, filterParams map[string]any) []*model.Part {
 	t.Helper()
 
 	content, err := os.ReadFile(path)
 	require.NoError(t, err, "reading test file %s", path)
 
-	return ReadBytes(t, pool, cfg, filterClass, content, path, mimeType, filterParams)
+	return ReadBytes(t, registry, cfg, filterClass, content, path, mimeType, filterParams)
 }
 
 // FilterBlocks returns only Block parts from a list of parts.
@@ -291,15 +252,10 @@ func DataParts(parts []*model.Part) []*model.Part {
 	return result
 }
 
-// TestdataDir returns the path to the versioned okapi-testdata directory at
-// the repo root (e.g. okapi-testdata/1.48.0-v2/). It finds the most recent
-// version subdirectory automatically. Fails the test if no version has been
-// fetched.
+// TestdataDir returns the path to the versioned okapi-testdata directory.
 func TestdataDir(t *testing.T) string {
 	t.Helper()
 
-	// Walk up from the test binary's working directory to find the repo root.
-	// The testdata lives at <repo-root>/okapi-testdata/<version>/.
 	dir, err := findRepoRoot()
 	require.NoError(t, err, "finding repo root")
 
@@ -308,17 +264,14 @@ func TestdataDir(t *testing.T) string {
 		t.Fatal("okapi-testdata/ not found — run scripts/fetch-okapi-testdata.sh to fetch test data")
 	}
 
-	// Find version subdirectories (contain okapi/filters/).
 	entries, err := os.ReadDir(baseDir)
 	require.NoError(t, err, "reading okapi-testdata/")
 
-	// Pick the last version lexicographically (highest version).
 	var latest string
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
-		// Verify it looks like a testdata version (contains okapi/filters/).
 		if _, serr := os.Stat(filepath.Join(baseDir, e.Name(), "okapi", "filters")); serr == nil {
 			latest = e.Name()
 		}
@@ -331,7 +284,6 @@ func TestdataDir(t *testing.T) string {
 }
 
 // TestdataFile returns the full path to a file within the okapi-testdata directory.
-// It fails the test if the testdata directory or the specific file doesn't exist.
 func TestdataFile(t *testing.T, relPath string) string {
 	t.Helper()
 
@@ -343,13 +295,7 @@ func TestdataFile(t *testing.T, relPath string) string {
 	return full
 }
 
-// FilterTestResourceDir returns the path to a filter module's unit test resources
-// within the okapi-testdata directory. The filterModule is the Okapi filter module
-// name (e.g., "html", "json", "xliff"). The returned path points to:
-//
-//	okapi-testdata/<version>/okapi/filters/<filterModule>/src/test/resources
-//
-// Fails the test if the directory doesn't exist.
+// FilterTestResourceDir returns the path to a filter module's unit test resources.
 func FilterTestResourceDir(t *testing.T, filterModule string) string {
 	t.Helper()
 
@@ -360,12 +306,7 @@ func FilterTestResourceDir(t *testing.T, filterModule string) string {
 	return dir
 }
 
-// IntegrationTestResourceDir returns the path to the Okapi integration test
-// resources within the okapi-testdata directory. The returned path points to:
-//
-//	okapi-testdata/<version>/integration-tests/okapi/src/test/resources
-//
-// Fails the test if the directory doesn't exist.
+// IntegrationTestResourceDir returns the path to the Okapi integration test resources.
 func IntegrationTestResourceDir(t *testing.T) string {
 	t.Helper()
 
@@ -394,7 +335,6 @@ func findRepoRoot() (string, error) {
 	}
 }
 
-// fatalError is used internally to convey fatal reasons through sync.Once.
 type fatalError struct {
 	msg string
 }

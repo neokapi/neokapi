@@ -18,36 +18,24 @@ func TestBridgeFormatReaderInterface(t *testing.T) {
 	var _ format.DataFormatReader = (*BridgeFormatReader)(nil)
 }
 
-func TestBridgeFormatWriterInterface(t *testing.T) {
-	var _ format.DataFormatWriter = (*BridgeFormatWriter)(nil)
-}
-
 func TestBridgeFormatReaderSignature(t *testing.T) {
-	srv := &mockBridgeServer{
-		infoResp: &pb.InfoResponse{
-			Name:        "html",
-			DisplayName: "HTML Filter",
-			MimeTypes:   []string{"text/html"},
-			Extensions:  []string{".html"},
-		},
+	sig := format.FormatSignature{
+		MIMETypes:  []string{"text/html"},
+		Extensions: []string{".html"},
 	}
-	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
+	registry := NewBridgeRegistry(1, 1, log.New(io.Discard, "", 0))
+	defer registry.Shutdown()
 
-	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
-	sig := reader.Signature()
+	reader := NewBridgeFormatReader(registry, BridgeConfig{}, "net.sf.okapi.filters.html.HtmlFilter", sig)
+	got := reader.Signature()
 
-	assert.Contains(t, sig.MIMETypes, "text/html")
-	assert.Contains(t, sig.Extensions, ".html")
-	assert.Equal(t, "html", reader.Name())
-	assert.Equal(t, "HTML Filter", reader.DisplayName())
+	assert.Contains(t, got.MIMETypes, "text/html")
+	assert.Contains(t, got.Extensions, ".html")
 }
 
 func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 	srv := &mockBridgeServer{
-		openResp: &pb.OpenResponse{},
-		readParts: []*pb.PartMessage{
+		processReadParts: []*pb.PartMessage{
 			{PartType: 0, Layer: &pb.LayerMessage{Id: "doc1", Name: "test.html", Format: "html"}},
 			{PartType: 4, Block: &pb.BlockMessage{
 				Id: "tu1", Translatable: true,
@@ -57,10 +45,17 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 		},
 	}
 	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
 
-	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
+	registry := NewBridgeRegistry(1, 1, log.New(io.Discard, "", 0))
+	defer registry.Shutdown()
+	registry.mu.Lock()
+	key := b.cfg.PoolKey()
+	sem := make(chan struct{}, 1)
+	sem <- struct{}{}
+	ready := make(chan struct{}); close(ready); registry.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: b.cfg, ready: ready}
+	registry.mu.Unlock()
+
+	reader := NewBridgeFormatReader(registry, b.cfg, "net.sf.okapi.filters.html.HtmlFilter", format.FormatSignature{})
 
 	htmlContent := []byte("<html><body>Hello</body></html>")
 	doc := &model.RawDocument{
@@ -93,89 +88,59 @@ func TestBridgeFormatReaderOpenAndRead(t *testing.T) {
 	assert.Equal(t, "Hello", block.Source[0].Content.CodedText)
 }
 
-func TestBridgeFormatReaderClose(t *testing.T) {
+func TestBridgeProcessorExecute(t *testing.T) {
 	srv := &mockBridgeServer{
-		closeResp: &pb.CloseResponse{},
-	}
-	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
-
-	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
-
-	// Simulate that Open was called.
-	acquired, err := pool.Acquire(b.cfg)
-	require.NoError(t, err)
-	reader.bridge = acquired
-
-	require.NoError(t, reader.Close())
-}
-
-func TestBridgeFormatWriterWrite(t *testing.T) {
-	translatedHTML := "<html><body>Bonjour</body></html>"
-	srv := &mockBridgeServer{
-		writeOutput: []byte(translatedHTML),
-	}
-	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
-
-	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
-
-	originalContent := []byte("<html><body>Hello</body></html>")
-	writer.SetOriginalContent(originalContent)
-	writer.SetLocale("fr")
-	writer.SetEncoding("UTF-8")
-
-	var outputBuf bytes.Buffer
-	require.NoError(t, writer.SetOutputWriter(&outputBuf))
-
-	partsCh := make(chan *model.Part, 3)
-	partsCh <- &model.Part{
-		Type:     model.PartLayerStart,
-		Resource: &model.Layer{ID: "doc1"},
-	}
-	partsCh <- &model.Part{
-		Type: model.PartBlock,
-		Resource: &model.Block{
-			ID:           "tu1",
-			Translatable: true,
-			Source:       []*model.Segment{{ID: "s1", Content: model.NewFragment("Hello")}},
-			Targets: map[model.LocaleID][]*model.Segment{
-				"fr": {{ID: "s1", Content: model.NewFragment("Bonjour")}},
-			},
+		processReadParts: []*pb.PartMessage{
+			{PartType: 0, Layer: &pb.LayerMessage{Id: "doc1"}},
+			{PartType: 4, Block: &pb.BlockMessage{
+				Id: "tu1", Translatable: true,
+				Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}},
+			}},
+			{PartType: 1, Layer: &pb.LayerMessage{Id: "doc1"}},
 		},
+		processOutput: []byte("output-bytes"),
 	}
-	partsCh <- &model.Part{
-		Type:     model.PartLayerEnd,
-		Resource: &model.Layer{ID: "doc1"},
-	}
-	close(partsCh)
-
-	require.NoError(t, writer.Write(context.Background(), partsCh))
-	assert.Equal(t, translatedHTML, outputBuf.String())
-}
-
-func TestBridgeFormatWriterSetOutput(t *testing.T) {
-	srv := &mockBridgeServer{}
 	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
 
-	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
+	registry := NewBridgeRegistry(1, 1, log.New(io.Discard, "", 0))
+	defer registry.Shutdown()
+	registry.mu.Lock()
+	key := b.cfg.PoolKey()
+	sem := make(chan struct{}, 1)
+	sem <- struct{}{}
+	ready := make(chan struct{}); close(ready); registry.bridges[key] = &managedBridge{bridge: b, sem: sem, cfg: b.cfg, ready: ready}
+	registry.mu.Unlock()
 
-	var buf bytes.Buffer
-	require.NoError(t, writer.SetOutputWriter(&buf))
-	assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", writer.filterClass)
+	processor := NewBridgeProcessor(registry, b.cfg, "net.sf.okapi.filters.html.HtmlFilter")
+
+	var captured []*model.Part
+	result, err := processor.Execute(context.Background(), ProcessExecuteParams{
+		Content:      []byte("<html>Hello</html>"),
+		SourceLocale: "en",
+		TargetLocale: "fr",
+		OutputLocale: "fr",
+	}, func(parts <-chan *model.Part) <-chan *model.Part {
+		out := make(chan *model.Part, 64)
+		go func() {
+			defer close(out)
+			for p := range parts {
+				captured = append(captured, p)
+				out <- p
+			}
+		}()
+		return out
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, captured, 3)
+	assert.Equal(t, []byte("output-bytes"), result.Output)
 }
 
 func TestBridgeFormatReaderSetFilterParams(t *testing.T) {
-	srv := &mockBridgeServer{}
-	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
+	registry := NewBridgeRegistry(1, 1, log.New(io.Discard, "", 0))
+	defer registry.Shutdown()
 
-	reader := NewBridgeFormatReader(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
+	reader := NewBridgeFormatReader(registry, BridgeConfig{}, "net.sf.okapi.filters.json.JSONFilter", format.FormatSignature{})
 
 	params := map[string]any{
 		"extractStandalone": true,
@@ -188,59 +153,19 @@ func TestBridgeFormatReaderSetFilterParams(t *testing.T) {
 	assert.Equal(t, false, reader.filterParams["extractAllPairs"])
 }
 
-func TestBridgeFormatWriterSetFilterParams(t *testing.T) {
-	srv := &mockBridgeServer{}
-	b := newTestBridge(t, srv)
-	pool := NewBridgePool(1, log.New(io.Discard, "", 0))
-	pool.Seed(b)
+func TestBridgeProcessorSetFilterParams(t *testing.T) {
+	registry := NewBridgeRegistry(1, 1, log.New(io.Discard, "", 0))
+	defer registry.Shutdown()
 
-	writer := NewBridgeFormatWriter(pool, b.cfg, "net.sf.okapi.filters.json.JSONFilter")
+	processor := NewBridgeProcessor(registry, BridgeConfig{}, "net.sf.okapi.filters.json.JSONFilter")
 
 	params := map[string]any{
 		"extractStandalone": true,
 		"maxDepth":          10,
 	}
-	writer.SetFilterParams(params)
+	processor.SetFilterParams(params)
 
-	assert.NotNil(t, writer.filterParams)
-	assert.Equal(t, true, writer.filterParams["extractStandalone"])
-	assert.Equal(t, 10, writer.filterParams["maxDepth"])
-}
-
-func TestBridgeFormatReaderReadContextCancel(t *testing.T) {
-	manyParts := make([]*pb.PartMessage, 100)
-	for i := range manyParts {
-		manyParts[i] = &pb.PartMessage{
-			PartType: int32(model.PartData),
-			Data:     &pb.DataMessage{Id: "d"},
-		}
-	}
-	srv := &mockBridgeServer{
-		readParts: manyParts,
-	}
-	b := newTestBridge(t, srv)
-
-	// Don't use pool — assign bridge directly.
-	reader := &BridgeFormatReader{
-		bridge: b,
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // Cancel immediately.
-
-	var results []model.PartResult
-	ch := reader.Read(ctx)
-	for pr := range ch {
-		results = append(results, pr)
-	}
-
-	// Should have received a context canceled error at some point.
-	hasError := false
-	for _, r := range results {
-		if r.Error != nil {
-			hasError = true
-			break
-		}
-	}
-	assert.True(t, hasError || len(results) < 100, "context cancellation should stop part emission")
+	assert.NotNil(t, processor.filterParams)
+	assert.Equal(t, true, processor.filterParams["extractStandalone"])
+	assert.Equal(t, 10, processor.filterParams["maxDepth"])
 }

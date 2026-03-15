@@ -13,7 +13,8 @@ type Config struct {
 	Warmup      int               // warmup iterations (discarded)
 	TestdataDir string            // directory containing generated test data
 	OutputFile  string            // path to write JSON results
-	Bridge      bool              // also benchmark kapi with okf_* bridge formats
+	Bridge       bool             // also benchmark kapi with okf_* bridge formats
+	BridgeDaemon bool            // also benchmark kapi bridge in daemon mode (warm JVM)
 }
 
 // VersionedBinary is a path to a binary with a version label.

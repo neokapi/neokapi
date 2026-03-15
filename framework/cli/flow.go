@@ -162,6 +162,12 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 		}
 	}
 
+	// Bridge formats: use single-pass pipeline via BridgeProcessor.
+	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
+		outputFlag, _ := cmd.Flags().GetString("output")
+		return a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputFlag, bridgeReader)
+	}
+
 	inputContent, err := os.ReadFile(inputPath)
 	if err != nil {
 		return fmt.Errorf("read input: %w", err)
@@ -404,12 +410,11 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 }
 
 // processFlowFile performs the full read → process → write cycle for a single file.
-// It detects format, creates reader/writer, runs the flow tools, and writes output.
 // Safe for concurrent use — each call uses its own reader, writer, and tool instances.
 //
-// For bridge-backed formats, it uses RoundTrip: a single bidirectional gRPC stream
-// that combines read→process→write into one call, sharing the JVM across concurrent
-// files via the pool's shared access mode.
+// For bridge formats, uses a single-pass pipeline via BridgeProcessor where Go
+// acts as an Okapi pipeline step — one read, inline writing, no document re-read.
+// For native formats, uses the standard read → process → write pipeline.
 func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string) error {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
@@ -450,20 +455,21 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		}
 	}
 
-	// Bridge formats: use RoundTrip for concurrent file processing through
-	// a single shared JVM. This eliminates per-file JVM startup and enables
-	// N files to process through one bridge via concurrent gRPC streams.
+	// Bridge formats: single-pass pipeline via BridgeProcessor.
 	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
-		return a.processFlowFileRoundTrip(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader)
+		return a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader)
 	}
 
-	// Native formats: use the standard read → process → write pipeline.
+	// Native formats: standard read → process → write pipeline.
 	return a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig)
 }
 
-// processFlowFileRoundTrip uses bridge RoundTrip for the full read→process→write
-// cycle through a single shared JVM instance.
-func (a *App) processFlowFileRoundTrip(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
+// processFlowFileBridge runs a single-pass Okapi pipeline where Go acts as a
+// step. Java reads each event, sends the part to Go, Go processes it and sends
+// it back, Java applies the translation and writes — all in one filter iteration.
+func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
+	flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
+
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
@@ -472,25 +478,23 @@ func (a *App) processFlowFileRoundTrip(ctx context.Context, cmd *cobra.Command, 
 	}
 	defer cleanup()
 
-	rt := bridgeReader.NewRoundTripper()
-
-	var flowErr error
-	_, err = rt.Execute(ctx, bridge.RoundTripConfig{
-		InputPath:    inputPath,
-		URI:          inputPath,
-		SourceLocale: a.SourceLang,
-		TargetLocale: a.TargetLang,
-		Encoding:     a.Encoding,
-		OutputPath:   outputPath,
-		OutputLocale: a.TargetLang,
-	}, func(parts <-chan *model.Part) <-chan *model.Part {
-		// Collect parts from bridge read phase.
-		var inputParts []*model.Part
-		for p := range parts {
-			inputParts = append(inputParts, p)
+	// Auto-wrap IO-bound tools with ParallelBlockTool.
+	if n := defaultParallelBlocks(flowName); n > 1 {
+		for i, ft := range flowTools {
+			flowTools[i] = tool.NewParallelBlockTool(ft, n)
 		}
+	}
 
-		// Run flow tools.
+	processor := bridgeReader.NewProcessor()
+	_, err = processor.Execute(ctx, bridge.ProcessExecuteParams{
+		InputPath:      inputPath,
+		SourceLocale:   a.SourceLang,
+		TargetLocale:   a.TargetLang,
+		OutputPath:     outputPath,
+		OutputLocale:   a.TargetLang,
+		Encoding:       a.Encoding,
+		SubscribeParts: []int32{int32(model.PartBlock)}, // Only send Blocks to Go
+	}, func(parts <-chan *model.Part) <-chan *model.Part {
 		fb := flow.NewFlow(flowName)
 		for _, t := range flowTools {
 			fb.AddTool(t)
@@ -501,40 +505,23 @@ func (a *App) processFlowFileRoundTrip(ctx context.Context, cmd *cobra.Command, 
 		inCh, outCh, wait := executor.ExecuteWithChannels(ctx, f)
 
 		go func() {
-			for _, p := range inputParts {
+			for p := range parts {
 				inCh <- p
 			}
 			close(inCh)
 		}()
 
-		var outputParts []*model.Part
-		for p := range outCh {
-			outputParts = append(outputParts, p)
-		}
+		// Wait for flow completion in a goroutine so outCh can drain.
+		go func() {
+			_ = wait()
+		}()
 
-		if werr := wait(); werr != nil {
-			flowErr = werr
-		}
-
-		resultCh := make(chan *model.Part, len(outputParts))
-		for _, p := range outputParts {
-			resultCh <- p
-		}
-		close(resultCh)
-		return resultCh
+		return outCh
 	})
-
-	if err != nil {
-		return err
-	}
-	if flowErr != nil {
-		return fmt.Errorf("flow execution error: %w", flowErr)
-	}
-	return nil
+	return err
 }
 
-// processFlowFileNative uses the standard read → process → write pipeline
-// for native (non-bridge) formats.
+// processFlowFileNative uses the standard read → process → write pipeline.
 func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any) error {
 	inputContent, err := os.ReadFile(inputPath)
 	if err != nil {

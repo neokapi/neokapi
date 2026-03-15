@@ -19,49 +19,38 @@ import (
 type mockBridgeServer struct {
 	pb.UnimplementedBridgeServiceServer
 
-	infoResp        *pb.InfoResponse
-	openResp        *pb.OpenResponse
-	readParts       []*pb.PartMessage
-	writeOutput     []byte
-	closeResp       *pb.CloseResponse
-	listFiltersResp *pb.ListFiltersResponse
-	infoErr         error
-	openErr         error
-	readErr         error
-	writeErr        error
+	// Process fields
+	processReadParts []*pb.PartMessage
+	processOutput    []byte
+	processOutputPath string
+	processErr       string
 }
 
-func (s *mockBridgeServer) Info(_ context.Context, _ *pb.InfoRequest) (*pb.InfoResponse, error) {
-	if s.infoErr != nil {
-		return nil, s.infoErr
+func (s *mockBridgeServer) Process(stream pb.BridgeService_ProcessServer) error {
+	// Receive header.
+	req, err := stream.Recv()
+	if err != nil {
+		return err
 	}
-	return s.infoResp, nil
-}
+	_ = req.GetHeader() // consume header
 
-func (s *mockBridgeServer) Open(_ context.Context, _ *pb.OpenRequest) (*pb.OpenResponse, error) {
-	if s.openErr != nil {
-		return nil, s.openErr
-	}
-	return s.openResp, nil
-}
-
-func (s *mockBridgeServer) Read(_ *pb.ReadRequest, stream pb.BridgeService_ReadServer) error {
-	if s.readErr != nil {
-		return s.readErr
-	}
-	for _, part := range s.readParts {
-		if err := stream.Send(part); err != nil {
+	// Send read-phase parts.
+	for _, part := range s.processReadParts {
+		if err := stream.Send(&pb.ProcessResponse{
+			Response: &pb.ProcessResponse_Part{Part: part},
+		}); err != nil {
 			return err
 		}
 	}
-	return nil
-}
 
-func (s *mockBridgeServer) Write(stream pb.BridgeService_WriteServer) error {
-	if s.writeErr != nil {
-		return s.writeErr
+	// Send ReadDone.
+	if err := stream.Send(&pb.ProcessResponse{
+		Response: &pb.ProcessResponse_ReadDone{ReadDone: &pb.ProcessReadDone{}},
+	}); err != nil {
+		return err
 	}
-	// Drain all chunks.
+
+	// Drain processed parts from client until CloseSend.
 	for {
 		_, err := stream.Recv()
 		if err == io.EOF {
@@ -71,18 +60,16 @@ func (s *mockBridgeServer) Write(stream pb.BridgeService_WriteServer) error {
 			return err
 		}
 	}
-	return stream.SendAndClose(&pb.WriteResponse{Output: s.writeOutput})
-}
 
-func (s *mockBridgeServer) Close(_ context.Context, _ *pb.CloseRequest) (*pb.CloseResponse, error) {
-	if s.closeResp != nil {
-		return s.closeResp, nil
+	// Send Complete.
+	complete := &pb.ProcessComplete{
+		Output:     s.processOutput,
+		OutputPath: s.processOutputPath,
+		Error:      s.processErr,
 	}
-	return &pb.CloseResponse{}, nil
-}
-
-func (s *mockBridgeServer) ListFilters(_ context.Context, _ *pb.ListFiltersRequest) (*pb.ListFiltersResponse, error) {
-	return s.listFiltersResp, nil
+	return stream.Send(&pb.ProcessResponse{
+		Response: &pb.ProcessResponse_Complete{Complete: complete},
+	})
 }
 
 func (s *mockBridgeServer) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*pb.ShutdownResponse, error) {
@@ -90,7 +77,6 @@ func (s *mockBridgeServer) Shutdown(_ context.Context, _ *pb.ShutdownRequest) (*
 }
 
 // startMockServer starts a gRPC server with the mock service on a random port.
-// Returns the server, address, and a cleanup function.
 func startMockServer(t *testing.T, srv *mockBridgeServer) (string, func()) {
 	t.Helper()
 	lis, err := net.Listen("tcp", "localhost:0")
@@ -130,101 +116,6 @@ func newTestBridge(t *testing.T, srv *mockBridgeServer) *JavaBridge {
 	b.conn = conn
 	b.client = pb.NewBridgeServiceClient(conn)
 	return b
-}
-
-func TestBridgeInfo(t *testing.T) {
-	srv := &mockBridgeServer{
-		infoResp: &pb.InfoResponse{
-			Name:        "html",
-			DisplayName: "HTML Filter",
-			MimeTypes:   []string{"text/html"},
-			Extensions:  []string{".html", ".htm"},
-		},
-	}
-	b := newTestBridge(t, srv)
-
-	info, err := b.Info("net.sf.okapi.filters.html.HtmlFilter")
-	require.NoError(t, err)
-	assert.Equal(t, "html", info.Name)
-	assert.Equal(t, "HTML Filter", info.DisplayName)
-	assert.Contains(t, info.Extensions, ".html")
-}
-
-func TestBridgeOpen(t *testing.T) {
-	srv := &mockBridgeServer{
-		openResp: &pb.OpenResponse{},
-	}
-	b := newTestBridge(t, srv)
-
-	err := b.Open(OpenParams{
-		FilterClass:  "net.sf.okapi.filters.html.HtmlFilter",
-		URI:          "test.html",
-		SourceLocale: "en",
-		Encoding:     "UTF-8",
-		Content:      []byte("<html></html>"),
-		MimeType:     "text/html",
-	})
-	require.NoError(t, err)
-}
-
-func TestBridgeRead(t *testing.T) {
-	srv := &mockBridgeServer{
-		readParts: []*pb.PartMessage{
-			{PartType: 0, Layer: &pb.LayerMessage{Id: "doc1", Name: "test.html", Format: "html"}},
-			{PartType: 4, Block: &pb.BlockMessage{Id: "tu1", Translatable: true, Source: []*pb.SegmentMessage{{Id: "s1", Content: &pb.FragmentMessage{CodedText: "Hello"}}}}},
-			{PartType: 1, Layer: &pb.LayerMessage{Id: "doc1"}},
-		},
-	}
-	b := newTestBridge(t, srv)
-
-	parts, err := b.Read()
-	require.NoError(t, err)
-	require.Len(t, parts, 3)
-	assert.Equal(t, int32(0), parts[0].PartType)
-	assert.Equal(t, "doc1", parts[0].Layer.Id)
-}
-
-func TestBridgeWrite(t *testing.T) {
-	srv := &mockBridgeServer{
-		writeOutput: []byte("translated"),
-	}
-	b := newTestBridge(t, srv)
-
-	output, err := b.Write(WriteParams{
-		FilterClass:     "net.sf.okapi.filters.html.HtmlFilter",
-		Parts:           []*pb.PartMessage{{PartType: 0}},
-		Locale:          "fr",
-		Encoding:        "UTF-8",
-		OriginalContent: []byte("<html></html>"),
-	})
-	require.NoError(t, err)
-	assert.Equal(t, []byte("translated"), output)
-}
-
-func TestBridgeCloseFilter(t *testing.T) {
-	srv := &mockBridgeServer{
-		closeResp: &pb.CloseResponse{},
-	}
-	b := newTestBridge(t, srv)
-
-	err := b.CloseFilter()
-	require.NoError(t, err)
-}
-
-func TestBridgeListFilters(t *testing.T) {
-	srv := &mockBridgeServer{
-		listFiltersResp: &pb.ListFiltersResponse{
-			Filters: []*pb.FilterEntry{
-				{FilterClass: "net.sf.okapi.filters.html.HtmlFilter", Name: "html", DisplayName: "HTML"},
-			},
-		},
-	}
-	b := newTestBridge(t, srv)
-
-	lf, err := b.ListFilters()
-	require.NoError(t, err)
-	require.Len(t, lf.Filters, 1)
-	assert.Equal(t, "html", lf.Filters[0].Name)
 }
 
 func TestConfigWithDefaults(t *testing.T) {
