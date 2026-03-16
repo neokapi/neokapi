@@ -17,8 +17,7 @@ export function useTasks() {
       priority?: string;
       cursor?: string;
       limit?: number;
-    }): Promise<{ tasks: TaskInfo[]; next_cursor: string }> =>
-      api.listTasks(ws, query),
+    }): Promise<{ tasks: TaskInfo[]; next_cursor: string }> => api.listTasks(ws, query),
     [api, ws],
   );
 
@@ -64,8 +63,7 @@ export function useTasks() {
       status?: string;
       cursor?: string;
       limit?: number;
-    }): Promise<{ tasks: TaskInfo[]; next_cursor: string }> =>
-      api.listMyTasks(ws, query),
+    }): Promise<{ tasks: TaskInfo[]; next_cursor: string }> => api.listMyTasks(ws, query),
     [api, ws],
   );
 
@@ -81,6 +79,16 @@ export function useTasks() {
       cancelTask,
       listMyTasks,
     }),
-    [listTasks, createTask, getTask, updateTask, deleteTask, assignTask, completeTask, cancelTask, listMyTasks],
+    [
+      listTasks,
+      createTask,
+      getTask,
+      updateTask,
+      deleteTask,
+      assignTask,
+      completeTask,
+      cancelTask,
+      listMyTasks,
+    ],
   );
 }
