@@ -46,6 +46,11 @@ import type {
   CollectionInfo,
   AuditEntry,
   ArchivedProject,
+  VoiceProfile,
+  StoredScore,
+  ScoreTrend,
+  CreateVoiceProfileRequest,
+  UpdateVoiceProfileRequest,
 } from "@neokapi/ui";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -573,6 +578,35 @@ export class WailsApiAdapter implements ApiAdapter {
     _entityKey: string,
   ): Promise<void> {
     throw new Error("Entity annotations not yet supported in desktop mode");
+  }
+
+  // --- Brand Voice (desktop: not yet backed by Wails bindings) ---
+  async listBrandProfiles(): Promise<VoiceProfile[]> {
+    return [];
+  }
+  async getBrandProfile(): Promise<VoiceProfile> {
+    throw new Error("Brand profiles not yet supported in desktop mode");
+  }
+  async createBrandProfile(
+    _ws: string,
+    _data: CreateVoiceProfileRequest,
+  ): Promise<VoiceProfile> {
+    throw new Error("Brand profiles not yet supported in desktop mode");
+  }
+  async updateBrandProfile(
+    _ws: string,
+    _data: UpdateVoiceProfileRequest,
+  ): Promise<VoiceProfile> {
+    throw new Error("Brand profiles not yet supported in desktop mode");
+  }
+  async deleteBrandProfile(_ws: string, _profileId: string): Promise<void> {
+    throw new Error("Brand profiles not yet supported in desktop mode");
+  }
+  async getBrandScores(_ws: string, _projectId: string): Promise<StoredScore[]> {
+    return [];
+  }
+  async getBrandTrends(_ws: string, _projectId: string): Promise<ScoreTrend[]> {
+    return [];
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---

@@ -465,7 +465,7 @@ export function FlowBuilder() {
         onNew={handleNewFlowDialogOpen}
       />
       <Dialog open={showNewFlowDialog} onOpenChange={handleNewFlowDialogClose}>
-        <DialogContent size="sm" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent onInteractOutside={(e: Event) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>New Flow</DialogTitle>
           </DialogHeader>

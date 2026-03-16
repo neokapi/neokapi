@@ -151,7 +151,6 @@ export function ConnectorPanel() {
 
       <Dialog open={showAddDialog} onOpenChange={handleAddDialogClose}>
         <DialogContent
-          size="sm"
           data-testid="connector-form"
           onInteractOutside={(e: Event) => e.preventDefault()}
         >
