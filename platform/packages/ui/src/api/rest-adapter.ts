@@ -50,6 +50,10 @@ import type {
   AuditQuery,
   ArchivedProject,
   TranslationDashboardStats,
+  ActivityInfo,
+  TaskInfo,
+  CreateTaskRequest,
+  NotificationPreference,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1278,6 +1282,137 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(
       `/api/v1/workspaces/${workspaceSlug}/brand/trends?project_id=${encodeURIComponent(projectId)}`,
     );
+  }
+
+  // ── Activities (AD-027) ─────────────────────────────────────────────────
+
+  async listActivities(
+    workspaceSlug: string,
+    query?: {
+      project_id?: string;
+      stream?: string;
+      actor_id?: string;
+      type?: string;
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<{ activities: ActivityInfo[]; next_cursor: string }> {
+    const params = new URLSearchParams();
+    if (query?.project_id) params.set("project_id", query.project_id);
+    if (query?.stream) params.set("stream", query.stream);
+    if (query?.actor_id) params.set("actor_id", query.actor_id);
+    if (query?.type) params.set("type", query.type);
+    if (query?.cursor) params.set("cursor", query.cursor);
+    if (query?.limit) params.set("limit", String(query.limit));
+    const qs = params.toString();
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`);
+  }
+
+  // ── Tasks (AD-027) ────────────────────────────────────────────────────
+
+  private tasksEp(ws: string) {
+    return `/api/v1/workspaces/${ws}/tasks`;
+  }
+
+  async listTasks(
+    workspaceSlug: string,
+    query?: {
+      project_id?: string;
+      assignee_id?: string;
+      status?: string;
+      type?: string;
+      priority?: string;
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+    const params = new URLSearchParams();
+    if (query?.project_id) params.set("project_id", query.project_id);
+    if (query?.assignee_id) params.set("assignee_id", query.assignee_id);
+    if (query?.status) params.set("status", query.status);
+    if (query?.type) params.set("type", query.type);
+    if (query?.priority) params.set("priority", query.priority);
+    if (query?.cursor) params.set("cursor", query.cursor);
+    if (query?.limit) params.set("limit", String(query.limit));
+    const qs = params.toString();
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}${qs ? `?${qs}` : ""}`);
+  }
+
+  async createTask(workspaceSlug: string, task: CreateTaskRequest): Promise<TaskInfo> {
+    return this.fetchJSON(this.tasksEp(workspaceSlug), {
+      method: "POST",
+      body: JSON.stringify(task),
+    });
+  }
+
+  async getTask(workspaceSlug: string, taskId: string): Promise<TaskInfo> {
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`);
+  }
+
+  async updateTask(
+    workspaceSlug: string,
+    taskId: string,
+    updates: Partial<CreateTaskRequest>,
+  ): Promise<TaskInfo> {
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async deleteTask(workspaceSlug: string, taskId: string): Promise<void> {
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+    });
+  }
+
+  async assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void> {
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ assignee_id: assigneeId }),
+    });
+  }
+
+  async completeTask(workspaceSlug: string, taskId: string): Promise<void> {
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/complete`, {
+      method: "POST",
+    });
+  }
+
+  async cancelTask(workspaceSlug: string, taskId: string): Promise<void> {
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/cancel`, {
+      method: "POST",
+    });
+  }
+
+  async listMyTasks(
+    workspaceSlug: string,
+    query?: { status?: string; cursor?: string; limit?: number },
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+    const params = new URLSearchParams();
+    if (query?.status) params.set("status", query.status);
+    if (query?.cursor) params.set("cursor", query.cursor);
+    if (query?.limit) params.set("limit", String(query.limit));
+    const qs = params.toString();
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
+  }
+
+  // ── Notification Preferences (AD-027) ─────────────────────────────────
+
+  async getNotificationPreferences(
+    workspaceSlug: string,
+  ): Promise<{ preferences: NotificationPreference[] }> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/preferences`);
+  }
+
+  async updateNotificationPreferences(
+    workspaceSlug: string,
+    preferences: NotificationPreference[],
+  ): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/preferences`, {
+      method: "PUT",
+      body: JSON.stringify({ preferences }),
+    });
   }
 
   // ── Audit Log ───────────────────────────────────────────────────────────

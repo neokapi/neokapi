@@ -530,5 +530,38 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       translatable_blocks: 0,
       total_source_words: 0,
     }),
+
+    // --- Activities (AD-027) ------------------------------------------------
+    listActivities: async () => ({ activities: [], next_cursor: "" }),
+
+    // --- Tasks (AD-027) -----------------------------------------------------
+    listTasks: async () => ({ tasks: [], next_cursor: "" }),
+    createTask: async (_ws, task) => ({
+      id: `task-${Date.now()}`,
+      workspace_id: "ws-1",
+      project_id: task.project_id,
+      type: task.type ?? "custom",
+      status: "open" as const,
+      priority: task.priority ?? "normal",
+      title: task.title,
+      description: task.description ?? "",
+      assignee_id: task.assignee_id ?? "",
+      created_by: "user-1",
+      completed_by: "",
+      data: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+    getTask: notImpl,
+    updateTask: notImpl,
+    deleteTask: noop,
+    assignTask: noop,
+    completeTask: noop,
+    cancelTask: noop,
+    listMyTasks: async () => ({ tasks: [], next_cursor: "" }),
+
+    // --- Notification Preferences (AD-027) ----------------------------------
+    getNotificationPreferences: async () => ({ preferences: [] }),
+    updateNotificationPreferences: noop,
   };
 }
