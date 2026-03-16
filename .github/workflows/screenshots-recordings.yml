@@ -81,11 +81,18 @@ jobs:
         working-directory: platform/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
+      - name: Obtain auth token
+        run: |
+          BOWRAIN_TOKEN=$(bash platform/scripts/device-auth.sh "$SERVER_URL")
+          echo "BOWRAIN_TOKEN=$BOWRAIN_TOKEN" >> "$GITHUB_ENV"
+
       - name: Generate screenshots
         working-directory: platform/apps/bowrain/frontend
         run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
         env:
           WAILS_SERVER_MODE: "true"
+          BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
+          BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Generate recordings
         working-directory: platform/apps/bowrain/frontend
@@ -94,6 +101,8 @@ jobs:
         env:
           FORCE_RECORDINGS: "true"
           WAILS_SERVER_MODE: "true"
+          BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
+          BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Copy recordings to static assets
         working-directory: platform/apps/bowrain/frontend
