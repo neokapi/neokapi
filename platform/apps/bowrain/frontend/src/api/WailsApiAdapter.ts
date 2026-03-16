@@ -51,8 +51,14 @@ import type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
-  TranslationDashboardStats,
 } from "@neokapi/ui";
+import type {
+  TranslationDashboardStats,
+  ActivityInfo,
+  TaskInfo,
+  CreateTaskRequest,
+  NotificationPreference,
+} from "@neokapi/ui/types/api";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore – generated .js bindings outside the TS project root
@@ -612,6 +618,81 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async getBrandTrends(_ws: string, _projectId: string): Promise<ScoreTrend[]> {
     return [];
+  }
+
+  // --- Activities (AD-027, not yet supported in desktop) ---
+  async listActivities(
+    _ws: string,
+    _query?: {
+      project_id?: string;
+      stream?: string;
+      actor_id?: string;
+      type?: string;
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<{ activities: ActivityInfo[]; next_cursor: string }> {
+    return { activities: [], next_cursor: "" };
+  }
+
+  // --- Tasks (AD-027, not yet supported in desktop) ---
+  async listTasks(
+    _ws: string,
+    _query?: {
+      project_id?: string;
+      assignee_id?: string;
+      status?: string;
+      type?: string;
+      priority?: string;
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+    return { tasks: [], next_cursor: "" };
+  }
+  async createTask(_ws: string, _task: CreateTaskRequest): Promise<TaskInfo> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async getTask(_ws: string, _taskId: string): Promise<TaskInfo> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async updateTask(
+    _ws: string,
+    _taskId: string,
+    _updates: Partial<CreateTaskRequest>,
+  ): Promise<TaskInfo> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async deleteTask(_ws: string, _taskId: string): Promise<void> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async assignTask(_ws: string, _taskId: string, _assigneeId: string): Promise<void> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async completeTask(_ws: string, _taskId: string): Promise<void> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async cancelTask(_ws: string, _taskId: string): Promise<void> {
+    throw new Error("Tasks not yet supported in desktop mode");
+  }
+  async listMyTasks(
+    _ws: string,
+    _query?: { status?: string; cursor?: string; limit?: number },
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
+    return { tasks: [], next_cursor: "" };
+  }
+
+  // --- Notification preferences (AD-027, not yet supported in desktop) ---
+  async getNotificationPreferences(
+    _ws: string,
+  ): Promise<{ preferences: NotificationPreference[] }> {
+    return { preferences: [] };
+  }
+  async updateNotificationPreferences(
+    _ws: string,
+    _preferences: NotificationPreference[],
+  ): Promise<void> {
+    throw new Error("Notification preferences not yet supported in desktop mode");
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---
