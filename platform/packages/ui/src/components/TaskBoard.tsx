@@ -158,6 +158,27 @@ export function TaskBoard({
     );
   }
 
+  const viewToggle = (
+    <div className="flex items-center justify-end mb-3">
+      <div className="flex gap-1 rounded-md border p-0.5">
+        <button
+          type="button"
+          className={cn("text-xs px-2 py-1 rounded", view === "list" && "bg-accent")}
+          onClick={() => setView("list")}
+        >
+          List
+        </button>
+        <button
+          type="button"
+          className={cn("text-xs px-2 py-1 rounded", view === "board" && "bg-accent")}
+          onClick={() => setView("board")}
+        >
+          Board
+        </button>
+      </div>
+    </div>
+  );
+
   if (view === "board") {
     const columns: TaskStatus[] = ["open", "in_progress", "completed", "cancelled"];
     const grouped = columns.reduce(
@@ -170,24 +191,7 @@ export function TaskBoard({
 
     return (
       <div>
-        <div className="flex items-center justify-end mb-3">
-          <div className="flex gap-1 rounded-md border p-0.5">
-            <button
-              type="button"
-              className={cn("text-xs px-2 py-1 rounded", view === "list" && "bg-accent")}
-              onClick={() => setView("list")}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              className={cn("text-xs px-2 py-1 rounded", view === "board" && "bg-accent")}
-              onClick={() => setView("board")}
-            >
-              Board
-            </button>
-          </div>
-        </div>
+        {viewToggle}
         <div className="grid grid-cols-4 gap-3">
           {columns.map((status) => (
             <div key={status} className="space-y-2">
@@ -214,24 +218,7 @@ export function TaskBoard({
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-3">
-        <div className="flex gap-1 rounded-md border p-0.5">
-          <button
-            type="button"
-            className={cn("text-xs px-2 py-1 rounded", view === "list" && "bg-accent")}
-            onClick={() => setView("list")}
-          >
-            List
-          </button>
-          <button
-            type="button"
-            className={cn("text-xs px-2 py-1 rounded", view === "board" && "bg-accent")}
-            onClick={() => setView("board")}
-          >
-            Board
-          </button>
-        </div>
-      </div>
+      {viewToggle}
       <div className="space-y-2">
         {tasks.map((task) => (
           <TaskCard
