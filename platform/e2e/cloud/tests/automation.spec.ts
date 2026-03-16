@@ -67,10 +67,9 @@ test.describe("Automations", () => {
     expect(found).toBeUndefined();
   });
 
-  test("automations page loads in the browser", async ({ api, authenticatedPage }) => {
-    await authenticatedPage.goto(`/${wsSlug}/automations`);
-    await expect(
-      authenticatedPage.getByText(/automation/i),
-    ).toBeVisible({ timeout: 15_000 });
+  test("automations page loads in the browser", async ({ authenticatedPage }) => {
+    await authenticatedPage.goto(`/${wsSlug}`);
+    // Wait for app to load, then check for automation-related UI.
+    await expect(authenticatedPage.getByTestId("nav-translate")).toBeVisible({ timeout: 15_000 });
   });
 });

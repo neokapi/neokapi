@@ -7,9 +7,10 @@ test.describe("Health & Readiness", () => {
   });
 
   test("readiness endpoint reports component status", async ({ readiness }) => {
-    expect(readiness.status).toMatch(/ready|degraded/);
+    expect(readiness.status).toMatch(/ready|degraded|unhealthy/);
     expect(readiness.version).toBeTruthy();
     expect(readiness.components.database).toBeTruthy();
+    expect(readiness.components.database.status).toBe("up");
     expect(readiness.components.queue).toBeTruthy();
     expect(readiness.components.session_store).toBeTruthy();
   });

@@ -112,13 +112,13 @@ export class BowrainAPI {
   async createProject(
     wsSlug: string,
     name: string,
-    sourceLocale: string,
-    targetLocales: string[],
+    sourceLanguage: string,
+    targetLanguages: string[],
   ): Promise<Project> {
     return this.post(`/workspaces/${wsSlug}/editor/projects`, {
       name,
-      source_locale: sourceLocale,
-      target_locales: targetLocales,
+      default_source_language: sourceLanguage,
+      target_languages: targetLanguages,
     });
   }
 
@@ -187,7 +187,7 @@ export class BowrainAPI {
     });
   }
 
-  async searchTM(wsSlug: string, query: string): Promise<unknown[]> {
+  async searchTM(wsSlug: string, query: string): Promise<unknown> {
     return this.get(`/workspaces/${wsSlug}/tm?q=${encodeURIComponent(query)}`);
   }
 
@@ -197,14 +197,14 @@ export class BowrainAPI {
     return this.post(`/workspaces/${wsSlug}/terms`, concept);
   }
 
-  async searchTerms(wsSlug: string, query: string): Promise<unknown[]> {
+  async searchTerms(wsSlug: string, query: string): Promise<unknown> {
     return this.get(`/workspaces/${wsSlug}/terms?q=${encodeURIComponent(query)}`);
   }
 
   // --- Automations ---
 
   async listAutomationRules(wsSlug: string, projectId: string): Promise<AutomationRule[]> {
-    return this.get(`/workspaces/${wsSlug}/projects/${projectId}/automation/rules`);
+    return this.get(`/workspaces/${wsSlug}/projects/${projectId}/automations`);
   }
 
   async createAutomationRule(
@@ -212,7 +212,7 @@ export class BowrainAPI {
     projectId: string,
     rule: Partial<AutomationRule>,
   ): Promise<AutomationRule> {
-    return this.post(`/workspaces/${wsSlug}/projects/${projectId}/automation/rules`, rule);
+    return this.post(`/workspaces/${wsSlug}/projects/${projectId}/automations`, rule);
   }
 
   async updateAutomationRule(
@@ -222,7 +222,7 @@ export class BowrainAPI {
     rule: Partial<AutomationRule>,
   ): Promise<AutomationRule> {
     return this.put(
-      `/workspaces/${wsSlug}/projects/${projectId}/automation/rules/${ruleId}`,
+      `/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`,
       rule,
     );
   }
@@ -232,7 +232,7 @@ export class BowrainAPI {
     projectId: string,
     ruleId: string,
   ): Promise<void> {
-    return this.delete(`/workspaces/${wsSlug}/projects/${projectId}/automation/rules/${ruleId}`);
+    return this.delete(`/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`);
   }
 
   // --- Formats & Tools ---
@@ -267,7 +267,9 @@ export async function waitForReady(baseUrl: string, maxWaitMs = 120_000): Promis
       const resp = await fetch(`${baseUrl}/api/v1/ready`);
       if (resp.ok || resp.status === 503) {
         const info: ReadinessInfo = await resp.json();
+        // Accept ready, degraded, or unhealthy-but-database-up (AI/email may not be configured).
         if (info.status !== "unhealthy") return info;
+        if (info.components.database?.status === "up") return info;
       }
     } catch {
       // Server not reachable yet.

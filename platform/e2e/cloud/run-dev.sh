@@ -35,4 +35,12 @@ KEYCLOAK_ADMIN_PASSWORD=$(az keyvault secret show \
 
 export BOWRAIN_URL="https://dev.bowrain.cloud"
 
+# Admin API requires the internal Container App FQDN (not the public Front Door URL).
+echo "Fetching Keycloak internal FQDN..."
+export KEYCLOAK_ADMIN_URL
+KEYCLOAK_ADMIN_URL="https://$(az containerapp show \
+  --name ca-bowrain-dev-keycloak \
+  --resource-group rg-bowrain-d-sdc \
+  --query 'properties.configuration.ingress.fqdn' -o tsv)"
+
 exec bash "$SCRIPT_DIR/run.sh" "$@"

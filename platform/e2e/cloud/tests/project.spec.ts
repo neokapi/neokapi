@@ -85,12 +85,13 @@ test.describe("Project & Translation", () => {
     const project = await api.createProject(wsSlug, "Browser Test", "en", ["fr"]);
     await api.uploadFile(wsSlug, project.id, "strings.json", SAMPLE_JSON);
 
-    await authenticatedPage.goto(`/${wsSlug}/p/${project.id}`);
-    // Wait for the project view to load — should show the file name.
+    // Navigate to the project's translate view.
+    await authenticatedPage.goto(`/${wsSlug}`);
+    await expect(authenticatedPage.getByTestId("nav-translate")).toBeVisible({ timeout: 15_000 });
+    await authenticatedPage.getByTestId("nav-translate").click();
+    // Should see the project name or files listed.
     await expect(
-      authenticatedPage.getByText("strings.json").or(
-        authenticatedPage.getByText("Browser Test"),
-      ),
+      authenticatedPage.getByText("Browser Test"),
     ).toBeVisible({ timeout: 15_000 });
   });
 });
