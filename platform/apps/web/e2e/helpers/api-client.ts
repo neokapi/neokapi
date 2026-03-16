@@ -130,8 +130,8 @@ export async function createEditorProject(
 ): Promise<{ id: string; name: string }> {
   const p = await apiPost(`/workspaces/${wsSlug}/editor/projects`, token, {
     name,
-    source_locale: sourceLocale,
-    target_locales: targetLocales,
+    default_source_language: sourceLocale,
+    target_languages: targetLocales,
   });
   return { id: p.id, name: p.name };
 }
@@ -324,7 +324,7 @@ export async function createAnonymousProject(
   const resp = await fetch(`${API}/projects/anonymous`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, source_locale: sourceLocale, target_locales: targetLocales }),
+    body: JSON.stringify({ name, default_source_language: sourceLocale, target_languages: targetLocales }),
   });
   if (!resp.ok)
     throw new Error(`Create anonymous project failed: ${resp.status} ${await resp.text()}`);
