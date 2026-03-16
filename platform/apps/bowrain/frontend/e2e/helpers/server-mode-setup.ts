@@ -20,13 +20,18 @@ import type { Page } from "@playwright/test";
  * - Running on WAILS_SERVER_PORT (default 8090 in test configs)
  */
 export async function setupServerModeApp(page: Page): Promise<void> {
-  // Skip the connection screen — the headless binary runs in local mode
+  // The headless binary runs in local mode — no server connection needed.
+  // Set __skipConnection so App.tsx's connection flow enters ready mode.
   await page.addInitScript(() => {
     (window as any).__skipConnection = true;
   });
 
   await page.goto("/");
 
-  // Wait for the main sidebar to appear, indicating the app is ready
-  await page.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 30000 });
+  // Wait for the app to reach ready mode (dashboard or nav visible).
+  await page
+    .getByText("Get started with your first project")
+    .or(page.getByTestId("nav-translate"))
+    .first()
+    .waitFor({ state: "visible", timeout: 30000 });
 }
