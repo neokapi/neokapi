@@ -122,7 +122,7 @@ test.describe("Web App Recordings", () => {
 
       // Wait for workspace to load
       await page.waitForTimeout(2000);
-      await expect(page.getByText("Acme Inc.")).toBeVisible({ timeout: 10000 });
+      await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 10000 });
 
       // Navigate through sidebar views — each click navigates to a route
       await humanClick(page, page.getByTestId("nav-translate"));
@@ -324,14 +324,15 @@ test.describe("Web App Recordings", () => {
       await pause(page, 1500);
 
       // Search for an entry
-      const searchInput = page.getByTestId("tm-search-input");
-      if (await searchInput.isVisible()) {
-        await humanType(page, searchInput, "welcome");
+      const tmSearchWrapper = page.getByTestId("tm-search-input");
+      if (await tmSearchWrapper.isVisible()) {
+        const tmInput = tmSearchWrapper.locator("input").first();
+        await humanType(page, tmInput, "welcome");
         await page.keyboard.press("Enter");
         await pause(page, 2000);
 
         // Clear search
-        await searchInput.fill("");
+        await tmInput.fill("");
         await page.keyboard.press("Enter");
         await pause(page, 1000);
       }
@@ -363,14 +364,15 @@ test.describe("Web App Recordings", () => {
       await pause(page, 1500);
 
       // Search for a term
-      const termSearchInput = page.getByTestId("term-search-input");
-      if (await termSearchInput.isVisible()) {
-        await humanType(page, termSearchInput, "deploy");
+      const termSearchWrapper = page.getByTestId("term-search-input");
+      if (await termSearchWrapper.isVisible()) {
+        const termInput = termSearchWrapper.locator("input").first();
+        await humanType(page, termInput, "deploy");
         await page.keyboard.press("Enter");
         await pause(page, 2000);
 
         // Clear search
-        await termSearchInput.fill("");
+        await termInput.fill("");
         await page.keyboard.press("Enter");
         await pause(page, 1000);
       }
@@ -469,7 +471,11 @@ test.describe("Web App Recordings", () => {
       // Navigate directly to the members settings route (where invite-manager lives)
       await injectAuthCookie(page, token);
       await page.goto(`/${wsSlug}/settings/members`);
-      await expect(page.getByRole("heading", { name: "Members" }).or(page.getByRole("heading", { name: "Settings" }))).toBeVisible({ timeout: 10000 });
+      await expect(
+        page
+          .getByRole("heading", { name: "Members" })
+          .or(page.getByRole("heading", { name: "Settings" })),
+      ).toBeVisible({ timeout: 10000 });
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
