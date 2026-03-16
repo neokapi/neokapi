@@ -23,7 +23,9 @@ test("should start PKCE auth flow and enter main app", async ({ page }) => {
   // falls through to StartLogin (PKCE) then WaitForLogin.
   // WaitForLogin returns true immediately in mock, then ConnectToServer
   // succeeds. The app auto-selects the first workspace and enters ready mode.
-  await page.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
+  await expect(page.getByText("Get started with your first project")).toBeVisible({
+    timeout: 10000,
+  });
 });
 
 test("should bypass connection screen via skipConnectionScreen helper", async ({ page }) => {
@@ -35,10 +37,9 @@ test("should bypass connection screen via skipConnectionScreen helper", async ({
     (window as any).__skipConnection = true;
   });
   await newPage.goto("/");
-  // Should be in connected mode with sidebar visible.
-  await newPage
-    .locator("aside[data-sidebar]")
-    .first()
-    .waitFor({ state: "visible", timeout: 10000 });
+  // Should be in connected mode — the app renders the main dashboard.
+  await expect(newPage.getByText("Get started with your first project")).toBeVisible({
+    timeout: 10000,
+  });
   await newPage.close();
 });
