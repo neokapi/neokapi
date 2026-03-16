@@ -3,8 +3,8 @@ import { setupLocalApp } from "./mock-backend";
 
 test.beforeEach(async ({ page }) => {
   await setupLocalApp(page);
-  // Navigate to the Flows view
-  await page.getByText("Flows").click();
+  // Navigate to the Flows view via sidebar icon
+  await page.getByTestId("nav-flows").click();
 });
 
 test("should display flow list with built-in flows", async ({ page }) => {

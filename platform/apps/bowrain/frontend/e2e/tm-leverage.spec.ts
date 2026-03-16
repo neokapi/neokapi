@@ -16,7 +16,7 @@ async function openEditorWithTM(page: any) {
   await setupLocalApp(page);
 
   // Create project
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("TM Leverage Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
@@ -44,10 +44,8 @@ async function openEditorWithTM(page: any) {
     await backend.AddItems(pid, ["/content/page.html"]);
   });
 
-  // Navigate away and back to refresh
-  await page.getByTestId("nav-settings").click();
-  await page.waitForTimeout(100);
-  await page.getByTestId("nav-translate").click();
+  // Navigate back to projects list and re-enter to refresh
+  await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("TM Leverage Test").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -87,12 +85,11 @@ test.describe("TM Leverage", () => {
     await page.waitForTimeout(1000);
 
     // Reload blocks to see translated targets
-    // Navigate away and back to file
-    await page.getByTestId("nav-settings").click();
-    await page.waitForTimeout(100);
-    await page.getByTestId("nav-translate").click();
+    // Navigate back to project view and re-open file
+    await page.evaluate(() => {
+      (document.querySelector('[data-testid="back-to-project"]') as HTMLElement)?.click();
+    });
     await page.waitForTimeout(200);
-    await page.getByText("TM Leverage Test").first().click();
     await expect(page.getByTestId("open-file-page.html")).toBeVisible({ timeout: 5000 });
     await page.evaluate(() => {
       (document.querySelector('[data-testid="open-file-page.html"]') as HTMLElement)?.click();

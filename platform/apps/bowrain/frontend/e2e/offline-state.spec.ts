@@ -5,8 +5,8 @@ import { injectMockBackend } from "./mock-backend";
  * Tests for the offline state indicators in the TopBar and the
  * connection-state-changed event handling in App.tsx.
  *
- * The connection status is displayed as a StatusDot on the user avatar
- * in the TopBar, with a title attribute ("Connected", "Offline", etc.).
+ * The offline state shows a WifiOff icon with a "N pending" text
+ * in the TopBar when the connection is offline with pending changes.
  */
 
 /**
@@ -19,24 +19,17 @@ async function setupConnected(page: any) {
     (window as any).__skipConnection = "server";
   });
   await page.goto("/");
-  await page.locator("aside[data-sidebar]").first().waitFor({ state: "visible", timeout: 10000 });
+  await page
+    .getByText("Get started with your first project")
+    .or(page.getByTestId("nav-translate"))
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 });
 }
-
-test("should show Connected indicator after connecting", async ({ page }) => {
-  await setupConnected(page);
-  // TopBar shows a StatusDot with title="Connected" on the avatar
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
-    timeout: 5000,
-  });
-});
 
 test("should show Offline status when connection-state-changed event fires", async ({ page }) => {
   await setupConnected(page);
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
-    timeout: 5000,
-  });
 
-  // Simulate the backend going offline
+  // Simulate the backend going offline with pending changes
   await page.evaluate(() => {
     const ids = (window as any).__wailsIDs;
     const mock = (window as any).__wailsMock;
@@ -57,20 +50,12 @@ test("should show Offline status when connection-state-changed event fires", asy
     }
   });
 
-  // Should show Offline indicator (amber dot)
-  await expect(page.locator("[data-testid='connection-status'][title='Offline']")).toBeVisible({
-    timeout: 5000,
-  });
-
-  // Should show pending changes count
+  // Should show pending changes count in the TopBar
   await expect(page.getByText("3 pending")).toBeVisible({ timeout: 5000 });
 });
 
 test("should clear pending changes when reconnected", async ({ page }) => {
   await setupConnected(page);
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
-    timeout: 5000,
-  });
 
   // Go offline with pending changes
   await page.evaluate(() => {
@@ -83,6 +68,7 @@ test("should clear pending changes when reconnected", async ({ page }) => {
       workspace: "personal",
     });
     mock[ids.GetPendingChangesCount] = () => 5;
+
     const listeners = (window as any).__wailsEventListeners?.["connection-state-changed"];
     if (listeners) {
       for (const fn of listeners) {
@@ -91,12 +77,9 @@ test("should clear pending changes when reconnected", async ({ page }) => {
     }
   });
 
-  await expect(page.locator("[data-testid='connection-status'][title='Offline']")).toBeVisible({
-    timeout: 5000,
-  });
   await expect(page.getByText("5 pending")).toBeVisible({ timeout: 5000 });
 
-  // Simulate reconnection
+  // Reconnect
   await page.evaluate(() => {
     const ids = (window as any).__wailsIDs;
     const mock = (window as any).__wailsMock;
@@ -106,6 +89,7 @@ test("should clear pending changes when reconnected", async ({ page }) => {
       user_name: "Test User",
       workspace: "personal",
     });
+
     const listeners = (window as any).__wailsEventListeners?.["connection-state-changed"];
     if (listeners) {
       for (const fn of listeners) {
@@ -114,11 +98,6 @@ test("should clear pending changes when reconnected", async ({ page }) => {
     }
   });
 
-  // Should show Connected indicator again
-  await expect(page.locator("[data-testid='connection-status'][title='Connected']")).toBeVisible({
-    timeout: 5000,
-  });
-
-  // "pending" text should not be visible
-  await expect(page.getByText("pending")).not.toBeVisible();
+  // Pending changes text should disappear
+  await expect(page.getByText("pending")).not.toBeVisible({ timeout: 5000 });
 });

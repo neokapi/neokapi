@@ -14,7 +14,7 @@ async function openEditorWithBlocks(page: any) {
   await setupLocalApp(page);
 
   // Step 1: Create project via UI
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Editor Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
@@ -31,10 +31,8 @@ async function openEditorWithBlocks(page: any) {
     }
   });
 
-  // Step 3: Navigate away via sidebar, then back to projects to pick up changes
-  await page.getByTestId("nav-settings").click();
-  await page.waitForTimeout(100);
-  await page.getByTestId("nav-translate").click();
+  // Step 3: Navigate back to projects list and re-enter to refresh
+  await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
 
   // Step 4: Now on the dashboard, click the project to re-enter

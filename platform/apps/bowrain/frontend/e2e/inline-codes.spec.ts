@@ -18,7 +18,7 @@ async function openEditorWithInlineBlocks(page: Page) {
   await setupLocalApp(page);
 
   // Create project
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Inline Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
@@ -150,10 +150,8 @@ async function openEditorWithInlineBlocks(page: Page) {
     { mo: M_OPEN, mc: M_CLOSE, mp: M_PLACEHOLDER },
   );
 
-  // Navigate away and back to pick up the file
-  await page.getByTestId("nav-settings").click();
-  await page.waitForTimeout(100);
-  await page.getByTestId("nav-translate").click();
+  // Navigate back to projects list and re-enter to refresh
+  await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
 
   await page.getByText("Inline Test").first().click();
