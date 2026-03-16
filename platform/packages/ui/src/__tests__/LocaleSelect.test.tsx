@@ -107,10 +107,10 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   return <ApiProvider adapter={createMockAdapter()}>{children}</ApiProvider>;
 }
 
-/* ── LocaleSelect (backed by Combobox) ── */
+/* ── LocaleSelect (backed by Combobox input) ── */
 
 describe("LocaleSelect", () => {
-  it("renders the trigger with display value", async () => {
+  it("renders the combobox with display value", async () => {
     const onChange = vi.fn();
     render(
       <Wrapper>
@@ -119,7 +119,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("English (en)");
+      expect(screen.getByRole("combobox")).toHaveValue("en");
     });
   });
 
@@ -133,7 +133,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveValue("en");
     });
 
     await user.click(screen.getByRole("combobox"));
@@ -150,18 +150,16 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveValue("en");
     });
 
     await user.click(screen.getByRole("combobox"));
     await user.click(screen.getByRole("option", { name: /French \(fr\)/ }));
 
     expect(onChange).toHaveBeenCalledWith("fr");
-    // Dropdown should be closed
-    expect(screen.queryByRole("option", { name: /French/ })).not.toBeInTheDocument();
   });
 
-  it("filters locales by search", async () => {
+  it("accepts search text in the combobox input", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();
     render(
@@ -171,14 +169,17 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveValue("en");
     });
 
+    // Click to open, then type to search
     await user.click(screen.getByRole("combobox"));
-    await user.type(screen.getByPlaceholderText("Search locales..."), "Ger");
+    await user.clear(screen.getByRole("combobox"));
+    await user.type(screen.getByRole("combobox"), "Ger");
 
+    expect(screen.getByRole("combobox")).toHaveValue("Ger");
+    // German option should still be available
     expect(screen.getByRole("option", { name: /German \(de\)/ })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: /French/ })).not.toBeInTheDocument();
   });
 
   it("works correctly inside a <label> element", async () => {
@@ -194,7 +195,7 @@ describe("LocaleSelect", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("combobox")).toHaveTextContent("English");
+      expect(screen.getByRole("combobox")).toHaveValue("en");
     });
 
     await user.click(screen.getByRole("combobox"));

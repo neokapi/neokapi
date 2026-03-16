@@ -614,9 +614,9 @@ func TestProviderMockDefaultBehavior(t *testing.T) {
 
 	ctx := context.Background()
 	resp, err := mock.Translate(ctx, provider.TranslateRequest{
-		Source:       "Hello",
-		SourceLocale: model.LocaleEnglish,
-		TargetLocale: model.LocaleFrench,
+		Source:         "Hello",
+		SourceLanguage: model.LocaleEnglish,
+		TargetLocale:   model.LocaleFrench,
 	})
 	require.NoError(t, err)
 	assert.Contains(t, resp.Translation, "[fr]")
