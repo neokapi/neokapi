@@ -49,9 +49,7 @@ function CountBadge({ count }: { count: number }) {
 // ---------------------------------------------------------------------------
 
 function DotIndicator() {
-  return (
-    <span className="absolute -top-0 -right-0 w-2 h-2 rounded-full bg-primary" />
-  );
+  return <span className="absolute -top-0 -right-0 w-2 h-2 rounded-full bg-primary" />;
 }
 
 // ---------------------------------------------------------------------------
