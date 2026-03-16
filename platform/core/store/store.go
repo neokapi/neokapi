@@ -57,6 +57,7 @@ type ContentStore interface {
 	StoreBlocksForItem(ctx context.Context, projectID, stream, itemName string, blocks []*model.Block) error
 	GetBlock(ctx context.Context, projectID, stream, blockID string) (*StoredBlock, error)
 	GetBlocks(ctx context.Context, query BlockQuery) ([]*StoredBlock, error)
+	GetBlockStats(ctx context.Context, projectID, stream string) ([]BlockStatRow, error)
 	DeleteBlock(ctx context.Context, projectID, stream, blockID string) error
 
 	// Version management — stream-scoped
