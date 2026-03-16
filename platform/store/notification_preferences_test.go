@@ -50,7 +50,7 @@ func TestPreferenceStore_UpsertAndGet(t *testing.T) {
 			Push:        false,
 			Desktop:     false,
 		}
-		err := store.Upsert(ctx, pref)
+		err := store.Upsert(ctx, &pref)
 		require.NoError(t, err)
 	})
 
@@ -72,7 +72,7 @@ func TestPreferenceStore_UpsertAndGet(t *testing.T) {
 			Push:        true,
 			Desktop:     true,
 		}
-		require.NoError(t, store.Upsert(ctx, pref))
+		require.NoError(t, store.Upsert(ctx, &pref))
 
 		got, err := store.Get(ctx, "user-1", "ws-1", CategoryTask)
 		require.NoError(t, err)
@@ -94,7 +94,7 @@ func TestPreferenceStore_ListMergesDefaults(t *testing.T) {
 		Web:         false,
 		Email:       true,
 	}
-	require.NoError(t, store.Upsert(ctx, pref))
+	require.NoError(t, store.Upsert(ctx, &pref))
 
 	prefs, err := store.List(ctx, "user-1", "ws-1")
 	require.NoError(t, err)
