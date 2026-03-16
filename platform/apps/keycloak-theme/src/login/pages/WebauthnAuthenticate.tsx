@@ -24,15 +24,19 @@ export default function WebauthnAuthenticate(props: {
       <Card>
         <CardHeader className="text-center space-y-1 pb-2">
           <h1 className="text-2xl font-semibold tracking-tight">{msg("webauthn-login-title")}</h1>
-          <p className="text-sm text-muted-foreground">
-            Use your passkey to sign in.
-          </p>
+          <p className="text-sm text-muted-foreground">Use your passkey to sign in.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Hidden form for authenticator selection (required by useScript) */}
           <form id="authn_select">
             {authenticators.authenticators.map((authenticator, i) => (
-              <input type="hidden" name="authn_use_chk" readOnly value={authenticator.credentialId} key={i} />
+              <input
+                type="hidden"
+                name="authn_use_chk"
+                readOnly
+                value={authenticator.credentialId}
+                key={i}
+              />
             ))}
           </form>
 
@@ -47,36 +51,38 @@ export default function WebauthnAuthenticate(props: {
           </form>
 
           {/* Display registered authenticators */}
-          {shouldDisplayAuthenticators && authenticators !== undefined && authenticators.authenticators.length > 0 && (
-            <div className="space-y-2">
-              {authenticators.authenticators.map((authenticator, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-muted p-3"
-                >
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">
-                      {advancedMsg(authenticator.label)}
-                    </div>
-                    {authenticator.transports?.displayNameProperties !== undefined &&
-                      authenticator.transports.displayNameProperties.length !== 0 && (
-                        <div className="text-xs text-muted-foreground">
-                          {authenticator.transports.displayNameProperties.map((nameProperty, j, arr) => (
-                            <span key={j}>
-                              {advancedMsg(nameProperty)}
-                              {j !== arr.length - 1 && ", "}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    <div className="text-xs text-muted-foreground">
-                      {msg("passkey-createdAt-label")} {authenticator.createdAt}
+          {shouldDisplayAuthenticators &&
+            authenticators !== undefined &&
+            authenticators.authenticators.length > 0 && (
+              <div className="space-y-2">
+                {authenticators.authenticators.map((authenticator, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-muted p-3"
+                  >
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{advancedMsg(authenticator.label)}</div>
+                      {authenticator.transports?.displayNameProperties !== undefined &&
+                        authenticator.transports.displayNameProperties.length !== 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            {authenticator.transports.displayNameProperties.map(
+                              (nameProperty, j, arr) => (
+                                <span key={j}>
+                                  {advancedMsg(nameProperty)}
+                                  {j !== arr.length - 1 && ", "}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        )}
+                      <div className="text-xs text-muted-foreground">
+                        {msg("passkey-createdAt-label")} {authenticator.createdAt}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
 
           <Button id={authButtonId} type="button" className="w-full" autoFocus>
             {msgStr("webauthn-doAuthenticate")}

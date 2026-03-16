@@ -8,9 +8,7 @@ export function AutomationsRoute() {
 
   if (!activeWorkspace || !projectId) {
     return (
-      <Card
-        className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
-      >
+      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a project to view automations
       </Card>
     );

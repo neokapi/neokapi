@@ -37,7 +37,12 @@ export function MobileWorkspaceSwitcher({
             >
               {activeWorkspace && (
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                  <WorkspaceIcon workspace={activeWorkspace} active={false} onClick={() => {}} size={20} />
+                  <WorkspaceIcon
+                    workspace={activeWorkspace}
+                    active={false}
+                    onClick={() => {}}
+                    size={20}
+                  />
                 </div>
               )}
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -65,7 +70,10 @@ export function MobileWorkspaceSwitcher({
             {workspaces.map((ws) => (
               <DropdownMenuItem
                 key={ws.id}
-                onClick={() => { onSelectWorkspace(ws); setOpenMobile(false); }}
+                onClick={() => {
+                  onSelectWorkspace(ws);
+                  setOpenMobile(false);
+                }}
                 className="gap-2 p-2"
               >
                 <div className="flex size-6 items-center justify-center rounded-md border">
@@ -77,7 +85,13 @@ export function MobileWorkspaceSwitcher({
             {onCreateWorkspace && (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => { onCreateWorkspace(); setOpenMobile(false); }} className="gap-2 p-2">
+                <DropdownMenuItem
+                  onClick={() => {
+                    onCreateWorkspace();
+                    setOpenMobile(false);
+                  }}
+                  className="gap-2 p-2"
+                >
                   <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                     <Plus className="size-4" />
                   </div>

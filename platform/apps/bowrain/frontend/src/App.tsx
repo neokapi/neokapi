@@ -336,11 +336,14 @@ function App() {
     [activeProject],
   );
 
-  const handleOpenFile = useCallback((itemId: string) => {
-    // Resolve item ID to filename from active project's items.
-    const item = activeProject?.items?.find((i) => i.id === itemId);
-    setActiveFile(item?.name ?? itemId);
-  }, [activeProject]);
+  const handleOpenFile = useCallback(
+    (itemId: string) => {
+      // Resolve item ID to filename from active project's items.
+      const item = activeProject?.items?.find((i) => i.id === itemId);
+      setActiveFile(item?.name ?? itemId);
+    },
+    [activeProject],
+  );
 
   const handleBackToProjects = useCallback(() => {
     setActiveProject(null);
@@ -465,7 +468,14 @@ function App() {
       onOpenFile: handleOpenFile,
       onStreamChange: () => {},
     };
-  }, [activeView, activeProject, activeFile, handleBackToProjects, handleBackToProject, handleOpenFile]);
+  }, [
+    activeView,
+    activeProject,
+    activeFile,
+    handleBackToProjects,
+    handleBackToProject,
+    handleOpenFile,
+  ]);
 
   const renderView = () => {
     if (activeView === "translate" && activeProject && showTermExplorer) {

@@ -87,7 +87,12 @@ export type { CollectionTabsProps } from "./components/CollectionTabs";
 export { CreateCollectionDialog } from "./components/CreateCollectionDialog";
 export type { CreateCollectionDialogProps } from "./components/CreateCollectionDialog";
 export { FilterBar } from "./components/FilterBar";
-export type { FilterBarProps, FilterToken, FilterField, FilterPreset } from "./components/FilterBar";
+export type {
+  FilterBarProps,
+  FilterToken,
+  FilterField,
+  FilterPreset,
+} from "./components/FilterBar";
 export { ConfirmDialog } from "./components/ConfirmDialog";
 export type { ConfirmDialogProps } from "./components/ConfirmDialog";
 export { ProjectFormDialog } from "./components/ProjectFormDialog";

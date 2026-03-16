@@ -1161,10 +1161,7 @@ export function TranslationEditor({
 
         {/* Messages */}
         {error && (
-          <Alert
-            variant="destructive"
-            className="mb-2"
-          >
+          <Alert variant="destructive" className="mb-2">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -1353,17 +1350,12 @@ export function TranslationEditor({
 
       {/* Messages */}
       {error && (
-        <Alert
-          variant="destructive"
-          className="mb-2"
-        >
+        <Alert variant="destructive" className="mb-2">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
       {message && (
-        <Alert
-          className="mb-2 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400"
-        >
+        <Alert className="mb-2 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400">
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       )}

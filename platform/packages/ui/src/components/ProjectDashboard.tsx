@@ -152,7 +152,8 @@ function ProjectCard({
           <h3 className="font-semibold text-base leading-snug pr-2">{project.name}</h3>
           <div className="flex items-center gap-1 shrink-0">
             <Badge variant="secondary" className="text-[11px]">
-              {project.target_languages.length} lang{project.target_languages.length !== 1 ? "s" : ""}
+              {project.target_languages.length} lang
+              {project.target_languages.length !== 1 ? "s" : ""}
             </Badge>
             {(onRename || onArchive) && (
               <DropdownMenu>
@@ -167,7 +168,10 @@ function ProjectCard({
                 <DropdownMenuContent align="end" className="w-[150px]">
                   {onRename && (
                     <DropdownMenuItem
-                      onClick={(e: React.MouseEvent) => { e.stopPropagation(); onRename(); }}
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        onRename();
+                      }}
                       className="flex items-center gap-2 text-sm"
                     >
                       <Pencil className="w-3.5 h-3.5" /> Rename
@@ -177,7 +181,10 @@ function ProjectCard({
                     <>
                       {onRename && <DropdownMenuSeparator />}
                       <DropdownMenuItem
-                        onClick={(e: React.MouseEvent) => { e.stopPropagation(); onArchive(); }}
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          onArchive();
+                        }}
                         className="flex items-center gap-2 text-sm text-destructive"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Archive
@@ -192,7 +199,9 @@ function ProjectCard({
 
         {/* Locale mapping */}
         <div className="text-[13px] text-muted-foreground mb-3 flex items-center gap-1.5 flex-wrap">
-          <span className="font-medium text-foreground/80">{getDisplayName(project.default_source_language)}</span>
+          <span className="font-medium text-foreground/80">
+            {getDisplayName(project.default_source_language)}
+          </span>
           <ArrowRight className="w-3 h-3 shrink-0 opacity-50" />
           <span className="truncate">
             {project.target_languages.map((l) => getDisplayName(l)).join(", ")}
@@ -244,18 +253,13 @@ interface PathwayCardProps {
 
 function PathwayCard({ icon, title, description, action, onClick, glow }: PathwayCardProps) {
   return (
-    <Card
-      className="cursor-pointer transition-all group flex flex-col"
-      onClick={onClick}
-    >
+    <Card className="cursor-pointer transition-all group flex flex-col" onClick={onClick}>
       <CardContent className="pt-5 pb-5 flex flex-col flex-1">
         <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-primary/10 mb-4">
           {icon}
         </div>
         <h3 className="font-semibold text-sm mb-1.5">{title}</h3>
-        <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">
-          {description}
-        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">{description}</p>
         <span className="text-xs font-medium text-primary flex items-center gap-1 group-hover:gap-2 transition-all">
           {action}
           <ArrowRight className="w-3 h-3" />
@@ -283,8 +287,8 @@ function OnboardingView({
           Get started with your first project
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Bowrain helps you localize content into any language. Choose how you
-          want to bring your content in.
+          Bowrain helps you localize content into any language. Choose how you want to bring your
+          content in.
         </p>
       </div>
 
@@ -367,8 +371,7 @@ export function ProjectDashboard({
                 {workspaceName ? `${workspaceName}` : "Projects"}
               </h2>
               <p className="text-[13px] text-muted-foreground mt-0.5">
-                {projects.length} project{projects.length !== 1 ? "s" : ""} in
-                this workspace
+                {projects.length} project{projects.length !== 1 ? "s" : ""} in this workspace
               </p>
             </div>
             <Button onClick={() => setShowCreate(true)} data-testid="new-project-btn">
@@ -411,7 +414,9 @@ export function ProjectDashboard({
       {onEditProject && (
         <ProjectFormDialog
           open={editingProject !== null}
-          onOpenChange={(v) => { if (!v) setEditingProject(null); }}
+          onOpenChange={(v) => {
+            if (!v) setEditingProject(null);
+          }}
           editProject={editingProject ?? undefined}
           workspaceLanguages={workspaceLanguages}
           onSubmit={(data: ProjectFormData) => {

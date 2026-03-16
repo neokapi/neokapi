@@ -50,9 +50,7 @@ export function CollectionTabs({
                   }
                 `}
               >
-                {coll.kind === "connected" && (
-                  <Plug className="w-3 h-3 shrink-0 opacity-60" />
-                )}
+                {coll.kind === "connected" && <Plug className="w-3 h-3 shrink-0 opacity-60" />}
                 <span className="truncate max-w-[140px]">
                   {coll.is_default ? "All Items" : coll.name}
                 </span>

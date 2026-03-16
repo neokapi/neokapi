@@ -28,7 +28,12 @@ import { cn } from "../lib/utils";
 
 interface BrandProfileEditorProps {
   profile?: VoiceProfile;
-  onSave: (data: Omit<VoiceProfile, "id" | "workspace_id" | "version" | "created_at" | "updated_at" | "created_by">) => void;
+  onSave: (
+    data: Omit<
+      VoiceProfile,
+      "id" | "workspace_id" | "version" | "created_at" | "updated_at" | "created_by"
+    >,
+  ) => void;
   onCancel: () => void;
 }
 
@@ -115,18 +120,23 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
     [],
   );
 
-  const addPattern = useCallback(
-    (category: "prohibited_patterns" | "required_patterns") => {
-      setStyle((prev) => ({
-        ...prev,
-        [category]: [...(prev[category] ?? []), { regex: "", description: "", severity: "minor" as const }],
-      }));
-    },
-    [],
-  );
+  const addPattern = useCallback((category: "prohibited_patterns" | "required_patterns") => {
+    setStyle((prev) => ({
+      ...prev,
+      [category]: [
+        ...(prev[category] ?? []),
+        { regex: "", description: "", severity: "minor" as const },
+      ],
+    }));
+  }, []);
 
   const updatePattern = useCallback(
-    (category: "prohibited_patterns" | "required_patterns", index: number, field: keyof Pattern, value: string) => {
+    (
+      category: "prohibited_patterns" | "required_patterns",
+      index: number,
+      field: keyof Pattern,
+      value: string,
+    ) => {
       setStyle((prev) => {
         const list = [...(prev[category] ?? [])];
         list[index] = { ...list[index], [field]: value };
@@ -240,9 +250,13 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Formality</Label>
                 <Select
                   value={tone.formality}
-                  onValueChange={(v: string) => setTone((prev) => ({ ...prev, formality: v as ToneProfile["formality"] }))}
+                  onValueChange={(v: string) =>
+                    setTone((prev) => ({ ...prev, formality: v as ToneProfile["formality"] }))
+                  }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="casual">Casual</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
@@ -256,9 +270,13 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Emotion</Label>
                 <Select
                   value={tone.emotion}
-                  onValueChange={(v: string) => setTone((prev) => ({ ...prev, emotion: v as ToneProfile["emotion"] }))}
+                  onValueChange={(v: string) =>
+                    setTone((prev) => ({ ...prev, emotion: v as ToneProfile["emotion"] }))
+                  }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="warm">Warm</SelectItem>
                     <SelectItem value="neutral">Neutral</SelectItem>
@@ -271,9 +289,13 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Humor</Label>
                 <Select
                   value={tone.humor}
-                  onValueChange={(v: string) => setTone((prev) => ({ ...prev, humor: v as ToneProfile["humor"] }))}
+                  onValueChange={(v: string) =>
+                    setTone((prev) => ({ ...prev, humor: v as ToneProfile["humor"] }))
+                  }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">None</SelectItem>
                     <SelectItem value="light">Light</SelectItem>
@@ -293,7 +315,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Label>Active Voice</Label>
                 <Switch
                   checked={style.active_voice}
-                  onCheckedChange={(v: boolean) => setStyle((prev) => ({ ...prev, active_voice: v }))}
+                  onCheckedChange={(v: boolean) =>
+                    setStyle((prev) => ({ ...prev, active_voice: v }))
+                  }
                 />
               </div>
 
@@ -302,10 +326,15 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                 <Select
                   value={style.sentence_length}
                   onValueChange={(v: string) =>
-                    setStyle((prev) => ({ ...prev, sentence_length: v as StyleRules["sentence_length"] }))
+                    setStyle((prev) => ({
+                      ...prev,
+                      sentence_length: v as StyleRules["sentence_length"],
+                    }))
                   }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="short">Short</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
@@ -322,7 +351,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                     setStyle((prev) => ({ ...prev, person_pov: v as StyleRules["person_pov"] }))
                   }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="first_plural">We (first person plural)</SelectItem>
                     <SelectItem value="second">You (second person)</SelectItem>
@@ -339,7 +370,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                     setStyle((prev) => ({ ...prev, contractions: v as StyleRules["contractions"] }))
                   }
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="always">Always</SelectItem>
                     <SelectItem value="sometimes">Sometimes</SelectItem>
@@ -353,7 +386,11 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label>Prohibited Patterns</Label>
-                <Button variant="outline" size="sm" onClick={() => addPattern("prohibited_patterns")}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addPattern("prohibited_patterns")}
+                >
                   <Plus className="w-3.5 h-3.5 mr-1" /> Add
                 </Button>
               </div>
@@ -362,26 +399,38 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Input
                     placeholder="Regex"
                     value={pat.regex}
-                    onChange={(e) => updatePattern("prohibited_patterns", i, "regex", e.target.value)}
+                    onChange={(e) =>
+                      updatePattern("prohibited_patterns", i, "regex", e.target.value)
+                    }
                     className="font-mono text-xs"
                   />
                   <Input
                     placeholder="Description"
                     value={pat.description}
-                    onChange={(e) => updatePattern("prohibited_patterns", i, "description", e.target.value)}
+                    onChange={(e) =>
+                      updatePattern("prohibited_patterns", i, "description", e.target.value)
+                    }
                   />
                   <Select
                     value={pat.severity}
-                    onValueChange={(v: string) => updatePattern("prohibited_patterns", i, "severity", v)}
+                    onValueChange={(v: string) =>
+                      updatePattern("prohibited_patterns", i, "severity", v)
+                    }
                   >
-                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="minor">Minor</SelectItem>
                       <SelectItem value="major">Major</SelectItem>
                       <SelectItem value="critical">Critical</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="ghost" size="icon" onClick={() => removePattern("prohibited_patterns", i)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removePattern("prohibited_patterns", i)}
+                  >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -407,20 +456,30 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Input
                     placeholder="Description"
                     value={pat.description}
-                    onChange={(e) => updatePattern("required_patterns", i, "description", e.target.value)}
+                    onChange={(e) =>
+                      updatePattern("required_patterns", i, "description", e.target.value)
+                    }
                   />
                   <Select
                     value={pat.severity}
-                    onValueChange={(v: string) => updatePattern("required_patterns", i, "severity", v)}
+                    onValueChange={(v: string) =>
+                      updatePattern("required_patterns", i, "severity", v)
+                    }
                   >
-                    <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-28">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="minor">Minor</SelectItem>
                       <SelectItem value="major">Major</SelectItem>
                       <SelectItem value="critical">Critical</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button variant="ghost" size="icon" onClick={() => removePattern("required_patterns", i)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removePattern("required_patterns", i)}
+                  >
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -432,43 +491,49 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
         {/* Vocabulary Tab */}
         <TabsContent value="vocabulary">
           <Card className="p-5 space-y-6">
-            {(["preferred_terms", "forbidden_terms", "competitor_terms"] as const).map((category) => (
-              <div key={category} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="capitalize">
-                    {category.replace("_terms", "").replace("_", " ")} Terms
-                  </Label>
-                  <Button variant="outline" size="sm" onClick={() => addTermRule(category)}>
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
-                </div>
-                {(vocabulary[category] ?? []).length === 0 && (
-                  <p className="text-xs text-muted-foreground">No terms defined.</p>
-                )}
-                {(vocabulary[category] ?? []).map((rule, i) => (
-                  <div key={i} className="flex gap-2 items-start">
-                    <Input
-                      placeholder="Term"
-                      value={rule.term}
-                      onChange={(e) => updateTermRule(category, i, "term", e.target.value)}
-                    />
-                    <Input
-                      placeholder="Replacement"
-                      value={rule.replacement ?? ""}
-                      onChange={(e) => updateTermRule(category, i, "replacement", e.target.value)}
-                    />
-                    <Input
-                      placeholder="Note"
-                      value={rule.note ?? ""}
-                      onChange={(e) => updateTermRule(category, i, "note", e.target.value)}
-                    />
-                    <Button variant="ghost" size="icon" onClick={() => removeTermRule(category, i)}>
-                      <Trash2 className="w-3.5 h-3.5" />
+            {(["preferred_terms", "forbidden_terms", "competitor_terms"] as const).map(
+              (category) => (
+                <div key={category} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="capitalize">
+                      {category.replace("_terms", "").replace("_", " ")} Terms
+                    </Label>
+                    <Button variant="outline" size="sm" onClick={() => addTermRule(category)}>
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
                     </Button>
                   </div>
-                ))}
-              </div>
-            ))}
+                  {(vocabulary[category] ?? []).length === 0 && (
+                    <p className="text-xs text-muted-foreground">No terms defined.</p>
+                  )}
+                  {(vocabulary[category] ?? []).map((rule, i) => (
+                    <div key={i} className="flex gap-2 items-start">
+                      <Input
+                        placeholder="Term"
+                        value={rule.term}
+                        onChange={(e) => updateTermRule(category, i, "term", e.target.value)}
+                      />
+                      <Input
+                        placeholder="Replacement"
+                        value={rule.replacement ?? ""}
+                        onChange={(e) => updateTermRule(category, i, "replacement", e.target.value)}
+                      />
+                      <Input
+                        placeholder="Note"
+                        value={rule.note ?? ""}
+                        onChange={(e) => updateTermRule(category, i, "note", e.target.value)}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeTermRule(category, i)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ),
+            )}
           </Card>
         </TabsContent>
 
@@ -489,7 +554,12 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
             {examples.map((ex, i) => (
               <div key={i} className="space-y-2 rounded-md border p-3">
                 <div className="flex justify-end">
-                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => removeExample(i)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6"
+                    onClick={() => removeExample(i)}
+                  >
                     <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>

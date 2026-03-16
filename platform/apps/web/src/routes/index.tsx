@@ -265,40 +265,28 @@ const brandIndexRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "/",
   pendingComponent: BrandProfilesSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-profiles"),
-    "BrandProfilesRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-profiles"), "BrandProfilesRoute"),
 });
 
 const brandEditorRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "$profileId",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-editor"),
-    "BrandEditorRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-editor"), "BrandEditorRoute"),
 });
 
 const brandDashboardRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "dashboard",
   pendingComponent: DashboardSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-dashboard"),
-    "BrandDashboardRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-dashboard"), "BrandDashboardRoute"),
 });
 
 const brandMCPGuideRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "mcp-guide",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/brand-mcp-guide"),
-    "BrandMCPGuideRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/brand-mcp-guide"), "BrandMCPGuideRoute"),
 });
 
 const termbaseRoute = createRoute({
@@ -376,20 +364,14 @@ const settingsTokensRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "tokens",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-tokens"),
-    "SettingsTokensRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-tokens"), "SettingsTokensRoute"),
 });
 
 const settingsSystemRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "system",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-system"),
-    "SettingsSystemRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-system"), "SettingsSystemRoute"),
 });
 
 // ---------------------------------------------------------------------------
@@ -404,12 +386,24 @@ const routeTree = rootRoute.addChildren([
     projectRoute,
     translateRoute,
     automationsRoute,
-    brandRoute.addChildren([brandIndexRoute, brandDashboardRoute, brandMCPGuideRoute, brandEditorRoute]),
+    brandRoute.addChildren([
+      brandIndexRoute,
+      brandDashboardRoute,
+      brandMCPGuideRoute,
+      brandEditorRoute,
+    ]),
     termbaseRoute,
     memoryRoute,
     auditlogRoute,
     binRoute,
-    settingsRoute.addChildren([settingsIndexRoute, settingsLanguagesRoute, settingsMembersRoute, settingsProvidersRoute, settingsTokensRoute, settingsSystemRoute]),
+    settingsRoute.addChildren([
+      settingsIndexRoute,
+      settingsLanguagesRoute,
+      settingsMembersRoute,
+      settingsProvidersRoute,
+      settingsTokensRoute,
+      settingsSystemRoute,
+    ]),
   ]),
 ]);
 

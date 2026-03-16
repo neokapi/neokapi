@@ -24,7 +24,9 @@ export default function WebauthnRegister(props: {
       </div>
       <Card>
         <CardHeader className="text-center space-y-1 pb-2">
-          <h1 className="text-2xl font-semibold tracking-tight">{msg("webauthn-registration-title")}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {msg("webauthn-registration-title")}
+          </h1>
           <p className="text-sm text-muted-foreground">
             Touch your security key or use your device biometrics to register a passkey.
           </p>

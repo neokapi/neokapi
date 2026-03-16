@@ -34,7 +34,10 @@ export function StreamEditDialog({ stream, onSubmit, onClose, open }: StreamEdit
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-[480px]"
+        onInteractOutside={(e: Event) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Edit Stream — {stream?.name}</DialogTitle>
         </DialogHeader>
@@ -73,9 +76,7 @@ export function StreamEditDialog({ stream, onSubmit, onClose, open }: StreamEdit
           <Button variant="outline" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit}>
-            Save
-          </Button>
+          <Button onClick={handleSubmit}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

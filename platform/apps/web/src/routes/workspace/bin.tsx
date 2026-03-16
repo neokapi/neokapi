@@ -40,9 +40,7 @@ export function BinRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card
-        className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
-      >
+      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a workspace
       </Card>
     );
@@ -60,7 +58,9 @@ export function BinRoute() {
 
       <ConfirmDialog
         open={deleteProjectId !== null}
-        onOpenChange={(v) => { if (!v) setDeleteProjectId(null); }}
+        onOpenChange={(v) => {
+          if (!v) setDeleteProjectId(null);
+        }}
         title="Permanently delete project"
         description="This project and all its data will be permanently deleted. This action cannot be undone."
         confirmLabel="Delete permanently"

@@ -34,7 +34,12 @@ export function WorkspaceSwitcher({
               tooltip={activeWorkspace?.name ?? "Select workspace"}
             >
               {activeWorkspace ? (
-                <WorkspaceIcon workspace={activeWorkspace} active={false} onClick={() => {}} size={28} />
+                <WorkspaceIcon
+                  workspace={activeWorkspace}
+                  active={false}
+                  onClick={() => {}}
+                  size={28}
+                />
               ) : (
                 <span className="text-xs font-bold">?</span>
               )}

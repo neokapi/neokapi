@@ -14,8 +14,11 @@ export function useProjectApi() {
   );
 
   const createProject = useCallback(
-    async (name: string, defaultSourceLanguage: string, targetLanguages: string[]): Promise<ProjectInfo> =>
-      api.createProject(ws, name, defaultSourceLanguage, targetLanguages),
+    async (
+      name: string,
+      defaultSourceLanguage: string,
+      targetLanguages: string[],
+    ): Promise<ProjectInfo> => api.createProject(ws, name, defaultSourceLanguage, targetLanguages),
     [api, ws],
   );
 

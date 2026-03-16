@@ -24,7 +24,9 @@ export default function LoginIdpLinkEmail(props: {
               <Mail className="h-6 w-6 text-primary" />
             </div>
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">{msg("emailLinkIdpTitle", idpAlias)}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            {msg("emailLinkIdpTitle", idpAlias)}
+          </h1>
         </CardHeader>
         <CardContent className="space-y-4 text-center">
           <p className="text-sm text-muted-foreground">

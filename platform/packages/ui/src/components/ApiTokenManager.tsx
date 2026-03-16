@@ -201,10 +201,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
         </div>
 
         {error && (
-          <Alert
-            variant="destructive"
-            className="mb-4"
-          >
+          <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -280,7 +277,10 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
 
       {/* Create token dialog */}
       <Dialog open={showDialog} onOpenChange={handleDialogChange}>
-        <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent
+          className="sm:max-w-[480px]"
+          onInteractOutside={(e: Event) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>{createdToken ? "Token Created" : "Create API Token"}</DialogTitle>
           </DialogHeader>

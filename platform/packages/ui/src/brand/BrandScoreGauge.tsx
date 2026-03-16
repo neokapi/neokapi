@@ -30,14 +30,7 @@ export function BrandScoreGauge({ score, size = 120, className, label }: BrandSc
   return (
     <div className={cn("flex flex-col items-center gap-1", className)}>
       <svg width={size} height={size} viewBox="0 0 100 100" className="-rotate-90">
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          className="stroke-muted"
-          strokeWidth="8"
-        />
+        <circle cx="50" cy="50" r={radius} fill="none" className="stroke-muted" strokeWidth="8" />
         <circle
           cx="50"
           cy="50"

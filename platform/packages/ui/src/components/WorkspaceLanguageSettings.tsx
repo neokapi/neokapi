@@ -8,8 +8,26 @@ import type { Workspace } from "../types/api";
 
 /** Common languages that workspaces typically start with. */
 const DEFAULT_LANGUAGES = [
-  "en", "fr", "de", "es", "it", "pt", "nl", "ja", "ko", "zh",
-  "ar", "ru", "sv", "nb", "da", "fi", "pl", "cs", "tr", "th",
+  "en",
+  "fr",
+  "de",
+  "es",
+  "it",
+  "pt",
+  "nl",
+  "ja",
+  "ko",
+  "zh",
+  "ar",
+  "ru",
+  "sv",
+  "nb",
+  "da",
+  "fi",
+  "pl",
+  "cs",
+  "tr",
+  "th",
 ];
 
 interface WorkspaceLanguageSettingsProps {
@@ -17,10 +35,7 @@ interface WorkspaceLanguageSettingsProps {
   onUpdate?: (languages: string[]) => void;
 }
 
-export function WorkspaceLanguageSettings({
-  workspace,
-  onUpdate,
-}: WorkspaceLanguageSettingsProps) {
+export function WorkspaceLanguageSettings({ workspace, onUpdate }: WorkspaceLanguageSettingsProps) {
   const api = useApi();
   const { getDisplayName } = useLocales();
   const [languages, setLanguages] = useState<string[]>(
@@ -31,7 +46,9 @@ export function WorkspaceLanguageSettings({
 
   useEffect(() => {
     setLanguages(
-      workspace.languages && workspace.languages.length > 0 ? workspace.languages : DEFAULT_LANGUAGES,
+      workspace.languages && workspace.languages.length > 0
+        ? workspace.languages
+        : DEFAULT_LANGUAGES,
     );
   }, [workspace.languages]);
 
@@ -77,51 +94,47 @@ export function WorkspaceLanguageSettings({
       <div className="mb-4">
         <h2 className="text-xl font-semibold">Languages</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Languages available across all projects in this workspace.
-          Language pickers throughout the platform will use this list.
+          Languages available across all projects in this workspace. Language pickers throughout the
+          platform will use this list.
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2 items-center">
-          {languages.map((lang) => (
-            <span
-              key={lang}
-              className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm"
-            >
-              <span className="font-medium">{getDisplayName(lang)}</span>
-              <span className="text-muted-foreground text-[11px]">{lang}</span>
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => handleRemove(lang)}
-                className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors disabled:opacity-50 bg-transparent border-none cursor-pointer"
-                aria-label={`Remove ${lang}`}
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-
-          {adding ? (
-            <div className="w-52">
-              <LocaleSelect
-                value=""
-                onChange={handleAdd}
-                placeholder="Select language..."
-              />
-            </div>
-          ) : (
+        {languages.map((lang) => (
+          <span
+            key={lang}
+            className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm"
+          >
+            <span className="font-medium">{getDisplayName(lang)}</span>
+            <span className="text-muted-foreground text-[11px]">{lang}</span>
             <button
               type="button"
               disabled={saving}
-              onClick={() => setAdding(true)}
-              className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-3 py-1 text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-colors disabled:opacity-50 bg-transparent cursor-pointer"
+              onClick={() => handleRemove(lang)}
+              className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20 transition-colors disabled:opacity-50 bg-transparent border-none cursor-pointer"
+              aria-label={`Remove ${lang}`}
             >
-              <Plus className="h-3.5 w-3.5" />
-              Add
+              <X className="h-3 w-3" />
             </button>
-          )}
-        </div>
+          </span>
+        ))}
+
+        {adding ? (
+          <div className="w-52">
+            <LocaleSelect value="" onChange={handleAdd} placeholder="Select language..." />
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setAdding(true)}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-3 py-1 text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-colors disabled:opacity-50 bg-transparent cursor-pointer"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add
+          </button>
+        )}
+      </div>
     </Card>
   );
 }

@@ -26,19 +26,14 @@ export function BrandFindingsList({ findings, className }: BrandFindingsListProp
   return (
     <ul className={cn("space-y-2", className)}>
       {findings.map((finding, i) => (
-        <li
-          key={i}
-          className="flex items-start gap-3 rounded-md border p-3 text-sm bg-card/50"
-        >
+        <li key={i} className="flex items-start gap-3 rounded-md border p-3 text-sm bg-card/50">
           <Badge className={cn("shrink-0 text-[10px]", severityStyles[finding.severity])}>
             {finding.severity}
           </Badge>
           <div className="flex-1 min-w-0 space-y-1">
             <p>{finding.message}</p>
             {finding.suggestion && (
-              <p className="text-xs text-muted-foreground">
-                Suggestion: {finding.suggestion}
-              </p>
+              <p className="text-xs text-muted-foreground">Suggestion: {finding.suggestion}</p>
             )}
             <div className="flex gap-2 text-[10px] text-muted-foreground">
               <span className="capitalize">{finding.dimension.replace("_", " ")}</span>

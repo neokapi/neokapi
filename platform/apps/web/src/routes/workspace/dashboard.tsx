@@ -85,7 +85,9 @@ export function ProjectDashboardRoute() {
 
       <ConfirmDialog
         open={archiveProjectId !== null}
-        onOpenChange={(v) => { if (!v) setArchiveProjectId(null); }}
+        onOpenChange={(v) => {
+          if (!v) setArchiveProjectId(null);
+        }}
         title="Archive project"
         description="This project will be moved to the Bin. You can restore it at any time."
         confirmLabel="Archive"

@@ -1,7 +1,14 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
 import { useLocales } from "../hooks/useLocales";
-import { Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem, ComboboxEmpty } from "./ui/combobox";
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "./ui/combobox";
 
 interface LocaleSelectProps {
   value: string;
@@ -67,7 +74,13 @@ interface MultiLocaleSelectProps {
 }
 
 /** Multi-locale chip input with search. Shows removable chips for each selected locale. */
-export function MultiLocaleSelect({ value, onChange, codes, style, ...rest }: MultiLocaleSelectProps) {
+export function MultiLocaleSelect({
+  value,
+  onChange,
+  codes,
+  style,
+  ...rest
+}: MultiLocaleSelectProps) {
   const { locales, getDisplayName, loading } = useLocales();
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);

@@ -61,7 +61,10 @@ export function StreamMergeDialog({
         if (!v) onClose();
       }}
     >
-      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-[480px]"
+        onInteractOutside={(e: Event) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Merge Stream</DialogTitle>
           <DialogDescription>

@@ -44,7 +44,13 @@ export default function WebauthnError(props: {
 
           {isAppInitiatedAction && (
             <form action={url.loginAction} method="post">
-              <Button type="submit" variant="secondary" className="w-full" name="cancel-aia" value="true">
+              <Button
+                type="submit"
+                variant="secondary"
+                className="w-full"
+                name="cancel-aia"
+                value="true"
+              >
                 {msgStr("doCancel")}
               </Button>
             </form>

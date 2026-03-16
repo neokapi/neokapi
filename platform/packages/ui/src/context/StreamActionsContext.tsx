@@ -28,11 +28,7 @@ export function StreamActionsProvider({ children }: { children: React.ReactNode 
 
   const value = useMemo(() => ({ actions, setActions }), [actions, setActions]);
 
-  return (
-    <StreamActionsContext.Provider value={value}>
-      {children}
-    </StreamActionsContext.Provider>
-  );
+  return <StreamActionsContext.Provider value={value}>{children}</StreamActionsContext.Provider>;
 }
 
 export function useStreamActions() {

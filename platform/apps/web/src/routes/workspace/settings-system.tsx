@@ -38,7 +38,10 @@ export function SettingsSystemRoute() {
   }, [activeWorkspace]);
 
   useEffect(() => {
-    api.getConfig().then(setServerInfo).catch(() => {});
+    api
+      .getConfig()
+      .then(setServerInfo)
+      .catch(() => {});
     fetch("/version.json")
       .then((r) => (r.ok ? r.json() : null))
       .then(setWebInfo)
