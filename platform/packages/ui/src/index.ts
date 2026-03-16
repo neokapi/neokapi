@@ -132,6 +132,7 @@ export {
   BrandProfilesSkeleton,
   SettingsSkeleton,
   ExplorerSkeleton,
+  TranslationDashboardSkeleton,
 } from "./components/skeletons";
 
 // Editor components
