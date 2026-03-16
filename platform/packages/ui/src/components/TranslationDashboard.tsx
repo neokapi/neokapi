@@ -65,7 +65,7 @@ export function TranslationDashboard({
 }: TranslationDashboardProps) {
   if (!stats) {
     return (
-      <div className={cn("space-y-6", className)}>
+      <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
         <h1 className="text-lg font-semibold">Translation Dashboard</h1>
         <Card className="p-8 text-center">
           <p className="text-sm text-muted-foreground">
@@ -91,7 +91,7 @@ export function TranslationDashboard({
       : 0;
 
   return (
-    <div className={cn("space-y-6", className)}>
+    <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">
           {projectName ? `${projectName} — Translation Dashboard` : "Translation Dashboard"}
