@@ -346,7 +346,7 @@ func TestReadWriteBlockIndex(t *testing.T) {
 	// Verify JSON contains expected content
 	json := buf.String()
 	assert.Contains(t, json, `"kat_version": "1.0"`)
-	assert.Contains(t, json, `"source_locale": "en"`)
+	assert.Contains(t, json, `"source_language": "en"`)
 	assert.Contains(t, json, `"Bonjour"`)
 
 	index2, err := ReadBlockIndex(strings.NewReader(json))
