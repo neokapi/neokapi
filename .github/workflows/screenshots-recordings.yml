@@ -4,11 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       server_url:
-        description: 'External server URL (e.g. https://staging.bowrain.cloud). Leave blank to use local Docker stack.'
-        required: false
-        default: ''
-      server_token:
-        description: 'Pre-authenticated JWT token. Leave blank to run device auth flow.'
+        description: 'Server URL. Default: https://dev.bowrain.cloud'
         required: false
         default: ''
   schedule:
@@ -23,7 +19,63 @@ permissions:
   actions: write   # Needed to trigger docs redeploy workflow
   packages: read   # Needed to pull Docker images from GHCR
 
+env:
+  # Default to dev environment for nightly/scheduled runs.
+  SERVER_URL: ${{ inputs.server_url || 'https://dev.bowrain.cloud' }}
+
 jobs:
+  # ── Obtain auth token from the target server via device auth ───────────────
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    outputs:
+      server_url: ${{ steps.config.outputs.server_url }}
+      token: ${{ steps.auth.outputs.token }}
+    steps:
+      - name: Resolve server URL
+        id: config
+        run: echo "server_url=$SERVER_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Obtain auth token via device auth
+        id: auth
+        run: |
+          # Start device auth flow
+          START_RESP=$(curl -sf -X POST -d "client_id=ci-screenshots" \
+            "$SERVER_URL/api/v1/auth/device/start")
+          DEVICE_CODE=$(echo "$START_RESP" | jq -r '.device_code')
+          USER_CODE=$(echo "$START_RESP" | jq -r '.user_code')
+
+          # Verify (simulate user approval)
+          curl -s -X POST \
+            -d "user_code=$USER_CODE&email=ci-screenshots@bowrain.cloud&name=CI Screenshots" \
+            "$SERVER_URL/api/v1/auth/device/verify" > /dev/null
+
+          # Poll for token
+          TOKEN=$(curl -sf -X POST \
+            -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
+            "$SERVER_URL/api/v1/auth/device/poll" | jq -r '.access_token')
+
+          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
+            echo "Failed to obtain auth token"
+            exit 1
+          fi
+
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          echo "Auth token obtained."
+
+      - name: Seed demo workspace
+        env:
+          TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          # Create a workspace for demos (idempotent — 409 if exists).
+          curl -sf -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"name":"Acme Inc.","slug":"acme"}' \
+            "$SERVER_URL/api/v1/workspaces" > /dev/null 2>&1 || true
+          echo "Workspace seeded."
+
   # ── Bowrain Screenshots & Recordings (headless binary on Linux) ──────────────
   bowrain-assets:
     name: Bowrain Assets (${{ matrix.theme }})
@@ -108,19 +160,16 @@ jobs:
             website/static/video/platform/${{ matrix.theme }}/
           retention-days: 30
 
-  # ── Web App Screenshots & Recordings (build from source + local server) ──────
+  # ── Web App Screenshots & Recordings (against live server) ──────────────────
   web-app-assets:
     name: Web App Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
+    needs: setup
     strategy:
       matrix:
         theme: [dark, light]
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.26.0"
 
       - uses: actions/setup-node@v4
         with:
@@ -136,75 +185,6 @@ jobs:
         working-directory: platform/packages/ui
         run: npx tsc
 
-      - name: Build web UI
-        working-directory: platform/apps/web
-        run: npm run build
-
-      - name: Build bowrain-server
-        if: ${{ inputs.server_url == '' }}
-        run: cd platform && go build -o ../bin/bowrain-server ./cmd/bowrain-server
-
-      - name: Build Keycloak theme
-        if: ${{ inputs.server_url == '' }}
-        run: make -C platform keycloak-theme
-
-      - name: Start dependencies (Keycloak + Mailpit + NATS)
-        if: ${{ inputs.server_url == '' }}
-        run: docker compose -f platform/compose.yaml up -d --wait
-
-      - name: Start bowrain-server
-        if: ${{ inputs.server_url == '' }}
-        run: |
-          BOWRAIN_JWT_SECRET=dev-secret-change-in-production \
-          BOWRAIN_OIDC_ISSUER_URL=http://localhost:8180/realms/bowrain \
-          BOWRAIN_OIDC_CLIENT_ID=bowrain \
-          BOWRAIN_OIDC_CLIENT_SECRET=bowrain-secret \
-          BOWRAIN_SMTP_HOST=localhost:1025 \
-          BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
-          BOWRAIN_STORE=bowrain-ci.db \
-          BOWRAIN_GRPC_PORT=9080 \
-          BOWRAIN_WEB_UI_DIR=platform/apps/web/dist \
-          BOWRAIN_NATS_URL=nats://localhost:4222 \
-          bin/bowrain-server > bowrain-server.log 2>&1 &
-          echo $! > .bowrain-server.pid
-          sleep 2
-          if ! kill -0 "$(cat .bowrain-server.pid)" 2>/dev/null; then
-            echo "Server crashed on startup. Logs:"
-            cat bowrain-server.log
-            exit 1
-          fi
-
-      - name: Wait for server readiness
-        if: ${{ inputs.server_url == '' }}
-        run: |
-          for i in {1..30}; do
-            READY_JSON=$(curl -s http://localhost:8080/api/v1/ready 2>/dev/null) && [ -n "$READY_JSON" ] && {
-              STATUS=$(echo "$READY_JSON" | jq -r '.status')
-              if [ "$STATUS" = "ready" ] || [ "$STATUS" = "degraded" ]; then
-                echo "Server is $STATUS"
-                AI_STATUS=$(echo "$READY_JSON" | jq -r '.components.ai.status')
-                echo "AI_AVAILABLE=$( [ "$AI_STATUS" = "up" ] && echo true || echo false )" >> "$GITHUB_ENV"
-                echo "$READY_JSON" | jq .
-                exit 0
-              fi
-              # Accept unhealthy if core components work (AI/email may not be configured).
-              DB_STATUS=$(echo "$READY_JSON" | jq -r '.components.database.status')
-              if [ "$DB_STATUS" = "up" ] || [ "$DB_STATUS" = "unconfigured" ]; then
-                echo "Server is $STATUS (database: $DB_STATUS, accepting)"
-                AI_STATUS=$(echo "$READY_JSON" | jq -r '.components.ai.status')
-                echo "AI_AVAILABLE=$( [ "$AI_STATUS" = "up" ] && echo true || echo false )" >> "$GITHUB_ENV"
-                echo "$READY_JSON" | jq .
-                exit 0
-              fi
-              echo "Server status: $STATUS (waiting...)"
-            }
-            echo "Waiting for server... ($i/30)"
-            sleep 2
-          done
-          echo "Server failed to become ready. Server logs:"
-          cat bowrain-server.log 2>/dev/null || echo "(no log file)"
-          exit 1
-
       - name: Cache Playwright browsers
         uses: actions/cache@v4
         with:
@@ -219,8 +199,8 @@ jobs:
         working-directory: platform/apps/web
         run: npx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
         env:
-          BOWRAIN_SERVER_URL: ${{ inputs.server_url || 'http://localhost:8080' }}
-          BOWRAIN_TOKEN: ${{ inputs.server_token }}
+          BOWRAIN_SERVER_URL: ${{ needs.setup.outputs.server_url }}
+          BOWRAIN_TOKEN: ${{ needs.setup.outputs.token }}
 
       - name: Generate recordings
         working-directory: platform/apps/web
@@ -228,8 +208,8 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
-          BOWRAIN_SERVER_URL: ${{ inputs.server_url || 'http://localhost:8080' }}
-          BOWRAIN_TOKEN: ${{ inputs.server_token }}
+          BOWRAIN_SERVER_URL: ${{ needs.setup.outputs.server_url }}
+          BOWRAIN_TOKEN: ${{ needs.setup.outputs.token }}
 
       - name: Copy recordings to static assets
         working-directory: platform/apps/web
@@ -243,15 +223,6 @@ jobs:
             website/static/img/web-app/${{ matrix.theme }}/
             website/static/video/web-app/${{ matrix.theme }}/
           retention-days: 30
-
-      - name: Shutdown server and dependencies
-        if: ${{ always() && inputs.server_url == '' }}
-        run: |
-          if [ -f .bowrain-server.pid ]; then
-            kill "$(cat .bowrain-server.pid)" 2>/dev/null || true
-            rm -f .bowrain-server.pid
-          fi
-          docker compose -f platform/compose.yaml down -v
 
   # ── Kapi CLI Recordings (VHS, standalone) ────────────────────────────────────
   kapi-recordings:
@@ -295,10 +266,11 @@ jobs:
           path: website/static/video/kapi/
           retention-days: 30
 
-  # ── Bowrain CLI Recordings (VHS, needs server) ──────────────────────────────
+  # ── Bowrain CLI Recordings (VHS, against live server) ──────────────────────
   bowrain-cli-recordings:
     name: Bowrain CLI Recordings (VHS)
     runs-on: ubuntu-latest
+    needs: setup
     steps:
       - uses: actions/checkout@v4
 
@@ -319,18 +291,6 @@ jobs:
           sudo mv /tmp/vhs_0.9.0_Linux_x86_64/vhs /usr/local/bin/vhs
           sudo chmod +x /usr/local/bin/vhs
 
-      - name: Login to GHCR
-        if: ${{ inputs.server_url == '' }}
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Start full stack (pre-built Docker images)
-        if: ${{ inputs.server_url == '' }}
-        run: docker compose -f platform/e2e/compose.yaml up -d --wait
-
       - name: Generate Bowrain CLI recordings
         timeout-minutes: 30
         working-directory: platform/e2e/tapes
@@ -342,12 +302,8 @@ jobs:
 
           bash generate.sh
         env:
-          BOWRAIN_SERVER_URL: ${{ inputs.server_url || 'http://localhost:8080' }}
-          BOWRAIN_TOKEN: ${{ inputs.server_token }}
-
-      - name: Shutdown
-        if: ${{ always() && inputs.server_url == '' }}
-        run: docker compose -f platform/e2e/compose.yaml down -v
+          BOWRAIN_SERVER_URL: ${{ needs.setup.outputs.server_url }}
+          BOWRAIN_TOKEN: ${{ needs.setup.outputs.token }}
 
       - name: Upload Bowrain CLI assets
         uses: actions/upload-artifact@v4
