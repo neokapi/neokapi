@@ -101,6 +101,8 @@ test-e2e: ## Run all end-to-end tests
 
 test-e2e-kapi: ; $(MAKE) -C framework $@
 test-e2e-bowrain: ; $(MAKE) -C platform $@
+test-e2e-cloud: ; $(MAKE) -C platform $@ ## Run cloud e2e tests against a live server
+test-e2e-dev: ; $(MAKE) -C platform $@ ## Run cloud e2e tests against dev environment
 
 # ── Bridge Tests (forward to framework) ──────────────────────────────────────
 
@@ -233,7 +235,7 @@ help: ## Show this help
         build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
         install install-bowrain-cli \
         frontend-check-all \
-        cover test-e2e test-e2e-kapi test-e2e-bowrain \
+        cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
         bench bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions \
         screenshots recordings kapi-recordings bowrain-cli-recordings cli-recordings docs-assets fetch-docs-assets \
