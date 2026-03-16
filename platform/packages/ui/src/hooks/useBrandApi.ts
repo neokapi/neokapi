@@ -1,10 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
-import type {
-  CreateVoiceProfileRequest,
-  UpdateVoiceProfileRequest,
-} from "../brand/types";
+import type { CreateVoiceProfileRequest, UpdateVoiceProfileRequest } from "../brand/types";
 
 export function useBrandProfiles() {
   const api = useApi();
