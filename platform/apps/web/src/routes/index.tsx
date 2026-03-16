@@ -17,6 +17,8 @@ import {
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
+  ActivityFeedSkeleton,
+  TaskBoardSkeleton,
 } from "@neokapi/ui";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
@@ -344,6 +346,20 @@ const auditlogRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/auditlog"), "AuditLogRoute"),
 });
 
+const activitiesRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "activities",
+  pendingComponent: ActivityFeedSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/activities"), "ActivitiesRoute"),
+});
+
+const tasksRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "tasks",
+  pendingComponent: TaskBoardSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/tasks"), "TasksRoute"),
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "settings",
@@ -423,6 +439,8 @@ const routeTree = rootRoute.addChildren([
     termbaseRoute,
     memoryRoute,
     auditlogRoute,
+    activitiesRoute,
+    tasksRoute,
     binRoute,
     settingsRoute.addChildren([
       settingsIndexRoute,

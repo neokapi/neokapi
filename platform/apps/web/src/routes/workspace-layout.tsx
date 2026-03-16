@@ -19,6 +19,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  useApi,
+  type User,
   type View,
   type Workspace,
   type SidebarContext,
@@ -27,9 +29,10 @@ import {
   StreamActionsProvider,
   useStreamActions,
 } from "@neokapi/ui";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
 import { viewFromPath } from "./view-from-path";
+import { activitiesQueryOptions, myTasksQueryOptions } from "../queries";
 import type { WorkspaceRouteContext } from ".";
 
 // ---------------------------------------------------------------------------
@@ -64,6 +67,40 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
 // ---------------------------------------------------------------------------
 // Workspace layout shell
 // ---------------------------------------------------------------------------
+
+/** Top bar with activity/task indicators — fetches data via React Query. */
+function ConnectedTopBar({
+  user,
+  onSignOut,
+  workspaceSlug,
+  leftSlot,
+  onViewAllActivities,
+  onViewAllTasks,
+}: {
+  user: User | null;
+  onSignOut?: () => void;
+  workspaceSlug: string;
+  leftSlot?: React.ReactNode;
+  onViewAllActivities?: () => void;
+  onViewAllTasks?: () => void;
+}) {
+  const api = useApi();
+
+  const { data: activitiesData } = useQuery(activitiesQueryOptions(api, workspaceSlug));
+  const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
+
+  return (
+    <TopBar
+      user={user}
+      onSignOut={onSignOut}
+      leftSlot={leftSlot}
+      activities={activitiesData?.activities}
+      myTasks={myTasksData?.tasks}
+      onViewAllActivities={onViewAllActivities}
+      onViewAllTasks={onViewAllTasks}
+    />
+  );
+}
 
 /** Stream selector in the top bar — reads action callbacks from StreamActionsContext. */
 function TopBarStreamSelector({
@@ -419,9 +456,16 @@ export function WorkspaceLayout() {
             activeSubNav={settingsSubNav}
             onSubNavChange={handleSubNavChange}
             headerSlot={
-              <TopBar
+              <ConnectedTopBar
                 user={user}
                 onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                workspaceSlug={ws}
+                onViewAllActivities={() =>
+                  void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
+                }
+                onViewAllTasks={() =>
+                  void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
+                }
                 leftSlot={
                   sidebarContext?.level === "project" &&
                   sidebarContext.project.streams &&
