@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskBoard, useWorkspace, useApi, useAuth, Card } from "@neokapi/ui";
 import type { TaskInfo } from "@neokapi/ui";
@@ -12,7 +12,6 @@ export function TasksRoute() {
 
   const [allTasks, setAllTasks] = useState<TaskInfo[]>([]);
   const [cursor, setCursor] = useState<string>("");
-  const [hasMore, setHasMore] = useState(false);
   const LIMIT = 50;
 
   useEffect(() => {
@@ -35,31 +34,24 @@ export function TasksRoute() {
       } else {
         setAllTasks((prev) => [...prev, ...data.tasks]);
       }
-      setHasMore(!!data.next_cursor);
     }
   }, [data, cursor]);
 
   const completeMutation = useMutation({
     mutationFn: (taskId: string) => api.completeTask(ws, taskId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
-      queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
     },
   });
 
   const cancelMutation = useMutation({
     mutationFn: (taskId: string) => api.cancelTask(ws, taskId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
-      queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
+      void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
     },
   });
-
-  const handleLoadMore = useCallback(() => {
-    if (data?.next_cursor) {
-      setCursor(data.next_cursor);
-    }
-  }, [data]);
 
   if (!activeWorkspace) {
     return (
