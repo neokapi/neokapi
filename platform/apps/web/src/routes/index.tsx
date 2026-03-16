@@ -271,7 +271,12 @@ const translationDashboardRoute = createRoute({
         projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
       ),
       queryClient.ensureQueryData(
-        translationDashboardQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+        translationDashboardQueryOptions(
+          api,
+          activeWorkspace.slug,
+          params.projectId,
+          params.stream,
+        ),
       ),
     ]);
   },
