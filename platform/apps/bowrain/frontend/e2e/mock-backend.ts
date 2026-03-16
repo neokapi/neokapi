@@ -1308,7 +1308,11 @@ export async function skipConnectionScreen(page: Page) {
     (window as any).__skipConnection = true;
   });
   // Wait for the main sidebar to appear, indicating the app is ready.
-  await page.getByText("Get started with your first project").or(page.getByTestId("nav-translate")).first().waitFor({ state: "visible", timeout: 10000 });
+  await page
+    .getByText("Get started with your first project")
+    .or(page.getByTestId("nav-translate"))
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 });
 }
 
 /**
@@ -1323,5 +1327,9 @@ export async function setupLocalApp(page: Page) {
   });
   await page.goto("/");
   // Wait for the main sidebar to appear, indicating the app is ready.
-  await page.getByText("Get started with your first project").or(page.getByTestId("nav-translate")).first().waitFor({ state: "visible", timeout: 10000 });
+  await page
+    .getByText("Get started with your first project")
+    .or(page.getByTestId("nav-translate"))
+    .first()
+    .waitFor({ state: "visible", timeout: 10000 });
 }

@@ -290,7 +290,10 @@ export class WailsApiAdapter implements ApiAdapter {
     projectId: string,
     stream?: string,
   ): Promise<TranslationDashboardStats> {
-    return Backend.GetTranslationDashboard(projectId, stream ?? "") as Promise<TranslationDashboardStats>;
+    return Backend.GetTranslationDashboard(
+      projectId,
+      stream ?? "",
+    ) as Promise<TranslationDashboardStats>;
   }
   async lookupTMForBlock(
     _ws: string,
@@ -595,16 +598,10 @@ export class WailsApiAdapter implements ApiAdapter {
   async getBrandProfile(): Promise<VoiceProfile> {
     throw new Error("Brand profiles not yet supported in desktop mode");
   }
-  async createBrandProfile(
-    _ws: string,
-    _data: CreateVoiceProfileRequest,
-  ): Promise<VoiceProfile> {
+  async createBrandProfile(_ws: string, _data: CreateVoiceProfileRequest): Promise<VoiceProfile> {
     throw new Error("Brand profiles not yet supported in desktop mode");
   }
-  async updateBrandProfile(
-    _ws: string,
-    _data: UpdateVoiceProfileRequest,
-  ): Promise<VoiceProfile> {
+  async updateBrandProfile(_ws: string, _data: UpdateVoiceProfileRequest): Promise<VoiceProfile> {
     throw new Error("Brand profiles not yet supported in desktop mode");
   }
   async deleteBrandProfile(_ws: string, _profileId: string): Promise<void> {
