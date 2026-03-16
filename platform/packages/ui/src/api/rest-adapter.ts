@@ -1288,7 +1288,14 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listActivities(
     workspaceSlug: string,
-    query?: { project_id?: string; stream?: string; actor_id?: string; type?: string; cursor?: string; limit?: number },
+    query?: {
+      project_id?: string;
+      stream?: string;
+      actor_id?: string;
+      type?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ): Promise<{ activities: ActivityInfo[]; next_cursor: string }> {
     const params = new URLSearchParams();
     if (query?.project_id) params.set("project_id", query.project_id);
@@ -1298,9 +1305,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`);
   }
 
   // ── Tasks (AD-027) ────────────────────────────────────────────────────
@@ -1311,7 +1316,15 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listTasks(
     workspaceSlug: string,
-    query?: { project_id?: string; assignee_id?: string; status?: string; type?: string; priority?: string; cursor?: string; limit?: number },
+    query?: {
+      project_id?: string;
+      assignee_id?: string;
+      status?: string;
+      type?: string;
+      priority?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }> {
     const params = new URLSearchParams();
     if (query?.project_id) params.set("project_id", query.project_id);
@@ -1341,38 +1354,35 @@ export class RestApiAdapter implements ApiAdapter {
     taskId: string,
     updates: Partial<CreateTaskRequest>,
   ): Promise<TaskInfo> {
-    return this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`,
-      { method: "PATCH", body: JSON.stringify(updates) },
-    );
+    return this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    });
   }
 
   async deleteTask(workspaceSlug: string, taskId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`,
-      { method: "DELETE" },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}`, {
+      method: "DELETE",
+    });
   }
 
   async assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/assign`,
-      { method: "POST", body: JSON.stringify({ assignee_id: assigneeId }) },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/assign`, {
+      method: "POST",
+      body: JSON.stringify({ assignee_id: assigneeId }),
+    });
   }
 
   async completeTask(workspaceSlug: string, taskId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/complete`,
-      { method: "POST" },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/complete`, {
+      method: "POST",
+    });
   }
 
   async cancelTask(workspaceSlug: string, taskId: string): Promise<void> {
-    await this.fetchJSON(
-      `${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/cancel`,
-      { method: "POST" },
-    );
+    await this.fetchJSON(`${this.tasksEp(workspaceSlug)}/${encodeURIComponent(taskId)}/cancel`, {
+      method: "POST",
+    });
   }
 
   async listMyTasks(
@@ -1384,9 +1394,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
   }
 
   // ── Notification Preferences (AD-027) ─────────────────────────────────

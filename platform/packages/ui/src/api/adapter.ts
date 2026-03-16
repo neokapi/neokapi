@@ -441,17 +441,36 @@ export interface ApiAdapter {
   // Activities (AD-027)
   listActivities(
     workspaceSlug: string,
-    query?: { project_id?: string; stream?: string; actor_id?: string; type?: string; cursor?: string; limit?: number },
+    query?: {
+      project_id?: string;
+      stream?: string;
+      actor_id?: string;
+      type?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ): Promise<{ activities: ActivityInfo[]; next_cursor: string }>;
 
   // Tasks (AD-027)
   listTasks(
     workspaceSlug: string,
-    query?: { project_id?: string; assignee_id?: string; status?: string; type?: string; priority?: string; cursor?: string; limit?: number },
+    query?: {
+      project_id?: string;
+      assignee_id?: string;
+      status?: string;
+      type?: string;
+      priority?: string;
+      cursor?: string;
+      limit?: number;
+    },
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
   createTask(workspaceSlug: string, task: CreateTaskRequest): Promise<TaskInfo>;
   getTask(workspaceSlug: string, taskId: string): Promise<TaskInfo>;
-  updateTask(workspaceSlug: string, taskId: string, updates: Partial<CreateTaskRequest>): Promise<TaskInfo>;
+  updateTask(
+    workspaceSlug: string,
+    taskId: string,
+    updates: Partial<CreateTaskRequest>,
+  ): Promise<TaskInfo>;
   deleteTask(workspaceSlug: string, taskId: string): Promise<void>;
   assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void>;
   completeTask(workspaceSlug: string, taskId: string): Promise<void>;
@@ -462,8 +481,13 @@ export interface ApiAdapter {
   ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
 
   // Notification preferences (AD-027)
-  getNotificationPreferences(workspaceSlug: string): Promise<{ preferences: NotificationPreference[] }>;
-  updateNotificationPreferences(workspaceSlug: string, preferences: NotificationPreference[]): Promise<void>;
+  getNotificationPreferences(
+    workspaceSlug: string,
+  ): Promise<{ preferences: NotificationPreference[] }>;
+  updateNotificationPreferences(
+    workspaceSlug: string,
+    preferences: NotificationPreference[],
+  ): Promise<void>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

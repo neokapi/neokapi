@@ -72,10 +72,7 @@ describe("TaskBoard", () => {
   it("calls onCompleteTask when Complete is clicked", () => {
     const onComplete = vi.fn();
     render(
-      <TaskBoard
-        tasks={[makeTask({ id: "t1", status: "open" })]}
-        onCompleteTask={onComplete}
-      />,
+      <TaskBoard tasks={[makeTask({ id: "t1", status: "open" })]} onCompleteTask={onComplete} />,
     );
     act(() => screen.getByText("Complete").click());
     expect(onComplete).toHaveBeenCalledWith("t1");
@@ -83,12 +80,7 @@ describe("TaskBoard", () => {
 
   it("calls onCancelTask when Cancel is clicked", () => {
     const onCancel = vi.fn();
-    render(
-      <TaskBoard
-        tasks={[makeTask({ id: "t1", status: "open" })]}
-        onCancelTask={onCancel}
-      />,
-    );
+    render(<TaskBoard tasks={[makeTask({ id: "t1", status: "open" })]} onCancelTask={onCancel} />);
     act(() => screen.getByText("Cancel").click());
     expect(onCancel).toHaveBeenCalledWith("t1");
   });
@@ -115,9 +107,7 @@ describe("TaskBoard", () => {
 
   it("shows Overdue label for overdue active tasks", () => {
     const pastDate = new Date(Date.now() - 86400000).toISOString(); // 1 day ago
-    render(
-      <TaskBoard tasks={[makeTask({ due_at: pastDate, status: "open" })]} />,
-    );
+    render(<TaskBoard tasks={[makeTask({ due_at: pastDate, status: "open" })]} />);
     expect(screen.getByText("Overdue")).toBeInTheDocument();
   });
 
