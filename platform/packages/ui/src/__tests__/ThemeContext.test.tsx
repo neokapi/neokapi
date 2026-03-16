@@ -186,7 +186,8 @@ describe("ThemeContext", () => {
         <ThemeDisplay />
       </ThemeProvider>,
     );
-    expect(screen.getByTestId("theme").textContent).toBe("dark");
+    // "glass" was a legacy theme; invalid values fall back to "system"
+    expect(screen.getByTestId("theme").textContent).toBe("system");
   });
 });
 
