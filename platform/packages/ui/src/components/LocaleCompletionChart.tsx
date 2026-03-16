@@ -31,12 +31,15 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   if (!d) return null;
   return (
     <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
-      <div className="font-medium">{d.locale}: {d.percentage}% complete</div>
+      <div className="font-medium">
+        {d.locale}: {d.percentage}% complete
+      </div>
       <div className="text-muted-foreground">
         {(d.translated_words ?? 0).toLocaleString()} / {(d.total_words ?? 0).toLocaleString()} words
       </div>
       <div className="text-muted-foreground">
-        {(d.translated_blocks ?? 0).toLocaleString()} / {(d.total_blocks ?? 0).toLocaleString()} blocks
+        {(d.translated_blocks ?? 0).toLocaleString()} / {(d.total_blocks ?? 0).toLocaleString()}{" "}
+        blocks
       </div>
     </div>
   );

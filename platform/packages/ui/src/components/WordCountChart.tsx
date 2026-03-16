@@ -34,18 +34,11 @@ export function WordCountChart({ localeStats }: WordCountChartProps) {
         <ChartContainer config={chartConfig} className="aspect-auto h-[250px] w-full">
           <BarChart data={data} margin={{ left: 0, right: 16 }}>
             <CartesianGrid vertical={false} />
-            <XAxis
-              dataKey="locale"
-              tickLine={false}
-              axisLine={false}
-              tick={{ fontSize: 11 }}
-            />
+            <XAxis dataKey="locale" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
             <YAxis
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v: number) =>
-                v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)
-              }
+              tickFormatter={(v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v))}
             />
             <Tooltip
               content={({ active, payload, label }) => {

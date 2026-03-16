@@ -11,10 +11,7 @@ export type ChartConfig = Record<
   {
     label?: React.ReactNode;
     icon?: React.ComponentType;
-  } & (
-    | { color?: string; theme?: never }
-    | { color?: never; theme: Record<string, string> }
-  )
+  } & ({ color?: string; theme?: never } | { color?: never; theme: Record<string, string> })
 >;
 
 // ---------------------------------------------------------------------------
@@ -40,13 +37,7 @@ export interface ChartContainerProps extends React.ComponentPropsWithoutRef<"div
   children: React.ComponentProps<typeof ResponsiveContainer>["children"];
 }
 
-export function ChartContainer({
-  id,
-  className,
-  children,
-  config,
-  ...props
-}: ChartContainerProps) {
+export function ChartContainer({ id, className, children, config, ...props }: ChartContainerProps) {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`;
 
@@ -174,7 +165,8 @@ export function ChartTooltipContent({
         {payload.map((item, index) => {
           const key = `${nameKey || item.name || item.dataKey || "value"}`;
           const itemConfig = config[key];
-          const indicatorColor = (item.payload as Record<string, string> | undefined)?.fill || item.color;
+          const indicatorColor =
+            (item.payload as Record<string, string> | undefined)?.fill || item.color;
 
           return (
             <div
@@ -267,7 +259,10 @@ export function ChartLegendContent({
             {itemConfig?.icon && !hideIcon ? (
               <itemConfig.icon />
             ) : (
-              <div className="h-2 w-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
+              <div
+                className="h-2 w-2 shrink-0 rounded-[2px]"
+                style={{ backgroundColor: item.color }}
+              />
             )}
             {itemConfig?.label}
           </div>

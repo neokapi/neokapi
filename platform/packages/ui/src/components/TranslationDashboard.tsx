@@ -58,11 +58,7 @@ function StatCard({ label, value, icon: Icon }: StatCardProps) {
 // Main Component
 // ---------------------------------------------------------------------------
 
-export function TranslationDashboard({
-  stats,
-  projectName,
-  className,
-}: TranslationDashboardProps) {
+export function TranslationDashboard({ stats, projectName, className }: TranslationDashboardProps) {
   if (!stats) {
     return (
       <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
@@ -77,18 +73,13 @@ export function TranslationDashboard({
   }
 
   // Compute overall completion weighted by words
-  const totalWordsByLocale = stats.locale_stats.reduce(
-    (acc, l) => acc + l.total_words,
-    0,
-  );
+  const totalWordsByLocale = stats.locale_stats.reduce((acc, l) => acc + l.total_words, 0);
   const translatedWordsByLocale = stats.locale_stats.reduce(
     (acc, l) => acc + l.translated_words,
     0,
   );
   const overallPct =
-    totalWordsByLocale > 0
-      ? Math.round((translatedWordsByLocale / totalWordsByLocale) * 100)
-      : 0;
+    totalWordsByLocale > 0 ? Math.round((translatedWordsByLocale / totalWordsByLocale) * 100) : 0;
 
   return (
     <div data-testid="translation-dashboard" className={cn("space-y-6", className)}>
@@ -111,16 +102,8 @@ export function TranslationDashboard({
           value={compactNumber(stats.translatable_blocks)}
           icon={BarChart3}
         />
-        <StatCard
-          label="Target Languages"
-          value={String(stats.locale_stats.length)}
-          icon={Globe}
-        />
-        <StatCard
-          label="Overall Completion"
-          value={`${overallPct}%`}
-          icon={Languages}
-        />
+        <StatCard label="Target Languages" value={String(stats.locale_stats.length)} icon={Globe} />
+        <StatCard label="Overall Completion" value={`${overallPct}%`} icon={Languages} />
       </div>
 
       {/* Charts Row */}

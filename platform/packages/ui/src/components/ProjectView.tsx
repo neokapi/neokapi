@@ -209,7 +209,12 @@ export function ProjectView({
           </div>
           <div className="flex gap-2">
             {onOpenDashboard && (
-              <Button variant="ghost" size="sm" onClick={onOpenDashboard} data-testid="open-dashboard-btn">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onOpenDashboard}
+                data-testid="open-dashboard-btn"
+              >
                 Dashboard
               </Button>
             )}
