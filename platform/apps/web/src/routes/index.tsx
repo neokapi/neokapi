@@ -16,6 +16,7 @@ import {
   BrandProfilesSkeleton,
   SettingsSkeleton,
   ExplorerSkeleton,
+  TranslationDashboardSkeleton,
 } from "@neokapi/ui";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
@@ -259,7 +260,7 @@ const automationsRoute = createRoute({
 const translationDashboardRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/dashboard",
-  pendingComponent: DashboardSkeleton,
+  pendingComponent: TranslationDashboardSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/translation-dashboard"),
     "TranslationDashboardRoute",
