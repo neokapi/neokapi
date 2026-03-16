@@ -17,6 +17,27 @@ const (
 	NotificationReviewCompleted NotificationType = "review.completed"
 	NotificationExtractionDone  NotificationType = "extraction.completed"
 	NotificationGeneral         NotificationType = "general"
+
+	// Task notifications
+	NotificationTaskAssigned  NotificationType = "task.assigned"
+	NotificationTaskDueSoon   NotificationType = "task.due_soon"
+	NotificationTaskOverdue   NotificationType = "task.overdue"
+	NotificationTaskCompleted NotificationType = "task.completed"
+
+	// Quality notifications
+	NotificationGateFailed NotificationType = "quality.gate.failed"
+	NotificationBrandDrift NotificationType = "brand.drift"
+
+	// Social notifications
+	NotificationMention NotificationType = "mention"
+	NotificationComment NotificationType = "comment"
+
+	// Automation notifications
+	NotificationFlowFailed     NotificationType = "flow.failed"
+	NotificationConnectorError NotificationType = "connector.error"
+
+	// System notifications
+	NotificationQuotaWarning NotificationType = "quota.warning"
 )
 
 // Notification is a user-targeted notification.
@@ -30,6 +51,14 @@ type Notification struct {
 	LinkURL   string           `json:"link_url,omitempty"` // deep link target
 	Read      bool             `json:"read"`
 	CreatedAt time.Time        `json:"created_at"`
+
+	// Extended fields (AD-027)
+	Category  string `json:"category,omitempty"`   // preference category for routing
+	GroupKey  string `json:"group_key,omitempty"`  // for grouping related notifications
+	ActorID   string `json:"actor_id,omitempty"`   // who triggered the notification
+	ActorName string `json:"actor_name,omitempty"` // display name of actor
+	TaskID    string `json:"task_id,omitempty"`    // linked task
+	Priority  string `json:"priority,omitempty"`   // "normal" or "high"
 }
 
 // NotificationStore persists user notifications.

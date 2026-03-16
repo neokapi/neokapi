@@ -286,6 +286,12 @@ export interface NotificationInfo {
   project_id?: string;
   link_url?: string;
   read: boolean;
+  category?: string;
+  group_key?: string;
+  actor_id?: string;
+  actor_name?: string;
+  task_id?: string;
+  priority?: string;
   created_at: string;
 }
 
@@ -636,6 +642,88 @@ export interface AutomationHistoryEntry {
   error: string;
   started_at: string;
   ended_at: string;
+}
+
+// ---------------------------------------------------------------------------
+// Activity & Task types (AD-027)
+// ---------------------------------------------------------------------------
+
+/** Activity feed entry */
+export interface ActivityInfo {
+  id: string;
+  workspace_id: string;
+  project_id?: string;
+  stream?: string;
+  actor_id: string;
+  actor_name: string;
+  type: string;
+  entity_type?: string;
+  entity_id?: string;
+  summary: string;
+  data?: Record<string, string>;
+  created_at: string;
+}
+
+/** Task type discriminator */
+export type TaskType =
+  | "translate"
+  | "review"
+  | "review_terms"
+  | "fix_quality"
+  | "fix_brand_voice"
+  | "fix_terminology"
+  | "connector_setup"
+  | "custom";
+
+/** Task status */
+export type TaskStatus = "open" | "in_progress" | "completed" | "cancelled";
+
+/** Task priority */
+export type TaskPriority = "low" | "normal" | "high" | "urgent";
+
+/** Task info */
+export interface TaskInfo {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  stream?: string;
+  type: TaskType;
+  status: TaskStatus;
+  priority: TaskPriority;
+  title: string;
+  description?: string;
+  assignee_id?: string;
+  created_by: string;
+  completed_by?: string;
+  data?: Record<string, string>;
+  due_at?: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string;
+}
+
+/** Create task request */
+export interface CreateTaskRequest {
+  project_id: string;
+  stream?: string;
+  type: TaskType;
+  priority?: TaskPriority;
+  title: string;
+  description?: string;
+  assignee_id?: string;
+  data?: Record<string, string>;
+  due_at?: string;
+}
+
+/** Notification preference per category */
+export interface NotificationPreference {
+  category: string;
+  channels: {
+    web: boolean;
+    email: boolean;
+    push: boolean;
+    desktop: boolean;
+  };
 }
 
 // ---------------------------------------------------------------------------

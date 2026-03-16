@@ -111,6 +111,21 @@ type Server struct {
 	// NotificationStore persists user notifications. Nil when not configured.
 	NotificationStore *bstore.NotificationStore
 
+	// ActivityStore persists activity feed entries. Nil when not configured.
+	ActivityStore *bstore.ActivityStore
+
+	// TaskStore persists human tasks. Nil when not configured.
+	TaskStore *bstore.TaskStore
+
+	// PreferenceStore persists notification preferences. Nil when not configured.
+	PreferenceStore *bstore.PreferenceStore
+
+	// ActivityRecorder subscribes to events and records activities. Nil when not configured.
+	ActivityRecorder *event.ActivityRecorder
+
+	// NotificationDispatcher routes events to user notifications. Nil when not configured.
+	NotificationDispatcher *event.NotificationDispatcher
+
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
 
@@ -184,6 +199,9 @@ func NewServer(cfg ServerConfig) *Server {
 			s.AutomationRuleStore = event.NewPostgresRuleStore(pgSQL)
 			s.ReviewQueueStore = bstore.NewPostgresReviewQueueStore(pgSQL)
 			s.NotificationStore = bstore.NewPostgresNotificationStore(pgSQL)
+			s.ActivityStore = bstore.NewPostgresActivityStore(pgSQL)
+			s.TaskStore = bstore.NewPostgresTaskStore(pgSQL)
+			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
 			s.BrandStore = pg.Brand
 			s.GraphStore = pg.GraphStore
 			if cfg.JWTSecret != "" {
@@ -226,6 +244,17 @@ func NewServer(cfg ServerConfig) *Server {
 	// Wire up automation engine.
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, s.executeAutomationAction)
 	s.registerDefaultAutomations()
+
+	// Wire up activity recorder (AD-027).
+	if s.ActivityStore != nil {
+		s.ActivityRecorder = event.NewActivityRecorder(s.ActivityStore, s.EventBus)
+	}
+
+	// Wire up notification dispatcher (AD-027).
+	if s.NotificationStore != nil {
+		s.NotificationDispatcher = event.NewNotificationDispatcher(
+			s.EventBus, s.NotificationStore, s.PreferenceStore, s, nil)
+	}
 
 	// Wire up graph sync if graph store is available.
 	if s.GraphStore != nil {
@@ -553,6 +582,22 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/notifications/read-all", s.HandleMarkAllNotificationsRead)
 	g.DELETE("/notifications/:nid", s.HandleDeleteNotification)
 	g.GET("/notifications/ws", s.HandleNotificationWebSocket)
+	g.GET("/notifications/preferences", s.HandleGetNotificationPreferences)
+	g.PUT("/notifications/preferences", s.HandleUpdateNotificationPreferences)
+
+	// Activities (workspace-scoped, AD-027)
+	g.GET("/activities", s.HandleListActivities)
+
+	// Tasks (workspace-scoped, AD-027)
+	g.GET("/tasks", s.HandleListTasks)
+	g.POST("/tasks", s.HandleCreateTask)
+	g.GET("/tasks/:taskId", s.HandleGetTask)
+	g.PATCH("/tasks/:taskId", s.HandleUpdateTask)
+	g.DELETE("/tasks/:taskId", s.HandleDeleteTask)
+	g.POST("/tasks/:taskId/assign", s.HandleAssignTask)
+	g.POST("/tasks/:taskId/complete", s.HandleCompleteTask)
+	g.POST("/tasks/:taskId/cancel", s.HandleCancelTask)
+	g.GET("/my/tasks", s.HandleListMyTasks)
 
 	// Entity annotations (block-scoped, AD-022)
 	g.POST("/editor/projects/:pid/blocks/:bid/entities", s.HandleCreateEntity)

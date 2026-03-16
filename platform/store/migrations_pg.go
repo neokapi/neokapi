@@ -390,4 +390,80 @@ var storeMigrationsPg = []storage.Migration{
 			ALTER TABLE projects ADD COLUMN target_language_mode TEXT NOT NULL DEFAULT 'defined';
 		`,
 	},
+	{
+		Version:     10,
+		Description: "create activities table",
+		SQL: `
+			CREATE TABLE activities (
+				id           TEXT PRIMARY KEY,
+				workspace_id TEXT NOT NULL,
+				project_id   TEXT NOT NULL DEFAULT '',
+				stream       TEXT NOT NULL DEFAULT '',
+				actor_id     TEXT NOT NULL,
+				actor_name   TEXT NOT NULL DEFAULT '',
+				type         TEXT NOT NULL,
+				entity_type  TEXT NOT NULL DEFAULT '',
+				entity_id    TEXT NOT NULL DEFAULT '',
+				summary      TEXT NOT NULL DEFAULT '',
+				data         JSONB NOT NULL DEFAULT '{}',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_activities_workspace ON activities(workspace_id, created_at DESC);
+			CREATE INDEX idx_activities_project ON activities(workspace_id, project_id, created_at DESC);
+			CREATE INDEX idx_activities_actor ON activities(workspace_id, actor_id, created_at DESC);
+		`,
+	},
+	{
+		Version:     11,
+		Description: "create tasks table",
+		SQL: `
+			CREATE TABLE tasks (
+				id           TEXT PRIMARY KEY,
+				workspace_id TEXT NOT NULL,
+				project_id   TEXT NOT NULL,
+				stream       TEXT NOT NULL DEFAULT '',
+				type         TEXT NOT NULL DEFAULT 'custom',
+				status       TEXT NOT NULL DEFAULT 'open',
+				priority     TEXT NOT NULL DEFAULT 'normal',
+				title        TEXT NOT NULL,
+				description  TEXT NOT NULL DEFAULT '',
+				assignee_id  TEXT NOT NULL DEFAULT '',
+				created_by   TEXT NOT NULL,
+				completed_by TEXT NOT NULL DEFAULT '',
+				data         JSONB NOT NULL DEFAULT '{}',
+				due_at       TIMESTAMPTZ,
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				completed_at TIMESTAMPTZ
+			);
+			CREATE INDEX idx_tasks_workspace ON tasks(workspace_id, status, created_at DESC);
+			CREATE INDEX idx_tasks_project ON tasks(workspace_id, project_id, status);
+			CREATE INDEX idx_tasks_assignee ON tasks(workspace_id, assignee_id, status);
+		`,
+	},
+	{
+		Version:     12,
+		Description: "create notification_preferences table and extend notifications",
+		SQL: `
+			CREATE TABLE notification_preferences (
+				user_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				category     TEXT NOT NULL,
+				channel_web     BOOLEAN NOT NULL DEFAULT TRUE,
+				channel_email   BOOLEAN NOT NULL DEFAULT FALSE,
+				channel_push    BOOLEAN NOT NULL DEFAULT FALSE,
+				channel_desktop BOOLEAN NOT NULL DEFAULT FALSE,
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				UNIQUE(user_id, workspace_id, category)
+			);
+			CREATE INDEX idx_notif_pref_user ON notification_preferences(user_id, workspace_id);
+
+			ALTER TABLE notifications ADD COLUMN category   TEXT NOT NULL DEFAULT '';
+			ALTER TABLE notifications ADD COLUMN group_key  TEXT NOT NULL DEFAULT '';
+			ALTER TABLE notifications ADD COLUMN actor_id   TEXT NOT NULL DEFAULT '';
+			ALTER TABLE notifications ADD COLUMN actor_name TEXT NOT NULL DEFAULT '';
+			ALTER TABLE notifications ADD COLUMN task_id    TEXT NOT NULL DEFAULT '';
+			ALTER TABLE notifications ADD COLUMN priority   TEXT NOT NULL DEFAULT 'normal';
+		`,
+	},
 }
