@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import type { TaskInfo, CreateTaskRequest, TaskStatus, TaskPriority } from "../types/api";
 import { cn } from "../lib/utils";
 import { Badge } from "./ui/badge";
@@ -84,7 +84,10 @@ function TaskCard({
             <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
           )}
         </div>
-        <Badge variant="outline" className={cn("text-[10px] shrink-0", priorityColors[task.priority])}>
+        <Badge
+          variant="outline"
+          className={cn("text-[10px] shrink-0", priorityColors[task.priority])}
+        >
           {task.priority}
         </Badge>
       </div>
@@ -92,13 +95,9 @@ function TaskCard({
         <Badge variant="secondary" className="text-[10px]">
           {typeLabels[task.type] || task.type}
         </Badge>
-        {isOverdue && (
-          <span className="text-[10px] text-destructive font-medium">Overdue</span>
-        )}
+        {isOverdue && <span className="text-[10px] text-destructive font-medium">Overdue</span>}
         {task.due_at && !isOverdue && isActive && (
-          <span className="text-[10px] text-muted-foreground">
-            Due {timeAgo(task.due_at)}
-          </span>
+          <span className="text-[10px] text-muted-foreground">Due {timeAgo(task.due_at)}</span>
         )}
         <span className="text-[10px] text-muted-foreground ml-auto">
           {timeAgo(task.created_at)}
@@ -110,7 +109,10 @@ function TaskCard({
             <button
               type="button"
               className="text-[11px] px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:opacity-80 transition-opacity"
-              onClick={(e) => { e.stopPropagation(); onComplete(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onComplete();
+              }}
             >
               Complete
             </button>
@@ -119,7 +121,10 @@ function TaskCard({
             <button
               type="button"
               className="text-[11px] px-2 py-0.5 rounded bg-muted text-muted-foreground hover:opacity-80 transition-opacity"
-              onClick={(e) => { e.stopPropagation(); onCancel(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel();
+              }}
             >
               Cancel
             </button>
@@ -133,11 +138,11 @@ function TaskCard({
 export function TaskBoard({
   tasks,
   loading,
-  currentUserId,
-  onCreateTask,
+  currentUserId: _currentUserId,
+  onCreateTask: _onCreateTask,
   onCompleteTask,
   onCancelTask,
-  onAssignTask,
+  onAssignTask: _onAssignTask,
   onTaskClick,
 }: TaskBoardProps) {
   const [view, setView] = useState<"list" | "board">("list");
