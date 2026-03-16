@@ -59,7 +59,9 @@ test.describe("Web App Screenshots", () => {
   test.beforeAll(async () => {
     await waitForServer();
     token = await authenticate();
-    const ws = await getOrCreateWorkspace(token, "Acme Inc.", "acme");
+    // Use a unique slug per run to avoid conflicts with other CI users.
+    const slug = `screenshots-${Date.now().toString(36)}`;
+    const ws = await getOrCreateWorkspace(token, "Acme Inc.", slug);
     wsSlug = ws.slug;
     // Clean slate: delete all existing editor projects
     await deleteAllEditorProjects(token, wsSlug);
