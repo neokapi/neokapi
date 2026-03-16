@@ -81,9 +81,7 @@ export function FileProgressTable({ itemStats, locales }: FileProgressTableProps
                 >
                   File{sortIndicator("name")}
                 </th>
-                <th className="px-2 py-2 text-left font-medium text-muted-foreground">
-                  Format
-                </th>
+                <th className="px-2 py-2 text-left font-medium text-muted-foreground">Format</th>
                 <th
                   className="cursor-pointer px-2 py-2 text-right font-medium text-muted-foreground hover:text-foreground"
                   onClick={() => toggleSort("words")}
@@ -108,20 +106,20 @@ export function FileProgressTable({ itemStats, locales }: FileProgressTableProps
             </thead>
             <tbody>
               {sorted.map((item) => {
-                const localeMap = new Map(
-                  item.locales.map((l) => [l.locale, l]),
-                );
+                const localeMap = new Map(item.locales.map((l) => [l.locale, l]));
                 const avgPct =
                   item.locales.length > 0
                     ? Math.round(
-                        item.locales.reduce((s, l) => s + l.percentage, 0) /
-                          item.locales.length,
+                        item.locales.reduce((s, l) => s + l.percentage, 0) / item.locales.length,
                       )
                     : 0;
 
                 return (
                   <tr key={item.item_id} className="border-b last:border-0">
-                    <td className="max-w-[200px] truncate py-2 pr-3 font-medium" title={item.item_name}>
+                    <td
+                      className="max-w-[200px] truncate py-2 pr-3 font-medium"
+                      title={item.item_name}
+                    >
                       {item.item_name}
                     </td>
                     <td className="px-2 py-2 text-muted-foreground">{item.format}</td>

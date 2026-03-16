@@ -28,12 +28,8 @@ export function CollectionHeatmap({ collectionStats, locales }: CollectionHeatma
                 <th className="py-2 pr-3 text-left font-medium text-muted-foreground">
                   Collection
                 </th>
-                <th className="px-2 py-2 text-right font-medium text-muted-foreground">
-                  Files
-                </th>
-                <th className="px-2 py-2 text-right font-medium text-muted-foreground">
-                  Words
-                </th>
+                <th className="px-2 py-2 text-right font-medium text-muted-foreground">Files</th>
+                <th className="px-2 py-2 text-right font-medium text-muted-foreground">Words</th>
                 {locales.map((l) => (
                   <th
                     key={l}
@@ -46,14 +42,10 @@ export function CollectionHeatmap({ collectionStats, locales }: CollectionHeatma
             </thead>
             <tbody>
               {collectionStats.map((coll) => {
-                const localeMap = new Map(
-                  coll.locales.map((l) => [l.locale, l]),
-                );
+                const localeMap = new Map(coll.locales.map((l) => [l.locale, l]));
                 return (
                   <tr key={coll.collection_id} className="border-b last:border-0">
-                    <td className="py-2 pr-3 font-medium">
-                      {coll.collection_name || "Default"}
-                    </td>
+                    <td className="py-2 pr-3 font-medium">{coll.collection_name || "Default"}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
                       {coll.item_count}
                     </td>

@@ -12,9 +12,7 @@ describe("TranslationDashboard", () => {
   });
 
   it("renders the project name in the header", () => {
-    render(
-      <TranslationDashboard stats={sampleDashboardStats} projectName="Demo App" />,
-    );
+    render(<TranslationDashboard stats={sampleDashboardStats} projectName="Demo App" />);
     expect(screen.getByText(/Demo App — Translation Dashboard/)).toBeInTheDocument();
   });
 
