@@ -7,6 +7,7 @@ import {
   BrandProfilesSkeleton,
   SettingsSkeleton,
   ExplorerSkeleton,
+  TranslationDashboardSkeleton,
 } from "../../components/skeletons";
 
 const meta: Meta = {
@@ -50,4 +51,8 @@ export const Settings: Story = {
 
 export const Explorer: Story = {
   render: () => <ExplorerSkeleton />,
+};
+
+export const TranslationDashboard: Story = {
+  render: () => <TranslationDashboardSkeleton />,
 };

@@ -248,6 +248,16 @@ export function ProjectDetailRoute() {
         }
         onUploadFiles={handleUploadFiles}
         onRemoveFile={handleRemoveFile}
+        onOpenDashboard={() =>
+          navigate({
+            to: "/$workspace/p/$projectId/s/$stream/dashboard",
+            params: {
+              workspace: workspace ?? ws,
+              projectId: project.id,
+              stream: activeStream || "main",
+            },
+          })
+        }
         onOpenTM={() =>
           navigate({ to: "/$workspace/memory", params: { workspace: workspace ?? ws } })
         }

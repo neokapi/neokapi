@@ -674,6 +674,55 @@ func (s *PostgresStore) GetBlocks(ctx context.Context, query platstore.BlockQuer
 	return result, rows.Err()
 }
 
+func (s *PostgresStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]platstore.BlockStatRow, error) {
+	stream = defaultStream(stream)
+
+	// Get item names for the stream to scope the query.
+	items, err := s.ListItems(ctx, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("list items: %w", err)
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+
+	// Build IN clause for item names.
+	placeholders := make([]string, len(items))
+	args := []any{projectID}
+	for i, item := range items {
+		placeholders[i] = fmt.Sprintf("$%d", i+2)
+		args = append(args, item.Name)
+	}
+
+	q := fmt.Sprintf(
+		`SELECT item_name, translatable, source_json, targets_json
+		 FROM blocks WHERE project_id = $1 AND item_name IN (%s)
+		 ORDER BY item_name, id`,
+		strings.Join(placeholders, ","))
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query block stats: %w", err)
+	}
+	defer rows.Close()
+
+	var result []platstore.BlockStatRow
+	for rows.Next() {
+		var itemName, sourceJSON, targetsJSON string
+		var translatable bool
+		if err := rows.Scan(&itemName, &translatable, &sourceJSON, &targetsJSON); err != nil {
+			return nil, fmt.Errorf("scan block stat: %w", err)
+		}
+		result = append(result, platstore.BlockStatRow{
+			ItemName:      itemName,
+			Translatable:  translatable,
+			SourceWords:   countWordsFromSourceJSON(sourceJSON),
+			TargetLocales: extractTargetLocales(targetsJSON),
+		})
+	}
+	return result, rows.Err()
+}
+
 func (s *PostgresStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
 	stream = defaultStream(stream)
 	tx, err := s.db.BeginTx(ctx, nil)

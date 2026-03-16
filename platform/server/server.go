@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -115,6 +116,9 @@ type Server struct {
 
 	// ExtractionQueue enqueues extraction job IDs. Nil when not configured.
 	ExtractionQueue jobs.Queue
+
+	// dashboardCache caches translation dashboard stats per project/stream.
+	dashboardCache sync.Map // map[string]*dashboardCacheEntry
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -444,6 +448,9 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// Archived projects (bin)
 	g.GET("/archived/projects", s.HandleListArchivedProjects)
+
+	// Translation dashboard (project-scoped, cached)
+	g.GET("/editor/projects/:pid/dashboard", s.HandleGetTranslationDashboard)
 
 	// Collection management (project-scoped)
 	g.GET("/editor/projects/:pid/collections", s.HandleListCollections)

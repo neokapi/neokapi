@@ -564,48 +564,48 @@ function App() {
         <ApiProvider adapter={wailsAdapter}>
           <WorkspaceProvider initialWorkspace={workspace}>
             <AppShell
-            workspaces={allWorkspaces}
-            activeWorkspace={workspace}
-            onSelectWorkspace={handleSelectWorkspace}
-            onCreateWorkspace={isServerMode ? () => setShowCreateWs(true) : undefined}
-            activeView={activeView}
-            onViewChange={handleViewChange}
-            extraNavItems={desktopNavItems}
-            user={sidebarUser}
-            onSignOut={isServerMode ? handleSignOut : undefined}
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={setSidebarCollapsed}
-            topBar
-            connectionState={connectionState}
-            pendingChanges={pendingChanges}
-            showThemeToggle={false}
-            sidebarContext={sidebarContext}
-            headerSlot={
-              <TopBar
-                user={sidebarUser}
-                onSignOut={isServerMode ? handleSignOut : undefined}
-                connectionState={
-                  isServerMode
-                    ? (connection.info.state as
-                        | "disconnected"
-                        | "connecting"
-                        | "connected"
-                        | "offline")
-                    : undefined
-                }
-                pendingChanges={pendingChanges}
-              />
-            }
-            contentClassName={cn(isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto")}
-          >
-            {renderView()}
-          </AppShell>
+              workspaces={allWorkspaces}
+              activeWorkspace={workspace}
+              onSelectWorkspace={handleSelectWorkspace}
+              onCreateWorkspace={isServerMode ? () => setShowCreateWs(true) : undefined}
+              activeView={activeView}
+              onViewChange={handleViewChange}
+              extraNavItems={desktopNavItems}
+              user={sidebarUser}
+              onSignOut={isServerMode ? handleSignOut : undefined}
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+              topBar
+              connectionState={connectionState}
+              pendingChanges={pendingChanges}
+              showThemeToggle={false}
+              sidebarContext={sidebarContext}
+              headerSlot={
+                <TopBar
+                  user={sidebarUser}
+                  onSignOut={isServerMode ? handleSignOut : undefined}
+                  connectionState={
+                    isServerMode
+                      ? (connection.info.state as
+                          | "disconnected"
+                          | "connecting"
+                          | "connected"
+                          | "offline")
+                      : undefined
+                  }
+                  pendingChanges={pendingChanges}
+                />
+              }
+              contentClassName={cn(isEditor || isFlowBuilder ? "overflow-hidden" : "overflow-auto")}
+            >
+              {renderView()}
+            </AppShell>
 
-          <CreateWorkspaceDialog
-            open={showCreateWs}
-            onOpenChange={setShowCreateWs}
-            onCreate={handleWorkspaceCreated}
-          />
+            <CreateWorkspaceDialog
+              open={showCreateWs}
+              onOpenChange={setShowCreateWs}
+              onCreate={handleWorkspaceCreated}
+            />
           </WorkspaceProvider>
         </ApiProvider>
       </TooltipProvider>

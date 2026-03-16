@@ -218,3 +218,62 @@ type ChangeSet struct {
 	NewCursor int64         `json:"new_cursor"` // Latest seq in this batch
 	HasMore   bool          `json:"has_more"`   // True if more changes exist beyond this batch
 }
+
+// ---------------------------------------------------------------------------
+// Block Statistics (lightweight projection for dashboard queries)
+// ---------------------------------------------------------------------------
+
+// BlockStatRow is a lightweight projection of a block for dashboard aggregation.
+// It avoids full deserialization of source segments, target segments, properties,
+// and annotations — only the fields needed for word/block counting are included.
+type BlockStatRow struct {
+	ItemName      string   // which item (file) this block belongs to
+	Translatable  bool     // whether the block is translatable
+	SourceWords   int      // word count from source text
+	TargetLocales []string // locales that have non-empty target translations
+}
+
+// ---------------------------------------------------------------------------
+// Translation Dashboard Statistics
+// ---------------------------------------------------------------------------
+
+// TranslationDashboardStats holds aggregated translation metrics for a project.
+type TranslationDashboardStats struct {
+	LocaleStats        []LocaleTranslationStats      `json:"locale_stats"`
+	ItemStats          []ItemTranslationStats         `json:"item_stats"`
+	CollectionStats    []CollectionTranslationStats   `json:"collection_stats"`
+	TotalBlocks        int                            `json:"total_blocks"`
+	TranslatableBlocks int                            `json:"translatable_blocks"`
+	TotalSourceWords   int                            `json:"total_source_words"`
+}
+
+// LocaleTranslationStats holds translation progress for a single target locale.
+type LocaleTranslationStats struct {
+	Locale           string  `json:"locale"`
+	TranslatedBlocks int     `json:"translated_blocks"`
+	TotalBlocks      int     `json:"total_blocks"`
+	TranslatedWords  int     `json:"translated_words"`
+	TotalWords       int     `json:"total_words"`
+	Percentage       float64 `json:"percentage"`
+}
+
+// ItemTranslationStats holds per-file translation progress.
+type ItemTranslationStats struct {
+	ItemName     string                   `json:"item_name"`
+	ItemID       string                   `json:"item_id"`
+	Format       string                   `json:"format"`
+	CollectionID string                   `json:"collection_id"`
+	BlockCount   int                      `json:"block_count"`
+	WordCount    int                      `json:"word_count"`
+	Locales      []LocaleTranslationStats `json:"locales"`
+}
+
+// CollectionTranslationStats holds per-collection translation progress.
+type CollectionTranslationStats struct {
+	CollectionID   string                   `json:"collection_id"`
+	CollectionName string                   `json:"collection_name"`
+	ItemCount      int                      `json:"item_count"`
+	BlockCount     int                      `json:"block_count"`
+	WordCount      int                      `json:"word_count"`
+	Locales        []LocaleTranslationStats `json:"locales"`
+}
