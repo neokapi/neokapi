@@ -324,7 +324,11 @@ export async function createAnonymousProject(
   const resp = await fetch(`${API}/projects/anonymous`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, default_source_language: sourceLocale, target_languages: targetLocales }),
+    body: JSON.stringify({
+      name,
+      default_source_language: sourceLocale,
+      target_languages: targetLocales,
+    }),
   });
   if (!resp.ok)
     throw new Error(`Create anonymous project failed: ${resp.status} ${await resp.text()}`);
