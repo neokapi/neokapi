@@ -1,15 +1,11 @@
 import { useState } from "react";
 import type { ProjectInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
-import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
 import { ProjectFormDialog } from "./ProjectFormDialog";
 import type { ProjectFormData } from "./ProjectFormDialog";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -251,7 +247,7 @@ interface PathwayCardProps {
   glow?: "blue" | "violet" | "cyan";
 }
 
-function PathwayCard({ icon, title, description, action, onClick, glow }: PathwayCardProps) {
+function PathwayCard({ icon, title, description, action, onClick, glow: _glow }: PathwayCardProps) {
   return (
     <Card className="cursor-pointer transition-all group flex flex-col" onClick={onClick}>
       <CardContent className="pt-5 pb-5 flex flex-col flex-1">

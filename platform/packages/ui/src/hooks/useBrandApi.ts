@@ -1,12 +1,7 @@
-import { useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import { useWorkspace } from "../context/WorkspaceContext";
 import type {
-  VoiceProfile,
-  BrandComplianceScore,
-  ScoreTrend,
-  StoredScore,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
 } from "../brand/types";

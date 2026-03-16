@@ -26,7 +26,7 @@ export default defineConfig({
     },
   },
   lint: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "bindings/**"],
     options: {
       typeAware: true,
       typeCheck: false,
@@ -34,6 +34,6 @@ export default defineConfig({
   },
   fmt: {
     singleQuote: false,
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "bindings/**"],
   },
 });
