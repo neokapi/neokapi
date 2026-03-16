@@ -8,12 +8,8 @@ test.describe("Authentication", () => {
 
   test("session cookie grants access to protected routes", async ({ authenticatedPage }) => {
     await authenticatedPage.goto("/");
-    // Should see the app (not the login page) — look for nav elements.
-    await expect(
-      authenticatedPage.getByTestId("nav-translate").or(
-        authenticatedPage.getByText(/workspace|create/i),
-      ),
-    ).toBeVisible({ timeout: 15_000 });
+    // Should see the app (not the login page) — look for the sidebar nav.
+    await expect(authenticatedPage.getByTestId("nav-translate")).toBeVisible({ timeout: 15_000 });
   });
 
   test("passkey login works for existing user", async ({

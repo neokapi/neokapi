@@ -20,18 +20,23 @@ import { BowrainAPI, waitForReady, type ReadinessInfo } from "../helpers/api-cli
 
 const BOWRAIN_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 
-/** Derive Keycloak URL from the server URL convention. */
-function defaultKeycloakUrl(): string {
+/**
+ * Derive the Keycloak admin API URL.
+ * On Azure, the admin API is only accessible via the Container App's internal FQDN
+ * (KC_HOSTNAME_ADMIN), not the public Front Door URL. Set KEYCLOAK_ADMIN_URL to override.
+ */
+function defaultKeycloakAdminUrl(): string {
+  if (process.env.KEYCLOAK_ADMIN_URL) return process.env.KEYCLOAK_ADMIN_URL;
   if (process.env.KEYCLOAK_URL) return process.env.KEYCLOAK_URL;
   const url = new URL(BOWRAIN_URL);
   if (url.hostname === "localhost") {
     return `http://localhost:8180`;
   }
-  // Cloud convention: auth.dev.bowrain.cloud for dev.bowrain.cloud
+  // Cloud: use the internal Container App FQDN if available, otherwise public URL.
   return `https://auth.${url.hostname.replace(/^www\./, "")}`;
 }
 
-const KEYCLOAK_URL = defaultKeycloakUrl();
+const KEYCLOAK_ADMIN_URL = defaultKeycloakAdminUrl();
 const KEYCLOAK_ADMIN_PASSWORD = process.env.KEYCLOAK_ADMIN_PASSWORD || "admin";
 
 function testUserEmail(): string {
@@ -49,18 +54,21 @@ export interface AuthContext {
   sessionToken: string;
 }
 
+export interface WorkerFixtures {
+  auth: AuthContext;
+}
+
 export interface TestFixtures {
   kcAdmin: KeycloakAdmin;
   readiness: ReadinessInfo;
   api: BowrainAPI;
-  auth: AuthContext;
   authenticatedPage: Page;
 }
 
-export const test = base.extend<TestFixtures>({
+export const test = base.extend<TestFixtures, WorkerFixtures>({
   kcAdmin: async ({}, use) => {
     const admin = new KeycloakAdmin({
-      baseUrl: KEYCLOAK_URL,
+      baseUrl: KEYCLOAK_ADMIN_URL,
       adminPassword: KEYCLOAK_ADMIN_PASSWORD,
     });
     await use(admin);
@@ -72,7 +80,11 @@ export const test = base.extend<TestFixtures>({
   },
 
   auth: [
-    async ({ browser, kcAdmin }, use) => {
+    async ({ browser }, use) => {
+      const kcAdmin = new KeycloakAdmin({
+        baseUrl: KEYCLOAK_ADMIN_URL,
+        adminPassword: KEYCLOAK_ADMIN_PASSWORD,
+      });
       const email = testUserEmail();
       const name = "E2E Test User";
 
@@ -175,13 +187,14 @@ export const test = base.extend<TestFixtures>({
       // Wait for the app to fully load (ensures the callback was processed).
       await page.waitForLoadState("networkidle");
 
-      const cookies = await context.cookies(BOWRAIN_URL);
-      const sessionCookie = cookies.find((c) => c.name === "bowrain_session");
+      // The session cookie has path=/api/ — get all cookies for the domain.
+      const allCookies = await context.cookies();
+      const sessionCookie = allCookies.find((c) => c.name === "bowrain_session");
       if (!sessionCookie) {
         throw new Error(
           `No bowrain_session cookie after login.\n` +
             `URL: ${page.url()}\n` +
-            `Cookies: ${cookies.map((c) => c.name).join(", ")}`,
+            `Cookies: ${allCookies.map((c) => `${c.name}(${c.path})`).join(", ")}`,
         );
       }
 
