@@ -6,6 +6,7 @@ import {
   ApiProvider,
   WorkspaceProvider,
   ThemeProvider,
+  TooltipProvider,
   AppShell,
   CreateWorkspaceDialog,
   ProjectDashboard,
@@ -415,6 +416,32 @@ function App() {
     ? (connection.info.state as "disconnected" | "connecting" | "connected" | "offline")
     : undefined;
 
+  // Build sidebar context so the sidebar transforms based on navigation depth.
+  // Must be before early returns to maintain consistent hook call order.
+  const sidebarContext = useMemo<SidebarContext | undefined>(() => {
+    if (activeView !== "translate" || !activeProject) {
+      return { level: "workspace", activeView: activeView as View };
+    }
+    return {
+      level: "project",
+      project: activeProject,
+      activeStream: "main",
+      activeProjectView: "dashboard" as const,
+      // Home goes up one level: editor → project, project → workspace
+      onBack: activeFile ? handleBackToProject : handleBackToProjects,
+      onOpenDashboard: handleBackToProject,
+      onOpenFile: handleOpenFile,
+      onStreamChange: () => {},
+    };
+  }, [
+    activeView,
+    activeProject,
+    activeFile,
+    handleBackToProjects,
+    handleBackToProject,
+    handleOpenFile,
+  ]);
+
   // --- Pre-app screens ---
 
   if (mode === "loading") {
@@ -451,31 +478,6 @@ function App() {
   }
 
   // --- Main app (mode === "ready") ---
-
-  // Build sidebar context so the sidebar transforms based on navigation depth.
-  const sidebarContext = useMemo<SidebarContext | undefined>(() => {
-    if (activeView !== "translate" || !activeProject) {
-      return { level: "workspace", activeView: activeView as View };
-    }
-    return {
-      level: "project",
-      project: activeProject,
-      activeStream: "main",
-      activeProjectView: "dashboard" as const,
-      // Home goes up one level: editor → project, project → workspace
-      onBack: activeFile ? handleBackToProject : handleBackToProjects,
-      onOpenDashboard: handleBackToProject,
-      onOpenFile: handleOpenFile,
-      onStreamChange: () => {},
-    };
-  }, [
-    activeView,
-    activeProject,
-    activeFile,
-    handleBackToProjects,
-    handleBackToProject,
-    handleOpenFile,
-  ]);
 
   const renderView = () => {
     if (activeView === "translate" && activeProject && showTermExplorer) {
@@ -558,9 +560,10 @@ function App() {
 
   return (
     <ThemeProvider>
-      <ApiProvider adapter={wailsAdapter}>
-        <WorkspaceProvider initialWorkspace={workspace}>
-          <AppShell
+      <TooltipProvider>
+        <ApiProvider adapter={wailsAdapter}>
+          <WorkspaceProvider initialWorkspace={workspace}>
+            <AppShell
             workspaces={allWorkspaces}
             activeWorkspace={workspace}
             onSelectWorkspace={handleSelectWorkspace}
@@ -603,8 +606,9 @@ function App() {
             onOpenChange={setShowCreateWs}
             onCreate={handleWorkspaceCreated}
           />
-        </WorkspaceProvider>
-      </ApiProvider>
+          </WorkspaceProvider>
+        </ApiProvider>
+      </TooltipProvider>
     </ThemeProvider>
   );
 }
