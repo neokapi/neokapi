@@ -17,6 +17,7 @@ import (
 	pb "github.com/neokapi/neokapi/core/plugin/proto/v2"
 	"github.com/neokapi/neokapi/core/plugin/shared"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -66,6 +67,10 @@ func (b *JavaBridge) Start() error {
 		conn, err := grpc.NewClient("passthrough:///"+b.cfg.Address,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
+			grpc.WithWriteBufferSize(256*1024),
+			grpc.WithReadBufferSize(256*1024),
+			grpc.WithInitialWindowSize(4*1024*1024),
+			grpc.WithInitialConnWindowSize(8*1024*1024),
 		)
 		if err != nil {
 			return fmt.Errorf("connecting to bridge at %s: %w", b.cfg.Address, err)
@@ -142,6 +147,10 @@ func (b *JavaBridge) Start() error {
 	conn, err := grpc.NewClient("passthrough:///"+addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
+		grpc.WithWriteBufferSize(256*1024),
+		grpc.WithReadBufferSize(256*1024),
+		grpc.WithInitialWindowSize(4*1024*1024),
+		grpc.WithInitialConnWindowSize(8*1024*1024),
 	)
 	if err != nil {
 		_ = b.cmd.Process.Kill()
@@ -303,7 +312,7 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 	}
 
 	// 2. Receive parts from Java (read phase) and feed to processFn.
-	readParts := make(chan *model.Part, 64)
+	readParts := make(chan *model.Part, 4096)
 	done := make(chan struct{})
 	recvResult := make(chan *ProcessResult, 1)
 	recvErr := make(chan error, 1)
@@ -325,6 +334,28 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 					close(readParts)
 					recvErr <- ctx.Err()
 					return
+				}
+			case *pb.ProcessResponse_PartBatch:
+				for _, msg := range r.PartBatch.Parts {
+					part := shared.ProtoToPart(msg)
+					select {
+					case readParts <- part:
+					case <-ctx.Done():
+						close(readParts)
+						recvErr <- ctx.Err()
+						return
+					}
+				}
+			case *pb.ProcessResponse_ContentBatch:
+				for _, cb := range r.ContentBatch.Blocks {
+					part := shared.ContentBlockToPart(cb)
+					select {
+					case readParts <- part:
+					case <-ctx.Done():
+						close(readParts)
+						recvErr <- ctx.Err()
+						return
+					}
 				}
 			case *pb.ProcessResponse_ReadDone:
 				// Close readParts so processFn can finish draining.
@@ -410,27 +441,27 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 	}
 }
 
-// IsHealthy checks if the bridge is still alive.
+// IsHealthy checks if the bridge is still usable. It uses the healthy flag
+// (set after each successful operation) and falls back to checking the gRPC
+// connection state. Returns true if the bridge has no client (e.g. mock/test
+// bridges).
 func (b *JavaBridge) IsHealthy() bool {
 	b.mu.RLock()
 	running := b.running
+	conn := b.conn
 	b.mu.RUnlock()
 
 	if !running {
 		return false
 	}
-
-	// No client means this is a mock/test bridge — skip the health check.
-	if b.client == nil {
-		return true
-	}
-
-	// Fast path: if the last operation succeeded, the bridge is healthy.
 	if b.healthy.Load() {
 		return true
 	}
-
-	return true
+	if conn == nil {
+		return true // mock/test bridge
+	}
+	state := conn.GetState()
+	return state != connectivity.Shutdown
 }
 
 // logWriter adapts a *log.Logger to io.Writer for stderr capture.

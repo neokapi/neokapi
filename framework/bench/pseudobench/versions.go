@@ -78,16 +78,3 @@ func buildVersions(repoRoot, outputDir string, tags []string) error {
 	return nil
 }
 
-// runCommand runs a command and returns stdout as a string.
-func runCommand(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	out, err := cmd.Output()
-	return string(out), err
-}
-
-// runCommandCombined runs a command and returns combined stdout+stderr.
-func runCommandCombined(name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
-	out, err := cmd.CombinedOutput()
-	return string(out), err
-}

@@ -456,12 +456,26 @@ func buildBridgeConfig(manifest *pluginreg.BundledManifest, versionDir string) b
 	}
 
 	// Resolve relative paths in args against the version directory.
-	args := make([]string, len(manifest.Args))
-	for i, arg := range manifest.Args {
+	// Prepend JVM heap size if not already set in the manifest args.
+	var args []string
+	hasXmx := false
+	for _, arg := range manifest.Args {
+		if strings.HasPrefix(arg, "-Xmx") {
+			hasXmx = true
+		}
+	}
+	if command == "java" && !hasXmx {
+		heap := os.Getenv("KAPI_BRIDGE_HEAP")
+		if heap == "" {
+			heap = "16g"
+		}
+		args = append(args, "-Xmx"+heap)
+	}
+	for _, arg := range manifest.Args {
 		if !filepath.IsAbs(arg) && (strings.HasSuffix(arg, ".jar") || strings.HasSuffix(arg, ".exe")) {
-			args[i] = filepath.Join(versionDir, arg)
+			args = append(args, filepath.Join(versionDir, arg))
 		} else {
-			args[i] = arg
+			args = append(args, arg)
 		}
 	}
 

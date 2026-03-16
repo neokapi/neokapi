@@ -8,51 +8,73 @@ This note provides implementation details for [AD-007](/docs/ad/007-plugin-syste
 
 ## gRPC Bridge Protocol
 
-The Okapi bridge is a subprocess that hosts Okapi Framework filters and exposes them via a gRPC service. The Go side (`core/plugin/bridge/`) manages the subprocess lifecycle, connects as a gRPC client, and translates between neokapi's Part model and Okapi's Event model.
+The Okapi bridge is a subprocess (or daemon) that hosts Okapi Framework filters and exposes them via a gRPC service. The Go side (`core/plugin/bridge/`) manages the subprocess lifecycle, connects as a gRPC client, and translates between neokapi's Part model and Okapi's Event model.
 
 The protocol is defined in `core/plugin/proto/v2/neokapi_bridge.proto`:
 
 ```protobuf
 service BridgeService {
-  rpc Info(InfoRequest) returns (InfoResponse);
-  rpc ListFilters(ListFiltersRequest) returns (ListFiltersResponse);
-  rpc Open(OpenRequest) returns (OpenResponse);
-  rpc Read(ReadRequest) returns (stream PartMessage);
-  rpc Write(stream WriteChunk) returns (WriteResponse);
-  rpc Close(CloseRequest) returns (CloseResponse);
-  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
+  // Process performs a complete document processing cycle using bidirectional
+  // streaming. Supports read-only, read-write, and single-pass modes.
+  rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
 
-  // RoundTrip performs a complete read → process → write cycle on a single
-  // filter instance using bidirectional streaming.
-  rpc RoundTrip(stream RoundTripRequest) returns (stream RoundTripResponse);
+  // Shutdown gracefully shuts down the bridge server.
+  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
 ```
 
-### RPC Lifecycle
+### Process RPC Protocol
 
-A typical read cycle:
+A single `Process` stream handles the full document lifecycle:
 
-1. **Open** — sends the document content (or a file path) and filter configuration
-2. **Read** — streams `PartMessage` values (Blocks, Layers, Data, GroupStart/GroupEnd, Media) as the filter extracts them
-3. **Close** — releases filter resources; the bridge becomes available for the next document
+1. **Go sends `ProcessHeader`** — filter class, input document (path or inline bytes), source/target locale, encoding, output destination, `subscribe_parts` filter
+2. **Java reads the filter** — iterates Okapi events, converts subscribed events to `ContentBlock` messages, batches into `ContentBlockBatch` (up to 1024 blocks per message), streams to Go
+3. **Go processes blocks** — pipes through flow tool chain (e.g., pseudo-translate, AI translate), sends processed blocks back individually via `ProcessRequest.part`
+4. **Java applies translations** — writer thread applies translations from a queue, writes events to the Okapi filter writer
+5. **Java sends `ReadDone`** — signals all events have been read and written
+6. **Go sends `CloseSend`** — signals no more processed parts
+7. **Java sends `ProcessComplete`** — output path or inline bytes
 
-A write cycle:
+### Wire Format
 
-1. **Open** — opens the filter with the original document for skeleton reconstruction
-2. **Write** — client-streams a `WriteHeader` (filter class, locale, original content, optional `OutputRef` for direct disk output) followed by `PartMessage` values; returns the reconstructed document bytes
-3. **Close** — releases resources
+Two lightweight message types reduce gRPC overhead:
 
-A roundtrip cycle (bidirectional streaming, single bridge):
+```protobuf
+// ContentBlock — lightweight block for gRPC transfer (~10x smaller than BlockMessage).
+// Omits skeleton and is_referent which stay on the Java side.
+message ContentBlock {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string mime_type = 4;
+  bool translatable = 5;
+  repeated SegmentMessage source = 6;
+  repeated TargetEntry targets = 7;
+  map<string, string> properties = 8;
+  bool preserve_whitespace = 9;
+  map<string, AnnotationEntry> annotations = 10;
+  DisplayHintMessage display_hint = 11;
+}
 
-1. **RoundTrip** — client sends `RoundTripHeader`, server reads document and streams `PartMessage` values back, client processes parts and returns them as `RoundTripProcessed`, server writes output and sends `RoundTripComplete`
+// ContentBlockBatch — batched content blocks (up to 1024 per message).
+message ContentBlockBatch {
+  repeated ContentBlock blocks = 1;
+}
+```
 
-The roundtrip mode enables concurrent processing: multiple goroutines share a single bridge via `AcquireShared()`, each running its own RoundTrip stream on the same JVM.
+The `subscribe_parts` field in `ProcessHeader` controls which event types cross gRPC:
 
-**Note:** `ListFilters` is defined in the protocol but is NOT called during plugin discovery. Instead, format capabilities are loaded from `manifest.json` and schema files on disk (see Plugin Loader below), eliminating the need to start a JVM during discovery.
+```protobuf
+message ProcessHeader {
+  ...
+  repeated int32 subscribe_parts = 10;
+  // Empty = all events cross gRPC (backward compatible).
+  // [4] = Block only — structural events (Layer, Data, Group) are
+  // written directly by Java without gRPC round-trips.
+}
+```
 
-### Subprocess Startup
-
-On launch, the bridge subprocess starts a gRPC server on a random port and prints the socket address to stdout. The Go side reads this address, connects as a gRPC client, and the bridge is ready. The `BridgeConfig.StartupTimeout` controls how long to wait.
+Setting `subscribe_parts = [4]` reduces message count from ~570K to ~157K for a large XLSX file, since only translatable Block events need Go-side processing.
 
 ### Content Transfer
 
@@ -63,180 +85,172 @@ message ContentRef {
   oneof location {
     bytes  inline = 1;  // Inline bytes
     string path   = 2;  // Local filesystem path
-    string uri    = 3;  // Remote/local URI (file://, s3://, gs://)
+    string uri    = 3;  // Remote/local URI
   }
 }
 
 message OutputRef {
   oneof destination {
-    string path = 1;  // Local filesystem path
-    string uri  = 2;  // Remote/local URI
+    string path = 1;
+    string uri  = 2;
   }
 }
 ```
 
-`ContentRef` is the preferred way to pass document content in `OpenRequest`, `WriteHeader`, and `RoundTripHeader`. Legacy fields (`content` bytes and `source_path` string) are still supported for backward compatibility. `OutputRef` allows the bridge to write output directly to disk rather than returning bytes inline.
+File paths are preferred over inline bytes — they allow Java to resolve relative references (ITS linked rules, XLIFF standoff, companion files) and avoid byte transfer overhead.
 
-The `Read` and `Write` RPCs use gRPC streaming, so Parts flow incrementally without buffering the entire document in memory.
+### Subprocess Startup
 
-## Global Bridge Pool
+On launch, the bridge subprocess starts a gRPC server on a random port and prints the socket address to stdout. The Go side reads this address, connects as a gRPC client, and the bridge is ready. The `BridgeConfig.StartupTimeout` controls how long to wait.
 
-A single process-wide `BridgePool` manages all bridge subprocess instances. The pool is keyed by process configuration (command + args): idle bridges are bucketed by key, but the total number of running subprocesses (across all keys) never exceeds `maxSize` (default: `runtime.NumCPU()`).
+JVM heap defaults to 16GB (`-Xmx16g`), configurable via the `KAPI_BRIDGE_HEAP` environment variable.
+
+## Java Pipeline Architecture
+
+The Java `BridgeServiceImpl` uses a two-thread single-pass design:
+
+```
+┌─ Reader Thread (filterPool, bounded) ─────────────────────────┐
+│  filter.open(doc)                                             │
+│  writer = filter.createFilterWriter()  ← same filter instance │
+│  while filter.hasNext():                                      │
+│    event = filter.next()                                      │
+│    eventQueue.put(event) ─────────────→ Writer Thread          │
+│    if subscribed(event):                                      │
+│      sendBatch.add(toContentBlock(event))                     │
+│      if batch full: respObserver.onNext(ContentBlockBatch)    │
+│  eventQueue.put(END_OF_EVENTS)                                │
+│  writerFuture.get()                                           │
+└───────────────────────────────────────────────────────────────┘
+
+┌─ Writer Thread (writerPool, unbounded) ───────────────────────┐
+│  while (event = eventQueue.poll()) != END_OF_EVENTS:          │
+│    modified = applier.applyTranslations(event)                │
+│    writer.handleEvent(modified)                               │
+└───────────────────────────────────────────────────────────────┘
+```
+
+Key design choices:
+
+- **Single filter read** — writer is created before iteration, same filter instance as reader. No double I/O (unlike the two-phase approach).
+- **Decoupled threads** — reader never blocks on translations, writer never blocks on gRPC sends. Prevents the circular deadlock that occurs when a single thread handles both gRPC sends and translation queue draining.
+- **Bounded event queue** (`ArrayBlockingQueue`, capacity 8192) — provides back-pressure without deadlock.
+- **Pipeline semaphore** — rejects excess concurrent streams with `RESOURCE_EXHAUSTED`.
+- **Separate thread pools** — `filterPool` (bounded, `--concurrency N`) for reader pipelines, `writerPool` (unbounded) for writer threads. Prevents thread starvation when all filterPool threads are busy reading.
+
+### Configuration
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--concurrency N` | `availableProcessors()` | Max concurrent filter pipelines |
+| `--idle-timeout N` | 0 (no timeout) | Shut down after N seconds idle |
+| `--stuck-timeout N` | 120 | Translation queue poll timeout (seconds) |
+
+### Heartbeat and Auto-Close
+
+- **Parent heartbeat** (subprocess mode): checks if parent process is alive every 5 seconds; exits if parent dies
+- **Idle timeout** (daemon mode): shuts down after N seconds with no active streams
+- **Stuck timeout**: aborts pipeline if translation queue poll exceeds timeout
+
+## Bridge Registry
+
+A single process-wide `BridgeRegistry` manages bridge instances:
 
 ```go
-type BridgePool struct {
-    mu      sync.Mutex
-    cond    *sync.Cond
-    maxSize int
-    active  int                       // total running bridges (idle + in-use + shared)
-    closed  bool
-    logger  *log.Logger
-    idle    map[string][]*JavaBridge   // keyed by PoolKey
-    shared  map[string]*sharedEntry   // keyed by PoolKey — one shared bridge per config
-}
-
-// sharedEntry tracks a bridge with active concurrent sessions.
-type sharedEntry struct {
-    bridge   *JavaBridge
-    sessions int
+type BridgeRegistry struct {
+    bridges   map[string]*managedBridge  // keyed by config hash
+    global    chan struct{}              // global concurrency semaphore
+    maxPerJVM int                       // per-JVM concurrency limit
+    daemon    bool                      // persist JVMs across invocations
 }
 ```
 
-The pool supports two access modes:
+### Concurrency Control
 
-- **Exclusive** (`Acquire`/`Release`): one goroutine owns the bridge for stateful Open→Read→Close or Write cycles
-- **Shared** (`AcquireShared`/`ReleaseShared`): multiple goroutines share a single bridge for concurrent RoundTrip streams, using reference counting via `sessions`
+- **Global semaphore** (`maxTotal`, default `NumCPU`): bounds total concurrent streams across all JVMs
+- **Per-JVM semaphore** (`maxPerJVM`, default 8): bounds concurrent streams on each JVM
+- `Acquire(cfg)` returns a bridge + release function; blocks if at capacity
 
-### Acquire Algorithm (Exclusive)
+### Daemon Mode
 
-1. Return idle bridge for requested key (LIFO for cache warmth)
-2. If capacity available, create new bridge
-3. If at capacity but idle bridges exist for a different key, **evict one** (stop it, start a new one for the requested key)
-4. If all bridges are in-use with none idle, block until one is released
-
-### AcquireShared Algorithm
-
-1. Reuse existing shared bridge for this config (increment session count)
-2. Promote idle bridge to shared if available
-3. Create new bridge if capacity available
-4. Evict idle bridge from different bucket if at capacity
-5. Block if all bridges in-use
-
-The eviction step is critical: without it, the pool deadlocks when all capacity is consumed by one key and a request arrives for a different key. `sync.Cond` with `Broadcast()` is used because waiters may be for different keys.
-
-### Health Checks
-
-On release back to the pool, bridges undergo a health check to verify the gRPC connection is still alive. Unhealthy bridges are discarded rather than returned to the idle set, preventing stale subprocesses from causing hangs on subsequent use.
+When `KAPI_BRIDGE_DAEMON=1`:
+- JVMs persist after kapi exits (no Shutdown RPC sent)
+- Discovered via address files in `~/.cache/neokapi/bridge/`
+- `KAPI_BRIDGE_IDLE_TIMEOUT` controls JVM auto-shutdown (default 30s)
+- Eliminates JVM startup cost for subsequent invocations
 
 ### Warmup
 
-The pool provides a `Warmup(cfg)` method to eagerly start a bridge for a given configuration before it's needed. The `PluginLoader` creates one pool and shares it across all bridge descriptors and versions.
+`WarmupBridges()` eagerly starts one JVM per bridge configuration before concurrent file processing begins, amortizing the ~1.3s JVM startup cost.
+
+## gRPC Performance Tuning
+
+Both Go client and Java server are tuned for localhost throughput:
+
+### Go Client
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Write buffer | 256 KB | Coalesce small writes (default 32KB) |
+| Read buffer | 256 KB | Reduce read syscalls |
+| Stream window | 4 MB | Per-stream flow control headroom |
+| Connection window | 8 MB | Per-connection flow control |
+| Max recv msg | 64 MB | Large ContentBlockBatch messages |
+| readParts channel | 4096 | Absorb large batch unpacks |
+
+### Java Server (Netty)
+
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Flow control window | 4 MB | Match Go client window |
+| Max inbound msg | 64 MB | Large batch messages |
+| ContentBlockBatch size | 1024 | Blocks per gRPC message (Java→Go) |
+
+### Go→Java Send Strategy
+
+Processed parts are sent back individually (not batched) from Go to Java.
+Batching from Go→Java causes a deadlock: the final partial batch is held until
+the `processedParts` channel closes, which requires `ReadDone` from Java, which
+requires translations from Go — circular dependency. Individual sends avoid this
+because each part is delivered immediately.
+
+Java→Go batching (ContentBlockBatch of 1024) is safe because Java sends all
+blocks before waiting for translations.
 
 ## Plugin Parameters
 
 Plugin parameters are described by JSON Schema files bundled in the `schemas/` directory of each plugin version. The `FilterSchema` type (`core/format/schema/schema.go`) loads these schemas, which define available configuration options per filter.
 
-The `Info()` RPC response provides only basic metadata (name, display name, MIME types, extensions) — it does not contain parameter definitions. Parameters are passed as `map<string, string>` in `OpenRequest.filter_params`, `WriteHeader.filter_params`, and `RoundTripHeader.filter_params`.
+Parameters are passed as `map<string, string>` in `ProcessHeader.filter_params`. The Java bridge supports:
 
-Plugin configuration lives under a namespace in the project configuration file, scoped by plugin type and name:
-
-```yaml
-# kapi.yaml
-formats:
-  docx:
-    extract_comments: true
-    track_changes: accept
-
-tools:
-  terminology:
-    glossary: ./glossaries/corporate.tbx
-    match_threshold: 85
-
-providers:
-  custom-llm:
-    endpoint: https://llm.internal.company.com/v1
-    model: company-translate-7b
-```
-
-The host reads plugin configuration from the Viper config tree and passes it to the plugin via the `Open` or `Configure` RPC. Plugins never read `kapi.yaml` directly.
-
-On the CLI, plugin parameters become namespaced flags to avoid collisions:
-
-```bash
-kapi convert -i report.docx -o report.xliff \
-  --docx.extract-comments \
-  --docx.track-changes=reject
-```
+- **Flat parameters**: `key=value` pairs applied directly to the Okapi filter
+- **Envelope config**: `kind: Okf{Format}FilterConfig` + `spec: {params}` for structured config
+- **Config files**: `configFile` path or `fprmContent` inline for native Okapi `.fprm`/YAML config
+- **Schema validation**: warnings logged for invalid parameters
+- **Parameter flattening**: hierarchical JSON config flattened to Okapi parameter names via `x-flattenPath` schema annotations
 
 ## Multi-Version Directory Layout
-
-Multiple versions of the same plugin can be installed side-by-side:
 
 ```
 ~/.config/kapi/plugins/
   okapi/
-    1.46.0/
-      version.json
+    2.17.0/
       manifest.json
-      neokapi-okapi-bridge.jar
-    1.47.0/
-      version.json
+      schemas/
+      neokapi-bridge-jar-with-dependencies.jar
+    2.18.0/
       manifest.json
-      neokapi-okapi-bridge.jar
+      schemas/
+      neokapi-bridge-jar-with-dependencies.jar
 ```
 
-Each version directory contains a `version.json` manifest with name, version, and install type. The plugin loader scans all version directories and registers capabilities with versioned names:
-
-- `okapi-html@1.46.0` -- specific version
-- `okapi-html` -- bare alias pointing to the latest installed version
-
-Semver comparison determines "latest". Bare-name aliases are registered only if no explicit bare-name registration exists, preventing conflicts.
-
-## Bundles
-
-A **bundle** is a plugin that provides multiple formats and/or tools as a single
-distributable unit. In the remote registry, bundles are declared with
-`plugin_type: "bundle"` and list their capabilities explicitly:
-
-```json
-{
-  "name": "okapi",
-  "version": "1.47.0",
-  "plugin_type": "bundle",
-  "install_type": "bridge",
-  "capabilities": [
-    {"type": "format", "name": "html", "display_name": "HTML", "mime_types": ["text/html"]},
-    {"type": "format", "name": "openxml", "display_name": "Microsoft Office (OpenXML)", "extensions": [".docx", ".xlsx", ".pptx"]},
-    {"type": "tool", "name": "segmentation", "display_name": "SRX Segmentation"}
-  ]
-}
-```
-
-The Okapi bridge is the canonical bundle example. Bridge-backed bundles use the
-same `manifest.json` descriptor and gRPC subprocess protocol described above.
-Go binary bundles can also exist — they simply register multiple format readers,
-writers, and/or tools via the go-plugin handshake.
-
-### CLI Search and Filtering
-
-The `kapi plugins search` command provides flags for filtering by plugin kind:
-
-| Flag | Effect |
-|------|--------|
-| `--bundle` | Only show bundles |
-| `--format` | Only show plugins providing format capabilities (includes bundles with formats) |
-| `--tool` | Only show plugins providing tool capabilities (includes bundles with tools) |
-
-These flags combine with AND logic alongside `--type`, `--mime`, and `--ext`. For
-example, `--bundle --format` returns only bundles that contain format capabilities.
+Each version directory contains a `manifest.json` with capabilities and command configuration. The plugin loader registers capabilities with versioned names (`okf_html@2.17.0`) and bare aliases (`okf_html` → latest).
 
 ## Plugin Loader
 
 The `PluginLoader` (`plugin/loader/`) ties discovery together:
 
-- Scans the plugin directory for versioned subdirectories
-- Loads Go binary plugins via `host.PluginManager`
-- Loads bridge plugins via `manifest.json` descriptors and schema files
-- Registers all discovered formats, tools, connectors, and providers into the core registries
-- Manages the shared bridge pool and plugin lifecycle
-- Bundles are loaded the same way as standalone plugins; their individual capabilities are registered separately into format and tool registries
+- **`ScanMetadata`**: reads `manifest.json` and `schemas/` from disk — no JVM needed
+- **`LoadBridges`**: creates the shared `BridgeRegistry`, registers reader factories
+- **`WarmupBridges`**: eagerly starts JVMs before concurrent processing
+- **`Shutdown`**: stops all bridges and plugins

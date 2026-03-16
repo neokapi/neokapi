@@ -36,6 +36,7 @@ func computeStats(values []float64) Stats {
 	return Stats{
 		Mean:   round2(mean),
 		Median: round2(percentile(sorted, 50)),
+		P5:     round2(percentile(sorted, 5)),
 		P95:    round2(percentile(sorted, 95)),
 		Stddev: round2(stddev),
 		Min:    round2(sorted[0]),

@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v7.34.0
-// source: core/plugin/proto/v2/neokapi_bridge.proto
+// source: neokapi_bridge.proto
 
 package bridgev2
 
@@ -192,5 +192,5 @@ var BridgeService_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "core/plugin/proto/v2/neokapi_bridge.proto",
+	Metadata: "neokapi_bridge.proto",
 }
