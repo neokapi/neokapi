@@ -21,7 +21,8 @@ func setupTestServerWithStores(t *testing.T) *Server {
 	initTestStores(t, srv)
 
 	// Wire up activity and task stores using the same in-memory DB.
-	db := srv.ContentStore.DB()
+	sqliteStore := srv.ContentStore.(*bstore.SQLiteStore)
+	db := sqliteStore.DB()
 	srv.ActivityStore = bstore.NewActivityStore(db)
 	srv.TaskStore = bstore.NewTaskStore(db)
 	srv.PreferenceStore = bstore.NewPreferenceStore(db)
