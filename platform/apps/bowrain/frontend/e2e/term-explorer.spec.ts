@@ -162,7 +162,9 @@ test.describe("Term Explorer", () => {
     // Should show only 1 concept
     await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");
     // Use a scoped locator to avoid matching the search badge
-    await expect(page.locator('[data-testid^="term-concept-"]').getByText("database")).toBeVisible();
+    await expect(
+      page.locator('[data-testid^="term-concept-"]').getByText("database"),
+    ).toBeVisible();
   });
 
   test("should filter by target locale", async ({ page }) => {

@@ -40,3 +40,16 @@ export const projectQueryOptions = (
     queryFn: () => api.getProject(workspaceSlug, projectId, stream),
     staleTime: 30_000,
   });
+
+export const translationDashboardQueryOptions = (
+  api: ApiAdapter,
+  workspaceSlug: string,
+  projectId: string,
+  stream?: string,
+) =>
+  queryOptions({
+    queryKey: ["translationDashboard", workspaceSlug, projectId, stream ?? "main"],
+    queryFn: () => api.getTranslationDashboard(workspaceSlug, projectId, stream),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });

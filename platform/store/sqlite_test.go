@@ -462,3 +462,191 @@ func TestBlockIDUniqueness(t *testing.T) {
 		assert.Equal(t, "Hello updated", sb.SourceText())
 	})
 }
+
+// ---------------------------------------------------------------------------
+// GetBlockStats — lightweight projection for dashboard
+// ---------------------------------------------------------------------------
+
+func TestGetBlockStats(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Create two items.
+	item1 := &platstore.Item{Name: "messages.json", Format: "json", ItemType: "file"}
+	item2 := &platstore.Item{Name: "strings.xml", Format: "xml", ItemType: "file"}
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", item1))
+	require.NoError(t, s.StoreItem(ctx, p.ID, "", item2))
+
+	// Store blocks for item 1: 2 translatable (one with French target), 1 non-translatable.
+	b1 := model.NewBlock("b1", "Hello world")
+	b1.SetTargetText(model.LocaleFrench, "Bonjour le monde")
+	b2 := model.NewBlock("b2", "Click here to continue")
+	b3 := model.NewBlock("b3", "")
+	b3.Translatable = false
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "messages.json", []*model.Block{b1, b2, b3}))
+
+	// Store blocks for item 2: 1 translatable with both French and German targets.
+	b4 := model.NewBlock("b4", "Settings")
+	b4.SetTargetText(model.LocaleFrench, "Paramètres")
+	b4.SetTargetText(model.LocaleGerman, "Einstellungen")
+	require.NoError(t, s.StoreBlocksForItem(ctx, p.ID, "", "strings.xml", []*model.Block{b4}))
+
+	t.Run("returns all blocks", func(t *testing.T) {
+		stats, err := s.GetBlockStats(ctx, p.ID, "")
+		require.NoError(t, err)
+		assert.Len(t, stats, 4, "should return all 4 blocks")
+	})
+
+	t.Run("translatable flag is correct", func(t *testing.T) {
+		stats, err := s.GetBlockStats(ctx, p.ID, "")
+		require.NoError(t, err)
+
+		translatableCount := 0
+		for _, bs := range stats {
+			if bs.Translatable {
+				translatableCount++
+			}
+		}
+		assert.Equal(t, 3, translatableCount, "3 of 4 blocks are translatable")
+	})
+
+	t.Run("source word counts are positive", func(t *testing.T) {
+		stats, err := s.GetBlockStats(ctx, p.ID, "")
+		require.NoError(t, err)
+
+		for _, bs := range stats {
+			if bs.Translatable {
+				assert.Greater(t, bs.SourceWords, 0, "translatable block %q should have positive word count", bs.ItemName)
+			}
+		}
+	})
+
+	t.Run("target locales are extracted correctly", func(t *testing.T) {
+		stats, err := s.GetBlockStats(ctx, p.ID, "")
+		require.NoError(t, err)
+
+		// Find b4's stat (Settings — has fr and de targets).
+		var settingsBlock *platstore.BlockStatRow
+		for i, bs := range stats {
+			if bs.ItemName == "strings.xml" {
+				settingsBlock = &stats[i]
+				break
+			}
+		}
+		require.NotNil(t, settingsBlock)
+		assert.Len(t, settingsBlock.TargetLocales, 2, "Settings block should have 2 target locales")
+		assert.Contains(t, settingsBlock.TargetLocales, string(model.LocaleFrench))
+		assert.Contains(t, settingsBlock.TargetLocales, string(model.LocaleGerman))
+	})
+
+	t.Run("block without targets has empty locale list", func(t *testing.T) {
+		stats, err := s.GetBlockStats(ctx, p.ID, "")
+		require.NoError(t, err)
+
+		// Find b2's stat (no targets).
+		found := false
+		for _, bs := range stats {
+			if bs.ItemName == "messages.json" && len(bs.TargetLocales) == 0 && bs.Translatable {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "should find a translatable block with no target locales")
+	})
+
+	t.Run("empty project returns nil", func(t *testing.T) {
+		emptyProj := createTestProject(t, s)
+		stats, err := s.GetBlockStats(ctx, emptyProj.ID, "")
+		require.NoError(t, err)
+		assert.Empty(t, stats)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Helper function tests
+// ---------------------------------------------------------------------------
+
+func TestCountWordsFromSourceJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		expected int
+	}{
+		{
+			name:     "simple text",
+			json:     `[{"ID":"s1","Content":{"coded_text":"Hello world"}}]`,
+			expected: 2,
+		},
+		{
+			name:     "multiple segments",
+			json:     `[{"ID":"s1","Content":{"coded_text":"Hello"}},{"ID":"s2","Content":{"coded_text":"beautiful world"}}]`,
+			expected: 3,
+		},
+		{
+			name:     "text with PUA markers",
+			json:     `[{"ID":"s1","Content":{"coded_text":"Click \ue001here\ue002 to continue"}}]`,
+			expected: 4,
+		},
+		{
+			name:     "empty text",
+			json:     `[{"ID":"s1","Content":{"coded_text":""}}]`,
+			expected: 0,
+		},
+		{
+			name:     "empty array",
+			json:     `[]`,
+			expected: 0,
+		},
+		{
+			name:     "invalid json",
+			json:     `not-json`,
+			expected: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, countWordsFromSourceJSON(tt.json))
+		})
+	}
+}
+
+func TestExtractTargetLocales(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		expected int // expected number of locales
+	}{
+		{
+			name:     "two locales with content",
+			json:     `{"fr-FR":[{"ID":"s1","Content":{"coded_text":"Bonjour"}}],"de-DE":[{"ID":"s1","Content":{"coded_text":"Hallo"}}]}`,
+			expected: 2,
+		},
+		{
+			name:     "one locale empty, one with content",
+			json:     `{"fr-FR":[{"ID":"s1","Content":{"coded_text":"Bonjour"}}],"de-DE":[]}`,
+			expected: 1,
+		},
+		{
+			name:     "all empty",
+			json:     `{"fr-FR":[],"de-DE":[]}`,
+			expected: 0,
+		},
+		{
+			name:     "empty object",
+			json:     `{}`,
+			expected: 0,
+		},
+		{
+			name:     "invalid json",
+			json:     `not-json`,
+			expected: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			locales := extractTargetLocales(tt.json)
+			assert.Len(t, locales, tt.expected)
+		})
+	}
+}

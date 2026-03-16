@@ -63,4 +63,6 @@ export {
   Users,
   LogIn,
   Loader2,
+  BarChart3,
+  Languages,
 } from "lucide-react";
