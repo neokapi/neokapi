@@ -41,6 +41,22 @@ export const projectQueryOptions = (
     staleTime: 30_000,
   });
 
+export const activitiesQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["activities", workspaceSlug],
+    queryFn: () => api.listActivities(workspaceSlug, { limit: 20 }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
+export const myTasksQueryOptions = (api: ApiAdapter, workspaceSlug: string) =>
+  queryOptions({
+    queryKey: ["myTasks", workspaceSlug],
+    queryFn: () => api.listMyTasks(workspaceSlug, { status: "open" }),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+
 export const translationDashboardQueryOptions = (
   api: ApiAdapter,
   workspaceSlug: string,
