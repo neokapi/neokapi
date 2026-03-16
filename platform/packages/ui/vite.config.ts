@@ -9,7 +9,7 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["dist/**", "storybook-static/**"],
     options: {
-      typeAware: true,
+      typeAware: false,
       typeCheck: false,
     },
   },

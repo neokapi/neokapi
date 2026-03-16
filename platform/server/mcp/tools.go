@@ -2,7 +2,6 @@ package mcp
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -265,11 +264,3 @@ func checkVocab(text string, profile *corebrand.VoiceProfile) []corebrand.BrandV
 	return findings
 }
 
-// jsonText returns the JSON encoding of v as a string, or the error message.
-func jsonText(v any) string {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Sprintf("error: %v", err)
-	}
-	return string(data)
-}
