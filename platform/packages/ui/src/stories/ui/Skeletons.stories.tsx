@@ -8,6 +8,8 @@ import {
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
+  ActivityFeedSkeleton,
+  TaskBoardSkeleton,
 } from "../../components/skeletons";
 
 const meta: Meta = {
@@ -55,4 +57,20 @@ export const Explorer: Story = {
 
 export const TranslationDashboard: Story = {
   render: () => <TranslationDashboardSkeleton />,
+};
+
+export const ActivityFeed: Story = {
+  render: () => (
+    <div style={{ maxWidth: 480 }}>
+      <ActivityFeedSkeleton />
+    </div>
+  ),
+};
+
+export const TaskBoard: Story = {
+  render: () => (
+    <div style={{ maxWidth: 960 }}>
+      <TaskBoardSkeleton />
+    </div>
+  ),
 };
