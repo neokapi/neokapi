@@ -17,6 +17,27 @@ const (
 	NotificationReviewCompleted NotificationType = "review.completed"
 	NotificationExtractionDone  NotificationType = "extraction.completed"
 	NotificationGeneral         NotificationType = "general"
+
+	// Task notifications
+	NotificationTaskAssigned  NotificationType = "task.assigned"
+	NotificationTaskDueSoon   NotificationType = "task.due_soon"
+	NotificationTaskOverdue   NotificationType = "task.overdue"
+	NotificationTaskCompleted NotificationType = "task.completed"
+
+	// Quality notifications
+	NotificationGateFailed NotificationType = "quality.gate.failed"
+	NotificationBrandDrift NotificationType = "brand.drift"
+
+	// Social notifications
+	NotificationMention NotificationType = "mention"
+	NotificationComment NotificationType = "comment"
+
+	// Automation notifications
+	NotificationFlowFailed     NotificationType = "flow.failed"
+	NotificationConnectorError NotificationType = "connector.error"
+
+	// System notifications
+	NotificationQuotaWarning NotificationType = "quota.warning"
 )
 
 // Notification is a user-targeted notification.
@@ -30,6 +51,14 @@ type Notification struct {
 	LinkURL   string           `json:"link_url,omitempty"` // deep link target
 	Read      bool             `json:"read"`
 	CreatedAt time.Time        `json:"created_at"`
+
+	// Extended fields (AD-027)
+	Category  string `json:"category,omitempty"`   // preference category for routing
+	GroupKey  string `json:"group_key,omitempty"`  // for grouping related notifications
+	ActorID   string `json:"actor_id,omitempty"`   // who triggered the notification
+	ActorName string `json:"actor_name,omitempty"` // display name of actor
+	TaskID    string `json:"task_id,omitempty"`    // linked task
+	Priority  string `json:"priority,omitempty"`   // "normal" or "high"
 }
 
 // NotificationStore persists user notifications.
@@ -62,10 +91,11 @@ func (s *NotificationStore) Create(ctx context.Context, n *Notification) error {
 	}
 
 	_, err := s.db.ExecContext(ctx, s.q(
-		`INSERT INTO notifications (id, user_id, type, title, body, project_id, link_url, read, created_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+		`INSERT INTO notifications (id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 		n.ID, n.UserID, string(n.Type), n.Title, n.Body,
-		n.ProjectID, n.LinkURL, 0, n.CreatedAt.UTC().Format(time.RFC3339))
+		n.ProjectID, n.LinkURL, 0, n.CreatedAt.UTC().Format(time.RFC3339),
+		n.Category, n.GroupKey, n.ActorID, n.ActorName, n.TaskID, n.Priority)
 	return err
 }
 
@@ -82,7 +112,7 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 	}
 
 	query := fmt.Sprintf(
-		`SELECT id, user_id, type, title, body, project_id, link_url, read, created_at
+		`SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
 		 FROM notifications WHERE %s ORDER BY created_at DESC LIMIT ?`, where)
 	args = append(args, limit)
 
@@ -97,7 +127,7 @@ func (s *NotificationStore) List(ctx context.Context, userID string, limit int, 
 		var n Notification
 		var typ, createdAt string
 		var readInt int
-		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &readInt, &createdAt); err != nil {
+		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &readInt, &createdAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
 			return nil, err
 		}
 		n.Type = NotificationType(typ)

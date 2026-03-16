@@ -112,6 +112,10 @@ export { ProjectFormDialog } from "./components/ProjectFormDialog";
 export type { ProjectFormDialogProps, ProjectFormData } from "./components/ProjectFormDialog";
 export { AuditLogView } from "./components/AuditLogView";
 export type { AuditLogViewProps } from "./components/AuditLogView";
+export { ActivityFeed } from "./components/ActivityFeed";
+export type { ActivityFeedProps } from "./components/ActivityFeed";
+export { TaskBoard } from "./components/TaskBoard";
+export type { TaskBoardProps } from "./components/TaskBoard";
 export { BinView } from "./components/BinView";
 export type { BinViewProps } from "./components/BinView";
 export { StreamCreateDialog } from "./components/StreamCreateDialog";
@@ -133,6 +137,8 @@ export {
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
+  ActivityFeedSkeleton,
+  TaskBoardSkeleton,
 } from "./components/skeletons";
 
 // Editor components
@@ -208,6 +214,8 @@ export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";
 export { useTools } from "./hooks/useTools";
 export { useNotificationApi } from "./hooks/useNotificationApi";
+export { useActivities } from "./hooks/useActivities";
+export { useTasks } from "./hooks/useTasks";
 export { useNotifications } from "./hooks/useNotifications";
 export { useIsMobile } from "./hooks/useIsMobile";
 
@@ -280,6 +288,13 @@ export type {
   LocaleTranslationStats,
   ItemTranslationStats,
   CollectionTranslationStats,
+  ActivityInfo,
+  TaskInfo,
+  TaskType,
+  TaskStatus,
+  TaskPriority,
+  CreateTaskRequest,
+  NotificationPreference,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

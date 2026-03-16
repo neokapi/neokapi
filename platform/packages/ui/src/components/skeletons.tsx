@@ -302,6 +302,58 @@ export function TranslationDashboardSkeleton() {
   );
 }
 
+/** Skeleton for the activity feed (timeline list). */
+export function ActivityFeedSkeleton() {
+  return (
+    <div className="space-y-1">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="px-3 py-2 flex items-start gap-3">
+          <Skeleton className="mt-1 w-2 h-2 rounded-full shrink-0" />
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-3.5 w-20" />
+              <Skeleton className="h-3.5 w-40" />
+            </div>
+            <Skeleton className="h-3 w-24" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Skeleton for the task board (card list). */
+export function TaskBoardSkeleton() {
+  return (
+    <div>
+      {/* View toggle */}
+      <div className="flex items-center justify-end mb-3">
+        <Skeleton className="h-7 w-28 rounded-md" />
+      </div>
+
+      {/* Task cards */}
+      <div className="space-y-2">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Card key={i} className="p-3 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-64" />
+              </div>
+              <Skeleton className="h-5 w-14 rounded-full shrink-0" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-16 rounded-full" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-12 ml-auto" />
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /** Skeleton for explorer views (termbase, memory) with search + table. */
 export function ExplorerSkeleton() {
   return (
