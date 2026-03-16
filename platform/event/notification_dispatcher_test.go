@@ -144,7 +144,7 @@ func TestNotificationDispatcher_PreferencesOptOut(t *testing.T) {
 	ctx := context.Background()
 
 	// User-1 opts out of automation notifications.
-	require.NoError(t, prefStore.Upsert(ctx, bstore.NotificationPreference{
+	require.NoError(t, prefStore.Upsert(ctx, &bstore.NotificationPreference{
 		UserID:      "user-1",
 		WorkspaceID: "ws-1",
 		Category:    bstore.CategoryAutomation,
