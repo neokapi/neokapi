@@ -231,7 +231,6 @@ function AIProvidersTab() {
     <div data-testid="settings-ai-providers">
       <Dialog open={!!editing} onOpenChange={handleDialogClose}>
         <DialogContent
-          size="md"
           data-testid="provider-form"
           onInteractOutside={(e: Event) => e.preventDefault()}
         >
