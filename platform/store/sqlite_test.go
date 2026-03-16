@@ -559,7 +559,7 @@ func TestGetBlockStats(t *testing.T) {
 		emptyProj := createTestProject(t, s)
 		stats, err := s.GetBlockStats(ctx, emptyProj.ID, "")
 		require.NoError(t, err)
-		assert.Nil(t, stats)
+		assert.Empty(t, stats)
 	})
 }
 
@@ -575,22 +575,22 @@ func TestCountWordsFromSourceJSON(t *testing.T) {
 	}{
 		{
 			name:     "simple text",
-			json:     `[{"ID":"s1","Content":{"CodedText":"Hello world"}}]`,
+			json:     `[{"ID":"s1","Content":{"coded_text":"Hello world"}}]`,
 			expected: 2,
 		},
 		{
 			name:     "multiple segments",
-			json:     `[{"ID":"s1","Content":{"CodedText":"Hello"}},{"ID":"s2","Content":{"CodedText":"beautiful world"}}]`,
+			json:     `[{"ID":"s1","Content":{"coded_text":"Hello"}},{"ID":"s2","Content":{"coded_text":"beautiful world"}}]`,
 			expected: 3,
 		},
 		{
 			name:     "text with PUA markers",
-			json:     `[{"ID":"s1","Content":{"CodedText":"Click \ue001here\ue002 to continue"}}]`,
+			json:     `[{"ID":"s1","Content":{"coded_text":"Click \ue001here\ue002 to continue"}}]`,
 			expected: 4,
 		},
 		{
 			name:     "empty text",
-			json:     `[{"ID":"s1","Content":{"CodedText":""}}]`,
+			json:     `[{"ID":"s1","Content":{"coded_text":""}}]`,
 			expected: 0,
 		},
 		{
@@ -619,12 +619,12 @@ func TestExtractTargetLocales(t *testing.T) {
 	}{
 		{
 			name:     "two locales with content",
-			json:     `{"fr-FR":[{"ID":"s1","Content":{"CodedText":"Bonjour"}}],"de-DE":[{"ID":"s1","Content":{"CodedText":"Hallo"}}]}`,
+			json:     `{"fr-FR":[{"ID":"s1","Content":{"coded_text":"Bonjour"}}],"de-DE":[{"ID":"s1","Content":{"coded_text":"Hallo"}}]}`,
 			expected: 2,
 		},
 		{
 			name:     "one locale empty, one with content",
-			json:     `{"fr-FR":[{"ID":"s1","Content":{"CodedText":"Bonjour"}}],"de-DE":[]}`,
+			json:     `{"fr-FR":[{"ID":"s1","Content":{"coded_text":"Bonjour"}}],"de-DE":[]}`,
 			expected: 1,
 		},
 		{
