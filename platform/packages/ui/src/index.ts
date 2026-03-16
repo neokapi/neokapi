@@ -105,6 +105,17 @@ export type { StreamEditDialogProps } from "./components/StreamEditDialog";
 export { StreamMergeDialog } from "./components/StreamMergeDialog";
 export type { StreamMergeDialogProps } from "./components/StreamMergeDialog";
 
+// Skeletons
+export {
+  DashboardSkeleton,
+  ProjectDetailSkeleton,
+  EditorSkeleton,
+  TablePageSkeleton,
+  BrandProfilesSkeleton,
+  SettingsSkeleton,
+  ExplorerSkeleton,
+} from "./components/skeletons";
+
 // Editor components
 export { HighlightedSource } from "./components/editor/HighlightedSource";
 export { entityLabel } from "./components/editor/HighlightedSource";

@@ -2,10 +2,10 @@ import { useEffect, useCallback } from "react";
 import { useNavigate, useParams, useRouteContext } from "@tanstack/react-router";
 import {
   BrandProfileList,
+  BrandProfilesSkeleton,
   useBrandProfiles,
   useDeleteBrandProfile,
   useWorkspace,
-
 } from "@neokapi/ui";
 import type { VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
@@ -56,11 +56,7 @@ export function BrandProfilesRoute() {
   );
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
-        Loading profiles...
-      </div>
-    );
+    return <BrandProfilesSkeleton />;
   }
 
   return (
