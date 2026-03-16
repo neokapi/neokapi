@@ -139,10 +139,12 @@ func TestPreferenceStore_BulkUpsert(t *testing.T) {
 	}
 }
 
-func TestPreferenceStore_GetNonexistent(t *testing.T) {
+func TestPreferenceStore_GetNonexistent_ReturnsDefault(t *testing.T) {
 	store := newTestPreferenceStore(t)
 	ctx := context.Background()
 
-	_, err := store.Get(ctx, "user-1", "ws-1", CategoryTask)
-	assert.Error(t, err) // Should fail for non-existent preference.
+	got, err := store.Get(ctx, "user-1", "ws-1", CategoryTask)
+	require.NoError(t, err) // Get returns a default when no explicit preference exists.
+	assert.Equal(t, CategoryTask, got.Category)
+	assert.True(t, got.Web) // Default for task category is web=true.
 }
