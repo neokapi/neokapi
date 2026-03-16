@@ -61,7 +61,12 @@ jobs:
           fi
 
           echo "::add-mask::$TOKEN"
-          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+          # Use heredoc delimiter to handle tokens with special characters.
+          {
+            echo "token<<TOKENEOF"
+            echo "$TOKEN"
+            echo "TOKENEOF"
+          } >> "$GITHUB_OUTPUT"
           echo "Auth token obtained."
 
       - name: Seed demo workspace
