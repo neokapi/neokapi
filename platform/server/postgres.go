@@ -27,9 +27,14 @@ type pgStores struct {
 }
 
 func openPostgresStores(databaseURL string) (*pgStores, error) {
+	// Try with AGE graph support first; fall back to plain PG if AGE is unavailable.
 	db, err := storage.OpenPostgresWithPool(databaseURL, platgraph.AfterConnect)
 	if err != nil {
-		return nil, fmt.Errorf("open PostgreSQL: %w", err)
+		log.Printf("WARNING: AGE extension unavailable, opening PostgreSQL without graph support: %v", err)
+		db, err = storage.OpenPostgresWithPool(databaseURL, nil)
+		if err != nil {
+			return nil, fmt.Errorf("open PostgreSQL: %w", err)
+		}
 	}
 	return initPostgresStores(db)
 }
@@ -37,9 +42,14 @@ func openPostgresStores(databaseURL string) (*pgStores, error) {
 // openPostgresStoresAzure opens PostgreSQL-backed stores using Azure
 // Managed Identity for authentication (passwordless).
 func openPostgresStoresAzure(databaseURL, clientID string) (*pgStores, error) {
+	// Try with AGE graph support first; fall back to plain PG if AGE is unavailable.
 	db, err := storage.OpenPostgresAzureWithHook(databaseURL, clientID, platgraph.AfterConnect)
 	if err != nil {
-		return nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
+		log.Printf("WARNING: AGE extension unavailable, opening PostgreSQL without graph support: %v", err)
+		db, err = storage.OpenPostgresAzure(databaseURL, clientID)
+		if err != nil {
+			return nil, fmt.Errorf("open PostgreSQL (Azure): %w", err)
+		}
 	}
 	return initPostgresStores(db)
 }

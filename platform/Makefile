@@ -57,7 +57,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         dev-deps dev-deps-down dev-server dev-web bowrain-dev certs \
         screenshots recordings bowrain-cli-recordings \
         test test-fast test-unit test-race test-verbose test-integration \
-        test-platform test-bowrain-cli test-bowrain test-e2e-bowrain \
+        test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         cover fmt vet lint check proto deps deps-update clean
 
 # ── General ──────────────────────────────────────────────────────────────────
@@ -246,6 +246,12 @@ bowrain-cli-recordings: build-bowrain-cli ## Generate Bowrain CLI demo videos (V
 
 test-e2e-bowrain: ## Run Bowrain server end-to-end tests (requires Docker)
 	bash e2e/server/run.sh
+
+test-e2e-cloud: ## Run cloud e2e tests against a live server (set BOWRAIN_URL)
+	bash e2e/cloud/run.sh
+
+test-e2e-dev: ## Run cloud e2e tests against the dev environment
+	bash e2e/cloud/run-dev.sh
 
 # ── Test ─────────────────────────────────────────────────────────────────────
 
