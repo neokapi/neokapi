@@ -21,11 +21,11 @@ async function createProjectAndOpenTM(page: any) {
   await expect(page.getByTestId("tm-explorer")).toBeVisible();
 }
 
-/** Helper: set value on an input by test ID (finds the actual input element inside). */
+/** Helper: type into an input by test ID (finds the actual input element inside). */
 async function setInput(page: any, testId: string, value: string) {
   const wrapper = page.getByTestId(testId);
   const input = wrapper.locator("input").first();
-  await input.clear();
+  await input.click();
   await input.fill(value);
 }
 
