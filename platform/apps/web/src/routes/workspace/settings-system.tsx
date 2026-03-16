@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  SettingsSkeleton,
   type ConfigResponse,
   type WebVersionInfo,
 } from "@neokapi/ui";
@@ -78,11 +79,7 @@ export function SettingsSystemRoute() {
           </CardContent>
         </Card>
       )}
-      {!serverInfo && !webInfo && (
-        <Card className="p-8 text-center text-sm text-muted-foreground">
-          Loading system information...
-        </Card>
-      )}
+      {!serverInfo && !webInfo && <SettingsSkeleton />}
     </div>
   );
 }

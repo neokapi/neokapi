@@ -166,3 +166,13 @@
     @apply bg-background text-foreground;
   }
 }
+
+@theme inline {
+  --animate-shimmer: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    translate: 100% 0;
+  }
+}
