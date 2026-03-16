@@ -431,8 +431,10 @@ export async function waitForReady(maxWaitMs = 60000): Promise<ReadinessInfo> {
       if (resp.ok || resp.status === 503) {
         const info: ReadinessInfo = await resp.json();
         if (info.status !== "unhealthy") return info;
-        // Accept unhealthy if the database is up (AI/email may not be configured).
-        if (info.components?.database?.status === "up") return info;
+        // Accept unhealthy if core components work (AI/email may not be configured).
+        // SQLite mode reports database as "unconfigured" (no pgDB) but is functional.
+        const dbStatus = info.components?.database?.status;
+        if (dbStatus === "up" || dbStatus === "unconfigured") return info;
         lastError = `status=${info.status}`;
       }
     } catch {

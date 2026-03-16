@@ -267,9 +267,10 @@ export async function waitForReady(baseUrl: string, maxWaitMs = 120_000): Promis
       const resp = await fetch(`${baseUrl}/api/v1/ready`);
       if (resp.ok || resp.status === 503) {
         const info: ReadinessInfo = await resp.json();
-        // Accept ready, degraded, or unhealthy-but-database-up (AI/email may not be configured).
+        // Accept ready, degraded, or unhealthy if core components work.
         if (info.status !== "unhealthy") return info;
-        if (info.components.database?.status === "up") return info;
+        const dbStatus = info.components.database?.status;
+        if (dbStatus === "up" || dbStatus === "unconfigured") return info;
       }
     } catch {
       // Server not reachable yet.
