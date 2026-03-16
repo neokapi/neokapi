@@ -667,9 +667,10 @@ func (s *Server) Start(addr string) error {
 	}
 
 	// Multiplex gRPC and HTTP on the same port via h2c.
+	// Only check Content-Type (not ProtoMajor) because cloud platforms like
+	// Azure Container Apps terminate TLS and may forward as HTTP/1.1 internally.
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.ProtoMajor == 2 &&
-			strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/grpc") {
 			s.GRPCServer.ServeHTTP(w, r)
 		} else {
 			e.ServeHTTP(w, r)
