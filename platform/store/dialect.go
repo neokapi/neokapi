@@ -42,7 +42,7 @@ func countWordsFromSourceJSON(sourceJSON string) int {
 	// Lightweight: unmarshal only the fields we need.
 	var segments []struct {
 		Content struct {
-			CodedText string `json:"CodedText"`
+			CodedText string `json:"coded_text"`
 		} `json:"Content"`
 	}
 	if err := json.Unmarshal([]byte(sourceJSON), &segments); err != nil {
