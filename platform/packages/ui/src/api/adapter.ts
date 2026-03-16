@@ -49,6 +49,10 @@ import type {
   AuditQuery,
   ArchivedProject,
   TranslationDashboardStats,
+  ActivityInfo,
+  TaskInfo,
+  CreateTaskRequest,
+  NotificationPreference,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -433,6 +437,33 @@ export interface ApiAdapter {
 
   // Audit log
   listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;
+
+  // Activities (AD-027)
+  listActivities(
+    workspaceSlug: string,
+    query?: { project_id?: string; stream?: string; actor_id?: string; type?: string; cursor?: string; limit?: number },
+  ): Promise<{ activities: ActivityInfo[]; next_cursor: string }>;
+
+  // Tasks (AD-027)
+  listTasks(
+    workspaceSlug: string,
+    query?: { project_id?: string; assignee_id?: string; status?: string; type?: string; priority?: string; cursor?: string; limit?: number },
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
+  createTask(workspaceSlug: string, task: CreateTaskRequest): Promise<TaskInfo>;
+  getTask(workspaceSlug: string, taskId: string): Promise<TaskInfo>;
+  updateTask(workspaceSlug: string, taskId: string, updates: Partial<CreateTaskRequest>): Promise<TaskInfo>;
+  deleteTask(workspaceSlug: string, taskId: string): Promise<void>;
+  assignTask(workspaceSlug: string, taskId: string, assigneeId: string): Promise<void>;
+  completeTask(workspaceSlug: string, taskId: string): Promise<void>;
+  cancelTask(workspaceSlug: string, taskId: string): Promise<void>;
+  listMyTasks(
+    workspaceSlug: string,
+    query?: { status?: string; cursor?: string; limit?: number },
+  ): Promise<{ tasks: TaskInfo[]; next_cursor: string }>;
+
+  // Notification preferences (AD-027)
+  getNotificationPreferences(workspaceSlug: string): Promise<{ preferences: NotificationPreference[] }>;
+  updateNotificationPreferences(workspaceSlug: string, preferences: NotificationPreference[]): Promise<void>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;
