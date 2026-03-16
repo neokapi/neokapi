@@ -1,4 +1,3 @@
-import { useState, useEffect, useCallback } from "react";
 import type { ActivityInfo } from "../types/api";
 import { cn } from "../lib/utils";
 
@@ -10,27 +9,10 @@ export interface ActivityFeedProps {
   onActivityClick?: (activity: ActivityInfo) => void;
 }
 
-const activityTypeIcons: Record<string, string> = {
-  "project.created": "folder-plus",
-  "project.updated": "folder-pen",
-  "item.pushed": "upload",
-  "item.pulled": "download",
-  "block.translated": "languages",
-  "stream.created": "git-branch",
-  "stream.merged": "git-merge",
-  "flow.completed": "check-circle",
-  "flow.failed": "x-circle",
-  "extraction.done": "sparkles",
-  "gate.passed": "shield-check",
-  "gate.failed": "shield-x",
-  "brand.drift": "alert-triangle",
-  "version.created": "tag",
-  "connector.synced": "refresh-cw",
-};
-
 function activityColor(type: string): string {
   if (type.includes("failed") || type.includes("drift")) return "text-destructive";
-  if (type.includes("completed") || type.includes("passed") || type.includes("merged")) return "text-green-600 dark:text-green-400";
+  if (type.includes("completed") || type.includes("passed") || type.includes("merged"))
+    return "text-green-600 dark:text-green-400";
   if (type.includes("created")) return "text-blue-600 dark:text-blue-400";
   return "text-muted-foreground";
 }
@@ -84,7 +66,12 @@ export function ActivityFeed({
           onClick={() => onActivityClick?.(activity)}
         >
           <div className="flex items-start gap-3">
-            <div className={cn("mt-0.5 w-2 h-2 rounded-full shrink-0", activityColor(activity.type).replace("text-", "bg-"))} />
+            <div
+              className={cn(
+                "mt-0.5 w-2 h-2 rounded-full shrink-0",
+                activityColor(activity.type).replace("text-", "bg-"),
+              )}
+            />
             <div className="flex-1 min-w-0">
               <p className="text-sm leading-snug">
                 <span className="font-medium">{activity.actor_name || "System"}</span>{" "}
