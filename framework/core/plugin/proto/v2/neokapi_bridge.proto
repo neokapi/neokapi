@@ -88,6 +88,38 @@ message TargetEntry {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Lightweight Block (for gRPC transfer — no skeleton, no display hints)
+// ────────────────────────────────────────────────────────────────────────────
+
+// ContentBlock is a lightweight representation of a translatable block
+// designed for efficient gRPC transfer. It carries only the fields that
+// Go-side tools need for content processing — source/target text with
+// inline markup, properties, and identity. The heavy fields (skeleton,
+// display hints, is_referent) stay on the Java side.
+//
+// Size comparison for a typical XLSX cell:
+//   BlockMessage:   ~500 bytes (skeleton dominates)
+//   ContentBlock:   ~50 bytes  (just id + text)
+message ContentBlock {
+  string id = 1;
+  string name = 2;
+  string type = 3;
+  string mime_type = 4;
+  bool translatable = 5;
+  repeated SegmentMessage source = 6;
+  repeated TargetEntry targets = 7;
+  map<string, string> properties = 8;
+  bool preserve_whitespace = 9;
+  map<string, AnnotationEntry> annotations = 10;
+  DisplayHintMessage display_hint = 11;
+}
+
+// ContentBlockBatch holds multiple ContentBlocks for batched gRPC transfer.
+message ContentBlockBatch {
+  repeated ContentBlock blocks = 1;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // Skeleton
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -219,20 +251,31 @@ message OutputRef {
   }
 }
 
+// PartBatch holds multiple parts in a single gRPC message to amortize
+// per-message overhead (proto marshal, HTTP/2 framing, flush syscalls).
+message PartBatch {
+  repeated PartMessage parts = 1;
+}
+
 // ProcessRequest is sent by the client (Go) to the server (Java).
 message ProcessRequest {
   oneof request {
-    ProcessHeader header = 1;  // First message: input/output config
-    PartMessage part = 2;      // Processed part sent back after tool chain
+    ProcessHeader header = 1;           // First message: input/output config
+    PartMessage part = 2;               // Single processed part (legacy)
+    PartBatch part_batch = 3;           // Batched processed parts
+    ContentBlock content_block = 5;     // Single processed content block (lightweight)
+    ContentBlockBatch content_batch = 6; // Batched processed content blocks (preferred)
   }
 }
 
 // ProcessResponse is sent by the server (Java) to the client (Go).
 message ProcessResponse {
   oneof response {
-    PartMessage part = 1;          // Part read from the document
-    ProcessReadDone read_done = 2; // All parts have been read
-    ProcessComplete complete = 3;  // Output written, cycle complete
+    PartMessage part = 1;                // Single part (legacy)
+    ProcessReadDone read_done = 2;       // All parts have been read
+    ProcessComplete complete = 3;        // Output written, cycle complete
+    PartBatch part_batch = 4;            // Batched parts
+    ContentBlockBatch content_batch = 5; // Batched content blocks (lightweight, preferred)
   }
 }
 

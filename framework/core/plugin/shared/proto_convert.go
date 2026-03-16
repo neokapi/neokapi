@@ -617,3 +617,115 @@ func ProtoToParts(msgs []*pb.PartMessage) []*model.Part {
 	}
 	return parts
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+// Proto ↔ Model: ContentBlock (lightweight block transfer)
+// ────────────────────────────────────────────────────────────────────────────
+
+// ContentBlockToPart converts a lightweight ContentBlock proto to a model.Part.
+func ContentBlockToPart(cb *pb.ContentBlock) *model.Part {
+	block := &model.Block{
+		ID:                 cb.Id,
+		Name:               cb.Name,
+		Type:               cb.Type,
+		MimeType:           cb.MimeType,
+		Translatable:       cb.Translatable,
+		PreserveWhitespace: cb.PreserveWhitespace,
+	}
+
+	// Source segments
+	for _, seg := range cb.Source {
+		block.Source = append(block.Source, ProtoToSegment(seg))
+	}
+
+	// Target segments
+	if len(cb.Targets) > 0 {
+		block.Targets = make(map[model.LocaleID][]*model.Segment)
+		for _, te := range cb.Targets {
+			locale := model.LocaleID(te.Locale)
+			for _, seg := range te.Segments {
+				block.Targets[locale] = append(block.Targets[locale], ProtoToSegment(seg))
+			}
+		}
+	}
+
+	// Properties
+	if len(cb.Properties) > 0 {
+		block.Properties = cb.Properties
+	}
+	if block.Properties == nil {
+		block.Properties = make(map[string]string)
+	}
+
+	// Annotations
+	if len(cb.Annotations) > 0 {
+		block.Annotations = make(map[string]model.Annotation)
+		for k, v := range cb.Annotations {
+			block.Annotations[k] = ProtoToAnnotation(v)
+		}
+	}
+	if block.Annotations == nil {
+		block.Annotations = make(map[string]model.Annotation)
+	}
+
+	// Display hint
+	if cb.DisplayHint != nil {
+		block.DisplayHint = ProtoToDisplayHint(cb.DisplayHint)
+	}
+
+	return &model.Part{
+		Type:     model.PartBlock,
+		Resource: block,
+	}
+}
+
+// PartToContentBlock converts a model.Part (Block) to a lightweight ContentBlock proto.
+func PartToContentBlock(p *model.Part) *pb.ContentBlock {
+	block, ok := p.Resource.(*model.Block)
+	if !ok {
+		return &pb.ContentBlock{}
+	}
+
+	cb := &pb.ContentBlock{
+		Id:                 block.ID,
+		Name:               block.Name,
+		Type:               block.Type,
+		MimeType:           block.MimeType,
+		Translatable:       block.Translatable,
+		PreserveWhitespace: block.PreserveWhitespace,
+	}
+
+	// Source segments
+	for _, seg := range block.Source {
+		cb.Source = append(cb.Source, SegmentToProto(seg))
+	}
+
+	// Target segments
+	for locale, segs := range block.Targets {
+		te := &pb.TargetEntry{Locale: string(locale)}
+		for _, seg := range segs {
+			te.Segments = append(te.Segments, SegmentToProto(seg))
+		}
+		cb.Targets = append(cb.Targets, te)
+	}
+
+	// Properties
+	if len(block.Properties) > 0 {
+		cb.Properties = block.Properties
+	}
+
+	// Annotations
+	if len(block.Annotations) > 0 {
+		cb.Annotations = make(map[string]*pb.AnnotationEntry)
+		for k, v := range block.Annotations {
+			cb.Annotations[k] = AnnotationToProto(v)
+		}
+	}
+
+	// Display hint
+	if block.DisplayHint != nil {
+		cb.DisplayHint = DisplayHintToProto(block.DisplayHint)
+	}
+
+	return cb
+}

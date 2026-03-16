@@ -4,17 +4,16 @@ import "time"
 
 // Config holds the benchmark configuration.
 type Config struct {
-	KapiBins    []VersionedBinary // kapi binaries to benchmark (native formats)
-	OkapiBins   []VersionedBinary // okapi tikal paths to benchmark
-	Formats     []string          // formats to test (e.g. json, html, xliff, openxml)
-	Sizes       []string          // size tiers (small, medium, large)
-	Categories  []string          // benchmark categories ("single", "collection")
-	Iterations  int               // number of iterations per benchmark
-	Warmup      int               // warmup iterations (discarded)
-	TestdataDir string            // directory containing generated test data
-	OutputFile  string            // path to write JSON results
-	Bridge       bool             // also benchmark kapi with okf_* bridge formats
-	BridgeDaemon bool            // also benchmark kapi bridge in daemon mode (warm JVM)
+	KapiBin       string // path to kapi binary
+	OkapiBin      string // path to tikal binary
+	BridgeJar     string // path to bridge JAR for daemon mode
+	Iterations    int    // measurement iterations per engine
+	Warmup        int    // warmup iterations (discarded)
+	TestdataDir   string // directory containing test files
+	OkapiTestdata string // path to okapi-testdata root (e.g. okapi-testdata/1.48.0-v4)
+	OutputDir     string // directory for preserved output files
+	ResultsDir    string // directory for JSON + HTML results
+	HTMLFile      string // path to HTML report
 }
 
 // VersionedBinary is a path to a binary with a version label.
@@ -25,8 +24,8 @@ type VersionedBinary struct {
 
 // Report is the top-level benchmark report.
 type Report struct {
-	Metadata   Metadata          `json:"metadata"`
-	Benchmarks []BenchmarkResult `json:"benchmarks"`
+	Metadata    Metadata           `json:"metadata"`
+	Experiments []ExperimentResult `json:"experiments"`
 }
 
 // Metadata describes the benchmark environment.
@@ -39,34 +38,47 @@ type Metadata struct {
 	MemoryGB  float64 `json:"memoryGB"`
 }
 
-// BenchmarkResult holds results for a single benchmark.
-type BenchmarkResult struct {
-	Category        string  `json:"category"`        // "single" or "collection"
-	Engine          string  `json:"engine"`          // "kapi-native", "kapi-bridge", "okapi"
-	Format          string  `json:"format"`          // format name (single) or "mixed" (collection)
-	FileSize        string  `json:"fileSize"`        // size tier: "small", "medium", "large"
-	FileSizeBytes   int64   `json:"fileSizeBytes"`   // actual input bytes (single file)
-	FileCount       int     `json:"fileCount"`       // number of files (collection only)
-	TotalInputBytes int64   `json:"totalInputBytes"` // total input bytes across all files
-	UnitCount       int     `json:"unitCount"`       // translatable unit count
-	Version         string  `json:"version"`         // engine version
-	Iterations      int     `json:"iterations"`      // measurement iterations
-	Metrics         Metrics `json:"metrics"`
+// ExperimentResult holds results for a single engine across all files.
+type ExperimentResult struct {
+	Engine      string       `json:"engine"`
+	Version     string       `json:"version"`
+	Iterations  int          `json:"iterations"`
+	WallTimeMs  Stats        `json:"wallTimeMs"`
+	PeakRssKB   Stats        `json:"peakRssKB"`
+	DaemonRssKB *Stats       `json:"daemonRssKB,omitempty"`
+	FileResults []FileResult `json:"fileResults"`
+	FileTimings []FileTiming `json:"fileTimings,omitempty"`
 }
 
-// Metrics holds all collected measurement statistics.
-type Metrics struct {
-	WallTimeMs  Stats `json:"wallTimeMs"`
-	UserCpuMs   Stats `json:"userCpuMs"`
-	SysCpuMs    Stats `json:"sysCpuMs"`
-	PeakRssKB   Stats `json:"peakRssKB"`
-	OutputBytes Stats `json:"outputBytes"`
+// FileResult tracks per-file success/failure within an experiment.
+type FileResult struct {
+	Name    string `json:"name"`
+	Format  string `json:"format"`
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+// FileTiming holds per-file timing from a sequential trace pass.
+type FileTiming struct {
+	Name      string  `json:"name"`
+	Format    string  `json:"format"`
+	Category  string  `json:"category"`
+	SizeBytes int64   `json:"sizeBytes"`
+	StartMs   float64 `json:"startMs"`
+	EndMs     float64 `json:"endMs"`
+	WallMs    float64 `json:"wallMs"`
+	PeakRssKB int64   `json:"peakRssKB"`
+	UserCpuMs float64 `json:"userCpuMs"`
+	SysCpuMs  float64 `json:"sysCpuMs"`
+	Success   bool    `json:"success"`
+	Error     string  `json:"error,omitempty"`
 }
 
 // Stats holds descriptive statistics for a series of measurements.
 type Stats struct {
 	Mean   float64 `json:"mean"`
 	Median float64 `json:"median"`
+	P5     float64 `json:"p5"`
 	P95    float64 `json:"p95"`
 	Stddev float64 `json:"stddev"`
 	Min    float64 `json:"min"`
@@ -80,11 +92,4 @@ type RunResult struct {
 	SystemCPU   time.Duration
 	PeakRSSKB   int64
 	OutputBytes int64
-}
-
-// CollectionFile describes one file in a collection test set.
-type CollectionFile struct {
-	Format string
-	Path   string
-	Units  int
 }
