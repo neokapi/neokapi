@@ -8,6 +8,15 @@ import {
 } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import type { ApiAdapter, User, Workspace } from "@neokapi/ui";
+import {
+  DashboardSkeleton,
+  ProjectDetailSkeleton,
+  EditorSkeleton,
+  TablePageSkeleton,
+  BrandProfilesSkeleton,
+  SettingsSkeleton,
+  ExplorerSkeleton,
+} from "@neokapi/ui";
 import { RootLayout } from "./root-layout";
 import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
@@ -198,6 +207,7 @@ const dashboardRoute = createRoute({
   loader: async ({ context: { queryClient, api, activeWorkspace } }) => {
     await queryClient.ensureQueryData(projectsQueryOptions(api, activeWorkspace.slug));
   },
+  pendingComponent: DashboardSkeleton,
   component: ProjectDashboardRoute,
 });
 
@@ -210,6 +220,7 @@ const projectRoute = createRoute({
       projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
     );
   },
+  pendingComponent: ProjectDetailSkeleton,
   component: ProjectDetailRoute,
 });
 
@@ -217,6 +228,7 @@ const translateRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/$itemId/translate",
   component: lazyRouteComponent(() => import("./workspace/translate"), "TranslateRoute"),
+  pendingComponent: EditorSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
       projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
@@ -235,6 +247,7 @@ const automationsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "p/$projectId/s/$stream/automations",
   component: lazyRouteComponent(() => import("./workspace/automations"), "AutomationsRoute"),
+  pendingComponent: TablePageSkeleton,
   loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
     await queryClient.ensureQueryData(
       projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
@@ -251,6 +264,7 @@ const brandRoute = createRoute({
 const brandIndexRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "/",
+  pendingComponent: BrandProfilesSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/brand-profiles"),
     "BrandProfilesRoute",
@@ -260,6 +274,7 @@ const brandIndexRoute = createRoute({
 const brandEditorRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "$profileId",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/brand-editor"),
     "BrandEditorRoute",
@@ -269,6 +284,7 @@ const brandEditorRoute = createRoute({
 const brandDashboardRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "dashboard",
+  pendingComponent: DashboardSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/brand-dashboard"),
     "BrandDashboardRoute",
@@ -278,6 +294,7 @@ const brandDashboardRoute = createRoute({
 const brandMCPGuideRoute = createRoute({
   getParentRoute: () => brandRoute,
   path: "mcp-guide",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/brand-mcp-guide"),
     "BrandMCPGuideRoute",
@@ -287,24 +304,28 @@ const brandMCPGuideRoute = createRoute({
 const termbaseRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "termbase",
+  pendingComponent: ExplorerSkeleton,
   component: lazyRouteComponent(() => import("./workspace/termbase"), "TermbaseRoute"),
 });
 
 const memoryRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "memory",
+  pendingComponent: ExplorerSkeleton,
   component: lazyRouteComponent(() => import("./workspace/memory"), "MemoryRoute"),
 });
 
 const binRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "bin",
+  pendingComponent: TablePageSkeleton,
   component: lazyRouteComponent(() => import("./workspace/bin"), "BinRoute"),
 });
 
 const auditlogRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "auditlog",
+  pendingComponent: TablePageSkeleton,
   component: lazyRouteComponent(() => import("./workspace/auditlog"), "AuditLogRoute"),
 });
 
@@ -317,12 +338,14 @@ const settingsRoute = createRoute({
 const settingsIndexRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "/",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(() => import("./workspace/settings"), "SettingsIndexRoute"),
 });
 
 const settingsLanguagesRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "languages",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/settings-languages"),
     "SettingsLanguagesRoute",
@@ -332,6 +355,7 @@ const settingsLanguagesRoute = createRoute({
 const settingsMembersRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "members",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/settings-members"),
     "SettingsMembersRoute",
@@ -341,6 +365,7 @@ const settingsMembersRoute = createRoute({
 const settingsProvidersRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "providers",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/settings-providers"),
     "SettingsProvidersRoute",
@@ -350,6 +375,7 @@ const settingsProvidersRoute = createRoute({
 const settingsTokensRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "tokens",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/settings-tokens"),
     "SettingsTokensRoute",
@@ -359,6 +385,7 @@ const settingsTokensRoute = createRoute({
 const settingsSystemRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "system",
+  pendingComponent: SettingsSkeleton,
   component: lazyRouteComponent(
     () => import("./workspace/settings-system"),
     "SettingsSystemRoute",
@@ -393,7 +420,8 @@ const routeTree = rootRoute.addChildren([
 export const router = createRouter({
   routeTree,
   context: { queryClient: undefined!, api: undefined! },
-  defaultPendingMinMs: 200,
+  defaultPendingMinMs: 0,
+  defaultPendingMs: 100,
 });
 
 declare module "@tanstack/react-router" {
