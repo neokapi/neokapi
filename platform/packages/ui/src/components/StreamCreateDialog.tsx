@@ -67,7 +67,10 @@ export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamC
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-[480px]"
+        onInteractOutside={(e: Event) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Create Stream</DialogTitle>
         </DialogHeader>

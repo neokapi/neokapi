@@ -44,8 +44,8 @@ export function BinView({
         <div className="mb-2">
           <h2 className="text-xl font-semibold">Bin</h2>
           <p className="text-[13px] text-muted-foreground mt-1">
-            Archived projects are kept for {retentionDays} days before permanent deletion.
-            You can restore them at any time during this period.
+            Archived projects are kept for {retentionDays} days before permanent deletion. You can
+            restore them at any time during this period.
           </p>
         </div>
       </Card>
@@ -72,9 +72,7 @@ export function BinView({
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">
-                        {project.name}
-                      </span>
+                      <span className="text-sm font-medium text-foreground">{project.name}</span>
                       <Badge variant="secondary" className="text-[10px]">
                         {project.default_source_language} → {project.target_languages.join(", ")}
                       </Badge>

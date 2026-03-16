@@ -115,9 +115,10 @@ export function ProjectView({
 
   // Filter items by active collection (if collections exist)
   const allItems = project.items ?? [];
-  const items = hasCollections && effectiveCollectionId
-    ? allItems.filter((item) => item.collection_id === effectiveCollectionId)
-    : allItems;
+  const items =
+    hasCollections && effectiveCollectionId
+      ? allItems.filter((item) => item.collection_id === effectiveCollectionId)
+      : allItems;
 
   const totalBlocks = items.reduce((sum, f) => sum + f.block_count, 0);
   const totalWords = items.reduce((sum, f) => sum + f.word_count, 0);
@@ -223,14 +224,20 @@ export function ProjectView({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[150px]">
                   {onEditProject && (
-                    <DropdownMenuItem onClick={onEditProject} className="flex items-center gap-2 text-sm">
+                    <DropdownMenuItem
+                      onClick={onEditProject}
+                      className="flex items-center gap-2 text-sm"
+                    >
                       <Pencil className="w-3.5 h-3.5" /> Edit project
                     </DropdownMenuItem>
                   )}
                   {onArchiveProject && (
                     <>
                       {onEditProject && <DropdownMenuSeparator />}
-                      <DropdownMenuItem onClick={onArchiveProject} className="flex items-center gap-2 text-sm text-destructive">
+                      <DropdownMenuItem
+                        onClick={onArchiveProject}
+                        className="flex items-center gap-2 text-sm text-destructive"
+                      >
                         <Trash2 className="w-3.5 h-3.5" /> Archive
                       </DropdownMenuItem>
                     </>
@@ -300,7 +307,11 @@ export function ProjectView({
                 onChange={handleFileInputChange}
                 className="hidden"
               />
-              <Button size="sm" onClick={() => inputRef.current?.click()} data-testid="add-files-btn">
+              <Button
+                size="sm"
+                onClick={() => inputRef.current?.click()}
+                data-testid="add-files-btn"
+              >
                 <Upload className="w-3.5 h-3.5 mr-1.5" />
                 Add {itemLabel === "file" ? "Files" : itemLabel + "s"}
               </Button>
@@ -442,9 +453,7 @@ export function ProjectView({
         {items.length === 0 && !canUpload && (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Plug className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              No {itemLabelPlural} synced yet
-            </p>
+            <p className="text-sm text-muted-foreground">No {itemLabelPlural} synced yet</p>
             <p className="text-[12px] text-muted-foreground/60 mt-1">
               Content will appear here when the connected source syncs
             </p>

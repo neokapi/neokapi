@@ -111,9 +111,10 @@ export function AppShell<V extends string = string>({
   onSubNavChange,
   ...sidebarProps
 }: AppShellProps<V>) {
-  const activeView = sidebarProps.sidebarContext?.level === "workspace"
-    ? sidebarProps.sidebarContext.activeView
-    : undefined;
+  const activeView =
+    sidebarProps.sidebarContext?.level === "workspace"
+      ? sidebarProps.sidebarContext.activeView
+      : undefined;
   const subNavItems = activeView ? subNavConfig[activeView] : undefined;
   const showSecondary = !!(subNavItems && onSubNavChange);
 

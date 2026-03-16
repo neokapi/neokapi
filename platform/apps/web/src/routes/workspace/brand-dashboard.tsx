@@ -14,11 +14,5 @@ export function BrandDashboardRoute() {
 
   // Dashboard renders without a specific project selected — show empty state.
   // In future, this will accept a project selector.
-  return (
-    <BrandDashboard
-      score={null}
-      trends={[]}
-      recentScores={[]}
-    />
-  );
+  return <BrandDashboard score={null} trends={[]} recentScores={[]} />;
 }

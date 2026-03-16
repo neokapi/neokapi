@@ -104,9 +104,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
                   key={s.id}
                   className="flex items-center justify-between text-xs border rounded px-3 py-2"
                 >
-                  <span className="text-muted-foreground truncate max-w-[200px]">
-                    {s.block_id}
-                  </span>
+                  <span className="text-muted-foreground truncate max-w-[200px]">{s.block_id}</span>
                   <span className="text-muted-foreground">{s.locale}</span>
                   <span
                     className={cn(
@@ -133,9 +131,7 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
       {/* Findings */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">
-            Findings ({score.findings.length})
-          </CardTitle>
+          <CardTitle className="text-sm">Findings ({score.findings.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <BrandFindingsList findings={score.findings} />

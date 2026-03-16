@@ -4,13 +4,12 @@ import type { LucideIcon } from "lucide-react";
 import { Mail, User, ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
-import { Input as BaseInput } from "@neokapi/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@neokapi/ui/components/ui/input-group";
 import { Label } from "@neokapi/ui/components/ui/label";
-
-const Input = BaseInput as React.ForwardRefExoticComponent<
-  React.InputHTMLAttributes<HTMLInputElement> &
-    React.RefAttributes<HTMLInputElement> & { icon?: LucideIcon; iconPosition?: "left" | "right" }
->;
 
 export default function Register(props: {
   kcContext: Extract<KcContext, { pageId: "register.ftl" }>;
@@ -43,6 +42,7 @@ export default function Register(props: {
                     ? "bg-success/15 text-success"
                     : "bg-muted text-muted-foreground"
               }`}
+              // Keycloak server-rendered message HTML — trusted content from the IdP server.
               dangerouslySetInnerHTML={{ __html: message.summary }}
             />
           )}
@@ -55,22 +55,39 @@ export default function Register(props: {
               const displayName = attribute.displayName
                 ? advancedMsg(attribute.displayName)
                 : attribute.name;
+              const Icon = fieldIcons[attribute.name];
               return (
                 <div key={attribute.name} className="space-y-2">
                   <Label htmlFor={attribute.name}>
                     {displayName}
                     {attribute.required && <span className="text-destructive ml-1">*</span>}
                   </Label>
-                  <Input
-                    id={attribute.name}
-                    name={attribute.name}
-                    type={attribute.name === "email" ? "email" : "text"}
-                    icon={fieldIcons[attribute.name]}
-                    defaultValue={attribute.value ?? ""}
-                    readOnly={attribute.readOnly}
-                    autoComplete={attribute.name}
-                    aria-invalid={messagesPerField.existsError(attribute.name)}
-                  />
+                  {Icon ? (
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <Icon className="size-4" />
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        id={attribute.name}
+                        name={attribute.name}
+                        type={attribute.name === "email" ? "email" : "text"}
+                        defaultValue={attribute.value ?? ""}
+                        readOnly={attribute.readOnly}
+                        autoComplete={attribute.name}
+                        aria-invalid={messagesPerField.existsError(attribute.name)}
+                      />
+                    </InputGroup>
+                  ) : (
+                    <InputGroupInput
+                      id={attribute.name}
+                      name={attribute.name}
+                      type={attribute.name === "email" ? "email" : "text"}
+                      defaultValue={attribute.value ?? ""}
+                      readOnly={attribute.readOnly}
+                      autoComplete={attribute.name}
+                      aria-invalid={messagesPerField.existsError(attribute.name)}
+                    />
+                  )}
                   {messagesPerField.existsError(attribute.name) && (
                     <p className="text-xs text-destructive">
                       {messagesPerField.get(attribute.name)}
@@ -85,11 +102,11 @@ export default function Register(props: {
                 type="button"
                 variant="secondary"
                 className="flex-1"
-                icon={ArrowLeft}
                 onClick={() => {
                   window.location.href = url.loginUrl;
                 }}
               >
+                <ArrowLeft />
                 {msg("backToLogin")}
               </Button>
               <Button type="submit" className="flex-1">

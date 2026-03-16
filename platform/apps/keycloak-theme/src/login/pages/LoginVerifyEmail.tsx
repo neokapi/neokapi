@@ -45,9 +45,7 @@ export default function LoginVerifyEmail(props: {
             {msg("emailVerifyInstruction1")}
           </p>
 
-          {user?.email && (
-            <p className="text-sm font-medium text-center">{user.email}</p>
-          )}
+          {user?.email && <p className="text-sm font-medium text-center">{user.email}</p>}
 
           <p className="text-sm text-muted-foreground text-center">
             {msg("emailVerifyInstruction2")}

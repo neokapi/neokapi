@@ -25,7 +25,8 @@ export function MemoryRoute() {
 
   // Union of all source and target locales across projects
   const { sourceLocale, targetLocales } = useMemo(() => {
-    if (!projects || projects.length === 0) return { sourceLocale: "", targetLocales: [] as string[] };
+    if (!projects || projects.length === 0)
+      return { sourceLocale: "", targetLocales: [] as string[] };
     const sources = new Set<string>();
     const targets = new Set<string>();
     for (const p of projects) {
@@ -44,9 +45,7 @@ export function MemoryRoute() {
 
   if (!activeWorkspace) {
     return (
-      <Card
-        className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
-      >
+      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a workspace
       </Card>
     );

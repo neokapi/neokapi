@@ -18,7 +18,12 @@ import {
   useStreamActions,
   ConfirmDialog,
 } from "@neokapi/ui";
-import type { StreamVisibility, StreamMergeResult, StreamDiffResult, StreamInfo } from "@neokapi/ui";
+import type {
+  StreamVisibility,
+  StreamMergeResult,
+  StreamDiffResult,
+  StreamInfo,
+} from "@neokapi/ui";
 import { projectQueryOptions } from "../../queries";
 import type { WorkspaceRouteContext } from "..";
 
@@ -108,13 +113,10 @@ export function ProjectDetailRoute() {
     [ws, adapter, project.id, editingCollection, invalidateProject],
   );
 
-  const handleEditCollection = useCallback(
-    (collection: import("@neokapi/ui").CollectionInfo) => {
-      setEditingCollection(collection);
-      setShowCollectionDialog(true);
-    },
-    [],
-  );
+  const handleEditCollection = useCallback((collection: import("@neokapi/ui").CollectionInfo) => {
+    setEditingCollection(collection);
+    setShowCollectionDialog(true);
+  }, []);
 
   const [deleteCollectionId, setDeleteCollectionId] = useState<string | null>(null);
   const confirmDeleteCollection = useCallback(async () => {
@@ -315,7 +317,12 @@ export function ProjectDetailRoute() {
       )}
 
       {/* Diff View Dialog */}
-      <Dialog open={diffResult !== null} onOpenChange={(v: boolean) => { if (!v) setDiffResult(null); }}>
+      <Dialog
+        open={diffResult !== null}
+        onOpenChange={(v: boolean) => {
+          if (!v) setDiffResult(null);
+        }}
+      >
         <DialogContent className="sm:max-w-[800px]">
           <DialogHeader>
             <DialogTitle>Stream Comparison</DialogTitle>
@@ -338,7 +345,9 @@ export function ProjectDetailRoute() {
       {/* Delete collection confirmation */}
       <ConfirmDialog
         open={deleteCollectionId !== null}
-        onOpenChange={(v) => { if (!v) setDeleteCollectionId(null); }}
+        onOpenChange={(v) => {
+          if (!v) setDeleteCollectionId(null);
+        }}
         title="Delete collection"
         description="Items in this collection will be moved to the default collection."
         confirmLabel="Delete"
@@ -349,7 +358,9 @@ export function ProjectDetailRoute() {
       {/* Archive stream confirmation */}
       <ConfirmDialog
         open={archiveStreamName !== null}
-        onOpenChange={(v) => { if (!v) setArchiveStreamName(null); }}
+        onOpenChange={(v) => {
+          if (!v) setArchiveStreamName(null);
+        }}
         title="Archive stream"
         description={`Archive "${archiveStreamName ?? ""}"? You can restore it later.`}
         confirmLabel="Archive"

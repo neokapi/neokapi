@@ -9,16 +9,17 @@ import { Upload, Plug } from "./icons";
 export interface CreateCollectionDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: {
-    name: string;
-    kind: CollectionKind;
-    item_label: string;
-  }) => void;
+  onSubmit: (data: { name: string; kind: CollectionKind; item_label: string }) => void;
   /** When set, the dialog operates in edit mode. */
   editCollection?: CollectionInfo;
 }
 
-export function CreateCollectionDialog({ open, onClose, onSubmit, editCollection }: CreateCollectionDialogProps) {
+export function CreateCollectionDialog({
+  open,
+  onClose,
+  onSubmit,
+  editCollection,
+}: CreateCollectionDialogProps) {
   const [name, setName] = useState("");
   const [kind, setKind] = useState<CollectionKind>("uploaded");
   const [itemLabel, setItemLabel] = useState("");
@@ -59,7 +60,10 @@ export function CreateCollectionDialog({ open, onClose, onSubmit, editCollection
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+      <DialogContent
+        className="sm:max-w-[480px]"
+        onInteractOutside={(e: Event) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{isEdit ? "Edit Collection" : "Create Collection"}</DialogTitle>
         </DialogHeader>
@@ -94,9 +98,13 @@ export function CreateCollectionDialog({ open, onClose, onSubmit, editCollection
                   }
                 `}
               >
-                <Upload className={`w-5 h-5 ${kind === "uploaded" ? "text-primary" : "text-muted-foreground"}`} />
+                <Upload
+                  className={`w-5 h-5 ${kind === "uploaded" ? "text-primary" : "text-muted-foreground"}`}
+                />
                 <div className="text-center">
-                  <div className={`text-sm font-medium ${kind === "uploaded" ? "text-foreground" : "text-muted-foreground"}`}>
+                  <div
+                    className={`text-sm font-medium ${kind === "uploaded" ? "text-foreground" : "text-muted-foreground"}`}
+                  >
                     Uploaded
                   </div>
                   <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -120,14 +128,16 @@ export function CreateCollectionDialog({ open, onClose, onSubmit, editCollection
                   }
                 `}
               >
-                <Plug className={`w-5 h-5 ${kind === "connected" ? "text-primary" : "text-muted-foreground"}`} />
+                <Plug
+                  className={`w-5 h-5 ${kind === "connected" ? "text-primary" : "text-muted-foreground"}`}
+                />
                 <div className="text-center">
-                  <div className={`text-sm font-medium ${kind === "connected" ? "text-foreground" : "text-muted-foreground"}`}>
+                  <div
+                    className={`text-sm font-medium ${kind === "connected" ? "text-foreground" : "text-muted-foreground"}`}
+                  >
                     Connected
                   </div>
-                  <div className="text-[11px] text-muted-foreground mt-0.5">
-                    Sync from a source
-                  </div>
+                  <div className="text-[11px] text-muted-foreground mt-0.5">Sync from a source</div>
                 </div>
               </button>
             </div>

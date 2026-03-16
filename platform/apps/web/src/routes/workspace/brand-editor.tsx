@@ -56,7 +56,7 @@ export function BrandEditorRoute() {
 
   return (
     <BrandProfileEditor
-      profile={isNew ? undefined : profile ?? undefined}
+      profile={isNew ? undefined : (profile ?? undefined)}
       onSave={handleSave}
       onCancel={handleCancel}
     />

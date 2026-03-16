@@ -1,13 +1,18 @@
-import { useWorkspace, Card, CardContent, CardHeader, CardTitle, CardDescription } from "@neokapi/ui";
+import {
+  useWorkspace,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@neokapi/ui";
 
 export function SettingsProvidersRoute() {
   const { activeWorkspace } = useWorkspace();
 
   if (!activeWorkspace) {
     return (
-      <Card
-        className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm"
-      >
+      <Card className="mt-8 max-w-md mx-auto p-8 text-center text-muted-foreground text-sm">
         Select a workspace
       </Card>
     );
@@ -17,9 +22,7 @@ export function SettingsProvidersRoute() {
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">Providers</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configure translation and AI providers
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Configure translation and AI providers</p>
       </div>
 
       <Card>

@@ -407,9 +407,7 @@ export function TermExplorer({
 
         {/* Success message */}
         {successMessage && (
-          <Alert
-            className="mb-6 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400"
-          >
+          <Alert className="mb-6 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400">
             <AlertDescription>{successMessage}</AlertDescription>
           </Alert>
         )}

@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, LogIn } from "@neokapi/ui";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Button,
+  LogIn,
+} from "@neokapi/ui";
 
 export function LoginPage() {
   const [serverUrl, _setServerUrl] = useState("");
@@ -19,9 +27,7 @@ export function LoginPage() {
               <LogIn className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome to Bowrain</CardTitle>
-            <CardDescription>
-              Localization platform for modern teams
-            </CardDescription>
+            <CardDescription>Localization platform for modern teams</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <Button onClick={handleLogin} className="w-full" size="lg">
@@ -32,9 +38,7 @@ export function LoginPage() {
             </p>
           </CardContent>
         </Card>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Powered by neokapi
-        </p>
+        <p className="mt-4 text-center text-xs text-muted-foreground">Powered by neokapi</p>
       </div>
     </div>
   );

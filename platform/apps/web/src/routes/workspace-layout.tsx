@@ -1,5 +1,11 @@
 import { useState, useCallback, useMemo } from "react";
-import { Outlet, useNavigate, useParams, useRouteContext, useLocation } from "@tanstack/react-router";
+import {
+  Outlet,
+  useNavigate,
+  useParams,
+  useRouteContext,
+  useLocation,
+} from "@tanstack/react-router";
 import {
   AppShell,
   TopBar,
@@ -8,7 +14,6 @@ import {
   WorkspaceProvider,
   StreamProvider,
   CreateWorkspaceDialog,
-
   Button,
   Card,
   CardContent,
@@ -74,9 +79,7 @@ function TopBarStreamSelector({
   return (
     <StreamSelector
       streams={streams}
-      activeStream={
-        streams.find((s: StreamInfo) => s.name === sidebarContext.activeStream) ?? null
-      }
+      activeStream={streams.find((s: StreamInfo) => s.name === sidebarContext.activeStream) ?? null}
       onStreamChange={(s: StreamInfo) => onStreamChange(s.name)}
       onCreateStream={actions.onCreateStream}
       onEditStream={actions.onEditStream}
@@ -128,7 +131,8 @@ export function WorkspaceLayout() {
   const activeView = viewFromPath(pathname, workspaceSlug ?? "");
 
   // Map auditlog and bin to settings for sidebar highlighting (they're now sub-items of settings).
-  const effectiveView = (activeView === "auditlog" || activeView === "bin") ? "settings" as const : activeView;
+  const effectiveView =
+    activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
   // Derive settings sub-nav from URL.
   const settingsSubNav = useMemo(() => {
@@ -206,29 +210,32 @@ export function WorkspaceLayout() {
     }
 
     // Determine which project sub-page is active.
-    const activeProjectView = projectParams.isAutomations ? "automations" as const : "dashboard" as const;
+    const activeProjectView = projectParams.isAutomations
+      ? ("automations" as const)
+      : ("dashboard" as const);
 
     return {
       level: "project",
       project,
       activeStream: projectParams.stream,
       activeProjectView,
-      onBack: projectParams.itemId || projectParams.isAutomations
-        ? () => {
-            // Editor/automations → project detail (up one level)
-            void navigate({
-              to: "/$workspace/p/$projectId/s/$stream",
-              params: {
-                workspace: workspaceSlug ?? ws,
-                projectId: project.id,
-                stream: projectParams.stream,
-              },
-            });
-          }
-        : () => {
-            // Project detail → workspace dashboard (up one level)
-            void navigate({ to: "/$workspace", params: { workspace: workspaceSlug ?? ws } });
-          },
+      onBack:
+        projectParams.itemId || projectParams.isAutomations
+          ? () => {
+              // Editor/automations → project detail (up one level)
+              void navigate({
+                to: "/$workspace/p/$projectId/s/$stream",
+                params: {
+                  workspace: workspaceSlug ?? ws,
+                  projectId: project.id,
+                  stream: projectParams.stream,
+                },
+              });
+            }
+          : () => {
+              // Project detail → workspace dashboard (up one level)
+              void navigate({ to: "/$workspace", params: { workspace: workspaceSlug ?? ws } });
+            },
       onOpenDashboard: () => {
         void navigate({
           to: "/$workspace/p/$projectId/s/$stream",
@@ -262,16 +269,7 @@ export function WorkspaceLayout() {
         });
       },
     };
-  }, [
-    pathname,
-    workspaceSlug,
-    stream,
-    activeView,
-    ws,
-    queryClient,
-    navigate,
-    handleStreamChange,
-  ]);
+  }, [pathname, workspaceSlug, stream, activeView, ws, queryClient, navigate, handleStreamChange]);
 
   // -----------------------------------------------------------------------
   // Handlers
@@ -292,7 +290,10 @@ export function WorkspaceLayout() {
           const endSessionUrl = new URL(data.end_session_url);
           if (data.id_token_hint) {
             endSessionUrl.searchParams.set("id_token_hint", data.id_token_hint);
-            endSessionUrl.searchParams.set("post_logout_redirect_uri", window.location.origin + "/");
+            endSessionUrl.searchParams.set(
+              "post_logout_redirect_uri",
+              window.location.origin + "/",
+            );
           }
           queryClient.clear();
           window.location.href = endSessionUrl.toString();
@@ -402,43 +403,43 @@ export function WorkspaceLayout() {
         initialWorkspaces={workspaces}
       >
         <StreamActionsProvider>
-        <AppShell
-          workspaces={workspaces}
-          activeWorkspace={activeWorkspace}
-          onSelectWorkspace={handleSelectWorkspace}
-          onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
-          activeView={effectiveView}
-          onViewChange={handleViewChange}
-          user={user}
-          onSignOut={serverMode === "server" ? handleSignOut : undefined}
-          collapsed={sidebarCollapsed}
-          onCollapsedChange={setSidebarCollapsed}
-          showThemeToggle={false}
-          sidebarContext={sidebarContext}
-          activeSubNav={settingsSubNav}
-          onSubNavChange={handleSubNavChange}
-          headerSlot={
-            <TopBar
-              user={user}
-              onSignOut={serverMode === "server" ? handleSignOut : undefined}
-              leftSlot={
-                sidebarContext?.level === "project" &&
-                sidebarContext.project.streams &&
-                sidebarContext.project.streams.length > 0 ? (
-                  <TopBarStreamSelector
-                    sidebarContext={sidebarContext}
-                    onStreamChange={handleStreamChange}
-                  />
-                ) : undefined
-              }
-            />
-          }
-          contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
-        >
-          <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
-            <Outlet />
-          </StreamProvider>
-        </AppShell>
+          <AppShell
+            workspaces={workspaces}
+            activeWorkspace={activeWorkspace}
+            onSelectWorkspace={handleSelectWorkspace}
+            onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
+            activeView={effectiveView}
+            onViewChange={handleViewChange}
+            user={user}
+            onSignOut={serverMode === "server" ? handleSignOut : undefined}
+            collapsed={sidebarCollapsed}
+            onCollapsedChange={setSidebarCollapsed}
+            showThemeToggle={false}
+            sidebarContext={sidebarContext}
+            activeSubNav={settingsSubNav}
+            onSubNavChange={handleSubNavChange}
+            headerSlot={
+              <TopBar
+                user={user}
+                onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                leftSlot={
+                  sidebarContext?.level === "project" &&
+                  sidebarContext.project.streams &&
+                  sidebarContext.project.streams.length > 0 ? (
+                    <TopBarStreamSelector
+                      sidebarContext={sidebarContext}
+                      onStreamChange={handleStreamChange}
+                    />
+                  ) : undefined
+                }
+              />
+            }
+            contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
+          >
+            <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
+              <Outlet />
+            </StreamProvider>
+          </AppShell>
         </StreamActionsProvider>
 
         <CreateWorkspaceDialog

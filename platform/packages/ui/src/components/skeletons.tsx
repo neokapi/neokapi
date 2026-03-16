@@ -110,10 +110,7 @@ export function EditorSkeleton() {
       {/* Editor rows */}
       <div className="flex-1 overflow-hidden">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-2 gap-4 px-4 py-3 border-b border-border/30"
-          >
+          <div key={i} className="grid grid-cols-2 gap-4 px-4 py-3 border-b border-border/30">
             <div className="space-y-1.5">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />

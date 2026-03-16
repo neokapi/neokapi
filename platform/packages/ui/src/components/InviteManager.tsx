@@ -114,10 +114,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
         </div>
 
         {error && (
-          <Alert
-            variant="destructive"
-            className="mb-4"
-          >
+          <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
@@ -217,7 +214,10 @@ export function InviteManager({ workspace }: InviteManagerProps) {
 
       {/* Invite dialog */}
       <Dialog open={showInviteDialog} onOpenChange={handleDialogChange}>
-        <DialogContent className="sm:max-w-[480px]" onInteractOutside={(e: Event) => e.preventDefault()}>
+        <DialogContent
+          className="sm:max-w-[480px]"
+          onInteractOutside={(e: Event) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>Invite Member</DialogTitle>
           </DialogHeader>

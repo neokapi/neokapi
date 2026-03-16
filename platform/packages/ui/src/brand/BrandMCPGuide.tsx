@@ -36,7 +36,10 @@ function ConfigBlock({ title, config }: { title: string; config: string }) {
   );
 }
 
-export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = "<your-api-token>" }: BrandMCPGuideProps) {
+export function BrandMCPGuide({
+  serverUrl = "http://localhost:8080",
+  apiToken = "<your-api-token>",
+}: BrandMCPGuideProps) {
   const claudeDesktopConfig = JSON.stringify(
     {
       mcpServers: {
@@ -73,14 +76,14 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
 
   const vscodeConfig = JSON.stringify(
     {
-      "mcp": {
-        "servers": {
-          "bowrain": {
-            "command": "bowrain",
-            "args": ["mcp", "serve"],
-            "env": {
-              "BOWRAIN_SERVER_URL": serverUrl,
-              "BOWRAIN_API_TOKEN": apiToken,
+      mcp: {
+        servers: {
+          bowrain: {
+            command: "bowrain",
+            args: ["mcp", "serve"],
+            env: {
+              BOWRAIN_SERVER_URL: serverUrl,
+              BOWRAIN_API_TOKEN: apiToken,
             },
           },
         },
@@ -106,15 +109,23 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">1</Badge>
-            <span>Install the <code className="text-xs bg-muted px-1 rounded">bowrain</code> CLI</span>
+            <Badge variant="outline" className="text-[10px]">
+              1
+            </Badge>
+            <span>
+              Install the <code className="text-xs bg-muted px-1 rounded">bowrain</code> CLI
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">2</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              2
+            </Badge>
             <span>Generate an API token from Settings</span>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px]">3</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              3
+            </Badge>
             <span>Add the MCP server configuration to your editor</span>
           </div>
         </CardContent>
@@ -130,8 +141,11 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
         <TabsContent value="claude-desktop">
           <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Add the following to your Claude Desktop configuration file
-              (<code className="text-xs bg-muted px-1 rounded">~/Library/Application Support/Claude/claude_desktop_config.json</code>):
+              Add the following to your Claude Desktop configuration file (
+              <code className="text-xs bg-muted px-1 rounded">
+                ~/Library/Application Support/Claude/claude_desktop_config.json
+              </code>
+              ):
             </p>
             <ConfigBlock title="claude_desktop_config.json" config={claudeDesktopConfig} />
           </Card>
@@ -140,8 +154,8 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
         <TabsContent value="cursor">
           <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Add the following to your Cursor settings
-              (<code className="text-xs bg-muted px-1 rounded">.cursor/mcp.json</code>):
+              Add the following to your Cursor settings (
+              <code className="text-xs bg-muted px-1 rounded">.cursor/mcp.json</code>):
             </p>
             <ConfigBlock title=".cursor/mcp.json" config={cursorConfig} />
           </Card>
@@ -150,8 +164,8 @@ export function BrandMCPGuide({ serverUrl = "http://localhost:8080", apiToken = 
         <TabsContent value="vscode">
           <Card className="p-5 space-y-4">
             <p className="text-sm text-muted-foreground">
-              Add the following to your VS Code settings
-              (<code className="text-xs bg-muted px-1 rounded">.vscode/settings.json</code>):
+              Add the following to your VS Code settings (
+              <code className="text-xs bg-muted px-1 rounded">.vscode/settings.json</code>):
             </p>
             <ConfigBlock title=".vscode/settings.json" config={vscodeConfig} />
           </Card>

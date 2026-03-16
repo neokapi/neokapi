@@ -105,9 +105,7 @@ const workspaceNavItems: NavItem[] = [
   { id: "memory", label: "Memory", icon: <Brain /> },
 ];
 
-const workspaceBottomItems: NavItem[] = [
-  { id: "settings", label: "Settings", icon: <Settings /> },
-];
+const workspaceBottomItems: NavItem[] = [{ id: "settings", label: "Settings", icon: <Settings /> }];
 
 /** Sub-navigation items for views that have secondary menus. Exported for AppShell. */
 export const subNavConfig: Record<string, SubNavItem[]> = {
@@ -273,7 +271,13 @@ function MobileNav<V extends string>({
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton onClick={() => { ctx.onBack(); setOpenMobile(false); }} data-testid="sidebar-home">
+                <SidebarMenuButton
+                  onClick={() => {
+                    ctx.onBack();
+                    setOpenMobile(false);
+                  }}
+                  data-testid="sidebar-home"
+                >
                   <ArrowLeft />
                   <span>Back</span>
                 </SidebarMenuButton>
@@ -289,7 +293,10 @@ function MobileNav<V extends string>({
               <SidebarMenuItem>
                 <SidebarMenuButton
                   isActive={ctx.activeProjectView === "dashboard"}
-                  onClick={() => { ctx.onOpenDashboard(); setOpenMobile(false); }}
+                  onClick={() => {
+                    ctx.onOpenDashboard();
+                    setOpenMobile(false);
+                  }}
                   data-testid="sidebar-dashboard"
                 >
                   <LayoutDashboard />
@@ -300,7 +307,10 @@ function MobileNav<V extends string>({
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     isActive={ctx.activeProjectView === "automations"}
-                    onClick={() => { ctx.onOpenAutomations!(); setOpenMobile(false); }}
+                    onClick={() => {
+                      ctx.onOpenAutomations!();
+                      setOpenMobile(false);
+                    }}
                     data-testid="sidebar-automations"
                   >
                     <Sparkles />

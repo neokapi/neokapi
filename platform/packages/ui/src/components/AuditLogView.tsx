@@ -190,12 +190,15 @@ export function AuditLogView({
   }, [projects]);
 
   // Quick filter presets
-  const filterPresets = useMemo<FilterPreset[]>(() => [
-    { label: "Content changes", filters: [{ key: "type", value: "block" }] },
-    { label: "Project activity", filters: [{ key: "type", value: "project" }] },
-    { label: "Stream operations", filters: [{ key: "type", value: "stream" }] },
-    { label: "Push & sync events", filters: [{ key: "type", value: "connector" }] },
-  ], []);
+  const filterPresets = useMemo<FilterPreset[]>(
+    () => [
+      { label: "Content changes", filters: [{ key: "type", value: "block" }] },
+      { label: "Project activity", filters: [{ key: "type", value: "project" }] },
+      { label: "Stream operations", filters: [{ key: "type", value: "stream" }] },
+      { label: "Push & sync events", filters: [{ key: "type", value: "connector" }] },
+    ],
+    [],
+  );
 
   // Group entries by date
   const groupedEntries = useMemo(() => {
@@ -342,7 +345,11 @@ export function AuditLogView({
                           toggleExpanded(entry.id);
                         }}
                       >
-                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        {isExpanded ? (
+                          <ChevronUp className="w-4 h-4" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4" />
+                        )}
                       </button>
                     )}
                   </div>

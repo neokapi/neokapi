@@ -146,7 +146,7 @@ func TestBlockIndexRoundtrip(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, index.Version, index2.Version)
-	assert.Equal(t, index.SourceLanguage, index2.SourceLocale)
+	assert.Equal(t, index.SourceLanguage, index2.SourceLanguage)
 	assert.Equal(t, index.OriginalFormat, index2.OriginalFormat)
 	assert.Equal(t, index.OriginalItem, index2.OriginalItem)
 	require.Len(t, index2.Blocks, 2)

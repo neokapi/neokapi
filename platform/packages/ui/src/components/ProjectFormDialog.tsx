@@ -8,8 +8,26 @@ import { LocaleSelect, MultiLocaleSelect } from "./LocaleSelect";
 
 /** Common languages used as fallback when workspace has no languages configured. */
 const DEFAULT_LANGUAGES = [
-  "en", "fr", "de", "es", "it", "pt", "nl", "ja", "ko", "zh",
-  "ar", "ru", "sv", "nb", "da", "fi", "pl", "cs", "tr", "th",
+  "en",
+  "fr",
+  "de",
+  "es",
+  "it",
+  "pt",
+  "nl",
+  "ja",
+  "ko",
+  "zh",
+  "ar",
+  "ru",
+  "sv",
+  "nb",
+  "da",
+  "fi",
+  "pl",
+  "cs",
+  "tr",
+  "th",
 ];
 
 export interface ProjectFormData {
@@ -42,9 +60,8 @@ export function ProjectFormDialog({
   const [targetMode, setTargetMode] = useState<"defined" | "open">("defined");
 
   const isEdit = !!editProject;
-  const effectiveLangs = workspaceLanguages && workspaceLanguages.length > 0
-    ? workspaceLanguages
-    : DEFAULT_LANGUAGES;
+  const effectiveLangs =
+    workspaceLanguages && workspaceLanguages.length > 0 ? workspaceLanguages : DEFAULT_LANGUAGES;
 
   useEffect(() => {
     if (open && editProject) {
@@ -134,9 +151,10 @@ export function ProjectFormDialog({
                 className={`
                   px-3 py-1.5 rounded-md text-[12px] font-medium border cursor-pointer
                   transition-colors bg-transparent
-                  ${targetMode === "defined"
-                    ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
-                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                  ${
+                    targetMode === "defined"
+                      ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
+                      : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
                   }
                 `}
               >
@@ -148,9 +166,10 @@ export function ProjectFormDialog({
                 className={`
                   px-3 py-1.5 rounded-md text-[12px] font-medium border cursor-pointer
                   transition-colors bg-transparent
-                  ${targetMode === "open"
-                    ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
-                    : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
+                  ${
+                    targetMode === "open"
+                      ? "border-primary/50 bg-primary/5 text-foreground ring-1 ring-primary/20"
+                      : "border-border/50 text-muted-foreground hover:text-foreground hover:border-border"
                   }
                 `}
               >
@@ -160,8 +179,7 @@ export function ProjectFormDialog({
             <p className="text-[11px] text-muted-foreground mb-2">
               {targetMode === "defined"
                 ? "Only these languages can be translated to."
-                : "Contributors can add new languages. New languages are auto-added to the list."
-              }
+                : "Contributors can add new languages. New languages are auto-added to the list."}
             </p>
             <MultiLocaleSelect
               value={targetLangs}

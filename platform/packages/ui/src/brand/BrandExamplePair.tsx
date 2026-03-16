@@ -13,9 +13,7 @@ export function BrandExamplePair({ example, className }: BrandExamplePairProps) 
         <span className="text-[10px] font-medium uppercase tracking-wider text-red-500/80">
           Before
         </span>
-        <p className="text-muted-foreground line-through decoration-red-400/50">
-          {example.before}
-        </p>
+        <p className="text-muted-foreground line-through decoration-red-400/50">{example.before}</p>
       </div>
       <div className="space-y-1">
         <span className="text-[10px] font-medium uppercase tracking-wider text-green-500/80">

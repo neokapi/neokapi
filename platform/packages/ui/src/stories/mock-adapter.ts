@@ -495,7 +495,16 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     getStream: async () => {
       throw new Error("Not implemented");
     },
-    updateStream: async () => ({ name: "main", parent: "", base_cursor: 0, archived: false, visibility: "public" as const, description: "", created_at: "", created_by: "" }),
+    updateStream: async () => ({
+      name: "main",
+      parent: "",
+      base_cursor: 0,
+      archived: false,
+      visibility: "public" as const,
+      description: "",
+      created_at: "",
+      created_by: "",
+    }),
     deleteStream: noop,
     diffStream: async () => ({ stream_name: "", parent_name: "", changes: [] }),
     mergeStream: async () => ({

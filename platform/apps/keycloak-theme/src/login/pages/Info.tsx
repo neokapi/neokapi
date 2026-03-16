@@ -10,7 +10,8 @@ export default function Info(props: {
   i18n: I18n;
 }) {
   const { kcContext, i18n } = props;
-  const { message, messageHeader, requiredActions, pageRedirectUri, actionUri, skipLink, client } = kcContext;
+  const { message, messageHeader, requiredActions, pageRedirectUri, actionUri, skipLink, client } =
+    kcContext;
   const { msg, msgStr, advancedMsg } = i18n;
 
   return (
@@ -63,8 +64,11 @@ export default function Info(props: {
                   <a href={actionUri}>{msgStr("proceedWithAction")}</a>
                 </Button>
               ) : client?.baseUrl ? (
-                <Button variant="secondary" icon={ArrowLeft} asChild>
-                  <a href={client.baseUrl}>{msg("backToApplication")}</a>
+                <Button variant="secondary" asChild>
+                  <a href={client.baseUrl}>
+                    <ArrowLeft />
+                    {msg("backToApplication")}
+                  </a>
                 </Button>
               ) : null}
             </>

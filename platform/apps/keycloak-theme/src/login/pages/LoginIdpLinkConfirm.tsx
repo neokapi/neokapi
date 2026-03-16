@@ -30,7 +30,13 @@ export default function LoginIdpLinkConfirm(props: {
             <Button type="submit" name="submitAction" value="updateProfile" className="w-full">
               {msgStr("confirmLinkIdpReviewProfile")}
             </Button>
-            <Button type="submit" name="submitAction" value="linkAccount" variant="secondary" className="w-full">
+            <Button
+              type="submit"
+              name="submitAction"
+              value="linkAccount"
+              variant="secondary"
+              className="w-full"
+            >
               {msgStr("confirmLinkIdpContinue", idpAlias)}
             </Button>
           </form>

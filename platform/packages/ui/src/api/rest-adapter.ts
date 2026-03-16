@@ -451,7 +451,11 @@ export class RestApiAdapter implements ApiAdapter {
   ): Promise<ProjectInfo> {
     return this.fetchJSON(this.ep(workspaceSlug), {
       method: "POST",
-      body: JSON.stringify({ name, default_source_language: defaultSourceLanguage, target_languages: targetLanguages }),
+      body: JSON.stringify({
+        name,
+        default_source_language: defaultSourceLanguage,
+        target_languages: targetLanguages,
+      }),
     });
   }
 
@@ -494,16 +498,10 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async listArchivedProjects(workspaceSlug: string): Promise<ArchivedProject[]> {
-    return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/archived/projects`,
-    );
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/archived/projects`);
   }
 
-  async restoreStream(
-    workspaceSlug: string,
-    projectId: string,
-    streamName: string,
-  ): Promise<void> {
+  async restoreStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void> {
     await this.fetchJSON(
       `/api/v1/workspaces/${workspaceSlug}/projects/${projectId}/streams/${streamName}/restore`,
       { method: "POST" },
@@ -587,14 +585,11 @@ export class RestApiAdapter implements ApiAdapter {
     collectionId: string,
     req: Partial<CreateCollectionRequest>,
   ): Promise<CollectionInfo> {
-    return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`,
-      {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req),
-      },
-    );
+    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req),
+    });
   }
 
   async deleteCollection(
@@ -602,10 +597,9 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     collectionId: string,
   ): Promise<void> {
-    await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`,
-      { method: "DELETE" },
-    );
+    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`, {
+      method: "DELETE",
+    });
   }
 
   async uploadToCollection(
@@ -1277,10 +1271,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   // ── Audit Log ───────────────────────────────────────────────────────────
 
-  async listWorkspaceAuditLog(
-    workspaceSlug: string,
-    query?: AuditQuery,
-  ): Promise<AuditEntry[]> {
+  async listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]> {
     const params = new URLSearchParams();
     if (query?.project) params.set("project", query.project);
     if (query?.type) params.set("type", query.type);
@@ -1289,9 +1280,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.limit) params.set("limit", String(query.limit));
     if (query?.offset) params.set("offset", String(query.offset));
     const qs = params.toString();
-    return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`,
-    );
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

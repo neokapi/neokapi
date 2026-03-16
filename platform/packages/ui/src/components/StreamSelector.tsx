@@ -1,5 +1,16 @@
 import type { StreamInfo, StreamVisibility } from "../types/api";
-import { ChevronDown, Globe, Lock, Plus, User, GitBranch, GitMerge, GitPullRequest, Archive, Pencil } from "./icons";
+import {
+  ChevronDown,
+  Globe,
+  Lock,
+  Plus,
+  User,
+  GitBranch,
+  GitMerge,
+  GitPullRequest,
+  Archive,
+  Pencil,
+} from "./icons";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -107,9 +118,7 @@ export function StreamSelector({
                 className="flex items-center gap-2"
               >
                 <GitPullRequest className="w-4 h-4 text-blue-500" />
-                <span className="text-sm">
-                  Compare with {activeStream.parent || "main"}
-                </span>
+                <span className="text-sm">Compare with {activeStream.parent || "main"}</span>
               </DropdownMenuItem>
             )}
             {isNonMain && onMergeStream && (
@@ -118,9 +127,7 @@ export function StreamSelector({
                 className="flex items-center gap-2"
               >
                 <GitMerge className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm">
-                  Merge into {activeStream.parent || "main"}
-                </span>
+                <span className="text-sm">Merge into {activeStream.parent || "main"}</span>
               </DropdownMenuItem>
             )}
             {isNonMain && onDeleteStream && (

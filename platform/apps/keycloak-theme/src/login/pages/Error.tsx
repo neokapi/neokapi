@@ -30,11 +30,11 @@ export default function ErrorPage(props: {
           <CardFooter className="justify-center">
             <Button
               variant="secondary"
-              icon={ArrowLeft}
               onClick={() => {
                 window.location.href = client.baseUrl!;
               }}
             >
+              <ArrowLeft />
               {msg("backToApplication")}
             </Button>
           </CardFooter>

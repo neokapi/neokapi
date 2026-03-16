@@ -1,28 +1,33 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
-import type { LucideIcon } from "lucide-react";
 import { Mail, User } from "lucide-react";
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
-import { Input as BaseInput } from "@neokapi/ui/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@neokapi/ui/components/ui/input-group";
 import { Label } from "@neokapi/ui/components/ui/label";
 
-const Input = BaseInput as React.ForwardRefExoticComponent<
-  React.InputHTMLAttributes<HTMLInputElement> &
-    React.RefAttributes<HTMLInputElement> & { icon?: LucideIcon; iconPosition?: "left" | "right" }
->;
-
 export default function Login(props: {
-  kcContext: Extract<KcContext, { pageId: "login.ftl" }> | Extract<KcContext, { pageId: "login-username.ftl" }>;
+  kcContext:
+    | Extract<KcContext, { pageId: "login.ftl" }>
+    | Extract<KcContext, { pageId: "login-username.ftl" }>;
   i18n: I18n;
 }) {
   const { kcContext, i18n } = props;
   const { url, realm, login, messagesPerField, message } = kcContext;
   const social = (kcContext as any).social as
-    | { displayInfo?: boolean; providers?: { loginUrl: string; alias: string; providerId: string; displayName: string }[] }
+    | {
+        displayInfo?: boolean;
+        providers?: { loginUrl: string; alias: string; providerId: string; displayName: string }[];
+      }
     | undefined;
-  const enableWebAuthnConditionalUI = (kcContext as any).enableWebAuthnConditionalUI as boolean | undefined;
+  const enableWebAuthnConditionalUI = (kcContext as any).enableWebAuthnConditionalUI as
+    | boolean
+    | undefined;
   const { msg, msgStr } = i18n;
 
   return (
@@ -60,16 +65,24 @@ export default function Login(props: {
                     ? msg("usernameOrEmail")
                     : msg("email")}
               </Label>
-              <Input
-                id="username"
-                name="username"
-                type="text"
-                icon={realm.registrationEmailAsUsername ? Mail : User}
-                autoFocus
-                autoComplete={enableWebAuthnConditionalUI ? "username webauthn" : "username"}
-                defaultValue={login?.username ?? ""}
-                aria-invalid={messagesPerField.existsError("username")}
-              />
+              <InputGroup>
+                <InputGroupAddon>
+                  {realm.registrationEmailAsUsername ? (
+                    <Mail className="size-4" />
+                  ) : (
+                    <User className="size-4" />
+                  )}
+                </InputGroupAddon>
+                <InputGroupInput
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoFocus
+                  autoComplete={enableWebAuthnConditionalUI ? "username webauthn" : "username"}
+                  defaultValue={login?.username ?? ""}
+                  aria-invalid={messagesPerField.existsError("username")}
+                />
+              </InputGroup>
               {messagesPerField.existsError("username") && (
                 <p className="text-xs text-destructive">{messagesPerField.get("username")}</p>
               )}

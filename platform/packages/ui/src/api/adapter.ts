@@ -164,13 +164,21 @@ export interface ApiAdapter {
   ): Promise<ProjectInfo>;
 
   // Collections (project-scoped)
-  listCollections(workspaceSlug: string, projectId: string, stream?: string): Promise<CollectionInfo[]>;
+  listCollections(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<CollectionInfo[]>;
   createCollection(
     workspaceSlug: string,
     projectId: string,
     req: CreateCollectionRequest,
   ): Promise<CollectionInfo>;
-  getCollection(workspaceSlug: string, projectId: string, collectionId: string): Promise<CollectionInfo>;
+  getCollection(
+    workspaceSlug: string,
+    projectId: string,
+    collectionId: string,
+  ): Promise<CollectionInfo>;
   updateCollection(
     workspaceSlug: string,
     projectId: string,
@@ -411,14 +419,8 @@ export interface ApiAdapter {
   // Brand Voice
   listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]>;
   getBrandProfile(workspaceSlug: string, profileId: string): Promise<VoiceProfile>;
-  createBrandProfile(
-    workspaceSlug: string,
-    data: CreateVoiceProfileRequest,
-  ): Promise<VoiceProfile>;
-  updateBrandProfile(
-    workspaceSlug: string,
-    data: UpdateVoiceProfileRequest,
-  ): Promise<VoiceProfile>;
+  createBrandProfile(workspaceSlug: string, data: CreateVoiceProfileRequest): Promise<VoiceProfile>;
+  updateBrandProfile(workspaceSlug: string, data: UpdateVoiceProfileRequest): Promise<VoiceProfile>;
   deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
   getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
