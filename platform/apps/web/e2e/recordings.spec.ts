@@ -68,7 +68,8 @@ test.describe("Web App Recordings", () => {
   test.beforeAll(async () => {
     await waitForServer();
     token = await authenticate();
-    const ws = await getOrCreateWorkspace(token, "Acme Inc.", "acme");
+    const slug = `recordings-${Date.now().toString(36)}`;
+    const ws = await getOrCreateWorkspace(token, "Acme Inc.", slug);
     wsSlug = ws.slug;
   });
 
