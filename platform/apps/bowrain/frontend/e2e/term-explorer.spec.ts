@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
-async function createProjectAndOpenTerms(page: any) {
+/** Creates a project and returns with the project view visible (before opening term explorer). */
+async function createProject(page: any) {
   await setupLocalApp(page);
 
   // Create project
@@ -13,18 +14,28 @@ async function createProjectAndOpenTerms(page: any) {
 
   // Wait for project view
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
+}
 
-  // Open terminology explorer
+/** Opens the terminology explorer from the project view. */
+async function openTerms(page: any) {
   await page.evaluate(() => {
     (document.querySelector('[data-testid="open-terms-btn"]') as HTMLElement)?.click();
   });
   await expect(page.getByTestId("term-explorer")).toBeVisible();
 }
 
-/** Helper: set value on an input by test ID (finds the actual input element inside). */
+/** Creates a project and opens the term explorer. */
+async function createProjectAndOpenTerms(page: any) {
+  await createProject(page);
+  await openTerms(page);
+}
+
+/** Helper: set value on an input by test ID (handles both direct inputs and wrappers). */
 async function setInput(page: any, testId: string, value: string) {
   const wrapper = page.getByTestId(testId);
-  const input = wrapper.locator("input").first();
+  // If the testid is directly on an <input>, use it; otherwise find a child input.
+  const tagName = await wrapper.evaluate((el: Element) => el.tagName.toLowerCase());
+  const input = tagName === "input" ? wrapper : wrapper.locator("input").first();
   await input.clear();
   await input.fill(value);
 }
@@ -106,9 +117,9 @@ test.describe("Term Explorer", () => {
   });
 
   test("should search concepts by text", async ({ page }) => {
-    await createProjectAndOpenTerms(page);
+    await createProject(page);
 
-    // Add two concepts via mock backend
+    // Add two concepts via mock backend before opening term explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -135,21 +146,29 @@ test.describe("Term Explorer", () => {
       }
     });
 
-    // Type in search box
-    await setInput(page, "term-search-input", "database");
+    await openTerms(page);
 
-    // Wait for debounce and results
+    // Verify both concepts are shown initially
+    await expect(page.getByTestId("term-count-badge")).toContainText("2 concepts");
+
+    // Type in search box and press Enter to commit the search
+    const searchInput = page.getByTestId("term-search-input").locator("input").first();
+    await searchInput.fill("database");
+    await searchInput.press("Enter");
+
+    // Wait for results
     await page.waitForTimeout(500);
 
     // Should show only 1 concept
     await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");
-    await expect(page.getByText("database")).toBeVisible();
+    // Use a scoped locator to avoid matching the search badge
+    await expect(page.locator('[data-testid^="term-concept-"]').getByText("database")).toBeVisible();
   });
 
   test("should filter by target locale", async ({ page }) => {
-    await createProjectAndOpenTerms(page);
+    await createProject(page);
 
-    // Add concepts with different locales
+    // Add concepts with different locales before opening term explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -174,28 +193,16 @@ test.describe("Term Explorer", () => {
       }
     });
 
-    // Trigger re-fetch
-    await setInput(page, "term-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "term-search-input", "");
-    await page.waitForTimeout(400);
+    await openTerms(page);
 
     // Should show 2 concepts initially
     await expect(page.getByTestId("term-count-badge")).toContainText("2 concepts");
 
-    // Select "de" from the target locale filter
-    await page.evaluate(() => {
-      const select = document.querySelector(
-        '[data-testid="term-target-locale-filter"]',
-      ) as HTMLSelectElement;
-      if (select) {
-        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
-          select,
-          "de",
-        );
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    // Select "de" from the target locale filter using the FilterBar:
+    // type "target:de" into the search input and press Enter
+    const searchInput = page.getByTestId("term-search-input").locator("input").first();
+    await searchInput.fill("target:de");
+    await searchInput.press("Enter");
     await page.waitForTimeout(400);
 
     // Should show only 1 concept
@@ -203,9 +210,9 @@ test.describe("Term Explorer", () => {
   });
 
   test("should edit a concept", async ({ page }) => {
-    await createProjectAndOpenTerms(page);
+    await createProject(page);
 
-    // Add a concept
+    // Add a concept before opening term explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -222,11 +229,7 @@ test.describe("Term Explorer", () => {
       }
     });
 
-    // Trigger refresh
-    await setInput(page, "term-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "term-search-input", "");
-    await page.waitForTimeout(400);
+    await openTerms(page);
 
     // Click Edit button
     await clickFirst(page, "term-edit-btn-");
@@ -256,9 +259,9 @@ test.describe("Term Explorer", () => {
   });
 
   test("should delete a concept with confirmation", async ({ page }) => {
-    await createProjectAndOpenTerms(page);
+    await createProject(page);
 
-    // Add a concept
+    // Add a concept before opening term explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -272,11 +275,7 @@ test.describe("Term Explorer", () => {
       }
     });
 
-    // Trigger refresh
-    await setInput(page, "term-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "term-search-input", "");
-    await page.waitForTimeout(400);
+    await openTerms(page);
 
     // Verify concept is present
     await expect(page.getByTestId("term-count-badge")).toContainText("1 concept");

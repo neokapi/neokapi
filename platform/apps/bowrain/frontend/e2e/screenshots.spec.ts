@@ -66,8 +66,15 @@ async function seedDashboard(page: any) {
     { name: "API Documentation", targets: "zh-Hans, ko" },
   ];
 
-  for (const def of projectDefs) {
-    await page.getByText("Upload files").click();
+  for (let i = 0; i < projectDefs.length; i++) {
+    const def = projectDefs[i];
+    // First project: dashboard shows onboarding with "Upload files" card.
+    // Subsequent projects: dashboard shows project list with "New Project" button.
+    if (i === 0) {
+      await page.getByText("Upload files").click();
+    } else {
+      await page.getByTestId("new-project-btn").click();
+    }
     await page.getByTestId("project-name-input").fill(def.name);
     await selectMultiLocales(
       page,
