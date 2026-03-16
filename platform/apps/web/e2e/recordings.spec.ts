@@ -91,27 +91,34 @@ test.describe("Web App Recordings", () => {
     test(`record login-and-workspace [${theme}]`, async ({ page }) => {
       test.skip(isCI, "Recording tests are skipped in CI");
 
-      // Navigate without token — Auth Code + PKCE redirects to Keycloak login
-      await page.goto("/");
-      // Wait for Keycloak login page
-      await page.waitForURL("**/realms/bowrain/**", { timeout: 15000 });
-      await pause(page, 1500);
+      const hasToken = !!process.env.BOWRAIN_TOKEN;
 
-      // Fill in credentials on Keycloak login form
-      await page.locator("#username").fill("admin@example.com");
-      await pause(page, 500);
-      await page.locator("#password").fill("password");
-      await pause(page, 500);
+      if (hasToken) {
+        // Token injection mode — skip Keycloak, go straight to workspace
+        await setupRecording(page, theme);
+      } else {
+        // Navigate without token — Auth Code + PKCE redirects to Keycloak login
+        await page.goto("/");
+        // Wait for Keycloak login page
+        await page.waitForURL("**/realms/bowrain/**", { timeout: 15000 });
+        await pause(page, 1500);
 
-      // Submit login — Keycloak redirects back to Bowrain with auth code
-      await page.locator("#kc-login").click();
+        // Fill in credentials on Keycloak login form
+        await page.locator("#username").fill("admin@example.com");
+        await pause(page, 500);
+        await page.locator("#password").fill("password");
+        await pause(page, 500);
 
-      // Wait for redirect back to Bowrain app (lands on /$workspace)
-      await page.waitForURL(`${BASE_URL}/**`, { timeout: 15000 });
-      await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
-      await setTheme(page, theme);
-      await injectCursor(page);
-      await moveCursorTo(page, 640, 400, 0);
+        // Submit login — Keycloak redirects back to Bowrain with auth code
+        await page.locator("#kc-login").click();
+
+        // Wait for redirect back to Bowrain app (lands on /$workspace)
+        await page.waitForURL(`${BASE_URL}/**`, { timeout: 15000 });
+        await expect(page.getByTestId("nav-translate")).toBeVisible({ timeout: 15000 });
+        await setTheme(page, theme);
+        await injectCursor(page);
+        await moveCursorTo(page, 640, 400, 0);
+      }
 
       // Wait for workspace to load
       await page.waitForTimeout(2000);
@@ -320,10 +327,12 @@ test.describe("Web App Recordings", () => {
       const searchInput = page.getByTestId("tm-search-input");
       if (await searchInput.isVisible()) {
         await humanType(page, searchInput, "welcome");
+        await page.keyboard.press("Enter");
         await pause(page, 2000);
 
         // Clear search
         await searchInput.fill("");
+        await page.keyboard.press("Enter");
         await pause(page, 1000);
       }
 
@@ -354,13 +363,15 @@ test.describe("Web App Recordings", () => {
       await pause(page, 1500);
 
       // Search for a term
-      const searchInput = page.getByTestId("term-search-input");
-      if (await searchInput.isVisible()) {
-        await humanType(page, searchInput, "deploy");
+      const termSearchInput = page.getByTestId("term-search-input");
+      if (await termSearchInput.isVisible()) {
+        await humanType(page, termSearchInput, "deploy");
+        await page.keyboard.press("Enter");
         await pause(page, 2000);
 
         // Clear search
-        await searchInput.fill("");
+        await termSearchInput.fill("");
+        await page.keyboard.press("Enter");
         await pause(page, 1000);
       }
 
@@ -455,10 +466,10 @@ test.describe("Web App Recordings", () => {
       test.skip(isCI, "Recording tests are skipped in CI");
       test.setTimeout(180_000); // invite workflow needs extra time for human-speed interactions
 
-      // Navigate directly to settings route
+      // Navigate directly to the members settings route (where invite-manager lives)
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/settings`);
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
+      await page.goto(`/${wsSlug}/settings/members`);
+      await expect(page.getByRole("heading", { name: "Members" }).or(page.getByRole("heading", { name: "Settings" }))).toBeVisible({ timeout: 10000 });
       await setTheme(page, theme);
       await injectCursor(page);
       await moveCursorTo(page, 640, 400, 0);
