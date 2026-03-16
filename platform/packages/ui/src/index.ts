@@ -69,6 +69,19 @@ export { ProjectDashboard } from "./components/ProjectDashboard";
 export { ProjectView } from "./components/ProjectView";
 export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
+export { TranslationDashboard } from "./components/TranslationDashboard";
+export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
+export { WordCountChart } from "./components/WordCountChart";
+export { CollectionHeatmap } from "./components/CollectionHeatmap";
+export { FileProgressTable } from "./components/FileProgressTable";
+export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "./components/ui/chart";
 export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
 export { InviteManager } from "./components/InviteManager";
@@ -262,6 +275,10 @@ export type {
   AuditEntry,
   AuditQuery,
   ArchivedProject,
+  TranslationDashboardStats,
+  LocaleTranslationStats,
+  ItemTranslationStats,
+  CollectionTranslationStats,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

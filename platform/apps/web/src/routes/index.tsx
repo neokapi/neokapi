@@ -33,6 +33,7 @@ import {
   workspacesQueryOptions,
   projectsQueryOptions,
   projectQueryOptions,
+  translationDashboardQueryOptions,
 } from "../queries";
 
 // ---------------------------------------------------------------------------
@@ -255,6 +256,26 @@ const automationsRoute = createRoute({
   },
 });
 
+const translationDashboardRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/dashboard",
+  pendingComponent: DashboardSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/translation-dashboard"),
+    "TranslationDashboardRoute",
+  ),
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await Promise.all([
+      queryClient.ensureQueryData(
+        projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+      ),
+      queryClient.ensureQueryData(
+        translationDashboardQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+      ),
+    ]);
+  },
+});
+
 const brandRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "brand",
@@ -386,6 +407,7 @@ const routeTree = rootRoute.addChildren([
     projectRoute,
     translateRoute,
     automationsRoute,
+    translationDashboardRoute,
     brandRoute.addChildren([
       brandIndexRoute,
       brandDashboardRoute,

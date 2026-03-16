@@ -49,6 +49,7 @@ import type {
   AuditEntry,
   AuditQuery,
   ArchivedProject,
+  TranslationDashboardStats,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -732,6 +733,16 @@ export class RestApiAdapter implements ApiAdapter {
         stream,
       ),
       { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
+    );
+  }
+
+  async getTranslationDashboard(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<TranslationDashboardStats> {
+    return this.fetchJSON(
+      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/dashboard`, stream),
     );
   }
 

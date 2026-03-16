@@ -337,6 +337,51 @@ export interface WordCountResult {
 }
 
 // ---------------------------------------------------------------------------
+// Translation Dashboard types
+// ---------------------------------------------------------------------------
+
+/** Per-locale translation progress */
+export interface LocaleTranslationStats {
+  locale: string;
+  translated_blocks: number;
+  total_blocks: number;
+  translated_words: number;
+  total_words: number;
+  percentage: number;
+}
+
+/** Per-file translation progress */
+export interface ItemTranslationStats {
+  item_name: string;
+  item_id: string;
+  format: string;
+  collection_id: string;
+  block_count: number;
+  word_count: number;
+  locales: LocaleTranslationStats[];
+}
+
+/** Per-collection translation progress */
+export interface CollectionTranslationStats {
+  collection_id: string;
+  collection_name: string;
+  item_count: number;
+  block_count: number;
+  word_count: number;
+  locales: LocaleTranslationStats[];
+}
+
+/** Aggregated translation dashboard statistics for a project */
+export interface TranslationDashboardStats {
+  locale_stats: LocaleTranslationStats[];
+  item_stats: ItemTranslationStats[];
+  collection_stats: CollectionTranslationStats[];
+  total_blocks: number;
+  translatable_blocks: number;
+  total_source_words: number;
+}
+
+// ---------------------------------------------------------------------------
 // Provider types
 // ---------------------------------------------------------------------------
 

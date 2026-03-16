@@ -315,6 +315,8 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.JSON(http.StatusOK, info)
 }
 
@@ -332,6 +334,8 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.JSON(http.StatusOK, info)
 }
 
@@ -382,6 +386,8 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -403,6 +409,8 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.NoContent(http.StatusNoContent)
 }
 
@@ -427,6 +435,8 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -449,6 +459,8 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -474,6 +486,8 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	wsID, _ := c.Get("workspace_id").(string)
+	s.invalidateDashboardCache(wsID, pid)
 	return c.JSON(http.StatusOK, stats)
 }
 
@@ -1092,4 +1106,44 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 func (s *Server) HandleGetKnownLocales(c echo.Context) error {
 	locales := locale.WellKnownLocales()
 	return c.JSON(http.StatusOK, locales)
+}
+
+// HandleGetTranslationDashboard returns aggregated translation stats for a project.
+func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
+	}
+
+	pid := c.Param("pid")
+	stream := streamParam(c)
+	wsID, _ := c.Get("workspace_id").(string)
+	ctx := c.Request().Context()
+
+	// Check cache first
+	cacheKey := dashboardCacheKey(wsID, pid, stream)
+	if cached, ok := s.dashboardCache.Load(cacheKey); ok {
+		entry := cached.(*dashboardCacheEntry)
+		if time.Now().Before(entry.expiresAt) {
+			return c.JSON(http.StatusOK, entry.stats)
+		}
+		s.dashboardCache.Delete(cacheKey)
+	}
+
+	proj, err := s.ContentStore.GetProject(ctx, pid)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	stats, err := editorGetDashboardStats(ctx, s.ContentStore, proj, stream)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Cache the result
+	s.dashboardCache.Store(cacheKey, &dashboardCacheEntry{
+		stats:     stats,
+		expiresAt: time.Now().Add(dashboardCacheTTL),
+	})
+
+	return c.JSON(http.StatusOK, stats)
 }
