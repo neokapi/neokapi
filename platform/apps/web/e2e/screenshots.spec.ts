@@ -217,14 +217,13 @@ test.describe("Web App Screenshots", () => {
       // Seed an invite so the invite list is populated
       await createInvite(token, wsSlug, "member", "translator@example.com", 1, 7);
 
-      // Navigate directly to the settings route
+      // Navigate directly to the members settings route
       await injectAuthCookie(page, token);
-      await page.goto(`/${wsSlug}/settings`);
-      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible({ timeout: 10000 });
+      await page.goto(`/${wsSlug}/settings/members`);
 
       // Wait for invite list to load
       const inviteManager = page.getByTestId("invite-manager");
-      await expect(inviteManager).toBeVisible({ timeout: 5000 });
+      await expect(inviteManager).toBeVisible({ timeout: 10000 });
       await page.waitForTimeout(500);
 
       await setTheme(page, theme);
