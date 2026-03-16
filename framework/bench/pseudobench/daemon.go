@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -13,9 +15,10 @@ import (
 
 // DaemonProcess manages a long-running bridge JVM daemon.
 type DaemonProcess struct {
-	cmd     *exec.Cmd
-	pid     int
-	address string
+	cmd        *exec.Cmd
+	pid        int
+	address    string
+	socketPath string // Unix socket path (non-empty when using UDS)
 
 	mu         sync.Mutex
 	sampling   bool
@@ -25,8 +28,17 @@ type DaemonProcess struct {
 
 // StartDaemon launches a bridge JAR in daemon mode with a long idle timeout.
 // It reads the first line of stdout to get the gRPC listen address.
+// On Linux/macOS, the daemon uses a Unix domain socket for IPC.
 func StartDaemon(jarPath string) (*DaemonProcess, error) {
-	cmd := exec.Command("java", "-Xmx16g", "-jar", jarPath, "--idle-timeout", "3600")
+	cmd := exec.Command("java", "-Xmx16g", "-Dio.netty.machineId=00:00:00:00:00:01",
+		"-jar", jarPath, "--idle-timeout", "3600")
+
+	// Generate a Unix socket path for the daemon (empty on Windows).
+	socketPath := generateDaemonSocketPath()
+	if socketPath != "" {
+		cmd.Env = append(os.Environ(), "NEOKAPI_BRIDGE_SOCKET="+socketPath)
+	}
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("stdout pipe: %w", err)
@@ -50,9 +62,10 @@ func StartDaemon(jarPath string) (*DaemonProcess, error) {
 	}
 
 	return &DaemonProcess{
-		cmd:     cmd,
-		pid:     cmd.Process.Pid,
-		address: address,
+		cmd:        cmd,
+		pid:        cmd.Process.Pid,
+		address:    address,
+		socketPath: socketPath,
 	}, nil
 }
 
@@ -133,5 +146,29 @@ func (d *DaemonProcess) Shutdown() error {
 		d.cmd.Process.Kill()
 		d.cmd.Wait() // ignore error from kill
 	}
+	// Clean up Unix socket file.
+	if d.socketPath != "" {
+		os.Remove(d.socketPath)
+	}
 	return nil
+}
+
+// generateDaemonSocketPath returns a Unix socket path for the daemon.
+// Linux only — macOS TCP localhost outperforms kqueue/NIO UDS.
+func generateDaemonSocketPath() string {
+	if runtime.GOOS != "linux" {
+		return ""
+	}
+	dir := filepath.Join(os.TempDir(), "kapi-bridge")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return ""
+	}
+	f, err := os.CreateTemp(dir, "daemon-*.sock")
+	if err != nil {
+		return ""
+	}
+	path := f.Name()
+	f.Close()
+	os.Remove(path)
+	return path
 }
