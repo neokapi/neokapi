@@ -75,7 +75,23 @@ type pkceResult struct {
 }
 
 // GetConnectionState returns the current connection info.
+// If BOWRAIN_TOKEN is set and no connection exists, auto-connects to the
+// server (for CI/headless mode where interactive login is not possible).
 func (a *App) GetConnectionState() ConnectionInfo {
+	a.mu.RLock()
+	state := a.connState
+	a.mu.RUnlock()
+
+	// Auto-connect via pre-supplied token (CI/headless mode).
+	if state == StateDisconnected {
+		if token := os.Getenv("BOWRAIN_TOKEN"); token != "" {
+			serverURL := a.GetDefaultServerURL()
+			if err := a.connectWithToken(serverURL, token); err != nil {
+				log.Printf("bowrain: auto-connect failed: %v", err)
+			}
+		}
+	}
+
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	info := ConnectionInfo{
@@ -88,6 +104,42 @@ func (a *App) GetConnectionState() ConnectionInfo {
 		info.UserEmail = a.authInfo.User.Email
 	}
 	return info
+}
+
+// connectWithToken establishes a server connection using a pre-supplied JWT token.
+// Used by CI/headless mode (BOWRAIN_TOKEN env var) to skip interactive OIDC login.
+func (a *App) connectWithToken(serverURL, token string) error {
+	serverURL = strings.TrimRight(serverURL, "/")
+
+	grpcAddr, useTLS, err := discoverGRPCAddr(serverURL)
+	if err != nil {
+		return fmt.Errorf("discover gRPC: %w", err)
+	}
+
+	client, err := NewServerClient(grpcAddr, token, useTLS)
+	if err != nil {
+		return fmt.Errorf("gRPC connect: %w", err)
+	}
+
+	a.mu.Lock()
+	a.remote = client
+	a.authInfo = &storedDesktopAuth{
+		ServerURL:   serverURL,
+		AccessToken: token,
+		User:        storedDesktopUser{Email: "ci@bowrain.cloud", Name: "CI"},
+	}
+	a.connState = StateConnected
+	a.serverURL = serverURL
+	a.mu.Unlock()
+
+	// Select first workspace.
+	wsList, err := a.GetServerWorkspaces()
+	if err == nil && len(wsList) > 0 {
+		_ = a.SelectWorkspace(wsList[0].Slug)
+	}
+
+	log.Printf("bowrain: auto-connected to %s via BOWRAIN_TOKEN", serverURL)
+	return nil
 }
 
 // GetDefaultServerURL returns the default server URL for the desktop app.

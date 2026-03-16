@@ -30,11 +30,15 @@ export async function setupServerApp(page: Page): Promise<SeedResult> {
     seedResult = await fullSeed();
   }
 
-  // Navigate to the app root — Wails dev mode serves at the configured baseURL
+  // Navigate to the app root — headless binary serves at the configured baseURL
   await page.goto("/");
 
-  // Wait for the app to be ready (dashboard or connection screen)
-  await page.waitForTimeout(2000);
+  // Wait for the app to connect and enter ready mode
+  await page
+    .getByText("Get started with your first project")
+    .or(page.getByTestId("nav-translate"))
+    .first()
+    .waitFor({ state: "visible", timeout: 30000 });
 
   return seedResult;
 }
