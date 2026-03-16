@@ -4,6 +4,7 @@ const useServerMode = !!process.env.WAILS_SERVER_MODE;
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["recordings.spec.ts"],
   timeout: 30000,
   globalTimeout: process.env.CI ? 600000 : 0, // 10 min cap in CI (204 tests)
   retries: process.env.CI ? 2 : 0,

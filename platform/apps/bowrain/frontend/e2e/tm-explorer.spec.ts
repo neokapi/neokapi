@@ -2,7 +2,8 @@ import { test, expect } from "@playwright/test";
 import { setupLocalApp } from "./mock-backend";
 import { selectMultiLocales } from "./locale-helper";
 
-async function createProjectAndOpenTM(page: any) {
+/** Creates a project and returns with the project view visible (before opening TM explorer). */
+async function createProject(page: any) {
   await setupLocalApp(page);
 
   // Create project
@@ -13,19 +14,29 @@ async function createProjectAndOpenTM(page: any) {
 
   // Wait for project view
   await expect(page.getByTestId("back-to-projects")).toBeVisible();
+}
 
-  // Open TM explorer
+/** Opens the TM explorer from the project view. */
+async function openTM(page: any) {
   await page.evaluate(() => {
     (document.querySelector('[data-testid="open-tm-btn"]') as HTMLElement)?.click();
   });
   await expect(page.getByTestId("tm-explorer")).toBeVisible();
 }
 
-/** Helper: type into an input by test ID (finds the actual input element inside). */
+/** Creates a project and opens the TM explorer. */
+async function createProjectAndOpenTM(page: any) {
+  await createProject(page);
+  await openTM(page);
+}
+
+/** Helper: set value on an input by test ID (handles both direct inputs and wrappers). */
 async function setInput(page: any, testId: string, value: string) {
   const wrapper = page.getByTestId(testId);
-  const input = wrapper.locator("input").first();
-  await input.click();
+  // If the testid is directly on an <input>, use it; otherwise find a child input.
+  const tagName = await wrapper.evaluate((el: Element) => el.tagName.toLowerCase());
+  const input = tagName === "input" ? wrapper : wrapper.locator("input").first();
+  await input.clear();
   await input.fill(value);
 }
 
@@ -58,7 +69,7 @@ test.describe("TM Explorer", () => {
     await clickTestId(page, "tm-add-entry-btn");
     await expect(page.getByTestId("tm-add-form")).toBeVisible();
 
-    // Fill in the form using native setters
+    // Fill in the form
     await setInput(page, "tm-add-source-input", "Hello");
     await setInput(page, "tm-add-target-input", "Bonjour");
 
@@ -77,9 +88,9 @@ test.describe("TM Explorer", () => {
   });
 
   test("should search entries by text", async ({ page }) => {
-    await createProjectAndOpenTM(page);
+    await createProject(page);
 
-    // Add two entries via mock backend
+    // Add two entries via mock backend before opening TM explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -90,10 +101,17 @@ test.describe("TM Explorer", () => {
       }
     });
 
-    // Type in search box using native setter
-    await setInput(page, "tm-search-input", "Hello");
+    await openTM(page);
 
-    // Wait for debounce and results
+    // Verify both entries are shown initially
+    await expect(page.getByTestId("tm-count-badge")).toContainText("2 entries");
+
+    // Type in search box and press Enter to commit the search
+    const searchInput = page.getByTestId("tm-search-input").locator("input").first();
+    await searchInput.fill("Hello");
+    await searchInput.press("Enter");
+
+    // Wait for results
     await page.waitForTimeout(500);
 
     // Should show only 1 entry (the "Hello World" one)
@@ -101,9 +119,9 @@ test.describe("TM Explorer", () => {
   });
 
   test("should filter entries by target locale", async ({ page }) => {
-    await createProjectAndOpenTM(page);
+    await createProject(page);
 
-    // Add entries in different locales via mock backend
+    // Add entries in different locales before opening TM explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -114,28 +132,16 @@ test.describe("TM Explorer", () => {
       }
     });
 
-    // Trigger re-fetch by searching with a space then clearing
-    await setInput(page, "tm-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "tm-search-input", "");
-    await page.waitForTimeout(400);
+    await openTM(page);
 
     // Should show 2 entries initially
     await expect(page.getByTestId("tm-count-badge")).toContainText("2 entries");
 
-    // Select "de" from the target locale filter using native DOM
-    await page.evaluate(() => {
-      const select = document.querySelector(
-        '[data-testid="tm-target-locale-filter"]',
-      ) as HTMLSelectElement;
-      if (select) {
-        Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(
-          select,
-          "de",
-        );
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    // Select "de" from the target locale filter using the FilterBar:
+    // type "target:de" into the search input and press Enter
+    const searchInput = page.getByTestId("tm-search-input").locator("input").first();
+    await searchInput.fill("target:de");
+    await searchInput.press("Enter");
     await page.waitForTimeout(400);
 
     // Should show only 1 entry
@@ -143,9 +149,9 @@ test.describe("TM Explorer", () => {
   });
 
   test("should edit an entry target", async ({ page }) => {
-    await createProjectAndOpenTM(page);
+    await createProject(page);
 
-    // Add an entry
+    // Add an entry before opening TM explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -155,11 +161,7 @@ test.describe("TM Explorer", () => {
       }
     });
 
-    // Trigger refresh
-    await setInput(page, "tm-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "tm-search-input", "");
-    await page.waitForTimeout(400);
+    await openTM(page);
 
     // Click Edit button using evaluate to avoid Playwright click hangs
     await clickFirst(page, "tm-edit-btn-");
@@ -193,9 +195,9 @@ test.describe("TM Explorer", () => {
   });
 
   test("should delete an entry", async ({ page }) => {
-    await createProjectAndOpenTM(page);
+    await createProject(page);
 
-    // Add an entry
+    // Add an entry before opening TM explorer
     await page.evaluate(() => {
       const backend = (window as any).__wailsMockByName;
       const projects = backend.ListProjects();
@@ -205,11 +207,7 @@ test.describe("TM Explorer", () => {
       }
     });
 
-    // Trigger refresh
-    await setInput(page, "tm-search-input", " ");
-    await page.waitForTimeout(400);
-    await setInput(page, "tm-search-input", "");
-    await page.waitForTimeout(400);
+    await openTM(page);
 
     // Verify entry is present
     await expect(page.getByTestId("tm-count-badge")).toContainText("1 entry");
