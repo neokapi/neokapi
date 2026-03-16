@@ -24,63 +24,6 @@ env:
   SERVER_URL: ${{ inputs.server_url || 'https://dev.bowrain.cloud' }}
 
 jobs:
-  # ── Obtain auth token from the target server via device auth ───────────────
-  setup:
-    name: Setup
-    runs-on: ubuntu-latest
-    outputs:
-      server_url: ${{ steps.config.outputs.server_url }}
-      token: ${{ steps.auth.outputs.token }}
-    steps:
-      - name: Resolve server URL
-        id: config
-        run: echo "server_url=$SERVER_URL" >> "$GITHUB_OUTPUT"
-
-      - name: Obtain auth token via device auth
-        id: auth
-        run: |
-          # Start device auth flow
-          START_RESP=$(curl -sf -X POST -d "client_id=ci-screenshots" \
-            "$SERVER_URL/api/v1/auth/device/start")
-          DEVICE_CODE=$(echo "$START_RESP" | jq -r '.device_code')
-          USER_CODE=$(echo "$START_RESP" | jq -r '.user_code')
-
-          # Verify (simulate user approval)
-          curl -s -X POST \
-            -d "user_code=$USER_CODE&email=ci-screenshots@bowrain.cloud&name=CI Screenshots" \
-            "$SERVER_URL/api/v1/auth/device/verify" > /dev/null
-
-          # Poll for token
-          TOKEN=$(curl -sf -X POST \
-            -d "device_code=$DEVICE_CODE&grant_type=urn:ietf:params:oauth:grant-type:device_code" \
-            "$SERVER_URL/api/v1/auth/device/poll" | jq -r '.access_token')
-
-          if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
-            echo "Failed to obtain auth token"
-            exit 1
-          fi
-
-          echo "::add-mask::$TOKEN"
-          # Use heredoc delimiter to handle tokens with special characters.
-          {
-            echo "token<<TOKENEOF"
-            echo "$TOKEN"
-            echo "TOKENEOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "Auth token obtained."
-
-      - name: Seed demo workspace
-        env:
-          TOKEN: ${{ steps.auth.outputs.token }}
-        run: |
-          # Create a workspace for demos (idempotent — 409 if exists).
-          curl -sf -X POST \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"name":"Acme Inc.","slug":"acme"}' \
-            "$SERVER_URL/api/v1/workspaces" > /dev/null 2>&1 || true
-          echo "Workspace seeded."
-
   # ── Bowrain Screenshots & Recordings (headless binary on Linux) ──────────────
   bowrain-assets:
     name: Bowrain Assets (${{ matrix.theme }})
@@ -169,7 +112,6 @@ jobs:
   web-app-assets:
     name: Web App Assets (${{ matrix.theme }})
     runs-on: ubuntu-latest
-    needs: setup
     strategy:
       matrix:
         theme: [dark, light]
@@ -181,6 +123,12 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: platform/package-lock.json
+
+      - name: Obtain auth token
+        id: auth
+        run: |
+          BOWRAIN_TOKEN=$(bash platform/scripts/device-auth.sh "$SERVER_URL")
+          echo "BOWRAIN_TOKEN=$BOWRAIN_TOKEN" >> "$GITHUB_ENV"
 
       - name: Install workspace dependencies
         working-directory: platform
@@ -204,8 +152,8 @@ jobs:
         working-directory: platform/apps/web
         run: npx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
         env:
-          BOWRAIN_SERVER_URL: ${{ needs.setup.outputs.server_url }}
-          BOWRAIN_TOKEN: ${{ needs.setup.outputs.token }}
+          BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
+          BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Generate recordings
         working-directory: platform/apps/web
@@ -213,8 +161,8 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
-          BOWRAIN_SERVER_URL: ${{ needs.setup.outputs.server_url }}
-          BOWRAIN_TOKEN: ${{ needs.setup.outputs.token }}
+          BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
+          BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Copy recordings to static assets
         working-directory: platform/apps/web
@@ -275,7 +223,6 @@ jobs:
   bowrain-cli-recordings:
     name: Bowrain CLI Recordings (VHS)
     runs-on: ubuntu-latest
-    needs: setup
     steps:
       - uses: actions/checkout@v4
 
@@ -296,6 +243,11 @@ jobs:
           sudo mv /tmp/vhs_0.9.0_Linux_x86_64/vhs /usr/local/bin/vhs
           sudo chmod +x /usr/local/bin/vhs
 
+      - name: Obtain auth token
+        run: |
+          BOWRAIN_TOKEN=$(bash platform/scripts/device-auth.sh "$SERVER_URL")
+          echo "BOWRAIN_TOKEN=$BOWRAIN_TOKEN" >> "$GITHUB_ENV"
+
       - name: Generate Bowrain CLI recordings
         timeout-minutes: 30
         working-directory: platform/e2e/tapes
@@ -307,8 +259,8 @@ jobs:
 
           bash generate.sh
         env:
-          BOWRAIN_SERVER_URL: ${{ needs.setup.outputs.server_url }}
-          BOWRAIN_TOKEN: ${{ needs.setup.outputs.token }}
+          BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
+          BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Upload Bowrain CLI assets
         uses: actions/upload-artifact@v4
