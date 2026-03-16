@@ -290,6 +290,10 @@ func (s *EventEmittingStore) GetBlocks(ctx context.Context, query store.BlockQue
 	return s.inner.GetBlocks(ctx, query)
 }
 
+func (s *EventEmittingStore) GetBlockStats(ctx context.Context, projectID, stream string) ([]store.BlockStatRow, error) {
+	return s.inner.GetBlockStats(ctx, projectID, stream)
+}
+
 func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, stream, blockID string) error {
 	if err := s.inner.DeleteBlock(ctx, projectID, stream, blockID); err != nil {
 		return err

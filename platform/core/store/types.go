@@ -220,6 +220,20 @@ type ChangeSet struct {
 }
 
 // ---------------------------------------------------------------------------
+// Block Statistics (lightweight projection for dashboard queries)
+// ---------------------------------------------------------------------------
+
+// BlockStatRow is a lightweight projection of a block for dashboard aggregation.
+// It avoids full deserialization of source segments, target segments, properties,
+// and annotations — only the fields needed for word/block counting are included.
+type BlockStatRow struct {
+	ItemName      string   // which item (file) this block belongs to
+	Translatable  bool     // whether the block is translatable
+	SourceWords   int      // word count from source text
+	TargetLocales []string // locales that have non-empty target translations
+}
+
+// ---------------------------------------------------------------------------
 // Translation Dashboard Statistics
 // ---------------------------------------------------------------------------
 

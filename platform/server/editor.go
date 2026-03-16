@@ -128,12 +128,12 @@ type ProjectInfoResponse struct {
 	DefaultSourceLanguage string                `json:"default_source_language"`
 	TargetLanguages       []string              `json:"target_languages"`
 	TargetLanguageMode    string                `json:"target_language_mode"`
-	Items         []ProjectItemResponse `json:"items"`
-	Collections   []CollectionResponse  `json:"collections,omitempty"`
-	Streams       []store.Stream        `json:"streams,omitempty"`
-	ActiveStream  string                `json:"active_stream,omitempty"`
-	CreatedAt     string                `json:"created_at"`
-	ModifiedAt    string                `json:"modified_at"`
+	Items                 []ProjectItemResponse `json:"items"`
+	Collections           []CollectionResponse  `json:"collections,omitempty"`
+	Streams               []store.Stream        `json:"streams,omitempty"`
+	ActiveStream          string                `json:"active_stream,omitempty"`
+	CreatedAt             string                `json:"created_at"`
+	ModifiedAt            string                `json:"modified_at"`
 }
 
 // ProjectItemResponse describes an item within a project.
@@ -270,8 +270,8 @@ type TMEntryInfoResponse struct {
 	Target         string `json:"target"`
 	SourceLanguage string `json:"source_language"`
 	TargetLanguage string `json:"target_language"`
-	ProjectID    string `json:"project_id,omitempty"`
-	UpdatedAt    string `json:"updated_at"`
+	ProjectID      string `json:"project_id,omitempty"`
+	UpdatedAt      string `json:"updated_at"`
 }
 
 // TMSearchResponse holds a page of TM search results.
@@ -1434,13 +1434,13 @@ func editorCreateProvider(provType, apiKey, modelName string) provider.LLMProvid
 
 func editorEntryToInfo(e sievepen.TMEntry) TMEntryInfoResponse {
 	return TMEntryInfoResponse{
-		ID:           e.ID,
-		Source:       e.SourceText(),
-		Target:       e.TargetText(),
+		ID:             e.ID,
+		Source:         e.SourceText(),
+		Target:         e.TargetText(),
 		SourceLanguage: string(e.SourceLocale),
 		TargetLanguage: string(e.TargetLocale),
-		ProjectID:    e.ProjectID,
-		UpdatedAt:    e.UpdatedAt.Format(time.RFC3339),
+		ProjectID:      e.ProjectID,
+		UpdatedAt:      e.UpdatedAt.Format(time.RFC3339),
 	}
 }
 
@@ -1517,6 +1517,8 @@ func (s *Server) invalidateDashboardCache(workspaceID, projectID string) {
 }
 
 // editorGetDashboardStats computes aggregated translation stats for a project.
+// Uses GetBlockStats for a lightweight single-query approach that avoids full
+// block deserialization (no Span objects, Properties, or Annotations).
 func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *store.Project, stream string) (*store.TranslationDashboardStats, error) {
 	items, err := cs.ListItems(ctx, proj.ID, stream)
 	if err != nil {
@@ -1529,89 +1531,151 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		collMap[c.ID] = c.Name
 	}
 
+	// Build item metadata lookup.
+	type itemMeta struct {
+		id           string
+		format       string
+		collectionID string
+	}
+	itemLookup := make(map[string]*itemMeta, len(items))
+	for _, item := range items {
+		itemLookup[item.Name] = &itemMeta{
+			id:           item.ID,
+			format:       item.Format,
+			collectionID: item.CollectionID,
+		}
+	}
+
 	targetLocales := make([]string, len(proj.TargetLanguages))
 	for i, l := range proj.TargetLanguages {
 		targetLocales[i] = string(l)
 	}
+	targetLocaleSet := make(map[string]bool, len(targetLocales))
+	for _, l := range targetLocales {
+		targetLocaleSet[l] = true
+	}
+
+	// Single lightweight query — no full block deserialization.
+	blockStats, err := cs.GetBlockStats(ctx, proj.ID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("get block stats: %w", err)
+	}
 
 	// Aggregators
-	totalBlocks := 0
+	totalBlocks := len(blockStats)
 	translatableBlocks := 0
 	totalSourceWords := 0
 
-	// Per-locale aggregation
 	type localeAgg struct {
 		translatedBlocks int
 		totalBlocks      int
 		translatedWords  int
 		totalWords       int
 	}
-	localeAggs := map[string]*localeAgg{}
-	for _, l := range targetLocales {
-		localeAggs[l] = &localeAgg{}
+	newLocaleAggs := func() map[string]*localeAgg {
+		m := make(map[string]*localeAgg, len(targetLocales))
+		for _, l := range targetLocales {
+			m[l] = &localeAgg{}
+		}
+		return m
 	}
+
+	globalLocaleAggs := newLocaleAggs()
+
+	// Per-item aggregation
+	type itemAgg struct {
+		blockCount int
+		wordCount  int
+		locales    map[string]*localeAgg
+	}
+	itemAggs := make(map[string]*itemAgg, len(items))
 
 	// Per-collection aggregation
 	type collAgg struct {
-		itemCount  int
+		itemSet    map[string]bool
 		blockCount int
 		wordCount  int
 		locales    map[string]*localeAgg
 	}
 	collAggs := map[string]*collAgg{}
 
-	var itemStats []store.ItemTranslationStats
+	for _, bs := range blockStats {
+		if !bs.Translatable {
+			continue
+		}
+		translatableBlocks++
+		wc := bs.SourceWords
+		totalSourceWords += wc
 
+		// Per-item accumulation
+		ia, ok := itemAggs[bs.ItemName]
+		if !ok {
+			ia = &itemAgg{locales: newLocaleAggs()}
+			itemAggs[bs.ItemName] = ia
+		}
+		ia.blockCount++
+		ia.wordCount += wc
+
+		// Build set of translated locales for this block
+		translatedSet := make(map[string]bool, len(bs.TargetLocales))
+		for _, l := range bs.TargetLocales {
+			translatedSet[l] = true
+		}
+
+		for _, locale := range targetLocales {
+			gla := globalLocaleAggs[locale]
+			ila := ia.locales[locale]
+			gla.totalBlocks++
+			gla.totalWords += wc
+			ila.totalBlocks++
+			ila.totalWords += wc
+
+			if translatedSet[locale] {
+				gla.translatedBlocks++
+				gla.translatedWords += wc
+				ila.translatedBlocks++
+				ila.translatedWords += wc
+			}
+		}
+
+		// Per-collection accumulation
+		meta := itemLookup[bs.ItemName]
+		if meta == nil {
+			continue
+		}
+		cid := meta.collectionID
+		ca, ok := collAggs[cid]
+		if !ok {
+			ca = &collAgg{itemSet: map[string]bool{}, locales: newLocaleAggs()}
+			collAggs[cid] = ca
+		}
+		ca.itemSet[bs.ItemName] = true
+		ca.blockCount++
+		ca.wordCount += wc
+		for _, locale := range targetLocales {
+			cla := ca.locales[locale]
+			cla.totalBlocks++
+			cla.totalWords += wc
+			if translatedSet[locale] {
+				cla.translatedBlocks++
+				cla.translatedWords += wc
+			}
+		}
+	}
+
+	// Build per-item stats (preserve item order from ListItems).
+	itemStats := make([]store.ItemTranslationStats, 0, len(items))
 	for _, item := range items {
-		blocks, err := cs.GetBlocks(ctx, store.BlockQuery{
-			ProjectID: proj.ID,
-			Stream:    stream,
-			ItemName:  item.Name,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("get blocks for %q: %w", item.Name, err)
-		}
-
-		totalBlocks += len(blocks)
-
-		itemWordCount := 0
-		itemBlockCount := 0
-		itemLocaleAggs := map[string]*localeAgg{}
-		for _, l := range targetLocales {
-			itemLocaleAggs[l] = &localeAgg{}
-		}
-
-		for _, sb := range blocks {
-			if !sb.Block.Translatable {
-				continue
-			}
-			translatableBlocks++
-			itemBlockCount++
-			wc := editorCountWords(sb.Block.SourceText())
-			totalSourceWords += wc
-			itemWordCount += wc
-
-			for _, locale := range targetLocales {
-				la := localeAggs[locale]
-				ila := itemLocaleAggs[locale]
-				la.totalBlocks++
-				la.totalWords += wc
-				ila.totalBlocks++
-				ila.totalWords += wc
-
-				if sb.Block.TargetText(model.LocaleID(locale)) != "" {
-					la.translatedBlocks++
-					la.translatedWords += wc
-					ila.translatedBlocks++
-					ila.translatedWords += wc
-				}
-			}
-		}
-
-		// Build per-item locale stats
+		ia := itemAggs[item.Name]
 		itemLocales := make([]store.LocaleTranslationStats, 0, len(targetLocales))
 		for _, l := range targetLocales {
-			ila := itemLocaleAggs[l]
+			var ila *localeAgg
+			if ia != nil {
+				ila = ia.locales[l]
+			}
+			if ila == nil {
+				ila = &localeAgg{}
+			}
 			pct := 0.0
 			if ila.totalWords > 0 {
 				pct = float64(ila.translatedWords) / float64(ila.totalWords) * 100
@@ -1625,44 +1689,25 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 				Percentage:       pct,
 			})
 		}
-
+		bc, wc := 0, 0
+		if ia != nil {
+			bc, wc = ia.blockCount, ia.wordCount
+		}
 		itemStats = append(itemStats, store.ItemTranslationStats{
 			ItemName:     item.Name,
 			ItemID:       item.ID,
 			Format:       item.Format,
 			CollectionID: item.CollectionID,
-			BlockCount:   itemBlockCount,
-			WordCount:    itemWordCount,
+			BlockCount:   bc,
+			WordCount:    wc,
 			Locales:      itemLocales,
 		})
-
-		// Accumulate into collection aggregation
-		cid := item.CollectionID
-		ca, ok := collAggs[cid]
-		if !ok {
-			ca = &collAgg{locales: map[string]*localeAgg{}}
-			for _, l := range targetLocales {
-				ca.locales[l] = &localeAgg{}
-			}
-			collAggs[cid] = ca
-		}
-		ca.itemCount++
-		ca.blockCount += itemBlockCount
-		ca.wordCount += itemWordCount
-		for _, l := range targetLocales {
-			ila := itemLocaleAggs[l]
-			cla := ca.locales[l]
-			cla.totalBlocks += ila.totalBlocks
-			cla.totalWords += ila.totalWords
-			cla.translatedBlocks += ila.translatedBlocks
-			cla.translatedWords += ila.translatedWords
-		}
 	}
 
-	// Build locale stats
+	// Build global locale stats.
 	localeStats := make([]store.LocaleTranslationStats, 0, len(targetLocales))
 	for _, l := range targetLocales {
-		la := localeAggs[l]
+		la := globalLocaleAggs[l]
 		pct := 0.0
 		if la.totalWords > 0 {
 			pct = float64(la.translatedWords) / float64(la.totalWords) * 100
@@ -1673,11 +1718,11 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			TotalBlocks:      la.totalBlocks,
 			TranslatedWords:  la.translatedWords,
 			TotalWords:       la.totalWords,
-			Percentage:        pct,
+			Percentage:       pct,
 		})
 	}
 
-	// Build collection stats
+	// Build collection stats.
 	collStats := make([]store.CollectionTranslationStats, 0, len(collAggs))
 	for cid, ca := range collAggs {
 		cls := make([]store.LocaleTranslationStats, 0, len(targetLocales))
@@ -1699,7 +1744,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		collStats = append(collStats, store.CollectionTranslationStats{
 			CollectionID:   cid,
 			CollectionName: collMap[cid],
-			ItemCount:      ca.itemCount,
+			ItemCount:      len(ca.itemSet),
 			BlockCount:     ca.blockCount,
 			WordCount:      ca.wordCount,
 			Locales:        cls,
