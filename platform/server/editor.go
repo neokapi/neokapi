@@ -1171,12 +1171,10 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 
 	// Include collections in the response.
 	colls, _ := cs.ListCollections(ctx, proj.ID, stream)
-	if colls != nil {
-		for _, coll := range colls {
-			cr := collectionToResponse(coll)
-			cr.ItemCount = itemCounts[coll.ID]
-			info.Collections = append(info.Collections, cr)
-		}
+	for _, coll := range colls {
+		cr := collectionToResponse(coll)
+		cr.ItemCount = itemCounts[coll.ID]
+		info.Collections = append(info.Collections, cr)
 	}
 
 	streams, _ := cs.ListStreams(ctx, proj.ID, false)
