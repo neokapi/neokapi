@@ -556,6 +556,10 @@ func fetchDesktopUserInfo(serverURL, token string) (*storedDesktopUser, error) {
 
 // discoverGRPCAddr derives the gRPC address from the server URL.
 // gRPC is served on the same port as HTTP via h2c protocol multiplexing.
+//
+// For bowrain.cloud domains, the gRPC endpoint uses the grpc.{domain}
+// subdomain which routes directly to the Container App (bypassing Azure
+// Front Door, which only supports HTTP/1.1 to origins).
 func discoverGRPCAddr(serverURL string) (addr string, useTLS bool, err error) {
 	u, err := parseServerURL(serverURL)
 	if err != nil {
@@ -563,6 +567,7 @@ func discoverGRPCAddr(serverURL string) (addr string, useTLS bool, err error) {
 	}
 
 	useTLS = u.scheme == "https"
+	host := grpcHost(u.host)
 
 	port := u.port
 	if port == "" {
@@ -573,7 +578,22 @@ func discoverGRPCAddr(serverURL string) (addr string, useTLS bool, err error) {
 		}
 	}
 
-	return fmt.Sprintf("%s:%s", u.host, port), useTLS, nil
+	return fmt.Sprintf("%s:%s", host, port), useTLS, nil
+}
+
+// grpcHost returns the gRPC hostname for a given server hostname.
+// For bowrain.cloud domains fronted by Azure Front Door (which downgrades
+// to HTTP/1.1), gRPC uses a dedicated subdomain that routes directly to
+// the Container App with full HTTP/2 support.
+func grpcHost(host string) string {
+	switch host {
+	case "bowrain.cloud":
+		return "grpc.bowrain.cloud"
+	case "dev.bowrain.cloud":
+		return "grpc.dev.bowrain.cloud"
+	default:
+		return host
+	}
 }
 
 type parsedURL struct {
