@@ -92,7 +92,10 @@ export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
 export { AutomationHistory } from "./components/AutomationHistory";
 export { NotificationCenter } from "./components/NotificationCenter";
 export { ActivityIndicator, TaskIndicator } from "./components/ActivityTaskIndicators";
-export type { ActivityIndicatorProps, TaskIndicatorProps } from "./components/ActivityTaskIndicators";
+export type {
+  ActivityIndicatorProps,
+  TaskIndicatorProps,
+} from "./components/ActivityTaskIndicators";
 export { StreamBadge } from "./components/StreamBadge";
 export type { StreamBadgeProps } from "./components/StreamBadge";
 export { StreamSelector } from "./components/StreamSelector";
