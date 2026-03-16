@@ -1,7 +1,8 @@
-import type { User, NotificationInfo } from "../types/api";
+import type { User, NotificationInfo, ActivityInfo, TaskInfo } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
 import { Sun, Moon, Monitor, WifiOff, LogOut } from "./icons";
 import { NotificationCenter } from "./NotificationCenter";
+import { ActivityIndicator, TaskIndicator } from "./ActivityTaskIndicators";
 import { Button } from "./ui/button";
 import {
   DropdownMenu,
@@ -25,6 +26,13 @@ export interface TopBarProps {
   onMarkAllNotificationsRead?: () => void;
   onDeleteNotification?: (id: string) => void;
   onNotificationClick?: (notification: NotificationInfo) => void;
+  activities?: ActivityInfo[];
+  onActivityClick?: (activity: ActivityInfo) => void;
+  onViewAllActivities?: () => void;
+  myTasks?: TaskInfo[];
+  onTaskClick?: (task: TaskInfo) => void;
+  onCompleteTask?: (taskId: string) => void;
+  onViewAllTasks?: () => void;
   leftSlot?: React.ReactNode;
 }
 
@@ -75,6 +83,13 @@ export function TopBar({
   onMarkAllNotificationsRead,
   onDeleteNotification,
   onNotificationClick,
+  activities,
+  onActivityClick,
+  onViewAllActivities,
+  myTasks,
+  onTaskClick,
+  onCompleteTask,
+  onViewAllTasks,
   leftSlot,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
@@ -91,6 +106,25 @@ export function TopBar({
           <WifiOff className="size-3" />
           <span>{pendingChanges} pending</span>
         </span>
+      )}
+
+      {/* Activity indicator */}
+      {activities && (
+        <ActivityIndicator
+          activities={activities}
+          onActivityClick={onActivityClick}
+          onViewAll={onViewAllActivities}
+        />
+      )}
+
+      {/* Task indicator */}
+      {myTasks && (
+        <TaskIndicator
+          tasks={myTasks}
+          onTaskClick={onTaskClick}
+          onCompleteTask={onCompleteTask}
+          onViewAll={onViewAllTasks}
+        />
       )}
 
       {/* Notification center */}
