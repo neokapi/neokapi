@@ -1,5 +1,7 @@
 testdata/
 results/
+output/
 versions/
 pseudobench
 tikal.sh
+okapi-apps/

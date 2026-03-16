@@ -145,44 +145,54 @@ and Okapi's Event model. The adapter layer wraps the bridge behind standard
 `DataFormatReader` / `DataFormatWriter` interfaces — bridge-backed formats are
 indistinguishable from native Go formats at the registry level.
 
-The bridge protocol (`core/plugin/proto/v2/neokapi_bridge.proto`) defines eight RPCs:
+The bridge protocol (`core/plugin/proto/v2/neokapi_bridge.proto`) defines a
+unified bidirectional streaming RPC:
 
 | RPC | Direction | Purpose |
 |-----|-----------|---------|
-| `ListFilters` | Unary | Discover available filters (runtime fallback; metadata preferred) |
-| `Info` | Unary | Get metadata for a specific filter |
-| `Open` | Unary | Open a document with a filter for reading |
-| `Read` | Server-streaming | Stream extracted Parts from the document |
-| `Write` | Client-streaming | Send Parts to reconstruct the document |
-| `Close` | Unary | Release filter resources |
-| `RoundTrip` | Bidirectional-streaming | Complete read→process→write cycle in a single RPC |
+| `Process` | Bidirectional-streaming | Complete read→process→write cycle |
 | `Shutdown` | Unary | Gracefully stop the bridge process |
 
-The `Read` and `Write` RPCs use gRPC streaming, so content flows incrementally
-rather than requiring the entire document to be buffered in memory.
+`Process` combines the entire document lifecycle into a single bidirectional
+stream. The Java side reads events from the Okapi filter, converts subscribed
+events to lightweight `ContentBlock` messages (no skeleton — ~10x smaller than
+full `BlockMessage` for typical XLSX cells), batches them into
+`ContentBlockBatch` messages (up to 1024 blocks), and streams them to Go. Go
+processes the blocks through its tool chain and sends them back individually.
+The Java side applies translations and writes output in a two-thread
+single-pass pipeline (one filter read, no double I/O):
 
-`RoundTrip` combines the Open/Read/Write/Close lifecycle into a single
-bidirectional stream: the server reads the document and streams Parts to the
-client, the client processes each Part and sends it back, and the server writes
-the output. This eliminates multiple RPC round-trips and ensures only one bridge
-instance is needed for the entire operation. Multiple `RoundTrip` calls can
-share the same JVM via concurrent gRPC streams.
+- **Reader thread**: reads filter events, sends subscribed parts to Go via
+  gRPC, enqueues events into a bounded queue for the writer thread
+- **Writer thread**: dequeues events, applies translations from a translation
+  queue (fed by gRPC responses from Go), writes to the filter writer
 
-Note: `ListFilters` and `Info` exist in the protocol but are not the primary
-discovery mechanism. The `PluginLoader` reads format metadata from
+The `ProcessHeader.subscribe_parts` field controls which event types cross the
+gRPC boundary. Setting `subscribe_parts = [4]` (Block only) means structural
+events (Layer, Data, Group) are written directly by Java without gRPC
+round-trips, reducing message count from ~570K to ~157K for large XLSX files.
+
+Format metadata is not discovered via gRPC — the `PluginLoader` reads it from
 `manifest.json` and schema files on disk during `ScanMetadata`, avoiding JVM
-startup for format listing and configuration. The RPCs serve as a runtime
-fallback when schemas are unavailable.
+startup for format listing.
 
-### Global Bridge Pool
+### Bridge Registry
 
-A single process-wide `BridgePool` manages all bridge subprocess instances, keyed
-by process configuration (command + args), with a global capacity limit of
-`runtime.NumCPU()`. The pool uses LIFO reuse, cross-key eviction to prevent
-deadlocks, and `sync.Cond` with `Broadcast()` for fair waiting.
+A single process-wide `BridgeRegistry` manages bridge instances with
+semaphore-based concurrency control:
+
+- **Global semaphore** bounds total concurrent streams across all JVMs
+- **Per-JVM semaphore** bounds concurrent streams on each JVM
+- **Daemon mode** (`KAPI_BRIDGE_DAEMON=1`): JVMs persist across kapi
+  invocations, discovered via address files on disk
+- **Pipeline semaphore** on the Java side rejects excess streams with
+  `RESOURCE_EXHAUSTED`
+
+The registry replaces the earlier `BridgePool` (LIFO + eviction) with a
+simpler model: one JVM per Okapi version, bounded concurrency via semaphores.
 
 See [Bridge Protocol](/docs/notes/plugin-bridge-protocol) for the gRPC service
-definition, BridgePool acquire algorithm, and bridge descriptor format.
+definition, wire format, and performance tuning.
 
 ### Plugin Configuration
 
