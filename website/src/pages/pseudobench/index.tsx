@@ -1,38 +1,50 @@
-import {useState, useMemo, useCallback, useEffect} from 'react';
+import {useState, useMemo, useEffect} from 'react';
 import Layout from '@theme/Layout';
 import styles from './styles.module.css';
 
-/* ── Types ── */
+/* ── Types (new experiment-based format) ── */
 
 interface Stats {
   mean: number;
   median: number;
+  p5?: number;
   p95: number;
   stddev: number;
   min: number;
   max: number;
 }
 
-interface BenchMetrics {
-  wallTimeMs: Stats;
-  userCpuMs: Stats;
-  sysCpuMs: Stats;
-  peakRssKB: Stats;
-  outputBytes: Stats;
+interface FileTiming {
+  name: string;
+  format: string;
+  category: string;
+  sizeBytes: number;
+  startMs: number;
+  endMs: number;
+  wallMs: number;
+  peakRssKB: number;
+  userCpuMs: number;
+  sysCpuMs: number;
+  success: boolean;
+  error?: string;
 }
 
-interface BenchmarkResult {
-  category: string;
-  engine: string;
+interface FileResult {
+  name: string;
   format: string;
-  fileSize: string;
-  fileSizeBytes: number;
-  fileCount: number;
-  totalInputBytes: number;
-  unitCount: number;
+  success: boolean;
+  error?: string;
+}
+
+interface Experiment {
+  engine: string;
   version: string;
   iterations: number;
-  metrics: BenchMetrics;
+  wallTimeMs: Stats;
+  peakRssKB: Stats;
+  daemonRssKB?: Stats;
+  fileResults: FileResult[];
+  fileTimings?: FileTiming[];
 }
 
 interface Metadata {
@@ -46,29 +58,16 @@ interface Metadata {
 
 interface Report {
   metadata: Metadata;
-  benchmarks: BenchmarkResult[];
+  experiments: Experiment[];
 }
 
 /* ── Constants ── */
 
-type MetricKey = 'wallTimeMs' | 'userCpuMs' | 'sysCpuMs' | 'peakRssKB';
-
-const ALL_METRICS: {key: MetricKey; label: string; unit: string}[] = [
-  {key: 'wallTimeMs', label: 'Wall Time', unit: 'ms'},
-  {key: 'userCpuMs', label: 'User CPU', unit: 'ms'},
-  {key: 'sysCpuMs', label: 'Sys CPU', unit: 'ms'},
-  {key: 'peakRssKB', label: 'Peak RSS', unit: 'KB'},
-];
-
 const ENGINE_STYLES: Record<string, {color: string; label: string}> = {
-  'kapi-native': {color: '#2563eb', label: 'Kapi (Native)'},
-  'kapi-bridge': {color: '#7c3aed', label: 'Kapi (Bridge)'},
-  'okapi': {color: '#dc2626', label: 'Okapi (Tikal)'},
-};
-
-const CATEGORY_LABELS: Record<string, string> = {
-  single: 'Single File',
-  collection: 'File Collection',
+  'kapi-native': {color: '#2563eb', label: 'kapi (native)'},
+  'kapi-bridge': {color: '#7c3aed', label: 'kapi (bridge)'},
+  'kapi-bridge-daemon': {color: '#059669', label: 'kapi (bridge daemon)'},
+  'okapi': {color: '#dc2626', label: 'Okapi (tikal)'},
 };
 
 function engineLabel(engine: string): string {
@@ -91,59 +90,13 @@ function fmtBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-/* ── Speedup helper ── */
-
-interface SpeedupPair {
-  format: string;
-  size: string;
-  metric: MetricKey;
-  fastest: string;
-  slowest: string;
-  ratio: number;
-}
-
-function computeSpeedups(benchmarks: BenchmarkResult[]): SpeedupPair[] {
-  const grouped = new Map<string, BenchmarkResult[]>();
-  for (const b of benchmarks) {
-    const key = `${b.category}/${b.format}/${b.fileSize}`;
-    if (!grouped.has(key)) grouped.set(key, []);
-    grouped.get(key)!.push(b);
-  }
-
-  const pairs: SpeedupPair[] = [];
-  for (const [key, group] of grouped) {
-    if (group.length < 2) continue;
-    const [, format, size] = key.split('/');
-    for (const m of ALL_METRICS) {
-      const sorted = [...group].sort(
-        (a, b) => a.metrics[m.key].median - b.metrics[m.key].median,
-      );
-      const fastest = sorted[0];
-      const slowest = sorted[sorted.length - 1];
-      if (fastest.metrics[m.key].median > 0) {
-        pairs.push({
-          format,
-          size,
-          metric: m.key,
-          fastest: fastest.engine,
-          slowest: slowest.engine,
-          ratio: slowest.metrics[m.key].median / fastest.metrics[m.key].median,
-        });
-      }
-    }
-  }
-  return pairs;
-}
-
 /* ── Components ── */
 
 function MetadataBar({metadata}: {metadata: Metadata}) {
   return (
     <div className={styles.metadataBar}>
       <span>{metadata.platform}</span>
-      <span>
-        {metadata.cpuModel} ({metadata.cpuCores} cores)
-      </span>
+      <span>{metadata.cpuModel} ({metadata.cpuCores} cores)</span>
       <span>{metadata.memoryGB.toFixed(0)} GB RAM</span>
       <span>{metadata.goVersion}</span>
       <span>{new Date(metadata.timestamp).toLocaleDateString()}</span>
@@ -156,10 +109,7 @@ function Legend({engines}: {engines: string[]}) {
     <div className={styles.legend}>
       {engines.map((e) => (
         <span key={e} className={styles.legendItem}>
-          <span
-            className={styles.legendDot}
-            style={{backgroundColor: engineColor(e)}}
-          />
+          <span className={styles.legendDot} style={{backgroundColor: engineColor(e)}} />
           {engineLabel(e)}
         </span>
       ))}
@@ -167,332 +117,226 @@ function Legend({engines}: {engines: string[]}) {
   );
 }
 
-function SpeedupSummary({pairs}: {pairs: SpeedupPair[]}) {
-  if (pairs.length === 0) return null;
+/** Summary cards showing headline numbers. */
+function SummaryCards({experiments}: {experiments: Experiment[]}) {
+  const native = experiments.find((e) => e.engine === 'kapi-native');
+  const bridge = experiments.find((e) => e.engine === 'kapi-bridge');
+  const daemon = experiments.find((e) => e.engine === 'kapi-bridge-daemon');
+  const okapi = experiments.find((e) => e.engine === 'okapi');
 
-  const timePairs = pairs.filter((p) => p.metric === 'wallTimeMs');
-  if (timePairs.length === 0) return null;
+  const cards: {value: string; label: string; color: string}[] = [];
 
-  const avgRatio = timePairs.reduce((s, p) => s + p.ratio, 0) / timePairs.length;
-  const maxRatio = Math.max(...timePairs.map((p) => p.ratio));
+  if (native && okapi) {
+    const ratio = okapi.wallTimeMs.median / native.wallTimeMs.median;
+    cards.push({value: `${ratio.toFixed(1)}x`, label: 'kapi native vs tikal', color: '#2563eb'});
+  }
+  if (bridge && okapi) {
+    const ratio = bridge.wallTimeMs.median / okapi.wallTimeMs.median;
+    cards.push({value: `${ratio.toFixed(2)}x`, label: 'bridge vs tikal', color: '#7c3aed'});
+  }
+  if (daemon && okapi) {
+    const ratio = daemon.wallTimeMs.median / okapi.wallTimeMs.median;
+    cards.push({value: `${ratio.toFixed(2)}x`, label: 'daemon vs tikal', color: '#059669'});
+  }
 
-  const rssPairs = pairs.filter((p) => p.metric === 'peakRssKB');
-  const avgRssRatio =
-    rssPairs.length > 0
-      ? rssPairs.reduce((s, p) => s + p.ratio, 0) / rssPairs.length
-      : 0;
-
-  const cpuPairs = pairs.filter((p) => p.metric === 'userCpuMs');
-  const avgCpuRatio =
-    cpuPairs.length > 0
-      ? cpuPairs.reduce((s, p) => s + p.ratio, 0) / cpuPairs.length
-      : 0;
+  const fileCount = experiments[0]?.fileResults?.length ?? 0;
+  const allPass = experiments.every((e) => e.fileResults.every((f) => f.success));
+  if (fileCount > 0) {
+    cards.push({
+      value: `${fileCount}`,
+      label: allPass ? 'files (all pass)' : 'test files',
+      color: allPass ? '#059669' : '#d97706',
+    });
+  }
 
   return (
     <div className={styles.summaryCards}>
-      <div className={styles.summaryCard}>
-        <div className={styles.summaryValue}>{avgRatio.toFixed(1)}x</div>
-        <div className={styles.summaryLabel}>Avg wall time spread</div>
-      </div>
-      <div className={styles.summaryCard}>
-        <div className={styles.summaryValue}>{maxRatio.toFixed(1)}x</div>
-        <div className={styles.summaryLabel}>Max wall time spread</div>
-      </div>
-      {avgCpuRatio > 0 && (
-        <div className={styles.summaryCard}>
-          <div className={styles.summaryValue}>{avgCpuRatio.toFixed(1)}x</div>
-          <div className={styles.summaryLabel}>Avg CPU spread</div>
-        </div>
-      )}
-      {avgRssRatio > 0 && (
-        <div className={styles.summaryCard}>
-          <div className={styles.summaryValue}>{avgRssRatio.toFixed(1)}x</div>
-          <div className={styles.summaryLabel}>Avg memory spread</div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * The core comparison component.
- * For one format+size, shows all engines as rows and all metrics as columns.
- */
-function ComparisonCard({
-  format,
-  fileSize,
-  data,
-  metricMaxes,
-  isCollection,
-}: {
-  format: string;
-  fileSize: string;
-  data: BenchmarkResult[];
-  metricMaxes: Record<MetricKey, number>;
-  isCollection?: boolean;
-}) {
-  const winners: Record<MetricKey, string> = {} as any;
-  for (const m of ALL_METRICS) {
-    let best = Infinity;
-    let bestEngine = '';
-    for (const b of data) {
-      const v = b.metrics[m.key].median;
-      if (v < best) {
-        best = v;
-        bestEngine = b.engine;
-      }
-    }
-    winners[m.key] = bestEngine;
-  }
-
-  const hasMultipleEngines = data.length > 1;
-  const sample = data[0];
-
-  return (
-    <div className={styles.compCard}>
-      <div className={styles.compHeader}>
-        <span className={styles.compFormat}>{format}</span>
-        <span className={styles.compSize}>{fileSize}</span>
-        {isCollection && sample && (
-          <>
-            <span className={styles.compSize}>{sample.fileCount} files</span>
-            <span className={styles.compSize}>{sample.unitCount} units</span>
-            <span className={styles.compSize}>{fmtBytes(sample.totalInputBytes)}</span>
-          </>
-        )}
-        {!isCollection && sample && (
-          <>
-            <span className={styles.compSize}>{sample.unitCount} units</span>
-            <span className={styles.compSize}>{fmtBytes(sample.fileSizeBytes || sample.totalInputBytes)}</span>
-          </>
-        )}
-      </div>
-
-      <div className={styles.compGrid} style={{'--engine-count': data.length} as any}>
-        <div className={styles.compCorner} />
-        {ALL_METRICS.map((m) => (
-          <div key={m.key} className={styles.compColHeader}>
-            {m.label}
-            <span className={styles.compUnit}>{m.unit}</span>
-          </div>
-        ))}
-
-        {data.map((b) => (
-          <ComparisonRow
-            key={b.engine + b.version}
-            result={b}
-            winners={winners}
-            metricMaxes={metricMaxes}
-            hasMultipleEngines={hasMultipleEngines}
-          />
-        ))}
-      </div>
-
-      <details className={styles.compDetails}>
-        <summary>Full statistics</summary>
-        <FullStatsTable data={data} />
-      </details>
-    </div>
-  );
-}
-
-function ComparisonRow({
-  result: b,
-  winners,
-  metricMaxes,
-  hasMultipleEngines,
-}: {
-  result: BenchmarkResult;
-  winners: Record<MetricKey, string>;
-  metricMaxes: Record<MetricKey, number>;
-  hasMultipleEngines: boolean;
-}) {
-  const color = engineColor(b.engine);
-  const version = b.version ? ` ${b.version}` : '';
-
-  return (
-    <>
-      <div className={styles.compEngine}>
-        <span className={styles.compEngineDot} style={{backgroundColor: color}} />
-        <span className={styles.compEngineName}>
-          {engineLabel(b.engine)}
-          <span className={styles.compVersion}>{version}</span>
-        </span>
-      </div>
-
-      {ALL_METRICS.map((m) => {
-        const val = b.metrics[m.key].median;
-        const max = metricMaxes[m.key];
-        const pct = max > 0 ? (val / max) * 100 : 0;
-        const isWinner = hasMultipleEngines && winners[m.key] === b.engine;
-        const p95 = b.metrics[m.key].p95;
-
-        return (
-          <div
-            key={m.key}
-            className={`${styles.compCell} ${isWinner ? styles.compCellWinner : ''}`}
-            title={`median: ${fmt(val)} | p95: ${fmt(p95)} | stddev: ${fmt(b.metrics[m.key].stddev)}`}
-          >
-            <div className={styles.compBarTrack}>
-              <div
-                className={styles.compBar}
-                style={{
-                  width: `${Math.max(pct, 2)}%`,
-                  backgroundColor: color,
-                  opacity: isWinner ? 1 : 0.6,
-                }}
-              />
-            </div>
-            <span className={styles.compVal}>{fmt(val)}</span>
-            {isWinner && <span className={styles.compWinBadge} />}
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-function FullStatsTable({data}: {data: BenchmarkResult[]}) {
-  return (
-    <div className={styles.statsTableWrap}>
-      {ALL_METRICS.map((m) => (
-        <div key={m.key} className={styles.statsSection}>
-          <div className={styles.statsMetricLabel}>
-            {m.label} ({m.unit})
-          </div>
-          <table className={styles.statsTable}>
-            <thead>
-              <tr>
-                <th>Engine</th>
-                <th>Median</th>
-                <th>Mean</th>
-                <th>P95</th>
-                <th>Min</th>
-                <th>Max</th>
-                <th>Stddev</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((b) => {
-                const s = b.metrics[m.key];
-                return (
-                  <tr key={b.engine}>
-                    <td>
-                      <span
-                        className={styles.compEngineDot}
-                        style={{backgroundColor: engineColor(b.engine)}}
-                      />
-                      {engineLabel(b.engine)}
-                    </td>
-                    <td className={styles.num}>{fmt(s.median)}</td>
-                    <td className={styles.num}>{fmt(s.mean)}</td>
-                    <td className={styles.num}>{fmt(s.p95)}</td>
-                    <td className={styles.num}>{fmt(s.min)}</td>
-                    <td className={styles.num}>{fmt(s.max)}</td>
-                    <td className={styles.num}>{fmt(s.stddev)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {cards.map((c, i) => (
+        <div key={i} className={styles.summaryCard}>
+          <div className={styles.summaryValue} style={{color: c.color}}>{c.value}</div>
+          <div className={styles.summaryLabel}>{c.label}</div>
         </div>
       ))}
     </div>
   );
 }
 
-/** Overview table for quick scanning across all format+size combos. */
-function OverviewTable({
-  groups,
-  engines,
-  isCollection,
-}: {
-  groups: Map<string, BenchmarkResult[]>;
-  engines: string[];
-  isCollection?: boolean;
-}) {
+/** Batch wall time comparison — the main benchmark view. */
+function BatchComparison({experiments}: {experiments: Experiment[]}) {
+  const maxTime = Math.max(...experiments.map((e) => e.wallTimeMs.median));
+  const maxRss = Math.max(...experiments.map((e) => e.peakRssKB.median));
+
   return (
-    <div className={styles.overviewWrap}>
-      <table className={styles.overviewTable}>
-        <thead>
-          <tr>
-            <th>{isCollection ? 'Collection' : 'Format'}</th>
-            <th>Size</th>
-            {isCollection && <th>Files</th>}
-            {engines.map((e) => (
-              <th key={e} colSpan={2}>
-                <span
-                  className={styles.compEngineDot}
-                  style={{backgroundColor: engineColor(e)}}
-                />
-                {engineLabel(e)}
-              </th>
-            ))}
-          </tr>
-          <tr>
-            <th />
-            <th />
-            {isCollection && <th />}
-            {engines.map((e) => (
-              <Fragment key={e}>
-                <th className={styles.overviewSubHeader}>Time</th>
-                <th className={styles.overviewSubHeader}>RSS</th>
-              </Fragment>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {[...groups.entries()].map(([key, data]) => {
-            const [format, fileSize] = key.split('/');
-            let minTime = Infinity;
-            let minRss = Infinity;
-            for (const b of data) {
-              minTime = Math.min(minTime, b.metrics.wallTimeMs.median);
-              minRss = Math.min(minRss, b.metrics.peakRssKB.median);
-            }
-            const sample = data[0];
-            return (
-              <tr key={key}>
-                <td className={styles.overviewFormat}>{format}</td>
-                <td className={styles.overviewSize}>{fileSize}</td>
-                {isCollection && (
-                  <td className={styles.overviewSize}>
-                    {sample?.fileCount ?? '-'}
-                  </td>
-                )}
-                {engines.map((eng) => {
-                  const b = data.find((d) => d.engine === eng);
-                  if (!b)
-                    return (
-                      <Fragment key={eng}>
-                        <td className={styles.overviewMissing}>-</td>
-                        <td className={styles.overviewMissing}>-</td>
-                      </Fragment>
-                    );
-                  const time = b.metrics.wallTimeMs.median;
-                  const rss = b.metrics.peakRssKB.median;
-                  const isTimeWin = data.length > 1 && time === minTime;
-                  const isRssWin = data.length > 1 && rss === minRss;
-                  return (
-                    <Fragment key={eng}>
-                      <td
-                        className={`${styles.num} ${isTimeWin ? styles.overviewWin : ''}`}
-                      >
-                        {fmt(time)} ms
-                      </td>
-                      <td
-                        className={`${styles.num} ${isRssWin ? styles.overviewWin : ''}`}
-                      >
-                        {fmt(rss / 1024)} MB
-                      </td>
-                    </Fragment>
-                  );
-                })}
+    <div className={styles.compCard}>
+      <div className={styles.compHeader}>
+        <span className={styles.compFormat}>Batch Processing</span>
+        <span className={styles.compSize}>
+          {experiments[0]?.fileResults?.length ?? 0} files, {experiments[0]?.iterations ?? 0} iterations
+        </span>
+      </div>
+      <div className={styles.compGrid} style={{'--engine-count': experiments.length} as any}>
+        <div className={styles.compCorner} />
+        <div className={styles.compColHeader}>Wall Time<span className={styles.compUnit}>ms</span></div>
+        <div className={styles.compColHeader}>p95<span className={styles.compUnit}>ms</span></div>
+        <div className={styles.compColHeader}>Peak RSS<span className={styles.compUnit}>MB</span></div>
+        <div className={styles.compColHeader}>Stddev<span className={styles.compUnit}>ms</span></div>
+
+        {experiments.map((e) => {
+          const color = engineColor(e.engine);
+          const timePct = maxTime > 0 ? (e.wallTimeMs.median / maxTime) * 100 : 0;
+          const isTimeWin = e.wallTimeMs.median === Math.min(...experiments.map((x) => x.wallTimeMs.median));
+          const isRssWin = e.peakRssKB.median === Math.min(...experiments.map((x) => x.peakRssKB.median));
+
+          return (
+            <Fragment key={e.engine}>
+              <div className={styles.compEngine}>
+                <span className={styles.compEngineDot} style={{backgroundColor: color}} />
+                <span className={styles.compEngineName}>
+                  {engineLabel(e.engine)}
+                  <span className={styles.compVersion}> {e.version}</span>
+                </span>
+              </div>
+              <div className={`${styles.compCell} ${isTimeWin ? styles.compCellWinner : ''}`}>
+                <div className={styles.compBarTrack}>
+                  <div className={styles.compBar} style={{width: `${Math.max(timePct, 2)}%`, backgroundColor: color, opacity: isTimeWin ? 1 : 0.6}} />
+                </div>
+                <span className={styles.compVal}>{fmt(e.wallTimeMs.median)}</span>
+                {isTimeWin && <span className={styles.compWinBadge} />}
+              </div>
+              <div className={styles.compCell}>
+                <span className={styles.compVal}>{fmt(e.wallTimeMs.p95)}</span>
+              </div>
+              <div className={`${styles.compCell} ${isRssWin ? styles.compCellWinner : ''}`}>
+                <span className={styles.compVal}>{fmt(e.peakRssKB.median / 1024)}</span>
+                {isRssWin && <span className={styles.compWinBadge} />}
+              </div>
+              <div className={styles.compCell}>
+                <span className={styles.compVal}>{fmt(e.wallTimeMs.stddev)}</span>
+              </div>
+            </Fragment>
+          );
+        })}
+      </div>
+
+      <details className={styles.compDetails}>
+        <summary>Full statistics</summary>
+        <div className={styles.statsTableWrap}>
+          <table className={styles.statsTable}>
+            <thead>
+              <tr>
+                <th>Engine</th>
+                <th>Median</th>
+                <th>Mean</th>
+                <th>p95</th>
+                <th>Min</th>
+                <th>Max</th>
+                <th>Stddev</th>
+                <th>Iterations</th>
               </tr>
-            );
-          })}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {experiments.map((e) => (
+                <tr key={e.engine}>
+                  <td>
+                    <span className={styles.compEngineDot} style={{backgroundColor: engineColor(e.engine)}} />
+                    {engineLabel(e.engine)}
+                  </td>
+                  <td className={styles.num}>{fmt(e.wallTimeMs.median)} ms</td>
+                  <td className={styles.num}>{fmt(e.wallTimeMs.mean)} ms</td>
+                  <td className={styles.num}>{fmt(e.wallTimeMs.p95)} ms</td>
+                  <td className={styles.num}>{fmt(e.wallTimeMs.min)} ms</td>
+                  <td className={styles.num}>{fmt(e.wallTimeMs.max)} ms</td>
+                  <td className={styles.num}>{fmt(e.wallTimeMs.stddev)} ms</td>
+                  <td className={styles.num}>{e.iterations}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+/** Per-file timing breakdown table. */
+function FileTimingsTable({experiments}: {experiments: Experiment[]}) {
+  // Collect all unique file names from the first experiment with timings
+  const withTimings = experiments.filter((e) => e.fileTimings && e.fileTimings.length > 0);
+  if (withTimings.length === 0) return null;
+
+  const fileNames = withTimings[0].fileTimings!.map((f) => f.name);
+  const engines = withTimings.map((e) => e.engine);
+
+  // Group by category for display
+  const categories = [...new Set(withTimings[0].fileTimings!.map((f) => f.category))];
+
+  return (
+    <div className={styles.compCard}>
+      <div className={styles.compHeader}>
+        <span className={styles.compFormat}>Per-File Timing</span>
+        <span className={styles.compSize}>sequential trace pass</span>
+      </div>
+      <div className={styles.overviewWrap}>
+        <table className={styles.overviewTable}>
+          <thead>
+            <tr>
+              <th>File</th>
+              <th>Format</th>
+              <th>Size</th>
+              {engines.map((e) => (
+                <th key={e}>
+                  <span className={styles.compEngineDot} style={{backgroundColor: engineColor(e)}} />
+                  {engineLabel(e)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {categories.map((cat) => {
+              const catFiles = fileNames.filter((name) => {
+                const ft = withTimings[0].fileTimings!.find((f) => f.name === name);
+                return ft?.category === cat;
+              });
+              return (
+                <Fragment key={cat}>
+                  <tr>
+                    <td colSpan={3 + engines.length} className={styles.overviewFormat}>
+                      <strong>{cat}</strong>
+                    </td>
+                  </tr>
+                  {catFiles.map((name) => {
+                    const sample = withTimings[0].fileTimings!.find((f) => f.name === name)!;
+                    const times = engines.map((eng) => {
+                      const exp = withTimings.find((e) => e.engine === eng);
+                      return exp?.fileTimings?.find((f) => f.name === name);
+                    });
+                    const minTime = Math.min(...times.filter(Boolean).map((t) => t!.wallMs));
+
+                    return (
+                      <tr key={name}>
+                        <td className={styles.overviewFormat}>{name}</td>
+                        <td>{sample.format}</td>
+                        <td>{fmtBytes(sample.sizeBytes)}</td>
+                        {times.map((t, i) => {
+                          if (!t || !t.success) {
+                            return <td key={engines[i]} className={styles.overviewMissing}>{t?.error ? 'err' : '-'}</td>;
+                          }
+                          const isWin = engines.length > 1 && t.wallMs === minTime;
+                          return (
+                            <td key={engines[i]} className={`${styles.num} ${isWin ? styles.overviewWin : ''}`}>
+                              {fmt(t.wallMs)} ms
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -503,15 +347,12 @@ function Fragment({children}: {children: React.ReactNode}) {
 
 /* ── Main Page ── */
 
-type ViewMode = 'cards' | 'table';
+type ViewMode = 'summary' | 'files';
 
 export default function PseudoBench() {
   const [report, setReport] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('single');
-  const [selectedFormat, setSelectedFormat] = useState<string>('');
-  const [selectedSize, setSelectedSize] = useState<string>('');
-  const [viewMode, setViewMode] = useState<ViewMode>('cards');
+  const [viewMode, setViewMode] = useState<ViewMode>('summary');
 
   useEffect(() => {
     fetch('/data/pseudobench.json')
@@ -519,219 +360,74 @@ export default function PseudoBench() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((data: Report) => setReport(data))
+      .then((data: any) => {
+        // Handle both old format (benchmarks array) and new format (experiments array).
+        if (data.experiments) {
+          setReport(data as Report);
+        } else if (data.benchmarks) {
+          // Convert old format: group benchmarks by engine into experiments.
+          const byEngine = new Map<string, any[]>();
+          for (const b of data.benchmarks) {
+            if (!byEngine.has(b.engine)) byEngine.set(b.engine, []);
+            byEngine.get(b.engine)!.push(b);
+          }
+          const experiments: Experiment[] = [...byEngine.entries()].map(([engine, benchmarks]) => ({
+            engine,
+            version: benchmarks[0]?.version ?? '',
+            iterations: benchmarks[0]?.iterations ?? 0,
+            wallTimeMs: {mean: 0, median: 0, p95: 0, stddev: 0, min: 0, max: 0},
+            peakRssKB: {mean: 0, median: 0, p95: 0, stddev: 0, min: 0, max: 0},
+            fileResults: benchmarks.map((b: any) => ({name: `${b.format}/${b.fileSize}`, format: b.format, success: true})),
+          }));
+          setReport({metadata: data.metadata, experiments});
+        } else {
+          throw new Error('Unknown data format');
+        }
+      })
       .catch(() =>
-        setError(
-          'No benchmark data found. Run PseudoBench and copy results to website/static/data/pseudobench.json',
-        ),
+        setError('No benchmark data found. Run PseudoBench and copy results to website/static/data/pseudobench.json'),
       );
   }, []);
 
-  const categories = useMemo(
-    () => (report ? [...new Set(report.benchmarks.map((b) => b.category))] : []),
-    [report],
-  );
-
-  const catBenchmarks = useMemo(
-    () =>
-      report
-        ? report.benchmarks.filter((b) => b.category === selectedCategory)
-        : [],
-    [report, selectedCategory],
-  );
-
-  const engines = useMemo(
-    () => [...new Set(catBenchmarks.map((b) => b.engine))],
-    [catBenchmarks],
-  );
-
-  const formats = useMemo(
-    () => [...new Set(catBenchmarks.map((b) => b.format))],
-    [catBenchmarks],
-  );
-
-  const sizes = useMemo(
-    () => [...new Set(catBenchmarks.map((b) => b.fileSize))],
-    [catBenchmarks],
-  );
-
-  const filtered = useMemo(() => {
-    return catBenchmarks.filter(
-      (b) =>
-        (!selectedFormat || b.format === selectedFormat) &&
-        (!selectedSize || b.fileSize === selectedSize),
-    );
-  }, [catBenchmarks, selectedFormat, selectedSize]);
-
-  const groups = useMemo(() => {
-    const map = new Map<string, BenchmarkResult[]>();
-    for (const b of filtered) {
-      const key = `${b.format}/${b.fileSize}`;
-      if (!map.has(key)) map.set(key, []);
-      map.get(key)!.push(b);
-    }
-    return map;
-  }, [filtered]);
-
-  const metricMaxes = useMemo(() => {
-    const maxes: Record<MetricKey, number> = {
-      wallTimeMs: 0,
-      userCpuMs: 0,
-      sysCpuMs: 0,
-      peakRssKB: 0,
-    };
-    for (const b of filtered) {
-      for (const m of ALL_METRICS) {
-        maxes[m.key] = Math.max(maxes[m.key], b.metrics[m.key].median);
-      }
-    }
-    return maxes;
-  }, [filtered]);
-
-  const speedups = useMemo(
-    () => (report ? computeSpeedups(catBenchmarks) : []),
-    [report, catBenchmarks],
-  );
-
-  const toggleFormat = useCallback(
-    (f: string) => setSelectedFormat((prev) => (prev === f ? '' : f)),
-    [],
-  );
-  const toggleSize = useCallback(
-    (s: string) => setSelectedSize((prev) => (prev === s ? '' : s)),
-    [],
-  );
-
-  const isCollection = selectedCategory === 'collection';
-
-  // Reset format filter when switching categories.
-  const switchCategory = useCallback((cat: string) => {
-    setSelectedCategory(cat);
-    setSelectedFormat('');
-    setSelectedSize('');
-  }, []);
+  const experiments = useMemo(() => report?.experiments ?? [], [report]);
+  const engines = useMemo(() => experiments.map((e) => e.engine), [experiments]);
 
   return (
     <Layout title="PseudoBench" description="neokapi performance benchmarks">
       <div className={styles.container}>
         <h1>PseudoBench</h1>
         <p className={styles.subtitle}>
-          Performance benchmarks: read &rarr; pseudo-translate &rarr; write
+          Performance benchmarks: read &rarr; pseudo-translate &rarr; write across 21 real-world files
         </p>
 
         {error && <div className={styles.error}>{error}</div>}
 
-        {report && (
+        {report && experiments.length > 0 && (
           <>
             <MetadataBar metadata={report.metadata} />
             <Legend engines={engines} />
-            <SpeedupSummary pairs={speedups} />
+            <SummaryCards experiments={experiments} />
 
-            {/* Filters */}
             <div className={styles.filters}>
-              {/* Category tabs */}
-              {categories.length > 1 && (
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Category:</span>
-                  {categories.map((cat) => (
-                    <button
-                      key={cat}
-                      className={`${styles.filterBtn} ${selectedCategory === cat ? styles.filterBtnActive : ''}`}
-                      onClick={() => switchCategory(cat)}
-                    >
-                      {CATEGORY_LABELS[cat] ?? cat}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* Format filter */}
-              {formats.length > 1 && (
-                <div className={styles.filterGroup}>
-                  <span className={styles.filterLabel}>Format:</span>
-                  <button
-                    className={`${styles.filterBtn} ${!selectedFormat ? styles.filterBtnActive : ''}`}
-                    onClick={() => setSelectedFormat('')}
-                  >
-                    All
-                  </button>
-                  {formats.map((f) => (
-                    <button
-                      key={f}
-                      className={`${styles.filterBtn} ${selectedFormat === f ? styles.filterBtnActive : ''}`}
-                      onClick={() => toggleFormat(f)}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className={styles.filterGroup}>
-                <span className={styles.filterLabel}>Size:</span>
-                <button
-                  className={`${styles.filterBtn} ${!selectedSize ? styles.filterBtnActive : ''}`}
-                  onClick={() => setSelectedSize('')}
-                >
-                  All
-                </button>
-                {sizes.map((s) => (
-                  <button
-                    key={s}
-                    className={`${styles.filterBtn} ${selectedSize === s ? styles.filterBtnActive : ''}`}
-                    onClick={() => toggleSize(s)}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-
               <div className={styles.filterGroup}>
                 <span className={styles.filterLabel}>View:</span>
                 <button
-                  className={`${styles.filterBtn} ${viewMode === 'cards' ? styles.filterBtnActive : ''}`}
-                  onClick={() => setViewMode('cards')}
+                  className={`${styles.filterBtn} ${viewMode === 'summary' ? styles.filterBtnActive : ''}`}
+                  onClick={() => setViewMode('summary')}
                 >
-                  Comparison Cards
+                  Batch Summary
                 </button>
                 <button
-                  className={`${styles.filterBtn} ${viewMode === 'table' ? styles.filterBtnActive : ''}`}
-                  onClick={() => setViewMode('table')}
+                  className={`${styles.filterBtn} ${viewMode === 'files' ? styles.filterBtnActive : ''}`}
+                  onClick={() => setViewMode('files')}
                 >
-                  Overview Table
+                  Per-File Timing
                 </button>
               </div>
             </div>
 
-            {viewMode === 'cards' && (
-              <div className={styles.compGrid2col}>
-                {[...groups.entries()].map(([key, data]) => {
-                  const [format, fileSize] = key.split('/');
-                  return (
-                    <ComparisonCard
-                      key={key}
-                      format={format}
-                      fileSize={fileSize}
-                      data={data}
-                      metricMaxes={metricMaxes}
-                      isCollection={isCollection}
-                    />
-                  );
-                })}
-              </div>
-            )}
-
-            {viewMode === 'table' && (
-              <OverviewTable
-                groups={groups}
-                engines={engines}
-                isCollection={isCollection}
-              />
-            )}
-
-            {groups.size === 0 && (
-              <p className={styles.empty}>No benchmarks match the selected filters.</p>
-            )}
+            {viewMode === 'summary' && <BatchComparison experiments={experiments} />}
+            {viewMode === 'files' && <FileTimingsTable experiments={experiments} />}
           </>
         )}
 
