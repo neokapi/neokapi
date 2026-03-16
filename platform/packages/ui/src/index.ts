@@ -137,6 +137,8 @@ export {
   SettingsSkeleton,
   ExplorerSkeleton,
   TranslationDashboardSkeleton,
+  ActivityFeedSkeleton,
+  TaskBoardSkeleton,
 } from "./components/skeletons";
 
 // Editor components
