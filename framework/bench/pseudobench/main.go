@@ -9,13 +9,6 @@ import (
 	"strings"
 )
 
-var defaultFormats = []string{
-	"json", "html", "xml", "xliff", "properties", "po", "yaml", "plaintext",
-	"docx", "pptx", "xlsx",
-}
-var defaultSizes = []string{"small", "medium", "large"}
-var defaultCategories = []string{"single", "collection"}
-
 func main() {
 	if len(os.Args) < 2 {
 		usage()
@@ -23,8 +16,6 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "generate":
-		cmdGenerate(os.Args[2:])
 	case "run":
 		cmdRun(os.Args[2:])
 	case "build-versions":
@@ -39,26 +30,20 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `PseudoBench — neokapi performance benchmarks
 
 Usage:
-  pseudobench generate [flags]    Generate test data files
   pseudobench run [flags]         Run benchmarks
   pseudobench build-versions      Build kapi from git tags
 
-Flags for 'generate':
-  -dir string       Output directory (default "testdata")
-  -formats string   Comma-separated formats (default all incl. docx,pptx,xlsx)
-  -sizes string     Comma-separated size tiers: small,medium,large
-
 Flags for 'run':
-  -kapi string        Path(s) to kapi binary (comma-sep, use name=path)
-  -okapi string       Path(s) to tikal (comma-sep, use name=path)
-  -bridge             Also benchmark kapi with Okapi bridge formats
-  -formats string     Comma-separated formats
-  -sizes string       Comma-separated size tiers: small,medium,large
-  -categories string  Comma-separated: single,collection (default both)
-  -iterations int     Iterations per benchmark (default 10)
-  -warmup int         Warmup iterations (default 2)
-  -testdata string    Test data directory (default "testdata")
-  -output string      Output JSON file (default "results/pseudobench.json")
+  -kapi string          Path to kapi binary
+  -okapi string         Path to tikal binary
+  -bridge-jar string    Path to bridge JAR (enables daemon mode)
+  -iterations int       Measurement iterations (default 5)
+  -warmup int           Warmup iterations (default 1)
+  -testdata string      Test data directory (default "testdata")
+  -okapi-testdata string Path to okapi-testdata root (copies files to testdata)
+  -output string        Output directory for preserved files (default "output")
+  -results string       Results directory for JSON/HTML (default "results")
+  -html string          HTML report path (default "results/pseudobench.html")
 
 Flags for 'build-versions':
   -versions string  Comma-separated git tags (e.g. v0.1.0,v0.2.0)
@@ -67,77 +52,66 @@ Flags for 'build-versions':
 `)
 }
 
-func cmdGenerate(args []string) {
-	fs := flag.NewFlagSet("generate", flag.ExitOnError)
-	dir := fs.String("dir", "testdata", "output directory")
-	formats := fs.String("formats", strings.Join(defaultFormats, ","), "formats")
-	sizes := fs.String("sizes", strings.Join(defaultSizes, ","), "sizes")
-	fs.Parse(args)
-
-	fmts := strings.Split(*formats, ",")
-	szs := strings.Split(*sizes, ",")
-
-	fmt.Println("Generating single-file test data...")
-	if err := generateTestData(*dir, fmts, szs); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("\nGenerating collection test data...")
-	if err := generateCollections(*dir, szs); err != nil {
-		fmt.Fprintf(os.Stderr, "Error generating collections: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("\nDone.")
-}
-
 func cmdRun(args []string) {
 	fs := flag.NewFlagSet("run", flag.ExitOnError)
-	kapiBins := fs.String("kapi", "", "kapi binary path(s), use version=path for labels")
-	okapiBins := fs.String("okapi", "", "tikal path(s), use version=path for labels")
-	bridge := fs.Bool("bridge", false, "also benchmark kapi with bridge formats")
-	bridgeDaemon := fs.Bool("bridge-daemon", false, "also benchmark kapi bridge in daemon mode (warm JVM)")
-	formats := fs.String("formats", strings.Join(defaultFormats, ","), "formats to benchmark")
-	sizes := fs.String("sizes", strings.Join(defaultSizes, ","), "size tiers to benchmark")
-	categories := fs.String("categories", strings.Join(defaultCategories, ","), "benchmark categories: single,collection")
-	iterations := fs.Int("iterations", 10, "iterations per benchmark")
-	warmup := fs.Int("warmup", 2, "warmup iterations")
+	kapiBin := fs.String("kapi", "", "path to kapi binary")
+	okapiBin := fs.String("okapi", "", "path to tikal binary")
+	bridgeJar := fs.String("bridge-jar", "", "path to bridge JAR (enables daemon mode)")
+	iterations := fs.Int("iterations", 5, "measurement iterations")
+	warmup := fs.Int("warmup", 1, "warmup iterations")
 	testdata := fs.String("testdata", "testdata", "test data directory")
-	output := fs.String("output", "results/pseudobench.json", "output JSON file")
+	okapiTestdata := fs.String("okapi-testdata", "", "path to okapi-testdata root")
+	output := fs.String("output", "output", "output directory for preserved files")
+	results := fs.String("results", "results", "results directory")
+	htmlFile := fs.String("html", "results/pseudobench.html", "HTML report path")
 	fs.Parse(args)
 
-	cfg := &Config{
-		Formats:     strings.Split(*formats, ","),
-		Sizes:       strings.Split(*sizes, ","),
-		Categories:  strings.Split(*categories, ","),
-		Iterations:  *iterations,
-		Warmup:      *warmup,
-		TestdataDir: *testdata,
-		OutputFile:  *output,
-		Bridge:       *bridge,
-		BridgeDaemon: *bridgeDaemon,
-	}
-
-	if *kapiBins != "" {
-		cfg.KapiBins = parseVersionedBinaries(*kapiBins)
-	}
-	if *okapiBins != "" {
-		cfg.OkapiBins = parseVersionedBinaries(*okapiBins)
-	}
-
-	if len(cfg.KapiBins) == 0 && len(cfg.OkapiBins) == 0 {
-		fmt.Fprintf(os.Stderr, "Error: specify at least one engine with -kapi or -okapi\n")
+	if *kapiBin == "" && *okapiBin == "" {
+		fmt.Fprintf(os.Stderr, "Error: specify at least -kapi or -okapi\n")
 		os.Exit(1)
 	}
 
-	fmt.Println("Running PseudoBench...")
-	fmt.Printf("  Engines:    kapi=%d, okapi=%d, bridge=%v\n", len(cfg.KapiBins), len(cfg.OkapiBins), cfg.Bridge)
-	fmt.Printf("  Categories: %s\n", strings.Join(cfg.Categories, ", "))
-	fmt.Printf("  Formats:    %s\n", strings.Join(cfg.Formats, ", "))
-	fmt.Printf("  Sizes:      %s\n", strings.Join(cfg.Sizes, ", "))
+	cfg := &Config{
+		KapiBin:       *kapiBin,
+		OkapiBin:      *okapiBin,
+		BridgeJar:     *bridgeJar,
+		Iterations:    *iterations,
+		Warmup:        *warmup,
+		TestdataDir:   *testdata,
+		OkapiTestdata: *okapiTestdata,
+		OutputDir:     *output,
+		ResultsDir:    *results,
+		HTMLFile:      *htmlFile,
+	}
+
+	// Copy test data from okapi-testdata if specified.
+	if cfg.OkapiTestdata != "" {
+		fmt.Println("Copying test data from okapi-testdata...")
+		if err := copyTestData(cfg.OkapiTestdata, cfg.TestdataDir); err != nil {
+			fmt.Fprintf(os.Stderr, "Error copying test data: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("Copied %d files to %s\n\n", len(testFiles), cfg.TestdataDir)
+	}
+
+	// Verify testdata exists.
+	if _, err := os.Stat(cfg.TestdataDir); os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "Error: testdata directory %s not found. Use -okapi-testdata to copy files.\n", cfg.TestdataDir)
+		os.Exit(1)
+	}
+
+	fmt.Println("Running PseudoBench (mixed experiment)")
+	fmt.Printf("  Files:      %d\n", len(testFiles))
 	fmt.Printf("  Iterations: %d (warmup: %d)\n", cfg.Iterations, cfg.Warmup)
-	fmt.Println()
+	if cfg.KapiBin != "" {
+		fmt.Printf("  kapi:       %s\n", cfg.KapiBin)
+	}
+	if cfg.OkapiBin != "" {
+		fmt.Printf("  okapi:      %s\n", cfg.OkapiBin)
+	}
+	if cfg.BridgeJar != "" {
+		fmt.Printf("  bridge-jar: %s\n", cfg.BridgeJar)
+	}
 
 	report, err := runBenchmarks(cfg)
 	if err != nil {
@@ -145,25 +119,32 @@ func cmdRun(args []string) {
 		os.Exit(1)
 	}
 
-	// Write JSON report
-	dir := filepath.Dir(cfg.OutputFile)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating output dir: %v\n", err)
+	// Write JSON report.
+	if err := os.MkdirAll(cfg.ResultsDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating results dir: %v\n", err)
 		os.Exit(1)
 	}
 
+	jsonPath := filepath.Join(cfg.ResultsDir, "pseudobench.json")
 	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error marshaling report: %v\n", err)
 		os.Exit(1)
 	}
 
-	if err := os.WriteFile(cfg.OutputFile, data, 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing report: %v\n", err)
+	if err := os.WriteFile(jsonPath, data, 0o644); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing JSON report: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("\nJSON results: %s\n", jsonPath)
 
-	fmt.Printf("\nResults written to %s\n", cfg.OutputFile)
+	// Write HTML report.
+	if err := generateHTMLReport(report, cfg.HTMLFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing HTML report: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("HTML report:  %s\n", cfg.HTMLFile)
+
 	printSummary(report)
 }
 
@@ -183,97 +164,5 @@ func cmdBuildVersions(args []string) {
 	if err := buildVersions(*repo, *output, tags); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
-	}
-}
-
-// parseVersionedBinaries parses "v1=path1,v2=path2" or "path1,path2" format.
-func parseVersionedBinaries(s string) []VersionedBinary {
-	var bins []VersionedBinary
-	for _, part := range strings.Split(s, ",") {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-		if i := strings.Index(part, "="); i > 0 {
-			bins = append(bins, VersionedBinary{
-				Version: part[:i],
-				Path:    part[i+1:],
-			})
-		} else {
-			// Auto-detect version by running binary
-			version := detectVersion(part)
-			bins = append(bins, VersionedBinary{
-				Version: version,
-				Path:    part,
-			})
-		}
-	}
-	return bins
-}
-
-// detectVersion tries to get the version string from a binary.
-func detectVersion(binPath string) string {
-	// Try kapi-style: kapi version --json → {"version": "..."}
-	out, err := runCommand(binPath, "version", "--json")
-	if err == nil {
-		var v struct {
-			Version string `json:"version"`
-		}
-		if err := json.Unmarshal([]byte(out), &v); err == nil && v.Version != "" {
-			return v.Version
-		}
-	}
-
-	// Try tikal-style: tikal (no args) prints "Version: X.Y.Z" to combined output.
-	out, err = runCommandCombined(binPath)
-	if err == nil {
-		for _, line := range strings.Split(out, "\n") {
-			if strings.HasPrefix(line, "Version: ") {
-				return strings.TrimPrefix(line, "Version: ")
-			}
-		}
-	}
-
-	return filepath.Base(binPath)
-}
-
-func printSummary(report *Report) {
-	fmt.Println("\n--- Summary ---")
-	fmt.Printf("Platform: %s | CPU: %s (%d cores) | Memory: %.0fGB\n",
-		report.Metadata.Platform, report.Metadata.CPUModel,
-		report.Metadata.CPUCores, report.Metadata.MemoryGB)
-	fmt.Printf("Total benchmarks: %d\n", len(report.Benchmarks))
-
-	// Group by category then engine.
-	type key struct{ cat, engine string }
-	engineTimes := make(map[key][]float64)
-	for _, b := range report.Benchmarks {
-		k := key{b.Category, b.Engine}
-		engineTimes[k] = append(engineTimes[k], b.Metrics.WallTimeMs.Median)
-	}
-
-	for _, cat := range []string{"single", "collection"} {
-		hasCat := false
-		for k := range engineTimes {
-			if k.cat == cat {
-				hasCat = true
-				break
-			}
-		}
-		if !hasCat {
-			continue
-		}
-		fmt.Printf("\n  [%s]\n", cat)
-		for k, times := range engineTimes {
-			if k.cat != cat {
-				continue
-			}
-			total := 0.0
-			for _, t := range times {
-				total += t
-			}
-			fmt.Printf("    %s: %.1fms total median wall time across %d benchmarks\n",
-				k.engine, total, len(times))
-		}
 	}
 }
