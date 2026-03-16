@@ -187,10 +187,10 @@ jobs:
                 echo "$READY_JSON" | jq .
                 exit 0
               fi
-              # Accept unhealthy if database is up (AI/email may not be configured).
+              # Accept unhealthy if core components work (AI/email may not be configured).
               DB_STATUS=$(echo "$READY_JSON" | jq -r '.components.database.status')
-              if [ "$DB_STATUS" = "up" ]; then
-                echo "Server is $STATUS (database up, accepting)"
+              if [ "$DB_STATUS" = "up" ] || [ "$DB_STATUS" = "unconfigured" ]; then
+                echo "Server is $STATUS (database: $DB_STATUS, accepting)"
                 AI_STATUS=$(echo "$READY_JSON" | jq -r '.components.ai.status')
                 echo "AI_AVAILABLE=$( [ "$AI_STATUS" = "up" ] && echo true || echo false )" >> "$GITHUB_ENV"
                 echo "$READY_JSON" | jq .
