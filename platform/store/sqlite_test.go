@@ -536,8 +536,8 @@ func TestGetBlockStats(t *testing.T) {
 		}
 		require.NotNil(t, settingsBlock)
 		assert.Len(t, settingsBlock.TargetLocales, 2, "Settings block should have 2 target locales")
-		assert.Contains(t, settingsBlock.TargetLocales, "fr-FR")
-		assert.Contains(t, settingsBlock.TargetLocales, "de-DE")
+		assert.Contains(t, settingsBlock.TargetLocales, string(model.LocaleFrench))
+		assert.Contains(t, settingsBlock.TargetLocales, string(model.LocaleGerman))
 	})
 
 	t.Run("block without targets has empty locale list", func(t *testing.T) {
