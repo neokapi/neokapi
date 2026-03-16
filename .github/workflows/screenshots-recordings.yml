@@ -165,8 +165,14 @@ jobs:
           BOWRAIN_GRPC_PORT=9080 \
           BOWRAIN_WEB_UI_DIR=platform/apps/web/dist \
           BOWRAIN_NATS_URL=nats://localhost:4222 \
-          bin/bowrain-server &
+          bin/bowrain-server > bowrain-server.log 2>&1 &
           echo $! > .bowrain-server.pid
+          sleep 2
+          if ! kill -0 "$(cat .bowrain-server.pid)" 2>/dev/null; then
+            echo "Server crashed on startup. Logs:"
+            cat bowrain-server.log
+            exit 1
+          fi
 
       - name: Wait for server readiness
         if: ${{ inputs.server_url == '' }}
@@ -195,7 +201,8 @@ jobs:
             echo "Waiting for server... ($i/30)"
             sleep 2
           done
-          echo "Server failed to become ready"
+          echo "Server failed to become ready. Server logs:"
+          cat bowrain-server.log 2>/dev/null || echo "(no log file)"
           exit 1
 
       - name: Cache Playwright browsers

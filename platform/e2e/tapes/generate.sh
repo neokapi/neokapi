@@ -148,9 +148,13 @@ WALKTHROUGH_DIR=""
 if [ "$SERVER_AVAILABLE" = true ]; then
   echo ""
   echo "Setting up walkthrough test directory..."
-  WALKTHROUGH_DIR="$(bash "$SCRIPT_DIR/scripts/setup-walkthrough.sh")"
-  export WALKTHROUGH_DIR
-  echo "  Walkthrough dir: $WALKTHROUGH_DIR"
+  if WALKTHROUGH_DIR="$(bash "$SCRIPT_DIR/scripts/setup-walkthrough.sh" 2>&1)"; then
+    export WALKTHROUGH_DIR
+    echo "  Walkthrough dir: $WALKTHROUGH_DIR"
+  else
+    echo "  Warning: walkthrough setup failed. Walkthrough tapes will be skipped."
+    SERVER_TAPES="workspaces"  # Only run server tapes that don't need the walkthrough dir.
+  fi
 fi
 
 # Detect CI
