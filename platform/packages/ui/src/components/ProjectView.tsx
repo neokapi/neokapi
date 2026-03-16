@@ -61,6 +61,8 @@ export interface ProjectViewProps {
   onMergeStream?: (streamName: string) => void;
   onDiffStream?: (streamName: string) => void;
   onDeleteStream?: (streamName: string) => void;
+  /** Navigate to the translation dashboard for this project. */
+  onOpenDashboard?: () => void;
 }
 
 export function ProjectView({
@@ -83,6 +85,7 @@ export function ProjectView({
   onMergeStream,
   onDiffStream,
   onDeleteStream,
+  onOpenDashboard,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const isMobile = useIsMobile();
@@ -205,6 +208,11 @@ export function ProjectView({
             </p>
           </div>
           <div className="flex gap-2">
+            {onOpenDashboard && (
+              <Button variant="ghost" size="sm" onClick={onOpenDashboard} data-testid="open-dashboard-btn">
+                Dashboard
+              </Button>
+            )}
             {onOpenTerms && (
               <Button variant="ghost" size="sm" onClick={onOpenTerms} data-testid="open-terms-btn">
                 Terminology

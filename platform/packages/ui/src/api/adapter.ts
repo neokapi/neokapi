@@ -48,6 +48,7 @@ import type {
   AuditEntry,
   AuditQuery,
   ArchivedProject,
+  TranslationDashboardStats,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -231,6 +232,11 @@ export interface ApiAdapter {
     targetLocale: string,
     stream?: string,
   ): Promise<Blob>;
+  getTranslationDashboard(
+    workspaceSlug: string,
+    projectId: string,
+    stream?: string,
+  ): Promise<TranslationDashboardStats>;
   lookupTMForBlock(
     workspaceSlug: string,
     projectId: string,

@@ -522,5 +522,13 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     deleteBrandProfile: noop,
     getBrandScores: async () => [],
     getBrandTrends: async () => [],
+    getTranslationDashboard: async () => ({
+      locale_stats: [],
+      item_stats: [],
+      collection_stats: [],
+      total_blocks: 0,
+      translatable_blocks: 0,
+      total_source_words: 0,
+    }),
   };
 }
