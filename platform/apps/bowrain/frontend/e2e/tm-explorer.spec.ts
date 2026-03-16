@@ -6,7 +6,7 @@ async function createProjectAndOpenTM(page: any) {
   await setupLocalApp(page);
 
   // Create project
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("TM Test");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
@@ -21,18 +21,12 @@ async function createProjectAndOpenTM(page: any) {
   await expect(page.getByTestId("tm-explorer")).toBeVisible();
 }
 
-/** Helper: set value on an input natively (avoids Playwright fill hangs). */
-function setInput(page: any, testId: string, value: string) {
-  return page.evaluate(
-    ({ testId, value }: { testId: string; value: string }) => {
-      const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
-      if (!input) return;
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    { testId, value },
-  );
+/** Helper: set value on an input by test ID (finds the actual input element inside). */
+async function setInput(page: any, testId: string, value: string) {
+  const wrapper = page.getByTestId(testId);
+  const input = wrapper.locator("input").first();
+  await input.clear();
+  await input.fill(value);
 }
 
 /** Helper: click by test ID using native DOM click. */

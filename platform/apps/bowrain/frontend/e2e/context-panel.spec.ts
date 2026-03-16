@@ -16,7 +16,7 @@ async function openEditorWithTMAndTerms(page: any) {
   await setupLocalApp(page);
 
   // Create project
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Context Test");
   await selectMultiLocales(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();
@@ -64,10 +64,8 @@ async function openEditorWithTMAndTerms(page: any) {
     await backend.AddItems(pid, ["/content/index.html"]);
   });
 
-  // Navigate away and back to refresh
-  await page.getByTestId("nav-settings").click();
-  await page.waitForTimeout(100);
-  await page.getByTestId("nav-translate").click();
+  // Navigate back to projects list and re-enter to refresh
+  await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("Context Test").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -191,7 +189,7 @@ test.describe("Context Panel", () => {
     await setupLocalApp(page);
 
     // Create project WITHOUT TM or terms
-    await page.getByTestId("new-project-btn").click();
+    await page.getByText("Upload files").click();
     await page.getByTestId("project-name-input").fill("Empty Context");
     await selectMultiLocales(page, "target-langs-input", ["fr"]);
     await page.getByTestId("create-project-submit").click();
@@ -204,10 +202,8 @@ test.describe("Context Panel", () => {
       if (projects[0]) await backend.AddItems(projects[0].id, ["/test.html"]);
     });
 
-    // Navigate to editor
-    await page.getByTestId("nav-settings").click();
-    await page.waitForTimeout(100);
-    await page.getByTestId("nav-translate").click();
+    // Navigate back to projects list and re-enter to refresh
+    await page.getByTestId("back-to-projects").click();
     await page.waitForTimeout(200);
     await page.getByText("Empty Context").first().click();
     await expect(page.getByTestId("open-file-test.html")).toBeVisible({ timeout: 5000 });

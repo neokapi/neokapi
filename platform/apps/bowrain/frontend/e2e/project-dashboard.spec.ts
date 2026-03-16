@@ -9,17 +9,21 @@ test.beforeEach(async ({ page }) => {
 test("should display empty state on first load", async ({ page }) => {
   const empty = page.getByTestId("empty-projects");
   await expect(empty).toBeVisible();
-  await expect(empty).toContainText("No projects yet");
+  await expect(empty).toContainText("Get started with your first project");
 });
 
-test("should show new project button", async ({ page }) => {
-  const btn = page.getByTestId("new-project-btn");
-  await expect(btn).toBeVisible();
-  await expect(btn).toContainText("New Project");
+test("should show pathway cards in empty state", async ({ page }) => {
+  const empty = page.getByTestId("empty-projects");
+  await expect(empty).toBeVisible();
+  // Pathway cards should be visible with "Create project" action text
+  await expect(page.getByText("From your repo")).toBeVisible();
+  await expect(page.getByText("Upload files")).toBeVisible();
+  await expect(page.getByText("Connect a CMS")).toBeVisible();
 });
 
-test("should open create project dialog", async ({ page }) => {
-  await page.getByTestId("new-project-btn").click();
+test("should open create project dialog from pathway card", async ({ page }) => {
+  // Click one of the pathway cards to open the create dialog
+  await page.getByText("Upload files").click();
   const dialog = page.getByTestId("create-project-dialog");
   await expect(dialog).toBeVisible();
   await expect(page.getByTestId("project-name-input")).toBeVisible();
@@ -30,7 +34,8 @@ test("should open create project dialog", async ({ page }) => {
 });
 
 test("should create a new project", async ({ page }) => {
-  await page.getByTestId("new-project-btn").click();
+  // Click a pathway card to open the create dialog from the empty state
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("My Test Project");
   await selectLocale(page, "source-lang-input", "en");
   await setMultiLocales(page, "target-langs-input", ["fr", "de"]);
@@ -43,8 +48,8 @@ test("should create a new project", async ({ page }) => {
 });
 
 test("should navigate back from project view to dashboard", async ({ page }) => {
-  // Create a project (default "fr" chip is already present)
-  await page.getByTestId("new-project-btn").click();
+  // Create a project from the empty state (default "fr" chip is already present)
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Test");
   await expectLocaleChips(page, "target-langs-input", ["fr"]);
   await page.getByTestId("create-project-submit").click();

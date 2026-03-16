@@ -37,18 +37,12 @@ async function clickTestId(page: any, testId: string) {
   }, testId);
 }
 
-/** Helper: set value on an input natively (avoids Playwright fill hangs). */
+/** Helper: set value on an input by test ID (finds the actual input element inside). */
 async function setInput(page: any, testId: string, value: string) {
-  await page.evaluate(
-    ({ testId, value }: { testId: string; value: string }) => {
-      const input = document.querySelector(`[data-testid="${testId}"]`) as HTMLInputElement;
-      if (!input) return;
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, value);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    { testId, value },
-  );
+  const wrapper = page.getByTestId(testId);
+  const input = wrapper.locator("input").first();
+  await input.clear();
+  await input.fill(value);
 }
 
 /**
@@ -73,7 +67,7 @@ async function seedDashboard(page: any) {
   ];
 
   for (const def of projectDefs) {
-    await page.getByTestId("new-project-btn").click();
+    await page.getByText("Upload files").click();
     await page.getByTestId("project-name-input").fill(def.name);
     await selectMultiLocales(
       page,
@@ -113,7 +107,7 @@ async function openProjectView(page: any) {
     await setupLocalApp(page);
   }
 
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de", "ja"]);
   await page.getByTestId("create-project-submit").click();
@@ -139,9 +133,7 @@ async function openProjectView(page: any) {
   }
 
   // Refresh by navigating away and back
-  await page.getByTestId("nav-settings").click();
-  await page.waitForTimeout(100);
-  await page.getByTestId("nav-translate").click();
+  await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("Website Redesign").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -157,7 +149,7 @@ async function openEditor(page: any) {
     await setupLocalApp(page);
   }
 
-  await page.getByTestId("new-project-btn").click();
+  await page.getByText("Upload files").click();
   await page.getByTestId("project-name-input").fill("Website Redesign");
   await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
   await page.getByTestId("create-project-submit").click();
@@ -175,9 +167,7 @@ async function openEditor(page: any) {
   }
 
   // Refresh
-  await page.getByTestId("nav-settings").click();
-  await page.waitForTimeout(100);
-  await page.getByTestId("nav-translate").click();
+  await page.getByTestId("back-to-projects").click();
   await page.waitForTimeout(200);
   await page.getByText("Website Redesign").first().click();
   await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
@@ -304,7 +294,7 @@ test.describe("Screenshots", () => {
       }
 
       // Create project
-      await page.getByTestId("new-project-btn").click();
+      await page.getByText("Upload files").click();
       await page.getByTestId("project-name-input").fill("Website Redesign");
       await selectMultiLocales(page, "target-langs-input", ["fr", "de"]);
       await page.getByTestId("create-project-submit").click();

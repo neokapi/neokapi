@@ -470,8 +470,8 @@ export async function injectMockBackend(page: Page) {
       const info = {
         id,
         name,
-        source_locale: sourceLang,
-        target_locales: targetLangs,
+        default_source_language: sourceLang,
+        target_languages: targetLangs || [],
         path: "",
         items: [],
         created_at: now,
