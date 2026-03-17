@@ -5,7 +5,6 @@ import {
   BrandProfilesSkeleton,
   useBrandProfiles,
   useDeleteBrandProfile,
-  useWorkspace,
 } from "@neokapi/ui";
 import type { VoiceProfile } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";

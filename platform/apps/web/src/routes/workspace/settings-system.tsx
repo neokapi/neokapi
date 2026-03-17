@@ -38,11 +38,11 @@ export function SettingsSystemRoute() {
   }, [activeWorkspace]);
 
   useEffect(() => {
-    api
+    void api
       .getConfig()
       .then(setServerInfo)
       .catch(() => {});
-    fetch("/version.json")
+    void fetch("/version.json")
       .then((r) => (r.ok ? r.json() : null))
       .then(setWebInfo)
       .catch(() => {});

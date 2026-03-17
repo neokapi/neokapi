@@ -6,7 +6,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
-import { Plus, Pencil, Trash2, Plug, MoreHorizontal } from "./icons";
+import { Plus, Pencil, Trash2, Plug } from "./icons";
 
 export interface CollectionTabsProps {
   collections: CollectionInfo[];

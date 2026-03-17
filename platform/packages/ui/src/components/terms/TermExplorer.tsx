@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTermsApi } from "../../hooks/useTermsApi";
 import { useLocales } from "../../hooks/useLocales";
 import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
