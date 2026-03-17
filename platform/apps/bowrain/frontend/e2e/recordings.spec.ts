@@ -320,11 +320,12 @@ describeOrSkip("Video Recordings", () => {
             },
           ];
 
-          // Store blocks
-          if (!(window as any).__projectFiles) (window as any).__projectFiles = {};
-          if (!(window as any).__projectFiles[projectId])
-            (window as any).__projectFiles[projectId] = {};
-          (window as any).__projectFiles[projectId]["about-us.html"] = blocks;
+          // Store blocks in mock's projectFiles (for PseudoTranslateItem/TMTranslateItem)
+          const pf = (window as any).__projectFiles;
+          if (pf) {
+            if (!pf[projectId]) pf[projectId] = {};
+            pf[projectId]["about-us.html"] = blocks;
+          }
 
           // Patch GetItemBlocks
           const origGetItemBlocks = backend[IDS.GetItemBlocks];
@@ -1408,10 +1409,11 @@ describeOrSkip("Video Recordings", () => {
               "Ladda ner och installera CloudSync Pro-applikationen på din enhet.";
 
             // Store blocks for our file
-            if (!(window as any).__projectFiles) (window as any).__projectFiles = {};
-            if (!(window as any).__projectFiles[projectId])
-              (window as any).__projectFiles[projectId] = {};
-            (window as any).__projectFiles[projectId]["help-center.html"] = blocks;
+            const pf2 = (window as any).__projectFiles;
+            if (pf2) {
+              if (!pf2[projectId]) pf2[projectId] = {};
+              pf2[projectId]["help-center.html"] = blocks;
+            }
 
             // Patch GetItemBlocks
             const origGetItemBlocks = backend[IDS.GetItemBlocks];
