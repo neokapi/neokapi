@@ -893,7 +893,9 @@ describeOrSkip("Video Recordings", () => {
       await humanClick(page, page.getByTestId("tm-btn"));
       await pause(page, 1000);
 
-      // Navigate away and back to show TM-filled blocks
+      // Navigate back from editor → file list → workspace → re-enter project
+      await page.getByTestId("back-to-project").click();
+      await page.waitForTimeout(200);
       await page.getByTestId("back-to-projects").click();
       await page.waitForTimeout(200);
       await page.getByText("Website Translation").first().click();
