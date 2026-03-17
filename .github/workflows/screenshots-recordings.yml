@@ -44,9 +44,6 @@ jobs:
           cache: npm
           cache-dependency-path: platform/package-lock.json
 
-      - name: Install GTK/WebKit dev packages (needed for Wails CGO)
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-
       - name: Install workspace dependencies
         working-directory: platform
         run: npm ci
@@ -54,22 +51,6 @@ jobs:
       - name: Build shared UI package
         working-directory: platform/packages/ui
         run: npx tsc
-
-      - name: Generate Wails bindings
-        working-directory: platform/apps/bowrain
-        run: |
-          go install github.com/wailsapp/wails/v3/cmd/wails3@v3.0.0-alpha.73
-          wails3 generate bindings -f '-tags server' -clean=true
-          # shellcheck disable=SC2016
-          sed -i 's/= $0\./= store$0./g' frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js
-
-      - name: Build frontend
-        working-directory: platform/apps/bowrain/frontend
-        run: npm run build
-
-      - name: Build headless binary
-        working-directory: platform/apps/bowrain
-        run: go build -tags server -o ../../../bin/bowrain-headless .
 
       - name: Cache Playwright browsers
         uses: actions/cache@v4
@@ -81,15 +62,13 @@ jobs:
         working-directory: platform/apps/bowrain/frontend
         run: npx playwright install --with-deps chromium
 
-      # Desktop screenshots use the headless binary with mock data.
-      # The Wails binary connects to the server via gRPC but Playwright cannot
-      # call SelectWorkspace on the production build. The web app screenshots
-      # against dev cover the same UI with real server data.
+      # Desktop screenshots use the Vite dev server with mock backend.
+      # No headless binary or Wails bindings needed — mock mode handles
+      # all data locally. The web app screenshots against dev cover the
+      # same UI components with real server data.
       - name: Generate screenshots
         working-directory: platform/apps/bowrain/frontend
         run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
-        env:
-          WAILS_SERVER_MODE: "true"
 
       - name: Generate recordings
         working-directory: platform/apps/bowrain/frontend
@@ -97,7 +76,6 @@ jobs:
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
-          WAILS_SERVER_MODE: "true"
 
       - name: Copy recordings to static assets
         working-directory: platform/apps/bowrain/frontend
