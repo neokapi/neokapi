@@ -14,14 +14,17 @@ test.describe("Brand Voice Profiles", () => {
 
     // Try to create a profile to verify brand feature availability.
     try {
-      const profile = await api.createBrandProfileFromStarter(wsSlug, "professional", "E2E Brand Voice");
+      const profile = await api.createBrandProfileFromStarter(wsSlug, "professional-b2b", "E2E Brand Voice");
       createdProfileId = profile.id;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes("404") || msg.includes("503")) {
+      // 503 = brand store not configured; 404 with "Not Found" = route not registered.
+      // 404 with "starter pack not found" is a real error (wrong pack name), not "unavailable".
+      if (msg.includes("503") || (msg.includes("404") && !msg.includes("starter pack"))) {
         brandAvailable = false;
+      } else {
+        throw err;
       }
-      // Ignore other errors; individual tests will surface them.
     }
   });
 
@@ -80,7 +83,7 @@ test.describe("Brand Voice Profiles", () => {
 
     let profile: { id: string; name: string };
     try {
-      profile = await api.createBrandProfileFromStarter(wsSlug, "professional", "To Delete");
+      profile = await api.createBrandProfileFromStarter(wsSlug, "professional-b2b", "To Delete");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("404") || msg.includes("503")) {
