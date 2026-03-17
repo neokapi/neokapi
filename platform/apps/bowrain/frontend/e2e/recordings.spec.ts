@@ -150,8 +150,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 800);
 
       // Click new project button
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
       await pause(page, 400);
 
@@ -204,7 +204,7 @@ describeOrSkip("Video Recordings", () => {
       await setupRecording(page, "Bowrain — Translation Editor", theme);
 
       // Create project with Norwegian as target
-      await page.getByTestId("new-project-btn").click();
+      await page.getByText("Upload files").click();
       await page.getByTestId("project-name-input").fill("Company Website");
       await setMultiLocales(page, "target-langs-input", ["nb"]);
       await page.getByTestId("create-project-submit").click();
@@ -543,8 +543,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create project
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Marketing Site");
@@ -620,8 +620,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create project
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Product Launch");
@@ -732,8 +732,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create project
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Documentation");
@@ -825,8 +825,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create project
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Website Translation");
@@ -943,8 +943,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create project
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Software Docs");
@@ -1070,8 +1070,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create project
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Web Application");
@@ -1197,7 +1197,7 @@ describeOrSkip("Video Recordings", () => {
       const mp = "\uE003"; // placeholder
 
       // Create project with Norwegian + Swedish targets
-      await page.getByTestId("new-project-btn").click();
+      await page.getByText("Upload files").click();
       await page.getByTestId("project-name-input").fill("Help Center");
       await setMultiLocales(page, "target-langs-input", ["nb", "sv"]);
       await page.getByTestId("create-project-submit").click();
@@ -1885,8 +1885,8 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 600);
 
       // Create first NEW project (workspace already has projects from the narrative)
-      await expect(page.getByTestId("new-project-btn")).toBeVisible();
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await expect(page.getByText("Upload files")).toBeVisible();
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "Mobile App v2.0");
@@ -1916,7 +1916,7 @@ describeOrSkip("Video Recordings", () => {
       await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 400);
 
-      await humanClick(page, page.getByTestId("new-project-btn"));
+      await humanClick(page, page.getByText("Upload files"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "API Documentation");
