@@ -20,6 +20,11 @@ import {
   humanType,
   pause,
 } from "./helpers/cursor-helper";
+import {
+  BowrainAPI,
+  fullSeed,
+  type StoryContext,
+} from "../../../e2e/shared/index";
 
 const isCI = !!process.env.CI && !process.env.FORCE_RECORDINGS;
 
@@ -59,6 +64,8 @@ async function switchToGrid(page: Page) {
 
 let token: string;
 let wsSlug: string;
+/** Story context from the shared seeder (populated with brand, tasks, etc.). */
+let storyCtx: StoryContext | null = null;
 
 const themes = ["dark", "light"] as const;
 
@@ -71,6 +78,15 @@ test.describe("Web App Recordings", () => {
     const slug = `recordings-${Date.now().toString(36)}`;
     const ws = await getOrCreateWorkspace(token, "Acme Inc.", slug);
     wsSlug = ws.slug;
+
+    // Run the shared seeder for story-feature recordings.
+    try {
+      const api = new BowrainAPI(BASE_URL, token);
+      storyCtx = await fullSeed(api);
+    } catch (err) {
+      console.log(`[recordings] Shared seeder failed (story recordings will be skipped): ${err}`);
+      storyCtx = null;
+    }
   });
 
   /** Navigate directly to the workspace dashboard and set up recording chrome. */
@@ -201,7 +217,7 @@ test.describe("Web App Recordings", () => {
       // Clean up
       try {
         await fetch(
-          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -253,7 +269,7 @@ test.describe("Web App Recordings", () => {
 
       try {
         await fetch(
-          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -296,7 +312,7 @@ test.describe("Web App Recordings", () => {
 
       try {
         await fetch(
-          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
@@ -428,7 +444,7 @@ test.describe("Web App Recordings", () => {
 
       try {
         await fetch(
-          `${process.env.BOWRAIN_SERVER_URL || process.env.BOWRAIN_URL || "http://localhost:8080"}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
+          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
           {
             method: "DELETE",
             headers: { Authorization: `Bearer ${token}` },
