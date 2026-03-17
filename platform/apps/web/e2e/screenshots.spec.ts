@@ -15,11 +15,7 @@ import {
   pseudoTranslateFile,
   waitForServer,
 } from "./helpers/api-client";
-import {
-  BowrainAPI,
-  fullSeed,
-  type StoryContext,
-} from "../../../e2e/shared/index";
+import { BowrainAPI, fullSeed, type StoryContext } from "../../../e2e/shared/index";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -292,9 +288,7 @@ test.describe("Web App Screenshots", () => {
 
       // Wait for activity feed to load
       await expect(
-        page
-          .getByRole("heading", { name: /activit/i })
-          .or(page.getByTestId("activity-feed")),
+        page.getByRole("heading", { name: /activit/i }).or(page.getByTestId("activity-feed")),
       ).toBeVisible({ timeout: 10000 });
       await page.waitForTimeout(500);
 
@@ -311,9 +305,7 @@ test.describe("Web App Screenshots", () => {
 
       // Wait for audit log to load
       await expect(
-        page
-          .getByRole("heading", { name: /audit/i })
-          .or(page.getByTestId("audit-log")),
+        page.getByRole("heading", { name: /audit/i }).or(page.getByTestId("audit-log")),
       ).toBeVisible({ timeout: 10000 });
       await page.waitForTimeout(500);
 

@@ -969,7 +969,9 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 200);
 
       // Fill term inputs using Playwright fill
-      const termInputs = page.getByTestId("term-add-form").locator('input[placeholder="Term text"]');
+      const termInputs = page
+        .getByTestId("term-add-form")
+        .locator('input[placeholder="Term text"]');
       const first = termInputs.nth(0);
       const second = termInputs.nth(1);
       if (await first.isVisible().catch(() => false)) {
