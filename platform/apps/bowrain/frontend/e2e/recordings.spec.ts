@@ -182,10 +182,8 @@ describeOrSkip("Video Recordings", () => {
         );
       }
 
-      // Navigate away and back to refresh file list
-      await humanClick(page, page.getByTestId("nav-settings"));
-      await pause(page, 300);
-      await humanClick(page, page.getByTestId("nav-translate"));
+      // Navigate back to project list and re-enter to refresh file list
+      await humanClick(page, page.getByTestId("back-to-projects"));
       await expect(page.getByText("Website Redesign").first()).toBeVisible({ timeout: 5000 });
       await pause(page, 300);
 
