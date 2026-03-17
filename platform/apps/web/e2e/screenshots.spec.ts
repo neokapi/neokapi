@@ -15,6 +15,11 @@ import {
   pseudoTranslateFile,
   waitForServer,
 } from "./helpers/api-client";
+import {
+  BowrainAPI,
+  fullSeed,
+  type StoryContext,
+} from "../../../e2e/shared/index";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,6 +55,8 @@ async function setTheme(page: Page, theme: "dark" | "light") {
 
 let token: string;
 let wsSlug: string;
+/** Story context from the shared seeder (populated with brand, tasks, etc.). */
+let storyCtx: StoryContext | null = null;
 
 const themes = ["dark", "light"] as const;
 
@@ -65,6 +72,16 @@ test.describe("Web App Screenshots", () => {
     wsSlug = ws.slug;
     // Clean slate: delete all existing editor projects
     await deleteAllEditorProjects(token, wsSlug);
+
+    // Run the shared seeder for story-feature screenshots.
+    // This creates a separate workspace with brand profiles, tasks, streams, etc.
+    try {
+      const api = new BowrainAPI(BASE_URL, token);
+      storyCtx = await fullSeed(api);
+    } catch (err) {
+      console.log(`[screenshots] Shared seeder failed (story screenshots will be skipped): ${err}`);
+      storyCtx = null;
+    }
   });
 
   for (const theme of themes) {
@@ -228,6 +245,80 @@ test.describe("Web App Screenshots", () => {
 
       await setTheme(page, theme);
       await page.screenshot({ path: path.join(dir, "invite-management.png") });
+    });
+
+    // ── Story feature screenshots (use shared seeder workspace) ──────────
+
+    test(`capture brand profiles [${theme}]`, async ({ page }) => {
+      test.skip(!storyCtx, "Shared seeder did not run — skipping brand profiles screenshot");
+      const dir = path.join(SCREENSHOT_BASE, theme);
+
+      await injectAuthCookie(page, token);
+      await page.goto(`/${storyCtx!.wsSlug}/brand`);
+
+      // Wait for brand profiles page to load — accept heading or data-testid
+      await expect(
+        page.getByRole("heading", { name: /brand/i }).or(page.getByTestId("brand-profiles")),
+      ).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500);
+
+      await setTheme(page, theme);
+      await page.screenshot({ path: path.join(dir, "brand-profiles.png") });
+    });
+
+    test(`capture tasks [${theme}]`, async ({ page }) => {
+      test.skip(!storyCtx, "Shared seeder did not run — skipping tasks screenshot");
+      const dir = path.join(SCREENSHOT_BASE, theme);
+
+      await injectAuthCookie(page, token);
+      await page.goto(`/${storyCtx!.wsSlug}/tasks`);
+
+      // Wait for tasks page to load
+      await expect(
+        page.getByRole("heading", { name: /task/i }).or(page.getByTestId("task-list")),
+      ).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500);
+
+      await setTheme(page, theme);
+      await page.screenshot({ path: path.join(dir, "tasks.png") });
+    });
+
+    test(`capture activities [${theme}]`, async ({ page }) => {
+      test.skip(!storyCtx, "Shared seeder did not run — skipping activities screenshot");
+      const dir = path.join(SCREENSHOT_BASE, theme);
+
+      await injectAuthCookie(page, token);
+      await page.goto(`/${storyCtx!.wsSlug}/activities`);
+
+      // Wait for activity feed to load
+      await expect(
+        page
+          .getByRole("heading", { name: /activit/i })
+          .or(page.getByTestId("activity-feed")),
+      ).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500);
+
+      await setTheme(page, theme);
+      await page.screenshot({ path: path.join(dir, "activities.png") });
+    });
+
+    test(`capture audit log [${theme}]`, async ({ page }) => {
+      test.skip(!storyCtx, "Shared seeder did not run — skipping audit log screenshot");
+      const dir = path.join(SCREENSHOT_BASE, theme);
+
+      await injectAuthCookie(page, token);
+      await page.goto(`/${storyCtx!.wsSlug}/auditlog`);
+
+      // Wait for audit log to load
+      await expect(
+        page
+          .getByRole("heading", { name: /audit/i })
+          .or(page.getByTestId("audit-log")),
+      ).toBeVisible({ timeout: 10000 });
+      await page.waitForTimeout(500);
+
+      await setTheme(page, theme);
+      await page.screenshot({ path: path.join(dir, "audit-log.png") });
     });
   }
 });
