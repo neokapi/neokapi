@@ -565,13 +565,9 @@ describeOrSkip("Video Recordings", () => {
         await callBackend(page, "AddItems", focusProj.id, [fixture("homepage.html")]);
       }
 
-      // Refresh to show file
-      await humanClick(page, page.getByTestId("nav-settings"));
+      // Refresh to show file — navigate back to workspace dashboard, then re-enter project
+      await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 200);
-      await humanClick(page, page.getByTestId("nav-translate"));
-      await expect(page.getByText("Marketing Site").first()).toBeVisible({ timeout: 5000 });
-      await pause(page, 200);
-
       await humanClick(page, page.getByText("Marketing Site").first());
       await expect(page.getByTestId("open-file-homepage.html")).toBeVisible({ timeout: 5000 });
       await pause(page, 400);
@@ -643,13 +639,9 @@ describeOrSkip("Video Recordings", () => {
         await callBackend(page, "AddItems", e2eProj.id, [fixture("landing-page.html")]);
       }
 
-      // Refresh to show file
-      await humanClick(page, page.getByTestId("nav-settings"));
+      // Refresh to show file — navigate back to workspace dashboard, then re-enter project
+      await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 200);
-      await humanClick(page, page.getByTestId("nav-translate"));
-      await expect(page.getByText("Product Launch").first()).toBeVisible({ timeout: 5000 });
-      await pause(page, 200);
-
       await humanClick(page, page.getByText("Product Launch").first());
       await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
       await pause(page, 400);
@@ -707,10 +699,10 @@ describeOrSkip("Video Recordings", () => {
         await callBackend(page, "PseudoTranslateItem", e2eProj.id, "landing-page.html", "fr");
       }
 
-      // Navigate away and back to reload
-      await humanClick(page, page.getByTestId("nav-settings"));
+      // Navigate away and back to reload — go up from editor to workspace, then re-enter
+      await humanClick(page, page.getByTestId("back-to-project"));
       await pause(page, 200);
-      await humanClick(page, page.getByTestId("nav-translate"));
+      await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 200);
       await humanClick(page, page.getByText("Product Launch").first());
       await expect(page.getByTestId("open-file-landing-page.html")).toBeVisible({ timeout: 5000 });
@@ -878,13 +870,9 @@ describeOrSkip("Video Recordings", () => {
         await callBackend(page, "AddItems", leveragePid, [fixture("landing.html")]);
       }
 
-      // Refresh to show file
-      await humanClick(page, page.getByTestId("nav-settings"));
+      // Refresh to show file — navigate back to workspace dashboard, then re-enter project
+      await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 200);
-      await humanClick(page, page.getByTestId("nav-translate"));
-      await expect(page.getByText("Website Translation").first()).toBeVisible({ timeout: 5000 });
-      await pause(page, 200);
-
       await humanClick(page, page.getByText("Website Translation").first());
       await expect(page.getByTestId("open-file-landing.html")).toBeVisible({ timeout: 5000 });
       await pause(page, 400);
@@ -1138,13 +1126,9 @@ describeOrSkip("Video Recordings", () => {
         await callBackend(page, "AddItems", ctxPid, [fixture("app.html")]);
       }
 
-      // Refresh to show file
-      await humanClick(page, page.getByTestId("nav-settings"));
+      // Refresh to show file — navigate back to workspace dashboard, then re-enter project
+      await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 200);
-      await humanClick(page, page.getByTestId("nav-translate"));
-      await expect(page.getByText("Web Application").first()).toBeVisible({ timeout: 5000 });
-      await pause(page, 200);
-
       await humanClick(page, page.getByText("Web Application").first());
       await expect(page.getByTestId("open-file-app.html")).toBeVisible({ timeout: 5000 });
       await pause(page, 300);
