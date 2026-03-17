@@ -45,8 +45,11 @@ async function setInput(page: any, testId: string, value: string) {
   await input.fill(value);
 }
 
+let dashboardSeeded = false;
+
 /**
  * Creates three sample projects so the dashboard looks populated.
+ * In server mode (headless binary), only seeds once because the SQLite store persists.
  */
 async function seedDashboard(page: any) {
   if (useRealServer) {
@@ -55,6 +58,7 @@ async function seedDashboard(page: any) {
   }
   if (useServerMode) {
     await setupServerModeApp(page);
+    if (dashboardSeeded) return; // SQLite store persists — don't re-seed
   } else {
     await setupLocalApp(page);
   }
@@ -102,6 +106,7 @@ async function seedDashboard(page: any) {
     await page.getByTestId("back-to-projects").click();
     await page.waitForTimeout(200);
   }
+  dashboardSeeded = true;
 }
 
 /**
