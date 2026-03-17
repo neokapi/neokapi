@@ -1886,11 +1886,11 @@ describeOrSkip("Video Recordings", () => {
         );
       }
 
-      // Go back and create second project
+      // Go back and create second project (dashboard now shows project list, not onboarding)
       await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 400);
 
-      await humanClick(page, page.getByText("Upload files"));
+      await humanClick(page, page.getByTestId("new-project-btn"));
       await expect(page.getByTestId("project-name-input")).toBeVisible();
 
       await humanType(page, page.getByTestId("project-name-input"), "API Documentation");
