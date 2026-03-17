@@ -968,28 +968,16 @@ describeOrSkip("Video Recordings", () => {
       await humanTypeNative(page, "term-add-definition", "Process of verifying identity");
       await pause(page, 200);
 
-      // Fill first term using native input (React-controlled inputs)
-      await page.evaluate(() => {
-        const inputs = document.querySelectorAll(
-          '[data-testid="term-add-form"] input[placeholder="Term text"]',
-        );
-        if (inputs[0]) {
-          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-            inputs[0],
-            "authentication",
-          );
-          inputs[0].dispatchEvent(new Event("input", { bubbles: true }));
-          inputs[0].dispatchEvent(new Event("change", { bubbles: true }));
-        }
-        if (inputs[1]) {
-          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(
-            inputs[1],
-            "authentification",
-          );
-          inputs[1].dispatchEvent(new Event("input", { bubbles: true }));
-          inputs[1].dispatchEvent(new Event("change", { bubbles: true }));
-        }
-      });
+      // Fill term inputs using Playwright fill
+      const termInputs = page.getByTestId("term-add-form").locator('input[placeholder="Term text"]');
+      const first = termInputs.nth(0);
+      const second = termInputs.nth(1);
+      if (await first.isVisible().catch(() => false)) {
+        await first.fill("authentication");
+      }
+      if (await second.isVisible().catch(() => false)) {
+        await second.fill("authentification");
+      }
       await pause(page, 300);
 
       await humanClickNative(page, "term-add-submit");
