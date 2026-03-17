@@ -1,0 +1,37 @@
+{
+  "navigation": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "deployments": "Deployments",
+    "monitoring": "Monitoring",
+    "team": "Team",
+    "settings": "Settings",
+    "billing": "Billing",
+    "support": "Help & Support",
+    "docs": "Documentation"
+  },
+  "user_menu": {
+    "profile": "My Profile",
+    "preferences": "Preferences",
+    "api_keys": "API Keys",
+    "notifications": "Notifications",
+    "sign_out": "Sign Out"
+  },
+  "breadcrumbs": {
+    "back": "Back",
+    "home": "Home"
+  },
+  "sidebar": {
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "search_placeholder": "Search projects..."
+  },
+  "footer": {
+    "copyright": "© 2026 Acme CloudOps",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "status": "System Status",
+    "version": "Version {{version}}"
+  }
+}

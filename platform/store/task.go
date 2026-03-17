@@ -125,9 +125,13 @@ func (s *TaskStore) Create(ctx context.Context, t *Task) error {
 	}
 
 	dataJSON, _ := json.Marshal(t.Data)
-	dueAt := ""
+	var dueAt interface{}
 	if t.DueAt != nil {
 		dueAt = t.DueAt.UTC().Format(time.RFC3339)
+	}
+	var completedAt interface{}
+	if t.CompletedAt != nil {
+		completedAt = t.CompletedAt.UTC().Format(time.RFC3339)
 	}
 
 	_, err := s.db.ExecContext(ctx, s.q(
@@ -141,7 +145,7 @@ func (s *TaskStore) Create(ctx context.Context, t *Task) error {
 		string(dataJSON), dueAt,
 		t.CreatedAt.UTC().Format(time.RFC3339),
 		t.UpdatedAt.UTC().Format(time.RFC3339),
-		"")
+		completedAt)
 	return err
 }
 
@@ -238,11 +242,11 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 func (s *TaskStore) Update(ctx context.Context, t *Task) error {
 	t.UpdatedAt = time.Now().UTC()
 	dataJSON, _ := json.Marshal(t.Data)
-	dueAt := ""
+	var dueAt interface{}
 	if t.DueAt != nil {
 		dueAt = t.DueAt.UTC().Format(time.RFC3339)
 	}
-	completedAt := ""
+	var completedAt interface{}
 	if t.CompletedAt != nil {
 		completedAt = t.CompletedAt.UTC().Format(time.RFC3339)
 	}
@@ -298,7 +302,8 @@ func (s *TaskStore) Delete(ctx context.Context, taskID string) error {
 
 func scanTask(row scanner) (*Task, error) {
 	var t Task
-	var typ, status, priority, dataJSON, dueAtStr, createdAtStr, updatedAtStr, completedAtStr string
+	var typ, status, priority, dataJSON, createdAtStr, updatedAtStr string
+	var dueAtStr, completedAtStr sql.NullString
 
 	err := row.Scan(
 		&t.ID, &t.WorkspaceID, &t.ProjectID, &t.Stream,
@@ -316,13 +321,13 @@ func scanTask(row scanner) (*Task, error) {
 	t.CreatedAt, _ = parseTime(createdAtStr)
 	t.UpdatedAt, _ = parseTime(updatedAtStr)
 
-	if dueAtStr != "" {
-		if d, err := parseTime(dueAtStr); err == nil {
+	if dueAtStr.Valid && dueAtStr.String != "" {
+		if d, err := parseTime(dueAtStr.String); err == nil {
 			t.DueAt = &d
 		}
 	}
-	if completedAtStr != "" {
-		if c, err := parseTime(completedAtStr); err == nil {
+	if completedAtStr.Valid && completedAtStr.String != "" {
+		if c, err := parseTime(completedAtStr.String); err == nil {
 			t.CompletedAt = &c
 		}
 	}

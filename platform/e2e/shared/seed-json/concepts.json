@@ -1,0 +1,92 @@
+[
+  {
+    "domain": "cloud",
+    "definition": "A graphical overview of key metrics and status indicators",
+    "terms": [
+      { "text": "dashboard", "locale": "en", "status": "preferred" },
+      { "text": "tableau de bord", "locale": "fr", "status": "preferred" },
+      { "text": "Dashboard", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "The process of releasing a new version of an application to a server or hosting environment",
+    "terms": [
+      { "text": "deployment", "locale": "en", "status": "preferred" },
+      { "text": "deploiement", "locale": "fr", "status": "preferred" },
+      { "text": "Bereitstellung", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "Physical or virtual compute capacity in a cloud environment",
+    "terms": [
+      { "text": "instance", "locale": "en", "status": "preferred" },
+      { "text": "instance", "locale": "fr", "status": "preferred" },
+      { "text": "Instanz", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "Automatic adjustment of compute capacity based on demand",
+    "terms": [
+      { "text": "auto-scaling", "locale": "en", "status": "preferred" },
+      { "text": "mise a l'echelle automatique", "locale": "fr", "status": "approved" },
+      { "text": "Auto-Skalierung", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "A geographic area containing one or more data centers",
+    "terms": [
+      { "text": "region", "locale": "en", "status": "preferred" },
+      { "text": "region", "locale": "fr", "status": "preferred" },
+      { "text": "Region", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "The ability to automatically redirect traffic when a primary system fails",
+    "terms": [
+      { "text": "failover", "locale": "en", "status": "preferred" },
+      { "text": "basculement", "locale": "fr", "status": "preferred" },
+      { "text": "Failover", "locale": "de", "status": "approved" }
+    ]
+  },
+  {
+    "domain": "security",
+    "definition": "A chronological record of system activities for security review",
+    "terms": [
+      { "text": "audit log", "locale": "en", "status": "preferred" },
+      { "text": "journal d'audit", "locale": "fr", "status": "preferred" },
+      { "text": "Audit-Protokoll", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "ui",
+    "definition": "Application configuration and customization options",
+    "terms": [
+      { "text": "settings", "locale": "en", "status": "preferred" },
+      { "text": "parametres", "locale": "fr", "status": "preferred" },
+      { "text": "Einstellungen", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "Runtime configuration values provided to an application",
+    "terms": [
+      { "text": "environment variable", "locale": "en", "status": "preferred" },
+      { "text": "variable d'environnement", "locale": "fr", "status": "preferred" },
+      { "text": "Umgebungsvariable", "locale": "de", "status": "preferred" }
+    ]
+  },
+  {
+    "domain": "cloud",
+    "definition": "A lightweight, standalone executable package that includes everything needed to run software",
+    "terms": [
+      { "text": "container", "locale": "en", "status": "preferred" },
+      { "text": "conteneur", "locale": "fr", "status": "preferred" },
+      { "text": "Container", "locale": "de", "status": "preferred" }
+    ]
+  }
+]
