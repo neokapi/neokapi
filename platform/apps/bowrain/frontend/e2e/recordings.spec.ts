@@ -1942,18 +1942,16 @@ describeOrSkip("Video Recordings", () => {
       await setupRecording(page, "Bowrain — Workspace", theme);
       await pause(page, 600);
 
-      // The workspace already has 11 projects from previous tests.
-      // Navigate between a few of them to demonstrate workspace switching.
-      await humanClick(page, page.getByText("Website Redesign").first());
+      // Create a project so we have something to navigate to
+      await page.getByText("Upload files").click();
+      await page.getByTestId("project-name-input").fill("Demo Project");
+      await setMultiLocales(page, "target-langs-input", ["fr"]);
+      await page.getByTestId("create-project-submit").click();
       await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-      await pause(page, 500);
+      await pause(page, 300);
 
       await humanClick(page, page.getByTestId("back-to-projects"));
       await pause(page, 300);
-
-      await humanClick(page, page.getByText("Company Website").first());
-      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
-      await pause(page, 500);
 
       // Navigate through sidebar sections
       await humanClick(page, page.getByTestId("nav-termbase"));
