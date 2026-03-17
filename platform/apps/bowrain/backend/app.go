@@ -50,6 +50,7 @@ type App struct {
 	watcher         *ProjectWatcher    // active WatchProject stream
 	offlineQueue    *OfflineQueue      // pending mutations when offline
 	reconnectCancel context.CancelFunc // stops the reconnection goroutine
+	autoConnectDone bool               // true after BOWRAIN_TOKEN auto-connect attempted
 
 	// pluginSearchRegistry overrides the registry URL for testing.
 	pluginSearchRegistry string
