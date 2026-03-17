@@ -516,9 +516,17 @@ describeOrSkip("Video Recordings", () => {
         await setTheme(page, theme);
         await humanClick(page, page.getByText("Company Website").last());
       } else {
-        // Mock mode: navigate away and back (data lives in JS memory)
-        await page.getByTestId("back-to-projects").click();
-        await page.waitForTimeout(200);
+        // Mock mode: navigate back from editor to project, then re-enter
+        const backToProject = page.getByTestId("back-to-project");
+        const backToProjects = page.getByTestId("back-to-projects");
+        if (await backToProject.isVisible().catch(() => false)) {
+          await backToProject.click();
+          await page.waitForTimeout(200);
+        }
+        if (await backToProjects.isVisible().catch(() => false)) {
+          await backToProjects.click();
+          await page.waitForTimeout(200);
+        }
         await humanClick(page, page.getByText("Company Website").first());
       }
       await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
