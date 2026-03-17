@@ -86,8 +86,8 @@ jobs:
         with:
           name: bowrain-assets-${{ matrix.theme }}
           path: |
-            website/static/img/platform/${{ matrix.theme }}/
-            website/static/video/platform/${{ matrix.theme }}/
+            website/static/img/bowrain/${{ matrix.theme }}/
+            website/static/video/bowrain/${{ matrix.theme }}/
           retention-days: 30
 
   # ── Web App Screenshots & Recordings (against live server) ──────────────────
@@ -274,8 +274,8 @@ jobs:
           mkdir -p website/static/video/bowrain website/static/video/web-app website/static/video/kapi website/static/video/bowrain-cli
 
           for theme in dark light; do
-            if [ -d "raw-recordings/bowrain-assets-${theme}/video/platform/${theme}" ]; then
-              cp -r "raw-recordings/bowrain-assets-${theme}/video/platform/${theme}" "website/static/video/platform/"
+            if [ -d "raw-recordings/bowrain-assets-${theme}/video/bowrain/${theme}" ]; then
+              cp -r "raw-recordings/bowrain-assets-${theme}/video/bowrain/${theme}" "website/static/video/bowrain/"
             fi
           done
 
@@ -366,8 +366,8 @@ jobs:
           mkdir -p assembled/img assembled/video
 
           # Bowrain screenshots + recordings
-          cp -r downloaded-assets/platform/img/bowrain assembled/img/ 2>/dev/null || true
-          cp -r downloaded-assets/platform/video/bowrain assembled/video/ 2>/dev/null || true
+          cp -r downloaded-assets/bowrain/img/bowrain assembled/img/ 2>/dev/null || true
+          cp -r downloaded-assets/bowrain/video/bowrain assembled/video/ 2>/dev/null || true
 
           # Web app screenshots + recordings
           cp -r downloaded-assets/web-app/img/web-app assembled/img/ 2>/dev/null || true
