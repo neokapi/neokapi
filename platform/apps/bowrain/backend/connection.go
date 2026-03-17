@@ -80,11 +80,15 @@ type pkceResult struct {
 func (a *App) GetConnectionState() ConnectionInfo {
 	a.mu.RLock()
 	state := a.connState
+	autoConnectDone := a.autoConnectDone
 	a.mu.RUnlock()
 
-	// Auto-connect via pre-supplied token (CI/headless mode).
-	if state == StateDisconnected {
+	// Auto-connect via pre-supplied token (CI/headless mode). Only attempt once.
+	if state == StateDisconnected && !autoConnectDone {
 		if token := os.Getenv("BOWRAIN_TOKEN"); token != "" {
+			a.mu.Lock()
+			a.autoConnectDone = true
+			a.mu.Unlock()
 			serverURL := a.GetDefaultServerURL()
 			if err := a.connectWithToken(serverURL, token); err != nil {
 				log.Printf("bowrain: auto-connect failed: %v", err)
