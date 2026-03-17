@@ -1910,12 +1910,12 @@ describeOrSkip("Video Recordings", () => {
       await pause(page, 800);
 
       // Open an existing project to show management
-      await humanClick(page, page.getByText("Website Redesign").first());
-      await expect(page.getByTestId("open-file-index.html")).toBeVisible({ timeout: 5000 });
+      await humanClick(page, page.getByText("Mobile App v2.0").first());
+      await expect(page.getByTestId("file-drop-zone")).toBeVisible({ timeout: 5000 });
       await pause(page, 600);
 
       // Open a file to show quick access
-      await humanClick(page, page.getByTestId("open-file-index.html"));
+      await humanClick(page, page.getByTestId("open-file-strings.json"));
       await expect(page.getByTestId("layout-switcher")).toBeVisible({ timeout: 5000 });
       await page.evaluate(() => {
         (document.querySelector('[data-testid="layout-grid"]') as HTMLElement)?.click();
