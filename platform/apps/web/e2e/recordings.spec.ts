@@ -20,11 +20,7 @@ import {
   humanType,
   pause,
 } from "./helpers/cursor-helper";
-import {
-  BowrainAPI,
-  fullSeed,
-  type StoryContext,
-} from "../../../e2e/shared/index";
+import { BowrainAPI, fullSeed, type StoryContext } from "../../../e2e/shared/index";
 
 const isCI = !!process.env.CI && !process.env.FORCE_RECORDINGS;
 
@@ -216,13 +212,10 @@ test.describe("Web App Recordings", () => {
 
       // Clean up
       try {
-        await fetch(
-          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await fetch(`${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       } catch {
         /* ignore */
       }
@@ -268,13 +261,10 @@ test.describe("Web App Recordings", () => {
       await pause(page, 1500);
 
       try {
-        await fetch(
-          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await fetch(`${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       } catch {
         /* ignore */
       }
@@ -311,13 +301,10 @@ test.describe("Web App Recordings", () => {
       await pause(page, 2000);
 
       try {
-        await fetch(
-          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await fetch(`${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       } catch {
         /* ignore */
       }
@@ -443,13 +430,10 @@ test.describe("Web App Recordings", () => {
       await pause(page, 2000);
 
       try {
-        await fetch(
-          `${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`,
-          {
-            method: "DELETE",
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
+        await fetch(`${BASE_URL}/api/v1/workspaces/${wsSlug}/editor/projects/${p.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
       } catch {
         /* ignore */
       }
