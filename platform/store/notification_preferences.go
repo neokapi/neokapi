@@ -79,15 +79,10 @@ func (s *PreferenceStore) List(ctx context.Context, userID, workspaceID string) 
 	for rows.Next() {
 		var p NotificationPreference
 		var cat string
-		var web, email, push, desktop int
-		if err := rows.Scan(&p.UserID, &p.WorkspaceID, &cat, &web, &email, &push, &desktop); err != nil {
+		if err := rows.Scan(&p.UserID, &p.WorkspaceID, &cat, &p.Web, &p.Email, &p.Push, &p.Desktop); err != nil {
 			return nil, err
 		}
 		p.Category = NotificationCategory(cat)
-		p.Web = web != 0
-		p.Email = email != 0
-		p.Push = push != 0
-		p.Desktop = desktop != 0
 		stored[p.Category] = p
 	}
 	if err := rows.Err(); err != nil {
@@ -128,23 +123,28 @@ func (s *PreferenceStore) Get(ctx context.Context, userID, workspaceID string, c
 	return &NotificationPreference{UserID: userID, WorkspaceID: workspaceID, Category: category, Web: true, Desktop: true}, nil
 }
 
+// boolParam returns a value suitable for the current dialect.
+// PostgreSQL requires native bools; SQLite works with 0/1 integers.
+func (s *PreferenceStore) boolParam(b bool) interface{} {
+	if s.dialect == DialectPostgres {
+		return b
+	}
+	if b {
+		return 1
+	}
+	return 0
+}
+
 // Upsert saves a notification preference, creating or updating as needed.
 func (s *PreferenceStore) Upsert(ctx context.Context, p *NotificationPreference) error {
-	boolToInt := func(b bool) int {
-		if b {
-			return 1
-		}
-		return 0
-	}
-
 	_, err := s.db.ExecContext(ctx, s.q(
 		`INSERT INTO notification_preferences (user_id, workspace_id, category, channel_web, channel_email, channel_push, channel_desktop)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT (user_id, workspace_id, category)
 		 DO UPDATE SET channel_web = ?, channel_email = ?, channel_push = ?, channel_desktop = ?`),
 		p.UserID, p.WorkspaceID, string(p.Category),
-		boolToInt(p.Web), boolToInt(p.Email), boolToInt(p.Push), boolToInt(p.Desktop),
-		boolToInt(p.Web), boolToInt(p.Email), boolToInt(p.Push), boolToInt(p.Desktop))
+		s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop),
+		s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop))
 	return err
 }
 
@@ -156,13 +156,6 @@ func (s *PreferenceStore) BulkUpsert(ctx context.Context, prefs []NotificationPr
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	boolToInt := func(b bool) int {
-		if b {
-			return 1
-		}
-		return 0
-	}
-
 	for _, p := range prefs {
 		_, err := tx.ExecContext(ctx, s.q(
 			`INSERT INTO notification_preferences (user_id, workspace_id, category, channel_web, channel_email, channel_push, channel_desktop)
@@ -170,8 +163,8 @@ func (s *PreferenceStore) BulkUpsert(ctx context.Context, prefs []NotificationPr
 			 ON CONFLICT (user_id, workspace_id, category)
 			 DO UPDATE SET channel_web = ?, channel_email = ?, channel_push = ?, channel_desktop = ?`),
 			p.UserID, p.WorkspaceID, string(p.Category),
-			boolToInt(p.Web), boolToInt(p.Email), boolToInt(p.Push), boolToInt(p.Desktop),
-			boolToInt(p.Web), boolToInt(p.Email), boolToInt(p.Push), boolToInt(p.Desktop))
+			s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop),
+			s.boolParam(p.Web), s.boolParam(p.Email), s.boolParam(p.Push), s.boolParam(p.Desktop))
 		if err != nil {
 			return err
 		}
