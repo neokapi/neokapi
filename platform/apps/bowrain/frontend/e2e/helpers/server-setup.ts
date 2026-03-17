@@ -42,9 +42,8 @@ export async function setupServerApp(page: Page): Promise<SeedResult> {
       const runtime = await import("@wailsio/runtime");
       // The SelectWorkspace binding ID must match the generated bindings.
       // Call it by name through the app module.
-      const Backend = await import(
-        "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js"
-      );
+      const Backend =
+        await import("../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js");
       await Backend.SelectWorkspace(slug);
     } catch {
       // Fallback: try mock backend
