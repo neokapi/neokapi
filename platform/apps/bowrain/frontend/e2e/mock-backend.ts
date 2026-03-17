@@ -1286,6 +1286,9 @@ export async function injectMockBackend(page: Page) {
 
     // Expose IDs so tests can monkey-patch __wailsMock by name lookup
     (window as any).__wailsIDs = IDS;
+
+    // Expose projectFiles so recordings can add custom blocks and use PseudoTranslateItem
+    (window as any).__projectFiles = projectFiles;
   });
 }
 
