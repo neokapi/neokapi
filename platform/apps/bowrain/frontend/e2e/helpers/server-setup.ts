@@ -13,13 +13,8 @@ let seedResult: SeedResult | null = null;
 
 /**
  * Seeds the real bowrain-server and navigates the Wails desktop app to the dashboard.
- * The Go backend connects to the server via gRPC; the frontend talks to the Go backend
- * through Wails bindings (no mock needed).
- *
- * Prerequisites:
- * - bowrain-server running (via e2e/compose.yaml or manually)
- * - Wails dev mode running (wails3 dev → Go backend + Vite frontend)
- * - BOWRAIN_SERVER_URL env set (defaults to http://localhost:8080)
+ * The Go backend auto-connects via BOWRAIN_TOKEN. After seeding, we tell the
+ * frontend to select the seeded workspace by calling the SelectWorkspace binding.
  */
 export async function setupServerApp(page: Page): Promise<SeedResult> {
   // Wait for server to be ready
@@ -30,10 +25,40 @@ export async function setupServerApp(page: Page): Promise<SeedResult> {
     seedResult = await fullSeed();
   }
 
-  // Navigate to the app root — headless binary serves at the configured baseURL
+  // Navigate to the app root — headless binary auto-connects via BOWRAIN_TOKEN
   await page.goto("/");
 
-  // Wait for the app to connect and enter ready mode
+  // Wait for the app to be ready (connected state, showing workspace selector or empty dashboard)
+  await page.waitForTimeout(3000);
+
+  // Tell the desktop app to select the seeded workspace via Wails binding.
+  // The binding is called through the __wailsMockByName map in mock mode,
+  // or via HTTP transport in server mode.
+  const wsSlug = seedResult.context.workspaceSlug;
+  await page.evaluate(async (slug) => {
+    // In server mode, Wails bindings are called via Call.ByID.
+    // SelectWorkspace is available after auto-connect.
+    try {
+      const runtime = await import("@wailsio/runtime");
+      // The SelectWorkspace binding ID must match the generated bindings.
+      // Call it by name through the app module.
+      const Backend = await import(
+        "../../bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js"
+      );
+      await Backend.SelectWorkspace(slug);
+    } catch {
+      // Fallback: try mock backend
+      const byName = (window as any).__wailsMockByName;
+      if (byName?.SelectWorkspace) {
+        byName.SelectWorkspace(slug);
+      }
+    }
+  }, wsSlug);
+
+  // Reload to pick up the workspace selection
+  await page.reload();
+
+  // Wait for the app to show the dashboard with seeded projects
   await page
     .getByText("Get started with your first project")
     .or(page.getByTestId("nav-translate"))

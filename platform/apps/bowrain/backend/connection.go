@@ -136,12 +136,9 @@ func (a *App) connectWithToken(serverURL, token string) error {
 	a.serverURL = serverURL
 	a.mu.Unlock()
 
-	// Select first workspace.
-	wsList, err := a.GetServerWorkspaces()
-	if err == nil && len(wsList) > 0 {
-		_ = a.SelectWorkspace(wsList[0].Slug)
-	}
-
+	// Don't auto-select workspace — the test seeder creates the workspace
+	// after the binary starts, so it may not exist yet. The frontend's
+	// setupServerApp helper handles workspace selection after seeding.
 	log.Printf("bowrain: auto-connected to %s via BOWRAIN_TOKEN", serverURL)
 	return nil
 }

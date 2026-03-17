@@ -279,7 +279,8 @@ export async function fullSeed(): Promise<SeedResult> {
   const token = await authenticate();
 
   console.log("Creating workspace...");
-  const ws = await getOrCreateWorkspace(token, "Acme Inc.", "acme");
+  const slug = `desktop-${Date.now().toString(36)}`;
+  const ws = await getOrCreateWorkspace(token, "Acme Inc.", slug);
 
   console.log("Creating projects and uploading files...");
   const projects: SeedResult["projects"] = [];
