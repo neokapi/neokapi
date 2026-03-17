@@ -253,18 +253,9 @@ export async function humanTypeNative(page: Page, testId: string, text: string) 
   await moveCursorToElement(page, locator, 350);
   await page.waitForTimeout(100);
 
-  // Set value natively with React-compatible events
-  await page.evaluate(
-    ({ tid, val }) => {
-      const input = document.querySelector(`[data-testid="${tid}"]`) as HTMLInputElement;
-      if (!input) return;
-      input.focus();
-      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, val);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    },
-    { tid: testId, val: text },
-  );
-
+  // Set value using Playwright's fill (compatible with React-controlled inputs)
+  const input = locator.locator("input").first();
+  const target = (await input.count()) > 0 ? input : locator;
+  await target.fill(text);
   await page.waitForTimeout(200);
 }
