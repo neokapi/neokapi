@@ -8,7 +8,6 @@ import type {
   Pattern,
   VoiceExample,
 } from "./types";
-import { BrandExamplePair } from "./BrandExamplePair";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
@@ -24,7 +23,6 @@ import {
 } from "../components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
-import { cn } from "../lib/utils";
 
 interface BrandProfileEditorProps {
   profile?: VoiceProfile;

@@ -80,16 +80,16 @@ export function ProjectView({
   onUploadToCollection,
   onEditProject,
   onArchiveProject,
-  onCreateStream,
-  onEditStream,
-  onMergeStream,
-  onDiffStream,
-  onDeleteStream,
+  onCreateStream: _onCreateStream,
+  onEditStream: _onEditStream,
+  onMergeStream: _onMergeStream,
+  onDiffStream: _onDiffStream,
+  onDeleteStream: _onDeleteStream,
   onOpenDashboard,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const isMobile = useIsMobile();
-  const { activeStream, setActiveStream } = useStream();
+  const { activeStream: _activeStream, setActiveStream: _setActiveStream } = useStream();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
