@@ -224,3 +224,55 @@ func TestAssetNoBlobStore(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
+
+func TestAssetStreamScopedRoutes(t *testing.T) {
+	srv, token := newTestServerWithBlob(t)
+	e := srv.GetEcho()
+	auth := "Bearer " + token
+	pid := createTestProjectForAssets(t, e, token)
+
+	// Create asset via stream-scoped route.
+	body := `{"blob_key":"streamscoped1234","mime_type":"image/png","filename":"stream.png"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/streams/main/assets", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", auth)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var asset AssetResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &asset))
+	assetID := asset.ID
+
+	// List via stream-scoped route.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/streams/main/assets", nil)
+	req.Header.Set("Authorization", auth)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var listResp map[string][]AssetResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &listResp))
+	assert.Len(t, listResp["assets"], 1)
+
+	// Get via stream-scoped route.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/streams/main/assets/"+assetID, nil)
+	req.Header.Set("Authorization", auth)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Also accessible via flat route (defaults to "main").
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/assets/"+assetID, nil)
+	req.Header.Set("Authorization", auth)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Delete via stream-scoped route.
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+pid+"/streams/main/assets/"+assetID, nil)
+	req.Header.Set("Authorization", auth)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+}
