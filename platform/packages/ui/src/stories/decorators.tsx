@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
+import { BravoProvider } from "../context/BravoContext";
 import type { BlockInfo, Workspace } from "../types/api";
 import { createMockAdapter } from "./mock-adapter";
 
@@ -35,9 +36,11 @@ export function createProvidersDecorator(blocks?: BlockInfo[]): Decorator {
     <QueryClientProvider client={queryClient}>
       <ApiProvider adapter={adapter}>
         <WorkspaceProvider initialWorkspace={mockWorkspace}>
-          <BreadcrumbProvider>
-            <Story />
-          </BreadcrumbProvider>
+          <BravoProvider>
+            <BreadcrumbProvider>
+              <Story />
+            </BreadcrumbProvider>
+          </BravoProvider>
         </WorkspaceProvider>
       </ApiProvider>
     </QueryClientProvider>
