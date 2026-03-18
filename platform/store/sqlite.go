@@ -1155,7 +1155,20 @@ func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, 
 		return fmt.Errorf("marshal asset properties: %w", err)
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if this is a new asset or an update (for change log).
+	var existingID string
+	_ = tx.QueryRowContext(ctx,
+		`SELECT id FROM assets WHERE project_id=? AND blob_key=? AND stream=?`,
+		projectID, asset.BlobKey, stream).Scan(&existingID)
+	isNew := existingID == ""
+
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO assets (id, project_id, item_name, source_id, blob_key, mime_type, filename,
 			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1171,7 +1184,21 @@ func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, 
 	if err != nil {
 		return fmt.Errorf("store asset: %w", err)
 	}
-	return nil
+
+	// Log change for incremental sync.
+	changeType := "asset_modified"
+	if isNew {
+		changeType = "asset_added"
+	}
+	assetID := asset.ID
+	if existingID != "" {
+		assetID = existingID
+	}
+	if err := logChange(ctx, tx, projectID, stream, assetID, changeType, "", asset.BlobKey); err != nil {
+		return fmt.Errorf("log asset change: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
@@ -1216,7 +1243,13 @@ func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemNam
 
 func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
 	stream = defaultStream(stream)
-	res, err := s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx,
 		`DELETE FROM assets WHERE project_id=? AND stream=? AND id=?`, projectID, stream, assetID)
 	if err != nil {
 		return fmt.Errorf("delete asset: %w", err)
@@ -1225,7 +1258,12 @@ func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetI
 	if n == 0 {
 		return fmt.Errorf("asset %q not found", assetID)
 	}
-	return nil
+
+	if err := logChange(ctx, tx, projectID, stream, assetID, "asset_removed", "", ""); err != nil {
+		return fmt.Errorf("log asset removal: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 // scanner is the interface shared by *sql.Row and *sql.Rows.
@@ -1254,7 +1292,7 @@ func scanAsset(row assetScanner) (*platstore.Asset, error) {
 // Asset Variants (AD-029)
 // ---------------------------------------------------------------------------
 
-func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, _ string, variant *platstore.AssetVariant) error {
+func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, variant *platstore.AssetVariant) error {
 	now := time.Now().UTC()
 	variant.CreatedAt = now
 	variant.UpdatedAt = now
@@ -1268,7 +1306,20 @@ func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, _ string, variant *
 		return fmt.Errorf("marshal variant properties: %w", err)
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if this is a new variant or an update.
+	var existingKey string
+	_ = tx.QueryRowContext(ctx,
+		`SELECT blob_key FROM asset_variants WHERE asset_id=? AND locale=?`,
+		variant.AssetID, variant.Locale).Scan(&existingKey)
+	isNew := existingKey == ""
+
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO asset_variants (asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(asset_id, locale) DO UPDATE SET
@@ -1280,7 +1331,23 @@ func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, _ string, variant *
 	if err != nil {
 		return fmt.Errorf("store asset variant: %w", err)
 	}
-	return nil
+
+	// Log change for incremental sync — look up the asset's project/stream.
+	var assetProjectID, assetStream string
+	err = tx.QueryRowContext(ctx,
+		`SELECT project_id, stream FROM assets WHERE id=?`, variant.AssetID).Scan(&assetProjectID, &assetStream)
+	if err == nil {
+		changeType := "variant_modified"
+		if isNew {
+			changeType = "variant_added"
+		}
+		if variant.Status == "approved" && existingKey != "" {
+			changeType = "variant_approved"
+		}
+		_ = logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+	}
+
+	return tx.Commit()
 }
 
 func (s *SQLiteStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*platstore.AssetVariant, error) {

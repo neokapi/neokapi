@@ -799,3 +799,47 @@ func TestAssetCascadeDelete(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, variants, 0)
 }
+
+func TestAssetChangeLog(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Store asset — should log "asset_added".
+	asset := &platstore.Asset{
+		BlobKey:  "changelog1234",
+		MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
+
+	// Store same blob key again — should log "asset_modified".
+	asset2 := &platstore.Asset{
+		BlobKey:  "changelog1234",
+		MimeType: "image/png",
+		Filename: "updated.png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset2))
+
+	// Store variant — should log "variant_added".
+	variant := &platstore.AssetVariant{
+		AssetID: asset.ID, Locale: "fr-FR", BlobKey: "frblob", MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
+
+	// Delete asset — should log "asset_removed".
+	require.NoError(t, s.DeleteAsset(ctx, p.ID, "main", asset.ID))
+
+	// Verify change log entries.
+	cs, err := s.GetChanges(ctx, p.ID, "main", 0, nil, 100)
+	require.NoError(t, err)
+
+	var assetChangeTypes []string
+	for _, c := range cs.Changes {
+		switch c.ChangeType {
+		case "asset_added", "asset_modified", "asset_removed", "variant_added", "variant_modified", "variant_approved":
+			assetChangeTypes = append(assetChangeTypes, c.ChangeType)
+		}
+	}
+
+	assert.Equal(t, []string{"asset_added", "asset_modified", "variant_added", "asset_removed"}, assetChangeTypes)
+}
