@@ -148,6 +148,27 @@ func TestAgentPoolStopAll(t *testing.T) {
 	assert.Equal(t, 0, pool.ActiveCount("ws-1"))
 }
 
+func TestAgentPoolGet(t *testing.T) {
+	rt := newMockRuntime()
+	pool := NewAgentPool(AgentPoolConfig{
+		Runtime:         rt,
+		MaxPerWorkspace: 3,
+	})
+	ctx := context.Background()
+
+	// Not found.
+	_, ok := pool.Get("conv-1")
+	assert.False(t, ok)
+
+	// Found after acquire.
+	c, err := pool.Acquire(ctx, ContainerConfig{ConversationID: "conv-1", WorkspaceID: "ws-1"})
+	require.NoError(t, err)
+
+	got, ok := pool.Get("conv-1")
+	assert.True(t, ok)
+	assert.Equal(t, c.ID, got.ID)
+}
+
 func TestAgentPoolRespawnsUnhealthy(t *testing.T) {
 	rt := newMockRuntime()
 	pool := NewAgentPool(AgentPoolConfig{
