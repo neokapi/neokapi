@@ -536,7 +536,7 @@ url = "http://alex-mcp:3001/mcp"
 **Why per-agent, not shared:**
 - SSE/Streamable HTTP connections don't carry per-request identity — a shared server
   can't reliably map calls to agents
-- Each sidecar is <30MB (Node.js), adding ~200MB total for 7 agents — acceptable
+- Each sidecar is &lt;30MB (Node.js), adding ~200MB total for 7 agents — acceptable
 - Auth tokens are isolated per container (no cross-agent leakage)
 - An agent's MCP sidecar failing doesn't affect other agents
 
