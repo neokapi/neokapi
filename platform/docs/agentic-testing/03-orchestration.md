@@ -105,7 +105,7 @@ Schedules live in each agent's `config.toml`:
 
 # agents/lisa-pm/config.toml
 [daemon.cron]
-"morning-check" = "0 8 * * 1-5"      # Weekdays 8am: review dashboard
+"morning-check" = "0 10 * * 1-5"     # Weekdays 10am: review dashboard (after Developer 9am push)
 ```
 
 ### Event Discovery via Activity Feed
@@ -240,8 +240,8 @@ allowed_commands = []    # Translator: API-only, no shell
 
 [mcp]
 [mcp.bowrain]
-transport = "sse"
-url = "http://bowrain-mcp:3001/sse"
+transport = "streamable-http"
+url = "http://jeanpierre-mcp:3001/mcp"  # Per-agent MCP sidecar
 
 [daemon]
 [daemon.cron]

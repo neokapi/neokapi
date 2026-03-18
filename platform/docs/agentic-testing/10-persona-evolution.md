@@ -172,7 +172,7 @@ When an agent's behavior is too vague, add specificity to SOUL.md:
 3. For EACH block:
    a. Check `bowrain.listConcepts` for any terms in the source text
    b. Check `bowrain.listTMEntries` — if >90% match, use TM
-   c. Get AI suggestion via `bowrain.pseudoTranslate`
+   c. Get AI suggestion via `bowrain.aiTranslate`
    d. Compare AI vs TM vs termbase — decide: accept, edit, reject
    e. Submit via `bowrain.translate`
    f. If edited with high confidence → `bowrain.addTMEntry`

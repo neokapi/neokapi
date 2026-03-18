@@ -233,7 +233,7 @@ On pattern of repeated brand violations:
 │
 ├─ 3. For each task (up to blocks_per_session):
 │     a. Get AI translation suggestion
-│        Tool: bowrain.pseudoTranslate
+│        Tool: bowrain.aiTranslate
 │
 │     b. Look up relevant terminology
 │        Tool: bowrain.listConcepts (filter by terms in source)
@@ -631,17 +631,17 @@ Respond to messages that need a reply before starting your main work.
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  # Update bowrain-mcp to include GitHub + email config
-  bowrain-mcp:
+  # Each agent's MCP sidecar gets GitHub + email config:
+  alex-mcp:                                  # (one per agent — see 04-implementation.md)
     build: ./mcp-server
     environment:
       BOWRAIN_URL: http://bowrain-server:8080
+      BOWRAIN_TOKEN: ${ALEX_BOWRAIN_TOKEN}   # Per-agent Bowrain auth
       GITHUB_TOKEN: ${GITHUB_TOKEN}          # For filing issues
-      SMTP_HOST: mailpit
+      SMTP_HOST: mailpit                     # Compose-internal hostname
       SMTP_PORT: 1025
-      MAILPIT_HOST: mailpit
+      MAILPIT_HOST: mailpit                  # For inbox queries
     depends_on: [bowrain-server, mailpit]
-    ports: ["3001:3001"]
 ```
 
 ### Environment Variables
