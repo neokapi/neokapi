@@ -432,7 +432,7 @@ api_base = "http://ollama.internal:11434"
 | Metric | Value |
 |--------|-------|
 | Image size | ~16MB |
-| Cold start | <10ms |
+| Cold start | &lt;10ms |
 | Memory per agent | ~5MB (64MB limit) |
 | CPU per agent | 0.25 cores |
 | Agents per 1GB RAM | ~200 (theoretical) |

@@ -2,7 +2,7 @@
 
 ## Architecture Decision: ZeroClaw Containers
 
-Each agent persona runs as an independent **ZeroClaw** instance in its own Docker container. ZeroClaw is an ultra-lightweight Rust-based AI agent runtime (~8.8MB binary, <5MB RAM) with built-in scheduling, MCP tool integration, and workspace-scoped identity files.
+Each agent persona runs as an independent **ZeroClaw** instance in its own Docker container. ZeroClaw is an ultra-lightweight Rust-based AI agent runtime (~8.8MB binary, &lt;5MB RAM) with built-in scheduling, MCP tool integration, and workspace-scoped identity files.
 
 ### Why ZeroClaw
 
@@ -14,7 +14,7 @@ Each agent persona runs as an independent **ZeroClaw** instance in its own Docke
 | State | Custom SQLite state manager | Workspace files + Bowrain platform state |
 | Scaling | Code changes to add agents | Add container to docker-compose |
 | Isolation | Shared process, manual sandboxing | Container-level isolation by default |
-| Memory per agent | ~100MB+ (Node.js) | <5MB (Rust binary) |
+| Memory per agent | ~100MB+ (Node.js) | &lt;5MB (Rust binary) |
 | Total for 20 agents | ~2GB+ | ~100MB |
 
 ### What ZeroClaw Provides
