@@ -21,23 +21,43 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+// sendBatchSize is the max number of ContentBlocks per ContentBlockBatch message.
+const sendBatchSize = 1024
+
+// sendContentBatch sends a ContentBlockBatch message on the stream.
+func sendContentBatch(stream pb.BridgeService_ProcessClient, blocks []*pb.ContentBlock) error {
+	if err := stream.Send(&pb.ProcessRequest{
+		Request: &pb.ProcessRequest_ContentBatch{
+			ContentBatch: &pb.ContentBlockBatch{Blocks: blocks},
+		},
+	}); err != nil {
+		return fmt.Errorf("process send content batch: %w", err)
+	}
+	return nil
+}
+
 // JavaBridge manages a JVM subprocess that runs the Okapi bridge gRPC server.
 // The subprocess prints its socket address to stdout on startup, and the Go
 // side connects as a gRPC client.
+//
+// On Linux and macOS, the bridge uses Unix domain sockets for IPC, which
+// bypasses the TCP/IP stack for lower latency and higher throughput. On
+// Windows, the bridge falls back to TCP on localhost.
 //
 // The JVM supports concurrent Process streams via gRPC — each stream creates
 // its own filter instance in Java. Concurrency is controlled by BridgeRegistry's
 // semaphores, not by locks on the bridge itself.
 type JavaBridge struct {
-	cfg     BridgeConfig
-	cmd     *exec.Cmd
-	conn    *grpc.ClientConn
-	client  pb.BridgeServiceClient
-	mu      sync.RWMutex
-	logger  *log.Logger
-	running bool
-	healthy atomic.Bool
-	addr    string // gRPC address (set after Start)
+	cfg        BridgeConfig
+	cmd        *exec.Cmd
+	conn       *grpc.ClientConn
+	client     pb.BridgeServiceClient
+	mu         sync.RWMutex
+	logger     *log.Logger
+	running    bool
+	healthy    atomic.Bool
+	addr       string // gRPC address (set after Start)
+	socketPath string // Unix socket path (non-empty when using UDS)
 }
 
 // NewJavaBridge creates a new bridge with the given config.
@@ -64,7 +84,7 @@ func (b *JavaBridge) Start() error {
 
 	// External bridge mode: connect to a pre-started server.
 	if b.cfg.Address != "" {
-		conn, err := grpc.NewClient("passthrough:///"+b.cfg.Address,
+		conn, err := grpc.NewClient(grpcTarget(b.cfg.Address),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
 			grpc.WithWriteBufferSize(256*1024),
@@ -85,11 +105,21 @@ func (b *JavaBridge) Start() error {
 
 	b.cmd = exec.Command(b.cfg.Command, b.cfg.Args...)
 	setPdeathsig(b.cmd)
-	if len(b.cfg.Env) > 0 {
-		b.cmd.Env = os.Environ()
-		for k, v := range b.cfg.Env {
-			b.cmd.Env = append(b.cmd.Env, k+"="+v)
-		}
+
+	// Generate a Unix socket path for IPC (empty on Windows → JVM uses TCP).
+	sockPath := generateSocketPath()
+	b.socketPath = sockPath
+	if sockPath != "" {
+		b.logger.Printf("[bridge] using Unix socket: %s", sockPath)
+	}
+
+	// Build subprocess environment.
+	b.cmd.Env = os.Environ()
+	if sockPath != "" {
+		b.cmd.Env = append(b.cmd.Env, bridgeSocketEnvVar+"="+sockPath)
+	}
+	for k, v := range b.cfg.Env {
+		b.cmd.Env = append(b.cmd.Env, k+"="+v)
 	}
 
 	stdout, err := b.cmd.StdoutPipe()
@@ -144,7 +174,8 @@ func (b *JavaBridge) Start() error {
 	b.logger.Printf("[bridge] connecting to %s", addr)
 
 	// Establish gRPC connection (lazy — actually connects on first RPC).
-	conn, err := grpc.NewClient("passthrough:///"+addr,
+	// If the address is a Unix socket path (starts with /), use unix: scheme.
+	conn, err := grpc.NewClient(grpcTarget(addr),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(64*1024*1024)),
 		grpc.WithWriteBufferSize(256*1024),
@@ -197,8 +228,10 @@ func (b *JavaBridge) Stop() error {
 
 	// Send shutdown RPC only for subprocess-managed bridges.
 	// External bridges (Address mode) must not be shut down — they're shared.
+	// Use a short timeout — the JVM may already be exiting, and a stale UDS
+	// connection can hang for the full timeout.
 	if b.client != nil && b.cmd != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 		_, _ = b.client.Shutdown(ctx, &pb.ShutdownRequest{})
 		cancel()
 	}
@@ -220,9 +253,13 @@ func (b *JavaBridge) Stop() error {
 
 	select {
 	case <-done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(3 * time.Second):
 		_ = b.cmd.Process.Kill()
 	}
+
+	// Clean up Unix socket file.
+	cleanupSocket(b.socketPath)
+	b.socketPath = ""
 
 	return nil
 }
@@ -405,15 +442,95 @@ func (b *JavaBridge) Process(ctx context.Context, params ProcessParams,
 	// 4. Send processed parts back to Java concurrently. This MUST run in a
 	// goroutine because for single-pass pipelines, Java blocks on each TEXT_UNIT
 	// waiting for the translation — so sending and receiving must be concurrent.
+	//
+	// Block parts are batched into ContentBlockBatch messages to amortize
+	// gRPC per-message overhead. The batch is flushed when:
+	//   - it reaches sendBatchSize (1024),
+	//   - a non-block part arrives (must be sent before blocks),
+	//   - the processedParts channel has no more parts ready (drain-flush).
+	//
+	// The drain-flush is critical: Java's writer thread blocks on each TEXT_UNIT
+	// waiting for the translation. If Go holds translations in an unflushed
+	// batch, the writer stalls → ReadDone is delayed → the send goroutine
+	// never sees the channel close → deadlock. Flushing when the channel is
+	// empty ensures translations flow back promptly.
 	sendErr := make(chan error, 1)
 	go func() {
 		if processedParts != nil {
+			var batch []*pb.ContentBlock
 			for part := range processedParts {
+				if part.Type == model.PartBlock {
+					batch = append(batch, shared.PartToContentBlock(part))
+					if len(batch) >= sendBatchSize {
+						if err := sendContentBatch(stream, batch); err != nil {
+							sendErr <- err
+							return
+						}
+						batch = nil
+						continue
+					}
+					// Drain: keep reading while parts are immediately available.
+					drained := false
+					for !drained {
+						select {
+						case p, ok := <-processedParts:
+							if !ok {
+								drained = true
+								break
+							}
+							if p.Type == model.PartBlock {
+								batch = append(batch, shared.PartToContentBlock(p))
+								if len(batch) >= sendBatchSize {
+									if err := sendContentBatch(stream, batch); err != nil {
+										sendErr <- err
+										return
+									}
+									batch = nil
+								}
+							} else {
+								// Non-block: flush batch, send part.
+								if len(batch) > 0 {
+									if err := sendContentBatch(stream, batch); err != nil {
+										sendErr <- err
+										return
+									}
+									batch = nil
+								}
+								msg := shared.PartToProto(p)
+								if err := stream.Send(&pb.ProcessRequest{
+									Request: &pb.ProcessRequest_Part{Part: msg},
+								}); err != nil {
+									sendErr <- fmt.Errorf("process send part: %w", err)
+									return
+								}
+							}
+						default:
+							// Channel empty — flush pending batch so Java can proceed.
+							drained = true
+						}
+					}
+					if len(batch) > 0 {
+						if err := sendContentBatch(stream, batch); err != nil {
+							sendErr <- err
+							return
+						}
+						batch = nil
+					}
+					continue
+				}
+				// Non-block part: send immediately.
 				msg := shared.PartToProto(part)
 				if err := stream.Send(&pb.ProcessRequest{
 					Request: &pb.ProcessRequest_Part{Part: msg},
 				}); err != nil {
 					sendErr <- fmt.Errorf("process send part: %w", err)
+					return
+				}
+			}
+			// Flush remaining batch (channel closed).
+			if len(batch) > 0 {
+				if err := sendContentBatch(stream, batch); err != nil {
+					sendErr <- err
 					return
 				}
 			}
