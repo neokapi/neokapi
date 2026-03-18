@@ -304,6 +304,7 @@ export type {
   BravoMessage,
   BravoToolCall as BravoToolCallInfo,
   BravoConfig,
+  BravoToolInfo,
   BravoToolInfo as BravoToolListItem,
   BravoUsageSummary,
   BravoSSEEventType,
