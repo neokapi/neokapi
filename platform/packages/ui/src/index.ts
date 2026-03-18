@@ -300,6 +300,13 @@ export type {
   TaskPriority,
   CreateTaskRequest,
   NotificationPreference,
+  BravoConversation,
+  BravoMessage,
+  BravoToolCall as BravoToolCallInfo,
+  BravoConfig,
+  BravoToolInfo as BravoToolListItem,
+  BravoUsageSummary,
+  BravoSSEEventType,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
@@ -346,6 +353,32 @@ export {
   useBrandScores,
   useBrandTrends,
 } from "./hooks/useBrandApi";
+
+// Bravo (@bravo agent)
+export {
+  BravoPanel,
+  BravoPanelTrigger,
+  BravoThread,
+  BravoComposer,
+  BravoToolCall,
+  BravoCodeBlock,
+  BravoApprovalCard,
+  BravoConversationList,
+  BravoConfigPanel,
+} from "./components/bravo";
+export type {
+  BravoPanelProps,
+  BravoPanelTriggerProps,
+  BravoThreadProps,
+  BravoComposerProps,
+  BravoToolCallProps,
+  BravoCodeBlockProps,
+  BravoApprovalCardProps,
+  BravoConversationListProps,
+  BravoConfigPanelProps,
+} from "./components/bravo";
+export { BravoProvider, useBravo } from "./context/BravoContext";
+export { useBravoApi } from "./hooks/useBravoApi";
 
 // Filter config editor
 export { FilterConfigEditor } from "./components/filter";
