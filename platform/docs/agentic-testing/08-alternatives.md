@@ -2,37 +2,47 @@
 
 ## Architecture Decisions
 
-### AD-1: Agent Implementation Language
+### AD-1: Agent Runtime
 
-**Decision:** TypeScript hybrid (Option C) for Phase 1-3, evaluate Go migration for Phase 5+.
+**Decision:** ZeroClaw containers (one per persona) with a shared Bowrain MCP server.
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **A: Pure Go** | Same lang as Bowrain, shared types, single binary | Weaker LLM SDK, no Playwright, slower iteration |
-| **B: Pure TypeScript** | Existing e2e infra, Playwright, rich AI SDKs | Separate from Go codebase, type drift |
-| **C: TypeScript Hybrid** ✓ | Best of both: reuse e2e infra + LLM SDKs + Playwright | Two languages, subprocess overhead for CLI |
-| **D: Python** | Strongest AI/ML ecosystem, LangChain/AutoGen | Third language, no existing infra, type safety concerns |
+| **A: Pure Go orchestrator** | Same lang as Bowrain, shared types | Must build scheduling, identity, tool dispatch from scratch |
+| **B: Pure TypeScript orchestrator** | Existing e2e infra, Playwright, rich AI SDKs | Must build scheduling, identity, tool dispatch from scratch |
+| **C: TypeScript Hybrid** | Best of both worlds | Still building a custom orchestrator |
+| **D: Python (AutoGen/CrewAI)** | Strongest AI/ML ecosystem | Third language, heavy, opinionated frameworks |
+| **E: ZeroClaw containers** ✓ | Built-in daemon/cron/heartbeat, SOUL.md identity, MCP native, <5MB RAM, container isolation | Rust binary (can't extend in Go/TS), newer project |
 
-**Rationale:** The existing e2e infrastructure (`platform/e2e/shared/`) provides a BowrainAPI client, auth flows, and Playwright setup. Reusing this saves weeks. LLM SDKs in TypeScript are mature. CLI calls are infrequent enough that subprocess overhead is negligible.
+**Rationale:** ZeroClaw provides scheduling (daemon mode + cron), identity (SOUL.md), tool integration (MCP), and isolation (containers) out of the box. This eliminates the need for a custom orchestrator, scheduler, state manager, and event router. The main investment shifts to building a Bowrain MCP server — which has standalone value beyond the agentic testing system.
 
-**Revisit when:** If agent logic becomes complex enough to benefit from Go's type system and Bowrain's internal APIs, consider migrating the core orchestrator to Go while keeping Playwright in TypeScript.
+**Trade-off accepted:** Agent logic lives in SOUL.md (natural language) rather than code. This is less testable but more flexible — persona tuning is a markdown edit, not a code change.
+
+**Revisit when:** If ZeroClaw's capabilities prove limiting (e.g., can't handle complex multi-step tool chains), consider supplementing with custom TypeScript agents for specific roles while keeping ZeroClaw for the majority.
 
 ---
 
 ### AD-2: LLM Provider for Agent Decision-Making
 
-**Decision:** Claude (Anthropic) via Claude API / Anthropic SDK.
+**Decision:** Mixed Azure AI providers — GPT-4o/mini (Azure OpenAI) for simple tasks, Claude Sonnet (Azure AI Foundry) for translation review and brand reasoning.
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **Anthropic Claude** ✓ | Best tool-use, long context, high quality | Cost at scale |
-| **OpenAI GPT-4** | Mature ecosystem, function calling | Less reliable tool use |
+| **Direct Anthropic Claude** | Best tool-use, simplest setup | Separate billing, data leaves Azure |
+| **Azure OpenAI only** | Already deployed, single provider | GPT weaker at multilingual review |
+| **Azure AI Foundry Claude only** | Best quality, single provider | Overkill for simple git/task ops |
+| **Mixed: Azure OpenAI + Azure AI Foundry** ✓ | Right model for each task, consolidated Azure billing, data residency | Two providers to configure |
 | **Local LLM (Ollama)** | Free, private, no rate limits | Lower quality decisions, slower |
-| **Mixed: Claude for decisions, Ollama for translation review** | Cost optimization | Complexity, inconsistent quality |
 
-**Rationale:** Agent decisions (terminology review, translation critique, task creation) require high reasoning quality. Claude's tool-use is the most reliable for structured outputs. Cost is manageable with session budgets.
+**Rationale:** The Azure OpenAI resource has `disableLocalAuth: true` (managed-identity-only), so local docker-compose can't use it. This naturally leads to a split: local dev uses Google Gemini (good quality, cheap, existing API key), while Azure deployment uses managed identity to access both Azure OpenAI and Azure AI Foundry. The SOUL.md, MCP tools, and scheduling are identical — only the `[llm]` provider block differs per environment.
 
-**Cost optimization for later:** Use Claude Haiku for simple accept/reject decisions, Sonnet for complex reviews, Opus only for brand strategy.
+In Azure, simple agent tasks use the already-deployed GPT-4o-mini (cheap), while translation and brand agents use Claude Sonnet via Azure AI Foundry (stronger multilingual). All data stays in Sweden Central (EU compliance), billing is consolidated, and managed identity eliminates key management.
+
+**Local:** All agents → Gemini 2.5 Flash (or Ollama for free iteration)
+**Azure model tier mapping:**
+- GPT-4o-mini → Developer, simple decisions (~$0.15/1M tokens)
+- GPT-4o → PM, QA (~$2.50/1M tokens)
+- Claude Sonnet 4.5 → Translators, Brand Manager (~$3/1M tokens)
 
 ---
 
@@ -58,32 +68,31 @@
 
 ### AD-4: State Management
 
-**Decision:** SQLite for orchestrator state, Bowrain server for platform state.
+**Decision:** ZeroClaw workspace files + Bowrain platform state. No separate state database.
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **SQLite** ✓ | Zero infrastructure, portable, ACID | Single-node only |
-| **PostgreSQL** | Scalable, shared across instances | Infra overhead, overkill for orchestrator |
-| **JSON files** | Simplest possible | No ACID, corruption risk, slow queries |
-| **Redis** | Fast, pub/sub for events | Volatile, another dependency |
-| **Git repo as state** | Version-controlled, auditable | Slow, merge conflicts |
+| **SQLite (custom)** | ACID, queryable | Must build; another component to maintain |
+| **ZeroClaw workspace** ✓ | Built-in, persists in mounted volumes | Less structured than SQL |
+| **Bowrain as sole state** ✓ | Authoritative for platform state | Can't track orchestrator-specific state |
+| **Redis** | Fast, pub/sub | Volatile, another dependency |
 
-**Rationale:** The orchestrator runs on a single node. SQLite provides ACID guarantees, zero dependencies, and easy backup (copy the file). Platform state (projects, translations, TM) lives in Bowrain's own database — the orchestrator only tracks its own scheduling/agent state.
+**Rationale:** With ZeroClaw, agent state lives in the workspace directory (mounted Docker volume). Platform state (projects, translations, TM, tasks, activities) lives in Bowrain's own database. There's no need for a separate orchestrator state database because there's no orchestrator.
 
 ---
 
 ### AD-5: Scheduling Model
 
-**Decision:** Cron + event-driven hybrid with dependency chains.
+**Decision:** ZeroClaw daemon cron + heartbeat polling (no central scheduler).
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **Pure cron** | Simple, predictable | Can't react to events, wasteful polling |
-| **Pure event-driven** | Responsive, efficient | Complex, needs event bus infrastructure |
-| **Hybrid** ✓ | Cron for regular tasks, events for reactions | Two mechanisms to maintain |
-| **Manual/on-demand** | Zero automation overhead | Not "agentic", requires human triggers |
+| **Central cron scheduler** | Single point of control | Must build; single point of failure |
+| **Central event bus** | Responsive, efficient | Complex infrastructure |
+| **ZeroClaw daemon cron** ✓ | Built-in per agent, zero custom code | No central visibility of schedules |
+| **Heartbeat polling** ✓ | Agents discover events naturally via activity feed | Slightly delayed reaction (poll interval) |
 
-**Rationale:** Some tasks are naturally periodic (check upstream daily, review terminology weekly). Others are reactive (translate after push, QA after translation). The hybrid model handles both naturally.
+**Rationale:** ZeroClaw's daemon mode provides cron scheduling natively. "Event-driven" coordination is replaced by heartbeat polling of Bowrain's activity feed — more realistic (humans check dashboards) and requires zero custom event infrastructure. The poll delay (1-2h heartbeat) is a feature, not a bug — it creates natural pacing.
 
 ---
 
@@ -114,7 +123,7 @@ See `02-project-candidates.md` → "Fork Strategy" for detailed analysis.
 
 ---
 
-## Alternative Architectures Considered
+## Alternative Architectures Considered (Superseded by ZeroClaw)
 
 ### Alt-A: Claude Code as the Agent Runtime
 
@@ -165,7 +174,7 @@ Use an existing multi-agent framework:
 | **LangGraph** | Graph-based workflows, state machines | Complex, Python-heavy |
 | **Mastra** | TypeScript, good tool integration | Newer, less proven |
 
-**Verdict:** These frameworks add abstraction we don't need. Our agents have well-defined tools (Bowrain API, CLI, git) and well-defined workflows (push → translate → pull). A custom lightweight orchestrator gives more control with less overhead. Reconsider if agent interaction patterns become significantly more complex.
+**Verdict:** These frameworks add abstraction we don't need. ZeroClaw's daemon mode with MCP integration provides the right level of agent autonomy without the overhead of a multi-agent conversation framework. Our agents have well-defined tools (Bowrain MCP) and well-defined workflows (push → translate → pull).
 
 ### Alt-D: GitHub Actions as Agent Runtime
 
@@ -198,7 +207,22 @@ jobs:
 - No browser automation without extra setup
 - Slow feedback loop (minutes to start each workflow)
 
-**Verdict:** Good supplement for the Developer Agent's CI-focused tasks. Not suitable as the primary runtime for all agents due to cold starts and limited compute.
+**Verdict:** Good supplement for the Developer Agent's CI-focused tasks. Not suitable as the primary runtime for all agents due to cold starts and limited compute. With ZeroClaw, agents run as persistent daemons — GitHub Actions could still be used for the CI-specific workflows (setup-bowrain + bowrain-action) that the Developer agent configures.
+
+---
+
+### Alt-E: Custom TypeScript Orchestrator (Original Plan)
+
+The original v1 of this plan proposed a custom TypeScript orchestrator with:
+- Custom scheduler (cron + event-driven)
+- Custom agent runtime (BaseAgent class with LLM integration)
+- Custom state management (SQLite)
+- Custom event router
+- Playwright browser automation for Web UI agents
+
+**Verdict:** Superseded by ZeroClaw. The custom orchestrator required building scheduling, identity management, tool dispatch, state persistence, and failure handling from scratch. ZeroClaw provides all of these as built-in features of the runtime. The Bowrain MCP server (which we need to build regardless) replaces the custom API wrappers. The only custom code that remains is the release-walker for accelerated mode — which is a thin, optional coordinator rather than a full orchestrator.
+
+**What's preserved:** The agent personas (SOUL.md files) carry forward directly from the original prompt templates. The MCP tool definitions mirror the original tool schemas. The project configurations are unchanged. The scheduling patterns (cron times per agent) are identical — they just live in `config.toml` instead of a custom scheduler.
 
 ---
 

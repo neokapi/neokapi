@@ -2,7 +2,9 @@
 
 ## Overview
 
-The orchestrator is the brain of the agentic testing system. It schedules agent work, manages timelines, controls pacing, handles failures, and ensures agents interact in realistic patterns. It runs as a long-lived service (or cron-scheduled batch) that drives the entire system.
+The agentic testing system uses a **distributed, self-scheduling architecture** powered by ZeroClaw containers. There is no central orchestrator — each agent is an autonomous ZeroClaw daemon with its own cron schedule and heartbeat. Agents coordinate through Bowrain's activity feed and task system, exactly as human teams would.
+
+The only exception is **accelerated mode** (release walkthrough), which uses a thin release-walker service to sequence releases. In real-time mode, agents are fully autonomous.
 
 ## Operating Modes
 
@@ -53,130 +55,75 @@ Week 1 (accelerated): Walk v2.0 → v3.0 (12 releases in 3 days)
 Week 2+ (real-time):  Track upstream main, process changes as they land
 ```
 
-## Orchestrator Architecture
+## Agent Scheduling Architecture
+
+Each ZeroClaw agent container runs in **daemon mode** with two scheduling mechanisms:
+
+1. **Cron** — Regular tasks on a schedule (defined in `config.toml`)
+2. **Heartbeat** — Periodic checks for new work (defined in `HEARTBEAT.md`)
+
+There is no central scheduler or event router. Agents discover work by **polling Bowrain's activity feed** on their heartbeat cycle.
 
 ```
-┌──────────────────────────────────────────────────┐
-│                  Orchestrator                      │
-│                                                    │
-│  ┌────────────┐  ┌─────────────┐  ┌───────────┐  │
-│  │  Scheduler  │  │   State     │  │  Event    │  │
-│  │  (cron +    │  │   Manager   │  │  Router   │  │
-│  │   triggers) │  │  (SQLite)   │  │           │  │
-│  └──────┬─────┘  └──────┬──────┘  └─────┬─────┘  │
-│         │               │               │         │
-│  ┌──────▼───────────────▼───────────────▼──────┐  │
-│  │              Agent Dispatcher                │  │
-│  │  (launches agents, passes context, collects  │  │
-│  │   results, handles retries)                  │  │
-│  └──────┬──────────┬──────────┬────────────────┘  │
-│         │          │          │                    │
-└─────────┼──────────┼──────────┼───────────────────┘
-          │          │          │
-   ┌──────▼───┐ ┌───▼────┐ ┌──▼─────────┐
-   │Developer │ │ Brand  │ │ Translator │
-   │ Agent    │ │ Agent  │ │ Agent(s)   │
-   └──────────┘ └────────┘ └────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  ZeroClaw Daemon (per agent container)                       │
+│                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│  │  Cron         │  │  Heartbeat   │  │  Agent Loop      │  │
+│  │  (config.toml)│  │ (HEARTBEAT.md│  │  (SOUL.md +      │  │
+│  │  Fixed tasks  │  │  Check for   │  │   MCP tools)     │  │
+│  │  at set times │  │  new work)   │  │                  │  │
+│  └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
+│         │                  │                    │             │
+│         └──────────────────┼────────────────────┘             │
+│                            │ MCP                              │
+│                     ┌──────▼───────┐                         │
+│                     │ Bowrain MCP  │                         │
+│                     │ Server       │                         │
+│                     └──────────────┘                         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Components
+### Schedule Configuration (per agent)
 
-#### Scheduler
+Schedules live in each agent's `config.toml`:
 
-Determines **when** agents run. Combines:
+```toml
+# agents/alex-developer/config.toml
+[daemon.cron]
+"check-upstream" = "0 9 * * 1-5"     # Weekdays 9am: check for new releases
+"pull-translations" = "0 17 * * 1-5"  # Weekdays 5pm: pull completed work
 
-- **Cron schedules:** Regular intervals (e.g., Developer checks upstream daily at 09:00)
-- **Event triggers:** React to platform events (e.g., new content pushed → create translation tasks)
-- **Dependency chains:** Agent B runs after Agent A completes (e.g., translators wait for PM task creation)
-- **Randomized jitter:** Add ±30min to avoid mechanical regularity
+# agents/maria-brand/config.toml
+[daemon.cron]
+"review-terms" = "0 10 * * 1,3,5"    # Mon/Wed/Fri 10am: review terminology
+"brand-audit" = "0 10 * * 4"         # Thursday: brand compliance audit
 
-```yaml
-# Example schedule definition
-schedules:
-  - agent: developer
-    project: docusaurus
-    cron: "0 9 * * 1-5"        # Weekdays 9am
-    jitter_minutes: 30
-    task: check_upstream_and_push
+# agents/jeanpierre-fr/config.toml
+[daemon.cron]
+"translate-batch" = "0 14 * * 1-5"   # Weekdays 2pm: translate assigned blocks
 
-  - agent: pm
-    project: docusaurus
-    trigger: content_pushed      # Event-driven
-    delay_minutes: 60            # Wait 1h after push
-    task: create_translation_tasks
-
-  - agent: brand_manager
-    project: docusaurus
-    cron: "0 10 * * 1,3,5"     # Mon/Wed/Fri 10am
-    task: review_terminology
-
-  - agent: translator_fr
-    project: docusaurus
-    cron: "0 14 * * 1-5"       # Weekdays 2pm
-    task: translate_assigned_batch
-    depends_on: pm.create_translation_tasks
-
-  - agent: qa
-    project: docusaurus
-    trigger: translation_batch_complete
-    delay_minutes: 30
-    task: run_quality_checks
+# agents/lisa-pm/config.toml
+[daemon.cron]
+"morning-check" = "0 8 * * 1-5"      # Weekdays 8am: review dashboard
 ```
 
-#### State Manager
+### Event Discovery via Activity Feed
 
-Tracks the state of every project, agent, and workflow. Persisted in SQLite for durability.
+Instead of a central event router, agents discover events by polling:
 
-**State dimensions:**
-```sql
--- Project state
-CREATE TABLE project_state (
-    project_id TEXT PRIMARY KEY,
-    upstream_ref TEXT,          -- Last synced upstream commit/tag
-    bowrain_ref TEXT,           -- Last pushed commit
-    stream_name TEXT,           -- Active Bowrain stream
-    status TEXT,                -- active, paused, completed
-    last_push_at TIMESTAMP,
-    last_pull_at TIMESTAMP
-);
+| What the PM sees in activity feed | What PM does |
+|----------------------------------|--------------|
+| "Alex Chen pushed 142 blocks" | Creates translation tasks |
+| "Jean-Pierre translated 28 blocks" | Updates progress tracking |
+| "Taylor Kim: QA passed for fr-FR" | Marks language as complete |
 
--- Agent state
-CREATE TABLE agent_state (
-    agent_id TEXT PRIMARY KEY,
-    persona TEXT,               -- developer, brand_manager, translator_fr, etc.
-    project_id TEXT,
-    status TEXT,                -- idle, working, blocked, error
-    last_session_at TIMESTAMP,
-    session_count INTEGER,
-    blocks_processed INTEGER,
-    current_task TEXT
-);
+| What the Translator sees | What Translator does |
+|--------------------------|---------------------|
+| "Lisa Chen created task: Translate docs (fr-FR)" | Starts translating |
+| "Maria Santos updated termbase: 'deploy' is now preferred" | Checks affected translations |
 
--- Workflow state (tracks handoff chains)
-CREATE TABLE workflow_state (
-    workflow_id TEXT PRIMARY KEY,
-    project_id TEXT,
-    release_tag TEXT,
-    phase TEXT,                 -- push, task_creation, translation, qa, pull
-    started_at TIMESTAMP,
-    completed_at TIMESTAMP,
-    agents_involved TEXT        -- JSON array
-);
-```
-
-#### Event Router
-
-Routes platform events to agent triggers:
-
-| Event | Source | Triggers |
-|-------|--------|----------|
-| `content_pushed` | Developer Agent | PM creates tasks |
-| `tasks_created` | PM Agent | Translators begin work |
-| `translation_batch_complete` | Translator Agent | QA runs checks |
-| `qa_passed` | QA Agent | PM approves, Developer pulls |
-| `upstream_release` | Release monitor | Developer merges and pushes |
-| `terminology_updated` | Brand Manager | Translators check affected blocks |
-| `brand_violation_found` | QA Agent | Brand Manager reviews |
+This is more realistic than event-driven triggers — humans check dashboards, not webhooks.
 
 ## Failure Handling
 
@@ -194,57 +141,44 @@ retry:
 
 | Failure | Detection | Recovery |
 |---------|-----------|----------|
-| Server unreachable | HTTP timeout | Retry with backoff; pause if persistent |
-| Auth token expired | 401 response | Re-authenticate via device flow |
-| Push conflict | 409 response | Pull latest, resolve, retry push |
-| AI provider down | Translation timeout | Skip AI, mark for manual translation |
-| Agent crash | Process exit | Orchestrator restarts agent from last checkpoint |
-| Rate limit | 429 response | Respect Retry-After header |
+| Server unreachable | MCP tool returns error | ZeroClaw retries; agent skips task if persistent |
+| Auth token expired | 401 from MCP | MCP server refreshes token automatically |
+| Push conflict | 409 from MCP | Agent pulls latest, resolves, retries |
+| AI provider down | LLM timeout | ZeroClaw falls back per config; agent skips session |
+| Agent container crash | Docker restart policy | `restart: unless-stopped` auto-recovers |
+| Rate limit | 429 from MCP | Agent respects Retry-After; next heartbeat retries |
 
-### Circuit Breaker
+### Container Restart Policy
 
-If an agent fails 3 consecutive sessions:
-1. Mark agent as `error` state
-2. Log failure details
-3. Continue other agents (don't block the pipeline)
-4. Alert via webhook (Slack, email, or dashboard notification)
-5. Require manual reset or auto-retry after cooldown (default: 6h)
+Docker's restart policy handles agent crashes:
+
+```yaml
+# In docker-compose.yaml, each agent has:
+restart: unless-stopped
+```
+
+If an agent container crashes, Docker restarts it automatically. The agent's cron and heartbeat resume from the daemon's schedule. Workspace state persists in mounted volumes.
 
 ## Timeline Simulation
 
 ### Walking Through Release History
 
-For the "accelerated" demo mode, the orchestrator replays release history:
+For accelerated mode, a thin **release-walker** service (the only centralized component) sequences releases and signals the Developer agent:
 
-```python
-# Pseudocode for release walkthrough
-releases = get_upstream_releases(project, since="v3.0.0")
-
-for release in releases:
-    # 1. Update fork to this release
-    merge_upstream(release.tag)
-
-    # 2. Developer agent pushes changes
-    run_agent("developer", task="push_release", release=release)
-
-    # 3. Wait for content to be indexed
-    wait_for_event("content_indexed")
-
-    # 4. Run full translation workflow
-    run_workflow("translate_release", release=release)
-
-    # 5. Wait for workflow completion (or timeout)
-    wait_for_completion(timeout=release_interval)
-
-    # 6. Developer pulls translations
-    run_agent("developer", task="pull_translations")
-
-    # 7. Log progress
-    log_release_complete(release, metrics)
-
-    # 8. Pace: wait before next release
-    sleep(release_interval - elapsed)
 ```
+Release Walker flow:
+1. Get upstream tags: v3.0.0, v3.0.1, v3.1.0, ...
+2. For each release:
+   a. Merge upstream tag into fork
+   b. Write marker file (.zeroclaw-release-ready) in fork workspace
+   c. Developer agent's heartbeat detects marker → pushes to Bowrain
+   d. Other agents process normally via their schedules/heartbeats
+   e. Wait for activity feed to show completion (or timeout)
+   f. Remove marker, advance to next release
+3. Pace: configurable interval between releases (default: 2h)
+```
+
+The release-walker is optional — only started with `docker compose --profile accelerated up`. In real-time mode, the Developer agent's cron schedule handles upstream tracking naturally.
 
 ### Timestamp Manipulation
 
@@ -267,8 +201,10 @@ For demo authenticity, optionally backdate activity:
 
 ### Project Configuration File
 
+Project-level config defines what to localize and how — shared across agents via their workspace mounts:
+
 ```yaml
-# agentic-testing/projects/docusaurus.yaml
+# config/projects/docusaurus.yaml
 project:
   name: Docusaurus
   upstream: facebook/docusaurus
@@ -283,112 +219,87 @@ project:
     - path: "website/blog/**/*.md"
       format: markdown
 
-orchestration:
-  mode: hybrid                  # accelerated → real-time
-  accelerated:
-    start_release: v3.0.0
-    end_release: latest
-    release_interval: 2h
-  real_time:
-    upstream_check_cron: "0 9 * * *"
-
-agents:
-  - persona: developer
-    identity: alex_chen
-    config:
-      work_window: "08:00-12:00"
-
-  - persona: brand_manager
-    identity: maria_santos
-    channels: [technical, community]
-    config:
-      work_window: "09:00-17:00"
-      review_frequency: "Mon,Wed,Fri"
-
-  - persona: translator
-    identity: jean_pierre_dubois
-    target_language: fr-FR
-    config:
-      work_window: "14:00-18:00"
-      blocks_per_session: 30
-      ai_acceptance_rate: 0.6   # Accepts 60% of AI translations as-is
-
-  - persona: translator
-    identity: katrin_weber
-    target_language: de-DE
-    config:
-      work_window: "10:00-14:00"
-      blocks_per_session: 25
-      ai_acceptance_rate: 0.4   # More critical reviewer
-
-  - persona: translator
-    identity: yuki_tanaka
-    target_language: ja-JP
-    config:
-      work_window: "20:00-00:00"  # Tokyo timezone
-      blocks_per_session: 20
-      ai_acceptance_rate: 0.3     # Very thorough, rewrites most
-
-  - persona: pm
-    identity: lisa_chen
-    config:
-      work_window: "08:00-10:00"
-      check_cron: "0 8 * * 1-5"
+accelerated:
+  start_release: v3.0.0
+  end_release: latest
+  release_interval_minutes: 120
 ```
 
-### Global Configuration
+### Agent Configuration (ZeroClaw config.toml)
 
-```yaml
-# agentic-testing/config.yaml
-global:
-  bowrain_server: https://bowrain.example.com
-  github_org: bowrain-l10n
-  max_concurrent_agents: 10
-  ai_provider: anthropic        # For agent LLM calls
-  ai_model: claude-sonnet-4-5-20250514
+Each agent's behavior is configured in its `config.toml` and `SOUL.md`:
 
-observability:
-  metrics_endpoint: /metrics
-  dashboard_refresh: 30s
-  activity_log: true
-  screenshot_interval: 1h       # Periodic screenshots for demo reel
+```toml
+# agents/jeanpierre-fr/config.toml (base config — used locally, overridden in Azure)
+[llm]
+default_provider = "google"
+default_model = "gemini-2.5-flash"
 
-cost_controls:
-  daily_ai_budget: $50          # Total AI spend across all agents
-  per_agent_session_limit: $5   # Max per agent session
-  translation_provider: pseudo  # Use pseudo-translation for dry runs
+[security]
+allowed_commands = []    # Translator: API-only, no shell
+
+[mcp]
+[mcp.bowrain]
+transport = "sse"
+url = "http://bowrain-mcp:3001/sse"
+
+[daemon]
+[daemon.cron]
+"translate-batch" = "0 14 * * 1-5"
 ```
+
+Behavioral parameters (acceptance rate, blocks per session, communication style) live in `SOUL.md` as natural language instructions rather than configuration values. This is more flexible — the LLM interprets and applies them contextually.
+
+The LLM provider differs by environment — see `04-implementation.md` for the full provider strategy:
+- **Local:** Google Gemini (`.env` with `GOOGLE_API_KEY`) or Ollama (free)
+- **Azure:** Managed identity auth to Azure OpenAI (simple agents) and Azure AI Foundry/Claude (translation/brand agents)
+
+### Environment Configuration
+
+**Local development** (`.env`):
+```bash
+# .env — local docker-compose
+GOOGLE_API_KEY=AIza...                  # All agents use Gemini locally
+BOWRAIN_URL=http://bowrain-server:8080
+KEYCLOAK_URL=http://keycloak:8080
+GITHUB_ORG=bowrain-l10n
+```
+
+**Azure deployment** — no `.env` needed; managed identity provides auth to Azure OpenAI and Azure AI Foundry. Environment variables are set in Container Apps configuration.
 
 ## Concurrency Model
 
-### Per-Project Serialization
+### Natural Serialization via Scheduling
 
-Within a single project, agents that modify state run sequentially to avoid conflicts:
+Because each agent runs on its own cron schedule, conflicts are avoided by design:
 
 ```
-Project: Docusaurus
-├── Developer: push → (wait) → pull     [serialized with other writers]
-├── PM: create tasks                     [parallel with translators]
-├── Translator-FR: translate             [parallel with other translators]
-├── Translator-DE: translate             [parallel with other translators]
-├── Translator-JA: translate             [parallel with other translators]
-└── QA: read-only checks                 [parallel with translators]
+Timeline (Docusaurus):
+09:00  Alex (Developer) pushes     — sole writer at this time
+10:00  Maria (Brand) reviews terms — read-heavy, no conflicts
+10:00  Lisa (PM) creates tasks     — parallel with Brand Manager
+14:00  Jean-Pierre (fr) translates — parallel with other translators
+14:00  Katrin (de) translates      — parallel with other translators
+20:00  Yuki (ja) translates        — different timezone, no overlap
+17:00  Alex (Developer) pulls      — sole writer at this time
 ```
+
+Push/pull operations are naturally serialized because only the Developer agent does them, and they run at distinct cron times.
 
 ### Cross-Project Parallelism
 
-Different projects run fully in parallel:
+Each agent container is independent. Agents working on different projects run fully in parallel with zero coordination:
 
 ```
-Docusaurus agents ──────────────────▶ (independent)
-Gitea agents ───────────────────────▶ (independent)
-Home Assistant agents ──────────────▶ (independent)
-Tolgee agents ──────────────────────▶ (independent)
+Docusaurus agents ──────────────────▶ (independent containers)
+Gitea agents ───────────────────────▶ (independent containers)
+Home Assistant agents ──────────────▶ (independent containers)
+Tolgee agents ──────────────────────▶ (independent containers)
 ```
 
 ### Resource Limits
 
-- Max 10 concurrent agent sessions (across all projects)
-- Max 3 concurrent API calls to Bowrain server (per project)
-- Max 1 concurrent git operation (per fork)
-- AI provider rate limits respected via token bucket
+- Docker resource limits per container (CPU, memory)
+- Anthropic API rate limits handled by provider SDK
+- Max 1 git operation per fork (enforced by single Developer agent per project)
+- Bowrain server handles concurrent API calls natively

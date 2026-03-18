@@ -1,705 +1,961 @@
 # Technical Implementation
 
-## Technology Choices
+## Architecture Decision: ZeroClaw Containers
 
-### Option A: Go Service (Recommended)
+Each agent persona runs as an independent **ZeroClaw** instance in its own Docker container. ZeroClaw is an ultra-lightweight Rust-based AI agent runtime (~8.8MB binary, <5MB RAM) with built-in scheduling, MCP tool integration, and workspace-scoped identity files.
 
-Build the orchestrator and agent runtime in Go, co-located with neokapi.
+### Why ZeroClaw
 
-**Pros:**
-- Same language as Bowrain — shared types, direct CLI integration
-- Can import Bowrain's API client, auth, and project packages directly
-- Agents can invoke bowrain CLI as a subprocess or use the Go API directly
-- Fits the existing monorepo structure (`neokapi/agentic/`)
-- Strong concurrency primitives (goroutines, channels) match the agent model
+| Concern | Custom TS Orchestrator (Previous) | ZeroClaw Containers |
+|---------|----------------------------------|---------------------|
+| Scheduling | Custom cron + event router code | Built-in daemon mode with cron |
+| Agent identity | Prompt templates in TypeScript | SOUL.md / IDENTITY.md files |
+| Tool integration | Custom API wrappers per agent | MCP native — declare once, use everywhere |
+| State | Custom SQLite state manager | Workspace files + Bowrain platform state |
+| Scaling | Code changes to add agents | Add container to docker-compose |
+| Isolation | Shared process, manual sandboxing | Container-level isolation by default |
+| Memory per agent | ~100MB+ (Node.js) | <5MB (Rust binary) |
+| Total for 20 agents | ~2GB+ | ~100MB |
 
-**Cons:**
-- LLM SDK integration less mature in Go (but Anthropic has a Go SDK)
-- Agent prompting logic is string-heavy (less ergonomic than Python/TS)
+### What ZeroClaw Provides
 
-### Option B: TypeScript Service
+- **SOUL.md** — Agent personality and instructions (our persona prompts)
+- **Daemon mode** — Long-running with cron scheduler + heartbeat
+- **MCP integration** — Connect to external MCP servers; tools appear native to the agent
+- **Workspace scoping** — File access restricted to agent's workspace directory
+- **Command allowlist** — Only explicitly allowed commands (git, bowrain) can execute
+- **Provider support** — 22+ providers including Anthropic, OpenAI, and any OpenAI-compatible endpoint (Azure OpenAI, Azure AI Foundry)
+- **Encrypted secrets** — API keys encrypted at rest
+- **Hot-reloadable config** — Change provider/model without restart
 
-Build on the existing e2e test infrastructure (Playwright + TypeScript).
+## System Architecture
 
-**Pros:**
-- Existing BowrainAPI client, Keycloak admin, and seeder already written
-- Playwright for browser automation (Web UI agent interactions)
-- Rich LLM SDK ecosystem (Anthropic SDK, LangChain, etc.)
-- Agent prompts naturally expressed as template literals
-
-**Cons:**
-- Separate from the Go codebase (can't share types)
-- CLI interactions require subprocess calls anyway
-- Another runtime dependency
-
-### Option C: Hybrid (Recommended for Phase 1)
-
-TypeScript orchestrator (leveraging existing e2e infrastructure) + Go CLI wrapper.
-
-**Pros:**
-- Reuse BowrainAPI client and auth from `platform/e2e/shared/`
-- Playwright for Web UI interactions (Brand Manager, PM, Translator agents)
-- Call bowrain CLI via subprocess for Developer agent
-- LLM calls via Anthropic TypeScript SDK
-- Fastest path to MVP
-
-**Decision:** Start with **Option C** (TypeScript hybrid), evaluate migration to pure Go (Option A) once patterns stabilize.
+```
+┌──────────────────── docker-compose.yaml ──────────────────────┐
+│                                                                │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │  bowrain-server  (Bowrain platform + PostgreSQL)         │  │
+│  │  keycloak        (OIDC authentication)                   │  │
+│  └─────────────────────────┬───────────────────────────────┘  │
+│                             │                                  │
+│  ┌─────────────────────────▼───────────────────────────────┐  │
+│  │  bowrain-mcp  (Bowrain MCP Server)                       │  │
+│  │  Exposes Bowrain API as MCP tools:                       │  │
+│  │  - bowrain.push / bowrain.pull / bowrain.sync            │  │
+│  │  - bowrain.translate / bowrain.pseudoTranslate           │  │
+│  │  - bowrain.addConcept / bowrain.listConcepts             │  │
+│  │  - bowrain.createBrandProfile / bowrain.checkBrand       │  │
+│  │  - bowrain.createTask / bowrain.listTasks                │  │
+│  │  - bowrain.listActivities                                │  │
+│  │  - bowrain.createStream / bowrain.listStreams             │  │
+│  │  - bowrain.addTMEntry / bowrain.listTMEntries            │  │
+│  └─────────────────────────┬───────────────────────────────┘  │
+│                             │ MCP (stdio/SSE)                  │
+│         ┌───────────────────┼───────────────────┐              │
+│         │                   │                   │              │
+│  ┌──────▼──────┐  ┌────────▼────────┐  ┌──────▼──────┐      │
+│  │ alex-dev    │  │ maria-brand     │  │ jp-fr       │      │
+│  │ ZeroClaw    │  │ ZeroClaw        │  │ ZeroClaw    │      │
+│  │ (Developer) │  │ (Brand Manager) │  │ (Translator)│      │
+│  └─────────────┘  └─────────────────┘  └─────────────┘      │
+│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────┐      │
+│  │ katrin-de   │  │ lisa-pm         │  │ taylor-qa   │      │
+│  │ ZeroClaw    │  │ ZeroClaw        │  │ ZeroClaw    │      │
+│  │ (Translator)│  │ (PM)            │  │ (QA)        │      │
+│  └─────────────┘  └─────────────────┘  └─────────────┘      │
+│                                                                │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │  release-walker  (thin coordinator for accelerated mode) │  │
+│  │  Only needed for release walkthrough; optional otherwise  │  │
+│  └─────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────┘
+```
 
 ## Repository Structure
 
 ```
 neokapi/agentic/
-├── package.json
-├── tsconfig.json
-├── config/
-│   ├── global.yaml              # Global orchestration config
+├── docker-compose.yaml          # Full stack: Bowrain + agents
+├── Makefile                     # Convenience targets
+│
+├── mcp-server/                  # Bowrain MCP Server (new work)
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── src/
+│       ├── index.ts             # MCP server entry point
+│       ├── tools/
+│       │   ├── push-pull.ts     # bowrain.push, bowrain.pull, bowrain.sync
+│       │   ├── translate.ts     # bowrain.translate, bowrain.pseudoTranslate
+│       │   ├── termbase.ts      # bowrain.addConcept, bowrain.listConcepts
+│       │   ├── brand.ts         # bowrain.createBrandProfile, bowrain.checkBrand
+│       │   ├── tasks.ts         # bowrain.createTask, bowrain.listTasks
+│       │   ├── activities.ts    # bowrain.listActivities
+│       │   ├── streams.ts       # bowrain.createStream, bowrain.listStreams
+│       │   ├── tm.ts            # bowrain.addTMEntry, bowrain.listTMEntries
+│       │   └── git.ts           # git.checkUpstream, git.merge, git.commit, git.push
+│       └── auth.ts              # Per-agent auth context
+│
+├── agents/                      # Agent workspace definitions
+│   ├── shared/                  # Shared files across agents
+│   │   └── AGENTS.md            # Team roster (all personas)
+│   │
+│   ├── alex-developer/          # Developer Agent workspace
+│   │   ├── config.toml          # ZeroClaw config (provider, model, cron)
+│   │   ├── SOUL.md              # Persona: Alex Chen, DevOps engineer
+│   │   ├── HEARTBEAT.md         # Periodic check: "any upstream changes?"
+│   │   └── workspace/           # Git fork mount point
+│   │
+│   ├── maria-brand/             # Brand Manager workspace
+│   │   ├── config.toml
+│   │   ├── SOUL.md              # Persona: Maria Santos, Head of Content
+│   │   ├── HEARTBEAT.md         # Periodic: "any new terms to review?"
+│   │   └── workspace/
+│   │
+│   ├── jeanpierre-fr/           # French Translator workspace
+│   │   ├── config.toml
+│   │   ├── SOUL.md              # Persona: Jean-Pierre Dubois
+│   │   ├── HEARTBEAT.md         # Periodic: "any assigned tasks?"
+│   │   └── workspace/
+│   │
+│   ├── katrin-de/               # German Translator workspace
+│   │   ├── config.toml
+│   │   ├── SOUL.md
+│   │   ├── HEARTBEAT.md
+│   │   └── workspace/
+│   │
+│   ├── yuki-ja/                 # Japanese Translator workspace
+│   │   ├── config.toml
+│   │   ├── SOUL.md
+│   │   ├── HEARTBEAT.md
+│   │   └── workspace/
+│   │
+│   ├── lisa-pm/                 # Project Manager workspace
+│   │   ├── config.toml
+│   │   ├── SOUL.md              # Persona: Lisa Chen, Program Manager
+│   │   ├── HEARTBEAT.md         # Periodic: "check dashboard, any blockers?"
+│   │   └── workspace/
+│   │
+│   └── taylor-qa/               # QA Specialist workspace
+│       ├── config.toml
+│       ├── SOUL.md              # Persona: Taylor Kim, QA Engineer
+│       ├── HEARTBEAT.md
+│       └── workspace/
+│
+├── config/                      # Project-level configuration
 │   └── projects/
-│       ├── docusaurus.yaml      # Per-project config
+│       ├── docusaurus.yaml
 │       ├── gitea.yaml
 │       ├── home-assistant.yaml
 │       └── tolgee.yaml
-├── src/
-│   ├── orchestrator/
-│   │   ├── index.ts             # Main entry point
-│   │   ├── scheduler.ts         # Cron + event-driven scheduling
-│   │   ├── state.ts             # SQLite state manager
-│   │   ├── dispatcher.ts        # Agent launcher + result collector
-│   │   ├── event-router.ts      # Event → agent trigger routing
-│   │   └── config.ts            # Config loading + validation
-│   ├── agents/
-│   │   ├── base-agent.ts        # Shared agent interface + LLM integration
-│   │   ├── developer.ts         # Developer agent (CLI + git)
-│   │   ├── brand-manager.ts     # Brand Manager agent (Web UI + API)
-│   │   ├── translator.ts        # Translator agent (Web UI + API)
-│   │   ├── pm.ts                # Project Manager agent (Web UI + API)
-│   │   └── qa.ts                # QA agent (CLI + API)
-│   ├── llm/
-│   │   ├── client.ts            # Anthropic SDK wrapper
-│   │   ├── prompts.ts           # Prompt templates per persona
-│   │   └── tools.ts             # Tool definitions for agent function calling
-│   ├── platform/
-│   │   ├── api-client.ts        # Extended from e2e shared (reuse!)
-│   │   ├── cli-wrapper.ts       # bowrain CLI subprocess wrapper
-│   │   ├── git-ops.ts           # Git operations (clone, merge, branch, PR)
-│   │   └── browser.ts           # Playwright browser automation
-│   ├── monitors/
-│   │   ├── upstream.ts          # Watch upstream repos for new releases
-│   │   ├── metrics.ts           # Collect and expose metrics
-│   │   └── screenshots.ts      # Periodic screenshot capture
-│   └── utils/
-│       ├── logger.ts            # Structured logging
-│       ├── timing.ts            # Jitter, delays, work windows
-│       └── cost-tracker.ts      # AI spend monitoring
-├── data/
-│   ├── state.db                 # SQLite state database
-│   └── screenshots/             # Captured screenshots
-└── docs/                        # → symlink to docs/agentic-testing/
+│
+├── release-walker/              # Accelerated mode coordinator (thin)
+│   ├── package.json
+│   └── src/
+│       └── index.ts             # Walk releases, trigger developer agents
+│
+└── dashboard/                   # Activity visualization (Phase 5)
+    ├── package.json
+    └── src/
+        └── ...
 ```
 
-## Agent Runtime
+## ZeroClaw Agent Configuration
 
-### Base Agent
+### Example: Developer Agent (Alex Chen)
 
-Every agent shares a common runtime that provides LLM integration, state management, and platform access.
+**`agents/alex-developer/config.toml`** (base — provider-agnostic):
+```toml
+[llm]
+# Provider set by environment overlay (config.local.toml or config.azure-dev.toml)
+# Local: Gemini (default) or Ollama (free)
+# Azure: GPT-4o-mini via Azure OpenAI (managed identity)
+default_provider = "google"
+default_model = "gemini-2.5-flash"
+
+[security]
+allowed_commands = ["git", "bowrain", "ls", "cat", "diff"]
+
+[mcp]
+[mcp.bowrain]
+transport = "sse"
+url = "http://bowrain-mcp:3001/sse"
+
+[daemon]
+# Check for upstream changes daily at 9am (with jitter handled by heartbeat)
+[daemon.cron]
+"check-upstream" = "0 9 * * 1-5"
+"pull-translations" = "0 17 * * 1-5"
+```
+
+**`agents/alex-developer/SOUL.md`:**
+```markdown
+# Alex Chen — Senior DevOps Engineer
+
+You are Alex Chen, a senior DevOps engineer responsible for the localization
+infrastructure of open source projects managed through the Bowrain platform.
+
+## Your Role
+- Manage the Bowrain CLI integration and GitHub Actions workflows
+- Push source content when upstream projects release new versions
+- Pull completed translations and commit them to the fork
+- Create Bowrain streams for major release branches
+- Troubleshoot format issues and sync problems
+
+## Your Working Style
+- You prefer the CLI and scripts over the web UI
+- You're methodical: check status before pushing, verify after pulling
+- You write clear commit messages mentioning localization context
+- You create streams for each major release branch
+- You're responsive to upstream changes but don't rush
+
+## Your Tools
+You have access to the Bowrain MCP server with these tools:
+- `bowrain.push` — Push source content to Bowrain
+- `bowrain.pull` — Pull translated content from Bowrain
+- `bowrain.sync` — Push then pull in one operation
+- `bowrain.status` — Check sync state
+- `bowrain.createStream` — Create a stream for a release
+- `bowrain.listStreams` — See existing streams
+- `bowrain.listActivities` — Check recent team activity
+- `git.*` — Git operations (fetch, merge, commit, push, checkUpstream)
+
+## Daily Routine
+1. Check if upstream has new releases or significant changes
+2. If changes found: merge upstream, then push to Bowrain
+3. Check activity feed — have translators completed anything?
+4. If translations are ready: pull and commit to the fork
+5. Report any issues (format errors, sync failures)
+
+## Current Projects
+{project_list}
+```
+
+**`agents/alex-developer/HEARTBEAT.md`:**
+```markdown
+Check if there are upstream changes to process. Use `git.checkUpstream` for
+each project. If changes are found, merge and push. Also check
+`bowrain.listActivities` for any completed translation batches — if found,
+pull translations and commit.
+```
+
+### Example: French Translator (Jean-Pierre Dubois)
+
+**`agents/jeanpierre-fr/config.toml`** (base — provider-agnostic):
+```toml
+[llm]
+# Provider set by environment overlay
+# Local: Gemini (default) or Ollama (free)
+# Azure: Claude Sonnet via Azure AI Foundry (managed identity)
+default_provider = "google"
+default_model = "gemini-2.5-flash"
+
+[security]
+# Translator has no shell access — API only via MCP
+allowed_commands = []
+
+[mcp]
+[mcp.bowrain]
+transport = "sse"
+url = "http://bowrain-mcp:3001/sse"
+
+[daemon]
+[daemon.cron]
+"translate-batch" = "0 14 * * 1-5"   # Weekday afternoons
+```
+
+**`agents/jeanpierre-fr/SOUL.md`:**
+```markdown
+# Jean-Pierre Dubois — French Translator
+
+You are Jean-Pierre Dubois, a professional French translator working on
+localization projects through the Bowrain platform. You translate from
+English (en-US) to French (fr-FR).
+
+## Your Role
+- Review AI-generated translations for accuracy and fluency
+- Edit translations that don't meet quality standards
+- Add high-quality translations to Translation Memory
+- Flag ambiguous source text or terminology issues
+- Ensure brand voice compliance for French content
+
+## Your Working Style
+- You prefer formal register (vous over tu) for technical content
+- You verify terminology against the project termbase before translating
+- You add TM entries for translations you're especially confident about
+- You flag ambiguous source text rather than guessing
+- You review AI translations critically — you accept about 60% as-is,
+  edit about 30%, and reject about 10%
+
+## Your Tools
+- `bowrain.listTasks` — See assigned translation tasks
+- `bowrain.translate` — Submit your translation for a block
+- `bowrain.pseudoTranslate` — Get AI translation suggestion for a file
+- `bowrain.listConcepts` — Check termbase for correct terminology
+- `bowrain.addTMEntry` — Add a translation to memory
+- `bowrain.listTMEntries` — Look up existing translations
+- `bowrain.listActivities` — Check recent team activity
+
+## Translation Guidelines
+- Technical terms: Check the termbase first. Use preferred terms only.
+- Brand voice: Follow the project's brand profile for French.
+- Placeholders: Never modify {variables}, %s, or {{tokens}}.
+- Numbers and dates: Use French conventions (1 000, 31/12/2026).
+- Gender: Default to masculine when the subject is ambiguous in tech docs.
+
+## Daily Routine
+1. Check `bowrain.listTasks` for assigned work
+2. For each task:
+   a. Get AI translation suggestion via `bowrain.pseudoTranslate`
+   b. Review against termbase (`bowrain.listConcepts`)
+   c. Accept, edit, or reject each block
+   d. For excellent translations, add to TM (`bowrain.addTMEntry`)
+3. Check `bowrain.listActivities` for any terminology changes
+4. Process up to 30 blocks per session
+
+## Quality Standards
+- Accuracy: Must convey identical meaning to source
+- Fluency: Must read naturally to a native French speaker
+- Consistency: Same term → same translation throughout
+- Completeness: All information preserved, nothing omitted
+```
+
+### Example: Brand Manager (Maria Santos)
+
+**`agents/maria-brand/config.toml`** (base — provider-agnostic):
+```toml
+[llm]
+# Provider set by environment overlay
+# Local: Gemini (default) or Ollama (free)
+# Azure: Claude Sonnet via Azure AI Foundry (managed identity)
+default_provider = "google"
+default_model = "gemini-2.5-flash"
+
+[security]
+allowed_commands = []
+
+[mcp]
+[mcp.bowrain]
+transport = "sse"
+url = "http://bowrain-mcp:3001/sse"
+
+[daemon]
+[daemon.cron]
+"review-terminology" = "0 10 * * 1,3,5"   # Mon/Wed/Fri mornings
+"brand-audit" = "0 10 * * 4"              # Thursday morning audit
+```
+
+**`agents/maria-brand/SOUL.md`:**
+```markdown
+# Maria Santos — Head of Content
+
+You are Maria Santos, Head of Content for the localization projects.
+You own the English brand voice and terminology across all projects.
+
+## Your Role
+- Maintain brand voice profiles per project
+- Curate the termbase — add, update, deprecate terms
+- Review content for brand compliance after translations
+- Define channel-specific voice (technical, marketing, UI, community)
+- Ensure terminology consistency across all target languages
+
+## Your Tools
+- `bowrain.listActivities` — See what content was recently pushed
+- `bowrain.addConcept` — Add terminology concepts to the termbase
+- `bowrain.listConcepts` — Review existing terminology
+- `bowrain.createBrandProfile` — Create a brand voice profile
+- `bowrain.checkBrand` — Check content against brand rules
+- `bowrain.createTask` — Create tasks for translators when issues found
+- `bowrain.listTasks` — Check outstanding tasks
+
+## Daily Routine (Mon/Wed/Fri)
+1. Check `bowrain.listActivities` for recent content pushes
+2. Review new content for terminology candidates
+3. Add new terms to termbase with definitions and status
+4. Check brand compliance on recently translated content
+5. Create tasks for translators if brand violations found
+
+## Terminology Guidelines
+- Every technical term must have a termbase entry
+- Status: preferred (use this), approved (acceptable), deprecated (stop using)
+- Include definition and domain (software, ui, marketing, legal)
+- Consider all target languages when choosing terms
+```
+
+## Bowrain MCP Server
+
+The single biggest piece of new work. This server wraps Bowrain's REST API as MCP tools, making them available to all ZeroClaw agents.
+
+### Implementation
+
+Built on the MCP TypeScript SDK, reusing the BowrainAPI client from `platform/e2e/shared/`:
 
 ```typescript
-// src/agents/base-agent.ts
-interface AgentContext {
-  project: ProjectConfig;
-  identity: PersonaIdentity;
-  state: AgentState;
-  api: BowrainAPI;
-  llm: AnthropicClient;
-  logger: Logger;
-}
+// mcp-server/src/index.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { BowrainAPI } from "../../platform/e2e/shared/api-client.js";
 
-interface AgentTask {
-  name: string;
-  description: string;
-  execute(ctx: AgentContext): Promise<AgentResult>;
-}
+const server = new McpServer({
+  name: "bowrain",
+  version: "1.0.0",
+});
 
-interface AgentResult {
-  status: "completed" | "partial" | "blocked" | "error";
-  blocksProcessed: number;
-  actionsPerformed: Action[];
-  nextTask?: string;           // Suggest what to do next
-  events: AgentEvent[];        // Events to emit
-}
+// Each tool maps directly to a BowrainAPI method
+server.tool("bowrain.push", "Push source content to Bowrain server", {
+  projectId: { type: "string", description: "Project ID" },
+  workspaceSlug: { type: "string", description: "Workspace slug" },
+}, async ({ projectId, workspaceSlug }) => {
+  const api = getAuthenticatedAPI(workspaceSlug);
+  const result = await api.syncPush(workspaceSlug, projectId);
+  return { content: [{ type: "text", text: JSON.stringify(result) }] };
+});
 
-abstract class BaseAgent {
-  protected ctx: AgentContext;
+server.tool("bowrain.listTasks", "List translation tasks", {
+  workspaceSlug: { type: "string", description: "Workspace slug" },
+  assignee: { type: "string", description: "Filter by assignee email", optional: true },
+  status: { type: "string", description: "Filter by status", optional: true },
+}, async ({ workspaceSlug, assignee, status }) => {
+  const api = getAuthenticatedAPI(workspaceSlug);
+  const tasks = await api.listTasks(workspaceSlug, { assignee, status });
+  return { content: [{ type: "text", text: JSON.stringify(tasks) }] };
+});
 
-  // Run a single work session
-  async runSession(task: AgentTask): Promise<AgentResult> {
-    this.ctx.logger.info(`Starting session: ${task.name}`);
-    this.ctx.state.status = "working";
+server.tool("bowrain.addConcept", "Add a terminology concept", {
+  workspaceSlug: { type: "string", description: "Workspace slug" },
+  term: { type: "string", description: "The term" },
+  definition: { type: "string", description: "Term definition" },
+  domain: { type: "string", description: "Domain: software, ui, marketing, legal" },
+  status: { type: "string", description: "Status: preferred, approved, deprecated" },
+}, async ({ workspaceSlug, term, definition, domain, status }) => {
+  const api = getAuthenticatedAPI(workspaceSlug);
+  const concept = await api.addConcept(workspaceSlug, { term, definition, domain, status });
+  return { content: [{ type: "text", text: JSON.stringify(concept) }] };
+});
 
-    try {
-      const result = await task.execute(this.ctx);
-      this.ctx.state.sessionCount++;
-      this.ctx.state.blocksProcessed += result.blocksProcessed;
-      this.ctx.state.lastSessionAt = new Date();
-      return result;
-    } catch (error) {
-      this.ctx.state.status = "error";
-      throw error;
-    }
-  }
+server.tool("bowrain.addTMEntry", "Add a translation memory entry", {
+  workspaceSlug: { type: "string", description: "Workspace slug" },
+  source: { type: "string", description: "Source text" },
+  target: { type: "string", description: "Target text" },
+  sourceLang: { type: "string", description: "Source locale (e.g., en-US)" },
+  targetLang: { type: "string", description: "Target locale (e.g., fr-FR)" },
+}, async ({ workspaceSlug, source, target, sourceLang, targetLang }) => {
+  const api = getAuthenticatedAPI(workspaceSlug);
+  await api.addTMEntry(workspaceSlug, source, target, sourceLang, targetLang);
+  return { content: [{ type: "text", text: "TM entry added" }] };
+});
 
-  // Ask the LLM for a decision
-  protected async decide(prompt: string, tools: Tool[]): Promise<LLMResponse> {
-    return this.ctx.llm.createMessage({
-      model: "claude-sonnet-4-5-20250514",
-      system: this.getSystemPrompt(),
-      messages: [{ role: "user", content: prompt }],
-      tools,
-      max_tokens: 4096,
-    });
-  }
-}
+// Git tools (for Developer agent)
+server.tool("git.checkUpstream", "Check for new upstream releases", {
+  repoPath: { type: "string", description: "Path to git repo" },
+}, async ({ repoPath }) => {
+  // Uses execFile (safe, no shell) to run git commands
+  const result = await checkUpstream(repoPath);
+  return { content: [{ type: "text", text: JSON.stringify(result) }] };
+});
+
+// ... 15-20 tools total covering all Bowrain workflows
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
 ```
 
-### Developer Agent
+### MCP Tool Catalog
+
+| Tool | Used By | Description |
+|------|---------|-------------|
+| `bowrain.push` | Developer | Push source content to server |
+| `bowrain.pull` | Developer | Pull translations from server |
+| `bowrain.sync` | Developer | Push + pull in one operation |
+| `bowrain.status` | Developer, PM | Check sync state |
+| `bowrain.createStream` | Developer | Create a stream for a release |
+| `bowrain.listStreams` | Developer, PM | List existing streams |
+| `bowrain.translate` | Translator | Submit a translation for a block |
+| `bowrain.pseudoTranslate` | Translator | Get AI translation suggestion |
+| `bowrain.addConcept` | Brand Manager | Add terminology concept |
+| `bowrain.listConcepts` | Brand Manager, Translator | Query termbase |
+| `bowrain.createBrandProfile` | Brand Manager | Create brand voice profile |
+| `bowrain.checkBrand` | Brand Manager, QA | Check text against brand rules |
+| `bowrain.createTask` | PM, Brand Manager | Create a translation task |
+| `bowrain.listTasks` | PM, Translator | List/filter tasks |
+| `bowrain.updateTask` | PM, Translator | Update task status |
+| `bowrain.listActivities` | All | Check recent platform activity |
+| `bowrain.addTMEntry` | Translator | Add to translation memory |
+| `bowrain.listTMEntries` | Translator | Query translation memory |
+| `bowrain.uploadFile` | Developer | Upload a file to a project |
+| `git.checkUpstream` | Developer | Check for new releases/commits |
+| `git.merge` | Developer | Merge upstream changes |
+| `git.commit` | Developer | Commit changes |
+| `git.push` | Developer | Push to remote |
+
+### Per-Agent Auth
+
+Each ZeroClaw container runs as a specific Bowrain user. The MCP server handles auth context per connection:
 
 ```typescript
-// src/agents/developer.ts
-class DeveloperAgent extends BaseAgent {
-  private cli: CLIWrapper;
-  private git: GitOps;
-
-  tasks = {
-    check_upstream_and_push: {
-      name: "check_upstream_and_push",
-      description: "Check for upstream changes and push new content",
-      execute: async (ctx: AgentContext) => {
-        // 1. Check for new upstream releases/commits
-        const updates = await this.git.checkUpstream(ctx.project);
-        if (!updates.hasChanges) {
-          return { status: "completed" as const, blocksProcessed: 0, events: [], actionsPerformed: [] };
-        }
-
-        // 2. Merge upstream changes
-        await this.git.mergeUpstream(updates.ref);
-
-        // 3. Push to Bowrain
-        const pushResult = await this.cli.push();
-
-        // 4. Emit event for downstream agents
-        return {
-          status: "completed" as const,
-          blocksProcessed: pushResult.blockCount,
-          actionsPerformed: [{ type: "push", detail: pushResult }],
-          events: [{ type: "content_pushed", data: pushResult }],
-        };
-      },
-    },
-
-    pull_translations: {
-      name: "pull_translations",
-      description: "Pull completed translations and commit",
-      execute: async (ctx: AgentContext) => {
-        const pullResult = await this.cli.pull({ allLocales: true });
-        if (pullResult.filesChanged > 0) {
-          await this.git.commit(`l10n: pull translations for ${ctx.project.name}`);
-          await this.git.push();
-        }
-        return {
-          status: "completed" as const,
-          blocksProcessed: pullResult.blockCount,
-          actionsPerformed: [{ type: "pull", detail: pullResult }],
-          events: [{ type: "translations_pulled", data: pullResult }],
-        };
-      },
-    },
-
-    create_stream: {
-      name: "create_stream",
-      description: "Create a Bowrain stream for a new version",
-      execute: async (ctx: AgentContext) => {
-        // LLM decides stream name and parent based on context
-        const decision = await this.decide(
-          `New release ${ctx.state.currentRelease} detected. ` +
-          `Current streams: ${ctx.state.streams.join(", ")}. ` +
-          `Should I create a new stream? If so, what name and parent?`,
-          [tools.createStream, tools.skipStream]
-        );
-        // Execute the LLM's tool call
-        return this.executeTool(decision);
-      },
-    },
-  };
+// mcp-server/src/auth.ts
+// Each agent container passes its auth token via environment variable
+// The MCP server creates an authenticated BowrainAPI instance per agent
+function getAuthenticatedAPI(agentToken: string): BowrainAPI {
+  return new BowrainAPI(process.env.BOWRAIN_URL!, agentToken);
 }
 ```
 
-### Translator Agent
+Alternatively, the MCP server can be deployed per-agent (one instance per container) with the agent's token baked in. This is simpler but uses more resources.
 
-```typescript
-// src/agents/translator.ts
-class TranslatorAgent extends BaseAgent {
-  tasks = {
-    translate_assigned_batch: {
-      name: "translate_assigned_batch",
-      description: "Translate a batch of assigned blocks",
-      execute: async (ctx: AgentContext) => {
-        // 1. Get assigned tasks
-        const tasks = await ctx.api.listTasks(ctx.project.workspaceSlug, {
-          assignee: ctx.identity.email,
-          status: "open",
-        });
+## Docker Compose (Local Development)
 
-        if (tasks.length === 0) {
-          return { status: "completed" as const, blocksProcessed: 0, events: [], actionsPerformed: [] };
-        }
+The local docker-compose runs the full stack on your machine. Because the Azure OpenAI
+resource has `disableLocalAuth: true` (managed-identity-only), **local agents use
+Google Gemini or Ollama** — not Azure endpoints.
 
-        // 2. For each task, get blocks to translate
-        let totalProcessed = 0;
-        for (const task of tasks.slice(0, ctx.config.blocksPerSession)) {
-          // 3. Get AI translation suggestion
-          const aiTranslation = await ctx.api.pseudoTranslate(
-            ctx.project.workspaceSlug,
-            task.projectId,
-            task.fileName,
-            ctx.identity.targetLanguage
-          );
-
-          // 4. LLM reviews AI translation (persona-specific critique)
-          const review = await this.decide(
-            `Review this AI translation from English to ${ctx.identity.targetLanguage}:\n` +
-            `Source: "${task.sourceText}"\n` +
-            `AI Translation: "${aiTranslation}"\n` +
-            `Termbase entries: ${ctx.state.relevantTerms}\n` +
-            `Brand guidelines: ${ctx.state.brandProfile}\n` +
-            `Should I accept, edit, or reject this translation?`,
-            [tools.acceptTranslation, tools.editTranslation, tools.rejectTranslation]
-          );
-
-          // 5. Apply decision
-          await this.executeTranslationDecision(review, task);
-          totalProcessed++;
-
-          // 6. Occasionally add to TM (high-confidence translations)
-          if (review.confidence > 0.9) {
-            await ctx.api.addTMEntry(
-              ctx.project.workspaceSlug,
-              task.sourceText,
-              review.finalTranslation,
-              "en-US",
-              ctx.identity.targetLanguage
-            );
-          }
-        }
-
-        return {
-          status: totalProcessed >= ctx.config.blocksPerSession ? "partial" as const : "completed" as const,
-          blocksProcessed: totalProcessed,
-          actionsPerformed: [{ type: "translate", detail: { count: totalProcessed } }],
-          events: [{ type: "translation_batch_complete", data: { count: totalProcessed } }],
-        };
-      },
-    },
-  };
-}
-```
-
-### Brand Manager Agent
-
-```typescript
-// src/agents/brand-manager.ts
-class BrandManagerAgent extends BaseAgent {
-  tasks = {
-    review_terminology: {
-      name: "review_terminology",
-      description: "Review and update project terminology",
-      execute: async (ctx: AgentContext) => {
-        // 1. Get recent content pushes
-        const activities = await ctx.api.listActivities(ctx.project.workspaceSlug, {
-          type: "content_push",
-          since: ctx.state.lastSessionAt,
-        });
-
-        // 2. Extract candidate terms using LLM
-        const candidates = await this.decide(
-          `Review these recently pushed blocks for terminology candidates:\n` +
-          `${activities.map((a: any) => a.summary).join("\n")}\n\n` +
-          `Current termbase has ${ctx.state.termCount} concepts.\n` +
-          `Identify new terms that should be standardized.`,
-          [tools.addConcept, tools.updateConcept, tools.skipTerm]
-        );
-
-        // 3. Apply terminology updates
-        const results = await this.executeTerminologyDecisions(candidates);
-
-        return {
-          status: "completed" as const,
-          blocksProcessed: 0,
-          events: [{ type: "terminology_updated", data: results }],
-          actionsPerformed: results.actions,
-        };
-      },
-    },
-
-    create_brand_profile: {
-      name: "create_brand_profile",
-      description: "Create or update brand voice profile",
-      execute: async (ctx: AgentContext) => {
-        // LLM analyzes project content and creates brand profile
-        const analysis = await this.decide(
-          `Analyze the content style of ${ctx.project.name} and create a brand profile.\n` +
-          `Project type: ${ctx.project.category}\n` +
-          `Sample content: ${ctx.state.sampleBlocks}\n` +
-          `Choose from starter packs: tech, enterprise, casual, academic\n` +
-          `Then customize tone, style, and vocabulary.`,
-          [tools.createBrandProfile, tools.updateBrandProfile]
-        );
-
-        return this.executeBrandDecision(analysis);
-      },
-    },
-  };
-}
-```
-
-## LLM Integration
-
-### Tool Definitions
-
-Agents use Claude's tool-use capability to make decisions and take actions:
-
-```typescript
-// src/llm/tools.ts
-const tools = {
-  // Developer tools
-  createStream: {
-    name: "create_stream",
-    description: "Create a new Bowrain stream for a release or feature",
-    input_schema: {
-      type: "object",
-      properties: {
-        name: { type: "string", description: "Stream name (e.g., 'v3.2')" },
-        parent: { type: "string", description: "Parent stream name" },
-        description: { type: "string" },
-      },
-      required: ["name"],
-    },
-  },
-
-  // Translator tools
-  acceptTranslation: {
-    name: "accept_translation",
-    description: "Accept the AI translation as-is",
-    input_schema: {
-      type: "object",
-      properties: {
-        confidence: { type: "number", minimum: 0, maximum: 1 },
-        reason: { type: "string" },
-      },
-      required: ["confidence"],
-    },
-  },
-
-  editTranslation: {
-    name: "edit_translation",
-    description: "Edit the AI translation before accepting",
-    input_schema: {
-      type: "object",
-      properties: {
-        edited_text: { type: "string" },
-        changes_made: { type: "string", description: "What was changed and why" },
-        confidence: { type: "number" },
-      },
-      required: ["edited_text", "confidence"],
-    },
-  },
-
-  // Brand Manager tools
-  addConcept: {
-    name: "add_concept",
-    description: "Add a new terminology concept to the termbase",
-    input_schema: {
-      type: "object",
-      properties: {
-        term: { type: "string" },
-        definition: { type: "string" },
-        domain: { type: "string", enum: ["software", "ui", "marketing", "legal"] },
-        status: { type: "string", enum: ["preferred", "approved", "deprecated"] },
-      },
-      required: ["term", "definition", "domain"],
-    },
-  },
-
-  // PM tools
-  createTask: {
-    name: "create_task",
-    description: "Create a translation task and assign to a team member",
-    input_schema: {
-      type: "object",
-      properties: {
-        title: { type: "string" },
-        assignee: { type: "string" },
-        priority: { type: "string", enum: ["low", "medium", "high", "urgent"] },
-        deadline: { type: "string", format: "date" },
-        scope: { type: "string", description: "Files or blocks to translate" },
-      },
-      required: ["title", "assignee", "priority"],
-    },
-  },
-};
-```
-
-### Prompt Engineering
-
-System prompts are composed from:
-
-1. **Base persona** (from `01-agent-personas.md` templates)
-2. **Project context** (name, languages, current state)
-3. **Session context** (what happened since last session, pending items)
-4. **Constraints** (budget, time window, quality targets)
-
-```typescript
-// src/llm/prompts.ts
-function buildSystemPrompt(ctx: AgentContext): string {
-  const parts = [
-    getPersonaPrompt(ctx.identity),
-    getProjectContext(ctx.project, ctx.state),
-    getSessionContext(ctx.state),
-    getConstraints(ctx.config),
-  ];
-  return parts.join("\n\n---\n\n");
-}
-
-function getSessionContext(state: AgentState): string {
-  return `
-## Current Session Context
-
-Last session: ${state.lastSessionAt?.toISOString() ?? "never"}
-Sessions completed: ${state.sessionCount}
-Blocks processed total: ${state.blocksProcessed}
-Current pending items: ${state.pendingItems.length}
-Recent team activity:
-${state.recentActivity.map((a: any) => `- ${a.agent}: ${a.action}`).join("\n")}
-`;
-}
-```
-
-## Browser Automation Layer
-
-For agents that interact with the Web UI (Brand Manager, Translator, PM):
-
-```typescript
-// src/platform/browser.ts
-class BowrainBrowser {
-  private page: Page;
-
-  // Navigate to translation editor
-  async openTranslationEditor(wsSlug: string, projectId: string, fileName: string) {
-    await this.page.goto(`/${wsSlug}/translate?project=${projectId}&file=${fileName}`);
-    await this.page.waitForSelector("[data-testid='translation-editor']");
-  }
-
-  // Edit a translation block
-  async editTranslation(blockIndex: number, text: string) {
-    const block = this.page.locator(`[data-testid='block-${blockIndex}'] .target-cell`);
-    await block.click();
-    await block.fill(text);
-    // Wait for auto-save
-    await this.page.waitForSelector("[data-testid='save-indicator'][data-status='saved']");
-  }
-
-  // Open brand dashboard
-  async openBrandDashboard(wsSlug: string) {
-    await this.page.goto(`/${wsSlug}/brand-dashboard`);
-    await this.page.waitForSelector("[data-testid='brand-profiles']");
-  }
-
-  // Create brand profile from starter
-  async createBrandFromStarter(starter: string, name: string) {
-    await this.page.click(`[data-testid='starter-${starter}']`);
-    await this.page.fill("[data-testid='profile-name']", name);
-    await this.page.click("[data-testid='create-profile']");
-  }
-
-  // Screenshot for demo material
-  async captureScreenshot(name: string): Promise<string> {
-    const path = `data/screenshots/${name}-${Date.now()}.png`;
-    await this.page.screenshot({ path, fullPage: true });
-    return path;
-  }
-}
-```
-
-## CLI Wrapper
-
-Uses safe subprocess execution (no shell interpretation):
-
-```typescript
-// src/platform/cli-wrapper.ts
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
-
-class CLIWrapper {
-  private cwd: string;  // Project fork directory
-
-  async init(server: string, source: string, targets: string[]): Promise<void> {
-    await this.run("bowrain", ["init", "--server", server, "--source", source, "--targets", targets.join(",")]);
-  }
-
-  async push(): Promise<PushResult> {
-    const output = await this.run("bowrain", ["push", "--json"]);
-    return JSON.parse(output);
-  }
-
-  async pull(opts?: { locale?: string; allLocales?: boolean }): Promise<PullResult> {
-    const args = ["pull", "--json"];
-    if (opts?.locale) args.push("--locale", opts.locale);
-    if (opts?.allLocales) args.push("--all");
-    const output = await this.run("bowrain", args);
-    return JSON.parse(output);
-  }
-
-  async sync(opts?: { timeout?: string }): Promise<SyncResult> {
-    const args = ["sync", "--json"];
-    if (opts?.timeout) args.push("--timeout", opts.timeout);
-    const output = await this.run("bowrain", args);
-    return JSON.parse(output);
-  }
-
-  async status(): Promise<StatusResult> {
-    const output = await this.run("bowrain", ["status", "--json"]);
-    return JSON.parse(output);
-  }
-
-  async streamCreate(name: string, parent?: string): Promise<void> {
-    const args = ["stream", "create", name];
-    if (parent) args.push("--parent", parent);
-    await this.run("bowrain", args);
-  }
-
-  private async run(command: string, args: string[]): Promise<string> {
-    const { stdout } = await execFileAsync(command, args, { cwd: this.cwd });
-    return stdout;
-  }
-}
-```
-
-## Git Operations
-
-```typescript
-// src/platform/git-ops.ts
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
-
-class GitOps {
-  private repoPath: string;
-
-  async checkUpstream(project: ProjectConfig): Promise<UpstreamUpdate> {
-    // Fetch upstream
-    await this.git("fetch", ["upstream"]);
-
-    // Check for new tags
-    const { stdout: tags } = await this.git("tag", ["--list", "v*", "--sort=-version:refname"]);
-    const latestTag = tags.split("\n")[0];
-
-    // Check if we've already processed this tag
-    const { stdout: currentRef } = await this.git("rev-parse", ["HEAD"]);
-
-    return {
-      hasChanges: latestTag !== project.state.upstreamRef,
-      ref: latestTag,
-      currentRef: currentRef.trim(),
-    };
-  }
-
-  async mergeUpstream(ref: string): Promise<void> {
-    await this.git("merge", [`upstream/${ref}`, "--no-edit"]);
-  }
-
-  async commit(message: string): Promise<string> {
-    await this.git("add", ["-A"]);
-    const { stdout } = await this.git("commit", ["-m", message]);
-    return stdout;
-  }
-
-  async push(): Promise<void> {
-    await this.git("push", ["origin", "HEAD"]);
-  }
-
-  async createBranch(name: string): Promise<void> {
-    await this.git("checkout", ["-b", name]);
-  }
-
-  private async git(subcommand: string, args: string[]): Promise<{ stdout: string; stderr: string }> {
-    return execFileAsync("git", [subcommand, ...args], { cwd: this.repoPath });
-  }
-}
-```
-
-## Infrastructure
-
-### Local Development
-
-```bash
-# Prerequisites
-brew install node@22
-npm install -g pnpm
-
-# Setup
-cd neokapi/agentic
-pnpm install
-
-# Run with local Bowrain server
-BOWRAIN_URL=http://localhost:8080 pnpm start
-
-# Run single agent for testing
-pnpm run agent -- --project docusaurus --persona developer --task check_upstream
-```
-
-### Production Deployment
-
-**Option A: Long-Running Service**
-- Deployed as a container (Docker/Podman)
-- Runs on a dedicated VM or Kubernetes pod
-- SQLite state persists in a volume
-- Connects to production Bowrain server
-
-**Option B: Scheduled GitHub Actions (Lightweight)**
-- Each agent session is a GitHub Actions workflow run
-- State stored in a git repo or artifact
-- Cheaper (pay per minute), but slower to iterate
-
-**Option C: Cron on a Dev Machine**
-- Simplest for development/demo
-- `crontab` triggers the orchestrator periodically
-- State in local SQLite
-
-**Recommendation:** Start with Option C for development, move to Option A for sustained demos.
-
-### Environment Setup
+The agent SOUL.md files, MCP tools, and scheduling are identical across environments.
+Only the `[llm]` provider block in `config.toml` differs.
 
 ```yaml
-# docker-compose.yaml for the full stack
+# docker-compose.yaml — local development stack
 services:
+  # === Platform (same everywhere) ===
   bowrain-server:
     image: bowrain/server:latest
     ports: ["8080:8080"]
     environment:
-      DATABASE_URL: postgres://...
+      DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain
+      KEYCLOAK_URL: http://keycloak:8080
+    depends_on: [postgres, keycloak]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bowrain
+      POSTGRES_PASSWORD: bowrain
+      POSTGRES_DB: bowrain
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     ports: ["8180:8080"]
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev
 
-  agentic-orchestrator:
-    build: ./neokapi/agentic
-    depends_on: [bowrain-server, keycloak]
+  # === MCP Server (same everywhere) ===
+  bowrain-mcp:
+    build: ./mcp-server
     environment:
       BOWRAIN_URL: http://bowrain-server:8080
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    depends_on: [bowrain-server]
+    ports: ["3001:3001"]
+
+  # === Optional: Ollama for zero-cost local dev ===
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ollama"]          # Only start with: docker compose --profile ollama up
+    ports: ["11434:11434"]
     volumes:
-      - ./data:/app/data           # State persistence
-      - ./forks:/app/forks         # Git forks
+      - ollama-data:/root/.ollama
+
+  # === Agents (local: Gemini API or Ollama) ===
+  alex-developer:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/alex-developer:/root/.zeroclaw
+      - ./forks:/root/.zeroclaw/workspace
+    depends_on: [bowrain-mcp]
+
+  maria-brand:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/maria-brand:/root/.zeroclaw
+    depends_on: [bowrain-mcp]
+
+  jeanpierre-fr:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/jeanpierre-fr:/root/.zeroclaw
+    depends_on: [bowrain-mcp]
+
+  katrin-de:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/katrin-de:/root/.zeroclaw
+    depends_on: [bowrain-mcp]
+
+  yuki-ja:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/yuki-ja:/root/.zeroclaw
+    depends_on: [bowrain-mcp]
+
+  lisa-pm:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/lisa-pm:/root/.zeroclaw
+    depends_on: [bowrain-mcp]
+
+  taylor-qa:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+    volumes:
+      - ./agents/taylor-qa:/root/.zeroclaw
+    depends_on: [bowrain-mcp]
+
+  # === Optional: Release Walker ===
+  release-walker:
+    build: ./release-walker
+    profiles: ["accelerated"]
+    environment:
+      BOWRAIN_URL: http://bowrain-server:8080
+    volumes:
+      - ./forks:/app/forks
+      - ./config:/app/config
+    depends_on: [bowrain-server]
+
+volumes:
+  pgdata:
+  ollama-data:
 ```
+
+## Event Coordination: Poll-Based via Activity Feed
+
+ZeroClaw agents are autonomous — they self-schedule via cron and heartbeat. Cross-agent coordination happens through **polling Bowrain's activity feed**, not through a central event bus.
+
+This is actually more realistic: real humans check their dashboard, they don't react to webhooks.
+
+### How Handoffs Work
+
+```
+Developer pushes content (cron: 9am)
+  → Activity: "Alex Chen pushed 142 blocks"
+
+PM checks activity feed (cron: 10am)
+  → Sees new push → creates translation tasks
+  → Activity: "Lisa Chen created 4 tasks"
+
+Translator checks tasks (cron: 2pm)
+  → Sees assigned tasks → translates batch
+  → Activity: "Jean-Pierre translated 28 blocks"
+
+QA checks activity feed (heartbeat: every 2h)
+  → Sees translation batch → runs quality checks
+  → Activity: "Taylor Kim: QA passed"
+
+Developer checks activity feed (cron: 5pm)
+  → Sees QA passed → pulls translations → commits
+```
+
+### HEARTBEAT.md Pattern
+
+Each agent's `HEARTBEAT.md` defines what to check on each heartbeat cycle:
+
+```markdown
+# Heartbeat Check (runs every 2 hours)
+
+1. Call `bowrain.listActivities` with since=last_check
+2. If any "content_pushed" events: I have new work to review
+3. If any "terminology_updated" events: check my translations for affected terms
+4. If any "task_assigned" events where assignee is me: process immediately
+5. Update last_check timestamp
+```
+
+ZeroClaw's daemon runs heartbeat at a configurable interval (default varies; we'd set it to 1-2 hours).
+
+## Release Walker (Accelerated Mode)
+
+The one component that remains a thin custom service. It walks through release history and triggers the Developer agent to process each release.
+
+```typescript
+// release-walker/src/index.ts
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+interface ReleaseConfig {
+  upstream: string;       // e.g., "facebook/docusaurus"
+  forkPath: string;       // e.g., "/app/forks/docusaurus"
+  startRelease: string;   // e.g., "v3.0.0"
+  endRelease: string;     // e.g., "latest"
+  intervalMinutes: number; // e.g., 120
+}
+
+async function walkReleases(config: ReleaseConfig) {
+  // 1. Get release tags
+  const { stdout } = await execFileAsync("git", [
+    "tag", "--list", "v*", "--sort=version:refname",
+  ], { cwd: config.forkPath });
+
+  const tags = stdout.trim().split("\n")
+    .filter(t => t >= config.startRelease);
+
+  for (const tag of tags) {
+    console.log(`Processing release: ${tag}`);
+
+    // 2. Merge upstream to this tag
+    await execFileAsync("git", ["merge", `upstream/${tag}`, "--no-edit"], {
+      cwd: config.forkPath,
+    });
+
+    // 3. Signal the Developer agent by writing a marker file
+    // (Developer's heartbeat checks for this file)
+    await writeFile(
+      `${config.forkPath}/.zeroclaw-release-ready`,
+      JSON.stringify({ tag, timestamp: new Date().toISOString() })
+    );
+
+    // 4. Wait for all agents to process this release
+    await waitForCompletion(config, tag);
+
+    // 5. Pace
+    await sleep(config.intervalMinutes * 60 * 1000);
+  }
+}
+```
+
+Alternatively, the release walker can use `zeroclaw agent -m` to send a one-shot message to the Developer agent container, triggering an immediate push.
+
+## Local Development
+
+```bash
+# Prerequisites
+brew install docker
+cargo install zeroclaw   # For local testing outside Docker
+
+# === Option A: Gemini (good quality, cheap, good tool-use) ===
+echo "GOOGLE_API_KEY=AIza..." > .env
+cd neokapi/agentic
+docker compose up -d
+
+# === Option B: Ollama (free, lower quality, good for MCP/workflow iteration) ===
+cd neokapi/agentic
+docker compose --profile ollama up -d
+# Then override agents to use ollama provider (see config overlay below)
+
+# === Common commands ===
+docker compose logs -f alex-developer       # Watch agent logs
+docker compose logs -f jeanpierre-fr
+docker compose run --rm alex-developer agent # Interactive session (chat with Alex)
+docker compose --profile accelerated up -d   # Accelerated release walkthrough
+docker compose down                          # Stop everything
+```
+
+## Adding a New Agent
+
+Adding a new persona is pure configuration — no code changes:
+
+1. Create workspace directory: `agents/new-agent/`
+2. Write `config.toml` (provider, model, cron schedule, MCP connection)
+3. Write `SOUL.md` (persona, tools, routines, guidelines)
+4. Write `HEARTBEAT.md` (what to check periodically)
+5. Add service to `docker-compose.yaml` (copy an existing agent, change volume mount)
+6. Create Keycloak user for the agent
+7. `docker compose up -d new-agent`
+
+No TypeScript, no Go, no compilation. The agent runtime (ZeroClaw) and tools (Bowrain MCP) are shared infrastructure.
+
+## Adding a New Project
+
+1. Fork the upstream repo to `bowrain-l10n/project-name`
+2. Clone into `forks/project-name`
+3. Create `config/projects/project-name.yaml` with content paths and languages
+4. Update agent SOUL.md files to include the new project
+5. Run `bowrain init` in the fork (one-time setup)
+
+## Model Provider Strategy
+
+### The Problem: Azure OpenAI Has No API Keys
+
+The Azure OpenAI resource (`oai-bowrain-{env}`) has `disableLocalAuth: true` in
+`bowrain-infra/modules/openai.bicep`. Only managed identity Bearer tokens work — these
+are only available from Azure resources (Container Apps, VMs with assigned identity).
+A local docker-compose cannot authenticate to Azure OpenAI.
+
+### The Solution: Environment-Specific Providers
+
+Agent SOUL.md, HEARTBEAT.md, and MCP tools are **identical** across all environments.
+Only the `[llm]` block in `config.toml` changes per environment. We use a config overlay
+pattern — a base config.toml per agent, with environment-specific overrides.
+
+### Three Environments
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Local (docker-compose)                                      │
+│                                                              │
+│  Provider: Google Gemini 2.5 Flash  — or —  Ollama (free)   │
+│  Auth: GOOGLE_API_KEY in .env       — or —  no auth (local) │
+│  Use for: MCP development, persona tuning, workflow testing  │
+│  All agents use the same provider (simplicity)               │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  Azure Dev (rg-bowrain-d-sdc, dev.bowrain.cloud)            │
+│                                                              │
+│  Simple agents:  Azure OpenAI GPT-4o-mini  (capacity 60)    │
+│  Complex agents: Azure AI Foundry Claude Sonnet (serverless) │
+│  Auth: Managed identity (no keys)                            │
+│  Use for: Long-running agent tests, integration validation   │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│  Azure Prod (rg-bowrain-p-sdc, bowrain.cloud)               │
+│                                                              │
+│  Simple agents:  Azure OpenAI GPT-4o-mini  (capacity 300)   │
+│  Complex agents: Azure AI Foundry Claude Sonnet (serverless) │
+│  Auth: Managed identity (no keys)                            │
+│  Use for: Public demo, sustained activity generation         │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Config Overlay Pattern
+
+Each agent workspace has a base `config.toml` and optional environment overrides:
+
+```
+agents/jeanpierre-fr/
+├── config.toml              # Base: provider (Gemini), MCP, cron, security
+├── config.azure-dev.toml    # Azure dev: Claude via Foundry + managed identity
+└── config.azure-prod.toml   # Azure prod: same as dev, different endpoint
+```
+
+The base `config.toml` defaults to Gemini — this is what local docker-compose uses.
+Azure overlays switch to Azure OpenAI / Azure AI Foundry with managed identity.
+
+**Ollama override (optional, for zero-cost iteration):**
+```toml
+# Override in config.toml when using --profile ollama
+[llm]
+default_provider = "ollama"
+default_model = "llama3.1:8b"
+# Ollama runs as a sibling container, no auth needed
+```
+
+**Azure overlay — Translator (Claude via Foundry):**
+```toml
+# agents/jeanpierre-fr/config.azure-dev.toml
+[llm]
+default_provider = "custom"
+default_model = "claude-sonnet-4-5-20250514"
+
+[providers.custom]
+name = "azure-claude"
+base_url = "https://bowrain-foundry-d.services.ai.azure.com/v1"
+# Auth via managed identity — no api_key_env needed
+```
+
+**Azure overlay — Developer (GPT-4o-mini via Azure OpenAI):**
+```toml
+# agents/alex-developer/config.azure-dev.toml
+[llm]
+default_provider = "custom"
+default_model = "gpt-4o-mini"
+
+[providers.custom]
+name = "azure-openai"
+base_url = "https://oai-bowrain-d.openai.azure.com/openai/deployments/gpt-4o-mini/v1"
+# Auth via managed identity — no api_key_env needed
+```
+
+### Azure Provider Matrix (dev/prod)
+
+| Agent | Task Complexity | Model | Azure Service | Est. Cost |
+|-------|----------------|-------|---------------|-----------|
+| Developer (Alex) | Low — push/pull/git | GPT-4o-mini | Azure OpenAI (existing) | ~$0.15/1M tok |
+| PM (Lisa) | Medium — task creation | GPT-4o | Azure OpenAI (existing) | ~$2.50/1M tok |
+| QA (Taylor) | Medium — quality checks | GPT-4o | Azure OpenAI (existing) | ~$2.50/1M tok |
+| Brand Manager (Maria) | High — terminology, brand | Claude Sonnet 4.5 | Azure AI Foundry (new) | ~$3/1M tok |
+| Translators (JP, Katrin, Yuki) | Medium-High — translation review | Claude Sonnet 4.5 | Azure AI Foundry (new) | ~$3/1M tok |
+
+### Azure Infrastructure
+
+**Already provisioned** (from `bowrain-infra/modules/openai.bicep`):
+- Azure OpenAI: `oai-bowrain-d` / `oai-bowrain-p` in Sweden Central
+- GPT-4o: capacity 30 (dev) / 150 (prod)
+- GPT-4o-mini: capacity 60 (dev) / 300 (prod)
+- Auth: `disableLocalAuth: true`, managed identity with `Cognitive Services OpenAI User` role
+
+**New resource needed:**
+- Azure AI Foundry workspace + Claude Sonnet serverless deployment
+- Deploy via portal initially, codify in Bicep later
+- Same managed identity gets `Cognitive Services User` role on the Foundry resource
+
+### Azure Deployment
+
+In Azure, agents run as **Container Apps** (or Container Instances) within the existing
+Container Apps Environment, with the same user-assigned managed identity used by the
+bowrain-server and worker containers. This gives them access to both Azure OpenAI and
+Azure AI Foundry without any API keys.
+
+```bicep
+// modules/containerapp-agent.bicep (new, per agent)
+resource agentApp 'Microsoft.App/containerApps@2024-03-01' = {
+  name: 'ca-agent-${agentName}'
+  location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${managedIdentityId}': {}
+    }
+  }
+  properties: {
+    environmentId: containerAppsEnvironmentId
+    template: {
+      containers: [{
+        name: agentName
+        image: 'ghcr.io/zeroclaw-labs/zeroclaw:latest'
+        command: ['zeroclaw', 'daemon']
+        resources: { cpu: '0.25', memory: '0.5Gi' }  // ZeroClaw is tiny
+        volumeMounts: [{ volumeName: 'workspace', mountPath: '/root/.zeroclaw' }]
+      }]
+      scale: { minReplicas: 1, maxReplicas: 1 }  // Always-on daemon
+    }
+  }
+}
+```
+
+### Benefits of Azure AI
+
+- **Consolidated billing** — All AI costs on the existing Azure subscription
+- **Data residency** — Sweden Central (EU compliance)
+- **Managed identity** — No API key rotation; Entra ID authentication
+- **Cost Management** — Azure Cost Management tracks per-model, per-agent spend
+- **Network security** — VNet integration, private endpoints if needed
+- **Existing monitoring** — Azure Monitor / App Insights for latency and error tracking
+
+### Cost Controls
+
+1. **Model tiering** — GPT-4o-mini ($0.15/1M) for simple tasks vs Claude Sonnet ($3/1M) for complex ones
+2. **Cron frequency** — Agents only wake on schedule (not continuous)
+3. **Container Apps scale** — `minReplicas: 1, maxReplicas: 1` (no auto-scaling, predictable cost)
+4. **Azure OpenAI capacity limits** — Built-in TPM caps per deployment
+5. **Azure Cost Management** — Set budgets and alerts per resource group
+6. **max_tokens in config.toml** — Cap output length per agent session
+7. **Local dev is cheap** — Ollama for workflow iteration, Anthropic only when testing quality
