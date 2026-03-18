@@ -241,3 +241,63 @@ func TestGetSetConfigValue(t *testing.T) {
 	// Unset key returns empty.
 	assert.Equal(t, "", GetConfigValue(bowrainDir, "nonexistent.key"))
 }
+
+func TestAssetsEnabled(t *testing.T) {
+	// Default: enabled when Assets is nil.
+	cfg := &Config{}
+	assert.True(t, cfg.AssetsEnabled())
+
+	// Default: enabled when Enabled is nil.
+	cfg.Assets = &AssetConfig{}
+	assert.True(t, cfg.AssetsEnabled())
+
+	// Explicitly enabled.
+	tr := true
+	cfg.Assets.Enabled = &tr
+	assert.True(t, cfg.AssetsEnabled())
+
+	// Explicitly disabled.
+	fl := false
+	cfg.Assets.Enabled = &fl
+	assert.False(t, cfg.AssetsEnabled())
+}
+
+func TestAssetConfigRoundTrip(t *testing.T) {
+	tmpDir := t.TempDir()
+	bowrainDir := filepath.Join(tmpDir, ".bowrain")
+	require.NoError(t, os.MkdirAll(bowrainDir, 0755))
+
+	fl := false
+	cfg := &Config{
+		URL: FormatProjectURL("https://test.example.com", "ws", "proj-1"),
+		Defaults: Defaults{SourceLanguage: "en"},
+		Content: []ContentEntry{
+			{
+				Path:         "docs/**/*.docx",
+				Format:       "openxml",
+				Assets:       &fl,
+				AssetMaxSize: "50MB",
+			},
+		},
+		Assets: &AssetConfig{
+			Exclude: []string{"*.psd", "*.ai"},
+			MaxSize: "100MB",
+		},
+	}
+
+	require.NoError(t, SaveConfig(bowrainDir, cfg))
+
+	reloaded, err := LoadConfig(bowrainDir)
+	require.NoError(t, err)
+
+	// Asset config preserved.
+	require.NotNil(t, reloaded.Assets)
+	assert.Equal(t, []string{"*.psd", "*.ai"}, reloaded.Assets.Exclude)
+	assert.Equal(t, "100MB", reloaded.Assets.MaxSize)
+
+	// Per-entry asset config preserved.
+	require.Len(t, reloaded.Content, 1)
+	require.NotNil(t, reloaded.Content[0].Assets)
+	assert.False(t, *reloaded.Content[0].Assets)
+	assert.Equal(t, "50MB", reloaded.Content[0].AssetMaxSize)
+}
