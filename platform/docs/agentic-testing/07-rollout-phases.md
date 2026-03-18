@@ -204,10 +204,10 @@ Result: Dashboard shows 6+ months of "activity" with authentic metrics
 
 ### Deliverables
 
-- [ ] Deploy agent fleet to Azure prod (`rg-bowrain-p-sdc`) via Container Apps
-      (same infra as Phase 4 dev, promoted to prod with higher capacity)
+- [ ] Deploy agent fleet to Azure dev (`rg-bowrain-d-sdc`) via Container Apps
+      (agents target `dev.bowrain.cloud`)
 - [ ] Standalone activity dashboard (React app) deployed to Azure Static Web Apps
-- [ ] Public demo site at `demo.bowrain.cloud` (read-only)
+- [ ] Public demo site at `agents.dev.bowrain.cloud` (read-only)
 - [ ] Agent profiles page showing each persona and their activity
 - [ ] Metrics dashboard (quality, cost, throughput)
 - [ ] Blog-ready case studies per project

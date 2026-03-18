@@ -295,7 +295,7 @@ Host a read-only public demo of the agentic testing system:
 ### Implementation
 
 ```
-demo.bowrain.io/
+agents.dev.bowrain.cloud/
 ├── /                    # Landing: "Watch AI agents localize real open source projects"
 ├── /projects            # List of active projects with progress
 ├── /projects/:id        # Per-project deep dive (embedded Bowrain views)
