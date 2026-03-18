@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { BravoThread } from "../../components/bravo/BravoThread";
-import { sampleMessages } from "./fixtures";
+import { sampleMessages, sampleToolCall, sampleApprovalToolCall } from "./fixtures";
 
 const meta: Meta<typeof BravoThread> = {
   title: "Bravo/BravoThread",
@@ -28,6 +28,42 @@ export const Streaming: Story = {
     streamingContent: "I'm analyzing the project structure to find all French locale files...",
     onApprove: fn(),
     onDeny: fn(),
+    onCancel: fn(),
+  },
+};
+
+export const StreamingWithToolCalls: Story = {
+  args: {
+    messages: sampleMessages.slice(0, 1),
+    streaming: true,
+    streamingContent: "Running the pseudo-translate flow on French files...",
+    streamingToolCalls: [
+      { ...sampleToolCall, status: "running", duration: 0 },
+    ],
+    onApprove: fn(),
+    onDeny: fn(),
+    onCancel: fn(),
+  },
+};
+
+export const StreamingNeedsApproval: Story = {
+  args: {
+    messages: sampleMessages.slice(0, 1),
+    streaming: true,
+    streamingContent: "I'd like to push these changes to the git connector.",
+    streamingToolCalls: [sampleApprovalToolCall],
+    onApprove: fn(),
+    onDeny: fn(),
+    onCancel: fn(),
+  },
+};
+
+export const StreamingEmpty: Story = {
+  args: {
+    messages: [],
+    streaming: true,
+    streamingContent: "",
+    onCancel: fn(),
   },
 };
 

@@ -630,5 +630,6 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       total_container_sec: 0,
       message_count: 0,
     }),
+    bravoSendMessageSSE: () => new AbortController(),
   };
 }
