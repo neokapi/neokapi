@@ -24,7 +24,7 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
 
 ### Deliverables
 
-- [ ] Fork Tolgee (smallest Tier 1 candidate) to `bowrain-l10n/tolgee-platform`
+- [ ] Fork Excalidraw (smallest Tier 1 candidate) to `neokapi/agentic-excalidraw`
 - [ ] Set up local Bowrain server + Keycloak via docker-compose (reuse existing `compose.yaml`)
 - [ ] Create Keycloak users for agent personas (automate via `keycloak-admin.ts`)
 - [ ] Create Developer Agent workspace (config.toml + SOUL.md), using Gemini locally
@@ -113,7 +113,7 @@ Automated daily schedule (all via ZeroClaw daemon cron):
 - System runs for 1 week via `docker compose up -d` without intervention
 - 7 agent containers running, each with distinct schedule
 - Activity feed shows realistic multi-persona collaboration
-- Three projects active: Tolgee, Docusaurus, Gitea
+- Three projects active: Excalidraw, Docusaurus, Gitea
 
 ---
 

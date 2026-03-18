@@ -330,7 +330,7 @@ Each agent container is independent. Agents working on different projects run fu
 Docusaurus agents ──────────────────▶ (independent containers)
 Gitea agents ───────────────────────▶ (independent containers)
 Home Assistant agents ──────────────▶ (independent containers)
-Tolgee agents ──────────────────────▶ (independent containers)
+Excalidraw agents ──────────────────▶ (independent containers)
 ```
 
 ### Resource Limits

@@ -113,32 +113,35 @@ at 30 blocks/session and create a permanently-stuck progress bar. Frontend-only 
 
 ---
 
-### 4. Tolgee — Localization Platform (Meta-Candidate)
+### 4. Excalidraw — Collaborative Whiteboard
 
-- **URL:** github.com/tolgee/tolgee-platform
-- **License:** Apache 2.0
-- **Stars:** ~4k
+- **URL:** github.com/excalidraw/excalidraw
+- **License:** MIT
+- **Stars:** ~13k
 
 **Why it's ideal:**
-Localizing a competing localization platform with Bowrain is a compelling demo story. Tolgee's codebase is Kotlin/Spring Boot + React/TypeScript, with JSON translation files, Markdown docs, and YAML config. Small enough to iterate quickly, well-structured, and Apache 2.0 licensed.
+Excalidraw is a clean React-based collaborative whiteboard with i18next JSON translation
+files. Small (~500-800 keys), well-structured, and MIT licensed — the right size for
+Phase 0 iteration and proving the agentic testing concept before scaling to larger
+projects. The codebase also includes Markdown docs and component labels.
 
 **What to localize:**
-- Platform UI strings → JSON
-- Documentation site → Markdown
-- API descriptions → YAML/JSON
-- Configuration → YAML
+- UI strings → JSON (`src/locales/en.json`, i18next format)
+- Documentation → Markdown
+- Component labels and tooltips
 
-**Estimated volume:** ~1000 translation keys, docs site, smaller but diverse
+**Estimated volume:** ~500-800 translation keys, 20+ existing languages, documentation
 
-**Release cadence:** Monthly releases
+**Release cadence:** Quarterly (v0.18+ series)
 
-**Format coverage:** JSON, Markdown, YAML
+**Format coverage:** JSON (i18next), Markdown
 
-**Challenges:** Smaller community. Being well-maintained means fewer "interesting" localization problems — but excellent for benchmarking quality.
+**Challenges:** Primarily JSON-only for translations, so format diversity is lower
+than Docusaurus or Gitea. Pre-1.0 so APIs may shift between versions.
 
 **Agent team:**
 - 1 Developer Agent
-- 1 Brand Manager (platform/SaaS voice)
+- 1 Brand Manager (creative/design tool voice)
 - 2 Translator Agents (fr-FR, de-DE)
 
 ---
@@ -147,17 +150,7 @@ Localizing a competing localization platform with Bowrain is a compelling demo s
 
 Add these after Tier 1 is stable to increase diversity and volume.
 
-### 5. Excalidraw — Collaborative Whiteboard
-
-- **URL:** github.com/excalidraw/excalidraw
-- **License:** MIT
-- **Stars:** ~13k
-- **Formats:** JSON (i18next), Markdown
-- **Volume:** ~500-800 keys, 20+ languages
-- **Why:** Clean React codebase, small and focused, good for testing rapid iterations
-- **Agent team:** 1 Developer + 2 Translators (minimal team)
-
-### 6. Immich — Photo Management Platform
+### 5. Immich — Photo Management Platform
 
 - **URL:** github.com/immich-app/immich
 - **License:** AGPL-3.0
@@ -209,8 +202,7 @@ For maximum showcase impact, if resources permit.
 | **Docusaurus** | MIT | JSON, MD, MDX, YAML | ~2k | 20+ | Monthly | Medium |
 | **Gitea** | MIT | INI, HTML, MD, YAML | ~4k | 30+ | Monthly | Medium |
 | **Home Assistant** | Apache | JSON, YAML, MD | ~10k | 60+ | Monthly | High |
-| **Tolgee** | Apache | JSON, MD, YAML | ~1k | 10+ | Monthly | Low |
-| Excalidraw | MIT | JSON, MD | ~600 | 20+ | Quarterly | Low |
+| **Excalidraw** | MIT | JSON, MD | ~600 | 20+ | Quarterly | Low |
 | Immich | AGPL | JSON, MD, YAML, ARB | ~1.5k | 20+ | Weekly | Medium |
 | Cal.com | AGPL | JSON, MD, YAML | ~2k | 65+ | Weekly | Medium |
 | Grafana | AGPL | JSON, YAML, MD, HTML | ~5k | 10+ | Monthly | High |

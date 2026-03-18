@@ -131,7 +131,7 @@ neokapi/agentic/
 │       ├── docusaurus.yaml
 │       ├── gitea.yaml
 │       ├── home-assistant.yaml
-│       └── tolgee.yaml
+│       └── excalidraw.yaml
 │
 ├── release-walker/              # Accelerated mode coordinator (thin)
 │   ├── package.json

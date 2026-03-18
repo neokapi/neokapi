@@ -250,9 +250,9 @@ Solution: Stop the translator container
 
 **Cross-project transfer:**
 ```
-Problem: Gitea needs more attention, Tolgee is mostly complete
+Problem: Gitea needs more attention, Excalidraw is mostly complete
 Solution: Adjust SOUL.md to shift focus
-  1. Edit translator SOUL.md: "Primary project: Gitea. Secondary: Tolgee (maintenance only)"
+  1. Edit translator SOUL.md: "Primary project: Gitea. Secondary: Excalidraw (maintenance only)"
   2. PM creates tasks accordingly
   3. No container changes needed — same agent, different focus
 ```
@@ -390,7 +390,7 @@ Before:
   jeanpierre-fr handles Docusaurus + Gitea + Home Assistant
 
 After:
-  jeanpierre-fr handles Docusaurus + Tolgee (technical docs)
+  jeanpierre-fr handles Docusaurus + Excalidraw (technical docs)
   sophie-fr handles Gitea + Home Assistant (UI-heavy content)
 
 Sophie's SOUL.md is cloned from Jean-Pierre's with adjustments:
