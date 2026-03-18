@@ -764,3 +764,147 @@ export interface FlowDefinitionInfo {
   created_at?: string;
   modified_at?: string;
 }
+
+// ---------------------------------------------------------------------------
+// @bravo Agent (AD-028)
+// ---------------------------------------------------------------------------
+
+/** Bravo conversation */
+export interface BravoConversation {
+  id: string;
+  workspace_id: string;
+  user_id: string;
+  project_id: string;
+  title: string;
+  status: "active" | "completed" | "failed";
+  created_at: string;
+  updated_at: string;
+}
+
+/** Bravo message */
+export interface BravoMessage {
+  id: string;
+  conversation_id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  tool_calls?: BravoToolCall[];
+  input_tokens?: number;
+  output_tokens?: number;
+  created_at: string;
+}
+
+/** Bravo tool call */
+export interface BravoToolCall {
+  id: string;
+  message_id: string;
+  tool_name: string;
+  input: Record<string, unknown>;
+  output?: Record<string, unknown>;
+  status: "pending" | "running" | "completed" | "failed" | "needs_approval" | "denied";
+  duration: number;
+  error?: string;
+}
+
+/** Bravo agent config (per-workspace) */
+export interface BravoConfig {
+  workspace_id: string;
+  enabled: boolean;
+  allowed_tools?: string[];
+  denied_tools?: string[];
+  require_approval?: string[];
+  code_exec_enabled: boolean;
+  max_concurrent: number;
+}
+
+/** Bravo tool info */
+export interface BravoToolInfo {
+  name: string;
+  require_approval: boolean;
+}
+
+/** Bravo usage summary */
+export interface BravoUsageSummary {
+  workspace_id: string;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_container_sec: number;
+  message_count: number;
+}
+
+/** SSE event types for bravo streaming */
+export type BravoSSEEventType =
+  | "message_start"
+  | "content_delta"
+  | "tool_call_start"
+  | "tool_call_end"
+  | "needs_approval"
+  | "message_end"
+  | "error";
+
+/** SSE event data: message_start */
+export interface BravoSSEMessageStart {
+  id: string;
+  role: string;
+}
+
+/** SSE event data: content_delta */
+export interface BravoSSEContentDelta {
+  delta: string;
+}
+
+/** SSE event data: tool_call_start */
+export interface BravoSSEToolCallStart {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+/** SSE event data: tool_call_end */
+export interface BravoSSEToolCallEnd {
+  id: string;
+  status: string;
+  output?: Record<string, unknown>;
+  duration_ms: number;
+}
+
+/** SSE event data: needs_approval */
+export interface BravoSSENeedsApproval {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+/** SSE event data: message_end */
+export interface BravoSSEMessageEnd {
+  id: string;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
+/** SSE event data: error */
+export interface BravoSSEError {
+  error: string;
+}
+
+/** Union of all SSE event data types */
+export type BravoSSEEventData =
+  | BravoSSEMessageStart
+  | BravoSSEContentDelta
+  | BravoSSEToolCallStart
+  | BravoSSEToolCallEnd
+  | BravoSSENeedsApproval
+  | BravoSSEMessageEnd
+  | BravoSSEError;
+
+/** Callback handler for SSE events from @bravo. */
+export interface BravoSSEHandler {
+  onMessageStart?: (data: BravoSSEMessageStart) => void;
+  onContentDelta?: (data: BravoSSEContentDelta) => void;
+  onToolCallStart?: (data: BravoSSEToolCallStart) => void;
+  onToolCallEnd?: (data: BravoSSEToolCallEnd) => void;
+  onNeedsApproval?: (data: BravoSSENeedsApproval) => void;
+  onMessageEnd?: (data: BravoSSEMessageEnd) => void;
+  onError?: (data: BravoSSEError) => void;
+}

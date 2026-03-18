@@ -563,5 +563,73 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     // --- Notification Preferences (AD-027) ----------------------------------
     getNotificationPreferences: async () => ({ preferences: [] }),
     updateNotificationPreferences: noop,
+
+    // --- @bravo Agent (AD-028) ----------------------------------------------
+    bravoCreateConversation: async () => ({
+      id: "conv-mock",
+      workspace_id: "ws-1",
+      user_id: "user-1",
+      project_id: "",
+      title: "New conversation",
+      status: "active" as const,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }),
+    bravoListConversations: async () => ({ conversations: [], total: 0 }),
+    bravoGetConversation: async () => ({
+      conversation: {
+        id: "conv-mock",
+        workspace_id: "ws-1",
+        user_id: "user-1",
+        project_id: "",
+        title: "Mock",
+        status: "active" as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      messages: [],
+    }),
+    bravoDeleteConversation: noop,
+    bravoSendMessage: async () => ({
+      user_message: {
+        id: "msg-u",
+        conversation_id: "conv-mock",
+        role: "user" as const,
+        content: "hello",
+        created_at: new Date().toISOString(),
+      },
+      assistant_message: {
+        id: "msg-a",
+        conversation_id: "conv-mock",
+        role: "assistant" as const,
+        content: "Mock response",
+        created_at: new Date().toISOString(),
+      },
+    }),
+    bravoListMessages: async () => ({ messages: [] }),
+    bravoApproveToolCall: noop,
+    bravoDenyToolCall: noop,
+    bravoCancelConversation: noop,
+    bravoGetConfig: async () => ({
+      workspace_id: "ws-1",
+      enabled: false,
+      code_exec_enabled: false,
+      max_concurrent: 3,
+    }),
+    bravoUpdateConfig: async () => ({
+      workspace_id: "ws-1",
+      enabled: false,
+      code_exec_enabled: false,
+      max_concurrent: 3,
+    }),
+    bravoListTools: async () => ({ tools: [] }),
+    bravoGetUsage: async () => ({
+      workspace_id: "ws-1",
+      total_input_tokens: 0,
+      total_output_tokens: 0,
+      total_container_sec: 0,
+      message_count: 0,
+    }),
+    bravoSendMessageSSE: () => new AbortController(),
   };
 }
