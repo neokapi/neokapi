@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/service"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
@@ -116,8 +117,8 @@ type sendMessageRequest struct {
 }
 
 // HandleSendBravoMessage sends a message and returns the agent response.
-// Phase 1: returns JSON with user + assistant messages.
-// Phase 2: will return SSE stream (Content-Type: text/event-stream).
+// When Accept: text/event-stream is requested, streams SSE events.
+// Otherwise, returns JSON with user + assistant messages.
 func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 	if s.AgentService == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
@@ -134,8 +135,30 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "content is required"})
 	}
 
-	// Phase 1: synchronous response (mock agent).
-	// Phase 2: SSE streaming from ZeroClaw.
+	// SSE streaming mode.
+	accept := c.Request().Header.Get("Accept")
+	if accept == "text/event-stream" {
+		wsID, _ := c.Get("workspace_id").(string)
+		wsRole := ""
+		if r, ok := c.Get("workspace_role").(platauth.Role); ok {
+			wsRole = string(r)
+		}
+
+		c.Response().Header().Set("Content-Type", "text/event-stream")
+		c.Response().Header().Set("Cache-Control", "no-cache")
+		c.Response().Header().Set("Connection", "keep-alive")
+		c.Response().WriteHeader(http.StatusOK)
+
+		sse := service.NewSSEWriter(c.Response())
+		if err := s.AgentService.SendMessageStream(
+			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, sse,
+		); err != nil {
+			_ = sse.WriteEvent(service.SSEError, service.ErrorData{Error: err.Error()})
+		}
+		return nil
+	}
+
+	// JSON mode (backward-compatible with Phase 1 clients).
 	userMsg, assistantMsg, err := s.AgentService.SendMessage(c.Request().Context(), convID, userID, req.Content)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
