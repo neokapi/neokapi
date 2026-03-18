@@ -24,3 +24,6 @@ export type { BravoConversationListProps } from "./BravoConversationList";
 
 export { BravoConfigPanel } from "./BravoConfigPanel";
 export type { BravoConfigPanelProps } from "./BravoConfigPanel";
+
+export { BravoUsageDashboard } from "./BravoUsageDashboard";
+export type { BravoUsageDashboardProps } from "./BravoUsageDashboard";

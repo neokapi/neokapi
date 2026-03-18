@@ -5,7 +5,7 @@ import { BravoPanelTrigger } from "../components/bravo/BravoPanelTrigger";
 import { BravoConversationList } from "../components/bravo/BravoConversationList";
 import { BravoApprovalCard } from "../components/bravo/BravoApprovalCard";
 import { BravoThread } from "../components/bravo/BravoThread";
-import type { BravoConversation, BravoMessage } from "../types/api";
+import type { BravoConversation, BravoMessage, BravoToolCall as BravoToolCallType } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -350,11 +350,44 @@ describe("BravoThread", () => {
     expect(cursor).not.toBeNull();
   });
 
-  it("does not show streaming bubble when streamingContent is empty", () => {
+  it("shows cursor placeholder when streaming with empty content", () => {
     const { container } = render(<BravoThread messages={[]} streaming streamingContent="" />);
-    // No streaming bubble rendered (no cursor), and no empty-state text either
-    // because streaming=true suppresses the "Start a conversation" message.
+    // Streaming=true shows a cursor even when content is empty.
     const cursor = container.querySelector(".animate-pulse");
-    expect(cursor).toBeNull();
+    expect(cursor).not.toBeNull();
+  });
+
+  it("renders streaming tool calls", () => {
+    const toolCalls: BravoToolCallType[] = [
+      {
+        id: "tc-s1",
+        message_id: "msg-s",
+        tool_name: "run_flow",
+        input: { flow: "pseudo" },
+        status: "running",
+        duration: 0,
+      },
+    ];
+    render(
+      <BravoThread
+        messages={[]}
+        streaming
+        streamingContent="Processing..."
+        streamingToolCalls={toolCalls}
+      />,
+    );
+    expect(screen.getByText("run_flow")).toBeDefined();
+    expect(screen.getByText("Running...")).toBeDefined();
+  });
+
+  it("renders cancel button when onCancel is provided", () => {
+    const onCancel = vi.fn();
+    render(
+      <BravoThread messages={[]} streaming streamingContent="..." onCancel={onCancel} />,
+    );
+    const cancelBtn = screen.getByText("Stop generating");
+    expect(cancelBtn).toBeDefined();
+    fireEvent.click(cancelBtn);
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,5 +1,6 @@
+import { useRef, useEffect } from "react";
 import { cn } from "../../lib/utils";
-import type { BravoMessage } from "../../types/api";
+import type { BravoMessage, BravoToolCall as BravoToolCallType } from "../../types/api";
 import { BravoToolCall } from "./BravoToolCall";
 import { BravoCodeBlock } from "./BravoCodeBlock";
 
@@ -7,8 +8,11 @@ export interface BravoThreadProps {
   messages: BravoMessage[];
   streaming?: boolean;
   streamingContent?: string;
+  /** Tool calls being streamed for the current assistant message. */
+  streamingToolCalls?: BravoToolCallType[];
   onApprove?: (toolCallId: string) => void;
   onDeny?: (toolCallId: string) => void;
+  onCancel?: () => void;
 }
 
 function extractCodeBlocks(content: string): { text: string; lang: string; code: string }[] {
@@ -87,9 +91,18 @@ export function BravoThread({
   messages,
   streaming,
   streamingContent,
+  streamingToolCalls,
   onApprove,
   onDeny,
+  onCancel,
 }: BravoThreadProps) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new content arrives.
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingContent, streamingToolCalls]);
+
   return (
     <div className="flex flex-col gap-4 p-4">
       {messages.length === 0 && !streaming && (
@@ -107,15 +120,42 @@ export function BravoThread({
         />
       ))}
 
-      {streaming && streamingContent && (
+      {streaming && (
         <div className="flex flex-col gap-1 items-start">
           <div className="text-xs font-medium text-muted-foreground px-1">@bravo</div>
-          <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">
-            {streamingContent}
-            <span className="inline-block w-1.5 h-4 bg-foreground/60 animate-pulse ml-0.5" />
-          </div>
+
+          {streamingContent ? (
+            <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap">
+              {streamingContent}
+              <span className="inline-block w-1.5 h-4 bg-foreground/60 animate-pulse ml-0.5" />
+            </div>
+          ) : (
+            <div className="max-w-[85%] rounded-lg bg-muted px-3 py-2 text-sm leading-relaxed">
+              <span className="inline-block w-1.5 h-4 bg-foreground/60 animate-pulse" />
+            </div>
+          )}
+
+          {streamingToolCalls?.map((tc) => (
+            <BravoToolCall
+              key={tc.id}
+              toolCall={tc}
+              onApprove={tc.status === "needs_approval" ? () => onApprove?.(tc.id) : undefined}
+              onDeny={tc.status === "needs_approval" ? () => onDeny?.(tc.id) : undefined}
+            />
+          ))}
+
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors px-1"
+            >
+              Stop generating
+            </button>
+          )}
         </div>
       )}
+
+      <div ref={bottomRef} />
     </div>
   );
 }

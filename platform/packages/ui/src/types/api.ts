@@ -840,3 +840,71 @@ export type BravoSSEEventType =
   | "needs_approval"
   | "message_end"
   | "error";
+
+/** SSE event data: message_start */
+export interface BravoSSEMessageStart {
+  id: string;
+  role: string;
+}
+
+/** SSE event data: content_delta */
+export interface BravoSSEContentDelta {
+  delta: string;
+}
+
+/** SSE event data: tool_call_start */
+export interface BravoSSEToolCallStart {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+/** SSE event data: tool_call_end */
+export interface BravoSSEToolCallEnd {
+  id: string;
+  status: string;
+  output?: Record<string, unknown>;
+  duration_ms: number;
+}
+
+/** SSE event data: needs_approval */
+export interface BravoSSENeedsApproval {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+/** SSE event data: message_end */
+export interface BravoSSEMessageEnd {
+  id: string;
+  usage?: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
+/** SSE event data: error */
+export interface BravoSSEError {
+  error: string;
+}
+
+/** Union of all SSE event data types */
+export type BravoSSEEventData =
+  | BravoSSEMessageStart
+  | BravoSSEContentDelta
+  | BravoSSEToolCallStart
+  | BravoSSEToolCallEnd
+  | BravoSSENeedsApproval
+  | BravoSSEMessageEnd
+  | BravoSSEError;
+
+/** Callback handler for SSE events from @bravo. */
+export interface BravoSSEHandler {
+  onMessageStart?: (data: BravoSSEMessageStart) => void;
+  onContentDelta?: (data: BravoSSEContentDelta) => void;
+  onToolCallStart?: (data: BravoSSEToolCallStart) => void;
+  onToolCallEnd?: (data: BravoSSEToolCallEnd) => void;
+  onNeedsApproval?: (data: BravoSSENeedsApproval) => void;
+  onMessageEnd?: (data: BravoSSEMessageEnd) => void;
+  onError?: (data: BravoSSEError) => void;
+}

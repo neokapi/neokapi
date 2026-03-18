@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
+import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, act, waitFor } from "@testing-library/react";
 import { BravoProvider, useBravo } from "../context/BravoContext";
 import { ApiProvider } from "../context/ApiContext";
 import { WorkspaceProvider } from "../context/WorkspaceContext";
 import type { ApiAdapter } from "../api/adapter";
-import type { Workspace, BravoConversation, BravoMessage } from "../types/api";
+import type { Workspace, BravoConversation, BravoMessage, BravoSSEHandler } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -194,8 +194,35 @@ function createMockAdapter(overrides: Partial<ApiAdapter> = {}): ApiAdapter {
     bravoUpdateConfig: vi.fn(),
     bravoListTools: vi.fn(),
     bravoGetUsage: vi.fn(),
+    bravoSendMessageSSE: vi.fn().mockReturnValue(new AbortController()),
     ...overrides,
   } as ApiAdapter;
+}
+
+// ---------------------------------------------------------------------------
+// SSE mock helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Creates a mock bravoSendMessageSSE that captures the handler and returns
+ * a controller. The test can then call handler callbacks to simulate events.
+ */
+function createSSEMock() {
+  let capturedHandler: BravoSSEHandler | null = null;
+  const controller = new AbortController();
+
+  const mockFn = vi.fn(
+    (_ws: string, _convId: string, _content: string, handler: BravoSSEHandler) => {
+      capturedHandler = handler;
+      return controller;
+    },
+  );
+
+  return {
+    mockFn,
+    controller,
+    getHandler: () => capturedHandler!,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +238,8 @@ function BravoDisplay() {
       <span data-testid="active-id">{state.activeConversation?.id ?? "none"}</span>
       <span data-testid="msg-count">{state.messages.length}</span>
       <span data-testid="streaming">{String(state.streaming)}</span>
+      <span data-testid="streaming-content">{state.streamingContent}</span>
+      <span data-testid="streaming-tc-count">{state.streamingToolCalls.length}</span>
       <span data-testid="loading">{String(state.loading)}</span>
       <button data-testid="open" onClick={actions.openPanel} />
       <button data-testid="close" onClick={actions.closePanel} />
@@ -219,6 +248,7 @@ function BravoDisplay() {
       <button data-testid="select-conv" onClick={() => actions.selectConversation(conv1)} />
       <button data-testid="delete-conv" onClick={() => actions.deleteConversation(conv1)} />
       <button data-testid="send" onClick={() => actions.sendMessage("hello")} />
+      <button data-testid="cancel" onClick={actions.cancelStreaming} />
       <button data-testid="approve" onClick={() => actions.approveToolCall("tc1")} />
       <button data-testid="deny" onClick={() => actions.denyToolCall("tc1")} />
       <button data-testid="refresh" onClick={() => actions.refreshConversations()} />
@@ -388,7 +418,8 @@ describe("BravoContext", () => {
     });
   });
 
-  it("sends a message", async () => {
+  it("sends a message via SSE and streams content", async () => {
+    const sseMock = createSSEMock();
     const adapter = createMockAdapter({
       bravoListConversations: vi.fn().mockResolvedValue({
         conversations: [conv1],
@@ -398,10 +429,7 @@ describe("BravoContext", () => {
         conversation: conv1,
         messages: [],
       }),
-      bravoSendMessage: vi.fn().mockResolvedValue({
-        user_message: userMsg,
-        assistant_message: assistantMsg,
-      }),
+      bravoSendMessageSSE: sseMock.mockFn,
     });
     renderWithProviders(adapter);
 
@@ -413,16 +441,149 @@ describe("BravoContext", () => {
       screen.getByTestId("select-conv").click();
     });
 
-    // Send message
+    // Send message — triggers SSE
     await act(async () => {
       screen.getByTestId("send").click();
     });
 
-    await waitFor(() => {
-      expect(screen.getByTestId("msg-count").textContent).toBe("2");
-      expect(screen.getByTestId("streaming").textContent).toBe("false");
+    // Should be streaming now with optimistic user message
+    expect(screen.getByTestId("streaming").textContent).toBe("true");
+    expect(screen.getByTestId("msg-count").textContent).toBe("1"); // optimistic user msg
+    expect(sseMock.mockFn).toHaveBeenCalledWith("acme", "c1", "hello", expect.any(Object));
+
+    // Simulate SSE events
+    const handler = sseMock.getHandler();
+
+    await act(async () => {
+      handler.onMessageStart!({ id: "msg-a1", role: "assistant" });
     });
-    expect(adapter.bravoSendMessage).toHaveBeenCalledWith("acme", "c1", "hello");
+
+    await act(async () => {
+      handler.onContentDelta!({ delta: "Hello " });
+    });
+    expect(screen.getByTestId("streaming-content").textContent).toBe("Hello ");
+
+    await act(async () => {
+      handler.onContentDelta!({ delta: "there!" });
+    });
+    expect(screen.getByTestId("streaming-content").textContent).toBe("Hello there!");
+
+    // Complete the message
+    await act(async () => {
+      handler.onMessageEnd!({
+        id: "msg-a1",
+        usage: { input_tokens: 100, output_tokens: 50 },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("streaming").textContent).toBe("false");
+      expect(screen.getByTestId("msg-count").textContent).toBe("2"); // user + assistant
+      expect(screen.getByTestId("streaming-content").textContent).toBe("");
+    });
+  });
+
+  it("streams tool calls via SSE", async () => {
+    const sseMock = createSSEMock();
+    const adapter = createMockAdapter({
+      bravoListConversations: vi.fn().mockResolvedValue({ conversations: [conv1], total: 1 }),
+      bravoGetConversation: vi.fn().mockResolvedValue({ conversation: conv1, messages: [] }),
+      bravoSendMessageSSE: sseMock.mockFn,
+    });
+    renderWithProviders(adapter);
+
+    await act(async () => { screen.getByTestId("open").click(); });
+    await act(async () => { screen.getByTestId("select-conv").click(); });
+    await act(async () => { screen.getByTestId("send").click(); });
+
+    const handler = sseMock.getHandler();
+    await act(async () => {
+      handler.onMessageStart!({ id: "msg-a2", role: "assistant" });
+    });
+
+    // Tool call starts
+    await act(async () => {
+      handler.onToolCallStart!({
+        id: "tc-1",
+        tool: "run_flow",
+        input: { flow: "pseudo" },
+      });
+    });
+    expect(screen.getByTestId("streaming-tc-count").textContent).toBe("1");
+
+    // Tool call needs approval
+    await act(async () => {
+      handler.onNeedsApproval!({
+        id: "tc-1",
+        tool: "run_flow",
+        input: { flow: "pseudo" },
+      });
+    });
+
+    // Tool call ends
+    await act(async () => {
+      handler.onToolCallEnd!({
+        id: "tc-1",
+        status: "completed",
+        output: { blocks: 42 },
+        duration_ms: 1250,
+      });
+    });
+
+    // Message ends
+    await act(async () => {
+      handler.onMessageEnd!({ id: "msg-a2" });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("streaming").textContent).toBe("false");
+      expect(screen.getByTestId("streaming-tc-count").textContent).toBe("0");
+      expect(screen.getByTestId("msg-count").textContent).toBe("2"); // user + assistant with tool calls
+    });
+  });
+
+  it("cancelStreaming aborts the stream", async () => {
+    const sseMock = createSSEMock();
+    const abortSpy = vi.spyOn(sseMock.controller, "abort");
+    const adapter = createMockAdapter({
+      bravoListConversations: vi.fn().mockResolvedValue({ conversations: [conv1], total: 1 }),
+      bravoGetConversation: vi.fn().mockResolvedValue({ conversation: conv1, messages: [] }),
+      bravoSendMessageSSE: sseMock.mockFn,
+    });
+    renderWithProviders(adapter);
+
+    await act(async () => { screen.getByTestId("open").click(); });
+    await act(async () => { screen.getByTestId("select-conv").click(); });
+    await act(async () => { screen.getByTestId("send").click(); });
+
+    expect(screen.getByTestId("streaming").textContent).toBe("true");
+
+    // Cancel
+    act(() => { screen.getByTestId("cancel").click(); });
+
+    expect(screen.getByTestId("streaming").textContent).toBe("false");
+    expect(abortSpy).toHaveBeenCalled();
+  });
+
+  it("handles SSE error gracefully", async () => {
+    const sseMock = createSSEMock();
+    const adapter = createMockAdapter({
+      bravoListConversations: vi.fn().mockResolvedValue({ conversations: [conv1], total: 1 }),
+      bravoGetConversation: vi.fn().mockResolvedValue({ conversation: conv1, messages: [] }),
+      bravoSendMessageSSE: sseMock.mockFn,
+    });
+    renderWithProviders(adapter);
+
+    await act(async () => { screen.getByTestId("open").click(); });
+    await act(async () => { screen.getByTestId("select-conv").click(); });
+    await act(async () => { screen.getByTestId("send").click(); });
+
+    const handler = sseMock.getHandler();
+    await act(async () => {
+      handler.onError!({ error: "Internal server error" });
+    });
+
+    expect(screen.getByTestId("streaming").textContent).toBe("false");
   });
 
   it("calls approve and deny tool call APIs", async () => {

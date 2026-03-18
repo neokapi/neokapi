@@ -109,6 +109,11 @@ function ConnectedTopBar({
 /** Connected @bravo panel — reads state from BravoContext. */
 function ConnectedBravo() {
   const { state, actions } = useBravo();
+  const { pathname } = useLocation();
+  const { workspace: workspaceSlug } = useParams({ strict: false });
+
+  // Extract projectId from URL when creating new conversations.
+  const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
 
   return (
     <>
@@ -124,12 +129,14 @@ function ConnectedBravo() {
         messages={state.messages}
         streaming={state.streaming}
         streamingContent={state.streamingContent}
-        onNewConversation={() => void actions.newConversation()}
+        streamingToolCalls={state.streamingToolCalls}
+        onNewConversation={() => void actions.newConversation(projectParams?.projectId)}
         onSelectConversation={(conv) => void actions.selectConversation(conv)}
         onDeleteConversation={(conv) => void actions.deleteConversation(conv)}
         onSendMessage={(content) => void actions.sendMessage(content)}
         onApproveToolCall={(id) => void actions.approveToolCall(id)}
         onDenyToolCall={(id) => void actions.denyToolCall(id)}
+        onCancelStreaming={actions.cancelStreaming}
         loading={state.loading}
         sendDisabled={state.streaming}
       />
@@ -218,6 +225,7 @@ export function WorkspaceLayout() {
     if (rest === "providers") return "providers";
     if (rest === "tokens") return "tokens";
     if (rest === "system") return "system";
+    if (rest === "bravo") return "bravo";
     return "general";
   }, [activeView, pathname, workspaceSlug]);
 
@@ -248,6 +256,9 @@ export function WorkspaceLayout() {
           break;
         case "system":
           void navigate({ to: "/$workspace/settings/system", params: { workspace: wsSlug } });
+          break;
+        case "bravo":
+          void navigate({ to: "/$workspace/settings/bravo", params: { workspace: wsSlug } });
           break;
       }
     },

@@ -307,6 +307,14 @@ export type {
   BravoToolInfo as BravoToolListItem,
   BravoUsageSummary,
   BravoSSEEventType,
+  BravoSSEHandler,
+  BravoSSEMessageStart,
+  BravoSSEContentDelta,
+  BravoSSEToolCallStart,
+  BravoSSEToolCallEnd,
+  BravoSSENeedsApproval,
+  BravoSSEMessageEnd,
+  BravoSSEError,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
@@ -365,6 +373,7 @@ export {
   BravoApprovalCard,
   BravoConversationList,
   BravoConfigPanel,
+  BravoUsageDashboard,
 } from "./components/bravo";
 export type {
   BravoPanelProps,
@@ -376,6 +385,7 @@ export type {
   BravoApprovalCardProps,
   BravoConversationListProps,
   BravoConfigPanelProps,
+  BravoUsageDashboardProps,
 } from "./components/bravo";
 export { BravoProvider, useBravo } from "./context/BravoContext";
 export { useBravoApi } from "./hooks/useBravoApi";

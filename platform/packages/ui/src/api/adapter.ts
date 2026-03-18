@@ -58,6 +58,7 @@ import type {
   BravoConfig,
   BravoToolInfo,
   BravoUsageSummary,
+  BravoSSEHandler,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -508,6 +509,8 @@ export interface ApiAdapter {
   bravoUpdateConfig(workspaceSlug: string, config: Partial<BravoConfig>): Promise<BravoConfig>;
   bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }>;
   bravoGetUsage(workspaceSlug: string, from?: string, to?: string): Promise<BravoUsageSummary>;
+  /** Send a message and stream the response via SSE. Returns an AbortController to cancel. */
+  bravoSendMessageSSE(workspaceSlug: string, conversationId: string, content: string, handler: BravoSSEHandler): AbortController;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

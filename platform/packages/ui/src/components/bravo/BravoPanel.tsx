@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { cn } from "../../lib/utils";
-import type { BravoConversation, BravoMessage } from "../../types/api";
+import type { BravoConversation, BravoMessage, BravoToolCall } from "../../types/api";
 import {
   Sheet,
   SheetContent,
@@ -19,12 +18,14 @@ export interface BravoPanelProps {
   messages: BravoMessage[];
   streaming?: boolean;
   streamingContent?: string;
+  streamingToolCalls?: BravoToolCall[];
   onNewConversation: () => void;
   onSelectConversation: (conv: BravoConversation) => void;
   onDeleteConversation: (conv: BravoConversation) => void;
   onSendMessage: (content: string) => void;
   onApproveToolCall: (toolCallId: string) => void;
   onDenyToolCall: (toolCallId: string) => void;
+  onCancelStreaming?: () => void;
   onShowConfig?: () => void;
   loading?: boolean;
   sendDisabled?: boolean;
@@ -40,12 +41,14 @@ export function BravoPanel({
   messages,
   streaming,
   streamingContent,
+  streamingToolCalls,
   onNewConversation,
   onSelectConversation,
   onDeleteConversation,
   onSendMessage,
   onApproveToolCall,
   onDenyToolCall,
+  onCancelStreaming,
   onShowConfig,
   loading,
   sendDisabled,
@@ -114,8 +117,10 @@ export function BravoPanel({
                 messages={messages}
                 streaming={streaming}
                 streamingContent={streamingContent}
+                streamingToolCalls={streamingToolCalls}
                 onApprove={onApproveToolCall}
                 onDeny={onDenyToolCall}
+                onCancel={onCancelStreaming}
               />
             </div>
             <div className="shrink-0">
