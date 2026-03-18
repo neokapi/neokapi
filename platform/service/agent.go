@@ -11,19 +11,31 @@ import (
 )
 
 // AgentService orchestrates agent conversations, messages, and tool policy.
-// Phase 1 provides the data layer and mock agent responses; ZeroClaw
-// container integration is added in Phase 2.
 type AgentService struct {
-	store    platagent.AgentStore
-	eventBus platev.EventBus
+	store      platagent.AgentStore
+	eventBus   platev.EventBus
+	pool       *AgentPool       // manages ZeroClaw containers (nil = mock mode)
+	tokenStore *AgentTokenStore // scoped agent tokens for MCP delegation
 }
 
 // NewAgentService creates the agent service.
 func NewAgentService(store platagent.AgentStore, eventBus platev.EventBus) *AgentService {
 	return &AgentService{
-		store:    store,
-		eventBus: eventBus,
+		store:      store,
+		eventBus:   eventBus,
+		tokenStore: NewAgentTokenStore(),
 	}
+}
+
+// SetPool attaches a container pool for ZeroClaw integration.
+// When set, SendMessageStream routes to real agent containers.
+func (s *AgentService) SetPool(pool *AgentPool) {
+	s.pool = pool
+}
+
+// TokenStore returns the agent token store for middleware integration.
+func (s *AgentService) TokenStore() *AgentTokenStore {
+	return s.tokenStore
 }
 
 // CreateConversation creates a new conversation.
@@ -69,18 +81,14 @@ func (s *AgentService) ListConversations(ctx context.Context, workspaceID, userI
 }
 
 // DeleteConversation removes a conversation and all its messages.
-func (s *AgentService) DeleteConversation(ctx context.Context, id string) error {
-	return s.store.DeleteConversation(ctx, id)
-}
-
-// SSEEvent represents a server-sent event in the agent response stream.
-type SSEEvent struct {
-	Event string `json:"event"`
-	Data  any    `json:"data"`
+// Also releases any associated container and revokes tokens.
+func (s *AgentService) DeleteConversation(ctx context.Context, convID string) error {
+	s.cleanupConversation(ctx, convID)
+	return s.store.DeleteConversation(ctx, convID)
 }
 
 // SendMessage persists a user message and generates an agent response.
-// Phase 1: returns a mock response. Phase 2 will integrate ZeroClaw.
+// This is the synchronous variant used by the Phase 1 JSON API.
 func (s *AgentService) SendMessage(ctx context.Context, conversationID, userID, content string) (*platagent.Message, *platagent.Message, error) {
 	// Persist user message.
 	userMsg := &platagent.Message{
@@ -183,14 +191,112 @@ func (s *AgentService) DenyToolCall(ctx context.Context, conversationID, toolCal
 	return nil
 }
 
-// CancelConversation marks a conversation as failed.
+// CancelConversation marks a conversation as failed and releases resources.
 func (s *AgentService) CancelConversation(ctx context.Context, conversationID string) error {
+	s.cleanupConversation(ctx, conversationID)
+
 	conv, err := s.store.GetConversation(ctx, conversationID)
 	if err != nil {
 		return fmt.Errorf("get conversation: %w", err)
 	}
 	conv.Status = platagent.ConversationFailed
 	return s.store.UpdateConversation(ctx, conv)
+}
+
+// SendMessageStream sends a user message and streams the agent response via SSE.
+// When a pool is configured, it routes to a real ZeroClaw container.
+// Otherwise, it falls back to the synchronous mock response.
+func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content string, sse SSEWriter) error {
+	// Persist user message.
+	userMsg := &platagent.Message{
+		ConversationID: conversationID,
+		Role:           platagent.RoleUser,
+		Content:        content,
+	}
+	if err := s.store.AddMessage(ctx, userMsg); err != nil {
+		return fmt.Errorf("add user message: %w", err)
+	}
+
+	// If no pool is configured, fall back to mock.
+	if s.pool == nil {
+		return s.sendMockStream(ctx, conversationID, userID, content, sse)
+	}
+
+	// Create a scoped agent token for MCP delegation.
+	tokenTTL := 30 * time.Minute
+	token, err := s.tokenStore.Create(userID, workspaceID, conversationID, workspaceRole, tokenTTL)
+	if err != nil {
+		return fmt.Errorf("create agent token: %w", err)
+	}
+
+	// Acquire a container from the pool.
+	container, err := s.pool.Acquire(ctx, ContainerConfig{
+		ConversationID: conversationID,
+		WorkspaceID:    workspaceID,
+		UserID:         userID,
+		AgentToken:     token.Token,
+	})
+	if err != nil {
+		s.tokenStore.Revoke(token.Token)
+		return fmt.Errorf("acquire container: %w", err)
+	}
+
+	// POST message to ZeroClaw gateway and stream response.
+	// Phase 2 implementation: the gateway integration will pipe response
+	// chunks from ZeroClaw → SSE events to the client.
+	_ = container // Will be used in the HTTP POST to container.GatewayURL
+
+	// For now, emit mock SSE events since we don't have a running ZeroClaw yet.
+	return s.sendMockStream(ctx, conversationID, userID, content, sse)
+}
+
+// sendMockStream emits mock SSE events for testing without ZeroClaw.
+func (s *AgentService) sendMockStream(ctx context.Context, conversationID, userID, content string, sse SSEWriter) error {
+	assistantMsg := &platagent.Message{
+		ConversationID: conversationID,
+		Role:           platagent.RoleAssistant,
+		Content:        fmt.Sprintf("I received your message: %q. Agent integration is coming in Phase 2.", content),
+	}
+	if err := s.store.AddMessage(ctx, assistantMsg); err != nil {
+		return fmt.Errorf("add assistant message: %w", err)
+	}
+
+	// Emit SSE events.
+	_ = sse.WriteEvent(SSEMessageStart, MessageStartData{ID: assistantMsg.ID, Role: "assistant"})
+	_ = sse.WriteEvent(SSEContentDelta, ContentDeltaData{Delta: assistantMsg.Content})
+	_ = sse.WriteEvent(SSEMessageEnd, MessageEndData{ID: assistantMsg.ID})
+
+	// Update conversation timestamp.
+	conv, err := s.store.GetConversation(ctx, conversationID)
+	if err == nil {
+		_ = s.store.UpdateConversation(ctx, conv)
+	}
+
+	if s.eventBus != nil {
+		s.eventBus.Publish(platev.Event{
+			ID:     id.New(),
+			Type:   platev.EventAgentMessageSent,
+			Source: "agent",
+			Actor:  "bravo:" + userID,
+			Data: map[string]string{
+				"conversation_id": conversationID,
+				"message_id":      assistantMsg.ID,
+			},
+			Timestamp: time.Now(),
+		})
+	}
+
+	return nil
+}
+
+// cleanupConversation releases pool containers and revokes tokens for a conversation.
+func (s *AgentService) cleanupConversation(ctx context.Context, conversationID string) {
+	if s.pool != nil {
+		_ = s.pool.Release(ctx, conversationID)
+	}
+	if s.tokenStore != nil {
+		s.tokenStore.RevokeForConversation(conversationID)
+	}
 }
 
 // GetConfig returns the agent config for a workspace.
