@@ -86,3 +86,4 @@ website/videos/output/
 website/videos/public/raw/
 .java-version
 .claude/worktrees/
+.env
