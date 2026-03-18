@@ -37,6 +37,22 @@ interface FileResult {
   error?: string;
 }
 
+interface FileTrace {
+  file: string;
+  format: string;
+  startUs: number;
+  endUs: number;
+  lane: number;
+  durationUs: number;
+}
+
+interface BatchTrace {
+  name: string;
+  concurrency: number;
+  fileTraces: FileTrace[];
+  durationUs: number;
+}
+
 interface Experiment {
   engine: string;
   version: string;
@@ -46,6 +62,7 @@ interface Experiment {
   daemonRssKB?: Stats;
   fileResults: FileResult[];
   fileTimings?: FileTiming[];
+  batchTrace?: BatchTrace;
 }
 
 interface Metadata {
@@ -447,6 +464,114 @@ function TimelineChart({experiments}: {experiments: Experiment[]}) {
   );
 }
 
+/** Batch concurrency Gantt chart showing files across lanes per engine. */
+function BatchConcurrencyChart({experiments}: {experiments: Experiment[]}) {
+  const [hoveredFile, setHoveredFile] = useState<{file: FileTrace; engine: string; x: number; y: number} | null>(null);
+  const withTraces = experiments.filter((e) => e.batchTrace && e.batchTrace.fileTraces.length > 0);
+  if (withTraces.length === 0) {
+    return (
+      <div className={styles.compCard}>
+        <div className={styles.compHeader}>
+          <span className={styles.compFormat}>Batch Concurrency</span>
+        </div>
+        <p className={styles.empty}>No batch trace data available. Re-run pseudobench with <code>--trace</code> to generate.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {withTraces.map((exp) => {
+        const bt = exp.batchTrace!;
+        const traces = bt.fileTraces;
+        const maxTimeUs = Math.max(...traces.map((f) => f.endUs));
+        const maxLane = Math.max(...traces.map((f) => f.lane));
+        const numLanes = maxLane + 1;
+
+        const formats = [...new Set(traces.map((f) => f.format))];
+        const totalMs = (bt.durationUs / 1000).toFixed(0);
+        const rssMB = (exp.peakRssKB.max / 1024).toFixed(1);
+
+        // Group traces by lane
+        const lanes: FileTrace[][] = Array.from({length: numLanes}, () => []);
+        for (const ft of traces) {
+          lanes[ft.lane].push(ft);
+        }
+
+        return (
+          <div key={exp.engine} className={styles.compCard}>
+            <div className={styles.compHeader}>
+              <span className={styles.compFormat}>
+                Batch Concurrency — {engineLabel(exp.engine)}
+              </span>
+              <span className={styles.compSize}>
+                {totalMs} ms · {rssMB} MB RSS · {bt.concurrency} lanes · {traces.length} files
+              </span>
+            </div>
+
+            <div className={styles.timelineLegend}>
+              {formats.map((f) => (
+                <span key={f} className={styles.timelineLegendItem}>
+                  <span className={styles.timelineLegendDot} style={{backgroundColor: FORMAT_COLORS[f] ?? '#888'}} />
+                  {f}
+                </span>
+              ))}
+            </div>
+
+            <div className={styles.timelineContainer}>
+              {lanes.map((laneTraces, laneIdx) => (
+                <div key={laneIdx} className={styles.timelineRow}>
+                  <div className={styles.timelineLabel}>
+                    <span>Lane {laneIdx}</span>
+                  </div>
+                  <div className={styles.timelineTrack}>
+                    {laneTraces.map((ft) => {
+                      const left = (ft.startUs / maxTimeUs) * 100;
+                      const width = Math.max(((ft.endUs - ft.startUs) / maxTimeUs) * 100, 0.3);
+                      const color = FORMAT_COLORS[ft.format] ?? '#888';
+                      return (
+                        <div
+                          key={ft.file}
+                          className={styles.timelineBar}
+                          style={{left: `${left}%`, width: `${width}%`, backgroundColor: color}}
+                          onMouseEnter={(ev) => setHoveredFile({file: ft, engine: exp.engine, x: ev.clientX, y: ev.clientY})}
+                          onMouseLeave={() => setHoveredFile(null)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+
+              {/* Time axis */}
+              <div className={styles.timelineAxis}>
+                {[0, 0.25, 0.5, 0.75, 1].map((frac) => (
+                  <span key={frac} className={styles.timelineTick} style={{left: `${frac * 100}%`}}>
+                    {fmt(frac * maxTimeUs / 1000)} ms
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {hoveredFile && hoveredFile.engine === exp.engine && (
+              <div
+                className={styles.timelineTooltip}
+                style={{left: hoveredFile.x + 12, top: hoveredFile.y - 10, position: 'fixed'}}
+              >
+                <strong>{hoveredFile.file.file}</strong>
+                <br />
+                {hoveredFile.file.format} · Lane {hoveredFile.file.lane}
+                <br />
+                {fmt(hoveredFile.file.durationUs / 1000)} ms
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
 /** Per-file timing breakdown table. */
 function FileTimingsTable({experiments}: {experiments: Experiment[]}) {
   // Collect all unique file names from the first experiment with timings
@@ -559,7 +684,7 @@ function Fragment({children}: {children: React.ReactNode}) {
 
 /* ── Main Page ── */
 
-type ViewMode = 'summary' | 'files' | 'multi';
+type ViewMode = 'summary' | 'files' | 'concurrency' | 'multi';
 
 export default function PseudoBench() {
   const [report, setReport] = useState<Report | null>(null);
@@ -636,6 +761,12 @@ export default function PseudoBench() {
                   Per-File Timing
                 </button>
                 <button
+                  className={`${styles.filterBtn} ${viewMode === 'concurrency' ? styles.filterBtnActive : ''}`}
+                  onClick={() => setViewMode('concurrency')}
+                >
+                  Concurrency
+                </button>
+                <button
                   className={`${styles.filterBtn} ${viewMode === 'multi' ? styles.filterBtnActive : ''}`}
                   onClick={() => setViewMode('multi')}
                 >
@@ -646,6 +777,7 @@ export default function PseudoBench() {
 
             {viewMode === 'summary' && <BatchComparison experiments={experiments} />}
             {viewMode === 'files' && <FileTimingsTable experiments={experiments} />}
+            {viewMode === 'concurrency' && <BatchConcurrencyChart experiments={experiments} />}
             {viewMode === 'multi' && <MultiInvocationComparison experiments={experiments} />}
           </>
         )}

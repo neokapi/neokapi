@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "timestamp": "2026-03-18T21:07:39Z",
+    "timestamp": "2026-03-18T23:35:25Z",
     "platform": "darwin/arm64",
     "goVersion": "go1.26.1",
     "cpuModel": "Apple M1 Max",
@@ -10,25 +10,25 @@
   "experiments": [
     {
       "engine": "kapi-native",
-      "version": "v0.1.1-164-g06fdef7",
+      "version": "v0.1.1-173-gbd82a10-dirty",
       "iterations": 5,
       "wallTimeMs": {
-        "mean": 4224.92,
-        "median": 4190.09,
-        "p5": 4176.77,
-        "p95": 4329.15,
-        "stddev": 75.81,
-        "min": 4173.5,
-        "max": 4358.19
+        "mean": 3381.92,
+        "median": 3238.05,
+        "p5": 3184.07,
+        "p95": 3875.31,
+        "stddev": 364.74,
+        "min": 3175.9,
+        "max": 4032.56
       },
       "peakRssKB": {
-        "mean": 727136,
-        "median": 740624,
-        "p5": 704352,
-        "p95": 743324.8,
-        "stddev": 20737.79,
-        "min": 704288,
-        "max": 743488
+        "mean": 875651.2,
+        "median": 739568,
+        "p5": 671932.8,
+        "p95": 1357008,
+        "stddev": 353894.76,
+        "min": 663616,
+        "max": 1505056
       },
       "fileResults": [
         {
@@ -143,12 +143,12 @@
           "format": "openxml",
           "category": "large",
           "sizeBytes": 6824271,
-          "startMs": 0.006,
-          "endMs": 4054.562,
-          "wallMs": 4054.244,
-          "peakRssKB": 702592,
-          "userCpuMs": 4712.983,
-          "sysCpuMs": 773.736,
+          "startMs": 0.009,
+          "endMs": 3102.382,
+          "wallMs": 3102.3,
+          "peakRssKB": 693616,
+          "userCpuMs": 3678.765,
+          "sysCpuMs": 383.911,
           "blockCount": 157076,
           "success": true
         },
@@ -157,12 +157,12 @@
           "format": "openxml",
           "category": "large",
           "sizeBytes": 3086407,
-          "startMs": 4054.575,
-          "endMs": 4098.839,
-          "wallMs": 44.226,
-          "peakRssKB": 51072,
-          "userCpuMs": 38.181,
-          "sysCpuMs": 15.077,
+          "startMs": 3102.403,
+          "endMs": 3137.621,
+          "wallMs": 35.184,
+          "peakRssKB": 48480,
+          "userCpuMs": 30.885,
+          "sysCpuMs": 11.796,
           "blockCount": 190,
           "success": true
         },
@@ -171,12 +171,12 @@
           "format": "openxml",
           "category": "large",
           "sizeBytes": 1037964,
-          "startMs": 4098.851,
-          "endMs": 4392.268,
-          "wallMs": 293.376,
-          "peakRssKB": 61792,
-          "userCpuMs": 337.099,
-          "sysCpuMs": 52.337,
+          "startMs": 3137.643,
+          "endMs": 3368.082,
+          "wallMs": 230.408,
+          "peakRssKB": 63296,
+          "userCpuMs": 265.748,
+          "sysCpuMs": 30.574,
           "blockCount": 1719,
           "success": true
         },
@@ -185,12 +185,12 @@
           "format": "html",
           "category": "medium",
           "sizeBytes": 821835,
-          "startMs": 4392.289,
-          "endMs": 4834.183,
-          "wallMs": 441.848,
-          "peakRssKB": 58992,
-          "userCpuMs": 1146.676,
-          "sysCpuMs": 134.943,
+          "startMs": 3368.102,
+          "endMs": 3750.354,
+          "wallMs": 382.224,
+          "peakRssKB": 60240,
+          "userCpuMs": 927.305,
+          "sysCpuMs": 99.283,
           "blockCount": 27,
           "success": true
         },
@@ -199,12 +199,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 719118,
-          "startMs": 4834.202,
-          "endMs": 4866.461,
-          "wallMs": 32.218,
-          "peakRssKB": 35376,
-          "userCpuMs": 27.536,
-          "sysCpuMs": 10.429,
+          "startMs": 3750.368,
+          "endMs": 3778.081,
+          "wallMs": 27.676,
+          "peakRssKB": 36528,
+          "userCpuMs": 22.242,
+          "sysCpuMs": 9.504,
           "blockCount": 104,
           "success": true
         },
@@ -213,12 +213,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 706058,
-          "startMs": 4866.475,
-          "endMs": 4889.997,
-          "wallMs": 23.493,
-          "peakRssKB": 33472,
-          "userCpuMs": 17.781,
-          "sysCpuMs": 7.934,
+          "startMs": 3778.101,
+          "endMs": 3799.428,
+          "wallMs": 21.298,
+          "peakRssKB": 33584,
+          "userCpuMs": 14.071,
+          "sysCpuMs": 7.073,
           "blockCount": 3,
           "success": true
         },
@@ -227,12 +227,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 554463,
-          "startMs": 4890.011,
-          "endMs": 4918.214,
-          "wallMs": 28.175,
-          "peakRssKB": 34832,
-          "userCpuMs": 22.872,
-          "sysCpuMs": 9.352,
+          "startMs": 3799.442,
+          "endMs": 3822.787,
+          "wallMs": 23.316,
+          "peakRssKB": 34048,
+          "userCpuMs": 17.881,
+          "sysCpuMs": 7.218,
           "blockCount": 3,
           "success": true
         },
@@ -241,12 +241,12 @@
           "format": "xliff",
           "category": "medium",
           "sizeBytes": 359215,
-          "startMs": 4918.235,
-          "endMs": 4985.081,
-          "wallMs": 66.822,
-          "peakRssKB": 34288,
-          "userCpuMs": 51.571,
-          "sysCpuMs": 37.17,
+          "startMs": 3822.804,
+          "endMs": 3874.656,
+          "wallMs": 51.779,
+          "peakRssKB": 34784,
+          "userCpuMs": 40.069,
+          "sysCpuMs": 23.422,
           "blockCount": 1918,
           "success": true
         },
@@ -255,12 +255,12 @@
           "format": "po",
           "category": "medium",
           "sizeBytes": 283681,
-          "startMs": 4985.095,
-          "endMs": 5026.958,
-          "wallMs": 41.838,
-          "peakRssKB": 33392,
-          "userCpuMs": 32.181,
-          "sysCpuMs": 20.805,
+          "startMs": 3874.682,
+          "endMs": 3908.305,
+          "wallMs": 33.597,
+          "peakRssKB": 33664,
+          "userCpuMs": 25.292,
+          "sysCpuMs": 14.537,
           "blockCount": 1378,
           "success": true
         },
@@ -269,12 +269,12 @@
           "format": "yaml",
           "category": "medium",
           "sizeBytes": 252243,
-          "startMs": 5026.98,
-          "endMs": 5080.298,
-          "wallMs": 53.277,
-          "peakRssKB": 37504,
-          "userCpuMs": 46.16,
-          "sysCpuMs": 23.974,
+          "startMs": 3908.321,
+          "endMs": 3963.539,
+          "wallMs": 55.196,
+          "peakRssKB": 38016,
+          "userCpuMs": 36.985,
+          "sysCpuMs": 17.735,
           "blockCount": 1820,
           "success": true
         },
@@ -283,12 +283,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 143372,
-          "startMs": 5080.322,
-          "endMs": 5109.17,
-          "wallMs": 28.821,
-          "peakRssKB": 32528,
-          "userCpuMs": 21.759,
-          "sysCpuMs": 10.394,
+          "startMs": 3963.555,
+          "endMs": 3986.039,
+          "wallMs": 22.459,
+          "peakRssKB": 31280,
+          "userCpuMs": 17.211,
+          "sysCpuMs": 7.228,
           "blockCount": 64,
           "success": true
         },
@@ -297,12 +297,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 127922,
-          "startMs": 5109.187,
-          "endMs": 5134.595,
-          "wallMs": 25.383,
-          "peakRssKB": 31312,
-          "userCpuMs": 18.134,
-          "sysCpuMs": 8.473,
+          "startMs": 3986.066,
+          "endMs": 4006.901,
+          "wallMs": 20.777,
+          "peakRssKB": 30992,
+          "userCpuMs": 14.794,
+          "sysCpuMs": 6.462,
           "blockCount": 3,
           "success": true
         },
@@ -311,12 +311,12 @@
           "format": "html",
           "category": "small",
           "sizeBytes": 124657,
-          "startMs": 5134.606,
-          "endMs": 5170.492,
-          "wallMs": 35.823,
-          "peakRssKB": 39424,
-          "userCpuMs": 39.875,
-          "sysCpuMs": 13.267,
+          "startMs": 4006.928,
+          "endMs": 4035.63,
+          "wallMs": 28.654,
+          "peakRssKB": 41216,
+          "userCpuMs": 31.737,
+          "sysCpuMs": 9.054,
           "blockCount": 9,
           "success": true
         },
@@ -325,12 +325,12 @@
           "format": "html",
           "category": "small",
           "sizeBytes": 80010,
-          "startMs": 5170.515,
-          "endMs": 5203.303,
-          "wallMs": 32.735,
-          "peakRssKB": 31600,
-          "userCpuMs": 23.963,
-          "sysCpuMs": 15.52,
+          "startMs": 4035.648,
+          "endMs": 4060.901,
+          "wallMs": 25.231,
+          "peakRssKB": 31040,
+          "userCpuMs": 17.519,
+          "sysCpuMs": 9.949,
           "blockCount": 346,
           "success": true
         },
@@ -339,12 +339,12 @@
           "format": "html",
           "category": "small",
           "sizeBytes": 40956,
-          "startMs": 5203.316,
-          "endMs": 5230.841,
-          "wallMs": 27.489,
-          "peakRssKB": 33344,
-          "userCpuMs": 24.13,
-          "sysCpuMs": 9.677,
+          "startMs": 4060.917,
+          "endMs": 4084.115,
+          "wallMs": 23.163,
+          "peakRssKB": 34288,
+          "userCpuMs": 18.85,
+          "sysCpuMs": 9.168,
           "blockCount": 80,
           "success": true
         },
@@ -353,12 +353,12 @@
           "format": "json",
           "category": "small",
           "sizeBytes": 32053,
-          "startMs": 5230.856,
-          "endMs": 5260.969,
-          "wallMs": 30.08,
-          "peakRssKB": 30608,
-          "userCpuMs": 20.834,
-          "sysCpuMs": 12.652,
+          "startMs": 4084.125,
+          "endMs": 4107.153,
+          "wallMs": 23.003,
+          "peakRssKB": 30352,
+          "userCpuMs": 16.56,
+          "sysCpuMs": 9.799,
           "blockCount": 561,
           "success": true
         },
@@ -367,12 +367,12 @@
           "format": "yaml",
           "category": "small",
           "sizeBytes": 31015,
-          "startMs": 5260.986,
-          "endMs": 5291.403,
-          "wallMs": 30.383,
-          "peakRssKB": 30720,
-          "userCpuMs": 21.866,
-          "sysCpuMs": 13.779,
+          "startMs": 4107.166,
+          "endMs": 4130.341,
+          "wallMs": 23.146,
+          "peakRssKB": 30160,
+          "userCpuMs": 17.083,
+          "sysCpuMs": 8.45,
           "blockCount": 711,
           "success": true
         },
@@ -381,12 +381,12 @@
           "format": "xml",
           "category": "small",
           "sizeBytes": 31496,
-          "startMs": 5291.42,
-          "endMs": 5376.255,
-          "wallMs": 84.802,
-          "peakRssKB": 28496,
-          "userCpuMs": 16.618,
-          "sysCpuMs": 9.045,
+          "startMs": 4130.359,
+          "endMs": 4149.015,
+          "wallMs": 18.627,
+          "peakRssKB": 28368,
+          "userCpuMs": 12.12,
+          "sysCpuMs": 5.588,
           "blockCount": 80,
           "success": true
         },
@@ -395,12 +395,12 @@
           "format": "srt",
           "category": "small",
           "sizeBytes": 17664,
-          "startMs": 5376.269,
-          "endMs": 5408.947,
-          "wallMs": 32.648,
-          "peakRssKB": 28288,
-          "userCpuMs": 16.171,
-          "sysCpuMs": 11.63,
+          "startMs": 4149.028,
+          "endMs": 4167.788,
+          "wallMs": 18.74,
+          "peakRssKB": 28768,
+          "userCpuMs": 12.433,
+          "sysCpuMs": 6.046,
           "blockCount": 172,
           "success": true
         },
@@ -409,12 +409,12 @@
           "format": "properties",
           "category": "tiny",
           "sizeBytes": 2404,
-          "startMs": 5409.005,
-          "endMs": 5446.156,
-          "wallMs": 37.114,
-          "peakRssKB": 28864,
-          "userCpuMs": 16.511,
-          "sysCpuMs": 11.727,
+          "startMs": 4167.798,
+          "endMs": 4185.346,
+          "wallMs": 17.531,
+          "peakRssKB": 28352,
+          "userCpuMs": 11.59,
+          "sysCpuMs": 5.395,
           "blockCount": 66,
           "success": true
         },
@@ -423,38 +423,213 @@
           "format": "po",
           "category": "tiny",
           "sizeBytes": 1968,
-          "startMs": 5446.17,
-          "endMs": 5477.704,
-          "wallMs": 31.497,
-          "peakRssKB": 28320,
-          "userCpuMs": 15.922,
-          "sysCpuMs": 12.134,
+          "startMs": 4185.36,
+          "endMs": 4202.146,
+          "wallMs": 16.764,
+          "peakRssKB": 27968,
+          "userCpuMs": 11.477,
+          "sysCpuMs": 5.017,
           "blockCount": 14,
           "success": true
         }
-      ]
+      ],
+      "batchTrace": {
+        "name": "pseudo-translate",
+        "concurrency": 10,
+        "fileTraces": [
+          {
+            "file": "content_category_test.docx",
+            "format": "openxml",
+            "startUs": 65,
+            "endUs": 6579,
+            "lane": 3,
+            "durationUs": 6514
+          },
+          {
+            "file": "delTextAmp.docx",
+            "format": "openxml",
+            "startUs": 41,
+            "endUs": 12482,
+            "lane": 2,
+            "durationUs": 12441
+          },
+          {
+            "file": "992.docx",
+            "format": "openxml",
+            "startUs": 12838,
+            "endUs": 16807,
+            "lane": 2,
+            "durationUs": 3969
+          },
+          {
+            "file": "958-4.pptx",
+            "format": "openxml",
+            "startUs": 32,
+            "endUs": 22481,
+            "lane": 1,
+            "durationUs": 22449
+          },
+          {
+            "file": "Endpara.pptx",
+            "format": "openxml",
+            "startUs": 6717,
+            "endUs": 23213,
+            "lane": 3,
+            "durationUs": 16496
+          },
+          {
+            "file": "W3CHTMHLTest1.html",
+            "format": "html",
+            "startUs": 23238,
+            "endUs": 35974,
+            "lane": 3,
+            "durationUs": 12736
+          },
+          {
+            "file": "Conference_Talk.pptx",
+            "format": "openxml",
+            "startUs": 101,
+            "endUs": 38700,
+            "lane": 4,
+            "durationUs": 38599
+          },
+          {
+            "file": "Test_nautilus.af.po",
+            "format": "po",
+            "startUs": 155,
+            "endUs": 44348,
+            "lane": 6,
+            "durationUs": 44193
+          },
+          {
+            "file": "openoffice_input.xml",
+            "format": "xml",
+            "startUs": 44371,
+            "endUs": 46763,
+            "lane": 6,
+            "durationUs": 2392
+          },
+          {
+            "file": "sanitizer.html",
+            "format": "html",
+            "startUs": 22489,
+            "endUs": 48331,
+            "lane": 1,
+            "durationUs": 25842
+          },
+          {
+            "file": "burlington_ufo_center.html",
+            "format": "html",
+            "startUs": 16815,
+            "endUs": 49412,
+            "lane": 2,
+            "durationUs": 32597
+          },
+          {
+            "file": "AllCasesTest.po",
+            "format": "po",
+            "startUs": 49420,
+            "endUs": 51614,
+            "lane": 2,
+            "durationUs": 2194
+          },
+          {
+            "file": "Test01.properties",
+            "format": "properties",
+            "startUs": 48359,
+            "endUs": 53707,
+            "lane": 1,
+            "durationUs": 5348
+          },
+          {
+            "file": "Demo V1.srt",
+            "format": "srt",
+            "startUs": 46771,
+            "endUs": 57259,
+            "lane": 6,
+            "durationUs": 10488
+          },
+          {
+            "file": "Josh Test News Email.json",
+            "format": "json",
+            "startUs": 35989,
+            "endUs": 58145,
+            "lane": 3,
+            "durationUs": 22156
+          },
+          {
+            "file": "en (3).yml",
+            "format": "yaml",
+            "startUs": 38705,
+            "endUs": 63489,
+            "lane": 4,
+            "durationUs": 24784
+          },
+          {
+            "file": "en (2).yml",
+            "format": "yaml",
+            "startUs": 17,
+            "endUs": 75662,
+            "lane": 0,
+            "durationUs": 75645
+          },
+          {
+            "file": "SF-12-Test01.xlf",
+            "format": "xliff",
+            "startUs": 458,
+            "endUs": 82251,
+            "lane": 9,
+            "durationUs": 81793
+          },
+          {
+            "file": "ugly_big.htm",
+            "format": "html",
+            "startUs": 163,
+            "endUs": 321353,
+            "lane": 8,
+            "durationUs": 321190
+          },
+          {
+            "file": "big.docx",
+            "format": "openxml",
+            "startUs": 161,
+            "endUs": 329833,
+            "lane": 7,
+            "durationUs": 329672
+          },
+          {
+            "file": "large.xlsx",
+            "format": "openxml",
+            "startUs": 398,
+            "endUs": 3465369,
+            "lane": 5,
+            "durationUs": 3464971
+          }
+        ],
+        "durationUs": 3465384
+      }
     },
     {
       "engine": "kapi-bridge",
-      "version": "v0.1.1-164-g06fdef7",
+      "version": "v0.1.1-173-gbd82a10-dirty",
       "iterations": 5,
       "wallTimeMs": {
-        "mean": 13383.21,
-        "median": 13285.04,
-        "p5": 12869.87,
-        "p95": 14015.41,
-        "stddev": 499.37,
-        "min": 12777.7,
-        "max": 14154.11
+        "mean": 10073.55,
+        "median": 9985.7,
+        "p5": 9762.87,
+        "p95": 10508.47,
+        "stddev": 341.06,
+        "min": 9753.03,
+        "max": 10571.86
       },
       "peakRssKB": {
-        "mean": 6910480,
-        "median": 6986784,
-        "p5": 6434556.8,
-        "p95": 7419536,
-        "stddev": 429788.17,
-        "min": 6382400,
-        "max": 7519216
+        "mean": 6555990.4,
+        "median": 6833536,
+        "p5": 5948422.4,
+        "p95": 7014969.6,
+        "stddev": 500901.55,
+        "min": 5896624,
+        "max": 7060224
       },
       "fileResults": [
         {
@@ -569,12 +744,12 @@
           "format": "openxml",
           "category": "large",
           "sizeBytes": 6824271,
-          "startMs": 0.01,
-          "endMs": 10960.002,
-          "wallMs": 10959.969,
-          "peakRssKB": 6322000,
-          "userCpuMs": 39624.817,
-          "sysCpuMs": 4099.326,
+          "startMs": 0.009,
+          "endMs": 8878.96,
+          "wallMs": 8878.926,
+          "peakRssKB": 6064160,
+          "userCpuMs": 34281.536,
+          "sysCpuMs": 3946.499,
           "success": true
         },
         {
@@ -582,12 +757,12 @@
           "format": "openxml",
           "category": "large",
           "sizeBytes": 3086407,
-          "startMs": 10960.021,
-          "endMs": 12693.083,
-          "wallMs": 1733.05,
-          "peakRssKB": 220352,
-          "userCpuMs": 3743.121,
-          "sysCpuMs": 269.307,
+          "startMs": 8878.994,
+          "endMs": 10285.017,
+          "wallMs": 1405.336,
+          "peakRssKB": 220880,
+          "userCpuMs": 2737.419,
+          "sysCpuMs": 203.31,
           "success": true
         },
         {
@@ -595,12 +770,12 @@
           "format": "openxml",
           "category": "large",
           "sizeBytes": 1037964,
-          "startMs": 12693.123,
-          "endMs": 15597.885,
-          "wallMs": 2904.749,
-          "peakRssKB": 667920,
-          "userCpuMs": 8894.808,
-          "sysCpuMs": 433.888,
+          "startMs": 10285.048,
+          "endMs": 12618.07,
+          "wallMs": 2332.306,
+          "peakRssKB": 664944,
+          "userCpuMs": 6902.461,
+          "sysCpuMs": 354.776,
           "success": true
         },
         {
@@ -608,12 +783,12 @@
           "format": "html",
           "category": "medium",
           "sizeBytes": 821835,
-          "startMs": 15597.937,
-          "endMs": 17476.948,
-          "wallMs": 1878.999,
-          "peakRssKB": 486720,
-          "userCpuMs": 5003.807,
-          "sysCpuMs": 260.864,
+          "startMs": 12618.117,
+          "endMs": 14166.752,
+          "wallMs": 1547.856,
+          "peakRssKB": 477536,
+          "userCpuMs": 3884.611,
+          "sysCpuMs": 237.334,
           "success": true
         },
         {
@@ -621,12 +796,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 719118,
-          "startMs": 17477.003,
-          "endMs": 18997.657,
-          "wallMs": 1520.642,
-          "peakRssKB": 200832,
-          "userCpuMs": 2906.279,
-          "sysCpuMs": 195.055,
+          "startMs": 14168.835,
+          "endMs": 15437.785,
+          "wallMs": 1268.928,
+          "peakRssKB": 204592,
+          "userCpuMs": 2206.889,
+          "sysCpuMs": 159.654,
           "success": true
         },
         {
@@ -634,426 +809,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 706058,
-          "startMs": 18997.724,
-          "endMs": 20468.047,
-          "wallMs": 1470.298,
-          "peakRssKB": 196720,
-          "userCpuMs": 2660.131,
-          "sysCpuMs": 172.553,
-          "success": true
-        },
-        {
-          "name": "delTextAmp.docx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 554463,
-          "startMs": 20469.212,
-          "endMs": 21963.241,
-          "wallMs": 1494,
-          "peakRssKB": 202976,
-          "userCpuMs": 2929.998,
-          "sysCpuMs": 186.591,
-          "success": true
-        },
-        {
-          "name": "SF-12-Test01.xlf",
-          "format": "xliff",
-          "category": "medium",
-          "sizeBytes": 359215,
-          "startMs": 21963.301,
-          "endMs": 23513.933,
-          "wallMs": 1550.617,
-          "peakRssKB": 258880,
-          "userCpuMs": 3503.297,
-          "sysCpuMs": 199.515,
-          "success": true
-        },
-        {
-          "name": "Test_nautilus.af.po",
-          "format": "po",
-          "category": "medium",
-          "sizeBytes": 283681,
-          "startMs": 23514.014,
-          "endMs": 24959.255,
-          "wallMs": 1445.221,
-          "peakRssKB": 201168,
-          "userCpuMs": 2850.751,
-          "sysCpuMs": 176.781,
-          "success": true
-        },
-        {
-          "name": "en (2).yml",
-          "format": "yaml",
-          "category": "medium",
-          "sizeBytes": 252243,
-          "startMs": 24959.336,
-          "endMs": 26506.468,
-          "wallMs": 1547.115,
-          "peakRssKB": 199648,
-          "userCpuMs": 3387.419,
-          "sysCpuMs": 186.802,
-          "success": true
-        },
-        {
-          "name": "Endpara.pptx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 143372,
-          "startMs": 26506.536,
-          "endMs": 27998.348,
-          "wallMs": 1491.798,
-          "peakRssKB": 201808,
-          "userCpuMs": 2682.813,
-          "sysCpuMs": 197.426,
-          "success": true
-        },
-        {
-          "name": "992.docx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 127922,
-          "startMs": 27998.393,
-          "endMs": 29464.835,
-          "wallMs": 1466.429,
-          "peakRssKB": 203184,
-          "userCpuMs": 2569.53,
-          "sysCpuMs": 186.767,
-          "success": true
-        },
-        {
-          "name": "burlington_ufo_center.html",
-          "format": "html",
-          "category": "small",
-          "sizeBytes": 124657,
-          "startMs": 29464.896,
-          "endMs": 30948.223,
-          "wallMs": 1483.31,
-          "peakRssKB": 216080,
-          "userCpuMs": 3062.723,
-          "sysCpuMs": 187.076,
-          "success": true
-        },
-        {
-          "name": "sanitizer.html",
-          "format": "html",
-          "category": "small",
-          "sizeBytes": 80010,
-          "startMs": 30948.283,
-          "endMs": 32391.477,
-          "wallMs": 1443.178,
-          "peakRssKB": 203728,
-          "userCpuMs": 2877.164,
-          "sysCpuMs": 179.009,
-          "success": true
-        },
-        {
-          "name": "W3CHTMHLTest1.html",
-          "format": "html",
-          "category": "small",
-          "sizeBytes": 40956,
-          "startMs": 32391.54,
-          "endMs": 33793.049,
-          "wallMs": 1401.487,
-          "peakRssKB": 199440,
-          "userCpuMs": 2637.717,
-          "sysCpuMs": 176.963,
-          "success": true
-        },
-        {
-          "name": "Josh Test News Email.json",
-          "format": "json",
-          "category": "small",
-          "sizeBytes": 32053,
-          "startMs": 33793.202,
-          "endMs": 35123.254,
-          "wallMs": 1330.028,
-          "peakRssKB": 212992,
-          "userCpuMs": 2378.859,
-          "sysCpuMs": 161,
-          "success": true
-        },
-        {
-          "name": "en (3).yml",
-          "format": "yaml",
-          "category": "small",
-          "sizeBytes": 31015,
-          "startMs": 35123.31,
-          "endMs": 36485.964,
-          "wallMs": 1362.639,
-          "peakRssKB": 204320,
-          "userCpuMs": 2526.074,
-          "sysCpuMs": 162.394,
-          "success": true
-        },
-        {
-          "name": "openoffice_input.xml",
-          "format": "xml",
-          "category": "small",
-          "sizeBytes": 31496,
-          "startMs": 36486.055,
-          "endMs": 37806.151,
-          "wallMs": 1320.08,
-          "peakRssKB": 201088,
-          "userCpuMs": 2247.504,
-          "sysCpuMs": 149.625,
-          "success": true
-        },
-        {
-          "name": "Demo V1.srt",
-          "format": "srt",
-          "category": "small",
-          "sizeBytes": 17664,
-          "startMs": 37806.21,
-          "endMs": 39035.66,
-          "wallMs": 1229.437,
-          "peakRssKB": 187440,
-          "userCpuMs": 1849.635,
-          "sysCpuMs": 130.903,
-          "success": true
-        },
-        {
-          "name": "Test01.properties",
-          "format": "properties",
-          "category": "tiny",
-          "sizeBytes": 2404,
-          "startMs": 39035.731,
-          "endMs": 40307.83,
-          "wallMs": 1271.955,
-          "peakRssKB": 190016,
-          "userCpuMs": 1942.355,
-          "sysCpuMs": 150.928,
-          "success": true
-        },
-        {
-          "name": "AllCasesTest.po",
-          "format": "po",
-          "category": "tiny",
-          "sizeBytes": 1968,
-          "startMs": 40308.538,
-          "endMs": 41573.49,
-          "wallMs": 1264.915,
-          "peakRssKB": 201008,
-          "userCpuMs": 2009.658,
-          "sysCpuMs": 140.784,
-          "success": true
-        }
-      ]
-    },
-    {
-      "engine": "kapi-bridge-daemon",
-      "version": "v0.1.1-164-g06fdef7",
-      "iterations": 5,
-      "wallTimeMs": {
-        "mean": 12564.59,
-        "median": 12633.47,
-        "p5": 12183.67,
-        "p95": 12863.55,
-        "stddev": 298,
-        "min": 12098.24,
-        "max": 12917.3
-      },
-      "peakRssKB": {
-        "mean": 6564496,
-        "median": 6697888,
-        "p5": 5969952,
-        "p95": 7052576,
-        "stddev": 515655.89,
-        "min": 5932944,
-        "max": 7063072
-      },
-      "daemonRssKB": {
-        "mean": 32160,
-        "median": 32160,
-        "p5": 32160,
-        "p95": 32160,
-        "stddev": 0,
-        "min": 32160,
-        "max": 32160
-      },
-      "fileResults": [
-        {
-          "name": "large.xlsx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "Conference_Talk.pptx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "big.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "ugly_big.htm",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "958-4.pptx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "content_category_test.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "delTextAmp.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "SF-12-Test01.xlf",
-          "format": "xliff",
-          "success": true
-        },
-        {
-          "name": "Test_nautilus.af.po",
-          "format": "po",
-          "success": true
-        },
-        {
-          "name": "en (2).yml",
-          "format": "yaml",
-          "success": true
-        },
-        {
-          "name": "Endpara.pptx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "992.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "burlington_ufo_center.html",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "sanitizer.html",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "W3CHTMHLTest1.html",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "Josh Test News Email.json",
-          "format": "json",
-          "success": true
-        },
-        {
-          "name": "en (3).yml",
-          "format": "yaml",
-          "success": true
-        },
-        {
-          "name": "openoffice_input.xml",
-          "format": "xml",
-          "success": true
-        },
-        {
-          "name": "Demo V1.srt",
-          "format": "srt",
-          "success": true
-        },
-        {
-          "name": "Test01.properties",
-          "format": "properties",
-          "success": true
-        },
-        {
-          "name": "AllCasesTest.po",
-          "format": "po",
-          "success": true
-        }
-      ],
-      "fileTimings": [
-        {
-          "name": "large.xlsx",
-          "format": "openxml",
-          "category": "large",
-          "sizeBytes": 6824271,
-          "startMs": 0.006,
-          "endMs": 10412.559,
-          "wallMs": 10412.534,
-          "peakRssKB": 6640512,
-          "userCpuMs": 39906.342,
-          "sysCpuMs": 4468.132,
-          "success": true
-        },
-        {
-          "name": "Conference_Talk.pptx",
-          "format": "openxml",
-          "category": "large",
-          "sizeBytes": 3086407,
-          "startMs": 10412.603,
-          "endMs": 12068.699,
-          "wallMs": 1656.06,
-          "peakRssKB": 217312,
-          "userCpuMs": 3393.943,
-          "sysCpuMs": 248.12,
-          "success": true
-        },
-        {
-          "name": "big.docx",
-          "format": "openxml",
-          "category": "large",
-          "sizeBytes": 1037964,
-          "startMs": 12068.781,
-          "endMs": 14912.162,
-          "wallMs": 2843.306,
-          "peakRssKB": 657072,
-          "userCpuMs": 8572.797,
-          "sysCpuMs": 422.112,
-          "success": true
-        },
-        {
-          "name": "ugly_big.htm",
-          "format": "html",
-          "category": "medium",
-          "sizeBytes": 821835,
-          "startMs": 14912.209,
-          "endMs": 16687.077,
-          "wallMs": 1774.823,
-          "peakRssKB": 484144,
-          "userCpuMs": 4757.648,
-          "sysCpuMs": 248.237,
-          "success": true
-        },
-        {
-          "name": "958-4.pptx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 719118,
-          "startMs": 16687.114,
-          "endMs": 18140.11,
-          "wallMs": 1452.963,
+          "startMs": 15437.817,
+          "endMs": 16643.183,
+          "wallMs": 1204.657,
           "peakRssKB": 201232,
-          "userCpuMs": 2722.164,
-          "sysCpuMs": 187.927,
-          "success": true
-        },
-        {
-          "name": "content_category_test.docx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 706058,
-          "startMs": 18140.167,
-          "endMs": 19576.645,
-          "wallMs": 1436.445,
-          "peakRssKB": 206256,
-          "userCpuMs": 2583.47,
-          "sysCpuMs": 161.394,
+          "userCpuMs": 1996.473,
+          "sysCpuMs": 138.594,
           "success": true
         },
         {
@@ -1061,12 +822,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 554463,
-          "startMs": 19576.667,
-          "endMs": 21962.402,
-          "wallMs": 2385.708,
-          "peakRssKB": 200160,
-          "userCpuMs": 3038.84,
-          "sysCpuMs": 197.06,
+          "startMs": 16643.212,
+          "endMs": 17912.155,
+          "wallMs": 1268.289,
+          "peakRssKB": 209776,
+          "userCpuMs": 2345.866,
+          "sysCpuMs": 152.182,
           "success": true
         },
         {
@@ -1074,12 +835,12 @@
           "format": "xliff",
           "category": "medium",
           "sizeBytes": 359215,
-          "startMs": 21962.426,
-          "endMs": 23482.208,
-          "wallMs": 1519.729,
-          "peakRssKB": 256816,
-          "userCpuMs": 3327.333,
-          "sysCpuMs": 198.264,
+          "startMs": 17912.185,
+          "endMs": 19232.706,
+          "wallMs": 1319.571,
+          "peakRssKB": 256864,
+          "userCpuMs": 2724.684,
+          "sysCpuMs": 156.04,
           "success": true
         },
         {
@@ -1087,12 +848,12 @@
           "format": "po",
           "category": "medium",
           "sizeBytes": 283681,
-          "startMs": 23482.286,
-          "endMs": 24910.526,
-          "wallMs": 1428.175,
-          "peakRssKB": 200176,
-          "userCpuMs": 2806.304,
-          "sysCpuMs": 181.906,
+          "startMs": 19232.735,
+          "endMs": 20440.843,
+          "wallMs": 1207.467,
+          "peakRssKB": 201296,
+          "userCpuMs": 2262.435,
+          "sysCpuMs": 137.55,
           "success": true
         },
         {
@@ -1100,12 +861,12 @@
           "format": "yaml",
           "category": "medium",
           "sizeBytes": 252243,
-          "startMs": 24910.594,
-          "endMs": 26412.385,
-          "wallMs": 1501.728,
-          "peakRssKB": 209296,
-          "userCpuMs": 3383.607,
-          "sysCpuMs": 179.351,
+          "startMs": 20440.879,
+          "endMs": 21755.622,
+          "wallMs": 1314.007,
+          "peakRssKB": 210448,
+          "userCpuMs": 2682.064,
+          "sysCpuMs": 156.008,
           "success": true
         },
         {
@@ -1113,12 +874,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 143372,
-          "startMs": 26412.41,
-          "endMs": 27802.308,
-          "wallMs": 1389.847,
-          "peakRssKB": 208528,
-          "userCpuMs": 2465.347,
-          "sysCpuMs": 175.763,
+          "startMs": 21755.656,
+          "endMs": 22982.987,
+          "wallMs": 1226.487,
+          "peakRssKB": 205280,
+          "userCpuMs": 2080.996,
+          "sysCpuMs": 150.441,
           "success": true
         },
         {
@@ -1126,12 +887,12 @@
           "format": "openxml",
           "category": "medium",
           "sizeBytes": 127922,
-          "startMs": 27802.382,
-          "endMs": 29218.314,
-          "wallMs": 1415.876,
-          "peakRssKB": 202384,
-          "userCpuMs": 2514.572,
-          "sysCpuMs": 174.763,
+          "startMs": 22983.032,
+          "endMs": 24195.756,
+          "wallMs": 1211.002,
+          "peakRssKB": 206560,
+          "userCpuMs": 2049.864,
+          "sysCpuMs": 147.501,
           "success": true
         },
         {
@@ -1139,12 +900,12 @@
           "format": "html",
           "category": "small",
           "sizeBytes": 124657,
-          "startMs": 29218.351,
-          "endMs": 30659.797,
-          "wallMs": 1441.398,
-          "peakRssKB": 214480,
-          "userCpuMs": 2948.605,
-          "sysCpuMs": 171.884,
+          "startMs": 24195.809,
+          "endMs": 25467.278,
+          "wallMs": 1269.66,
+          "peakRssKB": 214736,
+          "userCpuMs": 2420.62,
+          "sysCpuMs": 158.466,
           "success": true
         },
         {
@@ -1152,12 +913,12 @@
           "format": "html",
           "category": "small",
           "sizeBytes": 80010,
-          "startMs": 30659.827,
-          "endMs": 32036.48,
-          "wallMs": 1376.609,
-          "peakRssKB": 204640,
-          "userCpuMs": 2747.146,
-          "sysCpuMs": 164.832,
+          "startMs": 25467.318,
+          "endMs": 26693.506,
+          "wallMs": 1223.039,
+          "peakRssKB": 213712,
+          "userCpuMs": 2244.727,
+          "sysCpuMs": 156.019,
           "success": true
         },
         {
@@ -1165,12 +926,12 @@
           "format": "html",
           "category": "small",
           "sizeBytes": 40956,
-          "startMs": 32036.508,
-          "endMs": 33383.976,
-          "wallMs": 1347.429,
-          "peakRssKB": 204304,
-          "userCpuMs": 2530.194,
-          "sysCpuMs": 160.762,
+          "startMs": 26693.556,
+          "endMs": 27896.002,
+          "wallMs": 1200.256,
+          "peakRssKB": 202752,
+          "userCpuMs": 2107.063,
+          "sysCpuMs": 147.525,
           "success": true
         },
         {
@@ -1178,12 +939,12 @@
           "format": "json",
           "category": "small",
           "sizeBytes": 32053,
-          "startMs": 33384.034,
-          "endMs": 34680.181,
-          "wallMs": 1296.058,
-          "peakRssKB": 206288,
-          "userCpuMs": 2183.934,
-          "sysCpuMs": 159.921,
+          "startMs": 27896.058,
+          "endMs": 29052.427,
+          "wallMs": 1154.773,
+          "peakRssKB": 213872,
+          "userCpuMs": 1921.77,
+          "sysCpuMs": 133.275,
           "success": true
         },
         {
@@ -1191,12 +952,12 @@
           "format": "yaml",
           "category": "small",
           "sizeBytes": 31015,
-          "startMs": 34680.227,
-          "endMs": 36035.372,
-          "wallMs": 1355.1,
-          "peakRssKB": 206736,
-          "userCpuMs": 2507.186,
-          "sysCpuMs": 154.601,
+          "startMs": 29052.481,
+          "endMs": 30242.467,
+          "wallMs": 1188.106,
+          "peakRssKB": 213984,
+          "userCpuMs": 2001.76,
+          "sysCpuMs": 138.643,
           "success": true
         },
         {
@@ -1204,12 +965,12 @@
           "format": "xml",
           "category": "small",
           "sizeBytes": 31496,
-          "startMs": 36035.411,
-          "endMs": 37300.096,
-          "wallMs": 1264.661,
-          "peakRssKB": 192896,
-          "userCpuMs": 2123.235,
-          "sysCpuMs": 138.885,
+          "startMs": 30242.521,
+          "endMs": 31395.709,
+          "wallMs": 1153.169,
+          "peakRssKB": 200944,
+          "userCpuMs": 1825.509,
+          "sysCpuMs": 125.935,
           "success": true
         },
         {
@@ -1217,12 +978,12 @@
           "format": "srt",
           "category": "small",
           "sizeBytes": 17664,
-          "startMs": 37300.113,
-          "endMs": 38487.144,
-          "wallMs": 1187,
-          "peakRssKB": 188848,
-          "userCpuMs": 1763.93,
-          "sysCpuMs": 121.284,
+          "startMs": 31395.741,
+          "endMs": 32447.55,
+          "wallMs": 1051.791,
+          "peakRssKB": 191264,
+          "userCpuMs": 1416.151,
+          "sysCpuMs": 103.142,
           "success": true
         },
         {
@@ -1230,12 +991,12 @@
           "format": "properties",
           "category": "tiny",
           "sizeBytes": 2404,
-          "startMs": 38487.161,
-          "endMs": 39737.103,
-          "wallMs": 1249.912,
-          "peakRssKB": 208160,
-          "userCpuMs": 2007.548,
-          "sysCpuMs": 126.129,
+          "startMs": 32447.578,
+          "endMs": 33515.26,
+          "wallMs": 1067.67,
+          "peakRssKB": 202656,
+          "userCpuMs": 1588.936,
+          "sysCpuMs": 112.399,
           "success": true
         },
         {
@@ -1243,420 +1004,190 @@
           "format": "po",
           "category": "tiny",
           "sizeBytes": 1968,
-          "startMs": 39737.123,
-          "endMs": 41009.886,
-          "wallMs": 1272.739,
-          "peakRssKB": 195312,
-          "userCpuMs": 2021.674,
-          "sysCpuMs": 132.84,
-          "success": true
-        }
-      ]
-    },
-    {
-      "engine": "okapi",
-      "version": "2.1.48.0",
-      "iterations": 5,
-      "wallTimeMs": {
-        "mean": 10551.14,
-        "median": 10578.73,
-        "p5": 10343.29,
-        "p95": 10725.78,
-        "stddev": 167.14,
-        "min": 10311.07,
-        "max": 10745.06
-      },
-      "peakRssKB": {
-        "mean": 5440848,
-        "median": 5582624,
-        "p5": 4999267.2,
-        "p95": 5731414.4,
-        "stddev": 336767.86,
-        "min": 4930016,
-        "max": 5747248
-      },
-      "fileResults": [
-        {
-          "name": "large.xlsx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "Conference_Talk.pptx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "big.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "ugly_big.htm",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "958-4.pptx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "content_category_test.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "delTextAmp.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "SF-12-Test01.xlf",
-          "format": "xliff",
-          "success": true
-        },
-        {
-          "name": "Test_nautilus.af.po",
-          "format": "po",
-          "success": true
-        },
-        {
-          "name": "en (2).yml",
-          "format": "yaml",
-          "success": true
-        },
-        {
-          "name": "Endpara.pptx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "992.docx",
-          "format": "openxml",
-          "success": true
-        },
-        {
-          "name": "burlington_ufo_center.html",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "sanitizer.html",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "W3CHTMHLTest1.html",
-          "format": "html",
-          "success": true
-        },
-        {
-          "name": "Josh Test News Email.json",
-          "format": "json",
-          "success": true
-        },
-        {
-          "name": "en (3).yml",
-          "format": "yaml",
-          "success": true
-        },
-        {
-          "name": "openoffice_input.xml",
-          "format": "xml",
-          "success": true
-        },
-        {
-          "name": "Demo V1.srt",
-          "format": "srt",
-          "success": true
-        },
-        {
-          "name": "Test01.properties",
-          "format": "properties",
-          "success": true
-        },
-        {
-          "name": "AllCasesTest.po",
-          "format": "po",
+          "startMs": 33515.292,
+          "endMs": 34604.264,
+          "wallMs": 1088.957,
+          "peakRssKB": 197072,
+          "userCpuMs": 1604.038,
+          "sysCpuMs": 115.092,
           "success": true
         }
       ],
-      "fileTimings": [
-        {
-          "name": "large.xlsx",
-          "format": "openxml",
-          "category": "large",
-          "sizeBytes": 6824271,
-          "startMs": 0.008,
-          "endMs": 7483.859,
-          "wallMs": 7479.875,
-          "peakRssKB": 3764560,
-          "userCpuMs": 23614.672,
-          "sysCpuMs": 1483.909,
-          "success": true
-        },
-        {
-          "name": "Conference_Talk.pptx",
-          "format": "openxml",
-          "category": "large",
-          "sizeBytes": 3086407,
-          "startMs": 7483.886,
-          "endMs": 8516.376,
-          "wallMs": 1030.625,
-          "peakRssKB": 167952,
-          "userCpuMs": 2762.873,
-          "sysCpuMs": 216.496,
-          "success": true
-        },
-        {
-          "name": "big.docx",
-          "format": "openxml",
-          "category": "large",
-          "sizeBytes": 1037964,
-          "startMs": 8516.389,
-          "endMs": 10608.655,
-          "wallMs": 2091.009,
-          "peakRssKB": 627296,
-          "userCpuMs": 7122.219,
-          "sysCpuMs": 346.637,
-          "success": true
-        },
-        {
-          "name": "ugly_big.htm",
-          "format": "html",
-          "category": "medium",
-          "sizeBytes": 821835,
-          "startMs": 10608.681,
-          "endMs": 11779.652,
-          "wallMs": 1169.649,
-          "peakRssKB": 268816,
-          "userCpuMs": 3539.545,
-          "sysCpuMs": 177.528,
-          "success": true
-        },
-        {
-          "name": "958-4.pptx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 719118,
-          "startMs": 11779.672,
-          "endMs": 12651.389,
-          "wallMs": 870.567,
-          "peakRssKB": 162144,
-          "userCpuMs": 2054.16,
-          "sysCpuMs": 163.066,
-          "success": true
-        },
-        {
-          "name": "content_category_test.docx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 706058,
-          "startMs": 12651.409,
-          "endMs": 13436.137,
-          "wallMs": 783.187,
-          "peakRssKB": 148912,
-          "userCpuMs": 1746.349,
-          "sysCpuMs": 136.77,
-          "success": true
-        },
-        {
-          "name": "delTextAmp.docx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 554463,
-          "startMs": 13436.156,
-          "endMs": 14274.787,
-          "wallMs": 837.643,
-          "peakRssKB": 147424,
-          "userCpuMs": 2060.742,
-          "sysCpuMs": 148.038,
-          "success": true
-        },
-        {
-          "name": "SF-12-Test01.xlf",
-          "format": "xliff",
-          "category": "medium",
-          "sizeBytes": 359215,
-          "startMs": 14274.798,
-          "endMs": 15089.631,
-          "wallMs": 813.742,
-          "peakRssKB": 171872,
-          "userCpuMs": 2182.491,
-          "sysCpuMs": 133.386,
-          "success": true
-        },
-        {
-          "name": "Test_nautilus.af.po",
-          "format": "po",
-          "category": "medium",
-          "sizeBytes": 283681,
-          "startMs": 15089.642,
-          "endMs": 15750.671,
-          "wallMs": 660.102,
-          "peakRssKB": 157008,
-          "userCpuMs": 1602.447,
-          "sysCpuMs": 118.072,
-          "success": true
-        },
-        {
-          "name": "en (2).yml",
-          "format": "yaml",
-          "category": "medium",
-          "sizeBytes": 252243,
-          "startMs": 15750.689,
-          "endMs": 16522.819,
-          "wallMs": 771.201,
-          "peakRssKB": 149632,
-          "userCpuMs": 2044.018,
-          "sysCpuMs": 121.207,
-          "success": true
-        },
-        {
-          "name": "Endpara.pptx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 143372,
-          "startMs": 16522.841,
-          "endMs": 17308.034,
-          "wallMs": 783.958,
-          "peakRssKB": 148208,
-          "userCpuMs": 1756.269,
-          "sysCpuMs": 141.378,
-          "success": true
-        },
-        {
-          "name": "992.docx",
-          "format": "openxml",
-          "category": "medium",
-          "sizeBytes": 127922,
-          "startMs": 17308.054,
-          "endMs": 18118.838,
-          "wallMs": 809.876,
-          "peakRssKB": 155984,
-          "userCpuMs": 1899.127,
-          "sysCpuMs": 144.882,
-          "success": true
-        },
-        {
-          "name": "burlington_ufo_center.html",
-          "format": "html",
-          "category": "small",
-          "sizeBytes": 124657,
-          "startMs": 18118.855,
-          "endMs": 18878.568,
-          "wallMs": 758.811,
-          "peakRssKB": 164352,
-          "userCpuMs": 2017.627,
-          "sysCpuMs": 124.769,
-          "success": true
-        },
-        {
-          "name": "sanitizer.html",
-          "format": "html",
-          "category": "small",
-          "sizeBytes": 80010,
-          "startMs": 18878.585,
-          "endMs": 19576.04,
-          "wallMs": 696.679,
-          "peakRssKB": 156544,
-          "userCpuMs": 1781.491,
-          "sysCpuMs": 119.934,
-          "success": true
-        },
-        {
-          "name": "W3CHTMHLTest1.html",
-          "format": "html",
-          "category": "small",
-          "sizeBytes": 40956,
-          "startMs": 19576.054,
-          "endMs": 20315.754,
-          "wallMs": 738.908,
-          "peakRssKB": 151632,
-          "userCpuMs": 1691.383,
-          "sysCpuMs": 120.061,
-          "success": true
-        },
-        {
-          "name": "Josh Test News Email.json",
-          "format": "json",
-          "category": "small",
-          "sizeBytes": 32053,
-          "startMs": 20315.765,
-          "endMs": 20945.113,
-          "wallMs": 628.617,
-          "peakRssKB": 148672,
-          "userCpuMs": 1307.387,
-          "sysCpuMs": 104.042,
-          "success": true
-        },
-        {
-          "name": "en (3).yml",
-          "format": "yaml",
-          "category": "small",
-          "sizeBytes": 31015,
-          "startMs": 20945.127,
-          "endMs": 21565.631,
-          "wallMs": 619.758,
-          "peakRssKB": 147744,
-          "userCpuMs": 1461.656,
-          "sysCpuMs": 109.777,
-          "success": true
-        },
-        {
-          "name": "openoffice_input.xml",
-          "format": "xml",
-          "category": "small",
-          "sizeBytes": 31496,
-          "startMs": 21565.645,
-          "endMs": 22188.912,
-          "wallMs": 622.065,
-          "peakRssKB": 162128,
-          "userCpuMs": 1436.627,
-          "sysCpuMs": 109.694,
-          "success": true
-        },
-        {
-          "name": "Demo V1.srt",
-          "format": "srt",
-          "category": "small",
-          "sizeBytes": 17664,
-          "startMs": 22188.95,
-          "endMs": 22761.908,
-          "wallMs": 572.121,
-          "peakRssKB": 150336,
-          "userCpuMs": 1216.821,
-          "sysCpuMs": 100.652,
-          "success": true
-        },
-        {
-          "name": "Test01.properties",
-          "format": "properties",
-          "category": "tiny",
-          "sizeBytes": 2404,
-          "startMs": 22761.92,
-          "endMs": 23300.398,
-          "wallMs": 537.672,
-          "peakRssKB": 146432,
-          "userCpuMs": 1045.028,
-          "sysCpuMs": 91.385,
-          "success": true
-        },
-        {
-          "name": "AllCasesTest.po",
-          "format": "po",
-          "category": "tiny",
-          "sizeBytes": 1968,
-          "startMs": 23300.414,
-          "endMs": 23911.712,
-          "wallMs": 610.573,
-          "peakRssKB": 146336,
-          "userCpuMs": 1133.286,
-          "sysCpuMs": 96.805,
-          "success": true
-        }
-      ]
+      "batchTrace": {
+        "name": "pseudo-translate",
+        "concurrency": 10,
+        "fileTraces": [
+          {
+            "file": "958-4.pptx",
+            "format": "okf_openxml",
+            "startUs": 56,
+            "endUs": 936491,
+            "lane": 3,
+            "durationUs": 936435
+          },
+          {
+            "file": "content_category_test.docx",
+            "format": "okf_openxml",
+            "startUs": 34,
+            "endUs": 1029988,
+            "lane": 1,
+            "durationUs": 1029954
+          },
+          {
+            "file": "Test_nautilus.af.po",
+            "format": "okf_po",
+            "startUs": 102,
+            "endUs": 1073968,
+            "lane": 5,
+            "durationUs": 1073866
+          },
+          {
+            "file": "Conference_Talk.pptx",
+            "format": "okf_openxml",
+            "startUs": 29,
+            "endUs": 1179539,
+            "lane": 0,
+            "durationUs": 1179510
+          },
+          {
+            "file": "en (2).yml",
+            "format": "okf_yaml",
+            "startUs": 118,
+            "endUs": 1183347,
+            "lane": 8,
+            "durationUs": 1183229
+          },
+          {
+            "file": "delTextAmp.docx",
+            "format": "okf_openxml",
+            "startUs": 93,
+            "endUs": 1190941,
+            "lane": 6,
+            "durationUs": 1190848
+          },
+          {
+            "file": "Endpara.pptx",
+            "format": "okf_openxml",
+            "startUs": 936497,
+            "endUs": 1195376,
+            "lane": 3,
+            "durationUs": 258879
+          },
+          {
+            "file": "992.docx",
+            "format": "okf_openxml",
+            "startUs": 1030002,
+            "endUs": 1219387,
+            "lane": 1,
+            "durationUs": 189385
+          },
+          {
+            "file": "Josh Test News Email.json",
+            "format": "okf_json",
+            "startUs": 1190948,
+            "endUs": 1282839,
+            "lane": 6,
+            "durationUs": 91891
+          },
+          {
+            "file": "W3CHTMHLTest1.html",
+            "format": "okf_html",
+            "startUs": 1183360,
+            "endUs": 1318947,
+            "lane": 8,
+            "durationUs": 135587
+          },
+          {
+            "file": "sanitizer.html",
+            "format": "okf_html",
+            "startUs": 1179546,
+            "endUs": 1390120,
+            "lane": 0,
+            "durationUs": 210574
+          },
+          {
+            "file": "Demo V1.srt",
+            "format": "okf_regex",
+            "startUs": 1282856,
+            "endUs": 1394722,
+            "lane": 6,
+            "durationUs": 111866
+          },
+          {
+            "file": "en (3).yml",
+            "format": "okf_yaml",
+            "startUs": 1195406,
+            "endUs": 1407079,
+            "lane": 3,
+            "durationUs": 211673
+          },
+          {
+            "file": "SF-12-Test01.xlf",
+            "format": "okf_xliff",
+            "startUs": 78,
+            "endUs": 1413905,
+            "lane": 4,
+            "durationUs": 1413827
+          },
+          {
+            "file": "Test01.properties",
+            "format": "okf_properties",
+            "startUs": 1318957,
+            "endUs": 1415935,
+            "lane": 8,
+            "durationUs": 96978
+          },
+          {
+            "file": "AllCasesTest.po",
+            "format": "okf_po",
+            "startUs": 1390130,
+            "endUs": 1415943,
+            "lane": 0,
+            "durationUs": 25813
+          },
+          {
+            "file": "burlington_ufo_center.html",
+            "format": "okf_html",
+            "startUs": 1073987,
+            "endUs": 1457751,
+            "lane": 5,
+            "durationUs": 383764
+          },
+          {
+            "file": "openoffice_input.xml",
+            "format": "okf_xml",
+            "startUs": 1219416,
+            "endUs": 1460986,
+            "lane": 1,
+            "durationUs": 241570
+          },
+          {
+            "file": "ugly_big.htm",
+            "format": "okf_html",
+            "startUs": 79,
+            "endUs": 2367199,
+            "lane": 2,
+            "durationUs": 2367120
+          },
+          {
+            "file": "big.docx",
+            "format": "okf_openxml",
+            "startUs": 97,
+            "endUs": 4038311,
+            "lane": 7,
+            "durationUs": 4038214
+          },
+          {
+            "file": "large.xlsx",
+            "format": "okf_openxml",
+            "startUs": 138,
+            "endUs": 9177886,
+            "lane": 9,
+            "durationUs": 9177748
+          }
+        ],
+        "durationUs": 9177888
+      }
     }
   ]
 }
