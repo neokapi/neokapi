@@ -18,10 +18,24 @@ type Writer struct {
 	cfg             *Config
 	skeletonStore   *format.SkeletonStore
 	originalContent []byte
+
+	// mediaReplacements maps ZIP entry paths (e.g., "word/media/image1.png")
+	// to replacement binary content for locale-variant media substitution (AD-029).
+	mediaReplacements map[string][]byte
 }
 
 var _ format.SkeletonStoreConsumer = (*Writer)(nil)
 var _ format.OriginalContentSetter = (*Writer)(nil)
+
+// SetMediaReplacement registers a locale-variant media file to substitute
+// during output reconstruction. The zipPath should match the original
+// entry path (e.g., "word/media/image1.png").
+func (w *Writer) SetMediaReplacement(zipPath string, data []byte) {
+	if w.mediaReplacements == nil {
+		w.mediaReplacements = make(map[string][]byte)
+	}
+	w.mediaReplacements[zipPath] = data
+}
 
 // NewWriter creates a new OpenXML writer.
 func NewWriter() *Writer {
@@ -152,7 +166,8 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 		}
 	}
 
-	// Write output ZIP: replace translatable parts with skeleton-reconstructed content
+	// Write output ZIP: replace translatable parts with skeleton-reconstructed content,
+	// and substitute locale-variant media files (AD-029).
 	for _, f := range origZR.File {
 		if content, ok := partContents[f.Name]; ok && len(content) > 0 {
 			// Replace with skeleton-reconstructed content
@@ -169,6 +184,20 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 			if _, err := fw.Write(content); err != nil {
 				return err
 			}
+		} else if replacement, ok := w.mediaReplacements[f.Name]; ok {
+			// Replace with locale-variant media (AD-029).
+			fh := f.FileHeader
+			fh.Method = zip.Deflate
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(replacement); err != nil {
+				return err
+			}
 		} else {
 			// Copy unchanged — use raw copy to preserve CRC/data descriptors
 			if err := zw.Copy(f); err != nil {
@@ -180,13 +209,28 @@ func (w *Writer) writeFromSkeleton(origZR *zip.Reader, zw *zip.Writer, buf *byte
 	return zw.Close()
 }
 
-// writeFromReparse copies the original ZIP unchanged (no skeleton available).
+// writeFromReparse copies the original ZIP, substituting locale-variant media (AD-029).
 func (w *Writer) writeFromReparse(origZR *zip.Reader, zw *zip.Writer, buf *bytes.Buffer,
 	blocks map[string]*model.Block) error {
 
 	for _, f := range origZR.File {
-		if err := zw.Copy(f); err != nil {
-			return err
+		if replacement, ok := w.mediaReplacements[f.Name]; ok {
+			fh := f.FileHeader
+			fh.Method = zip.Deflate
+			fh.CompressedSize64 = 0
+			fh.UncompressedSize64 = 0
+			fh.CRC32 = 0
+			fw, err := zw.CreateHeader(&fh)
+			if err != nil {
+				return err
+			}
+			if _, err := fw.Write(replacement); err != nil {
+				return err
+			}
+		} else {
+			if err := zw.Copy(f); err != nil {
+				return err
+			}
 		}
 	}
 
