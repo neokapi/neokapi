@@ -217,12 +217,19 @@ func (f FlowsListOutput) FormatText(w io.Writer) error {
 	return nil
 }
 
+// FlowStats holds optional processing statistics collected during a flow run.
+type FlowStats struct {
+	BlockCount int `json:"block_count"`
+	PartCount  int `json:"part_count"`
+}
+
 // FlowRunOutput represents the result of a flow run.
 type FlowRunOutput struct {
-	FlowName       string `json:"flow_name"`
-	InputPath      string `json:"input_path,omitempty"`
-	OutputPath     string `json:"output_path,omitempty"`
-	FilesProcessed int    `json:"files_processed,omitempty"`
+	FlowName       string     `json:"flow_name"`
+	InputPath      string     `json:"input_path,omitempty"`
+	OutputPath     string     `json:"output_path,omitempty"`
+	FilesProcessed int        `json:"files_processed,omitempty"`
+	Stats          *FlowStats `json:"stats,omitempty"`
 }
 
 func (o FlowRunOutput) FormatText(w io.Writer) error {
@@ -230,6 +237,9 @@ func (o FlowRunOutput) FormatText(w io.Writer) error {
 		fmt.Fprintf(w, "Flow %s completed: processed %d files\n", o.FlowName, o.FilesProcessed)
 	} else {
 		fmt.Fprintf(w, "Flow %s completed: %s → %s\n", o.FlowName, o.InputPath, o.OutputPath)
+	}
+	if o.Stats != nil {
+		fmt.Fprintf(w, "  Parts: %d, Blocks: %d\n", o.Stats.PartCount, o.Stats.BlockCount)
 	}
 	return nil
 }

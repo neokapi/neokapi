@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -59,6 +60,62 @@ func runProcess(ctx context.Context, env []string, name string, args ...string) 
 		SystemCPU: sysCPU,
 		PeakRSSKB: peakRSS,
 	}, nil
+}
+
+// runProcessWithOutput executes a command, captures stdout, and collects resource usage metrics.
+func runProcessWithOutput(ctx context.Context, env []string, name string, args ...string) ([]byte, *RunResult, error) {
+	cmd := exec.CommandContext(ctx, name, args...)
+	var stdoutBuf strings.Builder
+	cmd.Stdout = &stdoutBuf
+	var stderrBuf strings.Builder
+	cmd.Stderr = &stderrBuf
+	if len(env) > 0 {
+		cmd.Env = append(os.Environ(), env...)
+	}
+
+	start := time.Now()
+	if err := cmd.Run(); err != nil {
+		errMsg := stderrBuf.String()
+		if errMsg != "" {
+			return nil, nil, fmt.Errorf("command %s failed: %w\nstderr: %s", name, err, errMsg)
+		}
+		return nil, nil, fmt.Errorf("command %s failed: %w", name, err)
+	}
+	wallTime := time.Since(start)
+
+	var userCPU, sysCPU time.Duration
+	var peakRSS int64
+
+	if ps := cmd.ProcessState; ps != nil {
+		userCPU = ps.UserTime()
+		sysCPU = ps.SystemTime()
+		if ru, ok := ps.SysUsage().(*syscall.Rusage); ok {
+			peakRSS = ru.Maxrss
+			if runtime.GOOS == "darwin" {
+				peakRSS /= 1024
+			}
+		}
+	}
+
+	return []byte(stdoutBuf.String()), &RunResult{
+		WallTime:  wallTime,
+		UserCPU:   userCPU,
+		SystemCPU: sysCPU,
+		PeakRSSKB: peakRSS,
+	}, nil
+}
+
+// parseBlockCount extracts the block count from kapi JSON output with --stats.
+func parseBlockCount(stdout []byte) int64 {
+	var result struct {
+		Stats *struct {
+			BlockCount int64 `json:"block_count"`
+		} `json:"stats"`
+	}
+	if err := json.Unmarshal(stdout, &result); err != nil || result.Stats == nil {
+		return 0
+	}
+	return result.Stats.BlockCount
 }
 
 // --- Kapi Native Engine ---
@@ -255,10 +312,16 @@ type FileProcessor interface {
 }
 
 func (e *KapiNativeEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {
-	args := []string{"--disable-plugins", "okapi", "flow", "run", "pseudo-translate",
-		"-i", filepath.Join(inputDir, file.Name), "--target-lang", "qps", "-q",
-		"-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
-	return runProcess(ctx, nil, e.BinaryPath, args...)
+	args := []string{"--disable-plugins", "okapi", "--output-format", "json",
+		"flow", "run", "pseudo-translate",
+		"-i", filepath.Join(inputDir, file.Name), "--target-lang", "qps",
+		"--stats", "-o", filepath.Join(outputDir, "{name}_{lang}{ext}")}
+	stdout, result, err := runProcessWithOutput(ctx, nil, e.BinaryPath, args...)
+	if err != nil {
+		return nil, err
+	}
+	result.BlockCount = parseBlockCount(stdout)
+	return result, nil
 }
 
 func (e *KapiBridgeEngine) ProcessFile(ctx context.Context, file TestFile, inputDir, outputDir string) (*RunResult, error) {

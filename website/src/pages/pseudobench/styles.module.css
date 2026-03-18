@@ -136,6 +136,7 @@
   border: 1px solid var(--ifm-color-emphasis-200);
   border-radius: var(--ifm-card-border-radius);
   padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .compHeader {
@@ -387,6 +388,119 @@
 .overviewMissing {
   color: var(--ifm-color-emphasis-300);
   text-align: center;
+}
+
+/* ── Multi-invocation description ── */
+.multiDesc {
+  font-size: 0.82rem;
+  color: var(--ifm-color-emphasis-600);
+  margin: 0 0 0.75rem 0;
+  line-height: 1.5;
+}
+
+.multiDesc code {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.35rem;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 3px;
+}
+
+/* ── Timeline ── */
+.timelineContainer {
+  position: relative;
+  padding-bottom: 1.5rem;
+}
+
+.timelineRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 6px;
+}
+
+.timelineLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 150px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--ifm-color-emphasis-700);
+  flex-shrink: 0;
+}
+
+.timelineTrack {
+  flex: 1;
+  height: 22px;
+  background: var(--ifm-color-emphasis-100);
+  border-radius: 3px;
+  position: relative;
+  overflow: hidden;
+}
+
+.timelineBar {
+  position: absolute;
+  top: 2px;
+  height: 18px;
+  border-radius: 2px;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+  cursor: pointer;
+}
+
+.timelineBar:hover {
+  opacity: 1;
+  z-index: 1;
+  outline: 2px solid var(--ifm-color-emphasis-400);
+}
+
+.timelineAxis {
+  position: relative;
+  height: 1.2rem;
+  margin-left: calc(150px + 0.75rem);
+}
+
+.timelineTick {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  color: var(--ifm-color-emphasis-400);
+  white-space: nowrap;
+}
+
+.timelineLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.75rem;
+}
+
+.timelineLegendItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.timelineLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.timelineTooltip {
+  z-index: 100;
+  background: var(--ifm-card-background-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+  max-width: 280px;
 }
 
 /* ── Misc ── */
