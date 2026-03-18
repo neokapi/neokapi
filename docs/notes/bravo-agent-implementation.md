@@ -4,7 +4,7 @@ title: "Bravo Agent Implementation"
 ---
 # Bravo Agent Implementation
 
-This note provides implementation details for [AD-028](/docs/ad/028-bravo-agent).
+This note provides implementation details for [AD-028](/docs/ad/028-bravo-agent). The agent runtime uses [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw), a lightweight Rust-based agent framework, running in Docker containers with Azure OpenAI for model inference (swappable to any provider).
 
 ## Database Schema
 
@@ -281,35 +281,113 @@ docker run \
   python /workspace/script.py
 ```
 
-## Azure AI Foundry Agent Configuration
+## ZeroClaw Agent Configuration
 
-### Agent definition
+### Container pool management
 
-```json
-{
-  "name": "bravo",
-  "model": "gpt-4o",
-  "instructions": "<<system prompt from AD-028>>",
-  "tools": [
-    {
-      "type": "mcp",
-      "mcp": {
-        "server_label": "bowrain",
-        "server_url": "https://app.bowrain.com/mcp/",
-        "require_approval": "never",
-        "allowed_tools": []
-      }
-    }
-  ],
-  "tool_resources": {},
-  "temperature": 0.3,
-  "top_p": 0.9
+```go
+// platform/service/agent_pool.go
+
+type AgentPool struct {
+    runtime     ContainerRuntime      // Docker API / Azure Container Apps API
+    bravoImage  string                // "ghcr.io/neokapi/bravo-agent:latest"
+    mcpEndpoint string                // internal cluster URL to bowrain MCP
+    containers  map[string]*AgentContainer // conversationID → container
+    mu          sync.RWMutex
 }
+
+type ContainerRuntime interface {
+    Spawn(ctx context.Context, cfg ContainerConfig) (*AgentContainer, error)
+    Stop(ctx context.Context, containerID string) error
+    Health(ctx context.Context, containerID string) (bool, error)
+    Logs(ctx context.Context, containerID string) (io.ReadCloser, error)
+}
+
+type ContainerConfig struct {
+    Image       string
+    ConfigTOML  string            // rendered config.toml content
+    Memory      string            // "64m" (ZeroClaw needs ~5MB, generous limit)
+    CPU         string            // "0.25"
+    Network     string            // internal cluster network
+    Labels      map[string]string // workspace_id, conversation_id, user_id
+    IdleTimeout time.Duration     // auto-stop after idle
+}
+
+type AgentContainer struct {
+    ID             string
+    GatewayURL     string    // "http://10.0.1.42:42617"
+    ConversationID string
+    WorkspaceID    string
+    UserID         string
+    CreatedAt      time.Time
+    LastActiveAt   time.Time
+}
+```
+
+### Config template rendering
+
+AgentPool renders `config.toml` per conversation by injecting:
+
+| Variable | Source |
+|----------|--------|
+| `{{workspace_name}}` | From AuthStore workspace lookup |
+| `{{user_name}}` | From AuthStore user lookup |
+| `{{user_role}}` | From workspace membership |
+| `{{from_workspace_config}}` | Azure OpenAI key from workspace credentials store |
+| `{{scoped_agent_token}}` | Freshly minted `bwt_bravo_*` token |
+
+### Container lifecycle API
+
+```
+AgentService.SendMessage()
+  ├── pool.Acquire(conversationID)
+  │     ├── if exists + healthy → return existing container
+  │     └── if not → spawn new container
+  │           ├── render config.toml from template
+  │           ├── create scoped agent token
+  │           ├── containerRuntime.Spawn(config)
+  │           └── wait for health check (GET /health on gateway port)
+  │
+  ├── POST container.GatewayURL/message (stream response)
+  │     ZeroClaw internally:
+  │       ├── LLM call → Azure OpenAI
+  │       ├── Tool calls → bowrain MCP server (via scoped token)
+  │       └── Returns streamed response chunks
+  │
+  └── Stream chunks → SSE to React frontend
+```
+
+### Idle reaper
+
+A background goroutine in AgentPool checks containers every 60s:
+- Containers idle > `IdleTimeout` (default 5m) are stopped
+- Conversations marked "completed" or "failed" have containers removed
+- On container stop, SQLite memory file is optionally archived to object storage for conversation history
+
+### @bravo Docker image
+
+```dockerfile
+FROM ghcr.io/zeroclaw-labs/zeroclaw:latest
+WORKDIR /bravo
+EXPOSE 42617
+CMD ["zeroclaw", "gateway"]
+```
+
+Config is injected at runtime via volume mount:
+```bash
+docker run -d \
+  --name bravo-${CONVERSATION_ID} \
+  --memory 64m \
+  --cpus 0.25 \
+  --network bowrain-internal \
+  -v /tmp/bravo-${CONVERSATION_ID}/config.toml:/bravo/config.toml:ro \
+  -v /tmp/bravo-${CONVERSATION_ID}/memory.db:/bravo/memory.db \
+  ghcr.io/neokapi/bravo-agent:latest
 ```
 
 ### MCP connection authentication
 
-Azure AI Foundry passes the scoped bearer token (`bwt_bravo_*`) as the Authorization header to bowrain's MCP endpoint. Bowrain's MCP auth middleware validates the token and extracts user identity.
+ZeroClaw passes the scoped bearer token (`bwt_bravo_*`) as configured in `[mcp.bowrain].headers` to bowrain's MCP endpoint. Bowrain's MCP auth middleware validates the token and extracts user identity.
 
 ```
 Authorization: Bearer bwt_bravo_a1b2c3d4e5f6...
@@ -320,6 +398,45 @@ The token resolves to:
 - `workspace_id` — the workspace scope
 - `conversation_id` — the originating conversation (for audit)
 - `role` — inherited from the user's workspace membership
+
+### Provider configuration examples
+
+Azure OpenAI (default):
+```toml
+[model]
+provider = "azure-openai"
+model = "gpt-4o"
+api_base = "https://my-instance.openai.azure.com/"
+api_key = "{{from_workspace_config}}"
+api_version = "2025-12-01-preview"
+```
+
+Swap to Anthropic (no code changes):
+```toml
+[model]
+provider = "anthropic"
+model = "claude-sonnet-4-20250514"
+api_key = "{{from_workspace_config}}"
+```
+
+Swap to self-hosted Ollama (no code changes):
+```toml
+[model]
+provider = "ollama"
+model = "llama3:70b"
+api_base = "http://ollama.internal:11434"
+```
+
+### Resource footprint
+
+| Metric | Value |
+|--------|-------|
+| Image size | ~16MB |
+| Cold start | <10ms |
+| Memory per agent | ~5MB (64MB limit) |
+| CPU per agent | 0.25 cores |
+| Agents per 1GB RAM | ~200 (theoretical) |
+| Max concurrent per workspace | Configurable (default 3) |
 
 ## Frontend Integration Details
 

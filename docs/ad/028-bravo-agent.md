@@ -25,7 +25,7 @@ What's missing is an **AI agent** that can operate within this infrastructure on
 
 ### @bravo: An AI Agent for Bowrain
 
-**@bravo** is a workspace-scoped AI agent that acts on behalf of a user with delegated permissions. It connects Azure AI Foundry Agent Service to bowrain's expanded MCP server, enabling the agent to invoke any platform operation the user has access to. Users interact with @bravo through a collapsible side panel in the web app.
+**@bravo** is a workspace-scoped AI agent that acts on behalf of a user with delegated permissions. It runs as a lightweight [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) agent in a Docker container within the same container app cluster as bowrain, connected to bowrain's expanded MCP server for tool access and to Azure OpenAI for model inference. This keeps the agent runtime self-hosted and vendor-agnostic — Azure is used only for LLM models, not for agent orchestration. Users interact with @bravo through a collapsible side panel in the web app.
 
 ### Design Principles
 
@@ -59,8 +59,8 @@ What's missing is an **AI agent** that can operate within this infrastructure on
 │                                                                │
 │  ┌──────────────┐  ┌───────────────┐  ┌─────────────────────┐ │
 │  │  Agent API   │  │ Agent Service │  │ Sandbox Executor    │ │
-│  │  /bravo/*    │  │ (orchestrate  │  │ (container-based    │ │
-│  │  SSE stream  │  │  agent loop,  │  │  script execution,  │ │
+│  │  /bravo/*    │  │ (orchestrate, │  │ (container-based    │ │
+│  │  SSE stream  │  │  lifecycle,   │  │  script execution,  │ │
 │  │  REST CRUD   │  │  tool policy) │  │  resource-limited)  │ │
 │  └──────┬───────┘  └──────┬────────┘  └─────────────────────┘ │
 │         │                 │                                    │
@@ -69,17 +69,39 @@ What's missing is an **AI agent** that can operate within this infrastructure on
 │  │  content · flow · tm · termbase · connector · sandbox     │ │
 │  │  + existing brand voice tools                             │ │
 │  └──────────────────────┬────────────────────────────────────┘ │
-└─────────────────────────┼──────────────────────────────────────┘
+└─────────────────────────┼────────────────────────────────────────┘
                           │ MCP Streamable HTTP
                           ▼
 ┌────────────────────────────────────────────────────────────────┐
-│  Azure AI Foundry Agent Service                                │
-│  • @bravo agent definition with system prompt                  │
-│  • MCP client connected to bowrain's MCP endpoint              │
-│  • Function calling drives tool invocation loop                │
-│  • Streams responses back to bowrain server                    │
+│  Container App Cluster                                         │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  ZeroClaw Agent Containers (one per active conversation)  │  │
+│  │  • ~5MB RAM, sub-10ms cold start, single Rust binary     │  │
+│  │  • MCP client → bowrain MCP server (tools)               │  │
+│  │  • Azure OpenAI provider (model inference only)           │  │
+│  │  • SQLite memory per conversation (vector + FTS5)         │  │
+│  │  • Gateway mode: HTTP API for bowrain ↔ agent comms       │  │
+│  └──────────────────────────────────────────────────────────┘  │
+│                                                                │
+│            │ Azure OpenAI API (model inference only)            │
+│            ▼                                                   │
+│  ┌──────────────────┐                                          │
+│  │  Azure OpenAI    │  No agent lock-in — only model access    │
+│  │  (GPT-4o, etc.)  │  Swappable to Anthropic, Ollama, etc.   │
+│  └──────────────────┘                                          │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+### Why ZeroClaw
+
+[ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) is an ultra-lightweight Rust-based AI agent runtime (MIT/Apache 2.0). It compiles to a ~3.4MB binary, uses <5MB RAM, and cold-starts in under 10ms. Key properties that make it ideal for @bravo:
+
+- **MCP client built-in** — connects to external MCP servers at startup and exposes their tools to the agent loop as native tools via `McpToolWrapper`. Supports both Stdio and Streamable HTTP transports.
+- **Multi-provider** — supports Azure OpenAI, OpenAI, Anthropic, Google Gemini, Ollama, OpenRouter. No vendor lock-in; swap providers via config.
+- **Three runtime modes** — `agent` (CLI), `gateway` (HTTP API), `daemon` (gateway + channels + scheduler). We use `gateway` mode for HTTP communication with bowrain.
+- **SQLite memory** — built-in hybrid search (70% vector cosine + 30% FTS5 BM25) for conversation context. Each container gets its own SQLite file.
+- **Trait-based architecture** — every subsystem (providers, channels, memory, tools) is a Rust trait; components are swappable through configuration.
+- **Container-friendly** — single static binary, minimal dependencies, designed for edge/cloud deployment.
 
 ### Backend
 
@@ -89,8 +111,8 @@ What's missing is an **AI agent** that can operate within this infrastructure on
 |---------|---------|
 | `platform/core/agent/` | Domain types: `Conversation`, `Message`, `ToolCall`, `AgentConfig`, `AgentStore` interface |
 | `platform/agent/` | AgentStore implementations (PostgreSQL, SQLite), migrations |
-| `platform/service/agent.go` | AgentService: orchestrates agent loop, manages sessions, enforces policy |
-| `platform/service/azure/` | Azure AI Foundry client: sends messages, streams responses, manages MCP connection |
+| `platform/service/agent.go` | AgentService: orchestrates agent lifecycle, manages sessions, enforces policy |
+| `platform/service/agent_pool.go` | ZeroClaw container pool: spawn, health-check, recycle agent containers |
 | `platform/server/agent_handler.go` | HTTP handlers for `/bravo/*` endpoints |
 | `platform/server/mcp/tools_content.go` | MCP tools: list/get/create/update projects, blocks, streams, versions |
 | `platform/server/mcp/tools_flow.go` | MCP tools: list/run flows, check status |
@@ -228,10 +250,10 @@ data: {"id":"msg_1"}
 When @bravo executes MCP tools on behalf of a user:
 
 1. AgentService creates a **scoped agent token** (`bwt_bravo_<random>`) tied to the user's ID, workspace, and conversation ID
-2. Token is passed to Azure AI Foundry as the MCP bearer credential
+2. Token is injected into the ZeroClaw container's MCP config as the bearer credential
 3. Bowrain's MCP auth middleware resolves the token → extracts `user_id` and `workspace_role`
 4. All tool calls execute under the user's permissions — no escalation possible
-5. Token is short-lived (conversation duration + grace period) and revoked on conversation end
+5. Token is short-lived (conversation duration + grace period) and revoked on conversation/container end
 6. Events emitted use `actor: "bravo:<user_id>"` to distinguish agent actions from direct user actions
 
 #### Tool Policy Enforcement
@@ -261,7 +283,7 @@ type AgentService struct {
     store       agent.AgentStore
     authStore   auth.AuthStore
     mcpServer   *mcp.MCPServer
-    azureClient *azure.AgentClient
+    pool        *AgentPool           // manages ZeroClaw containers
     eventBus    event.EventBus
     sandbox     *sandbox.Executor
     policy      *ToolPolicy
@@ -269,15 +291,50 @@ type AgentService struct {
 
 // SendMessage orchestrates the full agent loop:
 // 1. Persist user message
-// 2. Load conversation history
-// 3. Create scoped agent token for MCP delegation
-// 4. Call Azure AI Foundry agent with conversation + MCP endpoint
-// 5. Stream response chunks → SSE to client
-// 6. On tool call: check policy → execute via MCP (or pause for approval) → return result to Azure
-// 7. Loop until agent produces final text response
-// 8. Persist assistant message + tool calls
-// 9. Emit events to event bus
+// 2. Create scoped agent token for MCP delegation
+// 3. Acquire or spawn a ZeroClaw container from the pool
+// 4. POST message to ZeroClaw gateway HTTP API
+// 5. Stream response chunks from ZeroClaw → SSE to client
+// 6. ZeroClaw calls bowrain MCP tools autonomously (with scoped token)
+// 7. Tool policy is enforced at the MCP server level
+// 8. On needs_approval: ZeroClaw pauses, bowrain notifies client, waits for user
+// 9. Persist assistant message + tool calls on completion
+// 10. Emit events to event bus
 func (s *AgentService) SendMessage(ctx context.Context, convID, userID, content string, stream SSEWriter) error
+```
+
+#### ZeroClaw Container Pool
+
+```go
+// platform/service/agent_pool.go
+
+type AgentPool struct {
+    containerRuntime ContainerRuntime  // Docker/containerd/ACA API
+    mcpEndpoint      string            // bowrain's MCP server URL
+    bravoImage       string            // e.g. "ghcr.io/neokapi/bravo-agent:latest"
+    maxPerWorkspace  int               // from AgentConfig.MaxConcurrent
+}
+
+type ContainerRuntime interface {
+    Spawn(ctx context.Context, cfg ContainerConfig) (*AgentContainer, error)
+    Stop(ctx context.Context, containerID string) error
+    Health(ctx context.Context, containerID string) (bool, error)
+}
+
+type AgentContainer struct {
+    ID           string // container ID
+    GatewayURL   string // e.g. "http://10.0.1.42:42617"
+    ConversationID string
+    WorkspaceID  string
+    CreatedAt    time.Time
+}
+
+// Spawn creates a ZeroClaw container with:
+// - config.toml injected via volume/env with MCP server URL + scoped bearer token
+// - Azure OpenAI credentials from workspace config
+// - System prompt with workspace/user context
+// - Gateway mode listening on internal cluster network
+// Container is ephemeral — recycled when conversation ends or idles
 ```
 
 ### Expanded MCP Tools
@@ -343,34 +400,18 @@ type ExecResult struct {
 - Resource limits enforced by container runtime
 - Admin-togglable per workspace via `AgentConfig.CodeExecEnabled`
 
-### Azure AI Foundry Integration
+### ZeroClaw Agent Runtime
 
-#### Connection Pattern
+#### Container Configuration
 
-Azure AI Foundry natively supports MCP server connections (since late 2025). The agent is configured with bowrain's MCP endpoint URL. Azure handles the MCP protocol; bowrain serves as the MCP tool provider.
+Each @bravo container runs ZeroClaw in **gateway mode** with a dynamically generated `config.toml`:
 
-```go
-// platform/service/azure/client.go
+```toml
+# Generated per-conversation by AgentPool
 
-type AgentClient struct {
-    endpoint    string // Azure AI Foundry endpoint
-    credential  azcore.TokenCredential // managed identity or API key
-    agentID     string // pre-deployed agent ID in Foundry
-    mcpEndpoint string // bowrain's public MCP URL
-}
-
-// RunConversation sends the conversation to Azure, streams chunks back,
-// and bridges tool call requests to bowrain's MCP server via scoped tokens
-func (c *AgentClient) RunConversation(
-    ctx context.Context,
-    messages []agent.Message,
-    mcpToken string, // scoped bearer token for MCP auth
-) (<-chan StreamEvent, error)
-```
-
-#### @bravo System Prompt
-
-```
+[general]
+name = "bravo"
+system_prompt = """
 You are @bravo, an AI assistant for the Bowrain localization platform.
 You help users manage translation projects, run localization workflows,
 check quality, manage terminology, and automate complex tasks through
@@ -395,7 +436,84 @@ Guidelines:
 - Report results with clear counts and summaries
 - If a task is ambiguous, ask for clarification rather than guessing
 - Prefer using existing flows and tools over custom scripts when possible
+"""
+
+[model]
+provider = "azure-openai"                    # swappable to "anthropic", "ollama", etc.
+model = "gpt-4o"
+api_base = "https://my-instance.openai.azure.com/"
+api_key = "{{from_workspace_config}}"        # injected at container spawn
+api_version = "2025-12-01-preview"
+
+[gateway]
+host = "0.0.0.0"
+port = 42617
+
+[memory]
+enabled = true
+provider = "sqlite"                          # per-conversation SQLite file
+
+[mcp.bowrain]
+transport = "http"
+url = "https://app.bowrain.com/mcp/"         # or internal cluster URL
+headers = { Authorization = "Bearer {{scoped_agent_token}}" }
+tool_timeout_secs = 120
 ```
+
+ZeroClaw's `McpRegistry` discovers all available tools from bowrain's MCP server at startup and registers them as native tools in the agent loop via `McpToolWrapper`. The agent sees `list_projects`, `run_flow`, `execute_script`, etc. as first-class tools.
+
+#### Why Gateway Mode
+
+ZeroClaw's gateway mode exposes an HTTP API (Axum-based) that bowrain uses to send messages and stream responses:
+
+```
+Bowrain AgentService → POST /message → ZeroClaw gateway → agent loop
+                                                            ├── LLM call (Azure OpenAI)
+                                                            ├── MCP tool call (→ bowrain MCP server)
+                                                            └── stream response chunks → Bowrain → SSE → React
+```
+
+#### Provider Flexibility (No Vendor Lock-in)
+
+The `[model]` section is the **only** Azure dependency. Swapping to another provider requires changing 3 config lines — no code changes:
+
+```toml
+# Anthropic
+[model]
+provider = "anthropic"
+model = "claude-sonnet-4-20250514"
+api_key = "sk-ant-..."
+
+# Self-hosted Ollama
+[model]
+provider = "ollama"
+model = "llama3:70b"
+api_base = "http://ollama.internal:11434"
+```
+
+#### Container Lifecycle
+
+1. **Spawn** — on first message in a conversation, AgentPool creates a container with injected `config.toml`, scoped token, and model credentials
+2. **Warm** — container stays alive for the conversation duration + idle timeout (default 5m)
+3. **Reuse** — subsequent messages in the same conversation hit the same container (ZeroClaw retains conversation context in SQLite memory)
+4. **Recycle** — on idle timeout or conversation end, container is stopped and removed; SQLite memory can be archived for conversation history
+5. **Scale** — multiple containers run concurrently across the cluster, one per active conversation, capped by `AgentConfig.MaxConcurrent`
+
+#### @bravo Docker Image
+
+```dockerfile
+FROM ghcr.io/zeroclaw-labs/zeroclaw:latest AS runtime
+# ZeroClaw binary is ~3.4MB, base image ~16MB total
+
+WORKDIR /bravo
+COPY config.toml.template /bravo/config.toml.template
+
+# Config is injected at runtime via volume mount or env substitution
+EXPOSE 42617
+CMD ["zeroclaw", "gateway"]
+```
+
+Built as `ghcr.io/neokapi/bravo-agent:latest`. The image is tiny (~16MB) and cold-starts in <10ms.
 
 ### Frontend
 
@@ -532,10 +650,11 @@ All events carry `actor: "bravo:<user_id>"` and integrate with:
 - Basic React side panel with assistant-ui
 - Mock agent backend for end-to-end testing
 
-### Phase 2: Azure Integration + Core Tools
-- Azure AI Foundry client + MCP connection
+### Phase 2: ZeroClaw Integration + Core Tools
+- ZeroClaw container pool (spawn, health-check, recycle)
+- @bravo Docker image + config.toml templating
 - Identity delegation (scoped tokens)
-- @bravo system prompt + persona
+- Azure OpenAI model connection
 - TM, termbase, connector MCP tools
 - Tool call visualization in UI
 - Conversation history
@@ -566,13 +685,14 @@ All events carry `actor: "bravo:<user_id>"` and integrate with:
 | Vercel AI SDK | Next.js-centric hooks; bowrain uses Vite + TanStack Router, not Next.js |
 | Custom from scratch | Unnecessary; assistant-ui provides the primitives while allowing full customization |
 
-### Agent backend connection
+### Agent runtime
 
 | Option | Verdict |
 |--------|---------|
-| **Azure AI Foundry + MCP** | **Chosen.** Native MCP support, enterprise security, managed infrastructure |
-| Direct LLM API + function calling | More boilerplate, must implement tool loop, no managed agent state |
-| LangChain/LangGraph | Extra dependency, Python-centric, doesn't leverage existing Go MCP server |
+| **ZeroClaw containers + Azure OpenAI** | **Chosen.** Self-hosted, no vendor lock-in, ~5MB RAM per agent, native MCP client, provider-swappable via config. Azure used only for models. |
+| Azure AI Foundry Agent Service | Full managed service but hard vendor lock-in to Azure agent orchestration, data leaves your infrastructure |
+| Direct LLM API + custom Go agent loop | Full control but must implement tool loop, memory, streaming from scratch |
+| LangChain/LangGraph | Python-centric, heavy dependency, doesn't leverage existing Go MCP server |
 
 ### Code execution
 
