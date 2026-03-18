@@ -1064,3 +1064,62 @@ func (c *BowrainClient) ListAssets(ctx context.Context, itemName string) ([]Asse
 	}
 	return result.Assets, nil
 }
+
+// AssetVariantResponse is the API response for a locale variant.
+type AssetVariantResponse struct {
+	AssetID     string `json:"asset_id"`
+	Locale      string `json:"locale"`
+	BlobKey     string `json:"blob_key"`
+	Status      string `json:"status"`
+	MimeType    string `json:"mime_type"`
+	SizeBytes   int64  `json:"size_bytes"`
+	DownloadURL string `json:"download_url,omitempty"`
+}
+
+// AssetVariantListResponse wraps a list of variants.
+type AssetVariantListResponse struct {
+	Variants []AssetVariantResponse `json:"variants"`
+}
+
+// ListAssetVariants fetches locale variants for an asset.
+func (c *BowrainClient) ListAssetVariants(ctx context.Context, assetID string) ([]AssetVariantResponse, error) {
+	u := c.streamPrefix() + "/assets/" + assetID + "/variants"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("list variants request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("list variants failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result AssetVariantListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode variants response: %w", err)
+	}
+	return result.Variants, nil
+}
+
+// DownloadBlob downloads binary content from a URL (SAS URL or server proxy).
+func (c *BowrainClient) DownloadBlob(ctx context.Context, downloadURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create download request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download blob: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}

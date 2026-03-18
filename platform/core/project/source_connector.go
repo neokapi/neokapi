@@ -577,7 +577,13 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 					continue
 				}
 
-				if err := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap); err != nil {
+				// Fetch locale-variant media for this item (AD-029).
+				var mediaRepl []MediaReplacement
+				if c.project.Config.AssetsEnabled() {
+					mediaRepl = c.fetchMediaReplacements(ctx, itemName, loc)
+				}
+
+				if err := c.writeTranslatedFile(ctx, absSource, absOut, formatName, loc, targetMap, mediaRepl...); err != nil {
 					continue
 				}
 				filesWritten++
@@ -851,7 +857,18 @@ func (c *BowrainSourceConnector) resolveTargetPath(itemName, locale string) stri
 
 // writeTranslatedFile reads a source file, injects target translations into blocks,
 // and writes the translated output file using the appropriate format writer.
-func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string) error {
+// MediaReplacement describes a locale-variant media file to substitute in the output.
+type MediaReplacement struct {
+	ZipPath string // original ZIP entry path (e.g., "word/media/image1.png")
+	Data    []byte // locale-variant binary content
+}
+
+// MediaReplacementSetter is implemented by writers that support locale-variant media substitution.
+type MediaReplacementSetter interface {
+	SetMediaReplacement(zipPath string, data []byte)
+}
+
+func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, sourcePath, outputPath, formatName, locale string, targets map[string]string, mediaReplacements ...MediaReplacement) error {
 	// Read source.
 	reader, err := c.formatReg.NewReader(formatName)
 	if err != nil {
@@ -925,6 +942,13 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 		ocs.SetOriginalContent(srcBytes)
 	}
 
+	// Apply locale-variant media replacements (AD-029).
+	if mrs, ok := writer.(MediaReplacementSetter); ok {
+		for _, mr := range mediaReplacements {
+			mrs.SetMediaReplacement(mr.ZipPath, mr.Data)
+		}
+	}
+
 	// Ensure output directory exists.
 	if err := os.MkdirAll(filepath.Dir(outputPath), 0755); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
@@ -946,6 +970,58 @@ func (c *BowrainSourceConnector) writeTranslatedFile(ctx context.Context, source
 	}
 
 	return writer.Close()
+}
+
+// fetchMediaReplacements downloads approved locale-variant media files for a given
+// item and locale, returning them as MediaReplacement entries for the writer.
+func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, itemName, locale string) []MediaReplacement {
+	if c.client == nil {
+		return nil
+	}
+
+	// Fetch assets for this item.
+	assets, err := c.client.ListAssets(ctx, itemName)
+	if err != nil || len(assets) == 0 {
+		return nil
+	}
+
+	var replacements []MediaReplacement
+	for _, asset := range assets {
+		// Fetch variants for this asset.
+		variants, err := c.client.ListAssetVariants(ctx, asset.ID)
+		if err != nil {
+			continue
+		}
+
+		for _, v := range variants {
+			if v.Locale != locale || v.Status != "approved" {
+				continue
+			}
+			if v.DownloadURL == "" {
+				continue
+			}
+
+			// Download the variant binary.
+			data, err := c.client.DownloadBlob(ctx, v.DownloadURL)
+			if err != nil {
+				continue
+			}
+
+			// Use the asset's zipPath property if available, otherwise
+			// fall back to sourceID which contains the ZIP path.
+			zipPath := asset.SourceID
+			if strings.HasPrefix(zipPath, "media:") {
+				zipPath = strings.TrimPrefix(zipPath, "media:")
+			}
+
+			replacements = append(replacements, MediaReplacement{
+				ZipPath: zipPath,
+				Data:    data,
+			})
+		}
+	}
+
+	return replacements
 }
 
 // resolveItemCollections builds a map of item path → collection by matching
