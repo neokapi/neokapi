@@ -26,7 +26,7 @@ jobs:
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Detect changed paths
@@ -76,7 +76,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
       - name: Check shared UI (oxlint + oxfmt)
@@ -110,7 +110,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
@@ -127,7 +127,7 @@ jobs:
         run: go-junit-report -in framework/test-results-framework.json -out junit-framework.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Framework Tests
@@ -139,14 +139,14 @@ jobs:
         run: exit 1
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-framework
           path: framework/framework.out
 
       - name: Upload native test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-native
@@ -159,7 +159,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
@@ -175,7 +175,7 @@ jobs:
         run: go-junit-report -in platform/test-results-platform.json -out junit-platform.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Platform Tests
@@ -187,7 +187,7 @@ jobs:
         run: exit 1
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-platform
@@ -200,7 +200,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
@@ -216,7 +216,7 @@ jobs:
         run: go-junit-report -in framework/test-results-cli.json -out junit-cli.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: CLI Tests
@@ -228,7 +228,7 @@ jobs:
         run: exit 1
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-cli
@@ -241,7 +241,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
@@ -257,7 +257,7 @@ jobs:
         run: go-junit-report -in framework/test-results-kapi.json -out junit-kapi.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Kapi Tests
@@ -269,7 +269,7 @@ jobs:
         run: exit 1
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-kapi
@@ -282,7 +282,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
@@ -298,7 +298,7 @@ jobs:
         run: go-junit-report -in platform/test-results-bowrain-cli.json -out junit-bowrain-cli.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Bowrain CLI Tests
@@ -310,7 +310,7 @@ jobs:
         run: exit 1
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-bowrain-cli
@@ -323,7 +323,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Install go-junit-report
@@ -342,7 +342,7 @@ jobs:
         run: go-junit-report -in test-results-bowrain.json -out junit-bowrain.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Bowrain Tests
@@ -354,7 +354,7 @@ jobs:
         run: exit 1
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-bowrain
@@ -368,10 +368,10 @@ jobs:
     needs: [test-framework, test-cli, test-platform, test-kapi, test-bowrain-cli, test-bowrain]
     if: always() && !cancelled()
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download coverage artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: coverage-*
           merge-multiple: true
@@ -392,7 +392,7 @@ jobs:
           done
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: coverage.out
         env:
@@ -405,14 +405,14 @@ jobs:
     needs: changes
     if: needs.changes.outputs.framework == 'true' || needs.changes.outputs.cli == 'true' || needs.changes.outputs.kapi == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
 
       - name: Lint framework
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: latest
@@ -420,7 +420,7 @@ jobs:
           args: --timeout=5m ./...
 
       - name: Lint cli
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: latest
@@ -428,7 +428,7 @@ jobs:
           args: --timeout=5m ./...
 
       - name: Lint kapi
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: latest
@@ -441,9 +441,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.platform == 'true' || needs.changes.outputs.bowrain_cli == 'true' || needs.changes.outputs.bowrain == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
 
@@ -452,7 +452,7 @@ jobs:
           mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
 
       - name: Lint platform
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: latest
@@ -460,7 +460,7 @@ jobs:
           args: --timeout=5m ./...
 
       - name: Lint Bowrain CLI
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: latest
@@ -474,7 +474,7 @@ jobs:
         run: mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
 
       - name: Lint bowrain
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: latest
@@ -488,7 +488,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.workflows == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install actionlint
         run: bash <(curl -s https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
@@ -503,7 +503,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.any_go == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Create embed placeholders
@@ -564,20 +564,20 @@ jobs:
       contents: write
       actions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
 
       - name: Download test results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: test-results-*
           merge-multiple: true
 
       - name: Cache okapi surefire reports
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: okapi-surefire/
           key: okapi-surefire-1.48.0

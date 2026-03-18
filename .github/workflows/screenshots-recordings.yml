@@ -32,13 +32,13 @@ jobs:
       matrix:
         theme: [dark, light]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -53,7 +53,7 @@ jobs:
         run: npx tsc
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
@@ -82,7 +82,7 @@ jobs:
         run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload Bowrain assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bowrain-assets-${{ matrix.theme }}
           path: |
@@ -98,9 +98,9 @@ jobs:
       matrix:
         theme: [dark, light]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -121,7 +121,7 @@ jobs:
         run: npx tsc
 
       - name: Cache Playwright browsers
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
@@ -151,7 +151,7 @@ jobs:
         run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload web app assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-app-assets-${{ matrix.theme }}
           path: |
@@ -164,9 +164,9 @@ jobs:
     name: Kapi Recordings (VHS)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
 
@@ -195,7 +195,7 @@ jobs:
           bash generate.sh
 
       - name: Upload kapi assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kapi-assets
           path: website/static/video/kapi/
@@ -206,9 +206,9 @@ jobs:
     name: Bowrain CLI Recordings (VHS)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
 
@@ -245,7 +245,7 @@ jobs:
           BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Upload Bowrain CLI assets
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: bowrain-cli-assets
           path: website/static/video/bowrain-cli/
@@ -257,14 +257,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [bowrain-assets, web-app-assets, kapi-recordings, bowrain-cli-recordings]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
 
       - name: Download all raw recording artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: raw-recordings
           merge-multiple: false
@@ -315,7 +315,7 @@ jobs:
         timeout-minutes: 30
 
       - name: Upload polished videos
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: polished-videos
           path: website/videos/output/
@@ -327,36 +327,36 @@ jobs:
     runs-on: ubuntu-latest
     needs: [bowrain-assets, web-app-assets, kapi-recordings, bowrain-cli-recordings, render-videos]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download Bowrain assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded-assets/bowrain
           pattern: bowrain-assets-*
           merge-multiple: true
 
       - name: Download Web App assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded-assets/web-app
           pattern: web-app-assets-*
           merge-multiple: true
 
       - name: Download Kapi assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded-assets/kapi
           name: kapi-assets
 
       - name: Download Bowrain CLI assets
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded-assets/bowrain-cli
           name: bowrain-cli-assets
 
       - name: Download polished videos
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: downloaded-assets/polished
           name: polished-videos

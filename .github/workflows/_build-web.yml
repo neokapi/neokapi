@@ -8,7 +8,7 @@ jobs:
     name: Build Web Assets
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build web app
@@ -16,7 +16,7 @@ jobs:
         run: npm run build
 
       - name: Upload web artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-dist
           path: platform/apps/web/dist
