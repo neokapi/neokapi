@@ -79,6 +79,17 @@ type ContentStore interface {
 	LatestCursor(ctx context.Context, projectID, stream string) (int64, error)
 	CompactChangeLog(ctx context.Context, projectID, stream string, retainDays int) (int64, error)
 
+	// Asset management — stream-scoped (AD-029)
+	StoreAsset(ctx context.Context, projectID, stream string, asset *Asset) error
+	GetAsset(ctx context.Context, projectID, stream, assetID string) (*Asset, error)
+	ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*Asset, error)
+	DeleteAsset(ctx context.Context, projectID, stream, assetID string) error
+
+	// Asset locale variants (AD-029)
+	StoreAssetVariant(ctx context.Context, projectID string, variant *AssetVariant) error
+	GetAssetVariant(ctx context.Context, projectID, assetID, locale string) (*AssetVariant, error)
+	ListAssetVariants(ctx context.Context, projectID, assetID string) ([]*AssetVariant, error)
+
 	// Lifecycle
 	Close() error
 }

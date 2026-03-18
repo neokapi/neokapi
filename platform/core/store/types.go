@@ -220,6 +220,43 @@ type ChangeSet struct {
 }
 
 // ---------------------------------------------------------------------------
+// Assets (binary media content — AD-029)
+// ---------------------------------------------------------------------------
+
+// Asset represents a binary asset (image, audio, video) stored in BlobStore
+// with metadata tracked in the ContentStore.
+type Asset struct {
+	ID               string            `json:"id"`
+	ProjectID        string            `json:"project_id"`
+	ItemName         string            `json:"item_name"`          // source file this asset belongs to
+	SourceID         string            `json:"source_id"`          // format-reader-assigned ID within the item
+	BlobKey          string            `json:"blob_key"`           // content-addressed key in BlobStore
+	MimeType         string            `json:"mime_type"`
+	Filename         string            `json:"filename"`           // original filename
+	SizeBytes        int64             `json:"size_bytes"`
+	AltText          string            `json:"alt_text"`           // extractable localized text
+	Properties       map[string]string `json:"properties"`         // dimensions, duration, codec, etc.
+	ProcessingStatus string            `json:"processing_status"`  // none, pending, processing, processed, failed
+	ProcessingHint   string            `json:"processing_hint"`    // ocr, chart-text, subtitle-extract, asr
+	Stream           string            `json:"stream,omitempty"`
+	CreatedAt        time.Time         `json:"created_at"`
+	UpdatedAt        time.Time         `json:"updated_at"`
+}
+
+// AssetVariant represents a locale-specific variant of an asset.
+type AssetVariant struct {
+	AssetID   string            `json:"asset_id"`
+	Locale    string            `json:"locale"`     // BCP-47 tag
+	BlobKey   string            `json:"blob_key"`   // locale-specific binary in BlobStore
+	Status    string            `json:"status"`     // pending, draft, approved
+	MimeType  string            `json:"mime_type"`
+	SizeBytes int64             `json:"size_bytes"`
+	Properties map[string]string `json:"properties"`
+	CreatedAt time.Time         `json:"created_at"`
+	UpdatedAt time.Time         `json:"updated_at"`
+}
+
+// ---------------------------------------------------------------------------
 // Block Statistics (lightweight projection for dashboard queries)
 // ---------------------------------------------------------------------------
 

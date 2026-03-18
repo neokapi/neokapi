@@ -1,0 +1,99 @@
+package server
+
+import (
+	"log"
+	"os"
+	"path/filepath"
+
+	"github.com/neokapi/neokapi/bowrain/storage/azureblob"
+	"github.com/neokapi/neokapi/bowrain/storage/localblob"
+)
+
+// initBlobStore initializes the BlobStore based on server config.
+func (s *Server) initBlobStore(cfg ServerConfig) {
+	backend := cfg.BlobBackend
+	if backend == "" {
+		backend = os.Getenv("BLOB_STORAGE_BACKEND")
+	}
+	if backend == "" {
+		backend = "local"
+	}
+
+	switch backend {
+	case "azure":
+		s.initAzureBlobStore(cfg)
+	case "local":
+		s.initLocalBlobStore(cfg)
+	default:
+		log.Printf("WARNING: unknown blob storage backend %q, falling back to local", backend)
+		s.initLocalBlobStore(cfg)
+	}
+}
+
+func (s *Server) initAzureBlobStore(cfg ServerConfig) {
+	accountURL := cfg.AzureStorageAccountURL
+	if accountURL == "" {
+		accountURL = os.Getenv("AZURE_STORAGE_ACCOUNT_URL")
+	}
+
+	container := cfg.AzureStorageContainer
+	if container == "" {
+		container = os.Getenv("AZURE_STORAGE_CONTAINER")
+	}
+	if container == "" {
+		container = "bowrain-assets"
+	}
+
+	connStr := cfg.AzureStorageConnStr
+	if connStr == "" {
+		connStr = os.Getenv("AZURE_STORAGE_CONNECTION_STRING")
+	}
+
+	// Prefer connection string (local dev / Azurite), fall back to Managed Identity.
+	if connStr != "" {
+		bs, err := azureblob.NewWithConnectionString(connStr, container)
+		if err != nil {
+			log.Printf("WARNING: failed to create Azure Blob Store from connection string: %v", err)
+			return
+		}
+		s.BlobStore = bs
+		log.Printf("Using Azure Blob Storage (connection string) container=%s", container)
+		return
+	}
+
+	if accountURL != "" {
+		bs, err := azureblob.New(accountURL, container)
+		if err != nil {
+			log.Printf("WARNING: failed to create Azure Blob Store: %v", err)
+			return
+		}
+		s.BlobStore = bs
+		log.Printf("Using Azure Blob Storage (Managed Identity) %s/%s", accountURL, container)
+		return
+	}
+
+	log.Printf("WARNING: azure blob storage configured but no account URL or connection string provided")
+}
+
+func (s *Server) initLocalBlobStore(cfg ServerConfig) {
+	dir := cfg.BlobStorageLocalDir
+	if dir == "" {
+		dir = os.Getenv("BLOB_STORAGE_LOCAL_DIR")
+	}
+	if dir == "" {
+		// Default to DataDir/blobs or a temp location.
+		if cfg.DataDir != "" {
+			dir = filepath.Join(cfg.DataDir, "blobs")
+		} else {
+			dir = filepath.Join(os.TempDir(), "bowrain-blobs")
+		}
+	}
+
+	bs, err := localblob.New(dir)
+	if err != nil {
+		log.Printf("WARNING: failed to create local blob store at %s: %v", dir, err)
+		return
+	}
+	s.BlobStore = bs
+	log.Printf("Using local blob storage at %s", dir)
+}

@@ -972,3 +972,191 @@ func logChangePg(ctx context.Context, tx *sql.Tx, projectID, stream, blockID, ch
 		projectID, stream, blockID, changeType, localeVal, hashVal, now)
 	return err
 }
+
+// ---------------------------------------------------------------------------
+// Asset CRUD (AD-029)
+// ---------------------------------------------------------------------------
+
+func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
+	stream = defaultStream(stream)
+	if asset.ID == "" {
+		asset.ID = id.New()
+	}
+	now := time.Now().UTC()
+	asset.ProjectID = projectID
+	asset.Stream = stream
+	asset.CreatedAt = now
+	asset.UpdatedAt = now
+
+	if asset.ProcessingStatus == "" {
+		asset.ProcessingStatus = "none"
+	}
+
+	propsJSON, err := json.Marshal(asset.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal asset properties: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO assets (id, project_id, item_name, source_id, blob_key, mime_type, filename,
+			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		 ON CONFLICT (project_id, blob_key) WHERE stream = 'main' DO UPDATE SET
+			item_name=EXCLUDED.item_name, source_id=EXCLUDED.source_id, mime_type=EXCLUDED.mime_type,
+			filename=EXCLUDED.filename, size_bytes=EXCLUDED.size_bytes, alt_text=EXCLUDED.alt_text,
+			properties=EXCLUDED.properties, processing_status=EXCLUDED.processing_status,
+			processing_hint=EXCLUDED.processing_hint, updated_at=EXCLUDED.updated_at`,
+		asset.ID, projectID, asset.ItemName, asset.SourceID, asset.BlobKey, asset.MimeType,
+		asset.Filename, asset.SizeBytes, asset.AltText, string(propsJSON),
+		asset.ProcessingStatus, asset.ProcessingHint, stream, now, now)
+	if err != nil {
+		return fmt.Errorf("store asset: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
+	stream = defaultStream(stream)
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
+			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
+		 FROM assets WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, assetID)
+	return scanAssetPg(row)
+}
+
+func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
+	stream = defaultStream(stream)
+	var rows *sql.Rows
+	var err error
+	if itemName != "" {
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
+				size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
+			 FROM assets WHERE project_id=$1 AND stream=$2 AND item_name=$3 ORDER BY filename`, projectID, stream, itemName)
+	} else {
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
+				size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
+			 FROM assets WHERE project_id=$1 AND stream=$2 ORDER BY filename`, projectID, stream)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list assets: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*platstore.Asset
+	for rows.Next() {
+		a, err := scanAssetPg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, a)
+	}
+	return result, rows.Err()
+}
+
+func (s *PostgresStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
+	stream = defaultStream(stream)
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM assets WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, assetID)
+	if err != nil {
+		return fmt.Errorf("delete asset: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("asset %q not found", assetID)
+	}
+	return nil
+}
+
+type pgAssetScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanAssetPg(row pgAssetScanner) (*platstore.Asset, error) {
+	var a platstore.Asset
+	var propsJSON string
+	err := row.Scan(&a.ID, &a.ProjectID, &a.ItemName, &a.SourceID, &a.BlobKey, &a.MimeType,
+		&a.Filename, &a.SizeBytes, &a.AltText, &propsJSON, &a.ProcessingStatus, &a.ProcessingHint,
+		&a.Stream, &a.CreatedAt, &a.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("scan asset: %w", err)
+	}
+	if err := json.Unmarshal([]byte(propsJSON), &a.Properties); err != nil {
+		a.Properties = map[string]string{}
+	}
+	return &a, nil
+}
+
+// ---------------------------------------------------------------------------
+// Asset Variants (AD-029)
+// ---------------------------------------------------------------------------
+
+func (s *PostgresStore) StoreAssetVariant(ctx context.Context, _ string, variant *platstore.AssetVariant) error {
+	now := time.Now().UTC()
+	variant.CreatedAt = now
+	variant.UpdatedAt = now
+
+	if variant.Status == "" {
+		variant.Status = "pending"
+	}
+
+	propsJSON, err := json.Marshal(variant.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal variant properties: %w", err)
+	}
+
+	_, err = s.db.ExecContext(ctx,
+		`INSERT INTO asset_variants (asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		 ON CONFLICT (asset_id, locale) DO UPDATE SET
+			blob_key=EXCLUDED.blob_key, status=EXCLUDED.status, mime_type=EXCLUDED.mime_type,
+			size_bytes=EXCLUDED.size_bytes, properties=EXCLUDED.properties, updated_at=EXCLUDED.updated_at`,
+		variant.AssetID, variant.Locale, variant.BlobKey, variant.Status, variant.MimeType,
+		variant.SizeBytes, string(propsJSON), now, now)
+	if err != nil {
+		return fmt.Errorf("store asset variant: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*platstore.AssetVariant, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
+		 FROM asset_variants WHERE asset_id=$1 AND locale=$2`, assetID, locale)
+	return scanAssetVariantPg(row)
+}
+
+func (s *PostgresStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*platstore.AssetVariant, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
+		 FROM asset_variants WHERE asset_id=$1 ORDER BY locale`, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("list asset variants: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*platstore.AssetVariant
+	for rows.Next() {
+		v, err := scanAssetVariantPg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, v)
+	}
+	return result, rows.Err()
+}
+
+func scanAssetVariantPg(row pgAssetScanner) (*platstore.AssetVariant, error) {
+	var v platstore.AssetVariant
+	var propsJSON string
+	err := row.Scan(&v.AssetID, &v.Locale, &v.BlobKey, &v.Status, &v.MimeType,
+		&v.SizeBytes, &propsJSON, &v.CreatedAt, &v.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("scan asset variant: %w", err)
+	}
+	if err := json.Unmarshal([]byte(propsJSON), &v.Properties); err != nil {
+		v.Properties = map[string]string{}
+	}
+	return &v, nil
+}

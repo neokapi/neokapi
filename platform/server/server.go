@@ -23,6 +23,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/registry"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	libtools "github.com/neokapi/neokapi/core/tools"
@@ -40,6 +41,7 @@ type Server struct {
 	ToolRegistry   *registry.ToolRegistry
 	ConnectorReg   *platconn.Registry
 	ContentStore   store.ContentStore
+	BlobStore      corestorage.BlobStore
 	Services       *service.Services
 	AuthStore      auth.AuthStore
 	EventBus       *event.ChannelEventBus
@@ -228,6 +230,9 @@ func NewServer(cfg ServerConfig) *Server {
 			s.JobQueue = q
 		}
 	}
+
+	// Initialize blob storage (AD-029).
+	s.initBlobStore(cfg)
 
 	// Wrap ContentStore with EventEmittingStore so all mutations publish events.
 	if s.ContentStore != nil {
@@ -465,6 +470,16 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/projects/:id/streams/:stream/sync/pull", s.HandleSyncPull)
 	g.GET("/projects/:id/streams/:stream/sync/blocks", s.HandleSyncGetBlocks)
 	g.GET("/projects/:id/streams/:stream/sync/status", s.HandleSyncPushStatus)
+
+	// Asset management (AD-029)
+	g.POST("/projects/:id/assets/upload-url", s.HandleAssetUploadURL)
+	g.POST("/projects/:id/assets", s.HandleCreateAsset)
+	g.GET("/projects/:id/assets", s.HandleListAssets)
+	g.GET("/projects/:id/assets/:aid", s.HandleGetAsset)
+	g.DELETE("/projects/:id/assets/:aid", s.HandleDeleteAsset)
+	g.POST("/projects/:id/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
+	g.POST("/projects/:id/assets/:aid/variants", s.HandleCreateVariant)
+	g.GET("/projects/:id/assets/:aid/variants", s.HandleListVariants)
 
 	// Editor project routes
 	g.POST("/editor/projects", s.HandleCreateEditorProject)
