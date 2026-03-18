@@ -2,9 +2,17 @@
 
 ## Overview
 
-The agentic testing system uses a **distributed, self-scheduling architecture** powered by ZeroClaw containers. There is no central orchestrator — each agent is an autonomous ZeroClaw daemon with its own cron schedule and heartbeat. Agents coordinate through Bowrain's activity feed and task system, exactly as human teams would.
+The agentic testing system uses a **distributed, self-scheduling architecture** with two
+deployment models:
 
-The only exception is **accelerated mode** (release walkthrough), which uses a thin release-walker service to sequence releases. In real-time mode, agents are fully autonomous.
+- **Local (docker-compose):** ZeroClaw daemon containers with built-in cron + heartbeat
+  polling. Simple, always-on, good for development.
+- **Azure (Container Apps Jobs):** Scheduled and event-driven jobs. Agents start, do work,
+  and stop. Pay only for execution time. Event-driven handoffs via Azure Service Bus
+  give instant reaction instead of poll delays.
+
+Both models use identical SOUL.md personas and Bravo MCP tools. Only the scheduling
+and triggering mechanism differs.
 
 ## Operating Modes
 
@@ -124,6 +132,33 @@ Instead of a central event router, agents discover events by polling:
 | "Maria Santos updated termbase: 'deploy' is now preferred" | Checks affected translations |
 
 This is more realistic than event-driven triggers — humans check dashboards, not webhooks.
+It works well for local development but has 1-2 hour latency between handoffs.
+
+### Azure: Event-Driven Handoffs via Service Bus
+
+In Azure, agents use **Container Apps Jobs** with KEDA scalers monitoring Azure Service Bus
+queues. Bowrain's event bus publishes events; a Service Bus adapter routes them to
+per-agent queues. Handoffs are instant — no polling delay.
+
+```
+content-pushed queue    → triggers PM job (create tasks)
+tasks-created-fr queue  → triggers French Translator job
+tasks-created-de queue  → triggers German Translator job
+tasks-created-ja queue  → triggers Japanese Translator job
+translation-complete    → triggers QA job
+qa-passed queue         → triggers Developer pull job
+```
+
+Scheduled agents (Developer push, Brand Manager) use Azure-managed cron instead of
+ZeroClaw's daemon cron. See `04-implementation.md` → "Azure Deployment: Container Apps Jobs"
+for the full Bicep templates and agent job matrix.
+
+**When to use which:**
+
+| Environment | Scheduling | Coordination | Latency |
+|-------------|-----------|--------------|---------|
+| Local (docker-compose) | ZeroClaw daemon cron | Poll activity feed (heartbeat) | 1-2 hours |
+| Azure (Container Apps) | Azure scheduled jobs | Event-driven (Service Bus + KEDA) | Seconds |
 
 ## Failure Handling
 
