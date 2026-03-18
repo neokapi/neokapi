@@ -28,7 +28,7 @@ func (s *AgentService) streamFromGateway(
 	container *AgentContainer,
 	conversationID, userID, content string,
 	sse SSEWriter,
-) error {
+) (*gatewayResult, error) {
 	// POST message to the ZeroClaw gateway.
 	payload, _ := json.Marshal(gatewayMessage{
 		Content:        content,
@@ -38,7 +38,7 @@ func (s *AgentService) streamFromGateway(
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		container.GatewayURL+"/v1/messages", bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("create gateway request: %w", err)
+		return nil, fmt.Errorf("create gateway request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "text/event-stream")
@@ -46,17 +46,24 @@ func (s *AgentService) streamFromGateway(
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("gateway request: %w", err)
+		return nil, fmt.Errorf("gateway request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-		return fmt.Errorf("gateway returned %d: %s", resp.StatusCode, string(body))
+		return nil, fmt.Errorf("gateway returned %d: %s", resp.StatusCode, string(body))
 	}
 
 	// Parse the SSE stream from ZeroClaw and relay to client.
 	return s.relayGatewaySSE(ctx, resp.Body, conversationID, userID, sse)
+}
+
+// gatewayResult holds data extracted from a relayed gateway SSE stream.
+type gatewayResult struct {
+	MessageID    string
+	InputTokens  int
+	OutputTokens int
 }
 
 // relayGatewaySSE reads SSE events from the gateway response and relays
@@ -67,11 +74,12 @@ func (s *AgentService) relayGatewaySSE(
 	body io.Reader,
 	conversationID, userID string,
 	sse SSEWriter,
-) error {
+) (*gatewayResult, error) {
 	scanner := bufio.NewScanner(body)
 	var contentBuf strings.Builder
 	var assistantMsgID string
 	var currentEvent string
+	var usage *MessageUsage
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -103,6 +111,10 @@ func (s *AgentService) relayGatewaySSE(
 				_ = sse.WriteEvent(currentEvent, json.RawMessage(data))
 
 			case SSEMessageEnd:
+				var d MessageEndData
+				if json.Unmarshal([]byte(data), &d) == nil {
+					usage = d.Usage
+				}
 				_ = sse.WriteEvent(SSEMessageEnd, json.RawMessage(data))
 
 			case SSEError:
@@ -119,23 +131,32 @@ func (s *AgentService) relayGatewaySSE(
 	}
 
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("read gateway SSE: %w", err)
+		return nil, fmt.Errorf("read gateway SSE: %w", err)
 	}
 
-	// Persist the assistant message.
+	result := &gatewayResult{MessageID: assistantMsgID}
+	if usage != nil {
+		result.InputTokens = usage.InputTokens
+		result.OutputTokens = usage.OutputTokens
+	}
+
+	// Persist the assistant message with token usage.
 	if contentBuf.Len() > 0 {
 		msg := &platagent.Message{
 			ConversationID: conversationID,
 			Role:           platagent.RoleAssistant,
 			Content:        contentBuf.String(),
+			InputTokens:    result.InputTokens,
+			OutputTokens:   result.OutputTokens,
 		}
 		if assistantMsgID != "" {
 			msg.ID = assistantMsgID
 		}
 		if err := s.store.AddMessage(ctx, msg); err != nil {
-			return fmt.Errorf("persist assistant message: %w", err)
+			return nil, fmt.Errorf("persist assistant message: %w", err)
 		}
+		result.MessageID = msg.ID
 	}
 
-	return nil
+	return result, nil
 }

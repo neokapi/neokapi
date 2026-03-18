@@ -129,9 +129,10 @@ func (s *SQLiteStore) AddMessage(ctx context.Context, msg *platagent.Message) er
 	msg.CreatedAt = time.Now().UTC()
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO agent_messages (id, conversation_id, role, content, created_at)
-		 VALUES (?, ?, ?, ?, ?)`,
-		msg.ID, msg.ConversationID, string(msg.Role), msg.Content, msg.CreatedAt.Format(time.RFC3339))
+		`INSERT INTO agent_messages (id, conversation_id, role, content, input_tokens, output_tokens, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		msg.ID, msg.ConversationID, string(msg.Role), msg.Content,
+		msg.InputTokens, msg.OutputTokens, msg.CreatedAt.Format(time.RFC3339))
 	return err
 }
 
@@ -141,7 +142,7 @@ func (s *SQLiteStore) ListMessages(ctx context.Context, conversationID string, l
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, conversation_id, role, content, created_at
+		`SELECT id, conversation_id, role, content, input_tokens, output_tokens, created_at
 		 FROM agent_messages
 		 WHERE conversation_id = ?
 		 ORDER BY created_at ASC LIMIT ? OFFSET ?`,
@@ -155,7 +156,7 @@ func (s *SQLiteStore) ListMessages(ctx context.Context, conversationID string, l
 	for rows.Next() {
 		var m platagent.Message
 		var createdAt string
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &createdAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &m.InputTokens, &m.OutputTokens, &createdAt); err != nil {
 			return nil, err
 		}
 		m.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
@@ -286,6 +287,45 @@ func (s *SQLiteStore) SaveAgentConfig(ctx context.Context, cfg *platagent.AgentC
 			max_concurrent = excluded.max_concurrent`,
 		cfg.WorkspaceID, enabled, string(allowedJSON), string(deniedJSON), string(approvalJSON), codeExec, cfg.MaxConcurrent)
 	return err
+}
+
+// ---------------------------------------------------------------------------
+// Usage metering
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteStore) RecordUsage(ctx context.Context, rec *platagent.UsageRecord) error {
+	if rec.ID == "" {
+		rec.ID = id.New()
+	}
+	rec.CreatedAt = time.Now().UTC()
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO agent_usage (id, workspace_id, user_id, conversation_id, message_id, kind, input_tokens, output_tokens, duration_sec, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		rec.ID, rec.WorkspaceID, rec.UserID, rec.ConversationID, rec.MessageID,
+		rec.Kind, rec.InputTokens, rec.OutputTokens, rec.DurationSec,
+		rec.CreatedAt.Format(time.RFC3339))
+	return err
+}
+
+func (s *SQLiteStore) GetUsageSummary(ctx context.Context, workspaceID string, from, to time.Time) (*platagent.UsageSummary, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT
+			COALESCE(SUM(input_tokens), 0),
+			COALESCE(SUM(output_tokens), 0),
+			COALESCE(SUM(duration_sec), 0),
+			COUNT(CASE WHEN kind = 'tokens' THEN 1 END)
+		 FROM agent_usage
+		 WHERE workspace_id = ? AND created_at >= ? AND created_at <= ?`,
+		workspaceID, from.Format(time.RFC3339), to.Format(time.RFC3339))
+
+	summary := &platagent.UsageSummary{WorkspaceID: workspaceID}
+	err := row.Scan(&summary.TotalInputTokens, &summary.TotalOutputTokens,
+		&summary.TotalContainerSec, &summary.MessageCount)
+	if err != nil {
+		return nil, err
+	}
+	return summary, nil
 }
 
 // ---------------------------------------------------------------------------

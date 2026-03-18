@@ -58,6 +58,8 @@ type Message struct {
 	Role           MessageRole `json:"role"`
 	Content        string      `json:"content"`
 	ToolCalls      []ToolCall  `json:"tool_calls,omitempty"`
+	InputTokens    int         `json:"input_tokens,omitempty"`
+	OutputTokens   int         `json:"output_tokens,omitempty"`
 	CreatedAt      time.Time   `json:"created_at"`
 }
 
@@ -84,6 +86,29 @@ type AgentConfig struct {
 	MaxConcurrent   int      `json:"max_concurrent"`
 }
 
+// UsageRecord captures a metering event — either token usage or container time.
+type UsageRecord struct {
+	ID             string    `json:"id"`
+	WorkspaceID    string    `json:"workspace_id"`
+	UserID         string    `json:"user_id"`
+	ConversationID string    `json:"conversation_id"`
+	MessageID      string    `json:"message_id,omitempty"`
+	Kind           string    `json:"kind"` // "tokens" or "container_time"
+	InputTokens    int       `json:"input_tokens,omitempty"`
+	OutputTokens   int       `json:"output_tokens,omitempty"`
+	DurationSec    float64   `json:"duration_sec,omitempty"` // container wall-clock seconds
+	CreatedAt      time.Time `json:"created_at"`
+}
+
+// UsageSummary aggregates usage over a time range.
+type UsageSummary struct {
+	WorkspaceID       string  `json:"workspace_id"`
+	TotalInputTokens  int64   `json:"total_input_tokens"`
+	TotalOutputTokens int64   `json:"total_output_tokens"`
+	TotalContainerSec float64 `json:"total_container_sec"`
+	MessageCount      int64   `json:"message_count"`
+}
+
 // AgentStore persists agent conversations, messages, tool calls, and config.
 type AgentStore interface {
 	// Conversations
@@ -104,6 +129,10 @@ type AgentStore interface {
 	// Config
 	GetAgentConfig(ctx context.Context, workspaceID string) (*AgentConfig, error)
 	SaveAgentConfig(ctx context.Context, cfg *AgentConfig) error
+
+	// Usage metering
+	RecordUsage(ctx context.Context, rec *UsageRecord) error
+	GetUsageSummary(ctx context.Context, workspaceID string, from, to time.Time) (*UsageSummary, error)
 
 	Close() error
 }

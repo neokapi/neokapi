@@ -171,7 +171,8 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 }
 
 // Release stops and removes a container for a conversation.
-func (p *AgentPool) Release(ctx context.Context, conversationID string) error {
+// Returns the container metadata (for metering) or nil if not found.
+func (p *AgentPool) Release(ctx context.Context, conversationID string) (*AgentContainer, error) {
 	p.mu.Lock()
 	c, ok := p.containers[conversationID]
 	if ok {
@@ -180,9 +181,9 @@ func (p *AgentPool) Release(ctx context.Context, conversationID string) error {
 	p.mu.Unlock()
 
 	if !ok {
-		return nil
+		return nil, nil
 	}
-	return p.runtime.Stop(ctx, c.ID)
+	return c, p.runtime.Stop(ctx, c.ID)
 }
 
 // Get returns the container for a conversation, if any.

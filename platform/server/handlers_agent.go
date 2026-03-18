@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/service"
@@ -347,6 +348,42 @@ func agentToolNames() []string {
 	}
 }
 
+// ---------------------------------------------------------------------------
+// Usage
+// ---------------------------------------------------------------------------
+
+// HandleGetBravoUsage returns usage summary for the workspace.
+// Query params: from, to (RFC3339 timestamps). Defaults to current month.
+func (s *Server) HandleGetBravoUsage(c echo.Context) error {
+	if s.AgentService == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "agent not configured"})
+	}
+
+	wsID := c.Get("workspace_id").(string)
+
+	now := time.Now().UTC()
+	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	to := now
+
+	if v := c.QueryParam("from"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			from = t
+		}
+	}
+	if v := c.QueryParam("to"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			to = t
+		}
+	}
+
+	summary, err := s.AgentService.GetUsageSummary(c.Request().Context(), wsID, from, to)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, summary)
+}
+
 // registerBravoRoutes registers all @bravo agent endpoints on a workspace group.
 func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo := g.Group("/bravo")
@@ -363,5 +400,6 @@ func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo.GET("/config", s.HandleGetBravoConfig)
 	bravo.PUT("/config", s.HandleUpdateBravoConfig)
 	bravo.GET("/tools", s.HandleListBravoTools)
+	bravo.GET("/usage", s.HandleGetBravoUsage)
 }
 

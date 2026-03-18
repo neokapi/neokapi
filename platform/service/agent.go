@@ -242,8 +242,22 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 	}
 
 	// Stream response from ZeroClaw gateway → SSE to client.
-	if err := s.streamFromGateway(ctx, container, conversationID, userID, content, sse); err != nil {
+	result, err := s.streamFromGateway(ctx, container, conversationID, userID, content, sse)
+	if err != nil {
 		return fmt.Errorf("gateway stream: %w", err)
+	}
+
+	// Record token usage.
+	if result != nil && (result.InputTokens > 0 || result.OutputTokens > 0) {
+		_ = s.store.RecordUsage(ctx, &platagent.UsageRecord{
+			WorkspaceID:    workspaceID,
+			UserID:         userID,
+			ConversationID: conversationID,
+			MessageID:      result.MessageID,
+			Kind:           "tokens",
+			InputTokens:    result.InputTokens,
+			OutputTokens:   result.OutputTokens,
+		})
 	}
 
 	// Update conversation timestamp.
@@ -307,9 +321,20 @@ func (s *AgentService) sendLocalStream(ctx context.Context, conversationID, user
 }
 
 // cleanupConversation releases pool containers and revokes tokens for a conversation.
+// It also records container time usage if a container was running.
 func (s *AgentService) cleanupConversation(ctx context.Context, conversationID string) {
 	if s.pool != nil {
-		_ = s.pool.Release(ctx, conversationID)
+		container, _ := s.pool.Release(ctx, conversationID)
+		if container != nil && !container.CreatedAt.IsZero() {
+			durationSec := time.Since(container.CreatedAt).Seconds()
+			_ = s.store.RecordUsage(ctx, &platagent.UsageRecord{
+				WorkspaceID:    container.WorkspaceID,
+				UserID:         container.UserID,
+				ConversationID: conversationID,
+				Kind:           "container_time",
+				DurationSec:    durationSec,
+			})
+		}
 	}
 	if s.tokenStore != nil {
 		s.tokenStore.RevokeForConversation(conversationID)
@@ -324,6 +349,11 @@ func (s *AgentService) GetConfig(ctx context.Context, workspaceID string) (*plat
 // SaveConfig saves the agent config for a workspace.
 func (s *AgentService) SaveConfig(ctx context.Context, cfg *platagent.AgentConfig) error {
 	return s.store.SaveAgentConfig(ctx, cfg)
+}
+
+// GetUsageSummary returns aggregated usage for a workspace over a time range.
+func (s *AgentService) GetUsageSummary(ctx context.Context, workspaceID string, from, to time.Time) (*platagent.UsageSummary, error) {
+	return s.store.GetUsageSummary(ctx, workspaceID, from, to)
 }
 
 // ListAvailableTools returns all MCP tools available to the agent after

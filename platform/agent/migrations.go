@@ -67,6 +67,28 @@ var sqliteMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     5,
+		Description: "add token usage columns and agent_usage table",
+		SQL: `
+			ALTER TABLE agent_messages ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE agent_messages ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0;
+
+			CREATE TABLE agent_usage (
+				id              TEXT PRIMARY KEY,
+				workspace_id    TEXT NOT NULL,
+				user_id         TEXT NOT NULL,
+				conversation_id TEXT NOT NULL,
+				message_id      TEXT NOT NULL DEFAULT '',
+				kind            TEXT NOT NULL,
+				input_tokens    INTEGER NOT NULL DEFAULT 0,
+				output_tokens   INTEGER NOT NULL DEFAULT 0,
+				duration_sec    REAL NOT NULL DEFAULT 0,
+				created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_agent_usage_ws_created ON agent_usage(workspace_id, created_at);
+		`,
+	},
 }
 
 // PostgreSQL migrations for the agent store.
@@ -132,6 +154,28 @@ var postgresMigrations = []storage.Migration{
 				code_exec_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 				max_concurrent    INTEGER NOT NULL DEFAULT 3
 			);
+		`,
+	},
+	{
+		Version:     5,
+		Description: "add token usage columns and agent_usage table",
+		SQL: `
+			ALTER TABLE agent_messages ADD COLUMN input_tokens INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE agent_messages ADD COLUMN output_tokens INTEGER NOT NULL DEFAULT 0;
+
+			CREATE TABLE agent_usage (
+				id              TEXT PRIMARY KEY,
+				workspace_id    TEXT NOT NULL,
+				user_id         TEXT NOT NULL,
+				conversation_id TEXT NOT NULL,
+				message_id      TEXT NOT NULL DEFAULT '',
+				kind            TEXT NOT NULL,
+				input_tokens    INTEGER NOT NULL DEFAULT 0,
+				output_tokens   INTEGER NOT NULL DEFAULT 0,
+				duration_sec    DOUBLE PRECISION NOT NULL DEFAULT 0,
+				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_agent_usage_ws_created ON agent_usage(workspace_id, created_at);
 		`,
 	},
 }
