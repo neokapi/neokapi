@@ -42,11 +42,12 @@ type CachedProjectMeta struct {
 	FetchedAt     time.Time `json:"fetched_at"`
 }
 
-// FileCache tracks the last known hashes for blocks in a file.
+// FileCache tracks the last known hashes for blocks and assets in a file.
 type FileCache struct {
 	Mtime  time.Time         `json:"mtime"`
 	Size   int64             `json:"size"`
-	Blocks map[string]string `json:"blocks"` // blockID → contentHash
+	Blocks map[string]string `json:"blocks"`          // blockID → contentHash
+	Assets map[string]string `json:"assets,omitempty"` // sourceID → blobKey (SHA-256)
 }
 
 // GetStreamCursor returns the sync cursor for a specific stream.

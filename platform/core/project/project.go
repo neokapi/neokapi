@@ -174,6 +174,27 @@ type Config struct {
 
 	// Automations defines local automation rules (pre-push, post-push, etc.)
 	Automations []AutomationConfig `yaml:"automations,omitempty"`
+
+	// Assets configures project-wide media asset sync behavior (AD-029).
+	Assets *AssetConfig `yaml:"assets,omitempty"`
+}
+
+// AssetConfig controls project-wide media asset sync settings.
+type AssetConfig struct {
+	// Enabled is the master toggle for asset sync (default: true).
+	Enabled *bool `yaml:"enabled,omitempty"`
+	// Exclude is a list of filename glob patterns to skip.
+	Exclude []string `yaml:"exclude,omitempty"`
+	// MaxSize is the global per-asset size limit (e.g., "100MB").
+	MaxSize string `yaml:"max_size,omitempty"`
+}
+
+// AssetsEnabled returns true if asset sync is enabled (default: true).
+func (c *Config) AssetsEnabled() bool {
+	if c.Assets == nil || c.Assets.Enabled == nil {
+		return true
+	}
+	return *c.Assets.Enabled
 }
 
 // Defaults contains project-wide language and organization settings.
@@ -209,6 +230,12 @@ type ContentEntry struct {
 
 	// Overrides are per-entry format config overrides.
 	Overrides map[string]any `yaml:"overrides,omitempty"`
+
+	// Assets controls whether embedded assets are synced for this entry (default: true).
+	Assets *bool `yaml:"assets,omitempty"`
+
+	// AssetMaxSize is the per-asset size limit for this entry (e.g., "50MB").
+	AssetMaxSize string `yaml:"asset_max_size,omitempty"`
 }
 
 // EffectiveLanguage returns the source language for this entry,

@@ -997,7 +997,19 @@ func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string
 		return fmt.Errorf("marshal asset properties: %w", err)
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var existingID string
+	_ = tx.QueryRowContext(ctx,
+		`SELECT id FROM assets WHERE project_id=$1 AND blob_key=$2 AND stream=$3`,
+		projectID, asset.BlobKey, stream).Scan(&existingID)
+	isNew := existingID == ""
+
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO assets (id, project_id, item_name, source_id, blob_key, mime_type, filename,
 			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
@@ -1012,7 +1024,20 @@ func (s *PostgresStore) StoreAsset(ctx context.Context, projectID, stream string
 	if err != nil {
 		return fmt.Errorf("store asset: %w", err)
 	}
-	return nil
+
+	changeType := "asset_modified"
+	if isNew {
+		changeType = "asset_added"
+	}
+	assetID := asset.ID
+	if existingID != "" {
+		assetID = existingID
+	}
+	if err := logChangePg(ctx, tx, projectID, stream, assetID, changeType, "", asset.BlobKey); err != nil {
+		return fmt.Errorf("log asset change: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 func (s *PostgresStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
@@ -1057,7 +1082,13 @@ func (s *PostgresStore) ListAssets(ctx context.Context, projectID, stream, itemN
 
 func (s *PostgresStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
 	stream = defaultStream(stream)
-	res, err := s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx,
 		`DELETE FROM assets WHERE project_id=$1 AND stream=$2 AND id=$3`, projectID, stream, assetID)
 	if err != nil {
 		return fmt.Errorf("delete asset: %w", err)
@@ -1066,7 +1097,12 @@ func (s *PostgresStore) DeleteAsset(ctx context.Context, projectID, stream, asse
 	if n == 0 {
 		return fmt.Errorf("asset %q not found", assetID)
 	}
-	return nil
+
+	if err := logChangePg(ctx, tx, projectID, stream, assetID, "asset_removed", "", ""); err != nil {
+		return fmt.Errorf("log asset removal: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 type pgAssetScanner interface {
@@ -1092,7 +1128,7 @@ func scanAssetPg(row pgAssetScanner) (*platstore.Asset, error) {
 // Asset Variants (AD-029)
 // ---------------------------------------------------------------------------
 
-func (s *PostgresStore) StoreAssetVariant(ctx context.Context, _ string, variant *platstore.AssetVariant) error {
+func (s *PostgresStore) StoreAssetVariant(ctx context.Context, projectID string, variant *platstore.AssetVariant) error {
 	now := time.Now().UTC()
 	variant.CreatedAt = now
 	variant.UpdatedAt = now
@@ -1106,7 +1142,19 @@ func (s *PostgresStore) StoreAssetVariant(ctx context.Context, _ string, variant
 		return fmt.Errorf("marshal variant properties: %w", err)
 	}
 
-	_, err = s.db.ExecContext(ctx,
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var existingKey string
+	_ = tx.QueryRowContext(ctx,
+		`SELECT blob_key FROM asset_variants WHERE asset_id=$1 AND locale=$2`,
+		variant.AssetID, variant.Locale).Scan(&existingKey)
+	isNew := existingKey == ""
+
+	_, err = tx.ExecContext(ctx,
 		`INSERT INTO asset_variants (asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		 ON CONFLICT (asset_id, locale) DO UPDATE SET
@@ -1117,7 +1165,22 @@ func (s *PostgresStore) StoreAssetVariant(ctx context.Context, _ string, variant
 	if err != nil {
 		return fmt.Errorf("store asset variant: %w", err)
 	}
-	return nil
+
+	var assetProjectID, assetStream string
+	err = tx.QueryRowContext(ctx,
+		`SELECT project_id, stream FROM assets WHERE id=$1`, variant.AssetID).Scan(&assetProjectID, &assetStream)
+	if err == nil {
+		changeType := "variant_modified"
+		if isNew {
+			changeType = "variant_added"
+		}
+		if variant.Status == "approved" && existingKey != "" {
+			changeType = "variant_approved"
+		}
+		_ = logChangePg(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+	}
+
+	return tx.Commit()
 }
 
 func (s *PostgresStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*platstore.AssetVariant, error) {
