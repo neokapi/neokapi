@@ -92,7 +92,9 @@ neokapi/agentic/
 │       │   ├── activities.ts    # bowrain.listActivities
 │       │   ├── streams.ts       # bowrain.createStream, bowrain.listStreams
 │       │   ├── tm.ts            # bowrain.addTMEntry, bowrain.listTMEntries
-│       │   └── git.ts           # git.checkUpstream, git.merge, git.commit, git.push
+│       │   ├── git.ts           # git.checkUpstream, git.merge, git.commit, git.push
+│       │   ├── github.ts       # github.createIssue, github.searchIssues, github.commentOnIssue
+│       │   └── email.ts        # email.send, email.listInbox
 │       └── auth.ts              # Per-agent auth context
 │
 ├── agents/                      # Agent workspace definitions
@@ -486,6 +488,12 @@ await server.connect(transport);
 | `git.merge` | Developer | Merge upstream changes |
 | `git.commit` | Developer | Commit changes |
 | `git.push` | Developer | Push to remote |
+| `github.createIssue` | All | File a bug report or feature request |
+| `github.listIssues` | PM, QA | List issues with filters |
+| `github.commentOnIssue` | PM, QA | Comment on existing issue |
+| `github.searchIssues` | All | Search before filing (dedup) |
+| `email.send` | All | Send email to team member (by role or address) |
+| `email.listInbox` | All | Check received emails since last check |
 
 ### Per-Agent Auth
 
