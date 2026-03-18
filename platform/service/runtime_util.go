@@ -2,7 +2,6 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 )
@@ -22,15 +21,6 @@ func jsonStringArray(ss []string) string {
 	b, err := json.Marshal(ss)
 	if err != nil {
 		return "[]"
-	}
-	return string(b)
-}
-
-// jsonString serializes a string as a JSON string (with quotes and escaping).
-func jsonString(s string) string {
-	b, err := json.Marshal(s)
-	if err != nil {
-		return fmt.Sprintf("%q", s)
 	}
 	return string(b)
 }
