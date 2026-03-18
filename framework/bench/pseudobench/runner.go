@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -61,7 +62,7 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 		if err != nil {
 			return nil, err
 		}
-		_, _, _ = engine.ProcessBatch(ctx, testFiles, cfg.TestdataDir, tmpDir)
+		_, _, _ = engine.ProcessBatch(ctx, testFiles, cfg.TestdataDir, tmpDir, "")
 		os.RemoveAll(tmpDir)
 	}
 
@@ -73,6 +74,13 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 	isDaemon := engine.Name() == "kapi-bridge-daemon" && daemon != nil
 	if isDaemon {
 		daemon.StartRSSSampling(500 * time.Millisecond)
+	}
+
+	// Prepare trace file path for the final iteration.
+	var traceFile string
+	if cfg.TraceDir != "" {
+		os.MkdirAll(cfg.TraceDir, 0o755)
+		traceFile = filepath.Join(cfg.TraceDir, engine.Name()+"-trace.json")
 	}
 
 	for i := 0; i < cfg.Iterations; i++ {
@@ -93,7 +101,13 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 			outputDir = tmpDir
 		}
 
-		result, fileResults, err := engine.ProcessBatch(ctx, testFiles, cfg.TestdataDir, outputDir)
+		// Only capture trace on the final iteration.
+		iterTraceFile := ""
+		if isLast {
+			iterTraceFile = traceFile
+		}
+
+		result, fileResults, err := engine.ProcessBatch(ctx, testFiles, cfg.TestdataDir, outputDir, iterTraceFile)
 		if err != nil {
 			fmt.Printf(" ERROR: %v\n", err)
 			// Record the error but continue with other iterations.
@@ -131,6 +145,18 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 			}
 			stats := computeStats(floats)
 			exp.DaemonRssKB = &stats
+		}
+	}
+
+	// Parse batch trace JSON if trace was captured.
+	if traceFile != "" {
+		data, err := os.ReadFile(traceFile)
+		if err == nil {
+			var bt BatchTrace
+			if json.Unmarshal(data, &bt) == nil && len(bt.FileTraces) > 0 {
+				exp.BatchTrace = &bt
+				fmt.Printf("  batch trace: %d files, %d lanes\n", len(bt.FileTraces), bt.Concurrency)
+			}
 		}
 	}
 

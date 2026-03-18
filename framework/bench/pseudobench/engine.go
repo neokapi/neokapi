@@ -17,7 +17,9 @@ import (
 type Engine interface {
 	Name() string
 	Version() string
-	ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir string) (*RunResult, []FileResult, error)
+	// ProcessBatch processes all files. When traceFile is non-empty, kapi engines
+	// pass --trace to capture internal concurrency data.
+	ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error)
 }
 
 // runProcess executes a command and collects resource usage metrics.
@@ -129,7 +131,7 @@ type KapiNativeEngine struct {
 func (e *KapiNativeEngine) Name() string    { return "kapi-native" }
 func (e *KapiNativeEngine) Version() string { return e.VersionStr }
 
-func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir string) (*RunResult, []FileResult, error) {
+func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
 	var inputArgs []string
 	fileResults := make([]FileResult, len(files))
 
@@ -142,6 +144,9 @@ func (e *KapiNativeEngine) ProcessBatch(ctx context.Context, files []TestFile, i
 	args := []string{"--disable-plugins", "okapi", "flow", "run", "pseudo-translate"}
 	args = append(args, inputArgs...)
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
+	if traceFile != "" {
+		args = append(args, "--trace", traceFile)
+	}
 
 	result, err := runProcess(ctx, nil, e.BinaryPath, args...)
 	if err != nil {
@@ -167,7 +172,7 @@ type KapiBridgeEngine struct {
 func (e *KapiBridgeEngine) Name() string    { return "kapi-bridge" }
 func (e *KapiBridgeEngine) Version() string { return e.VersionStr }
 
-func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir string) (*RunResult, []FileResult, error) {
+func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
 	var inputArgs []string
 	fileResults := make([]FileResult, len(files))
 
@@ -184,6 +189,9 @@ func (e *KapiBridgeEngine) ProcessBatch(ctx context.Context, files []TestFile, i
 	args = append(args, inputArgs...)
 	outputTemplate := filepath.Join(outputDir, "{name}_{lang}{ext}")
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
+	if traceFile != "" {
+		args = append(args, "--trace", traceFile)
+	}
 
 	result, err := runProcess(ctx, nil, e.BinaryPath, args...)
 	if err != nil {
@@ -210,7 +218,7 @@ type KapiBridgeDaemonEngine struct {
 func (e *KapiBridgeDaemonEngine) Name() string    { return "kapi-bridge-daemon" }
 func (e *KapiBridgeDaemonEngine) Version() string { return e.VersionStr }
 
-func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir string) (*RunResult, []FileResult, error) {
+func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, traceFile string) (*RunResult, []FileResult, error) {
 	var inputArgs []string
 	fileResults := make([]FileResult, len(files))
 
@@ -227,6 +235,9 @@ func (e *KapiBridgeDaemonEngine) ProcessBatch(ctx context.Context, files []TestF
 	args := []string{"flow", "run", "pseudo-translate"}
 	args = append(args, inputArgs...)
 	args = append(args, "--target-lang", "qps", "-q", "-o", outputTemplate)
+	if traceFile != "" {
+		args = append(args, "--trace", traceFile)
+	}
 
 	env := []string{fmt.Sprintf("NEOKAPI_BRIDGE_ADDRS=%s", e.Daemon.Address())}
 
@@ -254,7 +265,7 @@ type OkapiTikalEngine struct {
 func (e *OkapiTikalEngine) Name() string    { return "okapi" }
 func (e *OkapiTikalEngine) Version() string { return e.VersionStr }
 
-func (e *OkapiTikalEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir string) (*RunResult, []FileResult, error) {
+func (e *OkapiTikalEngine) ProcessBatch(ctx context.Context, files []TestFile, inputDir, outputDir, _ string) (*RunResult, []FileResult, error) {
 	// Copy files to a temp dir so tikal writes output there.
 	tmpDir, err := os.MkdirTemp("", "pseudobench-okapi-*")
 	if err != nil {

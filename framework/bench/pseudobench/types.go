@@ -14,6 +14,7 @@ type Config struct {
 	OutputDir     string // directory for preserved output files
 	ResultsDir    string // directory for JSON + HTML results
 	HTMLFile      string // path to HTML report
+	TraceDir      string // directory for trace JSON files (empty = disabled)
 }
 
 // VersionedBinary is a path to a binary with a version label.
@@ -48,6 +49,26 @@ type ExperimentResult struct {
 	DaemonRssKB *Stats       `json:"daemonRssKB,omitempty"`
 	FileResults []FileResult `json:"fileResults"`
 	FileTimings []FileTiming `json:"fileTimings,omitempty"`
+	BatchTrace  *BatchTrace  `json:"batchTrace,omitempty"`
+}
+
+// BatchTrace mirrors flow.BatchFlowTrace for JSON parsing.
+// Pseudobench is a standalone module and cannot import core/flow.
+type BatchTrace struct {
+	Name        string      `json:"name"`
+	Concurrency int         `json:"concurrency"`
+	FileTraces  []FileTrace `json:"fileTraces"`
+	DurationUs  int64       `json:"durationUs"`
+}
+
+// FileTrace holds per-file timing from a batch flow trace.
+type FileTrace struct {
+	File       string `json:"file"`
+	Format     string `json:"format"`
+	StartUs    int64  `json:"startUs"`
+	EndUs      int64  `json:"endUs"`
+	Lane       int    `json:"lane"`
+	DurationUs int64  `json:"durationUs"`
 }
 
 // FileResult tracks per-file success/failure within an experiment.

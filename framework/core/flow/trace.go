@@ -282,3 +282,33 @@ func (t *TracingTool) Process(ctx context.Context, in <-chan *model.Part, out ch
 
 // Verify TracingTool implements tool.Tool at compile time.
 var _ tool.Tool = (*TracingTool)(nil)
+
+// NewTraceRecorderWithStart creates a TraceRecorder using a shared start time.
+// This allows multiple recorders to use the same time origin for batch tracing.
+func NewTraceRecorderWithStart(start time.Time) *TraceRecorder {
+	return &TraceRecorder{
+		start:     start,
+		events:    make([]TraceEvent, 0, 256),
+		snapshots: make(map[string]*PartSnapshotSet),
+	}
+}
+
+// BatchFlowTrace captures tracing data for a multi-file batch run.
+type BatchFlowTrace struct {
+	Name        string          `json:"name"`
+	Concurrency int             `json:"concurrency"`
+	FileTraces  []FileFlowTrace `json:"fileTraces"`
+	DurationUs  int64           `json:"durationUs"`
+}
+
+// FileFlowTrace captures tracing data for a single file within a batch.
+type FileFlowTrace struct {
+	File       string       `json:"file"`
+	Format     string       `json:"format"`
+	StartUs    int64        `json:"startUs"`
+	EndUs      int64        `json:"endUs"`
+	Lane       int          `json:"lane"`
+	Nodes      []TraceNode  `json:"nodes"`
+	Events     []TraceEvent `json:"events"`
+	DurationUs int64        `json:"durationUs"`
+}

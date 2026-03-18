@@ -64,6 +64,7 @@ func cmdRun(args []string) {
 	output := fs.String("output", "output", "output directory for preserved files")
 	results := fs.String("results", "results", "results directory")
 	htmlFile := fs.String("html", "results/pseudobench.html", "HTML report path")
+	traceDir := fs.String("trace-dir", "", "directory for batch trace JSON files (enables internal tracing)")
 	fs.Parse(args)
 
 	if *kapiBin == "" && *okapiBin == "" {
@@ -82,6 +83,7 @@ func cmdRun(args []string) {
 		OutputDir:     *output,
 		ResultsDir:    *results,
 		HTMLFile:      *htmlFile,
+		TraceDir:      *traceDir,
 	}
 
 	// Copy test data from okapi-testdata if specified.
