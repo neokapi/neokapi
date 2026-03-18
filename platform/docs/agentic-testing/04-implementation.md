@@ -34,23 +34,11 @@ Each agent persona runs as an independent **ZeroClaw** instance in its own Docke
 ┌──────────────────── docker-compose.yaml ──────────────────────┐
 │                                                                │
 │  ┌─────────────────────────────────────────────────────────┐  │
-│  │  bowrain-server  (Bowrain platform + PostgreSQL)         │  │
+│  │  bowrain-server  (platform + Bravo MCP at /mcp/)         │  │
 │  │  keycloak        (OIDC authentication)                   │  │
+│  │  24 tools: content, brand, flows, TM, connectors, sandbox│  │
 │  └─────────────────────────┬───────────────────────────────┘  │
-│                             │                                  │
-│  ┌─────────────────────────▼───────────────────────────────┐  │
-│  │  bowrain-mcp  (Bowrain MCP Server)                       │  │
-│  │  Exposes Bowrain API as MCP tools:                       │  │
-│  │  - bowrain.push / bowrain.pull / bowrain.sync            │  │
-│  │  - bowrain.translate / bowrain.aiTranslate           │  │
-│  │  - bowrain.addConcept / bowrain.listConcepts             │  │
-│  │  - bowrain.createBrandProfile / bowrain.checkBrand       │  │
-│  │  - bowrain.createTask / bowrain.listTasks                │  │
-│  │  - bowrain.listActivities                                │  │
-│  │  - bowrain.createStream / bowrain.listStreams             │  │
-│  │  - bowrain.addTMEntry / bowrain.listTMEntries            │  │
-│  └─────────────────────────┬───────────────────────────────┘  │
-│                             │ MCP (stdio/SSE)                  │
+│                             │ HTTP + Bearer JWT                 │
 │         ┌───────────────────┼───────────────────┐              │
 │         │                   │                   │              │
 │  ┌──────▼──────┐  ┌────────▼────────┐  ┌──────▼──────┐      │
@@ -71,31 +59,26 @@ Each agent persona runs as an independent **ZeroClaw** instance in its own Docke
 └────────────────────────────────────────────────────────────────┘
 ```
 
+## Bowrain MCP Server (Already Built)
+
+PR #43 (Bravo / AD-028) implements a comprehensive MCP server in `platform/server/mcp/`
+with **24 tools** covering brand voice, content management, flows, TM/terminology,
+connectors, and sandbox execution. This will be merged before agentic testing starts.
+
+The agentic testing system **uses the existing Bravo MCP server directly** — no custom
+MCP server is needed. Each ZeroClaw agent connects to the Bowrain server's `/mcp/`
+endpoint with a per-agent JWT token, using the same infrastructure Bravo uses for
+interactive conversations.
+
+The only new MCP tools needed for agentic testing are `github.*` and `email.*` (5 tools),
+which can be added to the existing `platform/server/mcp/` as new tool files.
+
 ## Repository Structure
 
 ```
 neokapi/agentic/
 ├── docker-compose.yaml          # Full stack: Bowrain + agents
 ├── Makefile                     # Convenience targets
-│
-├── mcp-server/                  # Bowrain MCP Server (new work)
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── src/
-│       ├── index.ts             # MCP server entry point
-│       ├── tools/
-│       │   ├── push-pull.ts     # bowrain.push, bowrain.pull, bowrain.sync
-│       │   ├── translate.ts     # bowrain.translate, bowrain.aiTranslate
-│       │   ├── termbase.ts      # bowrain.addConcept, bowrain.listConcepts
-│       │   ├── brand.ts         # bowrain.createBrandProfile, bowrain.checkBrand
-│       │   ├── tasks.ts         # bowrain.createTask, bowrain.listTasks
-│       │   ├── activities.ts    # bowrain.listActivities
-│       │   ├── streams.ts       # bowrain.createStream, bowrain.listStreams
-│       │   ├── tm.ts            # bowrain.addTMEntry, bowrain.listTMEntries
-│       │   ├── git.ts           # git.checkUpstream, git.merge, git.commit, git.push
-│       │   ├── github.ts       # github.createIssue, github.searchIssues, github.commentOnIssue
-│       │   └── email.ts        # email.send, email.listInbox
-│       └── auth.ts              # Per-agent auth context
 │
 ├── agents/                      # Agent workspace definitions
 │   ├── shared/                  # Shared files across agents
@@ -179,8 +162,10 @@ allowed_commands = ["git", "bowrain", "ls", "cat", "diff"]
 
 [mcp]
 [mcp.bowrain]
-transport = "streamable-http"
-url = "http://alex-mcp:3001/mcp"   # Per-agent MCP sidecar (see Per-Agent Auth)
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
 
 [daemon]
 # Check for upstream changes daily at 9am (with jitter handled by heartbeat)
@@ -257,8 +242,10 @@ allowed_commands = []
 
 [mcp]
 [mcp.bowrain]
-transport = "streamable-http"
-url = "http://alex-mcp:3001/mcp"   # Per-agent MCP sidecar (see Per-Agent Auth)
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
 
 [daemon]
 [daemon.cron]
@@ -337,8 +324,10 @@ allowed_commands = []
 
 [mcp]
 [mcp.bowrain]
-transport = "streamable-http"
-url = "http://alex-mcp:3001/mcp"   # Per-agent MCP sidecar (see Per-Agent Auth)
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
 
 [daemon]
 [daemon.cron]
@@ -387,161 +376,107 @@ You own the English brand voice and terminology across all projects.
 
 The single biggest piece of new work. This server wraps Bowrain's REST API as MCP tools, making them available to all ZeroClaw agents.
 
-### Implementation
+### MCP Tool Catalog (from PR #43 / Bravo)
 
-Built on the MCP TypeScript SDK, reusing the BowrainAPI client from `platform/e2e/shared/`:
+PR #43 implements **24 MCP tools** in `platform/server/mcp/tools_*.go`. These are
+already built — the agentic testing system uses them directly.
 
-```typescript
-// mcp-server/src/index.ts
-import { McpServer } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { BowrainAPI } from "../../platform/e2e/shared/api-client.js";
-
-const server = new McpServer({
-  name: "bowrain",
-  version: "1.0.0",
-});
-
-// Each tool maps directly to a BowrainAPI method
-server.tool("bowrain.push", "Push source content to Bowrain server", {
-  projectId: { type: "string", description: "Project ID" },
-  workspaceSlug: { type: "string", description: "Workspace slug" },
-}, async ({ projectId, workspaceSlug }) => {
-  const api = getAuthenticatedAPI(workspaceSlug);
-  const result = await api.syncPush(workspaceSlug, projectId);
-  return { content: [{ type: "text", text: JSON.stringify(result) }] };
-});
-
-server.tool("bowrain.listTasks", "List translation tasks", {
-  workspaceSlug: { type: "string", description: "Workspace slug" },
-  assignee: { type: "string", description: "Filter by assignee email", optional: true },
-  status: { type: "string", description: "Filter by status", optional: true },
-}, async ({ workspaceSlug, assignee, status }) => {
-  const api = getAuthenticatedAPI(workspaceSlug);
-  const tasks = await api.listTasks(workspaceSlug, { assignee, status });
-  return { content: [{ type: "text", text: JSON.stringify(tasks) }] };
-});
-
-server.tool("bowrain.addConcept", "Add a terminology concept", {
-  workspaceSlug: { type: "string", description: "Workspace slug" },
-  term: { type: "string", description: "The term" },
-  definition: { type: "string", description: "Term definition" },
-  domain: { type: "string", description: "Domain: software, ui, marketing, legal" },
-  status: { type: "string", description: "Status: preferred, approved, deprecated" },
-}, async ({ workspaceSlug, term, definition, domain, status }) => {
-  const api = getAuthenticatedAPI(workspaceSlug);
-  const concept = await api.addConcept(workspaceSlug, { term, definition, domain, status });
-  return { content: [{ type: "text", text: JSON.stringify(concept) }] };
-});
-
-server.tool("bowrain.addTMEntry", "Add a translation memory entry", {
-  workspaceSlug: { type: "string", description: "Workspace slug" },
-  source: { type: "string", description: "Source text" },
-  target: { type: "string", description: "Target text" },
-  sourceLang: { type: "string", description: "Source locale (e.g., en-US)" },
-  targetLang: { type: "string", description: "Target locale (e.g., fr-FR)" },
-}, async ({ workspaceSlug, source, target, sourceLang, targetLang }) => {
-  const api = getAuthenticatedAPI(workspaceSlug);
-  await api.addTMEntry(workspaceSlug, source, target, sourceLang, targetLang);
-  return { content: [{ type: "text", text: "TM entry added" }] };
-});
-
-// Git tools (for Developer agent)
-server.tool("git.checkUpstream", "Check for new upstream releases", {
-  repoPath: { type: "string", description: "Path to git repo" },
-}, async ({ repoPath }) => {
-  // Uses execFile (safe, no shell) to run git commands
-  const result = await checkUpstream(repoPath);
-  return { content: [{ type: "text", text: JSON.stringify(result) }] };
-});
-
-// ... 15-20 tools total covering all Bowrain workflows
-
-const transport = new StdioServerTransport();
-await server.connect(transport);
-```
-
-### MCP Tool Catalog
+**Brand Voice (3 tools):**
 
 | Tool | Used By | Description |
 |------|---------|-------------|
-| `bowrain.push` | Developer | Push source content to server |
-| `bowrain.pull` | Developer | Pull translations from server |
-| `bowrain.sync` | Developer | Push + pull in one operation |
-| `bowrain.status` | Developer, PM | Check sync state |
-| `bowrain.createStream` | Developer | Create a stream for a release |
-| `bowrain.listStreams` | Developer, PM | List existing streams |
-| `bowrain.translate` | Translator | Submit a human-reviewed translation for a block |
-| `bowrain.aiTranslate` | Translator | Get AI translation suggestion (not pseudo-translation) |
-| `bowrain.addConcept` | Brand Manager | Add terminology concept |
-| `bowrain.listConcepts` | Brand Manager, Translator | Query termbase |
-| `bowrain.createBrandProfile` | Brand Manager | Create brand voice profile |
-| `bowrain.checkBrand` | Brand Manager, QA | Check text against brand rules |
-| `bowrain.createTask` | PM, Brand Manager | Create a translation task |
-| `bowrain.listTasks` | PM, Translator | List/filter tasks |
-| `bowrain.updateTask` | PM, Translator | Update task status |
-| `bowrain.listActivities` | All | Check recent platform activity |
-| `bowrain.addTMEntry` | Translator | Add to translation memory |
-| `bowrain.listTMEntries` | Translator | Query translation memory |
-| `bowrain.uploadFile` | Developer | Upload a file to a project |
-| `git.checkUpstream` | Developer | Check for new releases/commits |
-| `git.merge` | Developer | Merge upstream changes |
-| `git.commit` | Developer | Commit changes |
-| `git.push` | Developer | Push to remote |
-| `github.createIssue` | All | File a bug report or feature request |
-| `github.listIssues` | PM, QA | List issues with filters |
-| `github.commentOnIssue` | PM, QA | Comment on existing issue |
-| `github.searchIssues` | All | Search before filing (dedup) |
-| `email.send` | All | Send email to team member (by role or address) |
-| `email.listInbox` | All | Check received emails since last check |
+| `check_vocabulary` | Brand Manager, QA | Validate text against brand terms, flag violations |
+| `list_profiles` | Brand Manager | List brand voice profiles in workspace |
+| `get_voice_guide` | Brand Manager, Translator | Formatted brand guide for LLM consumption |
+
+**Content Management (11 tools):**
+
+| Tool | Used By | Description |
+|------|---------|-------------|
+| `list_projects` | PM, Developer | List projects in workspace |
+| `get_project` | All | Get project details |
+| `create_project` | Developer | Create a new project |
+| `update_project` | Developer, PM | Update project settings |
+| `list_blocks` | Translator, QA | List translatable blocks |
+| `get_block` | Translator | Get block with source + targets |
+| `update_block` | Translator | Submit translation for a block (per locale) |
+| `create_version` | Developer | Create a new version/snapshot |
+| `list_streams` | Developer, PM | List content streams |
+| `diff_streams` | Developer, QA | Compare two streams |
+| `merge_stream` | Developer | Merge a stream into parent |
+
+**Flows & Automation (3 tools):**
+
+| Tool | Used By | Description |
+|------|---------|-------------|
+| `list_flows` | Developer, QA | List available flows (AI translate, QA, etc.) |
+| `run_flow` | Developer, Translator, QA | Execute a flow on project content |
+| `get_flow_status` | Developer | Check flow execution status |
+
+**Translation Memory & Terminology (4 tools):**
+
+| Tool | Used By | Description |
+|------|---------|-------------|
+| `tm_search` | Translator | Search TM with fuzzy matching (min score 0.5) |
+| `tm_import` | Developer | Bulk import TM entries |
+| `term_search` | Translator, Brand Manager | Search termbase with locale filters |
+| `term_add` | Brand Manager | Add new terminology concept |
+
+**Connectors & Sync (3 tools):**
+
+| Tool | Used By | Description |
+|------|---------|-------------|
+| `connector_pull` | Developer | Fetch content from Git/CMS into project |
+| `connector_push` | Developer | Publish translations to external target |
+| `connector_status` | Developer, PM | Check sync state (last sync, pending, errors) |
+
+**Sandbox (1 tool):**
+
+| Tool | Used By | Description |
+|------|---------|-------------|
+| `execute_script` | Developer, QA | Run Python/Bash/Node.js in isolated sandbox |
+
+**Tools to add for agentic testing (5 tools):**
+
+| Tool | Used By | Where to Add |
+|------|---------|--------------|
+| `github_create_issue` | All | `platform/server/mcp/tools_github.go` |
+| `github_search_issues` | All | `platform/server/mcp/tools_github.go` |
+| `github_comment_issue` | PM, QA | `platform/server/mcp/tools_github.go` |
+| `email_send` | All | `platform/server/mcp/tools_email.go` |
+| `email_list_inbox` | All | `platform/server/mcp/tools_email.go` |
+
+**Key workflow mapping:**
+- AI translation → use `run_flow` with an AI translation flow (not pseudo-translate)
+- Push/pull content → use `connector_pull` / `connector_push` with Git connector
+- Submit translation → use `update_block` to set target text per locale
+- Git operations → Developer agent uses ZeroClaw's `allowed_commands` for direct git access
 
 ### Per-Agent Auth
 
-**Decision: One MCP sidecar per agent.**
+Each ZeroClaw agent connects directly to the Bowrain server's MCP endpoint (`/mcp/`)
+using a per-agent JWT token — the same auth mechanism Bravo uses for interactive
+conversations.
 
-Each ZeroClaw container gets its own MCP server sidecar process, configured with that
-agent's Bowrain auth token. This is simpler and more secure than a shared MCP server
-trying to multiplex auth across 20+ SSE connections.
-
-```yaml
-# In docker-compose, each agent has its own MCP sidecar:
-alex-developer:
-  image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-  command: daemon
-  environment:
-    GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-  volumes:
-    - ./agents/alex-developer:/root/.zeroclaw
-    - ./forks:/root/.zeroclaw/workspace
-  depends_on: [alex-mcp]
-
-alex-mcp:
-  build: ./mcp-server
-  environment:
-    BOWRAIN_URL: http://bowrain-server:8080
-    BOWRAIN_TOKEN: ${ALEX_BOWRAIN_TOKEN}     # Alex's auth token
-    GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-    SMTP_HOST: mailpit
-  # No port exposed — only the paired agent connects
-```
-
-Each agent's `config.toml` points to its own MCP sidecar:
+**No MCP sidecar needed.** The Bravo MCP server is built into bowrain-server itself
+(`platform/server/mcp/`). Each agent connects to the same server with its own token.
 
 ```toml
+# agents/alex-developer/config.toml
 [mcp.bowrain]
-transport = "streamable-http"
-url = "http://alex-mcp:3001/mcp"
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"          # e.g., http://bowrain-server:8080/mcp/
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
 ```
 
-**Why per-agent, not shared:**
-- SSE/Streamable HTTP connections don't carry per-request identity — a shared server
-  can't reliably map calls to agents
-- Each sidecar is &lt;30MB (Node.js), adding ~200MB total for 7 agents — acceptable
-- Auth tokens are isolated per container (no cross-agent leakage)
-- An agent's MCP sidecar failing doesn't affect other agents
+This is the exact config template from `platform/docker/bravo/config.toml.template`.
+Agent tokens are workspace-scoped JWTs (30min TTL, auto-refreshed) created via
+the Bravo conversation API.
 
-**Trade-off:** More containers in docker-compose. Mitigated by a `docker-compose.agents.yaml`
-override file generated from agent workspace configs.
+**Key implication:** No per-agent MCP sidecar containers. Each agent has ONE container
+(ZeroClaw daemon) that connects directly to bowrain-server. This halves the container
+count from 14 to 7.
 
 ## Docker Compose (Local Development)
 
@@ -555,7 +490,7 @@ Only the `[llm]` provider block in `config.toml` differs.
 ```yaml
 # docker-compose.yaml — local development stack
 services:
-  # === Platform (same everywhere) ===
+  # === Platform ===
   bowrain-server:
     image: bowrain/server:latest
     ports: ["8080:8080"]
@@ -589,18 +524,10 @@ services:
     volumes:
       - ollama-data:/root/.ollama
 
-  # === Agents (each agent has a paired MCP sidecar) ===
-  # Pattern: {agent} → {agent}-mcp (sidecar with agent's Bowrain auth token)
-
-  # Developer Agent (Alex Chen)
-  alex-mcp:
-    build: ./mcp-server
-    environment:
-      BOWRAIN_URL: http://bowrain-server:8080
-      BOWRAIN_TOKEN: ${ALEX_BOWRAIN_TOKEN}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      SMTP_HOST: mailpit
-    depends_on: [bowrain-server]
+  # === Agents ===
+  # Each agent connects directly to bowrain-server's /mcp/ endpoint
+  # using a per-agent JWT token (same auth as Bravo interactive sessions).
+  # No MCP sidecar needed — the MCP server is built into bowrain-server.
 
   alex-developer:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
@@ -608,19 +535,11 @@ services:
     restart: unless-stopped
     environment:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${ALEX_AGENT_TOKEN}
     volumes:
       - ./agents/alex-developer:/root/.zeroclaw
       - ./forks:/root/.zeroclaw/workspace
-    depends_on: [alex-mcp]
-
-  # French Translator (Jean-Pierre Dubois)
-  jeanpierre-mcp:
-    build: ./mcp-server
-    environment:
-      BOWRAIN_URL: http://bowrain-server:8080
-      BOWRAIN_TOKEN: ${JEANPIERRE_BOWRAIN_TOKEN}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      SMTP_HOST: mailpit
     depends_on: [bowrain-server]
 
   jeanpierre-fr:
@@ -629,13 +548,14 @@ services:
     restart: unless-stopped
     environment:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${JEANPIERRE_AGENT_TOKEN}
     volumes:
       - ./agents/jeanpierre-fr:/root/.zeroclaw
-    depends_on: [jeanpierre-mcp]
+    depends_on: [bowrain-server]
 
   # ... same pattern for: maria-brand, katrin-de, yuki-ja, lisa-pm, taylor-qa
-  # Each gets: {name}-mcp (sidecar) + {name} (ZeroClaw daemon)
-  # Total: 7 agents × 2 containers = 14 containers + platform services
+  # Total: 7 agent containers + platform services (no sidecars)
 
   # === Optional: Release Walker ===
   release-walker:
@@ -656,14 +576,13 @@ volumes:
 **Environment variables (`.env`):**
 ```bash
 GOOGLE_API_KEY=AIza...                 # All agents use Gemini locally
-GITHUB_TOKEN=ghp_...                   # For filing issues (optional)
-ALEX_BOWRAIN_TOKEN=...                 # Per-agent Bowrain auth tokens
-JEANPIERRE_BOWRAIN_TOKEN=...           # (created via Keycloak user setup)
-MARIA_BOWRAIN_TOKEN=...
-KATRIN_BOWRAIN_TOKEN=...
-YUKI_BOWRAIN_TOKEN=...
-LISA_BOWRAIN_TOKEN=...
-TAYLOR_BOWRAIN_TOKEN=...
+ALEX_AGENT_TOKEN=...                   # Per-agent JWT tokens
+JEANPIERRE_AGENT_TOKEN=...            # (created via Bravo conversation API
+MARIA_AGENT_TOKEN=...                  #  or Keycloak user setup)
+KATRIN_AGENT_TOKEN=...
+YUKI_AGENT_TOKEN=...
+LISA_AGENT_TOKEN=...
+TAYLOR_AGENT_TOKEN=...
 ```
 
 ## Event Coordination: Poll-Based via Activity Feed

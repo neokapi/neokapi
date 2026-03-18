@@ -240,8 +240,9 @@ allowed_commands = []    # Translator: API-only, no shell
 
 [mcp]
 [mcp.bowrain]
-transport = "streamable-http"
-url = "http://jeanpierre-mcp:3001/mcp"  # Per-agent MCP sidecar
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
 
 [daemon]
 [daemon.cron]

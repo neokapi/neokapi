@@ -29,9 +29,10 @@ platform — the kind of messages real team members exchange:
 | Escalation | Translator | Brand Manager | "Need guidance: 'serverless' — transliterate or translate?" |
 | Welcome/onboarding | PM | New translator | "Welcome Yuki! Here's your first batch of ja-JP translations" |
 
-Agents never touch Mailpit directly. They call `email.send` and `email.listInbox` MCP
-tools, which run inside the `bowrain-mcp` container. The MCP server connects to Mailpit
-over the Docker compose network (`mailpit:1025` for SMTP, `mailpit:8025` for the API).
+Agents never touch Mailpit directly. They call `email_send` and `email_list_inbox` MCP
+tools, which run inside the `bowrain-server` container (alongside the other 24 Bravo MCP
+tools). The server connects to Mailpit over the compose network (`mailpit:1025` for SMTP,
+`mailpit:8025` for the inbox API).
 
 **Local dev:** Mailpit catches all email inside the compose network. The operator can
 browse captured emails at `http://localhost:8025` (port-forwarded to host).
@@ -551,7 +552,7 @@ New tools for email communication:
 // mcp-server/src/tools/email.ts
 import nodemailer from "nodemailer";
 
-// Runs inside bowrain-mcp container — connects to Mailpit via compose network
+// Runs inside bowrain-server — connects to Mailpit via compose network
 // Local:  SMTP_HOST=mailpit (compose service name), port 1025
 // Azure:  SMTP_HOST=smtp.sendgrid.net or Azure Communication Services endpoint
 const transport = nodemailer.createTransport({
@@ -578,9 +579,9 @@ server.tool("email.send", "Send an email to a team member", {
 server.tool("email.listInbox", "Check for new emails", {
   since: { type: "string", description: "ISO timestamp", optional: true },
 }, async ({ since, agentContext }) => {
-  // Query Mailpit API (compose-internal: mailpit:8025) for messages to this agent
+  // Query Mailpit API (compose-internal: mailpit:8025)
   const response = await fetch(
-    `http://${process.env.MAILPIT_HOST || "mailpit"}:8025/api/v1/search?query=to:${agentContext.email}`
+    `http://${process.env.MAILPIT_API_HOST || "mailpit"}:8025/api/v1/search?query=to:${agentContext.email}`
   );
   const messages = await response.json();
   return { content: [{ type: "text", text: JSON.stringify(messages.messages) }] };
@@ -621,7 +622,7 @@ Respond to messages that need a reply before starting your main work.
 # Add to docker-compose.yaml
 
   # === Email (Mailpit) ===
-  # Internal: agents reach Mailpit via bowrain-mcp → mailpit:1025 (compose network)
+  # Internal: agents reach Mailpit via bowrain-server → mailpit:1025 (compose network)
   # External: operator views captured emails at http://localhost:8025 (port-forwarded)
   mailpit:
     image: axllent/mailpit:latest
@@ -631,17 +632,15 @@ Respond to messages that need a reply before starting your main work.
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  # Each agent's MCP sidecar gets GitHub + email config:
-  alex-mcp:                                  # (one per agent — see 04-implementation.md)
-    build: ./mcp-server
+  # bowrain-server gets GitHub + email config for the new MCP tools:
+  bowrain-server:
     environment:
-      BOWRAIN_URL: http://bowrain-server:8080
-      BOWRAIN_TOKEN: ${ALEX_BOWRAIN_TOKEN}   # Per-agent Bowrain auth
-      GITHUB_TOKEN: ${GITHUB_TOKEN}          # For filing issues
-      SMTP_HOST: mailpit                     # Compose-internal hostname
+      # ... existing config plus:
+      GITHUB_TOKEN: ${GITHUB_TOKEN}          # For github_* MCP tools
+      SMTP_HOST: mailpit                     # For email_* MCP tools
       SMTP_PORT: 1025
-      MAILPIT_HOST: mailpit                  # For inbox queries
-    depends_on: [bowrain-server, mailpit]
+      MAILPIT_API_HOST: mailpit              # For email_list_inbox
+    depends_on: [postgres, keycloak, mailpit]
 ```
 
 ### Environment Variables
