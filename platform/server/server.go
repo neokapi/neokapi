@@ -384,6 +384,16 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		jwtProtected.POST("/projects/:id/assets/:aid/variants", s.HandleCreateVariant)
 		jwtProtected.GET("/projects/:id/assets/:aid/variants", s.HandleListVariants)
 
+		// Stream-scoped asset routes (AD-029).
+		jwtProtected.POST("/projects/:id/streams/:stream/assets/upload-url", s.HandleAssetUploadURL)
+		jwtProtected.POST("/projects/:id/streams/:stream/assets", s.HandleCreateAsset)
+		jwtProtected.GET("/projects/:id/streams/:stream/assets", s.HandleListAssets)
+		jwtProtected.GET("/projects/:id/streams/:stream/assets/:aid", s.HandleGetAsset)
+		jwtProtected.DELETE("/projects/:id/streams/:stream/assets/:aid", s.HandleDeleteAsset)
+		jwtProtected.POST("/projects/:id/streams/:stream/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
+		jwtProtected.POST("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleCreateVariant)
+		jwtProtected.GET("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleListVariants)
+
 		// Sync routes: accept either JWT or ClaimToken.
 		// Register both legacy (flat) and stream-scoped routes.
 		if s.AuthStore != nil {
@@ -490,6 +500,16 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/projects/:id/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
 	g.POST("/projects/:id/assets/:aid/variants", s.HandleCreateVariant)
 	g.GET("/projects/:id/assets/:aid/variants", s.HandleListVariants)
+
+	// Stream-scoped asset routes (AD-029)
+	g.POST("/projects/:id/streams/:stream/assets/upload-url", s.HandleAssetUploadURL)
+	g.POST("/projects/:id/streams/:stream/assets", s.HandleCreateAsset)
+	g.GET("/projects/:id/streams/:stream/assets", s.HandleListAssets)
+	g.GET("/projects/:id/streams/:stream/assets/:aid", s.HandleGetAsset)
+	g.DELETE("/projects/:id/streams/:stream/assets/:aid", s.HandleDeleteAsset)
+	g.POST("/projects/:id/streams/:stream/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
+	g.POST("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleCreateVariant)
+	g.GET("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleListVariants)
 
 	// Editor project routes
 	g.POST("/editor/projects", s.HandleCreateEditorProject)
