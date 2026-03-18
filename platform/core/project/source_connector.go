@@ -1,8 +1,10 @@
 package project
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -241,11 +243,12 @@ func (c *BowrainSourceConnector) Close() error {
 
 // Push sends source content from local files to Bowrain.
 func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOptions) (*connector.PushResult, error) {
-	// Scan local files and extract blocks grouped by item.
-	hashMap, blockMap, err := c.scanLocalBlocks(ctx, opts.Paths)
+	// Scan local files and extract blocks and media grouped by item.
+	hashMap, blockMap, mediaHashMap, mediaMap, err := c.scanLocalBlocksAndMedia(ctx, opts.Paths)
 	if err != nil {
 		return nil, fmt.Errorf("scan local files: %w", err)
 	}
+	_, _ = mediaHashMap, mediaMap // used below after block push
 
 	// Diff against cache to find changed blocks, keeping item association.
 	type itemBlock struct {
@@ -341,6 +344,12 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 	// Fetch and cache server metadata (best-effort).
 	c.fetchAndCacheMetadata(ctx)
 
+	// Push assets (AD-029): upload changed media to blob storage.
+	assetsPushed := 0
+	if c.client != nil && len(mediaMap) > 0 {
+		assetsPushed = c.pushAssets(ctx, mediaHashMap, mediaMap, opts.Force)
+	}
+
 	// Update cache with per-file hashes.
 	for itemName, fileHashes := range hashMap {
 		fc, ok := c.cache.Files[itemName]
@@ -350,6 +359,20 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 		}
 		for blockID, hash := range fileHashes {
 			fc.Blocks[blockID] = hash
+		}
+	}
+	// Update cache with per-file asset hashes.
+	for itemName, assetHashes := range mediaHashMap {
+		fc, ok := c.cache.Files[itemName]
+		if !ok {
+			fc = &FileCache{Blocks: map[string]string{}, Assets: map[string]string{}}
+			c.cache.Files[itemName] = fc
+		}
+		if fc.Assets == nil {
+			fc.Assets = map[string]string{}
+		}
+		for sourceID, blobKey := range assetHashes {
+			fc.Assets[sourceID] = blobKey
 		}
 	}
 	c.cache.SetStreamCursor(c.stream, lastCursor)
@@ -363,11 +386,92 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 
 	return &connector.PushResult{
 		BlocksPushed: totalStored,
+		AssetsPushed: assetsPushed,
 		FilesScanned: len(hashMap),
 		ChunkCount:   chunkCount,
 		WordCount:    pushWords,
 		PushID:       pushID,
 	}, nil
+}
+
+// pushAssets uploads changed media assets to the server.
+// For each asset: checks cache → requests upload URL → uploads blob → registers metadata.
+func (c *BowrainSourceConnector) pushAssets(
+	ctx context.Context,
+	mediaHashMap map[string]map[string]string,
+	mediaMap map[string][]*model.Media,
+	force bool,
+) int {
+	pushed := 0
+	for itemName, mediaList := range mediaMap {
+		cachedAssets := map[string]string{}
+		if fc, ok := c.cache.Files[itemName]; ok && fc.Assets != nil {
+			cachedAssets = fc.Assets
+		}
+
+		for _, m := range mediaList {
+			// Skip unchanged assets.
+			if !force {
+				if cachedKey, ok := cachedAssets[m.ID]; ok && cachedKey == m.BlobKey {
+					continue
+				}
+			}
+
+			// Request upload URL (dedup check).
+			urlResp, err := c.client.GetAssetUploadURL(ctx, m.BlobKey, m.MimeType, m.Size)
+			if err != nil {
+				continue // best-effort
+			}
+
+			// If blob doesn't exist yet and we have a SAS URL, upload directly.
+			// For local backend (no SAS URL), the server proxies the upload
+			// via the PushAsset metadata call — the blob was already uploaded
+			// inline if the server supports it, or the upload-url response
+			// indicates the blob exists (dedup).
+			if !urlResp.Exists && urlResp.UploadURL != "" {
+				// Direct upload to blob storage via SAS URL.
+				if err := uploadToSASURL(ctx, urlResp.UploadURL, m.Data, m.MimeType); err != nil {
+					continue // best-effort
+				}
+			}
+
+			// Register asset metadata on the server.
+			_, err = c.client.PushAsset(ctx, apiclient.AssetInput{
+				BlobKey:    m.BlobKey,
+				ItemName:   itemName,
+				SourceID:   m.ID,
+				MimeType:   m.MimeType,
+				Filename:   m.Filename,
+				SizeBytes:  m.Size,
+				AltText:    m.AltText,
+				Properties: m.Properties,
+			})
+			if err != nil {
+				continue // best-effort
+			}
+			pushed++
+		}
+	}
+	return pushed
+}
+
+// uploadToSASURL uploads data directly to a pre-signed Azure SAS URL.
+func uploadToSASURL(ctx context.Context, sasURL string, data []byte, contentType string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, sasURL, bytes.NewReader(data))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("x-ms-blob-type", "BlockBlob")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("SAS upload failed: HTTP %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // Pull retrieves translated content from Bowrain.
@@ -499,8 +603,22 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 // and extracts blocks grouped by item (file path relative to project root).
 // Returns itemName→(blockID→hash) and itemName→blocks.
 func (c *BowrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []string) (map[string]map[string]string, map[string][]*model.Block, error) {
+	hashMap, blockMap, _, _, err := c.scanLocalBlocksAndMedia(ctx, paths)
+	return hashMap, blockMap, err
+}
+
+// scanLocalBlocksAndMedia extracts both blocks and media from local files.
+// Returns block hashes, blocks, media hashes (sourceID→blobKey), and media grouped by item.
+func (c *BowrainSourceConnector) scanLocalBlocksAndMedia(ctx context.Context, paths []string) (
+	map[string]map[string]string, map[string][]*model.Block,
+	map[string]map[string]string, map[string][]*model.Media, error,
+) {
 	hashMap := map[string]map[string]string{}
 	blockMap := map[string][]*model.Block{}
+	mediaHashMap := map[string]map[string]string{}
+	mediaMap := map[string][]*model.Media{}
+
+	assetsEnabled := c.project.Config.AssetsEnabled()
 
 	// If no specific paths, use content entries to discover files.
 	if len(paths) == 0 {
@@ -518,7 +636,7 @@ func (c *BowrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []st
 	}
 
 	if len(paths) == 0 {
-		return hashMap, blockMap, nil
+		return hashMap, blockMap, mediaHashMap, mediaMap, nil
 	}
 
 	for _, p := range paths {
@@ -536,22 +654,48 @@ func (c *BowrainSourceConnector) scanLocalBlocks(ctx context.Context, paths []st
 			continue
 		}
 
-		blocks, err := c.readBlocks(ctx, absPath, formatName)
-		if err != nil {
-			continue // Skip files that can't be parsed.
-		}
-
 		relPath, _ := c.project.RelativePath(absPath)
-		fileHashes := map[string]string{}
-		for _, b := range blocks {
-			identity := model.ComputeIdentity(b)
-			fileHashes[b.ID] = identity.ContentHash
+
+		// Extract blocks and optionally media.
+		if assetsEnabled {
+			blocks, media, err := c.readBlocksAndMedia(ctx, absPath, formatName)
+			if err != nil {
+				continue
+			}
+
+			fileHashes := map[string]string{}
+			for _, b := range blocks {
+				identity := model.ComputeIdentity(b)
+				fileHashes[b.ID] = identity.ContentHash
+			}
+			hashMap[relPath] = fileHashes
+			blockMap[relPath] = blocks
+
+			if len(media) > 0 {
+				assetHashes := map[string]string{}
+				for _, m := range media {
+					assetHashes[m.ID] = m.BlobKey
+				}
+				mediaHashMap[relPath] = assetHashes
+				mediaMap[relPath] = media
+			}
+		} else {
+			blocks, err := c.readBlocks(ctx, absPath, formatName)
+			if err != nil {
+				continue
+			}
+
+			fileHashes := map[string]string{}
+			for _, b := range blocks {
+				identity := model.ComputeIdentity(b)
+				fileHashes[b.ID] = identity.ContentHash
+			}
+			hashMap[relPath] = fileHashes
+			blockMap[relPath] = blocks
 		}
-		hashMap[relPath] = fileHashes
-		blockMap[relPath] = blocks
 	}
 
-	return hashMap, blockMap, nil
+	return hashMap, blockMap, mediaHashMap, mediaMap, nil
 }
 
 // detectFormat determines the format for a file using mappings or the registry.
@@ -586,14 +730,25 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 
 // readBlocks reads a file and extracts blocks using the format reader.
 func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, formatName string) ([]*model.Block, error) {
+	blocks, _, err := c.readBlocksAndMedia(ctx, filePath, formatName)
+	return blocks, err
+}
+
+// readBlocksAndMedia reads a file and extracts both blocks and media using the format reader.
+func (c *BowrainSourceConnector) readBlocksAndMedia(ctx context.Context, filePath, formatName string) ([]*model.Block, []*model.Media, error) {
 	reader, err := c.formatReg.NewReader(formatName)
 	if err != nil {
-		return nil, fmt.Errorf("create reader for %s: %w", formatName, err)
+		return nil, nil, fmt.Errorf("create reader for %s: %w", formatName, err)
+	}
+
+	// Enable media extraction if the format supports it.
+	if cfg := reader.Config(); cfg != nil {
+		_ = cfg.ApplyMap(map[string]any{"extractMedia": true})
 	}
 
 	f, err := os.Open(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("open file %s: %w", filePath, err)
+		return nil, nil, fmt.Errorf("open file %s: %w", filePath, err)
 	}
 
 	doc := &model.RawDocument{
@@ -604,23 +759,29 @@ func (c *BowrainSourceConnector) readBlocks(ctx context.Context, filePath, forma
 
 	if err := reader.Open(ctx, doc); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("open document %s: %w", filePath, err)
+		return nil, nil, fmt.Errorf("open document %s: %w", filePath, err)
 	}
 
 	var blocks []*model.Block
+	var media []*model.Media
 	ch := reader.Read(ctx)
 	for pr := range ch {
 		if pr.Error != nil {
 			continue
 		}
-		if pr.Part.Type == model.PartBlock {
+		switch pr.Part.Type {
+		case model.PartBlock:
 			if b, ok := pr.Part.Resource.(*model.Block); ok {
 				blocks = append(blocks, b)
+			}
+		case model.PartMedia:
+			if m, ok := pr.Part.Resource.(*model.Media); ok {
+				media = append(media, m)
 			}
 		}
 	}
 
-	return blocks, nil
+	return blocks, media, nil
 }
 
 // resolveTargetPath determines the output path for a translated file.
