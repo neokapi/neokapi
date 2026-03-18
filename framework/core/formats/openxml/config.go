@@ -50,6 +50,9 @@ type Config struct {
 	// --- Font mappings ---
 	FontMappings map[string]string // Font name → script group (e.g., "MS Gothic": "ja")
 
+	// --- Media extraction (AD-029) ---
+	ExtractMedia bool // Emit PartMedia parts for embedded images/objects from word/media/
+
 	// --- Advanced ---
 	ExtractRunFontsInfo      bool   // Emit font metadata as annotations on blocks
 	ReplaceLineSeparator     bool   // Replace Unicode line separator (U+2028) in output
@@ -136,6 +139,8 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.UseCodeFinder = toBool(val)
 		case "optimiseWordStyles":
 			c.OptimiseWordStyles = toBool(val)
+		case "extractMedia":
+			c.ExtractMedia = toBool(val)
 		case "extractRunFontsInfo":
 			c.ExtractRunFontsInfo = toBool(val)
 		case "replaceLineSeparator":

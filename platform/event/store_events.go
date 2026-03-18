@@ -373,5 +373,37 @@ func (s *EventEmittingStore) Close() error {
 	return s.inner.Close()
 }
 
+// ---------------------------------------------------------------------------
+// Asset CRUD (AD-029) — delegate to inner store
+// ---------------------------------------------------------------------------
+
+func (s *EventEmittingStore) StoreAsset(ctx context.Context, projectID, stream string, asset *store.Asset) error {
+	return s.inner.StoreAsset(ctx, projectID, stream, asset)
+}
+
+func (s *EventEmittingStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*store.Asset, error) {
+	return s.inner.GetAsset(ctx, projectID, stream, assetID)
+}
+
+func (s *EventEmittingStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*store.Asset, error) {
+	return s.inner.ListAssets(ctx, projectID, stream, itemName)
+}
+
+func (s *EventEmittingStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
+	return s.inner.DeleteAsset(ctx, projectID, stream, assetID)
+}
+
+func (s *EventEmittingStore) StoreAssetVariant(ctx context.Context, projectID string, variant *store.AssetVariant) error {
+	return s.inner.StoreAssetVariant(ctx, projectID, variant)
+}
+
+func (s *EventEmittingStore) GetAssetVariant(ctx context.Context, projectID, assetID, locale string) (*store.AssetVariant, error) {
+	return s.inner.GetAssetVariant(ctx, projectID, assetID, locale)
+}
+
+func (s *EventEmittingStore) ListAssetVariants(ctx context.Context, projectID, assetID string) ([]*store.AssetVariant, error) {
+	return s.inner.ListAssetVariants(ctx, projectID, assetID)
+}
+
 // Ensure EventEmittingStore implements ContentStore.
 var _ store.ContentStore = (*EventEmittingStore)(nil)

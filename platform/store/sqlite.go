@@ -1130,3 +1130,265 @@ func deserializeAnnotations(jsonStr string) map[string]model.Annotation {
 
 	return result
 }
+
+// ---------------------------------------------------------------------------
+// Asset CRUD (AD-029)
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteStore) StoreAsset(ctx context.Context, projectID, stream string, asset *platstore.Asset) error {
+	stream = defaultStream(stream)
+	if asset.ID == "" {
+		asset.ID = id.New()
+	}
+	now := time.Now().UTC()
+	asset.ProjectID = projectID
+	asset.Stream = stream
+	asset.CreatedAt = now
+	asset.UpdatedAt = now
+
+	if asset.ProcessingStatus == "" {
+		asset.ProcessingStatus = "none"
+	}
+
+	propsJSON, err := json.Marshal(asset.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal asset properties: %w", err)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if this is a new asset or an update (for change log).
+	var existingID string
+	_ = tx.QueryRowContext(ctx,
+		`SELECT id FROM assets WHERE project_id=? AND blob_key=? AND stream=?`,
+		projectID, asset.BlobKey, stream).Scan(&existingID)
+	isNew := existingID == ""
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO assets (id, project_id, item_name, source_id, blob_key, mime_type, filename,
+			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(project_id, blob_key) WHERE stream = 'main' DO UPDATE SET
+			item_name=excluded.item_name, source_id=excluded.source_id, mime_type=excluded.mime_type,
+			filename=excluded.filename, size_bytes=excluded.size_bytes, alt_text=excluded.alt_text,
+			properties=excluded.properties, processing_status=excluded.processing_status,
+			processing_hint=excluded.processing_hint, updated_at=excluded.updated_at`,
+		asset.ID, projectID, asset.ItemName, asset.SourceID, asset.BlobKey, asset.MimeType,
+		asset.Filename, asset.SizeBytes, asset.AltText, string(propsJSON),
+		asset.ProcessingStatus, asset.ProcessingHint, stream,
+		now.Format(time.RFC3339), now.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("store asset: %w", err)
+	}
+
+	// Log change for incremental sync.
+	changeType := "asset_modified"
+	if isNew {
+		changeType = "asset_added"
+	}
+	assetID := asset.ID
+	if existingID != "" {
+		assetID = existingID
+	}
+	if err := logChange(ctx, tx, projectID, stream, assetID, changeType, "", asset.BlobKey); err != nil {
+		return fmt.Errorf("log asset change: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+func (s *SQLiteStore) GetAsset(ctx context.Context, projectID, stream, assetID string) (*platstore.Asset, error) {
+	stream = defaultStream(stream)
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
+			size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
+		 FROM assets WHERE project_id=? AND stream=? AND id=?`, projectID, stream, assetID)
+	return scanAsset(row)
+}
+
+func (s *SQLiteStore) ListAssets(ctx context.Context, projectID, stream, itemName string) ([]*platstore.Asset, error) {
+	stream = defaultStream(stream)
+	var rows *sql.Rows
+	var err error
+	if itemName != "" {
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
+				size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
+			 FROM assets WHERE project_id=? AND stream=? AND item_name=? ORDER BY filename`, projectID, stream, itemName)
+	} else {
+		rows, err = s.db.QueryContext(ctx,
+			`SELECT id, project_id, item_name, source_id, blob_key, mime_type, filename,
+				size_bytes, alt_text, properties, processing_status, processing_hint, stream, created_at, updated_at
+			 FROM assets WHERE project_id=? AND stream=? ORDER BY filename`, projectID, stream)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list assets: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*platstore.Asset
+	for rows.Next() {
+		a, err := scanAsset(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, a)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteStore) DeleteAsset(ctx context.Context, projectID, stream, assetID string) error {
+	stream = defaultStream(stream)
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	res, err := tx.ExecContext(ctx,
+		`DELETE FROM assets WHERE project_id=? AND stream=? AND id=?`, projectID, stream, assetID)
+	if err != nil {
+		return fmt.Errorf("delete asset: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("asset %q not found", assetID)
+	}
+
+	if err := logChange(ctx, tx, projectID, stream, assetID, "asset_removed", "", ""); err != nil {
+		return fmt.Errorf("log asset removal: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// scanner is the interface shared by *sql.Row and *sql.Rows.
+type assetScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanAsset(row assetScanner) (*platstore.Asset, error) {
+	var a platstore.Asset
+	var propsJSON, createdStr, updatedStr string
+	err := row.Scan(&a.ID, &a.ProjectID, &a.ItemName, &a.SourceID, &a.BlobKey, &a.MimeType,
+		&a.Filename, &a.SizeBytes, &a.AltText, &propsJSON, &a.ProcessingStatus, &a.ProcessingHint,
+		&a.Stream, &createdStr, &updatedStr)
+	if err != nil {
+		return nil, fmt.Errorf("scan asset: %w", err)
+	}
+	a.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	a.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(propsJSON), &a.Properties); err != nil {
+		a.Properties = map[string]string{}
+	}
+	return &a, nil
+}
+
+// ---------------------------------------------------------------------------
+// Asset Variants (AD-029)
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteStore) StoreAssetVariant(ctx context.Context, projectID string, variant *platstore.AssetVariant) error {
+	now := time.Now().UTC()
+	variant.CreatedAt = now
+	variant.UpdatedAt = now
+
+	if variant.Status == "" {
+		variant.Status = "pending"
+	}
+
+	propsJSON, err := json.Marshal(variant.Properties)
+	if err != nil {
+		return fmt.Errorf("marshal variant properties: %w", err)
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	// Check if this is a new variant or an update.
+	var existingKey string
+	_ = tx.QueryRowContext(ctx,
+		`SELECT blob_key FROM asset_variants WHERE asset_id=? AND locale=?`,
+		variant.AssetID, variant.Locale).Scan(&existingKey)
+	isNew := existingKey == ""
+
+	_, err = tx.ExecContext(ctx,
+		`INSERT INTO asset_variants (asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(asset_id, locale) DO UPDATE SET
+			blob_key=excluded.blob_key, status=excluded.status, mime_type=excluded.mime_type,
+			size_bytes=excluded.size_bytes, properties=excluded.properties, updated_at=excluded.updated_at`,
+		variant.AssetID, variant.Locale, variant.BlobKey, variant.Status, variant.MimeType,
+		variant.SizeBytes, string(propsJSON),
+		now.Format(time.RFC3339), now.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("store asset variant: %w", err)
+	}
+
+	// Log change for incremental sync — look up the asset's project/stream.
+	var assetProjectID, assetStream string
+	err = tx.QueryRowContext(ctx,
+		`SELECT project_id, stream FROM assets WHERE id=?`, variant.AssetID).Scan(&assetProjectID, &assetStream)
+	if err == nil {
+		changeType := "variant_modified"
+		if isNew {
+			changeType = "variant_added"
+		}
+		if variant.Status == "approved" && existingKey != "" {
+			changeType = "variant_approved"
+		}
+		_ = logChange(ctx, tx, assetProjectID, assetStream, variant.AssetID, changeType, variant.Locale, variant.BlobKey)
+	}
+
+	return tx.Commit()
+}
+
+func (s *SQLiteStore) GetAssetVariant(ctx context.Context, _, assetID, locale string) (*platstore.AssetVariant, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
+		 FROM asset_variants WHERE asset_id=? AND locale=?`, assetID, locale)
+	return scanAssetVariant(row)
+}
+
+func (s *SQLiteStore) ListAssetVariants(ctx context.Context, _, assetID string) ([]*platstore.AssetVariant, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT asset_id, locale, blob_key, status, mime_type, size_bytes, properties, created_at, updated_at
+		 FROM asset_variants WHERE asset_id=? ORDER BY locale`, assetID)
+	if err != nil {
+		return nil, fmt.Errorf("list asset variants: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*platstore.AssetVariant
+	for rows.Next() {
+		v, err := scanAssetVariant(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, v)
+	}
+	return result, rows.Err()
+}
+
+func scanAssetVariant(row assetScanner) (*platstore.AssetVariant, error) {
+	var v platstore.AssetVariant
+	var propsJSON, createdStr, updatedStr string
+	err := row.Scan(&v.AssetID, &v.Locale, &v.BlobKey, &v.Status, &v.MimeType,
+		&v.SizeBytes, &propsJSON, &createdStr, &updatedStr)
+	if err != nil {
+		return nil, fmt.Errorf("scan asset variant: %w", err)
+	}
+	v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	v.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	if err := json.Unmarshal([]byte(propsJSON), &v.Properties); err != nil {
+		v.Properties = map[string]string{}
+	}
+	return &v, nil
+}
