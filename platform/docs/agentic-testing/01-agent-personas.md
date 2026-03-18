@@ -322,13 +322,13 @@ Developer pushes new content
 
 ## Agent Communication
 
-Agents communicate through Bowrain's built-in mechanisms:
-- **Tasks:** Formal work assignments with status tracking
-- **Activity feed:** All actions are visible to all team members
-- **Comments:** Task-level discussion (coming feature)
-- **Notifications:** Alerts for assignments, completions, mentions
+Agents communicate through three channels:
 
-Agents do NOT communicate through external channels (Slack, email). All interaction flows through the Bowrain platform to generate authentic activity.
+- **Bowrain platform** (primary) — Tasks, activity feed, translation editor, brand dashboard. This is where the core localization work happens and generates authentic platform activity.
+- **Email** (coordination) — Weekly status digests, terminology discussions, escalations, release coordination. Sent via SMTP (Mailpit locally, real SMTP in Azure). See `09-agent-routines.md` for email patterns.
+- **GitHub Issues** (feedback) — Bug reports and feature requests filed against `bowrain-l10n/feedback`. Agents search before filing to avoid duplicates. See `09-agent-routines.md` for issue templates.
+
+All three channels generate observable activity that demonstrates Bowrain in a realistic team context.
 
 ## Personality Variation
 

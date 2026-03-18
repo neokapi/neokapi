@@ -61,6 +61,8 @@ Each agent persona runs as an independent **ZeroClaw** container — a lightweig
 | [06-evaluation-quality.md](06-evaluation-quality.md) | Translation quality assessment, platform health metrics |
 | [07-rollout-phases.md](07-rollout-phases.md) | Phased rollout plan from MVP to full system |
 | [08-alternatives.md](08-alternatives.md) | Alternative approaches, trade-offs, and decision log |
+| [09-agent-routines.md](09-agent-routines.md) | Detailed daily/weekly routines, GitHub Issues, email communication |
+| [10-persona-evolution.md](10-persona-evolution.md) | Tuning loop, diagnosis, metrics-driven evolution, scaling |
 
 ## Key Design Principles
 
