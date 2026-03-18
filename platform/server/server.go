@@ -278,7 +278,20 @@ func NewServer(cfg ServerConfig) *Server {
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
 			PublicURL:      cfg.OIDCPublicURL,
 		}
-		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg)
+		var mcpOpts []mcpserver.Option
+		if s.wsStores != nil {
+			mcpOpts = append(mcpOpts,
+				mcpserver.WithTMResolver(&tmResolverAdapter{ws: s.wsStores}),
+				mcpserver.WithTBResolver(&tbResolverAdapter{ws: s.wsStores}),
+			)
+		}
+		if s.Services != nil && s.Services.Connector != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithConnectorResolver(s.Services.Connector))
+		}
+		if s.ToolRegistry != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
+		}
+		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
 			log.Printf("WARNING: failed to initialize MCP server: %v", err)
 		} else {

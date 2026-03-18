@@ -2,12 +2,14 @@ package mcp
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/neokapi/neokapi/platform/connector"
 )
 
 // registerConnectorTools registers connector management MCP tools.
-// Phase 1: provides tool stubs. Phase 2: integrates with ConnectorService.
 func (s *MCPServer) registerConnectorTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "connector_pull",
@@ -30,15 +32,29 @@ type connectorPullInput struct {
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to pull from"`
 }
 type connectorPullOutput struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status    string `json:"status"`
+	ItemCount int    `json:"item_count"`
 }
 
 func (s *MCPServer) handleConnectorPull(ctx context.Context, req *mcp.CallToolRequest, input connectorPullInput) (*mcp.CallToolResult, connectorPullOutput, error) {
-	// Phase 1: stub. Phase 2: integrates with ConnectorService.
+	if s.connResolver == nil {
+		return nil, connectorPullOutput{}, fmt.Errorf("connectors not configured")
+	}
+	if input.ConnectorID == "" {
+		return nil, connectorPullOutput{}, fmt.Errorf("connector_id is required")
+	}
+	if input.ProjectID == "" {
+		return nil, connectorPullOutput{}, fmt.Errorf("project_id is required")
+	}
+
+	items, err := s.connResolver.Fetch(ctx, input.ConnectorID, input.ProjectID, connector.FetchOptions{})
+	if err != nil {
+		return nil, connectorPullOutput{}, fmt.Errorf("connector pull: %w", err)
+	}
+
 	return nil, connectorPullOutput{
-		Status:  "not_implemented",
-		Message: "Connector pull will be available in Phase 2.",
+		Status:    "completed",
+		ItemCount: len(items),
 	}, nil
 }
 
@@ -47,30 +63,58 @@ type connectorPushInput struct {
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to push to"`
 }
 type connectorPushOutput struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status string `json:"status"`
 }
 
 func (s *MCPServer) handleConnectorPush(ctx context.Context, req *mcp.CallToolRequest, input connectorPushInput) (*mcp.CallToolResult, connectorPushOutput, error) {
-	// Phase 1: stub.
-	return nil, connectorPushOutput{
-		Status:  "not_implemented",
-		Message: "Connector push will be available in Phase 2.",
-	}, nil
+	if s.connResolver == nil {
+		return nil, connectorPushOutput{}, fmt.Errorf("connectors not configured")
+	}
+	if input.ConnectorID == "" {
+		return nil, connectorPushOutput{}, fmt.Errorf("connector_id is required")
+	}
+	if input.ProjectID == "" {
+		return nil, connectorPushOutput{}, fmt.Errorf("project_id is required")
+	}
+
+	if err := s.connResolver.Publish(ctx, input.ConnectorID, input.ProjectID, connector.PublishOptions{}); err != nil {
+		return nil, connectorPushOutput{}, fmt.Errorf("connector push: %w", err)
+	}
+
+	return nil, connectorPushOutput{Status: "completed"}, nil
 }
 
 type connectorStatusInput struct {
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to check"`
 }
 type connectorStatusOutput struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	ConnectorID string `json:"connector_id"`
+	LastSync    string `json:"last_sync"`
+	ItemCount   int    `json:"item_count"`
+	PendingPull int    `json:"pending_pull"`
+	PendingPush int    `json:"pending_push"`
+	Errors      []string `json:"errors,omitempty"`
 }
 
 func (s *MCPServer) handleConnectorStatus(ctx context.Context, req *mcp.CallToolRequest, input connectorStatusInput) (*mcp.CallToolResult, connectorStatusOutput, error) {
-	// Phase 1: stub.
+	if s.connResolver == nil {
+		return nil, connectorStatusOutput{}, fmt.Errorf("connectors not configured")
+	}
+	if input.ConnectorID == "" {
+		return nil, connectorStatusOutput{}, fmt.Errorf("connector_id is required")
+	}
+
+	status, err := s.connResolver.ConnectorStatus(ctx, input.ConnectorID)
+	if err != nil {
+		return nil, connectorStatusOutput{}, fmt.Errorf("connector status: %w", err)
+	}
+
 	return nil, connectorStatusOutput{
-		Status:  "not_implemented",
-		Message: "Connector status will be available in Phase 2.",
+		ConnectorID: status.ConnectorID,
+		LastSync:    status.LastSync.Format("2006-01-02T15:04:05Z"),
+		ItemCount:   status.ItemCount,
+		PendingPull: status.PendingPull,
+		PendingPush: status.PendingPush,
+		Errors:      status.Errors,
 	}, nil
 }

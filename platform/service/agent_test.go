@@ -3,6 +3,9 @@ package service
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
@@ -10,6 +13,50 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// newMockGatewayServer starts a test HTTP server that mimics the ZeroClaw
+// gateway SSE response protocol.
+func newMockGatewayServer(t *testing.T) *httptest.Server {
+	t.Helper()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "event: message_start\ndata: {\"id\":\"msg-gw-1\",\"role\":\"assistant\"}\n\n")
+		fmt.Fprint(w, "event: content_delta\ndata: {\"delta\":\"Hello from gateway\"}\n\n")
+		fmt.Fprint(w, "event: message_end\ndata: {\"id\":\"msg-gw-1\"}\n\n")
+	}))
+	t.Cleanup(ts.Close)
+	return ts
+}
+
+// newPoolWithGateway creates a pool whose mock runtime returns the given
+// gateway URL for all spawned containers.
+func newPoolWithGateway(t *testing.T, gatewayURL string, maxPerWS int) *AgentPool {
+	t.Helper()
+	rt := &gatewayMockRuntime{
+		mockRuntime: newMockRuntime(),
+		gatewayURL:  gatewayURL,
+	}
+	return NewAgentPool(AgentPoolConfig{
+		Runtime:         rt,
+		MaxPerWorkspace: maxPerWS,
+	})
+}
+
+// gatewayMockRuntime wraps mockRuntime to set GatewayURL on spawned containers.
+type gatewayMockRuntime struct {
+	*mockRuntime
+	gatewayURL string
+}
+
+func (r *gatewayMockRuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*AgentContainer, error) {
+	c, err := r.mockRuntime.Spawn(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	c.GatewayURL = r.gatewayURL
+	return c, nil
+}
 
 func newTestAgentStore(t *testing.T) platagent.AgentStore {
 	t.Helper()
@@ -87,6 +134,7 @@ func TestAgentServiceSendMessage(t *testing.T) {
 	assert.Equal(t, "Hello bravo", userMsg.Content)
 	assert.Equal(t, platagent.RoleAssistant, assistantMsg.Role)
 	assert.Contains(t, assistantMsg.Content, "Hello bravo")
+	assert.Contains(t, assistantMsg.Content, "SSE streaming")
 
 	// Verify messages are persisted.
 	msgs, err := svc.ListMessages(ctx, conv.ID, 10, 0)
@@ -215,7 +263,7 @@ func TestAgentServiceSetPoolAndTokenStore(t *testing.T) {
 	assert.NotEmpty(t, c.ID)
 }
 
-func TestAgentServiceSendMessageStream_MockMode(t *testing.T) {
+func TestAgentServiceSendMessageStream_LocalMode(t *testing.T) {
 	store := newTestAgentStore(t)
 	svc := NewAgentService(store, nil)
 	ctx := context.Background()
@@ -226,13 +274,13 @@ func TestAgentServiceSendMessageStream_MockMode(t *testing.T) {
 	var buf bytes.Buffer
 	sse := NewSSEWriter(&buf)
 
-	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello stream", sse)
+	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello local", sse)
 	require.NoError(t, err)
 
 	output := buf.String()
 	assert.Contains(t, output, "event: message_start")
 	assert.Contains(t, output, "event: content_delta")
-	assert.Contains(t, output, "Hello stream")
+	assert.Contains(t, output, "Hello local")
 	assert.Contains(t, output, "event: message_end")
 
 	// Verify messages are persisted (user + assistant).
@@ -246,11 +294,8 @@ func TestAgentServiceSendMessageStream_WithPool(t *testing.T) {
 	svc := NewAgentService(store, nil)
 	ctx := context.Background()
 
-	rt := newMockRuntime()
-	pool := NewAgentPool(AgentPoolConfig{
-		Runtime:         rt,
-		MaxPerWorkspace: 3,
-	})
+	gw := newMockGatewayServer(t)
+	pool := newPoolWithGateway(t, gw.URL, 3)
 	svc.SetPool(pool)
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
@@ -266,10 +311,9 @@ func TestAgentServiceSendMessageStream_WithPool(t *testing.T) {
 	_, ok := pool.Get(conv.ID)
 	assert.True(t, ok)
 
-	// SSE output should contain the mock response.
 	output := buf.String()
 	assert.Contains(t, output, "event: message_start")
-	assert.Contains(t, output, "Hello pool")
+	assert.Contains(t, output, "Hello from gateway")
 }
 
 func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
@@ -277,11 +321,8 @@ func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
 	svc := NewAgentService(store, nil)
 	ctx := context.Background()
 
-	rt := newMockRuntime()
-	pool := NewAgentPool(AgentPoolConfig{
-		Runtime:         rt,
-		MaxPerWorkspace: 1,
-	})
+	gw := newMockGatewayServer(t)
+	pool := newPoolWithGateway(t, gw.URL, 1)
 	svc.SetPool(pool)
 
 	// Fill the pool.
@@ -302,8 +343,8 @@ func TestAgentServiceDeleteConversation_CleansUpPoolAndTokens(t *testing.T) {
 	svc := NewAgentService(store, nil)
 	ctx := context.Background()
 
-	rt := newMockRuntime()
-	pool := NewAgentPool(AgentPoolConfig{Runtime: rt, MaxPerWorkspace: 3})
+	gw := newMockGatewayServer(t)
+	pool := newPoolWithGateway(t, gw.URL, 3)
 	svc.SetPool(pool)
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
@@ -328,8 +369,8 @@ func TestAgentServiceCancelConversation_CleansUpPool(t *testing.T) {
 	svc := NewAgentService(store, nil)
 	ctx := context.Background()
 
-	rt := newMockRuntime()
-	pool := NewAgentPool(AgentPoolConfig{Runtime: rt, MaxPerWorkspace: 3})
+	gw := newMockGatewayServer(t)
+	pool := newPoolWithGateway(t, gw.URL, 3)
 	svc.SetPool(pool)
 
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
