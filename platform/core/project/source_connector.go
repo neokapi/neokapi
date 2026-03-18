@@ -1009,10 +1009,7 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, ite
 
 			// Use the asset's zipPath property if available, otherwise
 			// fall back to sourceID which contains the ZIP path.
-			zipPath := asset.SourceID
-			if strings.HasPrefix(zipPath, "media:") {
-				zipPath = strings.TrimPrefix(zipPath, "media:")
-			}
+			zipPath := strings.TrimPrefix(asset.SourceID, "media:")
 
 			replacements = append(replacements, MediaReplacement{
 				ZipPath: zipPath,
