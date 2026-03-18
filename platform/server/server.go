@@ -374,6 +374,16 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		jwtProtected.POST("/projects/claim", s.HandleClaimProject)
 		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
 
+		// Asset routes (AD-029): non-workspace scoped, JWT-protected.
+		jwtProtected.POST("/projects/:id/assets/upload-url", s.HandleAssetUploadURL)
+		jwtProtected.POST("/projects/:id/assets", s.HandleCreateAsset)
+		jwtProtected.GET("/projects/:id/assets", s.HandleListAssets)
+		jwtProtected.GET("/projects/:id/assets/:aid", s.HandleGetAsset)
+		jwtProtected.DELETE("/projects/:id/assets/:aid", s.HandleDeleteAsset)
+		jwtProtected.POST("/projects/:id/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
+		jwtProtected.POST("/projects/:id/assets/:aid/variants", s.HandleCreateVariant)
+		jwtProtected.GET("/projects/:id/assets/:aid/variants", s.HandleListVariants)
+
 		// Sync routes: accept either JWT or ClaimToken.
 		// Register both legacy (flat) and stream-scoped routes.
 		if s.AuthStore != nil {
