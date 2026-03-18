@@ -1,0 +1,325 @@
+/**
+ * Shared fixtures for brand voice Storybook stories.
+ */
+
+import type {
+  VoiceProfile,
+  BrandVoiceFinding,
+  DimensionScore,
+  BrandComplianceScore,
+  VoiceExample,
+  ScoreTrend,
+  StoredScore,
+} from "../../brand/types";
+
+// ---------------------------------------------------------------------------
+// Voice Profiles
+// ---------------------------------------------------------------------------
+
+export const sampleProfile: VoiceProfile = {
+  id: "vp-1",
+  name: "Enterprise Documentation",
+  description: "Formal, precise tone for API docs and technical guides.",
+  tone: {
+    personality: ["professional", "precise", "helpful"],
+    formality: "formal",
+    emotion: "neutral",
+    humor: "none",
+  },
+  style: {
+    active_voice: true,
+    sentence_length: "medium",
+    person_pov: "second",
+    contractions: "never",
+    prohibited_patterns: [
+      { regex: "\\bplease\\b", description: "Avoid politeness hedges", severity: "minor" },
+    ],
+    required_patterns: [],
+  },
+  vocabulary: {
+    preferred_terms: [
+      { term: "endpoint", replacement: "", note: "Use instead of 'URL'" },
+      { term: "request", replacement: "", note: "Use instead of 'call'" },
+    ],
+    forbidden_terms: [
+      { term: "easy", replacement: "straightforward", note: "Subjective" },
+      { term: "simple", replacement: "minimal", note: "Subjective" },
+    ],
+    competitor_terms: [
+      { term: "Acme API", replacement: "their API", note: "Don't name competitors" },
+    ],
+  },
+  examples: [
+    {
+      before: "Simply call the endpoint to get your data.",
+      after: "Send a GET request to the /data endpoint to retrieve records.",
+      explanation: "Removed subjective 'simply', added specificity.",
+    },
+    {
+      before: "Please click the button to continue.",
+      after: "Select Continue to proceed.",
+      explanation: "Removed politeness hedge, used precise action verb.",
+    },
+  ],
+  workspace_id: "ws-1",
+  version: 3,
+  created_at: "2026-01-15T10:00:00Z",
+  updated_at: "2026-03-10T14:30:00Z",
+  created_by: "user-1",
+};
+
+export const casualProfile: VoiceProfile = {
+  id: "vp-2",
+  name: "Marketing Blog",
+  description: "Friendly, conversational tone for blog posts and social media.",
+  tone: {
+    personality: ["friendly", "enthusiastic", "witty"],
+    formality: "casual",
+    emotion: "warm",
+    humor: "light",
+  },
+  style: {
+    active_voice: true,
+    sentence_length: "varied",
+    person_pov: "first_plural",
+    contractions: "always",
+  },
+  vocabulary: {
+    preferred_terms: [{ term: "awesome", replacement: "", note: "On-brand enthusiasm" }],
+    forbidden_terms: [{ term: "utilize", replacement: "use", note: "Too formal" }],
+  },
+  examples: [
+    {
+      before: "Utilize our platform to achieve your goals.",
+      after: "Use our platform to crush your goals!",
+      explanation: "More casual, energetic language.",
+    },
+  ],
+  workspace_id: "ws-1",
+  version: 1,
+  created_at: "2026-02-20T08:00:00Z",
+  updated_at: "2026-03-12T11:00:00Z",
+};
+
+export const technicalProfile: VoiceProfile = {
+  id: "vp-3",
+  name: "SDK Reference",
+  description: "Terse, code-oriented style for SDK and library docs.",
+  tone: {
+    personality: ["concise", "technical", "direct"],
+    formality: "technical",
+    emotion: "neutral",
+    humor: "none",
+  },
+  style: {
+    active_voice: true,
+    sentence_length: "short",
+    person_pov: "third",
+    contractions: "sometimes",
+  },
+  vocabulary: {
+    preferred_terms: [
+      { term: "returns", replacement: "", note: "Standard API doc verb" },
+      { term: "throws", replacement: "", note: "Standard error verb" },
+    ],
+    forbidden_terms: [],
+  },
+  examples: [],
+  workspace_id: "ws-1",
+  version: 2,
+  created_at: "2026-03-01T10:00:00Z",
+  updated_at: "2026-03-15T09:00:00Z",
+};
+
+// ---------------------------------------------------------------------------
+// Examples
+// ---------------------------------------------------------------------------
+
+export const sampleExamples: VoiceExample[] = [
+  {
+    before: "Simply call the endpoint to get your data.",
+    after: "Send a GET request to the /data endpoint to retrieve records.",
+    explanation: "Removed subjective 'simply', added specificity.",
+  },
+  {
+    before: "Please click the button to continue.",
+    after: "Select Continue to proceed.",
+    explanation: "Removed politeness hedge, used precise action verb.",
+  },
+  {
+    before: "It's easy to set up authentication.",
+    after: "Authentication setup requires three steps.",
+    explanation: "Replaced subjective 'easy' with concrete description.",
+    category: "vocabulary",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Findings
+// ---------------------------------------------------------------------------
+
+export const sampleFindings: BrandVoiceFinding[] = [
+  {
+    dimension: "vocabulary",
+    severity: "major",
+    message: "Forbidden term 'simple' detected.",
+    suggestion: "Replace with 'minimal' or 'straightforward'.",
+    position: { start: 12, end: 18 },
+    original_text: "simple",
+  },
+  {
+    dimension: "tone",
+    severity: "minor",
+    message: "Sentence uses passive voice.",
+    suggestion: "Rewrite in active voice: 'The API returns...'",
+    position: { start: 0, end: 45 },
+    original_text: "The data is returned by the API.",
+  },
+  {
+    dimension: "style",
+    severity: "critical",
+    message: "Contraction detected in formal profile.",
+    suggestion: 'Replace "don\'t" with "do not".',
+    position: { start: 22, end: 27 },
+    original_text: "don't",
+  },
+  {
+    dimension: "clarity",
+    severity: "minor",
+    message: "Sentence exceeds recommended length (42 words).",
+    position: { start: 0, end: 280 },
+  },
+  {
+    dimension: "brand_compliance",
+    severity: "major",
+    message: "Competitor name mentioned directly.",
+    suggestion: "Use a generic reference instead.",
+    position: { start: 55, end: 63 },
+    original_text: "Acme API",
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Dimension Scores
+// ---------------------------------------------------------------------------
+
+export const sampleDimensions: DimensionScore[] = [
+  { dimension: "tone", score: 85, penalty: 15, issues: 1 },
+  { dimension: "style", score: 62, penalty: 38, issues: 3 },
+  { dimension: "vocabulary", score: 45, penalty: 55, issues: 4 },
+  { dimension: "clarity", score: 90, penalty: 10, issues: 1 },
+  { dimension: "brand_compliance", score: 72, penalty: 28, issues: 2 },
+];
+
+export const excellentDimensions: DimensionScore[] = [
+  { dimension: "tone", score: 95, penalty: 5, issues: 0 },
+  { dimension: "style", score: 92, penalty: 8, issues: 1 },
+  { dimension: "vocabulary", score: 88, penalty: 12, issues: 1 },
+  { dimension: "clarity", score: 97, penalty: 3, issues: 0 },
+  { dimension: "brand_compliance", score: 94, penalty: 6, issues: 0 },
+];
+
+export const poorDimensions: DimensionScore[] = [
+  { dimension: "tone", score: 30, penalty: 70, issues: 5 },
+  { dimension: "style", score: 25, penalty: 75, issues: 8 },
+  { dimension: "vocabulary", score: 18, penalty: 82, issues: 12 },
+  { dimension: "clarity", score: 40, penalty: 60, issues: 4 },
+  { dimension: "brand_compliance", score: 22, penalty: 78, issues: 6 },
+];
+
+// ---------------------------------------------------------------------------
+// Compliance Scores
+// ---------------------------------------------------------------------------
+
+export const sampleScore: BrandComplianceScore = {
+  overall: 71,
+  dimensions: sampleDimensions,
+  findings: sampleFindings,
+  word_count: 1240,
+  profile_id: "vp-1",
+};
+
+export const excellentScore: BrandComplianceScore = {
+  overall: 93,
+  dimensions: excellentDimensions,
+  findings: [sampleFindings[1]],
+  word_count: 850,
+  profile_id: "vp-1",
+};
+
+export const poorScore: BrandComplianceScore = {
+  overall: 27,
+  dimensions: poorDimensions,
+  findings: sampleFindings,
+  word_count: 2100,
+  profile_id: "vp-1",
+};
+
+// ---------------------------------------------------------------------------
+// Trends
+// ---------------------------------------------------------------------------
+
+export const sampleTrends: ScoreTrend[] = [
+  { date: "2026-03-08", avg_score: 58, count: 12 },
+  { date: "2026-03-09", avg_score: 62, count: 15 },
+  { date: "2026-03-10", avg_score: 60, count: 10 },
+  { date: "2026-03-11", avg_score: 68, count: 18 },
+  { date: "2026-03-12", avg_score: 72, count: 20 },
+  { date: "2026-03-13", avg_score: 75, count: 14 },
+  { date: "2026-03-14", avg_score: 71, count: 16 },
+];
+
+// ---------------------------------------------------------------------------
+// Stored Scores (recent checks)
+// ---------------------------------------------------------------------------
+
+export const sampleStoredScores: StoredScore[] = [
+  {
+    id: "sc-1",
+    project_id: "proj-1",
+    stream: "main",
+    block_id: "blk-hero-title",
+    profile_id: "vp-1",
+    locale: "en-US",
+    score: 92,
+    dimensions: excellentDimensions,
+    findings: [],
+    checked_at: "2026-03-14T10:00:00Z",
+  },
+  {
+    id: "sc-2",
+    project_id: "proj-1",
+    stream: "main",
+    block_id: "blk-intro-paragraph",
+    profile_id: "vp-1",
+    locale: "en-US",
+    score: 65,
+    dimensions: sampleDimensions,
+    findings: [sampleFindings[0], sampleFindings[3]],
+    checked_at: "2026-03-14T09:45:00Z",
+  },
+  {
+    id: "sc-3",
+    project_id: "proj-1",
+    stream: "main",
+    block_id: "blk-cta-button",
+    profile_id: "vp-1",
+    locale: "fr-FR",
+    score: 88,
+    dimensions: excellentDimensions,
+    findings: [sampleFindings[1]],
+    checked_at: "2026-03-14T09:30:00Z",
+  },
+  {
+    id: "sc-4",
+    project_id: "proj-1",
+    stream: "main",
+    block_id: "blk-footer-legal",
+    profile_id: "vp-1",
+    locale: "en-US",
+    score: 35,
+    dimensions: poorDimensions,
+    findings: sampleFindings,
+    checked_at: "2026-03-14T09:15:00Z",
+  },
+];

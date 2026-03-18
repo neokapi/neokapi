@@ -54,6 +54,19 @@ import type {
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
+  BravoConversation,
+  BravoMessage,
+  BravoConfig,
+  BravoToolInfo,
+  BravoUsageSummary,
+  BravoSSEHandler,
+  BravoSSEMessageStart,
+  BravoSSEContentDelta,
+  BravoSSEToolCallStart,
+  BravoSSEToolCallEnd,
+  BravoSSENeedsApproval,
+  BravoSSEMessageEnd,
+  BravoSSEError,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1427,6 +1440,229 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.offset) params.set("offset", String(query.offset));
     const qs = params.toString();
     return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
+  }
+
+  // ── @bravo Agent (AD-028) ────────────────────────────────────────────────
+
+  private bravoEp(ws: string) {
+    return `/api/v1/workspaces/${ws}/bravo`;
+  }
+
+  async bravoCreateConversation(
+    workspaceSlug: string,
+    projectId?: string,
+    title?: string,
+  ): Promise<BravoConversation> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations`, {
+      method: "POST",
+      body: JSON.stringify({ project_id: projectId, title }),
+    });
+  }
+
+  async bravoListConversations(
+    workspaceSlug: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<{ conversations: BravoConversation[]; total: number }> {
+    const params = new URLSearchParams();
+    if (limit) params.set("limit", String(limit));
+    if (offset) params.set("offset", String(offset));
+    const qs = params.toString();
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations${qs ? `?${qs}` : ""}`);
+  }
+
+  async bravoGetConversation(
+    workspaceSlug: string,
+    conversationId: string,
+  ): Promise<{ conversation: BravoConversation; messages: BravoMessage[] }> {
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}`,
+    );
+  }
+
+  async bravoDeleteConversation(workspaceSlug: string, conversationId: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async bravoSendMessage(
+    workspaceSlug: string,
+    conversationId: string,
+    content: string,
+  ): Promise<{ user_message: BravoMessage; assistant_message: BravoMessage }> {
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      },
+    );
+  }
+
+  async bravoListMessages(
+    workspaceSlug: string,
+    conversationId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<{ messages: BravoMessage[] }> {
+    const params = new URLSearchParams();
+    if (limit) params.set("limit", String(limit));
+    if (offset) params.set("offset", String(offset));
+    const qs = params.toString();
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/messages${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async bravoApproveToolCall(
+    workspaceSlug: string,
+    conversationId: string,
+    toolCallId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/tool-calls/${encodeURIComponent(toolCallId)}/approve`,
+      { method: "POST" },
+    );
+  }
+
+  async bravoDenyToolCall(
+    workspaceSlug: string,
+    conversationId: string,
+    toolCallId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/tool-calls/${encodeURIComponent(toolCallId)}/deny`,
+      { method: "POST" },
+    );
+  }
+
+  async bravoCancelConversation(workspaceSlug: string, conversationId: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/cancel`,
+      { method: "POST" },
+    );
+  }
+
+  async bravoGetConfig(workspaceSlug: string): Promise<BravoConfig> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/config`);
+  }
+
+  async bravoUpdateConfig(
+    workspaceSlug: string,
+    config: Partial<BravoConfig>,
+  ): Promise<BravoConfig> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/config`, {
+      method: "PUT",
+      body: JSON.stringify(config),
+    });
+  }
+
+  async bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/tools`);
+  }
+
+  async bravoGetUsage(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<BravoUsageSummary> {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
+  }
+
+  bravoSendMessageSSE(
+    workspaceSlug: string,
+    conversationId: string,
+    content: string,
+    handler: BravoSSEHandler,
+  ): AbortController {
+    const controller = new AbortController();
+    const url = `${this.baseUrl}${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/messages`;
+
+    const run = async () => {
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            ...this.headers(),
+            Accept: "text/event-stream",
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({ content }),
+          signal: controller.signal,
+        });
+
+        if (!resp.ok || !resp.body) {
+          handler.onError?.({ error: `HTTP ${resp.status}` });
+          return;
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          let currentEvent = "";
+          for (const line of lines) {
+            if (line.startsWith("event: ")) {
+              currentEvent = line.slice(7).trim();
+            } else if (line.startsWith("data: ") && currentEvent) {
+              const json = line.slice(6);
+              try {
+                const data = JSON.parse(json);
+                switch (currentEvent) {
+                  case "message_start":
+                    handler.onMessageStart?.(data as BravoSSEMessageStart);
+                    break;
+                  case "content_delta":
+                    handler.onContentDelta?.(data as BravoSSEContentDelta);
+                    break;
+                  case "tool_call_start":
+                    handler.onToolCallStart?.(data as BravoSSEToolCallStart);
+                    break;
+                  case "tool_call_end":
+                    handler.onToolCallEnd?.(data as BravoSSEToolCallEnd);
+                    break;
+                  case "needs_approval":
+                    handler.onNeedsApproval?.(data as BravoSSENeedsApproval);
+                    break;
+                  case "message_end":
+                    handler.onMessageEnd?.(data as BravoSSEMessageEnd);
+                    break;
+                  case "error":
+                    handler.onError?.(data as BravoSSEError);
+                    break;
+                }
+              } catch {
+                // Skip malformed JSON
+              }
+              currentEvent = "";
+            } else if (line === "") {
+              currentEvent = "";
+            }
+          }
+        }
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          handler.onError?.({ error: (err as Error).message });
+        }
+      }
+    };
+
+    void run();
+    return controller;
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

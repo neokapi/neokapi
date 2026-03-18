@@ -18,6 +18,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/mailer"
 	"github.com/neokapi/neokapi/bowrain/service"
+	platagent "github.com/neokapi/neokapi/platform/agent"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
@@ -136,6 +137,14 @@ type Server struct {
 
 	// dashboardCache caches translation dashboard stats per project/stream.
 	dashboardCache sync.Map // map[string]*dashboardCacheEntry
+
+	// AgentStore persists @bravo agent conversations, messages, and config (AD-028).
+	// Nil when agent system is not configured.
+	AgentStore platagent.AgentStore
+
+	// AgentService orchestrates @bravo agent lifecycle (AD-028).
+	// Nil when agent system is not configured.
+	AgentService *service.AgentService
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -206,6 +215,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
 			s.BrandStore = pg.Brand
 			s.GraphStore = pg.GraphStore
+			s.AgentStore = pg.Agent
 			if cfg.JWTSecret != "" {
 				s.AuthStore = pg.Auth
 				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)
@@ -266,18 +276,42 @@ func NewServer(cfg ServerConfig) *Server {
 		s.graphSyncer = platgraph.NewGraphSyncer(s.GraphStore, s.EventBus)
 	}
 
-	// Initialize MCP server for brand voice when brand store is available.
+	// Initialize MCP server for brand voice + agent tools when stores are available.
 	if s.BrandStore != nil {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
 			PublicURL:      cfg.OIDCPublicURL,
 		}
-		ms, err := mcpserver.NewMCPServer(s.BrandStore, mcpCfg)
+		var mcpOpts []mcpserver.Option
+		if s.wsStores != nil {
+			mcpOpts = append(mcpOpts,
+				mcpserver.WithTMResolver(&tmResolverAdapter{ws: s.wsStores}),
+				mcpserver.WithTBResolver(&tbResolverAdapter{ws: s.wsStores}),
+			)
+		}
+		if s.Services != nil && s.Services.Connector != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithConnectorResolver(s.Services.Connector))
+		}
+		if s.ToolRegistry != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
+		}
+		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
 			log.Printf("WARNING: failed to initialize MCP server: %v", err)
 		} else {
 			s.mcpServer = ms
+		}
+	}
+
+	// Initialize agent service (AD-028).
+	if s.AgentStore != nil {
+		s.AgentService = service.NewAgentService(s.AgentStore, s.EventBus)
+
+		// Wire container runtime when configured.
+		if pool := s.buildAgentPool(); pool != nil {
+			s.AgentService.SetPool(pool)
+			log.Printf("Agent pool initialized (runtime=%s)", cfg.AgentRuntime)
 		}
 	}
 
@@ -445,6 +479,9 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.DELETE("/tokens/:id", s.HandleDeleteToken)
 
 		s.registerWorkspaceContentRoutes(wsSpecific)
+
+		// @bravo agent routes (AD-028)
+		s.registerBravoRoutes(wsSpecific)
 	}
 
 	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).

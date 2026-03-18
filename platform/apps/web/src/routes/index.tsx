@@ -417,6 +417,13 @@ const settingsSystemRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/settings-system"), "SettingsSystemRoute"),
 });
 
+const settingsBravoRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "bravo",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(() => import("./workspace/settings-bravo"), "SettingsBravoRoute"),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
@@ -449,6 +456,7 @@ const routeTree = rootRoute.addChildren([
       settingsProvidersRoute,
       settingsTokensRoute,
       settingsSystemRoute,
+      settingsBravoRoute,
     ]),
   ]),
 ]);

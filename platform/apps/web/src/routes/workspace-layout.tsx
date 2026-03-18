@@ -28,6 +28,10 @@ import {
   type StreamInfo,
   StreamActionsProvider,
   useStreamActions,
+  BravoProvider,
+  BravoPanel,
+  BravoPanelTrigger,
+  useBravo,
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
@@ -99,6 +103,41 @@ function ConnectedTopBar({
       onViewAllActivities={onViewAllActivities}
       onViewAllTasks={onViewAllTasks}
     />
+  );
+}
+
+/** Connected @bravo panel — reads state from BravoContext. */
+function ConnectedBravo() {
+  const { state, actions } = useBravo();
+  const { pathname } = useLocation();
+  const { workspace: workspaceSlug } = useParams({ strict: false });
+
+  // Extract projectId from URL when creating new conversations.
+  const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
+
+  return (
+    <>
+      <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />
+      <BravoPanel
+        open={state.panelOpen}
+        onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
+        conversations={state.conversations}
+        activeConversation={state.activeConversation}
+        messages={state.messages}
+        streaming={state.streaming}
+        streamingContent={state.streamingContent}
+        streamingToolCalls={state.streamingToolCalls}
+        onNewConversation={() => void actions.newConversation(projectParams?.projectId)}
+        onSelectConversation={(conv) => void actions.selectConversation(conv)}
+        onDeleteConversation={(conv) => void actions.deleteConversation(conv)}
+        onSendMessage={(content) => void actions.sendMessage(content)}
+        onApproveToolCall={(id) => void actions.approveToolCall(id)}
+        onDenyToolCall={(id) => void actions.denyToolCall(id)}
+        onCancelStreaming={actions.cancelStreaming}
+        loading={state.loading}
+        sendDisabled={state.streaming}
+      />
+    </>
   );
 }
 
@@ -183,6 +222,7 @@ export function WorkspaceLayout() {
     if (rest === "providers") return "providers";
     if (rest === "tokens") return "tokens";
     if (rest === "system") return "system";
+    if (rest === "bravo") return "bravo";
     return "general";
   }, [activeView, pathname, workspaceSlug]);
 
@@ -213,6 +253,9 @@ export function WorkspaceLayout() {
           break;
         case "system":
           void navigate({ to: "/$workspace/settings/system", params: { workspace: wsSlug } });
+          break;
+        case "bravo":
+          void navigate({ to: "/$workspace/settings/bravo", params: { workspace: wsSlug } });
           break;
       }
     },
@@ -439,52 +482,57 @@ export function WorkspaceLayout() {
         initialWorkspace={activeWorkspace}
         initialWorkspaces={workspaces}
       >
-        <StreamActionsProvider>
-          <AppShell
-            workspaces={workspaces}
-            activeWorkspace={activeWorkspace}
-            onSelectWorkspace={handleSelectWorkspace}
-            onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
-            activeView={effectiveView}
-            onViewChange={handleViewChange}
-            user={user}
-            onSignOut={serverMode === "server" ? handleSignOut : undefined}
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={setSidebarCollapsed}
-            showThemeToggle={false}
-            sidebarContext={sidebarContext}
-            activeSubNav={settingsSubNav}
-            onSubNavChange={handleSubNavChange}
-            headerSlot={
-              <ConnectedTopBar
-                user={user}
-                onSignOut={serverMode === "server" ? handleSignOut : undefined}
-                workspaceSlug={ws}
-                onViewAllActivities={() =>
-                  void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
-                }
-                onViewAllTasks={() =>
-                  void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
-                }
-                leftSlot={
-                  sidebarContext?.level === "project" &&
-                  sidebarContext.project.streams &&
-                  sidebarContext.project.streams.length > 0 ? (
-                    <TopBarStreamSelector
-                      sidebarContext={sidebarContext}
-                      onStreamChange={handleStreamChange}
-                    />
-                  ) : undefined
-                }
-              />
-            }
-            contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
-          >
-            <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
-              <Outlet />
-            </StreamProvider>
-          </AppShell>
-        </StreamActionsProvider>
+        <BravoProvider>
+          <StreamActionsProvider>
+            <AppShell
+              workspaces={workspaces}
+              activeWorkspace={activeWorkspace}
+              onSelectWorkspace={handleSelectWorkspace}
+              onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
+              activeView={effectiveView}
+              onViewChange={handleViewChange}
+              user={user}
+              onSignOut={serverMode === "server" ? handleSignOut : undefined}
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+              showThemeToggle={false}
+              sidebarContext={sidebarContext}
+              activeSubNav={settingsSubNav}
+              onSubNavChange={handleSubNavChange}
+              headerSlot={
+                <>
+                  <ConnectedTopBar
+                    user={user}
+                    onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                    workspaceSlug={ws}
+                    onViewAllActivities={() =>
+                      void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
+                    }
+                    onViewAllTasks={() =>
+                      void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
+                    }
+                    leftSlot={
+                      sidebarContext?.level === "project" &&
+                      sidebarContext.project.streams &&
+                      sidebarContext.project.streams.length > 0 ? (
+                        <TopBarStreamSelector
+                          sidebarContext={sidebarContext}
+                          onStreamChange={handleStreamChange}
+                        />
+                      ) : undefined
+                    }
+                  />
+                  <ConnectedBravo />
+                </>
+              }
+              contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
+            >
+              <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
+                <Outlet />
+              </StreamProvider>
+            </AppShell>
+          </StreamActionsProvider>
+        </BravoProvider>
 
         <CreateWorkspaceDialog
           open={showCreateWs}
