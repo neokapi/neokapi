@@ -94,7 +94,7 @@ What's missing is an **AI agent** that can operate within this infrastructure on
 
 ### Why ZeroClaw
 
-[ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) is an ultra-lightweight Rust-based AI agent runtime (MIT/Apache 2.0). It compiles to a ~3.4MB binary, uses <5MB RAM, and cold-starts in under 10ms. Key properties that make it ideal for @bravo:
+[ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) is an ultra-lightweight Rust-based AI agent runtime (MIT/Apache 2.0). It compiles to a ~3.4MB binary, uses &lt;5MB RAM, and cold-starts in under 10ms. Key properties that make it ideal for @bravo:
 
 - **MCP client built-in** — connects to external MCP servers at startup and exposes their tools to the agent loop as native tools via `McpToolWrapper`. Supports both Stdio and Streamable HTTP transports.
 - **Multi-provider** — supports Azure OpenAI, OpenAI, Anthropic, Google Gemini, Ollama, OpenRouter. No vendor lock-in; swap providers via config.
@@ -513,7 +513,7 @@ EXPOSE 42617
 CMD ["zeroclaw", "gateway"]
 ```
 
-Built as `ghcr.io/neokapi/bravo-agent:latest`. The image is tiny (~16MB) and cold-starts in <10ms.
+Built as `ghcr.io/neokapi/bravo-agent:latest`. The image is tiny (~16MB) and cold-starts in &lt;10ms.
 
 ### Frontend
 

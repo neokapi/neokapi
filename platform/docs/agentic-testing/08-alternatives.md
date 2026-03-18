@@ -12,7 +12,7 @@
 | **B: Pure TypeScript orchestrator** | Existing e2e infra, Playwright, rich AI SDKs | Must build scheduling, identity, tool dispatch from scratch |
 | **C: TypeScript Hybrid** | Best of both worlds | Still building a custom orchestrator |
 | **D: Python (AutoGen/CrewAI)** | Strongest AI/ML ecosystem | Third language, heavy, opinionated frameworks |
-| **E: ZeroClaw containers** ✓ | Built-in daemon/cron/heartbeat, SOUL.md identity, MCP native, <5MB RAM, container isolation | Rust binary (can't extend in Go/TS), newer project |
+| **E: ZeroClaw containers** ✓ | Built-in daemon/cron/heartbeat, SOUL.md identity, MCP native, &lt;5MB RAM, container isolation | Rust binary (can't extend in Go/TS), newer project |
 
 **Rationale:** ZeroClaw provides scheduling (daemon mode + cron), identity (SOUL.md), tool integration (MCP), and isolation (containers) out of the box. This eliminates the need for a custom orchestrator, scheduler, state manager, and event router. The main investment shifts to building a Bowrain MCP server — which has standalone value beyond the agentic testing system.
 

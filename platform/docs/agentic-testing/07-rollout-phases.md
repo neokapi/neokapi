@@ -127,7 +127,7 @@ Per project (Docusaurus example):
 - Four projects running with full agent teams
 - Quality scores tracked and improving over time
 - System has been running 4+ weeks with authentic activity history
-- 20+ agent containers running on <500MB total RAM
+- 20+ agent containers running on &lt;500MB total RAM
 
 ---
 
