@@ -87,7 +87,14 @@ type NeedsApprovalData struct {
 
 // MessageEndData is emitted when the assistant message is complete.
 type MessageEndData struct {
-	ID string `json:"id"`
+	ID    string        `json:"id"`
+	Usage *MessageUsage `json:"usage,omitempty"`
+}
+
+// MessageUsage reports token consumption for a single message turn.
+type MessageUsage struct {
+	InputTokens  int `json:"input_tokens"`
+	OutputTokens int `json:"output_tokens"`
 }
 
 // ErrorData is emitted when an error occurs during processing.

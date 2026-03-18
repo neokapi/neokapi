@@ -123,7 +123,9 @@ func TestAgentPoolRelease(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, pool.ActiveCount("ws-1"))
 
-	require.NoError(t, pool.Release(ctx, "conv-1"))
+	released, err := pool.Release(ctx, "conv-1")
+	require.NoError(t, err)
+	assert.NotNil(t, released)
 	assert.Equal(t, 0, pool.ActiveCount("ws-1"))
 }
 

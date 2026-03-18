@@ -50,8 +50,9 @@ func TestStreamFromGateway_Success(t *testing.T) {
 	var buf bytes.Buffer
 	sse := NewSSEWriter(&buf)
 
-	err = svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", sse)
+	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", sse)
 	require.NoError(t, err)
+	assert.Equal(t, "msg-1", result.MessageID)
 
 	output := buf.String()
 	assert.Contains(t, output, "event: message_start")
@@ -92,7 +93,7 @@ func TestStreamFromGateway_ServerError(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err = svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", NewSSEWriter(&buf))
+	_, err = svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", NewSSEWriter(&buf))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }

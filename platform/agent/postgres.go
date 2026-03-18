@@ -115,9 +115,10 @@ func (s *PostgresStore) AddMessage(ctx context.Context, msg *platagent.Message) 
 	msg.CreatedAt = time.Now().UTC()
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO agent_messages (id, conversation_id, role, content, created_at)
-		 VALUES ($1, $2, $3, $4, $5)`,
-		msg.ID, msg.ConversationID, string(msg.Role), msg.Content, msg.CreatedAt)
+		`INSERT INTO agent_messages (id, conversation_id, role, content, input_tokens, output_tokens, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		msg.ID, msg.ConversationID, string(msg.Role), msg.Content,
+		msg.InputTokens, msg.OutputTokens, msg.CreatedAt)
 	return err
 }
 
@@ -127,7 +128,7 @@ func (s *PostgresStore) ListMessages(ctx context.Context, conversationID string,
 	}
 
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, conversation_id, role, content, created_at
+		`SELECT id, conversation_id, role, content, input_tokens, output_tokens, created_at
 		 FROM agent_messages
 		 WHERE conversation_id = $1
 		 ORDER BY created_at ASC LIMIT $2 OFFSET $3`,
@@ -140,7 +141,7 @@ func (s *PostgresStore) ListMessages(ctx context.Context, conversationID string,
 	var msgs []*platagent.Message
 	for rows.Next() {
 		var m platagent.Message
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &m.CreatedAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.Role, &m.Content, &m.InputTokens, &m.OutputTokens, &m.CreatedAt); err != nil {
 			return nil, err
 		}
 		msgs = append(msgs, &m)
@@ -258,6 +259,44 @@ func (s *PostgresStore) SaveAgentConfig(ctx context.Context, cfg *platagent.Agen
 			max_concurrent = EXCLUDED.max_concurrent`,
 		cfg.WorkspaceID, cfg.Enabled, string(allowedJSON), string(deniedJSON), string(approvalJSON), cfg.CodeExecEnabled, cfg.MaxConcurrent)
 	return err
+}
+
+// ---------------------------------------------------------------------------
+// Usage metering
+// ---------------------------------------------------------------------------
+
+func (s *PostgresStore) RecordUsage(ctx context.Context, rec *platagent.UsageRecord) error {
+	if rec.ID == "" {
+		rec.ID = id.New()
+	}
+	rec.CreatedAt = time.Now().UTC()
+
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO agent_usage (id, workspace_id, user_id, conversation_id, message_id, kind, input_tokens, output_tokens, duration_sec, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		rec.ID, rec.WorkspaceID, rec.UserID, rec.ConversationID, rec.MessageID,
+		rec.Kind, rec.InputTokens, rec.OutputTokens, rec.DurationSec, rec.CreatedAt)
+	return err
+}
+
+func (s *PostgresStore) GetUsageSummary(ctx context.Context, workspaceID string, from, to time.Time) (*platagent.UsageSummary, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT
+			COALESCE(SUM(input_tokens), 0),
+			COALESCE(SUM(output_tokens), 0),
+			COALESCE(SUM(duration_sec), 0),
+			COUNT(*) FILTER (WHERE kind = 'tokens')
+		 FROM agent_usage
+		 WHERE workspace_id = $1 AND created_at >= $2 AND created_at <= $3`,
+		workspaceID, from, to)
+
+	summary := &platagent.UsageSummary{WorkspaceID: workspaceID}
+	err := row.Scan(&summary.TotalInputTokens, &summary.TotalOutputTokens,
+		&summary.TotalContainerSec, &summary.MessageCount)
+	if err != nil {
+		return nil, err
+	}
+	return summary, nil
 }
 
 // ---------------------------------------------------------------------------
