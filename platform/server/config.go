@@ -58,6 +58,13 @@ type ServerConfig struct {
 	// In production, the web UI is served by a separate container (bowrain-web).
 	WebUIDir string
 
+	// Blob storage (AD-029)
+	BlobBackend              string // "azure", "local" (default: "local")
+	AzureStorageAccountURL   string // Azure Blob Storage account URL
+	AzureStorageContainer    string // Azure Blob Storage container name (default: "bowrain-assets")
+	AzureStorageConnStr      string // Azure connection string (dev/Azurite fallback)
+	BlobStorageLocalDir      string // Local blob storage root directory
+
 	// External services
 	ServiceBusConnection string // Azure Service Bus connection string for job queue
 	NATSUrl              string // NATS server URL for job queue (e.g. nats://localhost:4222)

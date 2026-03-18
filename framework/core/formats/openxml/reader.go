@@ -4,10 +4,13 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -125,6 +128,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	}
 	if !r.emit(ctx, ch, &model.Part{Type: model.PartLayerStart, Resource: rootLayer}) {
 		return
+	}
+
+	// Extract embedded media files as PartMedia (AD-029).
+	if r.cfg.ExtractMedia {
+		r.emitMediaParts(ctx, ch, zr, info)
 	}
 
 	blockCounter := 0
@@ -278,6 +286,90 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+// emitMediaParts scans the ZIP for embedded media files (word/media/*, ppt/media/*)
+// and emits PartMedia parts with content-addressed blob keys.
+func (r *Reader) emitMediaParts(ctx context.Context, ch chan<- model.PartResult, zr *zip.Reader, info *containerInfo) {
+	// Determine media directory based on document type.
+	var mediaPrefixes []string
+	switch info.docType {
+	case docTypeDOCX:
+		mediaPrefixes = []string{"word/media/"}
+	case docTypePPTX:
+		mediaPrefixes = []string{"ppt/media/"}
+	default:
+		return // XLSX typically has no embedded media
+	}
+
+	for _, f := range zr.File {
+		isMedia := false
+		for _, prefix := range mediaPrefixes {
+			if strings.HasPrefix(f.Name, prefix) {
+				isMedia = true
+				break
+			}
+		}
+		if !isMedia {
+			continue
+		}
+
+		data, err := readZipFile(f)
+		if err != nil {
+			continue // best-effort: skip unreadable media
+		}
+
+		blobKey := computeBlobKey(data)
+		filename := f.Name[strings.LastIndex(f.Name, "/")+1:]
+		mimeType := detectMediaMIME(filename)
+
+		media := &model.Media{
+			ID:       "media:" + f.Name,
+			MimeType: mimeType,
+			Data:     data,
+			BlobKey:  blobKey,
+			Filename: filename,
+			Size:     int64(len(data)),
+			Properties: map[string]string{
+				"zipPath": f.Name,
+			},
+		}
+
+		if !r.emit(ctx, ch, &model.Part{Type: model.PartMedia, Resource: media}) {
+			return
+		}
+	}
+}
+
+// computeBlobKey returns the SHA-256 hex digest of data.
+func computeBlobKey(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+// detectMediaMIME infers MIME type from filename extension.
+func detectMediaMIME(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	switch ext {
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".bmp":
+		return "image/bmp"
+	case ".tiff", ".tif":
+		return "image/tiff"
+	case ".svg":
+		return "image/svg+xml"
+	case ".emf":
+		return "image/x-emf"
+	case ".wmf":
+		return "image/x-wmf"
+	default:
+		return "application/octet-stream"
 	}
 }
 

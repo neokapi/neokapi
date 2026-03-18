@@ -650,3 +650,196 @@ func TestExtractTargetLocales(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Asset CRUD (AD-029)
+// ---------------------------------------------------------------------------
+
+func TestAssetCRUD(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Store asset.
+	asset := &platstore.Asset{
+		ItemName:  "docs/manual.docx",
+		SourceID:  "image1",
+		BlobKey:   "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+		MimeType:  "image/png",
+		Filename:  "diagram.png",
+		SizeBytes: 102400,
+		AltText:   "Architecture diagram",
+		Properties: map[string]string{"width": "800", "height": "600"},
+	}
+	err := s.StoreAsset(ctx, p.ID, "main", asset)
+	require.NoError(t, err)
+	assert.NotEmpty(t, asset.ID)
+
+	// Get asset.
+	got, err := s.GetAsset(ctx, p.ID, "main", asset.ID)
+	require.NoError(t, err)
+	assert.Equal(t, asset.BlobKey, got.BlobKey)
+	assert.Equal(t, "image/png", got.MimeType)
+	assert.Equal(t, "diagram.png", got.Filename)
+	assert.Equal(t, int64(102400), got.SizeBytes)
+	assert.Equal(t, "Architecture diagram", got.AltText)
+	assert.Equal(t, "800", got.Properties["width"])
+	assert.Equal(t, "none", got.ProcessingStatus)
+
+	// List assets.
+	assets, err := s.ListAssets(ctx, p.ID, "main", "docs/manual.docx")
+	require.NoError(t, err)
+	assert.Len(t, assets, 1)
+
+	// List all assets.
+	allAssets, err := s.ListAssets(ctx, p.ID, "main", "")
+	require.NoError(t, err)
+	assert.Len(t, allAssets, 1)
+
+	// Delete asset.
+	err = s.DeleteAsset(ctx, p.ID, "main", asset.ID)
+	require.NoError(t, err)
+
+	_, err = s.GetAsset(ctx, p.ID, "main", asset.ID)
+	assert.Error(t, err)
+}
+
+func TestAssetVariantCRUD(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Create asset first.
+	asset := &platstore.Asset{
+		BlobKey:  "aabbccdd",
+		MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
+
+	// Store variant.
+	variant := &platstore.AssetVariant{
+		AssetID:   asset.ID,
+		Locale:    "fr-FR",
+		BlobKey:   "eeff0011",
+		Status:    "draft",
+		MimeType:  "image/png",
+		SizeBytes: 98304,
+		Properties: map[string]string{"width": "800"},
+	}
+	err := s.StoreAssetVariant(ctx, p.ID, variant)
+	require.NoError(t, err)
+
+	// Get variant.
+	got, err := s.GetAssetVariant(ctx, p.ID, asset.ID, "fr-FR")
+	require.NoError(t, err)
+	assert.Equal(t, "fr-FR", got.Locale)
+	assert.Equal(t, "eeff0011", got.BlobKey)
+	assert.Equal(t, "draft", got.Status)
+	assert.Equal(t, "800", got.Properties["width"])
+
+	// List variants.
+	variants, err := s.ListAssetVariants(ctx, p.ID, asset.ID)
+	require.NoError(t, err)
+	assert.Len(t, variants, 1)
+
+	// Upsert variant (update status).
+	variant.Status = "approved"
+	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
+
+	got2, err := s.GetAssetVariant(ctx, p.ID, asset.ID, "fr-FR")
+	require.NoError(t, err)
+	assert.Equal(t, "approved", got2.Status)
+}
+
+func TestAssetDedup(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Store same blob_key twice — should upsert (dedup).
+	asset1 := &platstore.Asset{
+		BlobKey:  "sameblobkey",
+		MimeType: "image/png",
+		Filename: "first.png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset1))
+
+	asset2 := &platstore.Asset{
+		BlobKey:  "sameblobkey",
+		MimeType: "image/png",
+		Filename: "second.png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset2))
+
+	// Should still be one asset (upserted).
+	assets, err := s.ListAssets(ctx, p.ID, "main", "")
+	require.NoError(t, err)
+	assert.Len(t, assets, 1)
+	assert.Equal(t, "second.png", assets[0].Filename) // Updated
+}
+
+func TestAssetCascadeDelete(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Create asset with variant.
+	asset := &platstore.Asset{BlobKey: "cascadetest", MimeType: "image/png"}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
+
+	variant := &platstore.AssetVariant{
+		AssetID: asset.ID, Locale: "de-DE", BlobKey: "devariant", MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
+
+	// Delete asset — variants should cascade.
+	require.NoError(t, s.DeleteAsset(ctx, p.ID, "main", asset.ID))
+
+	variants, err := s.ListAssetVariants(ctx, p.ID, asset.ID)
+	require.NoError(t, err)
+	assert.Len(t, variants, 0)
+}
+
+func TestAssetChangeLog(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	// Store asset — should log "asset_added".
+	asset := &platstore.Asset{
+		BlobKey:  "changelog1234",
+		MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset))
+
+	// Store same blob key again — should log "asset_modified".
+	asset2 := &platstore.Asset{
+		BlobKey:  "changelog1234",
+		MimeType: "image/png",
+		Filename: "updated.png",
+	}
+	require.NoError(t, s.StoreAsset(ctx, p.ID, "main", asset2))
+
+	// Store variant — should log "variant_added".
+	variant := &platstore.AssetVariant{
+		AssetID: asset.ID, Locale: "fr-FR", BlobKey: "frblob", MimeType: "image/png",
+	}
+	require.NoError(t, s.StoreAssetVariant(ctx, p.ID, variant))
+
+	// Delete asset — should log "asset_removed".
+	require.NoError(t, s.DeleteAsset(ctx, p.ID, "main", asset.ID))
+
+	// Verify change log entries.
+	cs, err := s.GetChanges(ctx, p.ID, "main", 0, nil, 100)
+	require.NoError(t, err)
+
+	var assetChangeTypes []string
+	for _, c := range cs.Changes {
+		switch c.ChangeType {
+		case "asset_added", "asset_modified", "asset_removed", "variant_added", "variant_modified", "variant_approved":
+			assetChangeTypes = append(assetChangeTypes, c.ChangeType)
+		}
+	}
+
+	assert.Equal(t, []string{"asset_added", "asset_modified", "variant_added", "asset_removed"}, assetChangeTypes)
+}

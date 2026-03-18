@@ -914,3 +914,212 @@ func (c *BowrainClient) ArchiveStream(ctx context.Context, streamName string) er
 	}
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// Asset sync (AD-029)
+// ---------------------------------------------------------------------------
+
+// AssetInput represents an asset to push to the server.
+type AssetInput struct {
+	BlobKey        string            `json:"blob_key"`
+	ItemName       string            `json:"item_name"`
+	SourceID       string            `json:"source_id"`
+	MimeType       string            `json:"mime_type"`
+	Filename       string            `json:"filename"`
+	SizeBytes      int64             `json:"size_bytes"`
+	AltText        string            `json:"alt_text,omitempty"`
+	Properties     map[string]string `json:"properties,omitempty"`
+	ProcessingHint string            `json:"processing_hint,omitempty"`
+}
+
+// AssetUploadURLResponse is the response from the upload-url endpoint.
+type AssetUploadURLResponse struct {
+	UploadURL string `json:"upload_url,omitempty"`
+	Exists    bool   `json:"exists"`
+}
+
+// AssetResponse is the API response for an asset.
+type AssetResponse struct {
+	ID               string            `json:"id"`
+	ProjectID        string            `json:"project_id"`
+	ItemName         string            `json:"item_name"`
+	SourceID         string            `json:"source_id"`
+	BlobKey          string            `json:"blob_key"`
+	MimeType         string            `json:"mime_type"`
+	Filename         string            `json:"filename"`
+	SizeBytes        int64             `json:"size_bytes"`
+	AltText          string            `json:"alt_text"`
+	Properties       map[string]string `json:"properties,omitempty"`
+	ProcessingStatus string            `json:"processing_status"`
+	DownloadURL      string            `json:"download_url,omitempty"`
+	CreatedAt        string            `json:"created_at"`
+	UpdatedAt        string            `json:"updated_at"`
+}
+
+// AssetListResponse wraps a list of assets.
+type AssetListResponse struct {
+	Assets []AssetResponse `json:"assets"`
+}
+
+// GetAssetUploadURL requests a pre-signed upload URL for a blob.
+func (c *BowrainClient) GetAssetUploadURL(ctx context.Context, blobKey, contentType string, size int64) (*AssetUploadURLResponse, error) {
+	payload := map[string]any{
+		"blob_key":     blobKey,
+		"content_type": contentType,
+		"size":         size,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal upload-url request: %w", err)
+	}
+
+	u := c.streamPrefix() + "/assets/upload-url"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("upload-url request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("upload-url failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result AssetUploadURLResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode upload-url response: %w", err)
+	}
+	return &result, nil
+}
+
+// PushAsset registers asset metadata on the server (after blob upload).
+func (c *BowrainClient) PushAsset(ctx context.Context, asset AssetInput) (*AssetResponse, error) {
+	body, err := json.Marshal(asset)
+	if err != nil {
+		return nil, fmt.Errorf("marshal asset: %w", err)
+	}
+
+	u := c.streamPrefix() + "/assets"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("push asset request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("push asset failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result AssetResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode asset response: %w", err)
+	}
+	return &result, nil
+}
+
+// ListAssets fetches assets for a project, optionally filtered by item name.
+func (c *BowrainClient) ListAssets(ctx context.Context, itemName string) ([]AssetResponse, error) {
+	u, err := url.Parse(c.streamPrefix() + "/assets")
+	if err != nil {
+		return nil, fmt.Errorf("parse URL: %w", err)
+	}
+	if itemName != "" {
+		q := u.Query()
+		q.Set("item_name", itemName)
+		u.RawQuery = q.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("list assets request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("list assets failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result AssetListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode assets response: %w", err)
+	}
+	return result.Assets, nil
+}
+
+// AssetVariantResponse is the API response for a locale variant.
+type AssetVariantResponse struct {
+	AssetID     string `json:"asset_id"`
+	Locale      string `json:"locale"`
+	BlobKey     string `json:"blob_key"`
+	Status      string `json:"status"`
+	MimeType    string `json:"mime_type"`
+	SizeBytes   int64  `json:"size_bytes"`
+	DownloadURL string `json:"download_url,omitempty"`
+}
+
+// AssetVariantListResponse wraps a list of variants.
+type AssetVariantListResponse struct {
+	Variants []AssetVariantResponse `json:"variants"`
+}
+
+// ListAssetVariants fetches locale variants for an asset.
+func (c *BowrainClient) ListAssetVariants(ctx context.Context, assetID string) ([]AssetVariantResponse, error) {
+	u := c.streamPrefix() + "/assets/" + assetID + "/variants"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("list variants request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("list variants failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result AssetVariantListResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode variants response: %w", err)
+	}
+	return result.Variants, nil
+}
+
+// DownloadBlob downloads binary content from a URL (SAS URL or server proxy).
+func (c *BowrainClient) DownloadBlob(ctx context.Context, downloadURL string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create download request: %w", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("download blob: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed: HTTP %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}

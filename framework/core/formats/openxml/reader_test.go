@@ -1,6 +1,7 @@
 package openxml
 
 import (
+	"archive/zip"
 	"context"
 	"os"
 	"testing"
@@ -561,4 +562,138 @@ func TestReaderConfigDefaults(t *testing.T) {
 	assert.Nil(t, cfg.IncludeStyles)
 	assert.False(t, cfg.ReplaceLineSeparator)
 	assert.Equal(t, "\n", cfg.LineSeparatorReplacement)
+}
+
+func TestExtractMediaConfig(t *testing.T) {
+	cfg := &Config{}
+	cfg.Reset()
+	assert.False(t, cfg.ExtractMedia)
+
+	err := cfg.ApplyMap(map[string]any{"extractMedia": true})
+	require.NoError(t, err)
+	assert.True(t, cfg.ExtractMedia)
+}
+
+func TestExtractMediaFromDocx(t *testing.T) {
+	// Build a minimal DOCX ZIP with an embedded PNG in word/media/.
+	docx := buildDocxWithMedia(t)
+
+	reader := NewReader()
+	require.NoError(t, reader.Config().ApplyMap(map[string]any{"extractMedia": true}))
+
+	doc := testutil.RawDocFromReader(docx, "test.docx", model.LocaleEnglish)
+	require.NoError(t, reader.Open(context.Background(), doc))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+
+	// Find PartMedia parts.
+	var mediaParts []*model.Media
+	for _, p := range parts {
+		if p.Type == model.PartMedia {
+			if m, ok := p.Resource.(*model.Media); ok {
+				mediaParts = append(mediaParts, m)
+			}
+		}
+	}
+
+	require.Len(t, mediaParts, 1, "should extract one embedded image")
+	m := mediaParts[0]
+	assert.Equal(t, "image/png", m.MimeType)
+	assert.Equal(t, "test.png", m.Filename)
+	assert.NotEmpty(t, m.BlobKey, "should compute SHA-256 blob key")
+	assert.Equal(t, int64(len(testPNG)), m.Size)
+	assert.Equal(t, "word/media/test.png", m.Properties["zipPath"])
+}
+
+func TestExtractMediaDisabled(t *testing.T) {
+	docx := buildDocxWithMedia(t)
+
+	reader := NewReader()
+	// ExtractMedia defaults to false.
+	doc := testutil.RawDocFromReader(docx, "test.docx", model.LocaleEnglish)
+	require.NoError(t, reader.Open(context.Background(), doc))
+	defer reader.Close()
+
+	parts := testutil.CollectParts(t, reader.Read(context.Background()))
+
+	for _, p := range parts {
+		assert.NotEqual(t, model.PartMedia, p.Type, "should not emit PartMedia when ExtractMedia is false")
+	}
+}
+
+// testPNG is a minimal 1x1 red PNG (67 bytes).
+var testPNG = []byte{
+	0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+	0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+	0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, // 1x1
+	0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, // 8-bit RGB
+	0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41, // IDAT chunk
+	0x54, 0x08, 0xD7, 0x63, 0xF8, 0xCF, 0xC0, 0x00,
+	0x00, 0x00, 0x02, 0x00, 0x01, 0xE2, 0x21, 0xBC,
+	0x33, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, // IEND chunk
+	0x44, 0xAE, 0x42, 0x60, 0x82,
+}
+
+// buildDocxWithMedia constructs a minimal DOCX ZIP with a test PNG in word/media/.
+func buildDocxWithMedia(t *testing.T) *os.File {
+	t.Helper()
+
+	tmp, err := os.CreateTemp(t.TempDir(), "test-*.docx")
+	require.NoError(t, err)
+
+	zw := zip.NewWriter(tmp)
+
+	// [Content_Types].xml
+	writeZipEntry(t, zw, "[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`)
+
+	// _rels/.rels
+	writeZipEntry(t, zw, "_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`)
+
+	// word/_rels/document.xml.rels
+	writeZipEntry(t, zw, "word/_rels/document.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/test.png"/>
+</Relationships>`)
+
+	// word/document.xml — simple paragraph with text
+	writeZipEntry(t, zw, "word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>Hello World</w:t></w:r></w:p>
+  </w:body>
+</w:document>`)
+
+	// word/media/test.png — embedded image
+	w, err := zw.Create("word/media/test.png")
+	require.NoError(t, err)
+	_, err = w.Write(testPNG)
+	require.NoError(t, err)
+
+	require.NoError(t, zw.Close())
+
+	// Reopen for reading.
+	name := tmp.Name()
+	tmp.Close()
+	f, err := os.Open(name)
+	require.NoError(t, err)
+	t.Cleanup(func() { f.Close() })
+	return f
+}
+
+func writeZipEntry(t *testing.T, zw *zip.Writer, name, content string) {
+	t.Helper()
+	w, err := zw.Create(name)
+	require.NoError(t, err)
+	_, err = w.Write([]byte(content))
+	require.NoError(t, err)
 }
