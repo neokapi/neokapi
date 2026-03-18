@@ -6,7 +6,13 @@ const meta: Meta<typeof BravoComposer> = {
   title: "Bravo/BravoComposer",
   component: BravoComposer,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ maxWidth: 480, padding: 0 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 480, padding: 0 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

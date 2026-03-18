@@ -208,10 +208,7 @@ function ConnectedBravo() {
 
   return (
     <>
-      <BravoPanelTrigger
-        onClick={actions.togglePanel}
-        active={state.panelOpen}
-      />
+      <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />
       <BravoPanel
         open={state.panelOpen}
         onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}

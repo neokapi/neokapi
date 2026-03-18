@@ -85,12 +85,8 @@ export const casualProfile: VoiceProfile = {
     contractions: "always",
   },
   vocabulary: {
-    preferred_terms: [
-      { term: "awesome", replacement: "", note: "On-brand enthusiasm" },
-    ],
-    forbidden_terms: [
-      { term: "utilize", replacement: "use", note: "Too formal" },
-    ],
+    preferred_terms: [{ term: "awesome", replacement: "", note: "On-brand enthusiasm" }],
+    forbidden_terms: [{ term: "utilize", replacement: "use", note: "Too formal" }],
   },
   examples: [
     {
@@ -183,7 +179,7 @@ export const sampleFindings: BrandVoiceFinding[] = [
     dimension: "style",
     severity: "critical",
     message: "Contraction detected in formal profile.",
-    suggestion: "Replace \"don't\" with \"do not\".",
+    suggestion: 'Replace "don\'t" with "do not".',
     position: { start: 22, end: 27 },
     original_text: "don't",
   },

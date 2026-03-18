@@ -274,9 +274,7 @@ function renderWithProviders(adapter: ApiAdapter) {
 
 describe("BravoContext", () => {
   it("throws when useBravo is called outside BravoProvider", () => {
-    expect(() => render(<BravoDisplay />)).toThrow(
-      "useBravo must be used within a BravoProvider",
-    );
+    expect(() => render(<BravoDisplay />)).toThrow("useBravo must be used within a BravoProvider");
   });
 
   it("starts with panel closed and empty state", () => {
@@ -492,9 +490,15 @@ describe("BravoContext", () => {
     });
     renderWithProviders(adapter);
 
-    await act(async () => { screen.getByTestId("open").click(); });
-    await act(async () => { screen.getByTestId("select-conv").click(); });
-    await act(async () => { screen.getByTestId("send").click(); });
+    await act(async () => {
+      screen.getByTestId("open").click();
+    });
+    await act(async () => {
+      screen.getByTestId("select-conv").click();
+    });
+    await act(async () => {
+      screen.getByTestId("send").click();
+    });
 
     const handler = sseMock.getHandler();
     await act(async () => {
@@ -552,14 +556,22 @@ describe("BravoContext", () => {
     });
     renderWithProviders(adapter);
 
-    await act(async () => { screen.getByTestId("open").click(); });
-    await act(async () => { screen.getByTestId("select-conv").click(); });
-    await act(async () => { screen.getByTestId("send").click(); });
+    await act(async () => {
+      screen.getByTestId("open").click();
+    });
+    await act(async () => {
+      screen.getByTestId("select-conv").click();
+    });
+    await act(async () => {
+      screen.getByTestId("send").click();
+    });
 
     expect(screen.getByTestId("streaming").textContent).toBe("true");
 
     // Cancel
-    act(() => { screen.getByTestId("cancel").click(); });
+    act(() => {
+      screen.getByTestId("cancel").click();
+    });
 
     expect(screen.getByTestId("streaming").textContent).toBe("false");
     expect(abortSpy).toHaveBeenCalled();
@@ -574,9 +586,15 @@ describe("BravoContext", () => {
     });
     renderWithProviders(adapter);
 
-    await act(async () => { screen.getByTestId("open").click(); });
-    await act(async () => { screen.getByTestId("select-conv").click(); });
-    await act(async () => { screen.getByTestId("send").click(); });
+    await act(async () => {
+      screen.getByTestId("open").click();
+    });
+    await act(async () => {
+      screen.getByTestId("select-conv").click();
+    });
+    await act(async () => {
+      screen.getByTestId("send").click();
+    });
 
     const handler = sseMock.getHandler();
     await act(async () => {

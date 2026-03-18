@@ -53,9 +53,7 @@ function MessageBubble({
       <div
         className={cn(
           "max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed",
-          isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted text-foreground",
+          isUser ? "bg-primary text-primary-foreground" : "bg-muted text-foreground",
         )}
       >
         {parts.map((part, i) =>
@@ -78,9 +76,10 @@ function MessageBubble({
         />
       ))}
 
-      {(message.input_tokens || message.output_tokens) ? (
+      {message.input_tokens || message.output_tokens ? (
         <div className="text-[10px] text-muted-foreground px-1">
-          {message.input_tokens?.toLocaleString()} in / {message.output_tokens?.toLocaleString()} out tokens
+          {message.input_tokens?.toLocaleString()} in / {message.output_tokens?.toLocaleString()}{" "}
+          out tokens
         </div>
       ) : null}
     </div>
@@ -112,12 +111,7 @@ export function BravoThread({
       )}
 
       {messages.map((msg) => (
-        <MessageBubble
-          key={msg.id}
-          message={msg}
-          onApprove={onApprove}
-          onDeny={onDeny}
-        />
+        <MessageBubble key={msg.id} message={msg} onApprove={onApprove} onDeny={onDeny} />
       ))}
 
       {streaming && (

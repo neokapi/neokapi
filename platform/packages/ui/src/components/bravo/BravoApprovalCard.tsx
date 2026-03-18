@@ -46,12 +46,7 @@ export function BravoApprovalCard({
         >
           Approve
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => onDeny(toolCallId)}
-          disabled={loading}
-        >
+        <Button size="sm" variant="outline" onClick={() => onDeny(toolCallId)} disabled={loading}>
           Deny
         </Button>
       </div>

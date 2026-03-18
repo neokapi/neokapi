@@ -50,9 +50,7 @@ export function BravoConversationList({
       )}
 
       {!loading && conversations.length === 0 && (
-        <div className="py-8 text-center text-sm text-muted-foreground">
-          No conversations yet
-        </div>
+        <div className="py-8 text-center text-sm text-muted-foreground">No conversations yet</div>
       )}
 
       {conversations.map((conv) => (

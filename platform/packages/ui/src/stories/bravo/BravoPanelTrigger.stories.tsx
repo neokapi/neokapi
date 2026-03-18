@@ -6,7 +6,13 @@ const meta: Meta<typeof BravoPanelTrigger> = {
   title: "Bravo/BravoPanelTrigger",
   component: BravoPanelTrigger,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

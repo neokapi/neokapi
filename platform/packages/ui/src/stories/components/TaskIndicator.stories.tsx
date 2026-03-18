@@ -7,7 +7,13 @@ const meta: Meta<typeof TaskIndicator> = {
   title: "Components/TaskIndicator",
   component: TaskIndicator,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ padding: 24 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ padding: 24 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

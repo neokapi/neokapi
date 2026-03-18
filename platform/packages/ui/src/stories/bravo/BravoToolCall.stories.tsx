@@ -7,7 +7,13 @@ const meta: Meta<typeof BravoToolCall> = {
   title: "Bravo/BravoToolCall",
   component: BravoToolCall,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ maxWidth: 400, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 400, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

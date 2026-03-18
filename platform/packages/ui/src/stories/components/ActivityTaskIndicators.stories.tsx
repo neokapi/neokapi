@@ -7,7 +7,13 @@ const activityMeta: Meta<typeof ActivityIndicator> = {
   title: "Components/ActivityIndicator",
   component: ActivityIndicator,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ padding: 24 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ padding: 24 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default activityMeta;

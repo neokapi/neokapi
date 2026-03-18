@@ -37,13 +37,9 @@ function agentSummary(activity: ActivityInfo): string {
         ? `@bravo ran ${data.tool}${data.duration ? ` (${data.duration})` : ""}`
         : "@bravo executed a tool";
     case "agent.tool.approved":
-      return data.tool
-        ? `approved @bravo to run ${data.tool}`
-        : "approved a @bravo tool call";
+      return data.tool ? `approved @bravo to run ${data.tool}` : "approved a @bravo tool call";
     case "agent.tool.denied":
-      return data.tool
-        ? `denied @bravo from running ${data.tool}`
-        : "denied a @bravo tool call";
+      return data.tool ? `denied @bravo from running ${data.tool}` : "denied a @bravo tool call";
     case "agent.code.executed":
       return data.language
         ? `@bravo ran a ${data.language} script${data.exit_code === "0" ? "" : " (failed)"}`
@@ -57,10 +53,7 @@ function agentSummary(activity: ActivityInfo): string {
 function actorName(activity: ActivityInfo): string {
   if (isAgentActivity(activity.type)) {
     // For tool.executed and code.executed the actor is the agent.
-    if (
-      activity.type === "agent.tool.executed" ||
-      activity.type === "agent.code.executed"
-    ) {
+    if (activity.type === "agent.tool.executed" || activity.type === "agent.code.executed") {
       return "@bravo";
     }
   }

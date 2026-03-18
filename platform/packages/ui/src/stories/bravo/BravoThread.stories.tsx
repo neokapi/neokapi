@@ -7,7 +7,21 @@ const meta: Meta<typeof BravoThread> = {
   title: "Bravo/BravoThread",
   component: BravoThread,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ maxWidth: 480, padding: 0, border: "1px solid #ddd", borderRadius: 8, minHeight: 400 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div
+        style={{
+          maxWidth: 480,
+          padding: 0,
+          border: "1px solid #ddd",
+          borderRadius: 8,
+          minHeight: 400,
+        }}
+      >
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
@@ -37,9 +51,7 @@ export const StreamingWithToolCalls: Story = {
     messages: sampleMessages.slice(0, 1),
     streaming: true,
     streamingContent: "Running the pseudo-translate flow on French files...",
-    streamingToolCalls: [
-      { ...sampleToolCall, status: "running", duration: 0 },
-    ],
+    streamingToolCalls: [{ ...sampleToolCall, status: "running", duration: 0 }],
     onApprove: fn(),
     onDeny: fn(),
     onCancel: fn(),

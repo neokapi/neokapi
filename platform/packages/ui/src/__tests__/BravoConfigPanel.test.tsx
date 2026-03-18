@@ -41,7 +41,9 @@ describe("BravoConfigPanel", () => {
   });
 
   it("shows correct initial policies from config", () => {
-    const { container } = render(<BravoConfigPanel config={baseConfig} tools={tools} onSave={vi.fn()} />);
+    const { container } = render(
+      <BravoConfigPanel config={baseConfig} tools={tools} onSave={vi.fn()} />,
+    );
 
     // Policy badges (buttons, not select options)
     const policyBadges = container.querySelectorAll("button[title^='Click to change']");
@@ -60,7 +62,9 @@ describe("BravoConfigPanel", () => {
   });
 
   it("shows save button when a tool policy is changed", () => {
-    const { container } = render(<BravoConfigPanel config={baseConfig} tools={tools} onSave={vi.fn()} />);
+    const { container } = render(
+      <BravoConfigPanel config={baseConfig} tools={tools} onSave={vi.fn()} />,
+    );
 
     // Click first policy badge to cycle it
     const badges = container.querySelectorAll("button[title^='Click to change']");
@@ -70,7 +74,9 @@ describe("BravoConfigPanel", () => {
   });
 
   it("cycles tool policy: Allow → Approve → Deny → Allow", () => {
-    const { container } = render(<BravoConfigPanel config={baseConfig} tools={tools} onSave={vi.fn()} />);
+    const { container } = render(
+      <BravoConfigPanel config={baseConfig} tools={tools} onSave={vi.fn()} />,
+    );
 
     // Get policy badge buttons (not select options)
     const getBadges = () =>
@@ -94,7 +100,9 @@ describe("BravoConfigPanel", () => {
 
   it("saves correct denied_tools and require_approval arrays", () => {
     const onSave = vi.fn();
-    const { container } = render(<BravoConfigPanel config={baseConfig} tools={tools} onSave={onSave} />);
+    const { container } = render(
+      <BravoConfigPanel config={baseConfig} tools={tools} onSave={onSave} />,
+    );
 
     // Change list_projects from Allow → Approve (click once)
     const badges = container.querySelectorAll("button[title^='Click to change']");

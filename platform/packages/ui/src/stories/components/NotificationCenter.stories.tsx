@@ -7,7 +7,13 @@ const meta: Meta<typeof NotificationCenter> = {
   title: "Components/NotificationCenter",
   component: NotificationCenter,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ padding: 24 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ padding: 24 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;
