@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/neokapi/neokapi/core/ai/tools"
@@ -166,7 +167,8 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	// Bridge formats: use single-pass pipeline via BridgeProcessor.
 	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
 		outputFlag, _ := cmd.Flags().GetString("output")
-		return a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputFlag, bridgeReader)
+		_, err := a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputFlag, bridgeReader, nil)
+		return err
 	}
 
 	inputContent, err := os.ReadFile(inputPath)
@@ -383,6 +385,30 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 		a.PluginLoader.WarmupBridges()
 	}
 
+	// Check if batch tracing is enabled.
+	tracePath, _ := cmd.Flags().GetString("trace")
+	var batchStart time.Time
+	var lanes chan int
+	type fileTraceInfo struct {
+		file     string
+		format   string
+		recorder *flow.TraceRecorder
+		nodes    []flow.TraceNode
+		startUs  int64
+		endUs    int64
+		lane     int
+	}
+	var traceInfos []*fileTraceInfo
+
+	if tracePath != "" {
+		batchStart = time.Now()
+		// Lane allocator: goroutines acquire/release lane IDs.
+		lanes = make(chan int, concurrency)
+		for i := 0; i < concurrency; i++ {
+			lanes <- i
+		}
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(concurrency)
 
@@ -391,7 +417,34 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 
 	for _, inputPath := range inputPaths {
 		g.Go(func() error {
-			if err := a.processFlowFile(ctx, cmd, flowName, inputPath, outputTemplate); err != nil {
+			var recorder *flow.TraceRecorder
+			var info *fileTraceInfo
+			var lane int
+
+			if tracePath != "" {
+				lane = <-lanes
+				recorder = flow.NewTraceRecorderWithStart(batchStart)
+				info = &fileTraceInfo{
+					file:     filepath.Base(inputPath),
+					recorder: recorder,
+					startUs:  time.Since(batchStart).Microseconds(),
+					lane:     lane,
+				}
+			}
+
+			fmtName, nodes, err := a.processFlowFile(ctx, cmd, flowName, inputPath, outputTemplate, recorder)
+
+			if tracePath != "" {
+				info.endUs = time.Since(batchStart).Microseconds()
+				info.format = fmtName
+				info.nodes = nodes
+				mu.Lock()
+				traceInfos = append(traceInfos, info)
+				mu.Unlock()
+				lanes <- lane
+			}
+
+			if err != nil {
 				return fmt.Errorf("%s: %w", inputPath, err)
 			}
 			mu.Lock()
@@ -405,6 +458,39 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 		return fmt.Errorf("flow execution error: %w", err)
 	}
 
+	// Write batch trace JSON if --trace was set.
+	if tracePath != "" && len(traceInfos) > 0 {
+		batchTrace := &flow.BatchFlowTrace{
+			Name:        flowName,
+			Concurrency: concurrency,
+			DurationUs:  time.Since(batchStart).Microseconds(),
+		}
+		for _, info := range traceInfos {
+			ft := flow.FileFlowTrace{
+				File:       info.file,
+				Format:     info.format,
+				StartUs:    info.startUs,
+				EndUs:      info.endUs,
+				Lane:       info.lane,
+				Nodes:      info.nodes,
+				Events:     info.recorder.Events(),
+				DurationUs: info.endUs - info.startUs,
+			}
+			batchTrace.FileTraces = append(batchTrace.FileTraces, ft)
+		}
+
+		traceJSON, err := json.MarshalIndent(batchTrace, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal batch trace: %w", err)
+		}
+		if err := os.MkdirAll(filepath.Dir(tracePath), 0o755); err != nil {
+			return fmt.Errorf("create trace dir: %w", err)
+		}
+		if err := os.WriteFile(tracePath, traceJSON, 0o644); err != nil {
+			return fmt.Errorf("write batch trace: %w", err)
+		}
+	}
+
 	if !a.Quiet {
 		return output.Print(cmd, output.FlowRunOutput{
 			FlowName:       flowName,
@@ -416,17 +502,19 @@ func (a *App) runMultipleFiles(ctx context.Context, cmd *cobra.Command, flowName
 
 // processFlowFile performs the full read → process → write cycle for a single file.
 // Safe for concurrent use — each call uses its own reader, writer, and tool instances.
+// When recorder is non-nil, tools are wrapped with TracingTool for batch tracing.
+// Returns the detected format name and trace nodes (both empty when recorder is nil).
 //
 // For bridge formats, uses a single-pass pipeline via BridgeProcessor where Go
 // acts as an Okapi pipeline step — one read, inline writing, no document re-read.
 // For native formats, uses the standard read → process → write pipeline.
-func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string) error {
+func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate string, recorder *flow.TraceRecorder) (string, []flow.TraceNode, error) {
 	fmtName := a.FormatFlag
 	if fmtName == "" {
 		ext := filepath.Ext(inputPath)
 		detected, err := a.FormatReg.DetectByExtension(ext)
 		if err != nil {
-			return fmt.Errorf("unable to detect format: %w", err)
+			return "", nil, fmt.Errorf("unable to detect format: %w", err)
 		}
 		fmtName = detected
 	}
@@ -443,43 +531,46 @@ func (a *App) processFlowFile(ctx context.Context, cmd *cobra.Command, flowName,
 		var err error
 		mergedConfig, err = resolver.ResolveFormatConfig(ref.Name, ref.Preset, nil, nil)
 		if err != nil {
-			return fmt.Errorf("resolve format config: %w", err)
+			return "", nil, fmt.Errorf("resolve format config: %w", err)
 		}
 	}
 
 	reader, err := a.FormatReg.NewReader(registryName)
 	if err != nil {
-		return fmt.Errorf("no reader for format %q: %w", fmtName, err)
+		return "", nil, fmt.Errorf("no reader for format %q: %w", fmtName, err)
 	}
 
 	if len(mergedConfig) > 0 {
 		if cfg := reader.Config(); cfg != nil {
 			if err := cfg.ApplyMap(mergedConfig); err != nil {
-				return fmt.Errorf("apply format config: %w", err)
+				return "", nil, fmt.Errorf("apply format config: %w", err)
 			}
 		}
 	}
 
 	// Bridge formats: single-pass pipeline via BridgeProcessor.
 	if bridgeReader, ok := reader.(*bridge.BridgeFormatReader); ok {
-		return a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader)
+		nodes, err := a.processFlowFileBridge(ctx, cmd, flowName, inputPath, outputTemplate, bridgeReader, recorder)
+		return fmtName, nodes, err
 	}
 
 	// Native formats: standard read → process → write pipeline.
-	return a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig)
+	nodes, err := a.processFlowFileNative(ctx, cmd, flowName, inputPath, outputTemplate, registryName, reader, mergedConfig, recorder)
+	return fmtName, nodes, err
 }
 
 // processFlowFileBridge runs a single-pass Okapi pipeline where Go acts as a
 // step. Java reads each event, sends the part to Go, Go processes it and sends
 // it back, Java applies the translation and writes — all in one filter iteration.
+// When recorder is non-nil, tools are wrapped with TracingTool.
 func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
-	flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader) error {
+	flowName, inputPath, outputTemplate string, bridgeReader *bridge.BridgeFormatReader, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer cleanup()
 
@@ -488,6 +579,24 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 		for i, ft := range flowTools {
 			flowTools[i] = tool.NewParallelBlockTool(ft, n)
 		}
+	}
+
+	// Wrap tools with TracingTool if recorder is set.
+	var traceNodes []flow.TraceNode
+	if recorder != nil {
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: "bridge-reader", Type: "reader", Name: "bridge", Label: "bridge reader",
+		})
+		for i, t := range flowTools {
+			nodeID := fmt.Sprintf("tool-%d", i)
+			traceNodes = append(traceNodes, flow.TraceNode{
+				ID: nodeID, Type: "tool", Name: t.Name(), Label: t.Name(),
+			})
+			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
+		}
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: "bridge-writer", Type: "writer", Name: "bridge", Label: "bridge writer",
+		})
 	}
 
 	processor := bridgeReader.NewProcessor()
@@ -511,6 +620,9 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 
 		go func() {
 			for p := range parts {
+				if recorder != nil && p.Resource != nil {
+					recorder.Record("exit", "bridge-reader", p.Resource.ResourceID(), nil)
+				}
 				inCh <- p
 			}
 			close(inCh)
@@ -523,19 +635,21 @@ func (a *App) processFlowFileBridge(ctx context.Context, cmd *cobra.Command,
 
 		return outCh
 	})
-	return err
+	return traceNodes, err
 }
 
 // processFlowFileNative uses the standard read → process → write pipeline.
-func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any) error {
+// When recorder is non-nil, tools are wrapped with TracingTool and reader/writer
+// events are recorded. Returns trace nodes (nil when recorder is nil).
+func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flowName, inputPath, outputTemplate, registryName string, reader format.DataFormatReader, mergedConfig map[string]any, recorder *flow.TraceRecorder) ([]flow.TraceNode, error) {
 	inputContent, err := os.ReadFile(inputPath)
 	if err != nil {
-		return fmt.Errorf("read input: %w", err)
+		return nil, fmt.Errorf("read input: %w", err)
 	}
 
 	writer, err := a.FormatReg.NewWriter(registryName)
 	if err != nil {
-		return fmt.Errorf("no writer for format %q: %w", registryName, err)
+		return nil, fmt.Errorf("no writer for format %q: %w", registryName, err)
 	}
 
 	// Wire skeleton store if both reader and writer support it.
@@ -558,14 +672,14 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	}
 
 	if err := reader.Open(ctx, doc); err != nil {
-		return fmt.Errorf("open document: %w", err)
+		return nil, fmt.Errorf("open document: %w", err)
 	}
 
 	var parts []*model.Part
 	for result := range reader.Read(ctx) {
 		if result.Error != nil {
 			reader.Close()
-			return fmt.Errorf("read error: %w", result.Error)
+			return nil, fmt.Errorf("read error: %w", result.Error)
 		}
 		parts = append(parts, result.Part)
 	}
@@ -574,7 +688,7 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	// Build fresh tool instances for this file (thread-safe).
 	flowTools, cleanup, err := a.buildFlowTools(flowName, cmd)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer cleanup()
 
@@ -583,6 +697,24 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 		for i, ft := range flowTools {
 			flowTools[i] = tool.NewParallelBlockTool(ft, n)
 		}
+	}
+
+	// Wrap tools with TracingTool if recorder is set.
+	var traceNodes []flow.TraceNode
+	if recorder != nil {
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: "reader", Type: "reader", Name: registryName, Label: registryName + " reader",
+		})
+		for i, t := range flowTools {
+			nodeID := fmt.Sprintf("tool-%d", i)
+			traceNodes = append(traceNodes, flow.TraceNode{
+				ID: nodeID, Type: "tool", Name: t.Name(), Label: t.Name(),
+			})
+			flowTools[i] = flow.NewTracingTool(t, nodeID, recorder)
+		}
+		traceNodes = append(traceNodes, flow.TraceNode{
+			ID: "writer", Type: "writer", Name: registryName, Label: registryName + " writer",
+		})
 	}
 
 	fb := flow.NewFlow(flowName)
@@ -596,6 +728,10 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 
 	go func() {
 		for _, p := range parts {
+			if recorder != nil && p.Resource != nil {
+				recorder.SnapshotPart(p, "reader", "initial")
+				recorder.Record("exit", "reader", p.Resource.ResourceID(), nil)
+			}
 			inCh <- p
 		}
 		close(inCh)
@@ -603,17 +739,22 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 
 	var outputParts []*model.Part
 	for p := range outCh {
+		if recorder != nil && p.Resource != nil {
+			id := p.Resource.ResourceID()
+			recorder.Record("enter", "writer", id, nil)
+			recorder.Record("exit", "writer", id, nil)
+		}
 		outputParts = append(outputParts, p)
 	}
 
 	if err := wait(); err != nil {
-		return fmt.Errorf("flow execution error: %w", err)
+		return traceNodes, fmt.Errorf("flow execution error: %w", err)
 	}
 
 	outputPath := a.resolveOutputPath(inputPath, outputTemplate)
 
 	if err := writer.SetOutput(outputPath); err != nil {
-		return fmt.Errorf("set output: %w", err)
+		return traceNodes, fmt.Errorf("set output: %w", err)
 	}
 
 	if sps, ok := writer.(loader.SourcePathSetter); ok && filepath.IsAbs(inputPath) {
@@ -631,11 +772,11 @@ func (a *App) processFlowFileNative(ctx context.Context, cmd *cobra.Command, flo
 	close(ch)
 
 	if err := writer.Write(ctx, ch); err != nil {
-		return fmt.Errorf("write output: %w", err)
+		return traceNodes, fmt.Errorf("write output: %w", err)
 	}
 	writer.Close()
 
-	return nil
+	return traceNodes, nil
 }
 
 // resolveOutputPath computes the output file path for a given input file.

@@ -50,6 +50,14 @@ const htmlTemplate = `<!DOCTYPE html>
         .legend-row { display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem; font-size: 0.8rem; color: #555; }
         .legend-item { display: flex; align-items: center; gap: 0.3rem; }
         .legend-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+        .batch-trace-header {
+            display: flex; align-items: baseline; gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        .batch-trace-header h2 { margin-bottom: 0; }
+        .batch-trace-stats {
+            font-size: 0.8rem; color: #666;
+        }
         @media (max-width: 768px) { .charts { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -74,6 +82,8 @@ const htmlTemplate = `<!DOCTYPE html>
             <canvas id="timelineChart"></canvas>
             <div class="legend-row" id="timelineLegend"></div>
         </div>
+
+        <div id="batchTraceSection"></div>
     </div>
 
     <div class="section">
@@ -329,7 +339,155 @@ const htmlTemplate = `<!DOCTYPE html>
     })();
 
     // ---------------------------------------------------------------------------
-    // 4. Per-File Comparison table
+    // 4. Batch Concurrency Trace (Gantt chart per engine)
+    // ---------------------------------------------------------------------------
+    (function() {
+        var section = document.getElementById("batchTraceSection");
+        var chartIndex = 0;
+
+        experiments.forEach(function(exp, expIdx) {
+            if (!exp.batchTrace || !exp.batchTrace.fileTraces || exp.batchTrace.fileTraces.length === 0) return;
+
+            var bt = exp.batchTrace;
+            var traces = bt.fileTraces;
+
+            // Compute max lane and max time.
+            var maxLane = 0;
+            var maxTimeUs = 0;
+            traces.forEach(function(ft) {
+                if (ft.lane > maxLane) maxLane = ft.lane;
+                if (ft.endUs > maxTimeUs) maxTimeUs = ft.endUs;
+            });
+            var numLanes = maxLane + 1;
+
+            // Build lane labels.
+            var laneLabels = [];
+            for (var l = 0; l < numLanes; l++) {
+                laneLabels.push("Lane " + l);
+            }
+
+            // Build one dataset per file trace (each is a single floating bar).
+            var datasets = traces.map(function(ft) {
+                var color = FORMAT_COLORS[ft.format] || "#999";
+                var startMs = ft.startUs / 1000;
+                var endMs = ft.endUs / 1000;
+                var durationMs = (ft.endUs - ft.startUs) / 1000;
+
+                // Create data array with null for all lanes except this file's lane.
+                var data = [];
+                for (var l = 0; l < numLanes; l++) {
+                    data.push(l === ft.lane ? [startMs, endMs] : null);
+                }
+
+                return {
+                    label: ft.file,
+                    data: data,
+                    backgroundColor: color + "CC",
+                    borderColor: color,
+                    borderWidth: 1,
+                    borderSkipped: false,
+                    barPercentage: 0.85,
+                    categoryPercentage: 0.9,
+                    _meta: { format: ft.format, durationMs: durationMs, startMs: startMs, endMs: endMs },
+                };
+            });
+
+            // Create container.
+            var container = document.createElement("div");
+            container.className = "chart-container full-width tall";
+
+            var header = document.createElement("div");
+            header.className = "batch-trace-header";
+            var h2 = document.createElement("h2");
+            h2.textContent = "Batch Concurrency \u2014 " + exp.engine;
+            header.appendChild(h2);
+
+            var stats = document.createElement("span");
+            stats.className = "batch-trace-stats";
+            var totalMs = (bt.durationUs / 1000).toFixed(0);
+            var rssKB = exp.peakRssKB.max.toFixed(0);
+            var rssMB = (exp.peakRssKB.max / 1024).toFixed(1);
+            var statsText = totalMs + " ms total \u00b7 " + rssMB + " MB RSS \u00b7 " + bt.concurrency + " lanes \u00b7 " + traces.length + " files";
+            if (exp.daemonRssKB) {
+                statsText += " \u00b7 " + (exp.daemonRssKB.max / 1024).toFixed(1) + " MB daemon";
+            }
+            stats.textContent = statsText;
+            header.appendChild(stats);
+            container.appendChild(header);
+
+            var canvasId = "batchTraceChart" + chartIndex;
+            chartIndex++;
+            var canvas = document.createElement("canvas");
+            canvas.id = canvasId;
+            canvas.height = Math.max(120, numLanes * 50);
+            container.appendChild(canvas);
+
+            // Format legend for this chart.
+            var legendDiv = document.createElement("div");
+            legendDiv.className = "legend-row";
+            var usedFormats = {};
+            traces.forEach(function(ft) { usedFormats[ft.format] = true; });
+            Object.keys(usedFormats).sort().forEach(function(fmt) {
+                var color = FORMAT_COLORS[fmt] || "#999";
+                var item = document.createElement("span");
+                item.className = "legend-item";
+                var swatch = document.createElement("span");
+                swatch.className = "legend-swatch";
+                swatch.style.background = color;
+                item.appendChild(swatch);
+                item.appendChild(document.createTextNode(fmt));
+                legendDiv.appendChild(item);
+            });
+            container.appendChild(legendDiv);
+
+            section.appendChild(container);
+
+            // Render chart.
+            new Chart(canvas, {
+                type: "bar",
+                data: { labels: laneLabels, datasets: datasets },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                title: function(items) {
+                                    return items[0] ? items[0].dataset.label : "";
+                                },
+                                label: function(ctx) {
+                                    var meta = ctx.dataset._meta || {};
+                                    return [
+                                        (meta.format || "?") + " \u00b7 Lane " + ctx.dataIndex,
+                                        "Start: " + (meta.startMs || 0).toFixed(1) + " ms",
+                                        "End: " + (meta.endMs || 0).toFixed(1) + " ms",
+                                        "Duration: " + (meta.durationMs || 0).toFixed(1) + " ms",
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: { display: true, text: "Time (ms)" },
+                            beginAtZero: true,
+                            max: maxTimeUs / 1000 * 1.05,
+                        },
+                        y: {
+                            stacked: true,
+                            grid: { display: true, color: "#eee" },
+                        }
+                    }
+                }
+            });
+        });
+    })();
+
+    // ---------------------------------------------------------------------------
+    // 5. Per-File Comparison table
     // ---------------------------------------------------------------------------
     (function() {
         var headRow = document.getElementById("fileComparisonHead");
