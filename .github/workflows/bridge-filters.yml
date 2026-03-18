@@ -18,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: ./.github/actions/setup-go-modules
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -31,7 +31,7 @@ jobs:
         run: java -version
 
       - name: Cache okapi-bridge JAR
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.cache/neokapi/bridge/
           key: okapi-bridge-v2.17.0-okapi1.48.0
@@ -44,7 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
 
       - name: Cache okapi test data
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: okapi-testdata/
           key: okapi-testdata-1.48.0-v4
@@ -82,7 +82,7 @@ jobs:
         run: go-junit-report -in test-results-bridge.json -out junit-bridge.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2
         if: always()
         with:
           name: Bridge Filter Tests
@@ -94,7 +94,7 @@ jobs:
         run: exit 1
 
       - name: Upload bridge test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-bridge
