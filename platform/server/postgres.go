@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platbrand "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -12,6 +13,7 @@ import (
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
+	platagent "github.com/neokapi/neokapi/platform/agent"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -23,6 +25,7 @@ type pgStores struct {
 	Quota      jobs.QuotaStore
 	Brand      corebrand.BrandStore
 	GraphStore coreg.GraphStore
+	Agent      platagent.AgentStore
 	DB         *storage.PgDB // shared connection pool for TM/TB
 }
 
@@ -78,6 +81,14 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 	if pool := db.Pool(); pool != nil {
 		gs := platgraph.NewAGEGraphStore(pool)
 		stores.GraphStore = gs
+	}
+
+	// Initialize agent store (AD-028).
+	ags, err := bragent.NewPostgresStore(db)
+	if err != nil {
+		log.Printf("WARNING: failed to init agent store: %v (agent features disabled)", err)
+	} else {
+		stores.Agent = ags
 	}
 
 	return stores, nil
