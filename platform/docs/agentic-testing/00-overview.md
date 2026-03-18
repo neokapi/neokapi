@@ -19,27 +19,34 @@ The system forks/mirrors active open source projects and manages their localizat
 
 ## Architecture at a Glance
 
+Each agent persona runs as an independent **ZeroClaw** container — a lightweight Rust-based AI agent runtime (~8.8MB binary, <5MB RAM). Agents self-schedule via built-in cron, interact with Bowrain through an MCP server, and communicate with each other exclusively through the platform (tasks, activity feed, notifications).
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Orchestrator Service                       │
-│  (schedules agents, manages timelines, controls pacing)      │
-└──────────┬──────────────┬───────────────┬───────────────────┘
-           │              │               │
-    ┌──────▼──────┐ ┌────▼─────┐  ┌──────▼──────┐
-    │  Developer   │ │  Brand    │  │ Translator  │
-    │  Agent       │ │  Manager  │  │ Team Agent  │
-    │  (CLI/CI)    │ │  Agent    │  │ (per locale) │
-    └──────┬──────┘ └────┬─────┘  └──────┬──────┘
-           │              │               │
-    ┌──────▼──────────────▼───────────────▼──────┐
-    │              Bowrain Platform                │
-    │  (Server + Web + CLI + GitHub Actions)       │
-    └──────┬──────────────────────────────────────┘
-           │
-    ┌──────▼──────────────────────────────────────┐
-    │         Forked Open Source Projects           │
-    │  (Docusaurus, Gitea, Home Assistant, etc.)   │
-    └─────────────────────────────────────────────┘
+┌──────────────────── docker-compose ────────────────────────┐
+│                                                             │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
+│  │  ZeroClaw     │  │  ZeroClaw     │  │  ZeroClaw     │   │
+│  │  Alex Chen    │  │  Maria Santos │  │  Jean-Pierre  │   │
+│  │  (Developer)  │  │  (Brand Mgr)  │  │  (fr-FR)      │   │
+│  │  SOUL.md      │  │  SOUL.md      │  │  SOUL.md      │   │
+│  │  cron: 9am    │  │  cron: MWF    │  │  cron: 2pm    │   │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘     │
+│         │ MCP              │ MCP              │ MCP         │
+│  ┌──────▼──────────────────▼─────────────────▼──────────┐  │
+│  │              Bowrain MCP Server                        │  │
+│  │  (exposes push/pull/translate/termbase/brand/tasks)    │  │
+│  └──────┬───────────────────────────────────────────────┘  │
+│         │                                                   │
+│  ┌──────▼───────────────────────────────────────────────┐  │
+│  │              Bowrain Platform                          │  │
+│  │  (Server + Web + CLI + GitHub Actions)                 │  │
+│  └──────┬───────────────────────────────────────────────┘  │
+│         │                                                   │
+│  ┌──────▼───────────────────────────────────────────────┐  │
+│  │         Forked Open Source Projects                    │  │
+│  │  (Docusaurus, Gitea, Home Assistant, etc.)            │  │
+│  └──────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Document Index
@@ -49,7 +56,7 @@ The system forks/mirrors active open source projects and manages their localizat
 | [01-agent-personas.md](01-agent-personas.md) | Agent roles, behaviors, prompts, and interaction patterns |
 | [02-project-candidates.md](02-project-candidates.md) | Open source projects to fork/mirror, evaluation criteria |
 | [03-orchestration.md](03-orchestration.md) | Scheduling, pacing, timeline simulation, state management |
-| [04-implementation.md](04-implementation.md) | Technical architecture, code structure, infrastructure |
+| [04-implementation.md](04-implementation.md) | ZeroClaw containers, Bowrain MCP server, infrastructure |
 | [05-activity-visualization.md](05-activity-visualization.md) | Dashboards, feeds, metrics, and demo material |
 | [06-evaluation-quality.md](06-evaluation-quality.md) | Translation quality assessment, platform health metrics |
 | [07-rollout-phases.md](07-rollout-phases.md) | Phased rollout plan from MVP to full system |
@@ -60,6 +67,6 @@ The system forks/mirrors active open source projects and manages their localizat
 - **Authenticity over speed** — Agents behave like humans with realistic timing, not bots that blast through workflows
 - **Observable by default** — Every agent action generates platform activity that's visible in dashboards
 - **Idempotent and resumable** — The system can be stopped and restarted without losing state
-- **Composable agents** — Each persona is independent; add/remove agents without redesigning the system
+- **Composable agents** — Each persona is an independent ZeroClaw container; add/remove agents by editing docker-compose
 - **Real projects, real formats** — No synthetic test data; everything comes from actual open source codebases
 - **Progressive complexity** — Start with one project and three agents; scale to many projects and dozens of agents

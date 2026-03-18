@@ -98,11 +98,11 @@ A dedicated view showing agent-specific metrics:
 
 **Option A: Bowrain Web Extension**
 - Add an `/agentic` route to the Bowrain web app
-- Query orchestrator state via API
+- Query Bowrain's own activity/metrics APIs
 - Fully integrated experience
 
 **Option B: Standalone Dashboard**
-- Separate React app reading from orchestrator SQLite
+- Separate React app reading from Bowrain API + container logs
 - Independent deployment
 - Can be shared publicly (demo site)
 
@@ -118,7 +118,7 @@ A dedicated view showing agent-specific metrics:
 
 ### Periodic Screenshots
 
-The orchestrator captures screenshots at key moments:
+A separate Playwright-based screenshot service (or cron job) captures screenshots at key moments:
 
 ```typescript
 // Screenshots captured automatically

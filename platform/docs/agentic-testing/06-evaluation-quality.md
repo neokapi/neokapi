@@ -189,7 +189,7 @@ interface BugReport {
 ```
 
 Bug reports are:
-1. Logged to orchestrator database
+1. Logged to a shared volume (JSON files) or Bowrain's activity feed
 2. Deduplicated against known issues
 3. Optionally filed as GitHub issues (with approval)
 4. Tracked for regression (does this bug recur?)
