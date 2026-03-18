@@ -54,6 +54,11 @@ import type {
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
+  BravoConversation,
+  BravoMessage,
+  BravoConfig,
+  BravoToolInfo,
+  BravoUsageSummary,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1427,6 +1432,139 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.offset) params.set("offset", String(query.offset));
     const qs = params.toString();
     return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
+  }
+
+  // ── @bravo Agent (AD-028) ────────────────────────────────────────────────
+
+  private bravoEp(ws: string) {
+    return `/api/v1/workspaces/${ws}/bravo`;
+  }
+
+  async bravoCreateConversation(
+    workspaceSlug: string,
+    projectId?: string,
+    title?: string,
+  ): Promise<BravoConversation> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations`, {
+      method: "POST",
+      body: JSON.stringify({ project_id: projectId, title }),
+    });
+  }
+
+  async bravoListConversations(
+    workspaceSlug: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<{ conversations: BravoConversation[]; total: number }> {
+    const params = new URLSearchParams();
+    if (limit) params.set("limit", String(limit));
+    if (offset) params.set("offset", String(offset));
+    const qs = params.toString();
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations${qs ? `?${qs}` : ""}`);
+  }
+
+  async bravoGetConversation(
+    workspaceSlug: string,
+    conversationId: string,
+  ): Promise<{ conversation: BravoConversation; messages: BravoMessage[] }> {
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}`,
+    );
+  }
+
+  async bravoDeleteConversation(workspaceSlug: string, conversationId: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async bravoSendMessage(
+    workspaceSlug: string,
+    conversationId: string,
+    content: string,
+  ): Promise<{ user_message: BravoMessage; assistant_message: BravoMessage }> {
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/messages`,
+      {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      },
+    );
+  }
+
+  async bravoListMessages(
+    workspaceSlug: string,
+    conversationId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<{ messages: BravoMessage[] }> {
+    const params = new URLSearchParams();
+    if (limit) params.set("limit", String(limit));
+    if (offset) params.set("offset", String(offset));
+    const qs = params.toString();
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/messages${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async bravoApproveToolCall(
+    workspaceSlug: string,
+    conversationId: string,
+    toolCallId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/tool-calls/${encodeURIComponent(toolCallId)}/approve`,
+      { method: "POST" },
+    );
+  }
+
+  async bravoDenyToolCall(
+    workspaceSlug: string,
+    conversationId: string,
+    toolCallId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/tool-calls/${encodeURIComponent(toolCallId)}/deny`,
+      { method: "POST" },
+    );
+  }
+
+  async bravoCancelConversation(workspaceSlug: string, conversationId: string): Promise<void> {
+    await this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/cancel`,
+      { method: "POST" },
+    );
+  }
+
+  async bravoGetConfig(workspaceSlug: string): Promise<BravoConfig> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/config`);
+  }
+
+  async bravoUpdateConfig(
+    workspaceSlug: string,
+    config: Partial<BravoConfig>,
+  ): Promise<BravoConfig> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/config`, {
+      method: "PUT",
+      body: JSON.stringify(config),
+    });
+  }
+
+  async bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/tools`);
+  }
+
+  async bravoGetUsage(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<BravoUsageSummary> {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

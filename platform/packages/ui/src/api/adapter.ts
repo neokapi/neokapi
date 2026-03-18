@@ -53,6 +53,11 @@ import type {
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
+  BravoConversation,
+  BravoMessage,
+  BravoConfig,
+  BravoToolInfo,
+  BravoUsageSummary,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -488,6 +493,21 @@ export interface ApiAdapter {
     workspaceSlug: string,
     preferences: NotificationPreference[],
   ): Promise<void>;
+
+  // @bravo Agent
+  bravoCreateConversation(workspaceSlug: string, projectId?: string, title?: string): Promise<BravoConversation>;
+  bravoListConversations(workspaceSlug: string, limit?: number, offset?: number): Promise<{ conversations: BravoConversation[]; total: number }>;
+  bravoGetConversation(workspaceSlug: string, conversationId: string): Promise<{ conversation: BravoConversation; messages: BravoMessage[] }>;
+  bravoDeleteConversation(workspaceSlug: string, conversationId: string): Promise<void>;
+  bravoSendMessage(workspaceSlug: string, conversationId: string, content: string): Promise<{ user_message: BravoMessage; assistant_message: BravoMessage }>;
+  bravoListMessages(workspaceSlug: string, conversationId: string, limit?: number, offset?: number): Promise<{ messages: BravoMessage[] }>;
+  bravoApproveToolCall(workspaceSlug: string, conversationId: string, toolCallId: string): Promise<void>;
+  bravoDenyToolCall(workspaceSlug: string, conversationId: string, toolCallId: string): Promise<void>;
+  bravoCancelConversation(workspaceSlug: string, conversationId: string): Promise<void>;
+  bravoGetConfig(workspaceSlug: string): Promise<BravoConfig>;
+  bravoUpdateConfig(workspaceSlug: string, config: Partial<BravoConfig>): Promise<BravoConfig>;
+  bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }>;
+  bravoGetUsage(workspaceSlug: string, from?: string, to?: string): Promise<BravoUsageSummary>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;
