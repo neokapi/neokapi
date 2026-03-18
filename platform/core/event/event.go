@@ -62,6 +62,14 @@ const (
 	EventBrandVoiceDrift          EventType = "brand.voice.drift"
 	EventBrandVoiceCorrected      EventType = "brand.voice.corrected"
 	EventBrandProfileUpdated      EventType = "brand.profile.updated"
+
+	// Agent events (AD-028)
+	EventAgentConversationCreated EventType = "agent.conversation.created"
+	EventAgentMessageSent         EventType = "agent.message.sent"
+	EventAgentToolExecuted        EventType = "agent.tool.executed"
+	EventAgentToolApproved        EventType = "agent.tool.approved"
+	EventAgentToolDenied          EventType = "agent.tool.denied"
+	EventAgentCodeExecuted        EventType = "agent.code.executed"
 )
 
 // Event is a typed message emitted by the system.

@@ -14,14 +14,16 @@ import (
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	platauth "github.com/neokapi/neokapi/platform/auth"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // MCPServer wraps the MCP protocol server with brand voice resources and tools.
 type MCPServer struct {
-	brandStore corebrand.BrandStore
-	server     *mcp.Server
-	handler    http.Handler
-	metadata   *oauthex.ProtectedResourceMetadata
+	brandStore   corebrand.BrandStore
+	contentStore store.ContentStore
+	server       *mcp.Server
+	handler      http.Handler
+	metadata     *oauthex.ProtectedResourceMetadata
 }
 
 // Config holds configuration for the MCP server.
@@ -44,6 +46,12 @@ type Config struct {
 // It registers all resources, tools, and prompts, then creates a
 // StreamableHTTP handler with optional OAuth 2.1 token validation.
 func NewMCPServer(brandStore corebrand.BrandStore, cfg Config) (*MCPServer, error) {
+	return NewMCPServerWithStore(brandStore, nil, cfg)
+}
+
+// NewMCPServerWithStore creates a new MCP server with brand voice and
+// content/flow/TM/termbase/connector tools for @bravo agent access.
+func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.ContentStore, cfg Config) (*MCPServer, error) {
 	s := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "bowrain",
@@ -53,8 +61,9 @@ func NewMCPServer(brandStore corebrand.BrandStore, cfg Config) (*MCPServer, erro
 	)
 
 	ms := &MCPServer{
-		brandStore: brandStore,
-		server:     s,
+		brandStore:   brandStore,
+		contentStore: contentStore,
+		server:       s,
 	}
 
 	// Register MCP capabilities.
@@ -62,6 +71,15 @@ func NewMCPServer(brandStore corebrand.BrandStore, cfg Config) (*MCPServer, erro
 	ms.registerPhase1Tools()
 	ms.registerPhase2Tools()
 	ms.registerPrompts()
+
+	// Register expanded tools for @bravo agent (AD-028).
+	if contentStore != nil {
+		ms.registerContentTools()
+		ms.registerFlowTools()
+		ms.registerTMTools()
+		ms.registerTermbaseTools()
+		ms.registerConnectorTools()
+	}
 
 	// Create Streamable HTTP handler.
 	streamableHandler := mcp.NewStreamableHTTPHandler(
