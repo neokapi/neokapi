@@ -60,18 +60,19 @@ type FileResult struct {
 
 // FileTiming holds per-file timing from a sequential trace pass.
 type FileTiming struct {
-	Name      string  `json:"name"`
-	Format    string  `json:"format"`
-	Category  string  `json:"category"`
-	SizeBytes int64   `json:"sizeBytes"`
-	StartMs   float64 `json:"startMs"`
-	EndMs     float64 `json:"endMs"`
-	WallMs    float64 `json:"wallMs"`
-	PeakRssKB int64   `json:"peakRssKB"`
-	UserCpuMs float64 `json:"userCpuMs"`
-	SysCpuMs  float64 `json:"sysCpuMs"`
-	Success   bool    `json:"success"`
-	Error     string  `json:"error,omitempty"`
+	Name       string  `json:"name"`
+	Format     string  `json:"format"`
+	Category   string  `json:"category"`
+	SizeBytes  int64   `json:"sizeBytes"`
+	StartMs    float64 `json:"startMs"`
+	EndMs      float64 `json:"endMs"`
+	WallMs     float64 `json:"wallMs"`
+	PeakRssKB  int64   `json:"peakRssKB"`
+	UserCpuMs  float64 `json:"userCpuMs"`
+	SysCpuMs   float64 `json:"sysCpuMs"`
+	BlockCount int64   `json:"blockCount,omitempty"`
+	Success    bool    `json:"success"`
+	Error      string  `json:"error,omitempty"`
 }
 
 // Stats holds descriptive statistics for a series of measurements.
@@ -92,4 +93,5 @@ type RunResult struct {
 	SystemCPU   time.Duration
 	PeakRSSKB   int64
 	OutputBytes int64
+	BlockCount  int64
 }
