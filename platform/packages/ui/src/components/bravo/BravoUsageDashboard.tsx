@@ -7,22 +7,12 @@ export interface BravoUsageDashboardProps {
   onDateRangeChange?: (from: string, to: string) => void;
 }
 
-function StatCard({
-  label,
-  value,
-  sublabel,
-}: {
-  label: string;
-  value: string;
-  sublabel?: string;
-}) {
+function StatCard({ label, value, sublabel }: { label: string; value: string; sublabel?: string }) {
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="text-2xl font-bold tracking-tight">{value}</div>
       <div className="text-sm font-medium text-muted-foreground mt-1">{label}</div>
-      {sublabel && (
-        <div className="text-xs text-muted-foreground mt-0.5">{sublabel}</div>
-      )}
+      {sublabel && <div className="text-xs text-muted-foreground mt-0.5">{sublabel}</div>}
     </div>
   );
 }
@@ -48,10 +38,7 @@ function TokenBar({
         </span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
-        <div
-          className={`h-full rounded-full ${color}`}
-          style={{ width: `${pct}%` }}
-        />
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
@@ -103,10 +90,7 @@ export function BravoUsageDashboard({ usage, onDateRangeChange }: BravoUsageDash
           value={`${(totalTokens / 1000).toFixed(1)}k`}
           sublabel={`${totalTokens.toLocaleString()} tokens`}
         />
-        <StatCard
-          label="Messages"
-          value={usage.message_count.toLocaleString()}
-        />
+        <StatCard label="Messages" value={usage.message_count.toLocaleString()} />
         <StatCard
           label="Container time"
           value={`${containerMinutes}m`}

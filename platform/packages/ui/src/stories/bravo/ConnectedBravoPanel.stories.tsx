@@ -7,11 +7,7 @@ import { BravoProvider, useBravo } from "../../context/BravoContext";
 import { BravoPanelTrigger } from "../../components/bravo/BravoPanelTrigger";
 import { BravoPanel } from "../../components/bravo/BravoPanel";
 import { createMockAdapter } from "../mock-adapter";
-import {
-  sampleConversations,
-  sampleMessages,
-  sampleConfig,
-} from "./fixtures";
+import { sampleConversations, sampleMessages, sampleConfig } from "./fixtures";
 import type { Workspace, BravoConversation, BravoMessage } from "../../types/api";
 
 // ---------------------------------------------------------------------------

@@ -5,7 +5,11 @@ import { BravoPanelTrigger } from "../components/bravo/BravoPanelTrigger";
 import { BravoConversationList } from "../components/bravo/BravoConversationList";
 import { BravoApprovalCard } from "../components/bravo/BravoApprovalCard";
 import { BravoThread } from "../components/bravo/BravoThread";
-import type { BravoConversation, BravoMessage, BravoToolCall as BravoToolCallType } from "../types/api";
+import type {
+  BravoConversation,
+  BravoMessage,
+  BravoToolCall as BravoToolCallType,
+} from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -382,9 +386,7 @@ describe("BravoThread", () => {
 
   it("renders cancel button when onCancel is provided", () => {
     const onCancel = vi.fn();
-    render(
-      <BravoThread messages={[]} streaming streamingContent="..." onCancel={onCancel} />,
-    );
+    render(<BravoThread messages={[]} streaming streamingContent="..." onCancel={onCancel} />);
     const cancelBtn = screen.getByText("Stop generating");
     expect(cancelBtn).toBeDefined();
     fireEvent.click(cancelBtn);

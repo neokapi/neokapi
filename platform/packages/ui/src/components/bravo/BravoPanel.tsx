@@ -1,11 +1,6 @@
 import { useState } from "react";
 import type { BravoConversation, BravoMessage, BravoToolCall } from "../../types/api";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "../ui/sheet";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../ui/sheet";
 import { BravoConversationList } from "./BravoConversationList";
 import { BravoThread } from "./BravoThread";
 import { BravoComposer } from "./BravoComposer";
@@ -124,10 +119,7 @@ export function BravoPanel({
               />
             </div>
             <div className="shrink-0">
-              <BravoComposer
-                onSend={onSendMessage}
-                disabled={sendDisabled || streaming}
-              />
+              <BravoComposer onSend={onSendMessage} disabled={sendDisabled || streaming} />
             </div>
           </>
         )}

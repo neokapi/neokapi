@@ -62,9 +62,7 @@ export function BravoToolCall({ toolCall, onApprove, onDeny }: BravoToolCallProp
             {(toolCall.duration / 1e6).toFixed(0)}ms
           </span>
         )}
-        <span className="text-muted-foreground text-xs shrink-0">
-          {expanded ? "▲" : "▼"}
-        </span>
+        <span className="text-muted-foreground text-xs shrink-0">{expanded ? "▲" : "▼"}</span>
       </button>
 
       {expanded && (
@@ -91,9 +89,7 @@ export function BravoToolCall({ toolCall, onApprove, onDeny }: BravoToolCallProp
             </div>
           )}
 
-          {toolCall.error && (
-            <div className="text-xs text-destructive">{toolCall.error}</div>
-          )}
+          {toolCall.error && <div className="text-xs text-destructive">{toolCall.error}</div>}
         </div>
       )}
 

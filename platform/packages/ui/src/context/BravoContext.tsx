@@ -8,11 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import type {
-  BravoConversation,
-  BravoMessage,
-  BravoToolCall,
-} from "../types/api";
+import type { BravoConversation, BravoMessage, BravoToolCall } from "../types/api";
 import { useApi } from "./ApiContext";
 import { useWorkspace } from "./WorkspaceContext";
 
@@ -256,9 +252,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
 
         onNeedsApproval: (data) => {
           setStreamingToolCalls((prev) =>
-            prev.map((tc) =>
-              tc.id === data.id ? { ...tc, status: "needs_approval" } : tc,
-            ),
+            prev.map((tc) => (tc.id === data.id ? { ...tc, status: "needs_approval" } : tc)),
           );
         },
 
@@ -376,7 +370,16 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       streamingToolCalls,
       loading,
     }),
-    [panelOpen, conversations, activeConversation, messages, streaming, streamingContent, streamingToolCalls, loading],
+    [
+      panelOpen,
+      conversations,
+      activeConversation,
+      messages,
+      streaming,
+      streamingContent,
+      streamingToolCalls,
+      loading,
+    ],
   );
 
   const actions: BravoActions = useMemo(

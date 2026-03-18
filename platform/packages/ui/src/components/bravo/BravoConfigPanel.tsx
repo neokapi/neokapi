@@ -13,10 +13,7 @@ export interface BravoConfigPanelProps {
 /** Per-tool policy state. */
 type ToolPolicy = "allow" | "deny" | "approve";
 
-function resolvePolicy(
-  toolName: string,
-  config: BravoConfig,
-): ToolPolicy {
+function resolvePolicy(toolName: string, config: BravoConfig): ToolPolicy {
   if (config.denied_tools?.includes(toolName)) return "deny";
   if (config.require_approval?.includes(toolName)) return "approve";
   return "allow";
@@ -44,12 +41,7 @@ function policyColor(policy: ToolPolicy): string {
   }
 }
 
-export function BravoConfigPanel({
-  config,
-  tools,
-  onSave,
-  saving,
-}: BravoConfigPanelProps) {
+export function BravoConfigPanel({ config, tools, onSave, saving }: BravoConfigPanelProps) {
   const [enabled, setEnabled] = useState(config.enabled);
   const [codeExec, setCodeExec] = useState(config.code_exec_enabled);
   const [maxConcurrent, setMaxConcurrent] = useState(config.max_concurrent);
@@ -174,9 +166,7 @@ export function BravoConfigPanel({
                     </button>
                     <select
                       value={policy}
-                      onChange={(e) =>
-                        setToolPolicy(tool.name, e.target.value as ToolPolicy)
-                      }
+                      onChange={(e) => setToolPolicy(tool.name, e.target.value as ToolPolicy)}
                       className="text-[10px] bg-transparent border rounded px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     >
                       <option value="allow">Allow</option>

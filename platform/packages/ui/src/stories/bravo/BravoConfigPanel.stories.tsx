@@ -7,7 +7,13 @@ const meta: Meta<typeof BravoConfigPanel> = {
   title: "Bravo/BravoConfigPanel",
   component: BravoConfigPanel,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ maxWidth: 480, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 480, border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

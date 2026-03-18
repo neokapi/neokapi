@@ -6,7 +6,13 @@ const meta: Meta<typeof BravoApprovalCard> = {
   title: "Bravo/BravoApprovalCard",
   component: BravoApprovalCard,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ maxWidth: 400, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 400, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

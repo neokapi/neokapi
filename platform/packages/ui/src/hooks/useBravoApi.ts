@@ -86,8 +86,7 @@ export function useBravoApi() {
   );
 
   const updateConfig = useCallback(
-    async (config: Partial<BravoConfig>): Promise<BravoConfig> =>
-      api.bravoUpdateConfig(ws, config),
+    async (config: Partial<BravoConfig>): Promise<BravoConfig> => api.bravoUpdateConfig(ws, config),
     [api, ws],
   );
 

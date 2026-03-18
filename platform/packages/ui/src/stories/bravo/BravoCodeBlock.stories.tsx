@@ -5,7 +5,13 @@ const meta: Meta<typeof BravoCodeBlock> = {
   title: "Bravo/BravoCodeBlock",
   component: BravoCodeBlock,
   tags: ["autodocs"],
-  decorators: [(Story) => <div style={{ maxWidth: 480, padding: 16 }}><Story /></div>],
+  decorators: [
+    (Story) => (
+      <div style={{ maxWidth: 480, padding: 16 }}>
+        <Story />
+      </div>
+    ),
+  ],
 };
 
 export default meta;

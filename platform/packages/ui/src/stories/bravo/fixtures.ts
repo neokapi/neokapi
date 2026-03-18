@@ -83,7 +83,8 @@ export const sampleMessages: BravoMessage[] = [
     id: "msg-3",
     conversation_id: "conv-1",
     role: "assistant",
-    content: "Done! 42 blocks were pseudo-translated. I'd like to push the results to git — shall I?",
+    content:
+      "Done! 42 blocks were pseudo-translated. I'd like to push the results to git — shall I?",
     tool_calls: [sampleApprovalToolCall],
     input_tokens: 800,
     output_tokens: 120,
