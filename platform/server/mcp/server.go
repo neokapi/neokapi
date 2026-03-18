@@ -13,17 +13,64 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
 	corebrand "github.com/neokapi/neokapi/core/brand"
+	"github.com/neokapi/neokapi/core/registry"
 	platauth "github.com/neokapi/neokapi/platform/auth"
+	"github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 )
+
+// TMResolver provides workspace-scoped translation memory access.
+type TMResolver interface {
+	GetTM(workspaceID string) (sievepen.TMStore, error)
+}
+
+// TBResolver provides workspace-scoped terminology access.
+type TBResolver interface {
+	GetTB(workspaceID string) (termbase.TBStore, error)
+}
+
+// ConnectorResolver provides workspace-scoped connector access.
+type ConnectorResolver interface {
+	GetConnector(id string) (connector.IntegrationConnector, error)
+	Fetch(ctx context.Context, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error)
+	Publish(ctx context.Context, connectorID, projectID string, opts connector.PublishOptions) error
+	ConnectorStatus(ctx context.Context, connectorID string) (*connector.SyncStatus, error)
+}
+
+// SandboxExecutor runs code in an isolated environment.
+type SandboxExecutor interface {
+	Execute(ctx context.Context, req SandboxRequest) (*SandboxResult, error)
+}
+
+// SandboxRequest describes code to execute in a sandbox.
+type SandboxRequest struct {
+	Language string            // "python", "bash", "node"
+	Code     string            // script source
+	Files    map[string][]byte // input files
+	Env      map[string]string // environment variables
+}
+
+// SandboxResult holds the output of a sandbox execution.
+type SandboxResult struct {
+	Stdout   string // captured stdout
+	Stderr   string // captured stderr
+	ExitCode int
+}
 
 // MCPServer wraps the MCP protocol server with brand voice resources and tools.
 type MCPServer struct {
-	brandStore   corebrand.BrandStore
-	contentStore store.ContentStore
-	server       *mcp.Server
-	handler      http.Handler
-	metadata     *oauthex.ProtectedResourceMetadata
+	brandStore    corebrand.BrandStore
+	contentStore  store.ContentStore
+	tmResolver    TMResolver
+	tbResolver    TBResolver
+	connResolver  ConnectorResolver
+	sandbox       SandboxExecutor
+	toolReg       *registry.ToolRegistry
+	server        *mcp.Server
+	handler       http.Handler
+	metadata      *oauthex.ProtectedResourceMetadata
 }
 
 // Config holds configuration for the MCP server.
@@ -42,16 +89,42 @@ type Config struct {
 	PublicURL string
 }
 
+// Option configures optional MCPServer dependencies.
+type Option func(*MCPServer)
+
+// WithTMResolver adds workspace-scoped TM access.
+func WithTMResolver(r TMResolver) Option {
+	return func(s *MCPServer) { s.tmResolver = r }
+}
+
+// WithTBResolver adds workspace-scoped termbase access.
+func WithTBResolver(r TBResolver) Option {
+	return func(s *MCPServer) { s.tbResolver = r }
+}
+
+// WithConnectorResolver adds connector access.
+func WithConnectorResolver(r ConnectorResolver) Option {
+	return func(s *MCPServer) { s.connResolver = r }
+}
+
+// WithSandbox adds sandbox code execution.
+func WithSandbox(e SandboxExecutor) Option {
+	return func(s *MCPServer) { s.sandbox = e }
+}
+
+// WithToolRegistry adds the tool registry for flow resolution.
+func WithToolRegistry(r *registry.ToolRegistry) Option {
+	return func(s *MCPServer) { s.toolReg = r }
+}
+
 // NewMCPServer creates a new MCP server with brand voice capabilities.
-// It registers all resources, tools, and prompts, then creates a
-// StreamableHTTP handler with optional OAuth 2.1 token validation.
 func NewMCPServer(brandStore corebrand.BrandStore, cfg Config) (*MCPServer, error) {
 	return NewMCPServerWithStore(brandStore, nil, cfg)
 }
 
 // NewMCPServerWithStore creates a new MCP server with brand voice and
 // content/flow/TM/termbase/connector tools for @bravo agent access.
-func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.ContentStore, cfg Config) (*MCPServer, error) {
+func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.ContentStore, cfg Config, opts ...Option) (*MCPServer, error) {
 	s := mcp.NewServer(
 		&mcp.Implementation{
 			Name:    "bowrain",
@@ -64,6 +137,10 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 		brandStore:   brandStore,
 		contentStore: contentStore,
 		server:       s,
+	}
+
+	for _, opt := range opts {
+		opt(ms)
 	}
 
 	// Register MCP capabilities.
@@ -79,6 +156,9 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 		ms.registerTMTools()
 		ms.registerTermbaseTools()
 		ms.registerConnectorTools()
+	}
+	if ms.sandbox != nil {
+		ms.registerSandboxTools()
 	}
 
 	// Create Streamable HTTP handler.

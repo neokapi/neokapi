@@ -6,11 +6,27 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
 // registerContentTools registers project and content management MCP tools.
-func (s *MCPServer) registerContentTools() {
+func (s *MCPServer) registerContentTools() { //nolint:funlen
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "create_project",
+		Description: "Create a new project with source and target languages.",
+	}, s.handleCreateProject)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "update_project",
+		Description: "Update a project's name or target languages.",
+	}, s.handleUpdateProject)
+
+	mcp.AddTool(s.server, &mcp.Tool{
+		Name:        "update_block",
+		Description: "Update a block's target translation for a specific locale.",
+	}, s.handleUpdateBlock)
+
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_projects",
 		Description: "List workspace projects. Returns project IDs, names, source/target languages, and creation dates.",
@@ -277,4 +293,126 @@ func (s *MCPServer) handleMergeStream(ctx context.Context, req *mcp.CallToolRequ
 		return nil, store.MergeResult{}, fmt.Errorf("merge stream: %w", err)
 	}
 	return nil, *result, nil
+}
+
+// --- create_project ---
+
+type createProjectInput struct {
+	WorkspaceID    string   `json:"workspace_id" jsonschema:"the workspace ID"`
+	Name           string   `json:"name" jsonschema:"project name"`
+	SourceLanguage string   `json:"source_language" jsonschema:"source language code (e.g. en-US)"`
+	TargetLanguages []string `json:"target_languages" jsonschema:"target language codes"`
+}
+type createProjectOutput struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (s *MCPServer) handleCreateProject(ctx context.Context, req *mcp.CallToolRequest, input createProjectInput) (*mcp.CallToolResult, createProjectOutput, error) {
+	if input.Name == "" {
+		return nil, createProjectOutput{}, fmt.Errorf("name is required")
+	}
+	if input.SourceLanguage == "" {
+		return nil, createProjectOutput{}, fmt.Errorf("source_language is required")
+	}
+	targets := make([]model.LocaleID, len(input.TargetLanguages))
+	for i, l := range input.TargetLanguages {
+		targets[i] = model.LocaleID(l)
+	}
+	p := &store.Project{
+		WorkspaceID:           input.WorkspaceID,
+		Name:                  input.Name,
+		DefaultSourceLanguage: model.LocaleID(input.SourceLanguage),
+		TargetLanguages:       targets,
+	}
+	if err := s.contentStore.CreateProject(ctx, p); err != nil {
+		return nil, createProjectOutput{}, fmt.Errorf("create project: %w", err)
+	}
+	return nil, createProjectOutput{ID: p.ID, Name: p.Name}, nil
+}
+
+// --- update_project ---
+
+type updateProjectInput struct {
+	ProjectID       string   `json:"project_id" jsonschema:"the project ID"`
+	Name            string   `json:"name,omitempty" jsonschema:"new project name"`
+	TargetLanguages []string `json:"target_languages,omitempty" jsonschema:"new target language codes"`
+}
+
+func (s *MCPServer) handleUpdateProject(ctx context.Context, req *mcp.CallToolRequest, input updateProjectInput) (*mcp.CallToolResult, projectSummaryContent, error) {
+	if input.ProjectID == "" {
+		return nil, projectSummaryContent{}, fmt.Errorf("project_id is required")
+	}
+	p, err := s.contentStore.GetProject(ctx, input.ProjectID)
+	if err != nil {
+		return nil, projectSummaryContent{}, fmt.Errorf("get project: %w", err)
+	}
+	if input.Name != "" {
+		p.Name = input.Name
+	}
+	if len(input.TargetLanguages) > 0 {
+		targets := make([]model.LocaleID, len(input.TargetLanguages))
+		for i, l := range input.TargetLanguages {
+			targets[i] = model.LocaleID(l)
+		}
+		p.TargetLanguages = targets
+	}
+	if err := s.contentStore.UpdateProject(ctx, p); err != nil {
+		return nil, projectSummaryContent{}, fmt.Errorf("update project: %w", err)
+	}
+	langs := make([]string, len(p.TargetLanguages))
+	for i, l := range p.TargetLanguages {
+		langs[i] = string(l)
+	}
+	return nil, projectSummaryContent{
+		ID:              p.ID,
+		Name:            p.Name,
+		SourceLanguage:  string(p.DefaultSourceLanguage),
+		TargetLanguages: langs,
+	}, nil
+}
+
+// --- update_block ---
+
+type updateBlockInput struct {
+	ProjectID    string `json:"project_id" jsonschema:"the project ID"`
+	BlockID      string `json:"block_id" jsonschema:"the block ID"`
+	Stream       string `json:"stream,omitempty" jsonschema:"stream name (defaults to main)"`
+	TargetLocale string `json:"target_locale" jsonschema:"locale code for the translation"`
+	TargetText   string `json:"target_text" jsonschema:"the translated text"`
+}
+type updateBlockOutput struct {
+	ID           string `json:"id"`
+	TargetLocale string `json:"target_locale"`
+	Updated      bool   `json:"updated"`
+}
+
+func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequest, input updateBlockInput) (*mcp.CallToolResult, updateBlockOutput, error) {
+	if input.BlockID == "" {
+		return nil, updateBlockOutput{}, fmt.Errorf("block_id is required")
+	}
+	if input.TargetLocale == "" {
+		return nil, updateBlockOutput{}, fmt.Errorf("target_locale is required")
+	}
+	stream := input.Stream
+	if stream == "" {
+		stream = "main"
+	}
+
+	sb, err := s.contentStore.GetBlock(ctx, input.ProjectID, stream, input.BlockID)
+	if err != nil {
+		return nil, updateBlockOutput{}, fmt.Errorf("get block: %w", err)
+	}
+
+	sb.Block.SetTargetText(model.LocaleID(input.TargetLocale), input.TargetText)
+
+	if err := s.contentStore.StoreBlocks(ctx, input.ProjectID, stream, []*model.Block{sb.Block}); err != nil {
+		return nil, updateBlockOutput{}, fmt.Errorf("store block: %w", err)
+	}
+
+	return nil, updateBlockOutput{
+		ID:           input.BlockID,
+		TargetLocale: input.TargetLocale,
+		Updated:      true,
+	}, nil
 }

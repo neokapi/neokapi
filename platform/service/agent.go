@@ -87,8 +87,8 @@ func (s *AgentService) DeleteConversation(ctx context.Context, convID string) er
 	return s.store.DeleteConversation(ctx, convID)
 }
 
-// SendMessage persists a user message and generates an agent response.
-// This is the synchronous variant used by the Phase 1 JSON API.
+// SendMessage persists a user message and generates a synchronous agent response.
+// Used by JSON API clients. For SSE streaming, use SendMessageStream.
 func (s *AgentService) SendMessage(ctx context.Context, conversationID, userID, content string) (*platagent.Message, *platagent.Message, error) {
 	// Persist user message.
 	userMsg := &platagent.Message{
@@ -100,12 +100,12 @@ func (s *AgentService) SendMessage(ctx context.Context, conversationID, userID, 
 		return nil, nil, fmt.Errorf("add user message: %w", err)
 	}
 
-	// Phase 1: mock assistant response.
-	// Phase 2 will POST to ZeroClaw gateway and stream real responses.
+	// Synchronous response (no container pool).
+	// For real agent responses, use SendMessageStream with a pool.
 	assistantMsg := &platagent.Message{
 		ConversationID: conversationID,
 		Role:           platagent.RoleAssistant,
-		Content:        fmt.Sprintf("I received your message: %q. Agent integration is coming in Phase 2.", content),
+		Content:        fmt.Sprintf("I received your message: %q. Use SSE streaming for full agent responses.", content),
 	}
 	if err := s.store.AddMessage(ctx, assistantMsg); err != nil {
 		return nil, nil, fmt.Errorf("add assistant message: %w", err)
@@ -217,9 +217,9 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 		return fmt.Errorf("add user message: %w", err)
 	}
 
-	// If no pool is configured, fall back to mock.
+	// If no pool is configured, use local response.
 	if s.pool == nil {
-		return s.sendMockStream(ctx, conversationID, userID, content, sse)
+		return s.sendLocalStream(ctx, conversationID, userID, content, sse)
 	}
 
 	// Create a scoped agent token for MCP delegation.
@@ -241,32 +241,49 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 		return fmt.Errorf("acquire container: %w", err)
 	}
 
-	// POST message to ZeroClaw gateway and stream response.
-	// Phase 2 implementation: the gateway integration will pipe response
-	// chunks from ZeroClaw → SSE events to the client.
-	_ = container // Will be used in the HTTP POST to container.GatewayURL
+	// Stream response from ZeroClaw gateway → SSE to client.
+	if err := s.streamFromGateway(ctx, container, conversationID, userID, content, sse); err != nil {
+		return fmt.Errorf("gateway stream: %w", err)
+	}
 
-	// For now, emit mock SSE events since we don't have a running ZeroClaw yet.
-	return s.sendMockStream(ctx, conversationID, userID, content, sse)
+	// Update conversation timestamp.
+	conv, _ := s.store.GetConversation(ctx, conversationID)
+	if conv != nil {
+		_ = s.store.UpdateConversation(ctx, conv)
+	}
+
+	if s.eventBus != nil {
+		s.eventBus.Publish(platev.Event{
+			ID:     id.New(),
+			Type:   platev.EventAgentMessageSent,
+			Source: "agent",
+			Actor:  "bravo:" + userID,
+			Data: map[string]string{
+				"conversation_id": conversationID,
+			},
+			Timestamp: time.Now(),
+		})
+	}
+
+	return nil
 }
 
-// sendMockStream emits mock SSE events for testing without ZeroClaw.
-func (s *AgentService) sendMockStream(ctx context.Context, conversationID, userID, content string, sse SSEWriter) error {
+// sendLocalStream emits SSE events from a local (non-container) agent response.
+// Used when no container pool is configured (e.g., development/testing).
+func (s *AgentService) sendLocalStream(ctx context.Context, conversationID, userID, content string, sse SSEWriter) error {
 	assistantMsg := &platagent.Message{
 		ConversationID: conversationID,
 		Role:           platagent.RoleAssistant,
-		Content:        fmt.Sprintf("I received your message: %q. Agent integration is coming in Phase 2.", content),
+		Content:        fmt.Sprintf("I received your message: %q. No agent container pool is configured.", content),
 	}
 	if err := s.store.AddMessage(ctx, assistantMsg); err != nil {
 		return fmt.Errorf("add assistant message: %w", err)
 	}
 
-	// Emit SSE events.
 	_ = sse.WriteEvent(SSEMessageStart, MessageStartData{ID: assistantMsg.ID, Role: "assistant"})
 	_ = sse.WriteEvent(SSEContentDelta, ContentDeltaData{Delta: assistantMsg.Content})
 	_ = sse.WriteEvent(SSEMessageEnd, MessageEndData{ID: assistantMsg.ID})
 
-	// Update conversation timestamp.
 	conv, err := s.store.GetConversation(ctx, conversationID)
 	if err == nil {
 		_ = s.store.UpdateConversation(ctx, conv)
