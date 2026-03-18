@@ -842,55 +842,172 @@ base_url = "https://oai-bowrain-d.openai.azure.com/openai/deployments/gpt-4o-min
 - Deploy via portal initially, codify in Bicep later
 - Same managed identity gets `Cognitive Services User` role on the Foundry resource
 
-### Azure Deployment
+### Azure Deployment: Container Apps Jobs
 
-In Azure, agents run as **Container Apps** (or Container Instances) within the existing
-Container Apps Environment, with the same user-assigned managed identity used by the
-bowrain-server and worker containers. This gives them access to both Azure OpenAI and
-Azure AI Foundry without any API keys.
+In Azure, agents run as **Container Apps Jobs** — not always-on containers. Each agent
+session starts, does work, and stops. You pay only for execution time, not 24/7 uptime.
 
+This uses the same Container Apps Environment already deployed for bowrain-server, with
+the same user-assigned managed identity for Azure OpenAI and AI Foundry access.
+
+**Two job trigger types:**
+
+| Trigger | Agents | How It Works |
+|---------|--------|-------------|
+| **Scheduled** | Developer (push), Brand Manager | Azure-managed cron expression. Fires on schedule, runs ZeroClaw session, exits. |
+| **Event-driven** | PM, Translators, QA, Developer (pull) | KEDA scaler monitors Azure Service Bus queue depth. New message → new job execution. |
+
+**Why Jobs, not always-on Container Apps:**
+- 7 agents × 24h = 168 container-hours/day if always-on. With Jobs, 7 agents × ~2h
+  active/day = ~14 container-hours/day. **~12x cheaper.**
+- ZeroClaw cold start is <10ms (3.4MB binary) — negligible for jobs that run minutes.
+- Azure manages scheduling and retries natively — no ZeroClaw daemon reliability risk.
+- Event-driven jobs give **instant handoffs** instead of 1-2h heartbeat polling delays.
+
+**Scheduled job (e.g., Developer push):**
 ```bicep
-// modules/containerapp-agent.bicep (new, per agent)
-resource agentApp 'Microsoft.App/containerApps@2024-03-01' = {
-  name: 'ca-agent-${agentName}'
+// modules/agent-job.bicep
+resource agentJob 'Microsoft.App/jobs@2024-03-01' = {
+  name: 'job-agent-${agentName}'
   location: location
   identity: {
     type: 'UserAssigned'
-    userAssignedIdentities: {
-      '${managedIdentityId}': {}
-    }
+    userAssignedIdentities: { '${managedIdentityId}': {} }
   }
   properties: {
     environmentId: containerAppsEnvironmentId
+    configuration: {
+      triggerType: 'Schedule'
+      replicaTimeout: 1800          // 30min max per session
+      replicaRetryLimit: 1
+      scheduleTriggerConfig: {
+        cronExpression: cronExpression  // e.g., '0 9 * * 1-5'
+        parallelism: 1
+        replicaCompletionCount: 1
+      }
+    }
     template: {
       containers: [{
         name: agentName
         image: 'ghcr.io/zeroclaw-labs/zeroclaw:latest'
-        command: ['zeroclaw', 'daemon']
-        resources: { cpu: '0.25', memory: '0.5Gi' }  // ZeroClaw is tiny
-        volumeMounts: [{ volumeName: 'workspace', mountPath: '/root/.zeroclaw' }]
+        command: ['zeroclaw', 'agent', '-m', agentTaskMessage]
+        resources: { cpu: json('0.25'), memory: '0.5Gi' }
+        env: [
+          { name: 'BRAVO_MCP_ENDPOINT', value: bravoMcpEndpoint }
+          { name: 'BRAVO_AGENT_TOKEN', secretRef: '${agentName}-token' }
+          { name: 'BRAVO_MODEL_PROVIDER', value: modelProvider }
+          { name: 'BRAVO_MODEL_NAME', value: modelName }
+          { name: 'BRAVO_MODEL_API_BASE', value: modelApiBase }
+        ]
       }]
-      scale: { minReplicas: 1, maxReplicas: 1 }  // Always-on daemon
     }
   }
 }
 ```
 
-### Benefits of Azure AI
+**Event-driven job (e.g., Translator reacting to tasks-created):**
+```bicep
+resource translatorJob 'Microsoft.App/jobs@2024-03-01' = {
+  name: 'job-agent-${agentName}'
+  location: location
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: { '${managedIdentityId}': {} }
+  }
+  properties: {
+    environmentId: containerAppsEnvironmentId
+    configuration: {
+      triggerType: 'Event'
+      replicaTimeout: 1800
+      eventTriggerConfig: {
+        scale: {
+          minExecutions: 0
+          maxExecutions: 3           // Max 3 concurrent translator sessions
+          pollingInterval: 30
+          rules: [{
+            name: 'servicebus'
+            type: 'azure-servicebus-queue'
+            metadata: {
+              queueName: '${agentName}-tasks'
+              messageCount: '1'
+            }
+            auth: [{ triggerParameter: 'connection', secretRef: 'sb-connection' }]
+          }]
+        }
+      }
+    }
+    template: {
+      containers: [{
+        name: agentName
+        image: 'ghcr.io/zeroclaw-labs/zeroclaw:latest'
+        command: ['zeroclaw', 'agent', '-m', agentTaskMessage]
+        resources: { cpu: json('0.25'), memory: '0.5Gi' }
+      }]
+    }
+  }
+}
+```
 
-- **Consolidated billing** — All AI costs on the existing Azure subscription
-- **Data residency** — Sweden Central (EU compliance)
+**Key: `zeroclaw agent -m` not `zeroclaw daemon`** — Jobs use single-shot mode. The agent
+receives a task message, processes it via MCP tools, and exits. Azure manages the lifecycle.
+
+### Event-Driven Handoff via Azure Service Bus
+
+Instead of polling the activity feed with heartbeat, agents communicate through Azure
+Service Bus queues (already deployed in `bowrain-infra/core.bicep`):
+
+```
+Developer pushes content (scheduled: 09:00)
+  → Bowrain server publishes to queue: "content-pushed"
+  → KEDA detects message → spins up PM job execution (instant)
+
+PM creates tasks
+  → Bowrain server publishes to queue: "tasks-created"
+  → KEDA detects → spins up Translator job executions (instant)
+
+Translators complete batch
+  → Bowrain server publishes to queue: "translation-complete"
+  → KEDA detects → spins up QA job execution (instant)
+
+QA passes
+  → Bowrain server publishes to queue: "qa-passed"
+  → KEDA detects → spins up Developer pull job (instant)
+```
+
+**Service Bus integration:** Bowrain's event bus (`platform/event/`) publishes events.
+A Service Bus adapter routes selected events to agent queues. This is a new component
+but uses the existing Service Bus resource.
+
+### Agent Job Matrix (Azure)
+
+| Agent | Job Name | Trigger | Cron / Queue | ZeroClaw Mode |
+|-------|----------|---------|-------------|---------------|
+| Developer (push) | `job-agent-alex-push` | Schedule | `0 9 * * 1-5` | `agent -m "Check upstream, merge, push"` |
+| Developer (pull) | `job-agent-alex-pull` | Event | queue: `qa-passed` | `agent -m "Pull translations, commit"` |
+| PM | `job-agent-lisa` | Event | queue: `content-pushed` | `agent -m "Review push, create tasks"` |
+| Brand Manager | `job-agent-maria` | Schedule | `0 10 * * 1,3,5` | `agent -m "Review terminology"` |
+| Translator (fr) | `job-agent-jp` | Event | queue: `tasks-created-fr` | `agent -m "Translate assigned blocks"` |
+| Translator (de) | `job-agent-katrin` | Event | queue: `tasks-created-de` | `agent -m "Translate assigned blocks"` |
+| Translator (ja) | `job-agent-yuki` | Event | queue: `tasks-created-ja` | `agent -m "Translate assigned blocks"` |
+| QA | `job-agent-taylor` | Event | queue: `translation-complete` | `agent -m "Run quality checks"` |
+
+### Benefits of Azure AI + Container Apps Jobs
+
+- **Pay per execution** — ~12x cheaper than always-on containers
+- **Instant handoffs** — Event-driven via KEDA, not 1-2h poll delays
+- **Managed scheduling** — Azure handles cron, no daemon reliability risk
 - **Managed identity** — No API key rotation; Entra ID authentication
-- **Cost Management** — Azure Cost Management tracks per-model, per-agent spend
-- **Network security** — VNet integration, private endpoints if needed
-- **Existing monitoring** — Azure Monitor / App Insights for latency and error tracking
+- **Execution history** — Built-in job execution logs, status, retry tracking
+- **Cost Management** — Azure Cost Management tracks per-job, per-agent spend
+- **Auto-retry** — `replicaRetryLimit` handles transient failures natively
+- **Monitoring** — Azure Monitor + Log Analytics for all job executions
 
 ### Cost Controls
 
-1. **Model tiering** — GPT-4o-mini ($0.15/1M) for simple tasks vs Claude Sonnet ($3/1M) for complex ones
-2. **Cron frequency** — Agents only wake on schedule (not continuous)
-3. **Container Apps scale** — `minReplicas: 1, maxReplicas: 1` (no auto-scaling, predictable cost)
-4. **Azure OpenAI capacity limits** — Built-in TPM caps per deployment
-5. **Azure Cost Management** — Set budgets and alerts per resource group
-6. **max_tokens in config.toml** — Cap output length per agent session
-7. **Local dev is cheap** — Ollama for workflow iteration, Anthropic only when testing quality
+1. **Container Apps Jobs** — Pay only for execution time (~14 container-hours/day vs 168)
+2. **Model tiering** — GPT-4o-mini for simple tasks, Claude Sonnet for complex
+3. **replicaTimeout: 1800** — 30min hard cap per session prevents runaway costs
+4. **maxExecutions** — Cap concurrent job runs per agent type
+5. **Azure Cost Management** — Budgets and alerts per resource group
+6. **max_tokens in config.toml** — Cap LLM output per session
+7. **Local dev is free/cheap** — Gemini or Ollama, no Azure charges

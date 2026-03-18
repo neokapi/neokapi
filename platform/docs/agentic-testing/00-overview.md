@@ -19,7 +19,11 @@ The system forks/mirrors active open source projects and manages their localizat
 
 ## Architecture at a Glance
 
-Each agent persona runs as an independent **ZeroClaw** container — a lightweight Rust-based AI agent runtime (~8.8MB binary, &lt;5MB RAM). Agents self-schedule via built-in cron, interact with Bowrain through an MCP server, and communicate with each other exclusively through the platform (tasks, activity feed, notifications).
+Each agent persona runs as an independent **ZeroClaw** container — a lightweight Rust-based AI agent runtime (~3.4MB binary, &lt;5MB RAM). Agents interact with Bowrain through the Bravo MCP server (24 tools, already built) and coordinate through the platform.
+
+**Two deployment models, identical personas:**
+- **Local (docker-compose):** ZeroClaw daemons with cron + heartbeat polling
+- **Azure (Container Apps Jobs):** Scheduled + event-driven jobs via KEDA/Service Bus — pay only for execution time, instant handoffs
 
 ```
 ┌──────────────────── docker-compose ────────────────────────┐

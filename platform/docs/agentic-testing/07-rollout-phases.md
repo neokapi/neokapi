@@ -164,23 +164,27 @@ Per project (Docusaurus example):
 
 ## Phase 4: Azure Deployment & Accelerated Mode (Week 13-16)
 
-**Goal:** Deploy to Azure infra with managed identity. Walk through release history.
+**Goal:** Deploy to Azure as Container Apps Jobs with event-driven handoffs. Walk through
+release history to build months of activity.
 
 ### Deliverables
 
+- [ ] **Early validation:** Confirm `zeroclaw agent -m` (single-shot mode) works with
+      Bravo MCP tools — agent processes task, calls tools, exits cleanly.
 - [ ] **Early validation:** Confirm ZeroClaw can authenticate to Azure OpenAI via managed
-      identity bearer token. This is a different auth path than local Gemini API key —
-      validate before building all the Azure config overlays.
+      identity bearer token.
 - [ ] Provision Azure AI Foundry endpoint for Claude Sonnet (serverless)
-- [ ] Create `containerapp-agent.bicep` module (agents as Container Apps with managed identity)
-- [ ] Config overlays: `config.azure-dev.toml` per agent (Azure OpenAI for simple, Foundry/Claude for complex)
-- [ ] Deploy agent fleet to `rg-bowrain-d-sdc` (dev environment)
-- [ ] Verify managed identity auth to both Azure OpenAI and Azure AI Foundry
-- [ ] Release walker service (accelerated mode coordinator)
+- [ ] Create `agent-job.bicep` module — Container Apps Jobs (scheduled + event-driven)
+- [ ] Create Service Bus queues for agent handoffs (`content-pushed`, `tasks-created-{locale}`,
+      `translation-complete`, `qa-passed`)
+- [ ] Add Service Bus adapter to Bowrain's event bus (publish selected events to queues)
+- [ ] Config overlays: `config.azure-dev.toml` per agent
+- [ ] Deploy agent job fleet to `rg-bowrain-d-sdc` (dev environment)
+- [ ] Verify event-driven handoff chain: push → tasks → translate → QA → pull
+- [ ] Release walker as a scheduled job (accelerated mode)
 - [ ] Stream creation per major version
 - [ ] Hybrid mode: accelerated backfill → switch to real-time
 - [ ] TM growth tracking and visualization
-- [ ] Time-lapse video generation from periodic screenshots
 
 ### Demo Flow
 
@@ -298,7 +302,7 @@ by ~2 weeks compared to the pre-Bravo plan.
 | Translation quality too low | Increase human-eval frequency, tighten brand/term enforcement |
 | System complexity overwhelming | Phase gates — each phase must be stable before proceeding |
 | Auth token management | Token refresh automation, long-lived API tokens as fallback |
-| ZeroClaw daemon instability | 48h smoke test in Phase 0 prerequisites; pin version |
+| ZeroClaw daemon instability (local) | 48h smoke test in Phase 0; Azure uses Jobs (no daemon) |
 | Bowrain API gaps (missing endpoints) | REST API audit in Phase 0 prerequisites; file tickets before building MCP |
 | MCP transport version mismatch | Pin ZeroClaw + MCP SDK versions; validate Streamable HTTP in smoke test |
 | Azure managed identity auth failure | Validate ZeroClaw + Azure OpenAI token auth early in Phase 4 |
