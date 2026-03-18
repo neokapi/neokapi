@@ -763,16 +763,10 @@ pattern — a base config.toml per agent, with environment-specific overrides.
 │  Simple agents:  Azure OpenAI GPT-4o-mini  (capacity 60)    │
 │  Complex agents: Azure AI Foundry Claude Sonnet (serverless) │
 │  Auth: Managed identity (no keys)                            │
-│  Use for: Long-running agent tests, integration validation   │
-└─────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────┐
-│  Azure Prod (rg-bowrain-p-sdc, bowrain.cloud)               │
-│                                                              │
-│  Simple agents:  Azure OpenAI GPT-4o-mini  (capacity 300)   │
-│  Complex agents: Azure AI Foundry Claude Sonnet (serverless) │
-│  Auth: Managed identity (no keys)                            │
-│  Use for: Public demo, sustained activity generation         │
+│  Bowrain target: dev.bowrain.cloud                           │
+│  Demo dashboard: agents.dev.bowrain.cloud                    │
+│  Use for: Long-running agents, public demo, sustained        │
+│           activity generation                                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
