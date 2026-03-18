@@ -554,4 +554,53 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE notifications ADD COLUMN priority  TEXT NOT NULL DEFAULT 'normal';
 		`,
 	},
+	{
+		Version:     25,
+		Description: "create asset tables (AD-029)",
+		SQL: `
+			CREATE TABLE assets (
+				id                TEXT PRIMARY KEY,
+				project_id        TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				item_name         TEXT NOT NULL DEFAULT '',
+				source_id         TEXT NOT NULL DEFAULT '',
+				blob_key          TEXT NOT NULL,
+				mime_type         TEXT NOT NULL,
+				filename          TEXT NOT NULL DEFAULT '',
+				size_bytes        INTEGER NOT NULL DEFAULT 0,
+				alt_text          TEXT NOT NULL DEFAULT '',
+				properties        TEXT NOT NULL DEFAULT '{}',
+				processing_status TEXT NOT NULL DEFAULT 'none',
+				processing_hint   TEXT NOT NULL DEFAULT '',
+				stream            TEXT NOT NULL DEFAULT 'main',
+				created_at        TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_assets_project_item ON assets(project_id, item_name);
+			CREATE UNIQUE INDEX idx_assets_blob ON assets(project_id, blob_key)
+				WHERE stream = 'main';
+
+			CREATE TABLE asset_variants (
+				asset_id    TEXT NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+				locale      TEXT NOT NULL,
+				blob_key    TEXT NOT NULL,
+				status      TEXT NOT NULL DEFAULT 'pending',
+				mime_type   TEXT NOT NULL DEFAULT '',
+				size_bytes  INTEGER NOT NULL DEFAULT 0,
+				properties  TEXT NOT NULL DEFAULT '{}',
+				created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (asset_id, locale)
+			);
+
+			CREATE TABLE block_asset_refs (
+				project_id TEXT NOT NULL,
+				block_id   TEXT NOT NULL,
+				asset_id   TEXT NOT NULL,
+				ref_type   TEXT NOT NULL DEFAULT 'embedded',
+				stream     TEXT NOT NULL DEFAULT 'main',
+				PRIMARY KEY (project_id, block_id, asset_id)
+			);
+			CREATE INDEX idx_block_asset_refs_asset ON block_asset_refs(project_id, asset_id);
+		`,
+	},
 }
