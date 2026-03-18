@@ -185,6 +185,7 @@ func runFileTrace(ctx context.Context, fp FileProcessor, cfg *Config) []FileTimi
 			ft.PeakRssKB = result.PeakRSSKB
 			ft.UserCpuMs = float64(result.UserCPU.Microseconds()) / 1000.0
 			ft.SysCpuMs = float64(result.SystemCPU.Microseconds()) / 1000.0
+			ft.BlockCount = result.BlockCount
 		}
 
 		timings = append(timings, ft)

@@ -91,6 +91,7 @@ func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 	flowRunCmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
 	flowRunCmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
 	flowRunCmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
+	flowRunCmd.Flags().Bool("stats", false, "include part/block counts in output")
 
 	flowListCmd := &cobra.Command{
 		Use:   "list",
@@ -358,11 +359,15 @@ func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, i
 	}
 
 	if !a.Quiet {
-		return output.Print(cmd, output.FlowRunOutput{
+		out := output.FlowRunOutput{
 			FlowName:   flowName,
 			InputPath:  inputPath,
 			OutputPath: outputPath,
-		})
+		}
+		if showStats, _ := cmd.Flags().GetBool("stats"); showStats {
+			out.Stats = countStats(outputParts)
+		}
+		return output.Print(cmd, out)
 	}
 	return nil
 }
@@ -773,6 +778,17 @@ func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Too
 
 func (a *App) getProvider() provider.LLMProvider {
 	return provider.NewMockProvider()
+}
+
+// countStats counts parts and blocks from the output parts slice.
+func countStats(parts []*model.Part) *output.FlowStats {
+	stats := &output.FlowStats{PartCount: len(parts)}
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			stats.BlockCount++
+		}
+	}
+	return stats
 }
 
 // defaultParallelBlocks returns the default parallel block concurrency for
