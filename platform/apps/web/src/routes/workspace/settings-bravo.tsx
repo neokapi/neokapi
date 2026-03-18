@@ -3,7 +3,13 @@ import {
   useWorkspace,
   useApi,
   BravoConfigPanel,
+  BravoUsageDashboard,
   SettingsSkeleton,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
   type BravoConfig,
   type BravoToolInfo,
   type BravoUsageSummary,
@@ -46,19 +52,53 @@ export function SettingsBravoRoute() {
     [api, ws],
   );
 
+  const handleDateRangeChange = useCallback(
+    (from: string, to: string) => {
+      if (!ws) return;
+      void api.bravoGetUsage(ws, from, to).then(setUsage).catch(() => {});
+    },
+    [api, ws],
+  );
+
   if (!activeWorkspace) return null;
 
   if (!config) return <SettingsSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-3xl py-4">
-      <BravoConfigPanel
-        config={config}
-        tools={tools}
-        usage={usage}
-        onSave={(partial: Partial<BravoConfig>) => void handleSave(partial)}
-        saving={saving}
-      />
+    <div className="mx-auto w-full max-w-3xl py-4 space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Configuration</CardTitle>
+          <CardDescription>
+            Manage @bravo agent settings and tool permissions for this workspace
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BravoConfigPanel
+            config={config}
+            tools={tools}
+            onSave={(partial: Partial<BravoConfig>) => void handleSave(partial)}
+            saving={saving}
+          />
+        </CardContent>
+      </Card>
+
+      {usage && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Usage</CardTitle>
+            <CardDescription>
+              Token consumption, message volume, and container time
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BravoUsageDashboard
+              usage={usage}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
