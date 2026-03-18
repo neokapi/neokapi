@@ -860,7 +860,7 @@ the same user-assigned managed identity for Azure OpenAI and AI Foundry access.
 **Why Jobs, not always-on Container Apps:**
 - 7 agents × 24h = 168 container-hours/day if always-on. With Jobs, 7 agents × ~2h
   active/day = ~14 container-hours/day. **~12x cheaper.**
-- ZeroClaw cold start is <10ms (3.4MB binary) — negligible for jobs that run minutes.
+- ZeroClaw cold start is under 10ms (3.4MB binary) — negligible for jobs that run minutes.
 - Azure manages scheduling and retries natively — no ZeroClaw daemon reliability risk.
 - Event-driven jobs give **instant handoffs** instead of 1-2h heartbeat polling delays.
 
@@ -951,6 +951,125 @@ resource translatorJob 'Microsoft.App/jobs@2024-03-01' = {
 **Key: `zeroclaw agent -m` not `zeroclaw daemon`** — Jobs use single-shot mode. The agent
 receives a task message, processes it via MCP tools, and exits. Azure manages the lifecycle.
 
+### Git-Backed Agent Memory
+
+Container Apps Jobs are ephemeral — the filesystem is destroyed when the job exits. To
+give agents persistent memory across sessions, each agent's ZeroClaw memory is stored in
+a shared git repo (`bowrain-l10n/agent-memory`). The job entrypoint pulls memory before
+execution and pushes it back after.
+
+**Repo structure:**
+```
+bowrain-l10n/agent-memory/
+├── alex-developer/
+│   └── memory/              # ZeroClaw markdown memory files
+├── jeanpierre-fr/
+│   └── memory/
+├── maria-brand/
+│   └── memory/
+├── katrin-de/
+│   └── memory/
+├── yuki-ja/
+│   └── memory/
+├── lisa-pm/
+│   └── memory/
+└── taylor-qa/
+    └── memory/
+```
+
+**What you get for free:**
+- `git log alex-developer/memory/` — full history of what Alex "remembers"
+- `git diff HEAD~1` — exactly what changed in the last session
+- `git revert` — roll back bad memory (agent learned something wrong)
+- Memory diffs visible alongside SOUL.md changes during persona tuning (see `10-persona-evolution.md`)
+
+**Entrypoint wrapper** (`docker/bravo/entrypoint-with-memory.sh`):
+```bash
+#!/bin/bash
+set -euo pipefail
+
+AGENT_NAME="${AGENT_NAME:?}"
+MEMORY_REPO="${MEMORY_REPO:?}"
+MEMORY_DIR="/tmp/agent-memory"
+ZEROCLAW_MEMORY="$HOME/.zeroclaw/memory"
+MAX_PUSH_RETRIES=5
+
+# --- Pull memory ---
+if [ -d "$MEMORY_DIR/.git" ]; then
+  git -C "$MEMORY_DIR" fetch origin
+  git -C "$MEMORY_DIR" reset --hard origin/main
+else
+  git clone --depth 1 --filter=blob:none --sparse "$MEMORY_REPO" "$MEMORY_DIR"
+  git -C "$MEMORY_DIR" sparse-checkout set "$AGENT_NAME"
+fi
+
+mkdir -p "$ZEROCLAW_MEMORY"
+cp -r "$MEMORY_DIR/$AGENT_NAME/memory/"* "$ZEROCLAW_MEMORY/" 2>/dev/null || true
+
+# --- Run agent ---
+zeroclaw agent -m "$AGENT_TASK_MESSAGE"
+EXIT_CODE=$?
+
+# --- Push memory (with pull/rebase/retry for concurrent execution races) ---
+if [ $EXIT_CODE -eq 0 ]; then
+  mkdir -p "$MEMORY_DIR/$AGENT_NAME/memory"
+  cp -r "$ZEROCLAW_MEMORY/"* "$MEMORY_DIR/$AGENT_NAME/memory/" 2>/dev/null || true
+  cd "$MEMORY_DIR"
+  git add "$AGENT_NAME/"
+
+  if ! git diff --cached --quiet; then
+    git commit -m "$AGENT_NAME: session $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+    for i in $(seq 1 $MAX_PUSH_RETRIES); do
+      if git push origin main; then
+        break
+      fi
+      echo "Push failed (attempt $i/$MAX_PUSH_RETRIES), rebasing..."
+      git pull --rebase origin main
+      # If rebase has conflicts (shouldn't for separate agent dirs), abort and skip
+      if [ $? -ne 0 ]; then
+        echo "Rebase conflict — skipping memory push this session"
+        git rebase --abort
+        break
+      fi
+    done
+  fi
+fi
+
+exit $EXIT_CODE
+```
+
+**How it handles races:** If two jobs for different agents push simultaneously, git
+handles it naturally — they modify different directories so rebase always succeeds.
+If the same agent somehow runs concurrently (shouldn't happen with `maxExecutions: 1`),
+the retry loop pulls/rebases until the push goes through. After 5 attempts, it gives
+up gracefully — memory for that session is lost but the agent's work (in Bowrain) is not.
+
+**Bicep: job containers use the wrapper entrypoint:**
+```bicep
+template: {
+  containers: [{
+    name: agentName
+    image: 'ghcr.io/zeroclaw-labs/zeroclaw:latest'
+    command: ['/bin/bash', '/bravo/entrypoint-with-memory.sh']
+    env: [
+      { name: 'AGENT_NAME', value: agentName }
+      { name: 'AGENT_TASK_MESSAGE', value: taskMessage }
+      { name: 'MEMORY_REPO', value: 'https://x-access-token:${githubPat}@github.com/bowrain-l10n/agent-memory.git' }
+      { name: 'BRAVO_MCP_ENDPOINT', value: bravoMcpEndpoint }
+      { name: 'BRAVO_AGENT_TOKEN', secretRef: '${agentName}-token' }
+      { name: 'BRAVO_MODEL_PROVIDER', value: modelProvider }
+      { name: 'BRAVO_MODEL_NAME', value: modelName }
+      { name: 'BRAVO_MODEL_API_BASE', value: modelApiBase }
+    ]
+  }]
+}
+```
+
+**Local dev:** The same entrypoint works in docker-compose if you set `MEMORY_REPO`.
+Or skip it entirely — local daemon mode uses the mounted volume for persistent memory
+(no git needed).
+
 ### Event-Driven Handoff via Azure Service Bus
 
 Instead of polling the activity feed with heartbeat, agents communicate through Azure
@@ -998,6 +1117,7 @@ but uses the existing Service Bus resource.
 - **Managed scheduling** — Azure handles cron, no daemon reliability risk
 - **Managed identity** — No API key rotation; Entra ID authentication
 - **Execution history** — Built-in job execution logs, status, retry tracking
+- **Git-backed memory** — Agent memory persisted in git with full history, diffs, rollback
 - **Cost Management** — Azure Cost Management tracks per-job, per-agent spend
 - **Auto-retry** — `replicaRetryLimit` handles transient failures natively
 - **Monitoring** — Azure Monitor + Log Analytics for all job executions
