@@ -97,6 +97,49 @@ func main() {
 		cfg.WebUIDir = envWebUI
 	}
 
+	// Agent (@bravo) configuration.
+	if v := os.Getenv("BOWRAIN_AGENT_RUNTIME"); v != "" {
+		cfg.AgentRuntime = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_IMAGE"); v != "" {
+		cfg.AgentImage = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_MAX_CONCURRENT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.AgentMaxConcurrent = n
+		}
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_DOCKER_HOST"); v != "" {
+		cfg.AgentDockerHost = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_DOCKER_NETWORK"); v != "" {
+		cfg.AgentDockerNetwork = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_ACA_SUBSCRIPTION"); v != "" {
+		cfg.AgentACASubscription = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_ACA_RESOURCE_GROUP"); v != "" {
+		cfg.AgentACAResourceGroup = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_ACA_ENVIRONMENT_ID"); v != "" {
+		cfg.AgentACAEnvironmentID = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_ACA_LOCATION"); v != "" {
+		cfg.AgentACALocation = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_MODEL_PROVIDER"); v != "" {
+		cfg.AgentModelProvider = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_MODEL_NAME"); v != "" {
+		cfg.AgentModelName = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_MODEL_API_BASE"); v != "" {
+		cfg.AgentModelAPIBase = v
+	}
+	if v := os.Getenv("BOWRAIN_AGENT_MODEL_API_KEY"); v != "" {
+		cfg.AgentModelAPIKey = v
+	}
+
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
 		log.Fatalf("Invalid -database-url: must start with postgres:// or postgresql://")
