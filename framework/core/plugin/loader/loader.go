@@ -470,6 +470,9 @@ func buildBridgeConfig(manifest *pluginreg.BundledManifest, versionDir string) b
 			heap = "16g"
 		}
 		args = append(args, "-Xmx"+heap)
+		// Skip Netty's slow MAC address enumeration for channel IDs.
+		// Without this, DefaultChannelId init takes ~5s on macOS.
+		args = append(args, "-Dio.netty.machineId=00:00:00:00:00:01")
 	}
 	for _, arg := range manifest.Args {
 		if !filepath.IsAbs(arg) && (strings.HasSuffix(arg, ".jar") || strings.HasSuffix(arg, ".exe")) {

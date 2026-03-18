@@ -107,7 +107,7 @@ func newTestBridge(t *testing.T, srv *mockBridgeServer) *JavaBridge {
 		running: true,
 	}
 
-	conn, err := grpc.NewClient("passthrough:///"+addr,
+	conn, err := grpc.NewClient(grpcTarget(addr),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
 	require.NoError(t, err)
