@@ -1,9 +1,9 @@
 ---
-id: 028-media-asset-localization
-sidebar_position: 28
-title: "AD-028: Media Asset Localization and Blob Storage"
+id: 029-media-asset-localization
+sidebar_position: 29
+title: "AD-029: Media Asset Localization and Blob Storage"
 ---
-# AD-028: Media Asset Localization and Blob Storage
+# AD-029: Media Asset Localization and Blob Storage
 
 ## Context
 
