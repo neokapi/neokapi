@@ -77,9 +77,12 @@ func TestAgentTokenRevokeForConversation(t *testing.T) {
 func TestAgentTokenPurgeExpired(t *testing.T) {
 	store := NewAgentTokenStore()
 
-	store.Create("user-1", "ws-1", "conv-1", "member", -time.Second)
-	store.Create("user-1", "ws-1", "conv-2", "member", -time.Second)
-	store.Create("user-1", "ws-1", "conv-3", "member", time.Hour) // not expired
+	_, err := store.Create("user-1", "ws-1", "conv-1", "member", -time.Second)
+	require.NoError(t, err)
+	_, err = store.Create("user-1", "ws-1", "conv-2", "member", -time.Second)
+	require.NoError(t, err)
+	_, err = store.Create("user-1", "ws-1", "conv-3", "member", time.Hour) // not expired
+	require.NoError(t, err)
 
 	count := store.PurgeExpired()
 	assert.Equal(t, 2, count)
