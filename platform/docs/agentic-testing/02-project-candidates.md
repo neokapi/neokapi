@@ -99,7 +99,10 @@ Home Assistant has one of the most mature community-driven translation systems i
 
 **Format coverage:** JSON (nested), YAML, Markdown
 
-**Challenges:** Very large volume — start with a subset (e.g., core UI only, not all integrations). Frontend-only repo (core is separate).
+**Challenges:** Very large volume — **must scope to core UI strings only** (~2000 keys)
+for agentic testing. The full 10,000+ keys across all integrations would take 300+ days
+at 30 blocks/session and create a permanently-stuck progress bar. Frontend-only repo
+(core is separate).
 
 **Agent team:**
 - 1 Developer Agent

@@ -42,7 +42,7 @@ Each agent persona runs as an independent **ZeroClaw** instance in its own Docke
 │  │  bowrain-mcp  (Bowrain MCP Server)                       │  │
 │  │  Exposes Bowrain API as MCP tools:                       │  │
 │  │  - bowrain.push / bowrain.pull / bowrain.sync            │  │
-│  │  - bowrain.translate / bowrain.pseudoTranslate           │  │
+│  │  - bowrain.translate / bowrain.aiTranslate           │  │
 │  │  - bowrain.addConcept / bowrain.listConcepts             │  │
 │  │  - bowrain.createBrandProfile / bowrain.checkBrand       │  │
 │  │  - bowrain.createTask / bowrain.listTasks                │  │
@@ -85,7 +85,7 @@ neokapi/agentic/
 │       ├── index.ts             # MCP server entry point
 │       ├── tools/
 │       │   ├── push-pull.ts     # bowrain.push, bowrain.pull, bowrain.sync
-│       │   ├── translate.ts     # bowrain.translate, bowrain.pseudoTranslate
+│       │   ├── translate.ts     # bowrain.translate, bowrain.aiTranslate
 │       │   ├── termbase.ts      # bowrain.addConcept, bowrain.listConcepts
 │       │   ├── brand.ts         # bowrain.createBrandProfile, bowrain.checkBrand
 │       │   ├── tasks.ts         # bowrain.createTask, bowrain.listTasks
@@ -179,8 +179,8 @@ allowed_commands = ["git", "bowrain", "ls", "cat", "diff"]
 
 [mcp]
 [mcp.bowrain]
-transport = "sse"
-url = "http://bowrain-mcp:3001/sse"
+transport = "streamable-http"
+url = "http://alex-mcp:3001/mcp"   # Per-agent MCP sidecar (see Per-Agent Auth)
 
 [daemon]
 # Check for upstream changes daily at 9am (with jitter handled by heartbeat)
@@ -257,8 +257,8 @@ allowed_commands = []
 
 [mcp]
 [mcp.bowrain]
-transport = "sse"
-url = "http://bowrain-mcp:3001/sse"
+transport = "streamable-http"
+url = "http://alex-mcp:3001/mcp"   # Per-agent MCP sidecar (see Per-Agent Auth)
 
 [daemon]
 [daemon.cron]
@@ -291,7 +291,7 @@ English (en-US) to French (fr-FR).
 ## Your Tools
 - `bowrain.listTasks` — See assigned translation tasks
 - `bowrain.translate` — Submit your translation for a block
-- `bowrain.pseudoTranslate` — Get AI translation suggestion for a file
+- `bowrain.aiTranslate` — Get AI translation suggestion for a file
 - `bowrain.listConcepts` — Check termbase for correct terminology
 - `bowrain.addTMEntry` — Add a translation to memory
 - `bowrain.listTMEntries` — Look up existing translations
@@ -307,7 +307,7 @@ English (en-US) to French (fr-FR).
 ## Daily Routine
 1. Check `bowrain.listTasks` for assigned work
 2. For each task:
-   a. Get AI translation suggestion via `bowrain.pseudoTranslate`
+   a. Get AI translation suggestion via `bowrain.aiTranslate`
    b. Review against termbase (`bowrain.listConcepts`)
    c. Accept, edit, or reject each block
    d. For excellent translations, add to TM (`bowrain.addTMEntry`)
@@ -337,8 +337,8 @@ allowed_commands = []
 
 [mcp]
 [mcp.bowrain]
-transport = "sse"
-url = "http://bowrain-mcp:3001/sse"
+transport = "streamable-http"
+url = "http://alex-mcp:3001/mcp"   # Per-agent MCP sidecar (see Per-Agent Auth)
 
 [daemon]
 [daemon.cron]
@@ -471,8 +471,8 @@ await server.connect(transport);
 | `bowrain.status` | Developer, PM | Check sync state |
 | `bowrain.createStream` | Developer | Create a stream for a release |
 | `bowrain.listStreams` | Developer, PM | List existing streams |
-| `bowrain.translate` | Translator | Submit a translation for a block |
-| `bowrain.pseudoTranslate` | Translator | Get AI translation suggestion |
+| `bowrain.translate` | Translator | Submit a human-reviewed translation for a block |
+| `bowrain.aiTranslate` | Translator | Get AI translation suggestion (not pseudo-translation) |
 | `bowrain.addConcept` | Brand Manager | Add terminology concept |
 | `bowrain.listConcepts` | Brand Manager, Translator | Query termbase |
 | `bowrain.createBrandProfile` | Brand Manager | Create brand voice profile |
@@ -497,18 +497,51 @@ await server.connect(transport);
 
 ### Per-Agent Auth
 
-Each ZeroClaw container runs as a specific Bowrain user. The MCP server handles auth context per connection:
+**Decision: One MCP sidecar per agent.**
 
-```typescript
-// mcp-server/src/auth.ts
-// Each agent container passes its auth token via environment variable
-// The MCP server creates an authenticated BowrainAPI instance per agent
-function getAuthenticatedAPI(agentToken: string): BowrainAPI {
-  return new BowrainAPI(process.env.BOWRAIN_URL!, agentToken);
-}
+Each ZeroClaw container gets its own MCP server sidecar process, configured with that
+agent's Bowrain auth token. This is simpler and more secure than a shared MCP server
+trying to multiplex auth across 20+ SSE connections.
+
+```yaml
+# In docker-compose, each agent has its own MCP sidecar:
+alex-developer:
+  image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+  command: daemon
+  environment:
+    GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+  volumes:
+    - ./agents/alex-developer:/root/.zeroclaw
+    - ./forks:/root/.zeroclaw/workspace
+  depends_on: [alex-mcp]
+
+alex-mcp:
+  build: ./mcp-server
+  environment:
+    BOWRAIN_URL: http://bowrain-server:8080
+    BOWRAIN_TOKEN: ${ALEX_BOWRAIN_TOKEN}     # Alex's auth token
+    GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    SMTP_HOST: mailpit
+  # No port exposed — only the paired agent connects
 ```
 
-Alternatively, the MCP server can be deployed per-agent (one instance per container) with the agent's token baked in. This is simpler but uses more resources.
+Each agent's `config.toml` points to its own MCP sidecar:
+
+```toml
+[mcp.bowrain]
+transport = "streamable-http"
+url = "http://alex-mcp:3001/mcp"
+```
+
+**Why per-agent, not shared:**
+- SSE/Streamable HTTP connections don't carry per-request identity — a shared server
+  can't reliably map calls to agents
+- Each sidecar is <30MB (Node.js), adding ~200MB total for 7 agents — acceptable
+- Auth tokens are isolated per container (no cross-agent leakage)
+- An agent's MCP sidecar failing doesn't affect other agents
+
+**Trade-off:** More containers in docker-compose. Mitigated by a `docker-compose.agents.yaml`
+override file generated from agent workspace configs.
 
 ## Docker Compose (Local Development)
 
@@ -548,23 +581,27 @@ services:
       KEYCLOAK_ADMIN_PASSWORD: admin
     command: start-dev
 
-  # === MCP Server (same everywhere) ===
-  bowrain-mcp:
-    build: ./mcp-server
-    environment:
-      BOWRAIN_URL: http://bowrain-server:8080
-    depends_on: [bowrain-server]
-    ports: ["3001:3001"]
-
   # === Optional: Ollama for zero-cost local dev ===
   ollama:
     image: ollama/ollama:latest
-    profiles: ["ollama"]          # Only start with: docker compose --profile ollama up
+    profiles: ["ollama"]
     ports: ["11434:11434"]
     volumes:
       - ollama-data:/root/.ollama
 
-  # === Agents (local: Gemini API or Ollama) ===
+  # === Agents (each agent has a paired MCP sidecar) ===
+  # Pattern: {agent} → {agent}-mcp (sidecar with agent's Bowrain auth token)
+
+  # Developer Agent (Alex Chen)
+  alex-mcp:
+    build: ./mcp-server
+    environment:
+      BOWRAIN_URL: http://bowrain-server:8080
+      BOWRAIN_TOKEN: ${ALEX_BOWRAIN_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      SMTP_HOST: mailpit
+    depends_on: [bowrain-server]
+
   alex-developer:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
     command: daemon
@@ -574,17 +611,17 @@ services:
     volumes:
       - ./agents/alex-developer:/root/.zeroclaw
       - ./forks:/root/.zeroclaw/workspace
-    depends_on: [bowrain-mcp]
+    depends_on: [alex-mcp]
 
-  maria-brand:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
+  # French Translator (Jean-Pierre Dubois)
+  jeanpierre-mcp:
+    build: ./mcp-server
     environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-    volumes:
-      - ./agents/maria-brand:/root/.zeroclaw
-    depends_on: [bowrain-mcp]
+      BOWRAIN_URL: http://bowrain-server:8080
+      BOWRAIN_TOKEN: ${JEANPIERRE_BOWRAIN_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      SMTP_HOST: mailpit
+    depends_on: [bowrain-server]
 
   jeanpierre-fr:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
@@ -594,47 +631,11 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
     volumes:
       - ./agents/jeanpierre-fr:/root/.zeroclaw
-    depends_on: [bowrain-mcp]
+    depends_on: [jeanpierre-mcp]
 
-  katrin-de:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-    volumes:
-      - ./agents/katrin-de:/root/.zeroclaw
-    depends_on: [bowrain-mcp]
-
-  yuki-ja:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-    volumes:
-      - ./agents/yuki-ja:/root/.zeroclaw
-    depends_on: [bowrain-mcp]
-
-  lisa-pm:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-    volumes:
-      - ./agents/lisa-pm:/root/.zeroclaw
-    depends_on: [bowrain-mcp]
-
-  taylor-qa:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-    volumes:
-      - ./agents/taylor-qa:/root/.zeroclaw
-    depends_on: [bowrain-mcp]
+  # ... same pattern for: maria-brand, katrin-de, yuki-ja, lisa-pm, taylor-qa
+  # Each gets: {name}-mcp (sidecar) + {name} (ZeroClaw daemon)
+  # Total: 7 agents × 2 containers = 14 containers + platform services
 
   # === Optional: Release Walker ===
   release-walker:
@@ -650,6 +651,19 @@ services:
 volumes:
   pgdata:
   ollama-data:
+```
+
+**Environment variables (`.env`):**
+```bash
+GOOGLE_API_KEY=AIza...                 # All agents use Gemini locally
+GITHUB_TOKEN=ghp_...                   # For filing issues (optional)
+ALEX_BOWRAIN_TOKEN=...                 # Per-agent Bowrain auth tokens
+JEANPIERRE_BOWRAIN_TOKEN=...           # (created via Keycloak user setup)
+MARIA_BOWRAIN_TOKEN=...
+KATRIN_BOWRAIN_TOKEN=...
+YUKI_BOWRAIN_TOKEN=...
+LISA_BOWRAIN_TOKEN=...
+TAYLOR_BOWRAIN_TOKEN=...
 ```
 
 ## Event Coordination: Poll-Based via Activity Feed

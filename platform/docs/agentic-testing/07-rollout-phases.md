@@ -1,30 +1,49 @@
 # Rollout Phases
 
-## Phase 0: Foundation (Week 1-2)
+## Phase 0: Validation & Foundation (Week 1-2)
 
-**Goal:** Build the Bowrain MCP server and prove one ZeroClaw agent can interact with Bowrain.
+**Goal:** Validate critical assumptions, then build the Bowrain MCP server and prove one ZeroClaw agent can interact with Bowrain.
+
+### Prerequisites (validate before building anything)
+
+- [ ] **ZeroClaw smoke test:** Run a single ZeroClaw daemon for 48h with a cron schedule
+      and heartbeat connecting to a stub MCP server. Confirm: cron fires reliably,
+      Streamable HTTP MCP stays connected, no memory leaks, daemon survives restarts.
+      If this fails, the plan needs a different agent runtime.
+- [ ] **Bowrain REST API audit:** For every tool in the MCP tool catalog (see
+      `04-implementation.md`), verify the Bowrain server REST endpoint exists and has
+      the right granularity. Key gaps to check:
+      - `bowrain.push` / `bowrain.pull` — are these REST endpoints or CLI-only?
+      - `bowrain.translate` — does a per-block translation submission API exist?
+      - `bowrain.aiTranslate` — is there an AI translation endpoint (NOT pseudo-translate)?
+      File server-side tickets for any missing endpoints before building the MCP wrapper.
+- [ ] **MCP transport check:** Verify ZeroClaw's current MCP client supports Streamable
+      HTTP transport (not just legacy SSE). Pin the ZeroClaw version in docker-compose.
 
 ### Deliverables
 
 - [ ] Fork Tolgee (smallest Tier 1 candidate) to `bowrain-l10n/tolgee-platform`
 - [ ] Set up local Bowrain server + Keycloak via docker-compose
-- [ ] Build **Bowrain MCP server** with core tools (push, pull, status, listActivities)
+- [ ] Build **Bowrain MCP server** wrapping confirmed REST endpoints (push, pull, status, listActivities)
 - [ ] Create Developer Agent workspace (config.toml + SOUL.md), using Gemini locally
-- [ ] Run ZeroClaw container connected to Bowrain MCP
+- [ ] Run ZeroClaw container connected to its MCP sidecar
 - [ ] Developer Agent: `bowrain.push` → content appears in dashboard → `bowrain.pull`
 
 ### What's NOT included
 
-- No LLM decision-making (agent uses tools directly per SOUL.md instructions)
+- No AI translation quality decisions (agent executes tools directly per SOUL.md —
+  but LLM inference still runs via Gemini to interpret SOUL.md instructions, so
+  Phase 0 has non-zero AI cost)
 - No scheduling (manual `zeroclaw agent` invocation)
 - Single project, single language (fr-FR)
 - MCP server has minimal tool coverage
 
 ### Success Criteria
 
-- ZeroClaw agent can call Bowrain MCP tools successfully
+- ZeroClaw agent can call Bowrain MCP tools via Streamable HTTP successfully
 - Content pushed to Bowrain appears in web dashboard
-- Pseudo-translations can be pulled back
+- Translations can be pulled back
+- ZeroClaw daemon ran stable for 48h in smoke test
 
 ---
 
@@ -34,7 +53,7 @@
 
 ### Deliverables
 
-- [ ] Expand MCP server: translate, addConcept, listConcepts, createBrandProfile, createTask, listTasks, addTMEntry
+- [ ] Expand MCP server: translate, aiTranslate, addConcept, listConcepts, createBrandProfile, createTask, listTasks, addTMEntry
 - [ ] Add git MCP tools (checkUpstream, merge, commit, push)
 - [ ] Create Translator Agent workspace (Jean-Pierre, fr-FR)
 - [ ] Create Brand Manager Agent workspace (Maria Santos)
@@ -79,8 +98,8 @@
 ```
 Automated daily schedule (all via ZeroClaw daemon cron):
 09:00  Alex checks upstream, pushes if changes
+10:00  Lisa reviews dashboard, creates tasks (discovers Alex's push)
 10:00  Maria reviews new terminology
-08:00  Lisa reviews dashboard, creates tasks (heartbeat discovers pushes)
 14:00  Jean-Pierre translates French batch
 14:00  Katrin translates German batch
 ~every 2h  Taylor runs QA checks (heartbeat discovers completed translations)
@@ -98,15 +117,24 @@ Automated daily schedule (all via ZeroClaw daemon cron):
 
 ## Phase 3: Scale & Quality (Week 9-12)
 
-**Goal:** Add remaining Tier 1 projects, Japanese translator, quality benchmarking.
+**Goal:** Add Japanese translator, then Home Assistant. Quality benchmarking.
 
-### Deliverables
+Add CJK and scale complexity **sequentially** so failures can be attributed to one
+variable at a time.
 
-- [ ] Add Home Assistant Frontend (large scale test)
+### Deliverables (Week 9-10: Japanese)
+
 - [ ] Japanese translator (Yuki Tanaka, ja-JP) — tests CJK handling
+- [ ] QA Agent gets CJK-specific checks (encoding, character limits, display width)
 - [ ] Agent personality variation via SOUL.md tuning
 - [ ] LLM-based translation quality evaluation
-- [ ] Benchmark against existing community translations
+
+### Deliverables (Week 11-12: Home Assistant + Benchmarking)
+
+- [ ] Add Home Assistant Frontend — **scoped to core UI strings only** (~2000 keys,
+      not all 10,000+ integration strings). Full volume would take 300+ days at
+      30 blocks/session; the subset is completable and produces meaningful progress.
+- [ ] Benchmark against existing community translations (Docusaurus, Gitea)
 - [ ] Screenshot capture via periodic Playwright jobs (separate from agents)
 
 ### Team at This Phase
@@ -125,9 +153,10 @@ Per project (Docusaurus example):
 ### Success Criteria
 
 - Four projects running with full agent teams
+- Japanese translations pass CJK-specific QA checks
+- Home Assistant scoped subset shows meaningful progress (not stuck at 5%)
 - Quality scores tracked and improving over time
 - System has been running 4+ weeks with authentic activity history
-- 20+ agent containers running on &lt;500MB total RAM
 
 ---
 
@@ -137,12 +166,15 @@ Per project (Docusaurus example):
 
 ### Deliverables
 
+- [ ] **Early validation:** Confirm ZeroClaw can authenticate to Azure OpenAI via managed
+      identity bearer token. This is a different auth path than local Gemini API key —
+      validate before building all the Azure config overlays.
 - [ ] Provision Azure AI Foundry endpoint for Claude Sonnet (serverless)
 - [ ] Create `containerapp-agent.bicep` module (agents as Container Apps with managed identity)
 - [ ] Config overlays: `config.azure-dev.toml` per agent (Azure OpenAI for simple, Foundry/Claude for complex)
 - [ ] Deploy agent fleet to `rg-bowrain-d-sdc` (dev environment)
 - [ ] Verify managed identity auth to both Azure OpenAI and Azure AI Foundry
-- [ ] Release walker service (thin coordinator, `docker compose --profile accelerated`)
+- [ ] Release walker service (accelerated mode coordinator)
 - [ ] Stream creation per major version
 - [ ] Hybrid mode: accelerated backfill → switch to real-time
 - [ ] TM growth tracking and visualization
@@ -170,19 +202,21 @@ Result: Dashboard shows 6+ months of "activity" with authentic metrics
 
 ### Deliverables
 
-- [ ] Deploy full docker-compose stack to a cloud VM
-- [ ] Standalone activity dashboard (React app)
-- [ ] Public demo site at `demo.bowrain.io` (read-only)
+- [ ] Deploy agent fleet to Azure prod (`rg-bowrain-p-sdc`) via Container Apps
+      (same infra as Phase 4 dev, promoted to prod with higher capacity)
+- [ ] Standalone activity dashboard (React app) deployed to Azure Static Web Apps
+- [ ] Public demo site at `demo.bowrain.cloud` (read-only)
 - [ ] Agent profiles page showing each persona and their activity
 - [ ] Metrics dashboard (quality, cost, throughput)
 - [ ] Blog-ready case studies per project
-- [ ] Documentation: "Run your own agentic testing setup" guide
+- [ ] Documentation: "Run your own agentic testing setup" guide (local docker-compose)
 
 ### Success Criteria
 
 - Public demo site live with 4 projects, 12+ agents
 - Months of visible activity history
-- `docker compose up -d` reproduces the entire setup
+- Local dev reproducible via `docker compose up -d`
+- Azure prod running on Container Apps with managed identity
 
 ---
 
@@ -213,14 +247,24 @@ Result: Dashboard shows 6+ months of "activity" with authentic metrics
 
 ### AI Spend
 
-| Phase | Agents | Sessions/Day | Est. Daily Cost |
-|-------|--------|-------------|-----------------|
-| 0 | 1 | 2 | $0 (no LLM) |
-| 1 | 4 | 8 | ~$5 |
-| 2 | 8 | 16 | ~$10 |
-| 3 | 20 | 40 | ~$25 |
-| 4 (accel) | 20 | 100+ | ~$50 |
-| 5+ | 20 | 40 | ~$25 |
+**Cost model assumptions:** Each translator session involves ~4-7 LLM calls per block
+(list tasks, AI translate, list concepts, list TM, review decision, submit, optionally
+add TM). At 30 blocks/session, that's 120-210 LLM calls. Developer/PM/QA sessions are
+lighter (10-30 calls). Gemini 2.5 Flash is ~$0.15/1M input tokens locally; Azure Claude
+Sonnet is ~$3/1M input tokens.
+
+| Phase | Agents | Sessions/Day | Est. Daily Cost (Gemini local) | Est. Daily Cost (Azure mixed) |
+|-------|--------|-------------|-------------------------------|-------------------------------|
+| 0 | 1 | 2 | ~$0.50 | N/A (local only) |
+| 1 | 4 | 8 | ~$2-4 | N/A (local only) |
+| 2 | 8 | 16 | ~$4-8 | N/A (local only) |
+| 3 | 20 | 40 | ~$8-15 | N/A (local only) |
+| 4 (accel) | 20 | 100+ | ~$20-40 | ~$40-80 (Azure mixed) |
+| 5+ | 20 | 40 | N/A | ~$15-30 (Azure mixed) |
+
+Note: Previous estimates ($5-25/day) were optimistic. Real cost depends on block length
+and model choice. Gemini Flash locally is 10-20x cheaper than Azure Claude Sonnet.
+Monitor actual spend from Phase 1 and adjust.
 
 ### Human Time
 
@@ -242,10 +286,15 @@ Note: Phases 1-3 are faster than the original plan because ZeroClaw eliminates t
 
 | Risk | Mitigation |
 |------|-----------|
-| AI costs spiral | Daily budget caps, cost-per-session limits, pseudo-translation fallback |
+| AI costs spiral | Daily budget caps, cost-per-session limits, Gemini Flash (cheap) for local |
 | Agents get stuck in loops | Circuit breaker after 3 failures, session timeouts |
 | Bowrain server instability | Health checks, graceful degradation, retry with backoff |
 | Upstream repo changes break fork | Automated merge conflict detection, manual resolution queue |
 | Translation quality too low | Increase human-eval frequency, tighten brand/term enforcement |
 | System complexity overwhelming | Phase gates — each phase must be stable before proceeding |
 | Auth token management | Token refresh automation, long-lived API tokens as fallback |
+| ZeroClaw daemon instability | 48h smoke test in Phase 0 prerequisites; pin version |
+| Bowrain API gaps (missing endpoints) | REST API audit in Phase 0 prerequisites; file tickets before building MCP |
+| MCP transport version mismatch | Pin ZeroClaw + MCP SDK versions; validate Streamable HTTP in smoke test |
+| Azure managed identity auth failure | Validate ZeroClaw + Azure OpenAI token auth early in Phase 4 |
+| Home Assistant volume too large | Scoped to core UI subset (~2000 keys); expand only if throughput allows |
