@@ -2,59 +2,61 @@
 
 ## Phase 0: Validation & Foundation (Week 1-2)
 
-**Goal:** Validate critical assumptions, then build the Bowrain MCP server and prove one ZeroClaw agent can interact with Bowrain.
+**Goal:** Validate ZeroClaw daemon mode works with the existing Bravo MCP server (PR #43),
+then get the first agent persona running against a real project.
+
+The Bowrain MCP server (24 tools) is already built via PR #43 (Bravo / AD-028). Phase 0
+focuses on **connecting ZeroClaw agents to it** and proving the agentic testing concept.
 
 ### Prerequisites (validate before building anything)
 
-- [ ] **ZeroClaw smoke test:** Run a single ZeroClaw daemon for 48h with a cron schedule
-      and heartbeat connecting to a stub MCP server. Confirm: cron fires reliably,
-      Streamable HTTP MCP stays connected, no memory leaks, daemon survives restarts.
-      If this fails, the plan needs a different agent runtime.
-- [ ] **Bowrain REST API audit:** For every tool in the MCP tool catalog (see
-      `04-implementation.md`), verify the Bowrain server REST endpoint exists and has
-      the right granularity. Key gaps to check:
-      - `bowrain.push` / `bowrain.pull` — are these REST endpoints or CLI-only?
-      - `bowrain.translate` — does a per-block translation submission API exist?
-      - `bowrain.aiTranslate` — is there an AI translation endpoint (NOT pseudo-translate)?
-      File server-side tickets for any missing endpoints before building the MCP wrapper.
-- [ ] **MCP transport check:** Verify ZeroClaw's current MCP client supports Streamable
-      HTTP transport (not just legacy SSE). Pin the ZeroClaw version in docker-compose.
+- [ ] **PR #43 merged:** Bravo MCP server is deployed and functional on local dev stack
+- [ ] **ZeroClaw smoke test:** Run a single ZeroClaw daemon for 48h connecting to the
+      Bowrain MCP endpoint (`/mcp/`) with a valid agent token. Confirm: cron fires
+      reliably, HTTP transport stays connected, no memory leaks, daemon survives
+      container restarts. If this fails, the plan needs a different agent runtime.
+- [ ] **MCP tool coverage check:** Verify the 24 existing Bravo MCP tools cover the
+      agentic testing workflows. Key tools to validate:
+      - `connector_pull` / `connector_push` — can these sync git-based content?
+      - `update_block` — can this submit per-block translations?
+      - `run_flow` — does an AI translation flow exist (not just pseudo-translate)?
+      File tickets for any gaps.
 
 ### Deliverables
 
 - [ ] Fork Tolgee (smallest Tier 1 candidate) to `bowrain-l10n/tolgee-platform`
-- [ ] Set up local Bowrain server + Keycloak via docker-compose
-- [ ] Build **Bowrain MCP server** wrapping confirmed REST endpoints (push, pull, status, listActivities)
+- [ ] Set up local Bowrain server + Keycloak via docker-compose (reuse existing `compose.yaml`)
+- [ ] Create Keycloak users for agent personas (automate via `keycloak-admin.ts`)
 - [ ] Create Developer Agent workspace (config.toml + SOUL.md), using Gemini locally
-- [ ] Run ZeroClaw container connected to its MCP sidecar
-- [ ] Developer Agent: `bowrain.push` → content appears in dashboard → `bowrain.pull`
+- [ ] Connect ZeroClaw daemon to Bowrain's `/mcp/` endpoint with agent JWT token
+- [ ] Developer Agent: `connector_pull` → content in dashboard → `connector_push`
 
 ### What's NOT included
 
-- No AI translation quality decisions (agent executes tools directly per SOUL.md —
-  but LLM inference still runs via Gemini to interpret SOUL.md instructions, so
+- No AI translation quality decisions (agent executes tools per SOUL.md —
+  but LLM inference runs via Gemini to interpret instructions, so
   Phase 0 has non-zero AI cost)
 - No scheduling (manual `zeroclaw agent` invocation)
 - Single project, single language (fr-FR)
-- MCP server has minimal tool coverage
+- No custom MCP tools (uses existing 24 Bravo tools only)
 
 ### Success Criteria
 
-- ZeroClaw agent can call Bowrain MCP tools via Streamable HTTP successfully
-- Content pushed to Bowrain appears in web dashboard
-- Translations can be pulled back
+- ZeroClaw agent can call Bravo MCP tools via HTTP transport
+- Content synced via `connector_pull`/`connector_push` appears in dashboard
+- Agent can `list_blocks`, `update_block` to submit a translation
 - ZeroClaw daemon ran stable for 48h in smoke test
 
 ---
 
-## Phase 1: Multi-Agent + MCP Expansion (Week 3-5)
+## Phase 1: Multi-Agent Team (Week 3-5)
 
-**Goal:** Multiple ZeroClaw agents running, MCP server covers full workflow.
+**Goal:** Multiple ZeroClaw agents running with distinct personas, using existing Bravo MCP tools.
 
 ### Deliverables
 
-- [ ] Expand MCP server: translate, aiTranslate, addConcept, listConcepts, createBrandProfile, createTask, listTasks, addTMEntry
-- [ ] Add git MCP tools (checkUpstream, merge, commit, push)
+- [ ] Add 5 new MCP tools to Bravo server: `github_create_issue`, `github_search_issues`,
+      `github_comment_issue`, `email_send`, `email_list_inbox` (in `platform/server/mcp/`)
 - [ ] Create Translator Agent workspace (Jean-Pierre, fr-FR)
 - [ ] Create Brand Manager Agent workspace (Maria Santos)
 - [ ] Docker-compose with all three agents running in daemon mode
@@ -63,12 +65,12 @@
 
 ### Agent Capabilities at This Phase
 
-| Agent | ZeroClaw Container | MCP Tools Used |
-|-------|-------------------|----------------|
-| Developer | alex-developer | bowrain.push/pull, git.* |
-| Brand Manager | maria-brand | bowrain.addConcept, bowrain.createBrandProfile |
-| Translator (fr) | jeanpierre-fr | bowrain.listTasks, bowrain.translate, bowrain.addTMEntry |
-| Translator (de) | katrin-de | bowrain.listTasks, bowrain.translate, bowrain.addTMEntry |
+| Agent | ZeroClaw Container | Bravo MCP Tools Used |
+|-------|-------------------|----------------------|
+| Developer | alex-developer | connector_pull/push, create_version, list_streams, execute_script (git) |
+| Brand Manager | maria-brand | term_add, term_search, check_vocabulary, list_profiles, get_voice_guide |
+| Translator (fr) | jeanpierre-fr | list_blocks, get_block, update_block, tm_search, run_flow |
+| Translator (de) | katrin-de | list_blocks, get_block, update_block, tm_search, run_flow |
 
 ### Success Criteria
 
@@ -270,15 +272,18 @@ Monitor actual spend from Phase 1 and adjust.
 
 | Phase | Effort | Focus |
 |-------|--------|-------|
-| 0 | 1-2 weeks | **Bowrain MCP server** (main new code), first ZeroClaw agent |
-| 1 | 2 weeks | MCP tool expansion, multi-agent docker-compose |
-| 2 | 1-2 weeks | Full team SOUL.md files, heartbeat tuning, auth setup |
+| 0 | 1 week | Validate ZeroClaw + Bravo MCP, first agent workspace, smoke test |
+| 1 | 1-2 weeks | Multi-agent docker-compose, 5 new MCP tools (github + email) |
+| 2 | 1-2 weeks | Full team SOUL.md files, heartbeat tuning, Keycloak user automation |
 | 3 | 2 weeks | Scale testing, quality benchmarking, SOUL.md refinement |
-| 4 | 1-2 weeks | Release walker, accelerated mode |
+| 4 | 1-2 weeks | Azure deployment, release walker, accelerated mode |
 | 5 | 2-3 weeks | Dashboard, demo site, polish |
 | 6+ | Ongoing | Expansion, new personas and projects |
 
-Note: Phases 1-3 are faster than the original plan because ZeroClaw eliminates the need to build a custom orchestrator, scheduler, and agent runtime. The main development effort is the Bowrain MCP server (Phase 0) and SOUL.md persona writing (Phase 1-2).
+Note: Phase 0 is dramatically faster because the Bravo MCP server (PR #43) already
+provides 24 tools. The main Phase 0 work is validating ZeroClaw daemon mode and writing
+the first SOUL.md persona — not building infrastructure. The overall timeline compresses
+by ~2 weeks compared to the pre-Bravo plan.
 
 ---
 
