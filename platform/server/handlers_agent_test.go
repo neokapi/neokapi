@@ -312,6 +312,38 @@ func TestHandleListBravoTools(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 }
 
+func TestHandleSendBravoMessage_SSEStream(t *testing.T) {
+	srv := setupAgentTestServer(t)
+	e := srv.GetEcho()
+	reqCtx := httptest.NewRequest(http.MethodGet, "/", nil).Context()
+
+	conv, err := srv.AgentService.CreateConversation(reqCtx, "ws-1", "user-1", "", "Chat")
+	require.NoError(t, err)
+
+	body := `{"content":"Hello SSE!"}`
+	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+	rec := httptest.NewRecorder()
+
+	c := e.NewContext(req, rec)
+	c.SetParamNames("ws", "id")
+	c.SetParamValues("demo", conv.ID)
+	c.Set("user_id", "user-1")
+	c.Set("workspace_id", "ws-1")
+	c.Set("workspace_role", platauth.RoleMember)
+
+	err = srv.HandleSendBravoMessage(c)
+	require.NoError(t, err)
+
+	output := rec.Body.String()
+	assert.Contains(t, output, "event: message_start")
+	assert.Contains(t, output, "event: content_delta")
+	assert.Contains(t, output, "Hello SSE!")
+	assert.Contains(t, output, "event: message_end")
+	assert.Equal(t, "text/event-stream", rec.Header().Get("Content-Type"))
+}
+
 func TestHandleAgentNotConfigured(t *testing.T) {
 	cfg := DefaultServerConfig()
 	srv := NewServer(cfg)

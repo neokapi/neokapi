@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -190,4 +191,167 @@ func TestAgentServiceApproveAndDenyToolCall(t *testing.T) {
 	require.NoError(t, store.AddToolCall(ctx, tc2))
 
 	require.NoError(t, svc.DenyToolCall(ctx, conv.ID, tc2.ID, "user1"))
+}
+
+func TestAgentServiceSetPoolAndTokenStore(t *testing.T) {
+	store := newTestAgentStore(t)
+	svc := NewAgentService(store, nil)
+
+	// TokenStore is initialized by default.
+	assert.NotNil(t, svc.TokenStore())
+
+	// Pool is nil by default.
+	pool := NewAgentPool(AgentPoolConfig{
+		Runtime:         newMockRuntime(),
+		MaxPerWorkspace: 3,
+	})
+	svc.SetPool(pool)
+	// Verify pool is set by acquiring a container.
+	c, err := pool.Acquire(context.Background(), ContainerConfig{
+		ConversationID: "conv-1",
+		WorkspaceID:    "ws-1",
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, c.ID)
+}
+
+func TestAgentServiceSendMessageStream_MockMode(t *testing.T) {
+	store := newTestAgentStore(t)
+	svc := NewAgentService(store, nil)
+	ctx := context.Background()
+
+	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	sse := NewSSEWriter(&buf)
+
+	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello stream", sse)
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "event: message_start")
+	assert.Contains(t, output, "event: content_delta")
+	assert.Contains(t, output, "Hello stream")
+	assert.Contains(t, output, "event: message_end")
+
+	// Verify messages are persisted (user + assistant).
+	msgs, err := svc.ListMessages(ctx, conv.ID, 10, 0)
+	require.NoError(t, err)
+	assert.Len(t, msgs, 2)
+}
+
+func TestAgentServiceSendMessageStream_WithPool(t *testing.T) {
+	store := newTestAgentStore(t)
+	svc := NewAgentService(store, nil)
+	ctx := context.Background()
+
+	rt := newMockRuntime()
+	pool := NewAgentPool(AgentPoolConfig{
+		Runtime:         rt,
+		MaxPerWorkspace: 3,
+	})
+	svc.SetPool(pool)
+
+	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	sse := NewSSEWriter(&buf)
+
+	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello pool", sse)
+	require.NoError(t, err)
+
+	// Container should have been acquired.
+	_, ok := pool.Get(conv.ID)
+	assert.True(t, ok)
+
+	// SSE output should contain the mock response.
+	output := buf.String()
+	assert.Contains(t, output, "event: message_start")
+	assert.Contains(t, output, "Hello pool")
+}
+
+func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
+	store := newTestAgentStore(t)
+	svc := NewAgentService(store, nil)
+	ctx := context.Background()
+
+	rt := newMockRuntime()
+	pool := NewAgentPool(AgentPoolConfig{
+		Runtime:         rt,
+		MaxPerWorkspace: 1,
+	})
+	svc.SetPool(pool)
+
+	// Fill the pool.
+	conv1, _ := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat1")
+	var buf1 bytes.Buffer
+	require.NoError(t, svc.SendMessageStream(ctx, conv1.ID, "user1", "ws1", "member", "msg1", NewSSEWriter(&buf1)))
+
+	// Second conversation should hit the limit.
+	conv2, _ := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat2")
+	var buf2 bytes.Buffer
+	err := svc.SendMessageStream(ctx, conv2.ID, "user1", "ws1", "member", "msg2", NewSSEWriter(&buf2))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "max concurrent")
+}
+
+func TestAgentServiceDeleteConversation_CleansUpPoolAndTokens(t *testing.T) {
+	store := newTestAgentStore(t)
+	svc := NewAgentService(store, nil)
+	ctx := context.Background()
+
+	rt := newMockRuntime()
+	pool := NewAgentPool(AgentPoolConfig{Runtime: rt, MaxPerWorkspace: 3})
+	svc.SetPool(pool)
+
+	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
+	require.NoError(t, err)
+
+	// Stream a message to create container + token.
+	var buf bytes.Buffer
+	require.NoError(t, svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "hi", NewSSEWriter(&buf)))
+
+	_, ok := pool.Get(conv.ID)
+	assert.True(t, ok)
+
+	// Delete should clean up.
+	require.NoError(t, svc.DeleteConversation(ctx, conv.ID))
+	_, ok = pool.Get(conv.ID)
+	assert.False(t, ok)
+	assert.Equal(t, 0, pool.ActiveCount("ws1"))
+}
+
+func TestAgentServiceCancelConversation_CleansUpPool(t *testing.T) {
+	store := newTestAgentStore(t)
+	svc := NewAgentService(store, nil)
+	ctx := context.Background()
+
+	rt := newMockRuntime()
+	pool := NewAgentPool(AgentPoolConfig{Runtime: rt, MaxPerWorkspace: 3})
+	svc.SetPool(pool)
+
+	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
+	require.NoError(t, err)
+
+	var buf bytes.Buffer
+	require.NoError(t, svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "hi", NewSSEWriter(&buf)))
+
+	require.NoError(t, svc.CancelConversation(ctx, conv.ID))
+
+	_, ok := pool.Get(conv.ID)
+	assert.False(t, ok)
+
+	got, err := svc.GetConversation(ctx, conv.ID)
+	require.NoError(t, err)
+	assert.Equal(t, platagent.ConversationFailed, got.Status)
+}
+
+func TestToolNames(t *testing.T) {
+	names := ToolNames()
+	assert.True(t, len(names) > 20)
+	assert.Contains(t, names, "list_projects")
+	assert.Contains(t, names, "execute_script")
+	assert.Contains(t, names, "check_vocabulary")
 }
