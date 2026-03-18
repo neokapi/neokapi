@@ -126,6 +126,19 @@ function createMockAdapter(): ApiAdapter {
     listMyTasks: vi.fn(),
     getNotificationPreferences: vi.fn(),
     updateNotificationPreferences: vi.fn(),
+    bravoCreateConversation: vi.fn(),
+    bravoListConversations: vi.fn(),
+    bravoGetConversation: vi.fn(),
+    bravoDeleteConversation: vi.fn(),
+    bravoSendMessage: vi.fn(),
+    bravoListMessages: vi.fn(),
+    bravoApproveToolCall: vi.fn(),
+    bravoDenyToolCall: vi.fn(),
+    bravoCancelConversation: vi.fn(),
+    bravoGetConfig: vi.fn(),
+    bravoUpdateConfig: vi.fn(),
+    bravoListTools: vi.fn(),
+    bravoGetUsage: vi.fn(),
   } as ApiAdapter;
 }
 
