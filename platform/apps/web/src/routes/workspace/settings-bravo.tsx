@@ -33,9 +33,18 @@ export function SettingsBravoRoute() {
 
   useEffect(() => {
     if (!ws) return;
-    void api.bravoGetConfig(ws).then(setConfig).catch(() => {});
-    void api.bravoListTools(ws).then((r: { tools: BravoToolInfo[] }) => setTools(r.tools ?? [])).catch(() => {});
-    void api.bravoGetUsage(ws).then(setUsage).catch(() => {});
+    void api
+      .bravoGetConfig(ws)
+      .then(setConfig)
+      .catch(() => {});
+    void api
+      .bravoListTools(ws)
+      .then((r: { tools: BravoToolInfo[] }) => setTools(r.tools ?? []))
+      .catch(() => {});
+    void api
+      .bravoGetUsage(ws)
+      .then(setUsage)
+      .catch(() => {});
   }, [api, ws]);
 
   const handleSave = useCallback(
@@ -55,7 +64,10 @@ export function SettingsBravoRoute() {
   const handleDateRangeChange = useCallback(
     (from: string, to: string) => {
       if (!ws) return;
-      void api.bravoGetUsage(ws, from, to).then(setUsage).catch(() => {});
+      void api
+        .bravoGetUsage(ws, from, to)
+        .then(setUsage)
+        .catch(() => {});
     },
     [api, ws],
   );
@@ -87,15 +99,10 @@ export function SettingsBravoRoute() {
         <Card>
           <CardHeader>
             <CardTitle>Usage</CardTitle>
-            <CardDescription>
-              Token consumption, message volume, and container time
-            </CardDescription>
+            <CardDescription>Token consumption, message volume, and container time</CardDescription>
           </CardHeader>
           <CardContent>
-            <BravoUsageDashboard
-              usage={usage}
-              onDateRangeChange={handleDateRangeChange}
-            />
+            <BravoUsageDashboard usage={usage} onDateRangeChange={handleDateRangeChange} />
           </CardContent>
         </Card>
       )}

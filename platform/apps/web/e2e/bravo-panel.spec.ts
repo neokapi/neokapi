@@ -1,9 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import {
-  authenticate,
-  getOrCreateWorkspace,
-  waitForServer,
-} from "./helpers/api-client";
+import { authenticate, getOrCreateWorkspace, waitForServer } from "./helpers/api-client";
 
 const BASE_URL = process.env.BOWRAIN_URL || "http://localhost:8080";
 

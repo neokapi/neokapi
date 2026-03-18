@@ -117,10 +117,7 @@ function ConnectedBravo() {
 
   return (
     <>
-      <BravoPanelTrigger
-        onClick={actions.togglePanel}
-        active={state.panelOpen}
-      />
+      <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />
       <BravoPanel
         open={state.panelOpen}
         onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
@@ -486,55 +483,55 @@ export function WorkspaceLayout() {
         initialWorkspaces={workspaces}
       >
         <BravoProvider>
-        <StreamActionsProvider>
-          <AppShell
-            workspaces={workspaces}
-            activeWorkspace={activeWorkspace}
-            onSelectWorkspace={handleSelectWorkspace}
-            onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
-            activeView={effectiveView}
-            onViewChange={handleViewChange}
-            user={user}
-            onSignOut={serverMode === "server" ? handleSignOut : undefined}
-            collapsed={sidebarCollapsed}
-            onCollapsedChange={setSidebarCollapsed}
-            showThemeToggle={false}
-            sidebarContext={sidebarContext}
-            activeSubNav={settingsSubNav}
-            onSubNavChange={handleSubNavChange}
-            headerSlot={
-              <>
-                <ConnectedTopBar
-                  user={user}
-                  onSignOut={serverMode === "server" ? handleSignOut : undefined}
-                  workspaceSlug={ws}
-                  onViewAllActivities={() =>
-                    void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
-                  }
-                  onViewAllTasks={() =>
-                    void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
-                  }
-                  leftSlot={
-                    sidebarContext?.level === "project" &&
-                    sidebarContext.project.streams &&
-                    sidebarContext.project.streams.length > 0 ? (
-                      <TopBarStreamSelector
-                        sidebarContext={sidebarContext}
-                        onStreamChange={handleStreamChange}
-                      />
-                    ) : undefined
-                  }
-                />
-                <ConnectedBravo />
-              </>
-            }
-            contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
-          >
-            <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
-              <Outlet />
-            </StreamProvider>
-          </AppShell>
-        </StreamActionsProvider>
+          <StreamActionsProvider>
+            <AppShell
+              workspaces={workspaces}
+              activeWorkspace={activeWorkspace}
+              onSelectWorkspace={handleSelectWorkspace}
+              onCreateWorkspace={serverMode === "server" ? () => setShowCreateWs(true) : undefined}
+              activeView={effectiveView}
+              onViewChange={handleViewChange}
+              user={user}
+              onSignOut={serverMode === "server" ? handleSignOut : undefined}
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+              showThemeToggle={false}
+              sidebarContext={sidebarContext}
+              activeSubNav={settingsSubNav}
+              onSubNavChange={handleSubNavChange}
+              headerSlot={
+                <>
+                  <ConnectedTopBar
+                    user={user}
+                    onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                    workspaceSlug={ws}
+                    onViewAllActivities={() =>
+                      void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
+                    }
+                    onViewAllTasks={() =>
+                      void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
+                    }
+                    leftSlot={
+                      sidebarContext?.level === "project" &&
+                      sidebarContext.project.streams &&
+                      sidebarContext.project.streams.length > 0 ? (
+                        <TopBarStreamSelector
+                          sidebarContext={sidebarContext}
+                          onStreamChange={handleStreamChange}
+                        />
+                      ) : undefined
+                    }
+                  />
+                  <ConnectedBravo />
+                </>
+              }
+              contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
+            >
+              <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
+                <Outlet />
+              </StreamProvider>
+            </AppShell>
+          </StreamActionsProvider>
         </BravoProvider>
 
         <CreateWorkspaceDialog
