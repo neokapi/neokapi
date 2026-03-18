@@ -63,6 +63,33 @@ type ServerConfig struct {
 	NATSUrl              string // NATS server URL for job queue (e.g. nats://localhost:4222)
 	RedisURL             string // Redis connection string for caching and session state
 	RedisPassword        string // Redis password (overrides any password in RedisURL)
+
+	// Agent (@bravo) — container runtime for ZeroClaw.
+	// AgentRuntime selects the container backend: "docker" or "aca" (Azure Container Apps).
+	// When empty, the agent falls back to local mock responses.
+	AgentRuntime string
+
+	// AgentImage is the ZeroClaw container image for @bravo.
+	AgentImage string // default: "ghcr.io/neokapi/bravo-agent:latest"
+
+	// AgentMaxConcurrent is the max concurrent agent containers per workspace.
+	AgentMaxConcurrent int // default: 3
+
+	// Docker runtime settings (when AgentRuntime == "docker").
+	AgentDockerHost    string // default: "unix:///var/run/docker.sock"
+	AgentDockerNetwork string // Docker network for agent containers (optional)
+
+	// Azure Container Apps settings (when AgentRuntime == "aca").
+	AgentACASubscription  string // Azure subscription ID
+	AgentACAResourceGroup string // Azure resource group
+	AgentACAEnvironmentID string // Container App Environment resource ID
+	AgentACALocation      string // Azure region (e.g. "westus2")
+
+	// Agent model configuration — injected into ZeroClaw containers.
+	AgentModelProvider string // e.g. "azure-openai", "anthropic"
+	AgentModelName     string // e.g. "gpt-4o", "claude-sonnet-4-20250514"
+	AgentModelAPIBase  string // provider API base URL
+	AgentModelAPIKey   string // provider API key
 }
 
 // DefaultServerConfig returns a ServerConfig with sensible defaults.

@@ -302,6 +302,12 @@ func NewServer(cfg ServerConfig) *Server {
 	// Initialize agent service (AD-028).
 	if s.AgentStore != nil {
 		s.AgentService = service.NewAgentService(s.AgentStore, s.EventBus)
+
+		// Wire container runtime when configured.
+		if pool := s.buildAgentPool(); pool != nil {
+			s.AgentService.SetPool(pool)
+			log.Printf("Agent pool initialized (runtime=%s)", cfg.AgentRuntime)
+		}
 	}
 
 	return s

@@ -52,6 +52,12 @@ type AgentPool struct {
 	maxPerWorkspace int
 	idleTimeout     time.Duration
 
+	// Model defaults — injected into containers when not overridden per-request.
+	modelProvider string
+	modelName     string
+	modelAPIBase  string
+	modelAPIKey   string
+
 	mu         sync.Mutex
 	containers map[string]*AgentContainer // conversationID → container
 }
@@ -63,6 +69,12 @@ type AgentPoolConfig struct {
 	BravoImage      string        // container image for @bravo
 	MaxPerWorkspace int           // max concurrent containers per workspace
 	IdleTimeout     time.Duration // idle timeout before recycling
+
+	// Model defaults for agent containers.
+	ModelProvider string // e.g. "azure-openai", "anthropic"
+	ModelName     string // e.g. "gpt-4o"
+	ModelAPIBase  string
+	ModelAPIKey   string
 }
 
 // NewAgentPool creates a new agent container pool.
@@ -82,6 +94,10 @@ func NewAgentPool(cfg AgentPoolConfig) *AgentPool {
 		bravoImage:      cfg.BravoImage,
 		maxPerWorkspace: cfg.MaxPerWorkspace,
 		idleTimeout:     cfg.IdleTimeout,
+		modelProvider:   cfg.ModelProvider,
+		modelName:       cfg.ModelName,
+		modelAPIBase:    cfg.ModelAPIBase,
+		modelAPIKey:     cfg.ModelAPIKey,
 		containers:      make(map[string]*AgentContainer),
 	}
 }
@@ -128,6 +144,18 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 	}
 	if cfg.GatewayPort == 0 {
 		cfg.GatewayPort = 42617
+	}
+	if cfg.ModelProvider == "" {
+		cfg.ModelProvider = p.modelProvider
+	}
+	if cfg.ModelName == "" {
+		cfg.ModelName = p.modelName
+	}
+	if cfg.ModelAPIBase == "" {
+		cfg.ModelAPIBase = p.modelAPIBase
+	}
+	if cfg.ModelAPIKey == "" {
+		cfg.ModelAPIKey = p.modelAPIKey
 	}
 
 	container, err := p.runtime.Spawn(ctx, cfg)
