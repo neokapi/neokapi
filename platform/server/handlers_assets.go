@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -125,7 +126,7 @@ func (s *Server) generateDownloadURL(blobKey string) string {
 	if s.BlobStore == nil {
 		return ""
 	}
-	url, err := s.BlobStore.GenerateDownloadURL(nil, blobKey, corestorage.SignOptions{})
+	url, err := s.BlobStore.GenerateDownloadURL(context.Background(), blobKey, corestorage.SignOptions{})
 	if err != nil {
 		return ""
 	}
