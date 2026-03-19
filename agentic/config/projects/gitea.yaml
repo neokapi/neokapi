@@ -1,0 +1,15 @@
+# Gitea — self-hosted Git service
+# INI-based locale files + HTML mail templates + Markdown docs.
+
+upstream: go-gitea/gitea
+fork: neokapi/agentic-gitea
+
+source_language: en-US
+target_languages:
+  - fr-FR
+  - de-DE
+
+content_paths:
+  - options/locale/locale_en-US.ini   # Main UI locale strings
+  - templates/mail/**/*.html          # Email notification templates
+  - docs/**/*.md                      # User documentation
