@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,9 +10,11 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/event"
@@ -149,6 +152,26 @@ type Server struct {
 	// AgenticQueueSink forwards platform events to queues for agentic testing.
 	// Nil when BOWRAIN_AGENTIC_EVENTS is not set.
 	AgenticQueueSink *event.QueueSink
+
+	// BillingStore persists subscription and credit data (AD-030).
+	// Nil when billing is not configured.
+	BillingStore billing.BillingStore
+
+	// StripeClient manages Stripe API interactions (AD-030).
+	// Nil when STRIPE_SECRET_KEY is not set.
+	StripeClient *billing.StripeClient
+
+	// PostHogClient captures product analytics events (AD-030).
+	// Nil when POSTHOG_API_KEY is not set.
+	PostHogClient *billing.PostHogClient
+
+	// WebhookHandler processes Stripe webhook events (AD-030).
+	// Nil when Stripe is not configured.
+	WebhookHandler *billing.WebhookHandler
+
+	// AdminVerifier validates JWTs from the admin OIDC realm (AD-030).
+	// Nil when admin OIDC is not configured.
+	AdminVerifier *oidc.IDTokenVerifier
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -220,6 +243,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.BrandStore = pg.Brand
 			s.GraphStore = pg.GraphStore
 			s.AgentStore = pg.Agent
+			s.BillingStore = pg.Billing
 			if cfg.JWTSecret != "" {
 				s.AuthStore = pg.Auth
 				s.Services.Auth = service.NewAuthService(pg.Auth, cfg.JWTSecret)
@@ -336,6 +360,42 @@ func NewServer(cfg ServerConfig) *Server {
 
 	// Wire up agentic event queue sink.
 	s.initAgenticQueueSink(cfg)
+
+	// Initialize Stripe client (AD-030).
+	if cfg.StripeSecretKey != "" {
+		s.StripeClient = billing.NewStripeClient(cfg.StripeSecretKey)
+		if cfg.StripeWebhookSecret != "" && s.BillingStore != nil {
+			s.WebhookHandler = billing.NewWebhookHandler(s.BillingStore, cfg.StripeWebhookSecret)
+		}
+		log.Printf("Stripe billing enabled")
+	}
+
+	// Initialize PostHog client (AD-030).
+	if cfg.PostHogAPIKey != "" {
+		host := cfg.PostHogHost
+		if host == "" {
+			host = "https://us.i.posthog.com"
+		}
+		phClient, err := billing.NewPostHogClient(cfg.PostHogAPIKey, host)
+		if err != nil {
+			log.Printf("WARNING: failed to init PostHog client: %v (analytics disabled)", err)
+		} else {
+			s.PostHogClient = phClient
+			log.Printf("PostHog analytics enabled")
+		}
+	}
+
+	// Initialize admin OIDC verifier (AD-030).
+	if cfg.AdminOIDCIssuerURL != "" && cfg.AdminOIDCClientID != "" {
+		ctx := context.Background()
+		verifier, err := auth.NewOIDCVerifier(ctx, cfg.AdminOIDCIssuerURL, cfg.AdminOIDCClientID)
+		if err != nil {
+			log.Printf("WARNING: failed to init admin OIDC verifier: %v (admin API disabled)", err)
+		} else {
+			s.AdminVerifier = verifier
+			log.Printf("Admin OIDC verifier enabled (issuer: %s)", cfg.AdminOIDCIssuerURL)
+		}
+	}
 
 	return s
 }
@@ -505,6 +565,36 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 		// @bravo agent routes (AD-028)
 		s.registerBravoRoutes(wsSpecific)
+
+		// Billing routes (AD-030, workspace-scoped)
+		billingGroup := wsSpecific.Group("/billing")
+		billingGroup.GET("", s.HandleGetBilling)
+		billingGroup.GET("/usage", s.HandleGetBillingUsage)
+		billingGroup.POST("/checkout", s.HandleCreateCheckout)
+		billingGroup.POST("/portal", s.HandleCreatePortal)
+		billingGroup.GET("/invoices", s.HandleGetInvoices)
+	}
+
+	// Stripe webhook (no auth, signature-verified) (AD-030).
+	e.POST("/api/webhooks/stripe", s.HandleStripeWebhook)
+
+	// Admin routes (admin realm auth) (AD-030).
+	if s.AdminVerifier != nil {
+		adminGroup := e.Group("/api/admin", billing.AdminGuard(s.AdminVerifier))
+		adminGroup.GET("/workspaces", s.HandleAdminListWorkspaces)
+		adminGroup.GET("/workspaces/:id", s.HandleAdminGetWorkspace)
+		adminGroup.PUT("/workspaces/:id/plan", s.HandleAdminUpdatePlan)
+		adminGroup.POST("/workspaces/:id/credits", s.HandleAdminGrantCredits)
+		adminGroup.GET("/workspaces/:id/feature-overrides", s.HandleAdminGetFeatureOverrides)
+		adminGroup.PUT("/workspaces/:id/feature-overrides", s.HandleAdminSetFeatureOverrides)
+		adminGroup.GET("/workspaces/:id/notes", s.HandleAdminGetNotes)
+		adminGroup.POST("/workspaces/:id/notes", s.HandleAdminAddNote)
+		adminGroup.GET("/users", s.HandleAdminListUsers)
+		adminGroup.GET("/users/:id", s.HandleAdminGetUser)
+		adminGroup.GET("/metrics", s.HandleAdminGetMetrics)
+		adminGroup.GET("/events", s.HandleAdminListEvents)
+		adminGroup.GET("/upsells", s.HandleAdminGetUpsells)
+		adminGroup.GET("/overrides", s.HandleAdminListOverrides)
 	}
 
 	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).

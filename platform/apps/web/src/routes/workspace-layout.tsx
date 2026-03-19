@@ -242,6 +242,7 @@ export function WorkspaceLayout() {
     if (rest === "tokens") return "tokens";
     if (rest === "system") return "system";
     if (rest === "bravo") return "bravo";
+    if (rest === "billing") return "billing";
     return "general";
   }, [activeView, pathname, workspaceSlug]);
 
@@ -275,6 +276,9 @@ export function WorkspaceLayout() {
           break;
         case "bravo":
           void navigate({ to: "/$workspace/settings/bravo", params: { workspace: wsSlug } });
+          break;
+        case "billing":
+          void navigate({ to: "/$workspace/settings/billing", params: { workspace: wsSlug } });
           break;
       }
     },

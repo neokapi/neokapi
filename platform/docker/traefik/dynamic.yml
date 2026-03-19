@@ -30,6 +30,20 @@ http:
       tls: {}
       priority: 90
 
+    # Control plane API requests → bowrain-server on host:8080
+    ctrl-api:
+      rule: "Host(`ctrl.bowrain.mymac`) && PathPrefix(`/api`)"
+      service: bowrain
+      tls: {}
+      priority: 100
+
+    # Control plane app → Vite dev server on host:3100
+    ctrl-app:
+      rule: "Host(`ctrl.bowrain.mymac`)"
+      service: ctrl-app
+      tls: {}
+      priority: 90
+
     # Traefik dashboard
     traefik-dashboard:
       rule: "Host(`traefik.bowrain.mymac`)"
@@ -48,6 +62,11 @@ http:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:5173"
+
+    ctrl-app:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3100"
 
 tls:
   certificates:

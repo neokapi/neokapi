@@ -7,6 +7,7 @@
 #   make dev-server                     # bowrain-server on :8080
 #   make dev-web                        # Vite dev server on :5173
 #   → https://bowrain.mymac             # web app via Traefik
+#   → https://ctrl.bowrain.mymac        # control plane via Traefik
 #   → https://auth.bowrain.mymac        # Keycloak via Traefik
 #   → https://mail.bowrain.mymac        # Mailpit via Traefik
 #
@@ -28,11 +29,16 @@ services:
       OIDC_CLIENT_SECRET: bowrain-secret
     volumes:
       - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json
+      - ./docker/keycloak/admin-realm.json:/opt/keycloak/data/import/admin-realm.json
       - ./apps/keycloak-theme/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/keycloak-theme.jar
     ports:
       - "8180:8080"
     healthcheck:
-      test: ["CMD-SHELL", "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"]
+      test:
+        [
+          "CMD-SHELL",
+          "{ printf 'HEAD /health/ready HTTP/1.0\\r\\n\\r\\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000",
+        ]
       interval: 10s
       timeout: 5s
       retries: 15

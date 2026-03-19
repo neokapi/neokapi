@@ -908,3 +908,58 @@ export interface BravoSSEHandler {
   onMessageEnd?: (data: BravoSSEMessageEnd) => void;
   onError?: (data: BravoSSEError) => void;
 }
+
+// ---------------------------------------------------------------------------
+// Billing types (AD-030)
+// ---------------------------------------------------------------------------
+
+/** Billing plan tier */
+export type BillingPlan = "free" | "pro" | "team" | "enterprise";
+
+/** Billing subscription status */
+export type BillingStatus = "active" | "past_due" | "canceled" | "trialing";
+
+/** Workspace subscription state */
+export interface BillingSubscription {
+  plan: BillingPlan;
+  status: BillingStatus;
+  seatCount: number;
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  cancelAt?: string;
+}
+
+/** Weekly credit allocation and tracking */
+export interface CreditAllocation {
+  creditsTotal: number;
+  creditsUsed: number;
+  weekStart: string;
+  weekEnd: string;
+  source: string;
+}
+
+/** Combined billing overview for a workspace */
+export interface BillingOverview {
+  subscription: BillingSubscription;
+  credits: CreditAllocation;
+  stripeCustomerId?: string;
+}
+
+/** Credit ledger entry (immutable transaction record) */
+export interface CreditLedgerEntry {
+  id: string;
+  amount: number;
+  balanceAfter: number;
+  operation: string;
+  referenceId?: string;
+  createdAt: string;
+}
+
+/** Usage breakdown by operation type */
+export interface BillingUsageBreakdown {
+  aiTranslation: number;
+  aiQualityCheck: number;
+  bravoMessages: number;
+  bravoContainer: number;
+  total: number;
+}
