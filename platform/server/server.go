@@ -286,6 +286,7 @@ func NewServer(cfg ServerConfig) *Server {
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
 			PublicURL:      cfg.OIDCPublicURL,
+			AuthStore:     s.AuthStore,
 		}
 		var mcpOpts []mcpserver.Option
 		if s.wsStores != nil {

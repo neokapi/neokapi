@@ -4,14 +4,19 @@ package mcp
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/modelcontextprotocol/go-sdk/oauthex"
 
+	bwauth "github.com/neokapi/neokapi/bowrain/auth"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/registry"
 	platauth "github.com/neokapi/neokapi/platform/auth"
@@ -87,6 +92,10 @@ type Config struct {
 	// (e.g., "https://api.bowrain.cloud"). Used as the resource identifier
 	// in OAuth metadata.
 	PublicURL string
+
+	// AuthStore enables API token (bwt_*) authentication in addition to JWTs.
+	// When nil, only JWT tokens are accepted.
+	AuthStore bwauth.AuthStore
 }
 
 // Option configures optional MCPServer dependencies.
@@ -184,7 +193,7 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 
 	// Wrap with OAuth 2.1 bearer token validation when JWTSecret is configured.
 	if cfg.JWTSecret != "" {
-		verifier := keycloakTokenVerifier(cfg.JWTSecret)
+		verifier := tokenVerifier(cfg.JWTSecret, cfg.AuthStore)
 		authMiddleware := auth.RequireBearerToken(verifier, &auth.RequireBearerTokenOptions{
 			ResourceMetadataURL: resourceURL + "/.well-known/oauth-protected-resource",
 		})
@@ -196,10 +205,16 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 	return ms, nil
 }
 
-// keycloakTokenVerifier returns an auth.TokenVerifier that validates Bowrain
-// JWT tokens (the same tokens used by the REST API).
-func keycloakTokenVerifier(jwtSecret string) auth.TokenVerifier {
+// tokenVerifier returns an auth.TokenVerifier that validates Bowrain JWT tokens
+// and, when an AuthStore is provided, also accepts API tokens (bwt_* prefix).
+func tokenVerifier(jwtSecret string, authStore bwauth.AuthStore) auth.TokenVerifier {
 	return func(ctx context.Context, token string, req *http.Request) (*auth.TokenInfo, error) {
+		// API token (bwt_ prefix) — validated via AuthStore.
+		if strings.HasPrefix(token, "bwt_") && authStore != nil {
+			return validateAPIToken(ctx, token, authStore)
+		}
+
+		// JWT token.
 		claims, err := platauth.ValidateToken(token, jwtSecret)
 		if err != nil {
 			return nil, fmt.Errorf("%w: %v", auth.ErrInvalidToken, err)
@@ -213,6 +228,50 @@ func keycloakTokenVerifier(jwtSecret string) auth.TokenVerifier {
 			},
 		}, nil
 	}
+}
+
+// validateAPIToken hashes the bwt_* token, looks it up via AuthStore, checks
+// expiry, resolves the user, and returns TokenInfo — mirroring handleAPIToken
+// in middleware_auth.go.
+func validateAPIToken(ctx context.Context, token string, authStore bwauth.AuthStore) (*auth.TokenInfo, error) {
+	hash := sha256.Sum256([]byte(token))
+	tokenHash := hex.EncodeToString(hash[:])
+
+	apiToken, err := authStore.GetAPITokenByHash(ctx, tokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid api token", auth.ErrInvalidToken)
+	}
+
+	if apiToken.ExpiresAt != nil && time.Now().After(*apiToken.ExpiresAt) {
+		return nil, fmt.Errorf("%w: api token expired", auth.ErrInvalidToken)
+	}
+
+	user, err := authStore.GetUser(ctx, apiToken.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: token user not found", auth.ErrInvalidToken)
+	}
+
+	// Fire-and-forget last-used update.
+	go func() {
+		_ = authStore.UpdateAPITokenLastUsed(context.Background(), apiToken.ID)
+	}()
+
+	// Use a far-future expiration for non-expiring tokens so the SDK
+	// does not treat the zero value as already expired.
+	expiration := time.Now().Add(24 * time.Hour)
+	if apiToken.ExpiresAt != nil {
+		expiration = *apiToken.ExpiresAt
+	}
+
+	return &auth.TokenInfo{
+		UserID:     user.ID,
+		Expiration: expiration,
+		Extra: map[string]any{
+			"email":        user.Email,
+			"name":         user.Name,
+			"api_token_id": apiToken.ID,
+		},
+	}, nil
 }
 
 // Handler returns the HTTP handler for mounting on Echo.
