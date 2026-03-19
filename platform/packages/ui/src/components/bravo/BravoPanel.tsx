@@ -93,14 +93,13 @@ export function BravoPanel({
       {/* Panel */}
       <aside
         className={cn(
-          // Base: right-side panel with border
-          "z-50 flex flex-col border-l bg-background",
+          // Base: right-side panel with border, never shrinks in flex
+          "shrink-0 flex flex-col border-l bg-background",
           // Transition
           "transition-[width,opacity] duration-300 ease-in-out",
           // Desktop: inline in the layout flow
           "hidden md:flex",
           open ? "w-[400px] opacity-100" : "w-0 opacity-0 overflow-hidden border-l-0",
-          // We'll handle mobile separately below
         )}
       >
         <PanelInner
