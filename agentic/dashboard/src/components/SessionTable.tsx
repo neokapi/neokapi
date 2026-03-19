@@ -30,8 +30,14 @@ function formatDate(iso: string): string {
   });
 }
 
+function isToday(iso: string): boolean {
+  const d = new Date(iso);
+  const today = new Date();
+  return d.toDateString() === today.toDateString();
+}
+
 export default function SessionTable() {
-  const { workspace, agent } = useFilter();
+  const { workspace, agent, status, search, preset } = useFilter();
   const [sortKey, setSortKey] = useState<SortKey>('started');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -40,8 +46,14 @@ export default function SessionTable() {
     let s = sessions;
     if (workspace) s = s.filter((sess) => sess.workspace === workspace);
     if (agent) s = s.filter((sess) => sess.agentId === agent);
+    if (status) s = s.filter((sess) => sess.status === status);
+    if (search) {
+      const q = search.toLowerCase();
+      s = s.filter((sess) => sess.summary.toLowerCase().includes(q));
+    }
+    if (preset === 'today') s = s.filter((sess) => isToday(sess.startTime));
     return s;
-  }, [workspace, agent]);
+  }, [workspace, agent, status, search, preset]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
@@ -84,7 +96,6 @@ export default function SessionTable() {
     ? sessions.find((s) => s.id === selectedSessionId) ?? null
     : null;
 
-  // Get unique tool names per session (short list for badges)
   function uniqueTools(session: (typeof sessions)[0]) {
     return [...new Set(session.toolCalls.map((tc) => tc.tool))];
   }

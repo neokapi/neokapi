@@ -1,4 +1,4 @@
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -8,35 +8,48 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { issues } from '@/data/issues';
 import { useFilter } from '@/context/FilterContext';
 
 export default function IssuesFeed() {
-  const { workspace, agent } = useFilter();
+  const { workspace, agent, search } = useFilter();
 
-  let filtered = issues;
-  if (workspace) filtered = filtered.filter((iss) => iss.workspace === workspace);
-  if (agent) filtered = filtered.filter((iss) => iss.agentId === agent);
+  const filtered = useMemo(() => {
+    let result = issues;
+    if (workspace) result = result.filter((iss) => iss.workspace === workspace);
+    if (agent) result = result.filter((iss) => iss.agentId === agent);
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((iss) => iss.title.toLowerCase().includes(q));
+    }
+    return result;
+  }, [workspace, agent, search]);
 
   return (
-    <Card className="flex h-full flex-col">
-      <CardHeader>
-        <CardTitle className="text-sm">Agent-Filed Issues</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 p-0">
-        <ScrollArea className="h-[500px]">
-          <Table>
-            <TableHeader>
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground">
+        GitHub issues from agent-feedback repo
+      </p>
+
+      <div className="rounded-lg border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Title</TableHead>
+              <TableHead>Labels</TableHead>
+              <TableHead className="hidden sm:table-cell">Filed By</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
               <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Labels</TableHead>
-                <TableHead className="hidden sm:table-cell">Filed By</TableHead>
-                <TableHead>Status</TableHead>
+                <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
+                  No issues found.
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((issue) => (
+            ) : (
+              filtered.map((issue) => (
                 <TableRow key={issue.id}>
                   <TableCell className="max-w-[200px] text-xs font-medium">
                     {issue.title}
@@ -70,11 +83,11 @@ export default function IssuesFeed() {
                     </Badge>
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    </div>
   );
 }
