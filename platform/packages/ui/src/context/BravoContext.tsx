@@ -230,91 +230,97 @@ export function BravoProvider({ children }: { children: ReactNode }) {
         }
       }, 3000);
 
-      const controller = api.bravoSendMessageSSE(ws, activeConversation.id, content, {
-        onMessageStart: (data) => {
-          streamMsgIdRef.current = data.id;
-          setColdStarting(false);
-          clearTimeout(coldStartTimer);
-        },
+      const controller = api.bravoSendMessageSSE(
+        ws,
+        activeConversation.id,
+        content,
+        {
+          onMessageStart: (data) => {
+            streamMsgIdRef.current = data.id;
+            setColdStarting(false);
+            clearTimeout(coldStartTimer);
+          },
 
-        onContentDelta: (data) => {
-          streamContentRef.current += data.delta;
-          setStreamingContent(streamContentRef.current);
-          setColdStarting(false);
-        },
+          onContentDelta: (data) => {
+            streamContentRef.current += data.delta;
+            setStreamingContent(streamContentRef.current);
+            setColdStarting(false);
+          },
 
-        onToolCallStart: (data) => {
-          const tc: BravoToolCall = {
-            id: data.id,
-            message_id: streamMsgIdRef.current,
-            tool_name: data.tool,
-            input: data.input,
-            status: "running",
-            duration: 0,
-          };
-          setStreamingToolCalls((prev) => [...prev, tc]);
-        },
+          onToolCallStart: (data) => {
+            const tc: BravoToolCall = {
+              id: data.id,
+              message_id: streamMsgIdRef.current,
+              tool_name: data.tool,
+              input: data.input,
+              status: "running",
+              duration: 0,
+            };
+            setStreamingToolCalls((prev) => [...prev, tc]);
+          },
 
-        onToolCallEnd: (data) => {
-          setStreamingToolCalls((prev) =>
-            prev.map((tc) =>
-              tc.id === data.id
-                ? {
-                    ...tc,
-                    status: data.status as BravoToolCall["status"],
-                    output: data.output,
-                    duration: data.duration_ms * 1e6, // ms → ns for display consistency
-                  }
-                : tc,
-            ),
-          );
-        },
+          onToolCallEnd: (data) => {
+            setStreamingToolCalls((prev) =>
+              prev.map((tc) =>
+                tc.id === data.id
+                  ? {
+                      ...tc,
+                      status: data.status as BravoToolCall["status"],
+                      output: data.output,
+                      duration: data.duration_ms * 1e6, // ms → ns for display consistency
+                    }
+                  : tc,
+              ),
+            );
+          },
 
-        onNeedsApproval: (data) => {
-          setStreamingToolCalls((prev) =>
-            prev.map((tc) => (tc.id === data.id ? { ...tc, status: "needs_approval" } : tc)),
-          );
-        },
+          onNeedsApproval: (data) => {
+            setStreamingToolCalls((prev) =>
+              prev.map((tc) => (tc.id === data.id ? { ...tc, status: "needs_approval" } : tc)),
+            );
+          },
 
-        onMessageEnd: (data) => {
-          // Assemble the final assistant message and add to the message list.
-          const finalMsg: BravoMessage = {
-            id: data.id,
-            conversation_id: activeConversation.id,
-            role: "assistant",
-            content: streamContentRef.current,
-            input_tokens: data.usage?.input_tokens,
-            output_tokens: data.usage?.output_tokens,
-            created_at: new Date().toISOString(),
-          };
+          onMessageEnd: (data) => {
+            // Assemble the final assistant message and add to the message list.
+            const finalMsg: BravoMessage = {
+              id: data.id,
+              conversation_id: activeConversation.id,
+              role: "assistant",
+              content: streamContentRef.current,
+              input_tokens: data.usage?.input_tokens,
+              output_tokens: data.usage?.output_tokens,
+              created_at: new Date().toISOString(),
+            };
 
-          // Attach collected tool calls.
-          setStreamingToolCalls((prevToolCalls) => {
-            if (prevToolCalls.length > 0) {
-              finalMsg.tool_calls = prevToolCalls;
-            }
+            // Attach collected tool calls.
+            setStreamingToolCalls((prevToolCalls) => {
+              if (prevToolCalls.length > 0) {
+                finalMsg.tool_calls = prevToolCalls;
+              }
 
-            setMessages((prev) => [...prev, finalMsg]);
+              setMessages((prev) => [...prev, finalMsg]);
+              setStreaming(false);
+              setStreamingContent("");
+              return [];
+            });
+
+            abortRef.current = null;
+            streamContentRef.current = "";
+            streamMsgIdRef.current = "";
+          },
+
+          onError: () => {
             setStreaming(false);
             setStreamingContent("");
-            return [];
-          });
-
-          abortRef.current = null;
-          streamContentRef.current = "";
-          streamMsgIdRef.current = "";
+            setStreamingToolCalls([]);
+            setColdStarting(false);
+            abortRef.current = null;
+            streamContentRef.current = "";
+            streamMsgIdRef.current = "";
+          },
         },
-
-        onError: () => {
-          setStreaming(false);
-          setStreamingContent("");
-          setStreamingToolCalls([]);
-          setColdStarting(false);
-          abortRef.current = null;
-          streamContentRef.current = "";
-          streamMsgIdRef.current = "";
-        },
-      });
+        mode,
+      );
 
       abortRef.current = controller;
     },

@@ -24,13 +24,11 @@ func TestStreamFromGateway_CapturesUsage(t *testing.T) {
 	conv, err := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat")
 	require.NoError(t, err)
 
-	// Mock gateway that sends usage in message_end.
+	// Mock gateway that returns JSON webhook response.
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "event: message_start\ndata: {\"id\":\"msg-u1\",\"role\":\"assistant\"}\n\n")
-		fmt.Fprint(w, "event: content_delta\ndata: {\"delta\":\"Done.\"}\n\n")
-		fmt.Fprint(w, "event: message_end\ndata: {\"id\":\"msg-u1\",\"usage\":{\"input_tokens\":1234,\"output_tokens\":567}}\n\n")
+		fmt.Fprint(w, `{"model":"gpt-4o","response":"Done."}`)
 	}))
 	defer ts.Close()
 
@@ -41,23 +39,22 @@ func TestStreamFromGateway_CapturesUsage(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", NewSSEWriter(&buf))
+	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", NewSSEWriter(&buf))
 	require.NoError(t, err)
 
-	// Verify usage was captured.
-	assert.Equal(t, 1234, result.InputTokens)
-	assert.Equal(t, 567, result.OutputTokens)
-	assert.Equal(t, "msg-u1", result.MessageID)
+	// JSON webhook response does not include usage data.
+	assert.Equal(t, 0, result.InputTokens)
+	assert.Equal(t, 0, result.OutputTokens)
+	assert.NotEmpty(t, result.MessageID)
 
-	// Verify persisted message has token counts.
+	// Verify persisted message.
 	msgs, err := svc.ListMessages(ctx, conv.ID, 10, 0)
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
-	assert.Equal(t, 1234, msgs[0].InputTokens)
-	assert.Equal(t, 567, msgs[0].OutputTokens)
+	assert.Equal(t, "Done.", msgs[0].Content)
 
-	// Verify SSE output includes usage.
+	// Verify SSE output includes the response content.
 	output := buf.String()
-	assert.Contains(t, output, "input_tokens")
-	assert.Contains(t, output, "1234")
+	assert.Contains(t, output, "event: message_start")
+	assert.Contains(t, output, "Done.")
 }

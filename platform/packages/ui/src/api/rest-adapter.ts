@@ -1580,6 +1580,7 @@ export class RestApiAdapter implements ApiAdapter {
     conversationId: string,
     content: string,
     handler: BravoSSEHandler,
+    mode?: string,
   ): AbortController {
     const controller = new AbortController();
     const url = `${this.baseUrl}${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/messages`;
@@ -1593,7 +1594,7 @@ export class RestApiAdapter implements ApiAdapter {
             Accept: "text/event-stream",
           },
           credentials: "same-origin",
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({ content, mode }),
           signal: controller.signal,
         });
 

@@ -543,6 +543,7 @@ export interface ApiAdapter {
     conversationId: string,
     content: string,
     handler: BravoSSEHandler,
+    mode?: string,
   ): AbortController;
 
   // Utility
