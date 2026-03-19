@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write # OIDC for Azure login
 
 jobs:
   cloud-e2e:
@@ -39,35 +38,12 @@ jobs:
         working-directory: platform/e2e/cloud
         run: npx playwright install --with-deps chromium
 
-      - name: Azure Login
-        uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Fetch Keycloak credentials
-        id: kc
-        run: |
-          KC_PASS=$(az keyvault secret show \
-            --vault-name kv-bowrain-dev \
-            --name keycloak-admin-password \
-            --query value -o tsv)
-          echo "::add-mask::$KC_PASS"
-          echo "admin_password=$KC_PASS" >> "$GITHUB_OUTPUT"
-
-          KC_FQDN=$(az containerapp show \
-            --name ca-bowrain-dev-keycloak \
-            --resource-group rg-bowrain-d-sdc \
-            --query 'properties.configuration.ingress.fqdn' -o tsv)
-          echo "admin_url=https://$KC_FQDN" >> "$GITHUB_OUTPUT"
-
       - name: Run cloud E2E tests
         working-directory: platform/e2e/cloud
         env:
           BOWRAIN_URL: https://dev.bowrain.cloud
-          KEYCLOAK_ADMIN_URL: ${{ steps.kc.outputs.admin_url }}
-          KEYCLOAK_ADMIN_PASSWORD: ${{ steps.kc.outputs.admin_password }}
+          KEYCLOAK_ADMIN_URL: https://ca-bowrain-dev-keycloak.icyplant-d6bbb1d6.swedencentral.azurecontainerapps.io
+          KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.DEV_KEYCLOAK_ADMIN_PASSWORD }}
         run: npx playwright test --reporter=list
         timeout-minutes: 5
 

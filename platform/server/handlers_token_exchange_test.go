@@ -19,7 +19,7 @@ func TestHandleTokenExchange_WithAPIToken(t *testing.T) {
 	e := srv.GetEcho()
 
 	// Create an API token via the API using a JWT.
-	jwtToken, err := platauth.GenerateToken(
+	jwtToken, _ := platauth.GenerateToken(
 		&platauth.User{ID: "ignored"}, // we need the real user
 		srv.Config.JWTSecret, 1*time.Hour)
 	// Instead, get JWT from newTokenTestServer and create API token.
