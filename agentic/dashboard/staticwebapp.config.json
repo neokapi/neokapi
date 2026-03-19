@@ -2,5 +2,11 @@
   "navigationFallback": {
     "rewrite": "/index.html",
     "exclude": ["/assets/*", "/icons.svg", "/favicon.svg"]
-  }
+  },
+  "routes": [
+    {
+      "route": "/workspace/*",
+      "rewrite": "/index.html"
+    }
+  ]
 }

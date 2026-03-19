@@ -2,6 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Agent } from '@/data/agents';
 import { sessions } from '@/data/sessions';
+import { workspaces } from '@/data/workspaces';
 import { useFilter } from '@/context/FilterContext';
 
 interface AgentCardProps {
@@ -19,7 +20,7 @@ function formatRelativeTime(iso: string): string {
 }
 
 export default function AgentCard({ agent }: AgentCardProps) {
-  const { setAgent } = useFilter();
+  const { addToken } = useFilter();
 
   const now = Date.now();
   const dayMs = 24 * 3_600_000;
@@ -29,10 +30,19 @@ export default function AgentCard({ agent }: AgentCardProps) {
 
   const isIdle = agent.status === 'sleeping' || agent.status === 'idle';
 
+  function handleClick() {
+    // Add workspace token first if not already present, then agent
+    const ws = workspaces.find((w) => w.id === agent.workspace);
+    if (ws) {
+      addToken({ key: 'workspace', value: ws.slug, label: ws.name });
+    }
+    addToken({ key: 'agent', value: agent.id, label: agent.name });
+  }
+
   return (
     <Card
       className="min-w-[220px] max-w-[280px] flex-shrink-0 cursor-pointer transition-colors hover:bg-accent/30"
-      onClick={() => setAgent(agent.id)}
+      onClick={handleClick}
     >
       <CardContent className="space-y-2.5 pt-4">
         {/* Name + Role */}
