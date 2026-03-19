@@ -12,6 +12,10 @@ RUN chmod +x /bravo/entrypoint.sh
 FROM ghcr.io/zeroclaw-labs/zeroclaw:latest
 COPY --from=prep /bin/busybox /bravo/busybox
 COPY --from=prep /bravo/ /bravo/
+# Bake workspace identity + scoping files into the image.
+COPY docker/bravo/workspace/SOUL.md /zeroclaw-data/workspace/SOUL.md
+COPY docker/bravo/workspace/IDENTITY.md /zeroclaw-data/workspace/IDENTITY.md
+COPY docker/bravo/workspace/MEMORY.md /zeroclaw-data/workspace/MEMORY.md
 
 ENV ZEROCLAW_GATEWAY_PORT=42617
 EXPOSE 42617
