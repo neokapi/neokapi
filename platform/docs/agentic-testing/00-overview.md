@@ -22,8 +22,10 @@ The system forks/mirrors active open source projects and manages their localizat
 Each agent persona runs as an independent **ZeroClaw** container — a lightweight Rust-based AI agent runtime (~3.4MB binary, &lt;5MB RAM). Agents interact with Bowrain through the Bravo MCP server (24 tools, already built) and coordinate through the platform.
 
 **Two deployment models, identical personas:**
-- **Local (docker-compose):** ZeroClaw daemons with cron + heartbeat polling
+- **Local (docker-compose):** ZeroClaw daemons with cron + heartbeat polling, optionally supplemented by Redis pub/sub for instant handoffs (Redis is already in the platform compose stack for Bravo SSE relay)
 - **Azure (Container Apps Jobs):** Scheduled + event-driven jobs via KEDA/Service Bus — pay only for execution time, instant handoffs
+
+**We are not building a new messaging system.** The agentic testing system adds a thin adapter to the existing ChannelEventBus that forwards events to Redis (local) or Service Bus (Azure) — the same infrastructure Bravo already uses for SSE relay and job queuing.
 
 ```
 ┌──────────────────── docker-compose ────────────────────────┐
@@ -43,7 +45,13 @@ Each agent persona runs as an independent **ZeroClaw** container — a lightweig
 │         │                                                   │
 │  ┌──────▼───────────────────────────────────────────────┐  │
 │  │              Bowrain Platform                          │  │
-│  │  (Server + Web + CLI + GitHub Actions)                 │  │
+│  │  (Server + ChannelEventBus + Web + CLI)               │  │
+│  │         │                                              │  │
+│  │   ChannelEventBus (50+ event types)                   │  │
+│  │         │                                              │  │
+│  │   Queue Sink Adapter                                   │  │
+│  │     ├── Redis pub/sub (local) ─── agentic:* channels  │  │
+│  │     └── Service Bus (Azure) ───── KEDA triggers       │  │
 │  └──────┬───────────────────────────────────────────────┘  │
 │         │                                                   │
 │  ┌──────▼───────────────────────────────────────────────┐  │

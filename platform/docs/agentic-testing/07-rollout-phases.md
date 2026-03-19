@@ -15,6 +15,9 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
       Bowrain MCP endpoint (`/mcp/`) with a valid agent token. Confirm: cron fires
       reliably, HTTP transport stays connected, no memory leaks, daemon survives
       container restarts. If this fails, the plan needs a different agent runtime.
+- [ ] **Redis already available:** The platform compose stack includes Redis for Bravo
+      SSE relay (`bravo:sse:{conversationID}` channels). No new infrastructure needed
+      for agentic event handoffs — they use `agentic:*` channels on the same instance.
 - [ ] **MCP tool coverage check:** Verify the 24 existing Bravo MCP tools cover the
       agentic testing workflows. Key tools to validate:
       - `connector_pull` / `connector_push` — can these sync git-based content?
@@ -84,13 +87,17 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
 
 ## Phase 2: Full Team & Heartbeat Coordination (Week 6-8)
 
-**Goal:** Full agent team with heartbeat-based coordination. System runs autonomously.
+**Goal:** Full agent team with heartbeat-based coordination, optionally supplemented by
+Redis pub/sub for instant handoffs. System runs autonomously.
 
 ### Deliverables
 
 - [ ] PM Agent workspace (Lisa Chen) — creates tasks, monitors progress
 - [ ] QA Agent workspace (Taylor Kim) — runs quality checks
 - [ ] HEARTBEAT.md for all agents — poll-based event discovery
+- [ ] Redis pub/sub subscription for agents that benefit from instant handoffs
+      (Translators, QA). Heartbeat polling remains as fallback. Redis is already
+      available from the platform compose stack (Bravo SSE relay).
 - [ ] Per-agent auth (separate Keycloak users per agent)
 - [ ] Add Gitea (INI format — breadth test)
 - [ ] Container restart policies and health monitoring
@@ -177,8 +184,10 @@ release history to build months of activity.
 - [ ] Provision Azure AI Foundry endpoint for Claude Sonnet (serverless)
 - [ ] Create `agent-job.bicep` module — Container Apps Jobs (scheduled + event-driven)
 - [ ] Create Service Bus queues for agent handoffs (`content-pushed`, `tasks-created-{locale}`,
-      `translation-complete`, `qa-passed`)
-- [ ] Add Service Bus adapter to Bowrain's event bus (publish selected events to queues)
+      `translation-complete`, `qa-passed`) — same Service Bus namespace as `bravo-jobs`
+- [ ] Enable Service Bus backend in the queue sink adapter (the adapter already publishes
+      to Redis locally; switching to Service Bus is a config change via
+      `BOWRAIN_AGENT_RUNTIME=queue`, the same flag that controls Bravo's queue mode)
 - [ ] Config overlays: `config.azure-dev.toml` per agent
 - [ ] Deploy agent job fleet to `rg-bowrain-d-sdc` (dev environment)
 - [ ] Verify event-driven handoff chain: push → tasks → translate → QA → pull
