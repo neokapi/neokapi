@@ -87,6 +87,20 @@ func (r *ACARuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*AgentCont
 		envVars = append(envVars, acaEnvVar{Name: k, Value: v})
 	}
 
+	secrets := []acaSecret{
+		{Name: "model-api-key", Value: cfg.ModelAPIKey},
+		{Name: "agent-token", Value: cfg.AgentToken},
+	}
+	var registries []acaRegistry
+	if cfg.RegistryServer != "" && cfg.RegistryPassword != "" {
+		secrets = append(secrets, acaSecret{Name: "registry-password", Value: cfg.RegistryPassword})
+		registries = append(registries, acaRegistry{
+			Server:            cfg.RegistryServer,
+			Username:          cfg.RegistryUsername,
+			PasswordSecretRef: "registry-password",
+		})
+	}
+
 	app := acaContainerApp{
 		Location: r.location,
 		Properties: acaProperties{
@@ -94,13 +108,11 @@ func (r *ACARuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*AgentCont
 			Configuration: acaConfiguration{
 				Ingress: &acaIngress{
 					TargetPort: gatewayPort,
-					External:   false, // internal only within the environment
+					External:   false,
 					Transport:  "auto",
 				},
-				Secrets: []acaSecret{
-					{Name: "model-api-key", Value: cfg.ModelAPIKey},
-					{Name: "agent-token", Value: cfg.AgentToken},
-				},
+				Secrets:    secrets,
+				Registries: registries,
 			},
 			Template: acaTemplate{
 				Containers: []acaContainer{
@@ -357,8 +369,15 @@ type acaProperties struct {
 }
 
 type acaConfiguration struct {
-	Ingress *acaIngress  `json:"ingress,omitempty"`
-	Secrets []acaSecret  `json:"secrets,omitempty"`
+	Ingress    *acaIngress   `json:"ingress,omitempty"`
+	Secrets    []acaSecret   `json:"secrets,omitempty"`
+	Registries []acaRegistry `json:"registries,omitempty"`
+}
+
+type acaRegistry struct {
+	Server            string `json:"server"`
+	Username          string `json:"username"`
+	PasswordSecretRef string `json:"passwordSecretRef"`
 }
 
 type acaIngress struct {
