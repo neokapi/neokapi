@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { useFilter } from '../context/FilterContext';
 import { sessions } from '../data/sessions';
 import { agents, accentColorMap } from '../data/agents';
+import { useTheme } from '../context/ThemeContext';
 
 interface ToolData {
   tool: string;
@@ -13,19 +14,24 @@ interface ToolData {
 
 export default function ToolUsageChart() {
   const { selectedWorkspace } = useFilter();
+  const { theme } = useTheme();
 
   const data = useMemo(() => {
     const filtered = selectedWorkspace
       ? sessions.filter((s) => s.workspace === selectedWorkspace)
       : sessions;
 
-    const toolMap = new Map<string, { count: number; byAgent: Record<string, number> }>();
+    const toolMap = new Map<
+      string,
+      { count: number; byAgent: Record<string, number> }
+    >();
 
     for (const sess of filtered) {
       for (const tc of sess.toolCalls) {
         const entry = toolMap.get(tc.tool) ?? { count: 0, byAgent: {} };
         entry.count++;
-        entry.byAgent[sess.agentId] = (entry.byAgent[sess.agentId] ?? 0) + 1;
+        entry.byAgent[sess.agentId] =
+          (entry.byAgent[sess.agentId] ?? 0) + 1;
         toolMap.set(tc.tool, entry);
       }
     }
@@ -41,8 +47,7 @@ export default function ToolUsageChart() {
   const toolColors = useMemo(() => {
     const colorMap: Record<string, string> = {};
     for (const d of data) {
-      // Use the color of the agent who uses this tool most
-      let maxAgent = "";
+      let maxAgent = '';
       let maxCount = 0;
       for (const [agentId, count] of Object.entries(d.byAgent)) {
         if (count > maxCount) {
@@ -51,7 +56,9 @@ export default function ToolUsageChart() {
         }
       }
       const agent = agents.find((a) => a.id === maxAgent);
-      colorMap[d.tool] = agent ? accentColorMap[agent.accentColor] || "#f59e0b" : "#f59e0b";
+      colorMap[d.tool] = agent
+        ? accentColorMap[agent.accentColor] || '#d9a03c'
+        : '#d9a03c';
     }
     return colorMap;
   }, [data]);
@@ -61,46 +68,87 @@ export default function ToolUsageChart() {
     if (!active || !payload?.[0]) return null;
     const d = payload[0].payload as ToolData;
     return (
-      <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] p-2.5 shadow-lg">
-        <div className="font-[family-name:var(--font-mono)] text-xs font-semibold text-[var(--color-text-primary)]">
+      <div
+        className="rounded-lg p-2.5 shadow-lg"
+        style={{
+          backgroundColor: 'rgb(var(--bg-base))',
+          border: '1px solid rgb(var(--border))',
+        }}
+      >
+        <div
+          className="font-mono text-xs font-semibold"
+          style={{ color: 'rgb(var(--text-primary))' }}
+        >
           {d.tool}
         </div>
-        <div className="mt-1 text-[10px] text-[var(--color-text-muted)]">
+        <div
+          className="mt-1 text-[10px]"
+          style={{ color: 'rgb(var(--text-muted))' }}
+        >
           {d.count} calls total
         </div>
         <div className="mt-1 space-y-0.5">
-          {Object.entries(d.byAgent).sort(([,a],[,b]) => b - a).map(([agentId, count]) => {
-            const agent = agents.find((a) => a.id === agentId);
-            return (
-              <div key={agentId} className="flex items-center gap-1.5 text-[10px] text-[var(--color-text-secondary)]">
-                <span>{agent?.avatar}</span>
-                <span>{agent?.name}: {count}</span>
-              </div>
-            );
-          })}
+          {Object.entries(d.byAgent)
+            .sort(([, a], [, b]) => b - a)
+            .map(([agentId, count]) => {
+              const agent = agents.find((a) => a.id === agentId);
+              return (
+                <div
+                  key={agentId}
+                  className="flex items-center gap-1.5 text-[10px]"
+                  style={{ color: 'rgb(var(--text-secondary))' }}
+                >
+                  <span>{agent?.avatar}</span>
+                  <span>
+                    {agent?.name}: {count}
+                  </span>
+                </div>
+              );
+            })}
         </div>
       </div>
     );
   };
 
+  const axisTextColor =
+    theme === 'dark' ? 'rgb(160, 152, 140)' : 'rgb(100, 90, 80)';
+  const mutedColor =
+    theme === 'dark' ? 'rgb(100, 94, 86)' : 'rgb(155, 148, 138)';
+
   return (
     <motion.div
-      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-5"
+      className="rounded-xl p-5"
+      style={{
+        backgroundColor: 'rgb(var(--bg-card))',
+        border: '1px solid rgb(var(--border))',
+      }}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
     >
-      <h3 className="mb-4 font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
+      <h3
+        className="mb-4 font-mono text-sm font-semibold"
+        style={{ color: 'rgb(var(--text-primary))' }}
+      >
         Tool Usage
       </h3>
-      <ResponsiveContainer width="100%" height={data.length * 40 + 20}>
-        <BarChart data={data} layout="vertical" margin={{ left: 20, right: 20, top: 5, bottom: 5 }}>
-          <XAxis type="number" tick={{ fontSize: 10, fill: "var(--color-text-muted)" }} axisLine={false} tickLine={false} />
+      <ResponsiveContainer width="100%" height={300}>
+        <BarChart
+          data={data}
+          layout="vertical"
+          margin={{ left: 20, right: 20, top: 5, bottom: 5 }}
+        >
+          <XAxis
+            type="number"
+            tick={{ fontSize: 10, fill: mutedColor }}
+            axisLine={false}
+            tickLine={false}
+          />
           <YAxis
             type="category"
             dataKey="tool"
-            tick={{ fontSize: 11, fill: "var(--color-text-secondary)", fontFamily: "var(--font-mono)" }}
+            tick={{ fontSize: 11, fill: axisTextColor }}
             axisLine={false}
             tickLine={false}
             width={110}

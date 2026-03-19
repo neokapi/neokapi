@@ -4,7 +4,7 @@ import { sessions } from '../data/sessions';
 import { issues } from '../data/issues';
 
 export default function HeroSection() {
-  const activeWorkspaces = workspaces.filter((w) => w.status === "active").length;
+  const activeWorkspaces = workspaces.filter((w) => w.status === 'active').length;
 
   const now = Date.now();
   const weekMs = 7 * 24 * 3_600_000;
@@ -21,51 +21,37 @@ export default function HeroSection() {
   const totalIssues = issues.length;
 
   const stats = [
-    { label: "Active Workspaces", value: activeWorkspaces.toString() },
-    { label: "Sessions This Week", value: sessionsThisWeek.toString() },
-    { label: "Tool Calls Today", value: toolCallsToday.toString() },
-    { label: "Issues Filed", value: totalIssues.toString() },
+    { label: 'Active Workspaces', value: activeWorkspaces.toString() },
+    { label: 'Sessions This Week', value: sessionsThisWeek.toString() },
+    { label: 'Tool Calls Today', value: toolCallsToday.toString() },
+    { label: 'Issues Filed', value: totalIssues.toString() },
   ];
 
   return (
-    <section className="relative overflow-hidden px-6 py-20">
-      {/* Animated background dots */}
-      <div className="pointer-events-none absolute inset-0">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <motion.div
-            key={i}
-            className="absolute h-1 w-1 rounded-full bg-[var(--color-accent-amber)]"
-            style={{
-              left: `${(i * 37) % 100}%`,
-              top: `${(i * 23) % 100}%`,
-              opacity: 0.15,
-            }}
-            animate={{
-              y: [0, -20, 0],
-              opacity: [0.1, 0.3, 0.1],
-            }}
-            transition={{
-              duration: 3 + (i % 3),
-              repeat: Infinity,
-              delay: i * 0.2,
-            }}
-          />
-        ))}
-      </div>
+    <section className="relative overflow-hidden px-4 py-16 sm:px-6 sm:py-20">
+      {/* Radial gradient background */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background: `radial-gradient(ellipse at center top, rgb(var(--accent) / 0.06) 0%, transparent 60%)`,
+        }}
+      />
 
       <div className="relative mx-auto max-w-4xl text-center">
         <motion.h1
-          className="font-[family-name:var(--font-display)] text-5xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-6xl lg:text-7xl"
+          className="font-display text-4xl font-normal tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+          style={{ color: 'rgb(var(--text-primary))' }}
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
           Agent{' '}
-          <span className="text-[var(--color-accent-amber)]">Operations</span>
+          <span style={{ color: 'rgb(var(--accent))' }}>Operations</span>
         </motion.h1>
 
         <motion.p
-          className="mx-auto mt-6 max-w-2xl text-lg text-[var(--color-text-secondary)]"
+          className="mx-auto mt-4 max-w-2xl text-base sm:mt-6 sm:text-lg"
+          style={{ color: 'rgb(var(--text-secondary))' }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
@@ -74,7 +60,7 @@ export default function HeroSection() {
         </motion.p>
 
         <motion.div
-          className="mt-12 grid grid-cols-2 gap-6 md:grid-cols-4"
+          className="mt-8 grid grid-cols-2 gap-4 sm:mt-12 sm:gap-6 md:grid-cols-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
@@ -82,12 +68,22 @@ export default function HeroSection() {
           {stats.map((stat) => (
             <div
               key={stat.label}
-              className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-4"
+              className="animate-pulse-border rounded-xl p-4"
+              style={{
+                backgroundColor: 'rgb(var(--bg-card))',
+                border: '1px solid rgb(var(--accent) / 0.2)',
+              }}
             >
-              <div className="font-[family-name:var(--font-mono)] text-2xl font-bold text-[var(--color-accent-amber)]">
+              <div
+                className="font-mono text-2xl font-bold sm:text-3xl"
+                style={{ color: 'rgb(var(--accent))' }}
+              >
                 {stat.value}
               </div>
-              <div className="mt-1 text-sm text-[var(--color-text-muted)]">
+              <div
+                className="mt-1 text-xs sm:text-sm"
+                style={{ color: 'rgb(var(--text-muted))' }}
+              >
                 {stat.label}
               </div>
             </div>
