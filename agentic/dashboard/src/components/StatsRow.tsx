@@ -1,30 +1,32 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { workspaces } from '@/data/workspaces';
 import { sessions } from '@/data/sessions';
-import { issues } from '@/data/issues';
 
 export default function StatsRow() {
-  const activeWorkspaces = workspaces.filter((w) => w.status === 'active').length;
-
   const now = Date.now();
-  const weekMs = 7 * 24 * 3_600_000;
   const dayMs = 24 * 3_600_000;
 
-  const sessionsThisWeek = sessions.filter(
-    (s) => now - new Date(s.startTime).getTime() < weekMs
-  ).length;
+  const todaySessions = sessions.filter(
+    (s) => now - new Date(s.startTime).getTime() < dayMs
+  );
 
-  const toolCallsToday = sessions
-    .filter((s) => now - new Date(s.startTime).getTime() < dayMs)
-    .reduce((sum, s) => sum + s.toolCalls.length, 0);
+  const jobsToday = todaySessions.length;
 
-  const totalIssues = issues.length;
+  const totalSessions = sessions.length;
+  const succeededSessions = sessions.filter((s) => s.status === 'succeeded').length;
+  const successRate = totalSessions > 0
+    ? Math.round((succeededSessions / totalSessions) * 100)
+    : 0;
+
+  const aiSpendToday = todaySessions.reduce((sum, s) => sum + s.costUsd, 0);
+
+  // Mock queue depth
+  const queueDepth = 3;
 
   const stats = [
-    { label: 'Active Workspaces', value: activeWorkspaces },
-    { label: 'Sessions This Week', value: sessionsThisWeek },
-    { label: 'Tool Calls Today', value: toolCallsToday },
-    { label: 'Issues Filed', value: totalIssues },
+    { label: 'Jobs Today', value: String(jobsToday), detail: 'executions' },
+    { label: 'Success Rate', value: `${successRate}%`, detail: 'all time' },
+    { label: 'AI Spend', value: `$${aiSpendToday.toFixed(2)}`, detail: 'today' },
+    { label: 'Queue Depth', value: String(queueDepth), detail: 'pending' },
   ];
 
   return (
@@ -34,6 +36,7 @@ export default function StatsRow() {
           <CardContent className="pt-6">
             <div className="text-2xl font-bold tabular-nums">{stat.value}</div>
             <p className="text-xs text-muted-foreground">{stat.label}</p>
+            <p className="text-[10px] text-muted-foreground/60">{stat.detail}</p>
           </CardContent>
         </Card>
       ))}

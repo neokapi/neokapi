@@ -9,10 +9,7 @@ export default function Header() {
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3">
-          <span className="text-xl font-semibold tracking-tight">bowrain</span>
-          <span className="hidden rounded-full border px-3 py-0.5 font-mono text-xs text-muted-foreground sm:inline-block">
-            agents.dev.bowrain.cloud
-          </span>
+          <span className="text-xl font-semibold tracking-tight">bowrain agents</span>
         </div>
 
         <div className="flex items-center gap-1">
