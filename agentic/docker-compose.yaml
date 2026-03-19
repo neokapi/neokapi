@@ -56,14 +56,6 @@ services:
     depends_on:
       - mailpit
 
-  # === Optional: Redis for event signaling (accelerated mode) ===
-  redis:
-    image: redis:7-alpine
-    profiles:
-      - accelerated
-    ports:
-      - "6379:6379"
-
   # === Optional: Release Walker (accelerated mode) ===
   release-walker:
     build: ./release-walker
@@ -91,124 +83,97 @@ services:
     volumes:
       - ollama-data:/root/.ollama
 
-  # === Agents ===
-  # Each agent connects directly to bowrain-server's /mcp/ endpoint
-  # using a per-agent JWT token (same auth as Bravo interactive sessions).
-  # No MCP sidecar needed — the MCP server is built into bowrain-server.
+  # ==========================================================================
+  # Workspace Agents
+  #
+  # Each workspace is a self-contained localization experiment for an open-source
+  # project. Agents within a workspace have context-specific personas (not generic
+  # roles). You can start a single workspace's agents independently.
+  # ==========================================================================
 
-  # --- Developer ---
-  alex-developer:
+  # === Excalidraw Workspace ===
+  # Collaborative whiteboard — fr-FR + de-DE
+  # See workspaces/excalidraw/README.md for details
+
+  # --- L10N Engineer ---
+  excalidraw-alex:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
     command: daemon
     restart: unless-stopped
     environment:
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BOWRAIN_API_TOKEN: ${EXCALIDRAW_ALEX_TOKEN}
       BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${ALEX_AGENT_TOKEN}
+      ZEROCLAW_PROVIDER: azure_openai
+      ZEROCLAW_MODEL: gpt-4o-mini
+      AZURE_OPENAI_RESOURCE: ${AZURE_OPENAI_RESOURCE}
+      ZEROCLAW_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AGENT_NAME: alex
+      AGENT_EMAIL: alex@excalidraw-l10n.bowrain.test
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      AGENT_NAME: Alex Chen
-      AGENT_EMAIL: alex.chen@bowrain.test
     volumes:
-      - ./agents/alex-developer:/root/.zeroclaw
-      - ./forks:/root/.zeroclaw/workspace
+      - ./workspaces/excalidraw/agents/alex:/root/.zeroclaw
+      - ./forks/excalidraw:/root/.zeroclaw/workspace
     depends_on:
       - bowrain-server
 
-  # --- Translator: French ---
-  jeanpierre-fr:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
-      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${JEANPIERRE_AGENT_TOKEN}
-      AGENT_NAME: Jean-Pierre Dubois
-      AGENT_EMAIL: jeanpierre.dubois@bowrain.test
-    volumes:
-      - ./agents/jeanpierre-fr:/root/.zeroclaw
-    depends_on:
-      - bowrain-server
-
-  # --- Translator: German ---
-  katrin-de:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
-      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${KATRIN_AGENT_TOKEN}
-      AGENT_NAME: Katrin Weber
-      AGENT_EMAIL: katrin.weber@bowrain.test
-    volumes:
-      - ./agents/katrin-de:/root/.zeroclaw
-    depends_on:
-      - bowrain-server
-
-  # --- Translator: Japanese ---
-  yuki-ja:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
-      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${YUKI_AGENT_TOKEN}
-      AGENT_NAME: Yuki Tanaka
-      AGENT_EMAIL: yuki.tanaka@bowrain.test
-    volumes:
-      - ./agents/yuki-ja:/root/.zeroclaw
-    depends_on:
-      - bowrain-server
-
-  # --- Brand Manager ---
-  maria-brand:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    command: daemon
-    restart: unless-stopped
-    environment:
-      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
-      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${MARIA_AGENT_TOKEN}
-      AGENT_NAME: Maria Santos
-      AGENT_EMAIL: maria.santos@bowrain.test
-    volumes:
-      - ./agents/maria-brand:/root/.zeroclaw
-    depends_on:
-      - bowrain-server
-
-  # --- Project Manager ---
-  lisa-pm:
+  # --- French Language Expert ---
+  excalidraw-sophie:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
     command: daemon
     restart: unless-stopped
     environment:
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BOWRAIN_API_TOKEN: ${EXCALIDRAW_SOPHIE_TOKEN}
       BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${LISA_AGENT_TOKEN}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      AGENT_NAME: Lisa Chen
-      AGENT_EMAIL: lisa.chen@bowrain.test
+      ZEROCLAW_PROVIDER: azure_openai
+      ZEROCLAW_MODEL: gpt-4o
+      AZURE_OPENAI_RESOURCE: ${AZURE_OPENAI_RESOURCE}
+      ZEROCLAW_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AGENT_NAME: sophie
+      AGENT_EMAIL: sophie@excalidraw-l10n.bowrain.test
     volumes:
-      - ./agents/lisa-pm:/root/.zeroclaw
+      - ./workspaces/excalidraw/agents/sophie:/root/.zeroclaw
     depends_on:
       - bowrain-server
 
-  # --- QA ---
-  taylor-qa:
+  # --- German Language Expert ---
+  excalidraw-thomas:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
     command: daemon
     restart: unless-stopped
     environment:
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BOWRAIN_API_TOKEN: ${EXCALIDRAW_THOMAS_TOKEN}
       BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
-      BRAVO_AGENT_TOKEN: ${TAYLOR_AGENT_TOKEN}
-      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
-      AGENT_NAME: Taylor Kim
-      AGENT_EMAIL: taylor.kim@bowrain.test
+      ZEROCLAW_PROVIDER: azure_openai
+      ZEROCLAW_MODEL: gpt-4o
+      AZURE_OPENAI_RESOURCE: ${AZURE_OPENAI_RESOURCE}
+      ZEROCLAW_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AGENT_NAME: thomas
+      AGENT_EMAIL: thomas@excalidraw-l10n.bowrain.test
     volumes:
-      - ./agents/taylor-qa:/root/.zeroclaw
+      - ./workspaces/excalidraw/agents/thomas:/root/.zeroclaw
+    depends_on:
+      - bowrain-server
+
+  # --- Reviewer ---
+  excalidraw-mei:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BOWRAIN_API_TOKEN: ${EXCALIDRAW_MEI_TOKEN}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      ZEROCLAW_PROVIDER: azure_openai
+      ZEROCLAW_MODEL: gpt-4o
+      AZURE_OPENAI_RESOURCE: ${AZURE_OPENAI_RESOURCE}
+      ZEROCLAW_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AGENT_NAME: mei
+      AGENT_EMAIL: mei@excalidraw-l10n.bowrain.test
+    volumes:
+      - ./workspaces/excalidraw/agents/mei:/root/.zeroclaw
     depends_on:
       - bowrain-server
 
