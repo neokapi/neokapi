@@ -116,9 +116,10 @@ Schedules live in each agent's `config.toml`:
 "morning-check" = "0 10 * * 1-5"     # Weekdays 10am: review dashboard (after Developer 9am push)
 ```
 
-### Event Discovery via Activity Feed
+### Event Discovery via Activity Feed (Heartbeat Polling)
 
-Instead of a central event router, agents discover events by polling:
+The simplest coordination model: agents discover events by polling Bowrain's activity
+feed on their heartbeat cycle. No external dependencies beyond Bowrain itself.
 
 | What the PM sees in activity feed | What PM does |
 |----------------------------------|--------------|
@@ -134,11 +135,35 @@ Instead of a central event router, agents discover events by polling:
 This is more realistic than event-driven triggers — humans check dashboards, not webhooks.
 It works well for local development but has 1-2 hour latency between handoffs.
 
+### Local: Redis Pub/Sub for Instant Handoffs
+
+For faster local handoffs, agents can subscribe to Redis pub/sub channels. Redis is
+**already in the platform compose stack** — Bravo uses it for SSE relay
+(`bravo:sse:{conversationID}` channels). The agentic testing system reuses the same
+Redis instance.
+
+```
+Developer pushes content (cron: 9am)
+  → ChannelEventBus fires ContentPushed event
+  → Queue sink adapter publishes to Redis channel: agentic:content-pushed
+  → PM agent's Redis subscription triggers immediately
+
+PM creates tasks
+  → ChannelEventBus fires TasksCreated event
+  → Queue sink adapter publishes to Redis channel: agentic:tasks-created-fr
+  → French Translator agent reacts immediately
+```
+
+This gives Azure-like instant handoffs locally, without needing Service Bus.
+ZeroClaw agents can subscribe to Redis channels directly (in addition to their
+heartbeat cycle), so both coordination modes coexist.
+
 ### Azure: Event-Driven Handoffs via Service Bus
 
 In Azure, agents use **Container Apps Jobs** with KEDA scalers monitoring Azure Service Bus
-queues. Bowrain's event bus publishes events; a Service Bus adapter routes them to
-per-agent queues. Handoffs are instant — no polling delay.
+queues. The same ChannelEventBus events that go to Redis locally are routed to Service Bus
+queues in Azure. Service Bus is **already deployed** for `bravo-jobs` and
+`translation-jobs` — the agentic system adds queues to the same namespace.
 
 ```
 content-pushed queue    → triggers PM job (create tasks)
@@ -153,12 +178,48 @@ Scheduled agents (Developer push, Brand Manager) use Azure-managed cron instead 
 ZeroClaw's daemon cron. See `04-implementation.md` → "Azure Deployment: Container Apps Jobs"
 for the full Bicep templates and agent job matrix.
 
+### ChannelEventBus → Queue Sink Adapter
+
+The key architectural piece is a **queue sink adapter** that subscribes to the existing
+in-process ChannelEventBus (50+ event types) and forwards selected events to external
+queues. This is a thin subscriber — not a new event system.
+
+```
+Bowrain Server Process
+  │
+  ├── ChannelEventBus (in-process, Go channels)
+  │     │
+  │     ├── existing subscribers (automation, SSE, webhooks, ...)
+  │     │
+  │     └── Queue Sink Subscriber (NEW)
+  │           │
+  │           ├── [local]  → Redis PUBLISH agentic:{event-type}
+  │           └── [azure]  → Service Bus send to {queue-name}
+```
+
+**Event routing rules** (configured, not hardcoded):
+
+| ChannelEventBus Event | Redis Channel (local) | Service Bus Queue (Azure) |
+|----------------------|----------------------|--------------------------|
+| `ContentPushed` | `agentic:content-pushed` | `content-pushed` |
+| `TasksCreated` | `agentic:tasks-created-{locale}` | `tasks-created-{locale}` |
+| `TranslationComplete` | `agentic:translation-complete` | `translation-complete` |
+| `QAPassed` | `agentic:qa-passed` | `qa-passed` |
+
+The adapter backend is selected by environment variable:
+- `BOWRAIN_AGENT_RUNTIME=local` → Redis pub/sub (default for docker-compose)
+- `BOWRAIN_AGENT_RUNTIME=queue` → Service Bus (Azure deployments)
+
+This is the same `BOWRAIN_AGENT_RUNTIME` flag that already controls whether Bowrain runs
+API and worker in the same process or as separate processes connected via Service Bus + Redis.
+
 **When to use which:**
 
-| Environment | Scheduling | Coordination | Latency |
-|-------------|-----------|--------------|---------|
-| Local (docker-compose) | ZeroClaw daemon cron | Poll activity feed (heartbeat) | 1-2 hours |
-| Azure (Container Apps) | Azure scheduled jobs | Event-driven (Service Bus + KEDA) | Seconds |
+| Environment | Scheduling | Coordination | Latency | Notes |
+|-------------|-----------|--------------|---------|-------|
+| Local (simple) | ZeroClaw daemon cron | Poll activity feed (heartbeat) | 1-2 hours | No Redis needed |
+| Local (instant) | ZeroClaw daemon cron | Redis pub/sub (agentic:* channels) | Seconds | Same Redis as Bravo SSE |
+| Azure (Container Apps) | Azure scheduled jobs | Event-driven (Service Bus + KEDA) | Seconds | Same Service Bus as bravo-jobs |
 
 ## Failure Handling
 
