@@ -1,115 +1,76 @@
 import { Github, Moon, Sun, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { Button } from '@/components/ui/button';
 
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <header
-      className="sticky top-0 z-50"
-      style={{
-        backgroundColor: `rgb(var(--bg-base) / 0.95)`,
-        backdropFilter: 'blur(12px)',
-        borderBottom: '1px solid rgb(var(--border))',
-        boxShadow: `0 1px 0 rgb(var(--accent) / 0.1)`,
-      }}
-    >
+    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-sm">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6">
         <div className="flex items-center gap-3 sm:gap-4">
-          <span
-            className="font-display text-xl font-normal italic tracking-tight sm:text-2xl"
-            style={{ color: 'rgb(var(--accent))' }}
-          >
+          <span className="text-xl font-semibold tracking-tight sm:text-2xl">
             bowrain
           </span>
-          <span
-            className="hidden rounded-full px-3 py-0.5 font-mono text-xs sm:inline-block"
-            style={{
-              color: 'rgb(var(--text-muted))',
-              border: '1px solid rgb(var(--border))',
-            }}
-          >
+          <span className="hidden rounded-full border px-3 py-0.5 font-mono text-xs text-muted-foreground sm:inline-block">
             agents.dev.bowrain.cloud
           </span>
         </div>
 
         {/* Desktop controls */}
-        <div className="hidden items-center gap-3 sm:flex">
-          <button
+        <div className="hidden items-center gap-1 sm:flex">
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={toggleTheme}
-            className="rounded-lg p-2 transition-colors"
-            style={{ color: 'rgb(var(--text-secondary))' }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgb(var(--bg-elevated))';
-              (e.currentTarget as HTMLElement).style.color = 'rgb(var(--text-primary))';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-              (e.currentTarget as HTMLElement).style.color = 'rgb(var(--text-secondary))';
-            }}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
           <a
             href="https://github.com/neokapi/neokapi"
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-lg p-2 transition-colors"
-            style={{ color: 'rgb(var(--text-secondary))' }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'rgb(var(--bg-elevated))';
-              (e.currentTarget as HTMLElement).style.color = 'rgb(var(--text-primary))';
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
-              (e.currentTarget as HTMLElement).style.color = 'rgb(var(--text-secondary))';
-            }}
             aria-label="GitHub"
+            className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-muted"
           >
-            <Github size={18} />
+            <Github className="h-4 w-4" />
           </a>
         </div>
 
         {/* Mobile hamburger */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
+          className="sm:hidden"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="rounded-lg p-2 sm:hidden"
-          style={{ color: 'rgb(var(--text-secondary))' }}
           aria-label="Menu"
         >
-          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+          {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
       </div>
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div
-          className="border-t px-4 py-3 sm:hidden"
-          style={{
-            borderColor: 'rgb(var(--border))',
-            backgroundColor: 'rgb(var(--bg-surface))',
-          }}
-        >
+        <div className="border-t bg-card px-4 py-3 sm:hidden">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => { toggleTheme(); setMobileMenuOpen(false); }}
-              className="flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-2 text-sm"
-              style={{ color: 'rgb(var(--text-secondary))' }}
             >
-              {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+              {theme === 'dark' ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
-            </button>
+            </Button>
             <a
               href="https://github.com/neokapi/neokapi"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex min-h-[44px] items-center gap-2 rounded-lg px-3 py-2 text-sm"
-              style={{ color: 'rgb(var(--text-secondary))' }}
+              className="inline-flex h-7 items-center gap-2 rounded-lg px-2.5 text-sm hover:bg-muted"
             >
-              <Github size={18} />
+              <Github className="h-4 w-4" />
               GitHub
             </a>
           </div>
