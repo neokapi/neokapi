@@ -29,11 +29,11 @@ func TestQueueSinkRoutesContentPush(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "content-pushed", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "content-pushed", pub.GetMessages()[0].Queue)
 
 	var msg QueueMessage
-	require.NoError(t, json.Unmarshal(pub.Messages[0].Data, &msg))
+	require.NoError(t, json.Unmarshal(pub.GetMessages()[0].Data, &msg))
 	assert.Equal(t, "connector.push.completed", msg.EventType)
 	assert.Equal(t, "proj-1", msg.ProjectID)
 	assert.Equal(t, "ws-1", msg.WorkspaceID)
@@ -54,8 +54,8 @@ func TestQueueSinkRoutesExtractionToContentPushed(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "content-pushed", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "content-pushed", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkRoutesBlockCreatedWithLocale(t *testing.T) {
@@ -74,8 +74,8 @@ func TestQueueSinkRoutesBlockCreatedWithLocale(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "tasks-created-fr-fr", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "tasks-created-fr-fr", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkRoutesBlockCreatedWithTargetLocale(t *testing.T) {
@@ -94,8 +94,8 @@ func TestQueueSinkRoutesBlockCreatedWithTargetLocale(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "tasks-created-de-de", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "tasks-created-de-de", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkRoutesBlockCreatedNoLocale(t *testing.T) {
@@ -114,8 +114,8 @@ func TestQueueSinkRoutesBlockCreatedNoLocale(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "tasks-created", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "tasks-created", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkRoutesBlockUpdated(t *testing.T) {
@@ -133,8 +133,8 @@ func TestQueueSinkRoutesBlockUpdated(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "translation-complete", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "translation-complete", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkRoutesQualityGatePass(t *testing.T) {
@@ -152,8 +152,8 @@ func TestQueueSinkRoutesQualityGatePass(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "qa-passed", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "qa-passed", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkRoutesFlowCompletedQA(t *testing.T) {
@@ -172,8 +172,8 @@ func TestQueueSinkRoutesFlowCompletedQA(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "qa-passed", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "qa-passed", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkIgnoresNonQAFlowCompleted(t *testing.T) {
@@ -192,7 +192,7 @@ func TestQueueSinkIgnoresNonQAFlowCompleted(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	assert.Len(t, pub.Messages, 0)
+	assert.Len(t, pub.GetMessages(), 0)
 }
 
 func TestQueueSinkIgnoresUnknownEvents(t *testing.T) {
@@ -209,7 +209,7 @@ func TestQueueSinkIgnoresUnknownEvents(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	assert.Len(t, pub.Messages, 0)
+	assert.Len(t, pub.GetMessages(), 0)
 }
 
 func TestQueueSinkChannelPrefix(t *testing.T) {
@@ -230,8 +230,8 @@ func TestQueueSinkChannelPrefix(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "agentic:content-pushed", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "agentic:content-pushed", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkCustomRoutes(t *testing.T) {
@@ -258,8 +258,8 @@ func TestQueueSinkCustomRoutes(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
-	assert.Equal(t, "custom-queue", pub.Messages[0].Queue)
+	require.Len(t, pub.GetMessages(), 1)
+	assert.Equal(t, "custom-queue", pub.GetMessages()[0].Queue)
 }
 
 func TestQueueSinkErrorHandling(t *testing.T) {
@@ -322,10 +322,10 @@ func TestQueueSinkMessagePayload(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.Len(t, pub.Messages, 1)
+	require.Len(t, pub.GetMessages(), 1)
 
 	var msg QueueMessage
-	require.NoError(t, json.Unmarshal(pub.Messages[0].Data, &msg))
+	require.NoError(t, json.Unmarshal(pub.GetMessages()[0].Data, &msg))
 	assert.Equal(t, "quality.gate.pass", msg.EventType)
 	assert.Equal(t, "proj-42", msg.ProjectID)
 	assert.Equal(t, "ws-7", msg.WorkspaceID)
@@ -352,7 +352,7 @@ func TestQueueSinkClose(t *testing.T) {
 	})
 
 	time.Sleep(50 * time.Millisecond)
-	assert.Len(t, pub.Messages, 0)
+	assert.Len(t, pub.GetMessages(), 0)
 }
 
 // syncMemoryPublisher is a thread-safe MemoryQueuePublisher for concurrent tests.
