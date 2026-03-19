@@ -521,7 +521,9 @@ services:
     environment:
       DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain
       KEYCLOAK_URL: http://keycloak:8080
-    depends_on: [postgres, keycloak]
+      REDIS_URL: redis://redis:6379            # Same Redis used by Bravo SSE relay
+      BOWRAIN_AGENT_RUNTIME: local             # Queue sink adapter → Redis pub/sub
+    depends_on: [postgres, keycloak, redis]
 
   postgres:
     image: postgres:16-alpine
@@ -531,6 +533,12 @@ services:
       POSTGRES_DB: bowrain
     volumes:
       - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    # Already present in platform compose.yaml for Bravo SSE relay.
+    # Agentic events use agentic:* channels on the same instance.
 
   keycloak:
     image: quay.io/keycloak/keycloak:latest
@@ -612,11 +620,18 @@ LISA_AGENT_TOKEN=...
 TAYLOR_AGENT_TOKEN=...
 ```
 
-## Event Coordination: Poll-Based via Activity Feed
+## Event Coordination
 
-ZeroClaw agents are autonomous — they self-schedule via cron and heartbeat. Cross-agent coordination happens through **polling Bowrain's activity feed**, not through a central event bus.
+ZeroClaw agents are autonomous — they self-schedule via cron and heartbeat. Cross-agent
+coordination can happen through two mechanisms:
 
-This is actually more realistic: real humans check their dashboard, they don't react to webhooks.
+1. **Heartbeat polling** (simple) — Agents poll Bowrain's activity feed. More realistic
+   (humans check dashboards, not webhooks) but has 1-2h latency. Works without Redis.
+2. **Redis pub/sub** (instant) — Agents subscribe to `agentic:*` Redis channels for
+   immediate handoffs. Uses the same Redis instance that Bravo already uses for SSE relay.
+
+Both mechanisms coexist. An agent can use heartbeat polling as a fallback while also
+subscribing to Redis channels for faster reaction when Redis is available.
 
 ### How Handoffs Work
 
@@ -1066,32 +1081,69 @@ template: {
 Or skip it entirely — local daemon mode uses the mounted volume for persistent memory
 (no git needed).
 
-### Event-Driven Handoff via Azure Service Bus
+### Event-Driven Handoff via ChannelEventBus Adapter
 
-Instead of polling the activity feed with heartbeat, agents communicate through Azure
-Service Bus queues (already deployed in `bowrain-infra/core.bicep`):
+Agent handoffs use a **queue sink adapter** on the existing ChannelEventBus — not a
+separate messaging system. The adapter forwards selected events to Redis (local) or
+Service Bus (Azure), depending on `BOWRAIN_AGENT_RUNTIME`.
 
+**Alignment with existing Bravo architecture:**
+- **Same Redis instance** used for Bravo SSE relay (`bravo:sse:{conversationID}`) and agentic event handoffs (`agentic:*`)
+- **Same Service Bus namespace** used for `bravo-jobs` / `translation-jobs` and agentic event queues
+- **ChannelEventBus** is the single event source; the queue sink adapter routes to different sinks
+
+**Local (Redis pub/sub):**
+```
+Developer pushes content (cron: 09:00)
+  → ChannelEventBus fires ContentPushed
+  → Queue sink adapter → Redis PUBLISH agentic:content-pushed
+  → PM agent's Redis subscription triggers immediately
+
+PM creates tasks
+  → ChannelEventBus fires TasksCreated
+  → Queue sink adapter → Redis PUBLISH agentic:tasks-created-fr
+  → Translator agent reacts immediately
+```
+
+**Azure (Service Bus + KEDA):**
 ```
 Developer pushes content (scheduled: 09:00)
-  → Bowrain server publishes to queue: "content-pushed"
+  → ChannelEventBus fires ContentPushed
+  → Queue sink adapter → Service Bus queue: content-pushed
   → KEDA detects message → spins up PM job execution (instant)
 
 PM creates tasks
-  → Bowrain server publishes to queue: "tasks-created"
+  → ChannelEventBus fires TasksCreated
+  → Queue sink adapter → Service Bus queue: tasks-created-fr
   → KEDA detects → spins up Translator job executions (instant)
 
 Translators complete batch
-  → Bowrain server publishes to queue: "translation-complete"
+  → ChannelEventBus fires TranslationComplete
+  → Queue sink adapter → Service Bus queue: translation-complete
   → KEDA detects → spins up QA job execution (instant)
 
 QA passes
-  → Bowrain server publishes to queue: "qa-passed"
+  → ChannelEventBus fires QAPassed
+  → Queue sink adapter → Service Bus queue: qa-passed
   → KEDA detects → spins up Developer pull job (instant)
 ```
 
-**Service Bus integration:** Bowrain's event bus (`platform/event/`) publishes events.
-A Service Bus adapter routes selected events to agent queues. This is a new component
-but uses the existing Service Bus resource.
+**Queue sink adapter** is a pluggable backend behind a common interface:
+
+```go
+// Conceptual interface — the adapter subscribes to ChannelEventBus
+// and publishes to the configured backend.
+type QueueSink interface {
+    Publish(ctx context.Context, channel string, payload []byte) error
+}
+
+// RedisQueueSink — local dev, uses existing Redis from compose stack
+// ServiceBusQueueSink — Azure, uses existing Service Bus namespace
+```
+
+The adapter registers as a subscriber on the existing ChannelEventBus (just like
+the SSE relay, webhook dispatcher, and automation engine already do). It filters
+events by type and forwards matching events to the configured sink.
 
 ### Agent Job Matrix (Azure)
 
