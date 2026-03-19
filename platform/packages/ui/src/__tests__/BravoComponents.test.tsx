@@ -161,15 +161,15 @@ describe("BravoComposer", () => {
 // ---------------------------------------------------------------------------
 
 describe("BravoPanelTrigger", () => {
-  it("renders @bravo label", () => {
+  it("renders trigger button with aria-label", () => {
     render(<BravoPanelTrigger onClick={vi.fn()} />);
-    expect(screen.getByText("@bravo")).toBeDefined();
+    expect(screen.getByLabelText("Toggle @bravo assistant")).toBeDefined();
   });
 
   it("calls onClick when clicked", () => {
     const onClick = vi.fn();
     render(<BravoPanelTrigger onClick={onClick} />);
-    fireEvent.click(screen.getByText("@bravo"));
+    fireEvent.click(screen.getByLabelText("Toggle @bravo assistant"));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 

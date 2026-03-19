@@ -217,6 +217,7 @@ function ConnectedBravo() {
         messages={state.messages}
         streaming={state.streaming}
         streamingContent={state.streamingContent}
+        streamingToolCalls={state.streamingToolCalls}
         onNewConversation={() => void actions.newConversation()}
         onSelectConversation={(c) => void actions.selectConversation(c)}
         onDeleteConversation={(c) => void actions.deleteConversation(c)}
@@ -250,7 +251,7 @@ describe("ConnectedBravo", () => {
   it("renders the @bravo trigger button", () => {
     const adapter = createMockAdapter();
     renderConnectedBravo(adapter);
-    expect(screen.getByText("@bravo")).toBeDefined();
+    expect(screen.getByLabelText("Toggle @bravo assistant")).toBeDefined();
   });
 
   it("opens the panel when trigger is clicked", async () => {
@@ -258,7 +259,7 @@ describe("ConnectedBravo", () => {
     renderConnectedBravo(adapter);
 
     await act(async () => {
-      fireEvent.click(screen.getByText("@bravo"));
+      fireEvent.click(screen.getByLabelText("Toggle @bravo assistant"));
     });
 
     // Panel header shows "@bravo" as the title in list view
@@ -274,7 +275,7 @@ describe("ConnectedBravo", () => {
 
     // Open panel
     await act(async () => {
-      fireEvent.click(screen.getByText("@bravo"));
+      fireEvent.click(screen.getByLabelText("Toggle @bravo assistant"));
     });
 
     // Wait for conversations to load
@@ -296,7 +297,7 @@ describe("ConnectedBravo", () => {
 
     // Open panel
     await act(async () => {
-      fireEvent.click(screen.getByText("@bravo"));
+      fireEvent.click(screen.getByLabelText("Toggle @bravo assistant"));
     });
 
     // Wait for conversation list
@@ -320,7 +321,7 @@ describe("ConnectedBravo", () => {
 
     // Open
     await act(async () => {
-      fireEvent.click(screen.getByText("@bravo"));
+      fireEvent.click(screen.getByLabelText("Toggle @bravo assistant"));
     });
 
     // Close — use getAllByText since the panel title also says "@bravo"
