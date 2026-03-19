@@ -5,11 +5,13 @@ import (
 	"log"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
+	"github.com/redis/go-redis/v9"
 )
 
 // buildAgentPool creates an AgentPool with the configured container runtime.
-// Returns nil if no agent runtime is configured (mock mode).
+// Used for direct mode (docker, aca). Returns nil if not applicable.
 func (s *Server) buildAgentPool() *service.AgentPool {
 	cfg := s.Config
 
@@ -36,15 +38,10 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 			Location:       cfg.AgentACALocation,
 		})
 
-	case "":
-		return nil // No runtime configured — mock mode.
-
 	default:
-		log.Printf("WARNING: unknown agent runtime %q, falling back to mock mode", cfg.AgentRuntime)
 		return nil
 	}
 
-	// Build MCP endpoint URL from server's own address.
 	mcpEndpoint := cfg.mcpEndpointForAgent()
 
 	return service.NewAgentPool(service.AgentPoolConfig{
@@ -57,6 +54,38 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 		ModelAPIBase:    cfg.AgentModelAPIBase,
 		ModelAPIKey:     cfg.AgentModelAPIKey,
 	})
+}
+
+// setupAgentQueue configures queue-based agent orchestration.
+// The API server enqueues jobs to Service Bus and subscribes to Redis pub/sub
+// for SSE relay. The worker handles container lifecycle.
+func (s *Server) setupAgentQueue(cfg ServerConfig) error {
+	if cfg.ServiceBusConnection == "" {
+		return fmt.Errorf("BOWRAIN_SERVICE_BUS_CONNECTION is required for queue mode")
+	}
+	if cfg.RedisURL == "" {
+		return fmt.Errorf("BOWRAIN_REDIS_URL is required for queue mode")
+	}
+
+	// Service Bus sender for bravo-jobs queue.
+	queue, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "bravo-jobs")
+	if err != nil {
+		return fmt.Errorf("connect to Service Bus (bravo-jobs): %w", err)
+	}
+
+	// Redis pub/sub client.
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		return fmt.Errorf("parse Redis URL: %w", err)
+	}
+	if cfg.RedisPassword != "" {
+		redisOpts.Password = cfg.RedisPassword
+	}
+	redisClient := redis.NewClient(redisOpts)
+	pubsub := service.NewAgentPubSub(redisClient)
+
+	s.AgentService.SetQueue(queue, pubsub)
+	return nil
 }
 
 // mcpEndpointForAgent returns the MCP endpoint URL that agent containers

@@ -308,10 +308,25 @@ func NewServer(cfg ServerConfig) *Server {
 	if s.AgentStore != nil {
 		s.AgentService = service.NewAgentService(s.AgentStore, s.EventBus)
 
-		// Wire container runtime when configured.
-		if pool := s.buildAgentPool(); pool != nil {
-			s.AgentService.SetPool(pool)
-			log.Printf("Agent pool initialized (runtime=%s)", cfg.AgentRuntime)
+		switch cfg.AgentRuntime {
+		case "queue":
+			// Queue mode: agent processing is handled by the worker.
+			// API server enqueues jobs to Service Bus and subscribes to Redis pub/sub.
+			if err := s.setupAgentQueue(cfg); err != nil {
+				log.Printf("WARNING: failed to initialize agent queue mode: %v", err)
+			} else {
+				log.Printf("Agent mode: queue (worker handles container lifecycle)")
+			}
+		case "docker", "aca":
+			// Direct mode: API server manages containers directly.
+			if pool := s.buildAgentPool(); pool != nil {
+				s.AgentService.SetPool(pool)
+				log.Printf("Agent pool initialized (runtime=%s)", cfg.AgentRuntime)
+			}
+		case "":
+			// No runtime — mock mode.
+		default:
+			log.Printf("WARNING: unknown agent runtime %q", cfg.AgentRuntime)
 		}
 	}
 
