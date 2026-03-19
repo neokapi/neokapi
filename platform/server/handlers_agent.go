@@ -115,8 +115,15 @@ func (s *Server) HandleDeleteBravoConversation(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 type sendMessageRequest struct {
-	Content string `json:"content"`
-	Mode    string `json:"mode,omitempty"` // "ask", "coworker", "bravo"
+	Content string                 `json:"content"`
+	Mode    string                 `json:"mode,omitempty"`    // "ask", "coworker", "bravo"
+	Context *sendMessageContext    `json:"context,omitempty"` // current workspace context
+}
+
+type sendMessageContext struct {
+	ProjectID string `json:"projectId,omitempty"`
+	Stream    string `json:"stream,omitempty"`
+	ItemID    string `json:"itemId,omitempty"`
 }
 
 // HandleSendBravoMessage sends a message and returns the agent response.
@@ -153,8 +160,23 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 		c.Response().WriteHeader(http.StatusOK)
 
 		sse := service.NewSSEWriter(c.Response())
+		// Build context map from request.
+		var bravoCtx map[string]string
+		if req.Context != nil {
+			bravoCtx = map[string]string{}
+			if req.Context.ProjectID != "" {
+				bravoCtx["project_id"] = req.Context.ProjectID
+			}
+			if req.Context.Stream != "" {
+				bravoCtx["stream"] = req.Context.Stream
+			}
+			if req.Context.ItemID != "" {
+				bravoCtx["item_id"] = req.Context.ItemID
+			}
+		}
+
 		if err := s.AgentService.SendMessageStream(
-			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, req.Mode, sse,
+			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, req.Mode, bravoCtx, sse,
 		); err != nil {
 			log.Printf("ERROR: bravo stream failed: %v", err)
 			_ = sse.WriteEvent(service.SSEError, service.ErrorData{Error: err.Error()})

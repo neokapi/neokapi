@@ -51,7 +51,10 @@ interface BravoActions {
   /** Delete a conversation. */
   deleteConversation: (conv: BravoConversation) => Promise<void>;
   /** Send a message in the active conversation (uses SSE streaming). */
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (
+    content: string,
+    context?: { projectId?: string; stream?: string; itemId?: string },
+  ) => Promise<void>;
   /** Cancel an ongoing streaming response. */
   cancelStreaming: () => void;
   /** Approve a tool call that requires human approval. */
@@ -204,7 +207,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
   );
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, context?: { projectId?: string; stream?: string; itemId?: string }) => {
       if (!ws || !activeConversation) return;
 
       // Add user message optimistically.
@@ -320,6 +323,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
           },
         },
         mode,
+        context,
       );
 
       abortRef.current = controller;

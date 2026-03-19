@@ -44,7 +44,7 @@ func TestStreamFromGateway_Success(t *testing.T) {
 	var buf bytes.Buffer
 	sse := NewSSEWriter(&buf)
 
-	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", sse)
+	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", nil, sse)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.MessageID)
 
@@ -58,6 +58,48 @@ func TestStreamFromGateway_Success(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, msgs, 1)
 	assert.Equal(t, "Hello world!", msgs[0].Content)
+}
+
+func TestModePrefix(t *testing.T) {
+	tests := []struct {
+		mode     string
+		contains string
+		empty    bool
+	}{
+		{mode: "ask", contains: "[MODE: Ask"},
+		{mode: "coworker", contains: "[MODE: Co-worker"},
+		{mode: "bravo", contains: "[MODE: Brand Voice"},
+		{mode: "", empty: true},
+		{mode: "unknown", empty: true},
+	}
+	for _, tt := range tests {
+		t.Run("mode_"+tt.mode, func(t *testing.T) {
+			got := modePrefix(tt.mode)
+			if tt.empty {
+				assert.Empty(t, got)
+			} else {
+				assert.Contains(t, got, tt.contains)
+				assert.True(t, len(got) > 20, "prefix should be a substantial instruction")
+			}
+		})
+	}
+}
+
+func TestModePrefix_AskReadOnly(t *testing.T) {
+	prefix := modePrefix("ask")
+	assert.Contains(t, prefix, "Do NOT perform any mutable operations")
+}
+
+func TestModePrefix_CoworkerFullAccess(t *testing.T) {
+	prefix := modePrefix("coworker")
+	assert.Contains(t, prefix, "full assistant mode")
+	assert.Contains(t, prefix, "confirm before destructive")
+}
+
+func TestModePrefix_BravoBrandVoice(t *testing.T) {
+	prefix := modePrefix("bravo")
+	assert.Contains(t, prefix, "brand voice")
+	assert.Contains(t, prefix, "check_vocabulary")
 }
 
 func TestStreamFromGateway_ServerError(t *testing.T) {
@@ -84,7 +126,7 @@ func TestStreamFromGateway_ServerError(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	_, err = svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", NewSSEWriter(&buf))
+	_, err = svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", nil, NewSSEWriter(&buf))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "500")
 }

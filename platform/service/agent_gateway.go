@@ -39,10 +39,11 @@ func StreamFromGateway(
 	container *AgentContainer,
 	store platagent.AgentStore,
 	conversationID, userID, content, mode string,
+	bravoCtx map[string]string,
 	sink EventSink,
 ) (*GatewayResult, error) {
-	// Prepend mode instructions to the message.
-	message := modePrefix(mode) + content
+	// Prepend mode + context instructions to the message.
+	message := contextPrefix(bravoCtx) + modePrefix(mode) + content
 	payload, _ := json.Marshal(webhookRequest{Message: message})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
@@ -101,9 +102,31 @@ func (s *AgentService) streamFromGateway(
 	ctx context.Context,
 	container *AgentContainer,
 	conversationID, userID, content, mode string,
+	bravoCtx map[string]string,
 	sse SSEWriter,
 ) (*GatewayResult, error) {
-	return StreamFromGateway(ctx, container, s.store, conversationID, userID, content, mode, sse)
+	return StreamFromGateway(ctx, container, s.store, conversationID, userID, content, mode, bravoCtx, sse)
+}
+
+// contextPrefix returns a context instruction prefix describing the user's current location.
+func contextPrefix(ctx map[string]string) string {
+	if len(ctx) == 0 {
+		return ""
+	}
+	parts := "[CONTEXT:"
+	if v, ok := ctx["project_id"]; ok && v != "" {
+		parts += " project=" + v
+	}
+	if v, ok := ctx["stream"]; ok && v != "" {
+		parts += " stream=" + v
+	}
+	if v, ok := ctx["item_id"]; ok && v != "" {
+		parts += " item=" + v
+	}
+	if parts == "[CONTEXT:" {
+		return ""
+	}
+	return parts + "]\n"
 }
 
 // modePrefix returns a system instruction prefix based on the interaction mode.

@@ -88,7 +88,7 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		ctx:            ctx,
 	}
 
-	result, err := service.StreamFromGateway(ctx, container, deps.AgentStore, job.ConversationID, job.UserID, job.Content, job.Mode, sink)
+	result, err := service.StreamFromGateway(ctx, container, deps.AgentStore, job.ConversationID, job.UserID, job.Content, job.Mode, nil, sink)
 	if err != nil {
 		return fmt.Errorf("gateway stream: %w", err)
 	}
