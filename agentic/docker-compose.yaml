@@ -7,9 +7,12 @@ services:
     environment:
       DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain
       KEYCLOAK_URL: http://keycloak:8080
+      BOWRAIN_REDIS_URL: redis://redis:6379
+      BOWRAIN_AGENTIC_EVENTS: "true"
     depends_on:
       - postgres
       - keycloak
+      - redis
 
   postgres:
     image: postgres:16-alpine
@@ -28,6 +31,11 @@ services:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
     command: start-dev
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 
   # === Email ===
   mailpit:
