@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -232,6 +233,42 @@ func (p *AgentPool) ActiveCount(workspaceID string) int {
 		}
 	}
 	return count
+}
+
+// CleanupIdle removes containers that have been idle longer than the configured timeout.
+// Returns the number of containers stopped.
+func (p *AgentPool) CleanupIdle(ctx context.Context) int {
+	p.mu.Lock()
+	var idle []*AgentContainer
+	now := time.Now()
+	for convID, c := range p.containers {
+		if now.Sub(c.CreatedAt) > p.idleTimeout {
+			idle = append(idle, c)
+			delete(p.containers, convID)
+		}
+	}
+	p.mu.Unlock()
+
+	for _, c := range idle {
+		_ = p.runtime.Stop(ctx, c.ID)
+	}
+	return len(idle)
+}
+
+// RunCleanupLoop periodically cleans up idle containers until the context is cancelled.
+func (p *AgentPool) RunCleanupLoop(ctx context.Context) {
+	ticker := time.NewTicker(p.idleTimeout / 2)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if n := p.CleanupIdle(ctx); n > 0 {
+				log.Printf("Agent pool: cleaned up %d idle container(s)", n)
+			}
+		}
+	}
 }
 
 // StopAll stops all running containers. Used during server shutdown.

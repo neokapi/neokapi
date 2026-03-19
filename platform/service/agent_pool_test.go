@@ -191,3 +191,35 @@ func TestAgentPoolRespawnsUnhealthy(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEqual(t, c1.ID, c2.ID) // New container spawned.
 }
+
+func TestAgentPoolCleanupIdle(t *testing.T) {
+	rt := newMockRuntime()
+	pool := NewAgentPool(AgentPoolConfig{
+		Runtime:         rt,
+		MaxPerWorkspace: 10,
+		IdleTimeout:     1 * time.Millisecond, // Very short for testing.
+	})
+
+	ctx := context.Background()
+
+	// Spawn a container.
+	_, err := pool.Acquire(ctx, ContainerConfig{
+		ConversationID: "c1",
+		WorkspaceID:    "ws1",
+		UserID:         "u1",
+	})
+	require.NoError(t, err)
+
+	_, ok := pool.Get("c1")
+	assert.True(t, ok)
+
+	// Wait for the idle timeout.
+	time.Sleep(5 * time.Millisecond)
+
+	// Cleanup should remove it.
+	n := pool.CleanupIdle(ctx)
+	assert.Equal(t, 1, n)
+
+	_, ok = pool.Get("c1")
+	assert.False(t, ok)
+}
