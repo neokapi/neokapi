@@ -72,16 +72,14 @@ func (r *ACARuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*AgentCont
 	// Container App name: must be lowercase alphanumeric + hyphens, max 32 chars.
 	appName := sanitizeAppName("bravo-" + cfg.ConversationID)
 
+	// ZeroClaw native env vars for model configuration.
 	envVars := []acaEnvVar{
-		{Name: "BRAVO_MODEL_PROVIDER", Value: cfg.ModelProvider},
-		{Name: "BRAVO_MODEL_NAME", Value: cfg.ModelName},
-		{Name: "BRAVO_MODEL_API_BASE", Value: cfg.ModelAPIBase},
-		{Name: "BRAVO_MODEL_API_KEY", SecretRef: "model-api-key"},
-		{Name: "BRAVO_MCP_ENDPOINT", Value: cfg.MCPEndpoint},
-		{Name: "BRAVO_AGENT_TOKEN", SecretRef: "agent-token"},
-	}
-	if cfg.SystemPrompt != "" {
-		envVars = append(envVars, acaEnvVar{Name: "BRAVO_SYSTEM_PROMPT", Value: cfg.SystemPrompt})
+		{Name: "ZEROCLAW_PROVIDER", Value: cfg.ModelProvider},
+		{Name: "ZEROCLAW_MODEL", Value: cfg.ModelName},
+		{Name: "ZEROCLAW_API_KEY", SecretRef: "model-api-key"},
+		{Name: "ZEROCLAW_GATEWAY_PORT", Value: fmt.Sprintf("%d", gatewayPort)},
+		// Azure OpenAI requires the resource name to construct the endpoint URL.
+		{Name: "AZURE_OPENAI_RESOURCE", Value: cfg.ModelAPIBase},
 	}
 	for k, v := range cfg.Env {
 		envVars = append(envVars, acaEnvVar{Name: k, Value: v})
