@@ -26,7 +26,7 @@ function Header({ headerSlot }: { headerSlot?: ReactNode }) {
   const { isMobile } = useSidebar();
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b">
+    <header className="flex h-12 shrink-0 items-center gap-2">
       <div className="flex items-center gap-2 px-4">
         {isMobile && (
           <>

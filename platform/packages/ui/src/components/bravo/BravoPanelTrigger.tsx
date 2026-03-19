@@ -37,9 +37,7 @@ export function BravoPanelTrigger({ onClick, active, hasUnread }: BravoPanelTrig
     <button
       className={cn(
         "relative flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-colors",
-        active
-          ? "text-primary"
-          : "text-muted-foreground hover:text-foreground",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
       onClick={onClick}
       aria-label="Toggle @bravo assistant"
