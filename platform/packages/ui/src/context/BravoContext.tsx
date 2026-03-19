@@ -87,7 +87,13 @@ export function BravoProvider({ children }: { children: ReactNode }) {
   const { activeWorkspace } = useWorkspace();
   const ws = activeWorkspace?.slug ?? "";
 
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(() => {
+    try {
+      return localStorage.getItem("neokapi-bravo-panel") === "open";
+    } catch {
+      return false;
+    }
+  });
   const [conversations, setConversations] = useState<BravoConversation[]>([]);
   const [activeConversation, setActiveConversation] = useState<BravoConversation | undefined>();
   const [messages, setMessages] = useState<BravoMessage[]>([]);
@@ -102,10 +108,21 @@ export function BravoProvider({ children }: { children: ReactNode }) {
   const abortRef = useRef<AbortController | null>(null);
   // Track if we've done the initial fetch for this workspace.
   const fetchedRef = useRef<string | null>(null);
+  // Track if we've auto-launched for this workspace/panel-open cycle.
+  const autoLaunchedRef = useRef<string | null>(null);
   // Mutable ref for accumulated streaming content (avoids stale closures in SSE callbacks).
   const streamContentRef = useRef("");
   // Mutable ref for current streaming message ID.
   const streamMsgIdRef = useRef("");
+
+  // Persist panel open/close state.
+  useEffect(() => {
+    try {
+      localStorage.setItem("neokapi-bravo-panel", panelOpen ? "open" : "closed");
+    } catch {
+      // Ignore storage errors.
+    }
+  }, [panelOpen]);
 
   // Fetch conversations when panel opens for the first time.
   const fetchConversations = useCallback(async () => {
@@ -128,6 +145,20 @@ export function BravoProvider({ children }: { children: ReactNode }) {
     }
   }, [panelOpen, ws, fetchConversations]);
 
+  // Auto-launch a new conversation when the panel opens with no active conversation.
+  useEffect(() => {
+    if (panelOpen && !loading && !activeConversation && ws && autoLaunchedRef.current !== ws) {
+      autoLaunchedRef.current = ws;
+      const create = async () => {
+        const conv = await api.bravoCreateConversation(ws);
+        setConversations((prev) => [conv, ...prev]);
+        setActiveConversation(conv);
+        setMessages([]);
+      };
+      void create();
+    }
+  }, [panelOpen, loading, activeConversation, ws, api]);
+
   // Reset state when workspace changes.
   useEffect(() => {
     abortRef.current?.abort();
@@ -139,6 +170,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
     setStreamingContent("");
     setStreamingToolCalls([]);
     fetchedRef.current = null;
+    autoLaunchedRef.current = null;
   }, [ws]);
 
   // Cleanup on unmount.
