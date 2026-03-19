@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { BravoConversation, BravoMessage, BravoToolCall } from "../types/api";
+import type { BravoMode } from "../components/bravo/BravoModeSelector";
 import { useApi } from "./ApiContext";
 import { useWorkspace } from "./WorkspaceContext";
 
@@ -33,6 +34,10 @@ interface BravoState {
   streamingToolCalls: BravoToolCall[];
   /** Whether conversations are being loaded. */
   loading: boolean;
+  /** Current interaction mode. */
+  mode: BravoMode;
+  /** True while waiting for the agent container to provision (cold start). */
+  coldStarting: boolean;
 }
 
 interface BravoActions {
@@ -55,6 +60,8 @@ interface BravoActions {
   denyToolCall: (toolCallId: string) => Promise<void>;
   /** Refresh the conversation list. */
   refreshConversations: () => Promise<void>;
+  /** Change the interaction mode. */
+  setMode: (mode: BravoMode) => void;
 }
 
 interface BravoContextValue {
@@ -85,6 +92,8 @@ export function BravoProvider({ children }: { children: ReactNode }) {
   const [streamingContent, setStreamingContent] = useState("");
   const [streamingToolCalls, setStreamingToolCalls] = useState<BravoToolCall[]>([]);
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<BravoMode>("ask");
+  const [coldStarting, setColdStarting] = useState(false);
 
   // AbortController for the current SSE stream.
   const abortRef = useRef<AbortController | null>(null);
@@ -210,17 +219,28 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       setStreaming(true);
       setStreamingContent("");
       setStreamingToolCalls([]);
+      setColdStarting(false);
       streamContentRef.current = "";
       streamMsgIdRef.current = "";
+
+      // Show cold start UI if no content arrives within 3 seconds.
+      const coldStartTimer = setTimeout(() => {
+        if (!streamContentRef.current && !streamMsgIdRef.current) {
+          setColdStarting(true);
+        }
+      }, 3000);
 
       const controller = api.bravoSendMessageSSE(ws, activeConversation.id, content, {
         onMessageStart: (data) => {
           streamMsgIdRef.current = data.id;
+          setColdStarting(false);
+          clearTimeout(coldStartTimer);
         },
 
         onContentDelta: (data) => {
           streamContentRef.current += data.delta;
           setStreamingContent(streamContentRef.current);
+          setColdStarting(false);
         },
 
         onToolCallStart: (data) => {
@@ -289,6 +309,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
           setStreaming(false);
           setStreamingContent("");
           setStreamingToolCalls([]);
+          setColdStarting(false);
           abortRef.current = null;
           streamContentRef.current = "";
           streamMsgIdRef.current = "";
@@ -369,6 +390,8 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       streamingContent,
       streamingToolCalls,
       loading,
+      mode,
+      coldStarting,
     }),
     [
       panelOpen,
@@ -379,6 +402,8 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       streamingContent,
       streamingToolCalls,
       loading,
+      mode,
+      coldStarting,
     ],
   );
 
@@ -395,6 +420,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       approveToolCall,
       denyToolCall,
       refreshConversations,
+      setMode,
     }),
     [
       openPanel,
@@ -408,6 +434,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       approveToolCall,
       denyToolCall,
       refreshConversations,
+      setMode,
     ],
   );
 
