@@ -1,0 +1,28 @@
+[llm]
+# Azure OpenAI — same config works locally and in Azure (API key auth)
+default_provider = "custom"
+default_model = "gpt-4o-mini"
+
+[providers.custom]
+name = "azure-openai"
+base_url = "https://oai-bowrain-d.openai.azure.com/openai/deployments/gpt-4o-mini/v1"
+api_key_env = "AZURE_OPENAI_API_KEY"
+
+[security]
+allowed_commands = ["git", "gh", "bowrain", "ls", "cat", "diff"]
+
+[mcp]
+[mcp.bowrain]
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
+
+[mcp.email]
+transport = "http"
+url = "http://email-mcp:3001/mcp"
+
+[daemon]
+[daemon.cron]
+"check-upstream" = "0 9 * * 1-5"
+"pull-translations" = "0 17 * * 1-5"

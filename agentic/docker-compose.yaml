@@ -1,0 +1,83 @@
+services:
+  # === Platform ===
+  bowrain-server:
+    image: bowrain/server:latest
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain
+      KEYCLOAK_URL: http://keycloak:8080
+    depends_on:
+      - postgres
+      - keycloak
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: bowrain
+      POSTGRES_PASSWORD: bowrain
+      POSTGRES_DB: bowrain
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    ports:
+      - "8180:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: start-dev
+
+  # === Email ===
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # Web UI for operator (browse captured emails)
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  # Standalone email MCP server (wraps Mailpit SMTP + API)
+  email-mcp:
+    build: ./email-mcp
+    environment:
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAILPIT_API_HOST: mailpit
+    depends_on:
+      - mailpit
+
+  # === Optional: Ollama for zero-cost local dev ===
+  ollama:
+    image: ollama/ollama:latest
+    profiles:
+      - ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+
+  # === Agents ===
+  # Each agent connects directly to bowrain-server's /mcp/ endpoint
+  # using a per-agent JWT token (same auth as Bravo interactive sessions).
+  # No MCP sidecar needed — the MCP server is built into bowrain-server.
+
+  alex-developer:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${ALEX_AGENT_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+    volumes:
+      - ./agents/alex-developer:/root/.zeroclaw
+      - ./forks:/root/.zeroclaw/workspace
+    depends_on:
+      - bowrain-server
+
+volumes:
+  pgdata:
+  ollama-data:
