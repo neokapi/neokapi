@@ -1,12 +1,10 @@
 import Header from './components/layout/Header';
-import FilterToolbar from './components/FilterToolbar';
+import FilterBar from './components/FilterBar';
 import StatsRow from './components/StatsRow';
 import AgentCard from './components/AgentCard';
-import SessionTable from './components/SessionTable';
-import ToolUsageChart from './components/ToolUsageChart';
+import ContentTabs from './components/ContentTabs';
 import SessionHeatmap from './components/SessionHeatmap';
-import ActivityFeed from './components/ActivityFeed';
-import IssuesFeed from './components/IssuesFeed';
+import BowrainContext from './components/BowrainContext';
 import { Separator } from './components/ui/separator';
 import { FilterProvider, useFilter } from './context/FilterContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -23,9 +21,10 @@ function DashboardContent() {
     <div className="min-h-screen bg-background">
       <Header />
 
+      {/* FilterBar — sticky below header */}
       <div className="sticky top-[53px] z-40 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-7xl">
-          <FilterToolbar />
+          <FilterBar />
         </div>
       </div>
 
@@ -43,8 +42,7 @@ function DashboardContent() {
       {/* Agent Cards */}
       <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <h2 className="mb-4 text-lg font-semibold">Agent Roster</h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
             {filteredAgents.map((a) => (
               <AgentCard key={a.id} agent={a} />
             ))}
@@ -56,11 +54,10 @@ function DashboardContent() {
         <Separator />
       </div>
 
-      {/* Session Table */}
+      {/* Content Tabs */}
       <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <h2 className="mb-4 text-lg font-semibold">Sessions</h2>
-          <SessionTable />
+          <ContentTabs />
         </div>
       </section>
 
@@ -68,23 +65,11 @@ function DashboardContent() {
         <Separator />
       </div>
 
-      {/* Tool usage chart + Session heatmap */}
+      {/* Bottom row: Heatmap + Bowrain Context */}
       <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto grid max-w-7xl gap-6 grid-cols-1 lg:grid-cols-2">
-          <ToolUsageChart />
           <SessionHeatmap />
-        </div>
-      </section>
-
-      <div className="mx-auto max-w-7xl px-6">
-        <Separator />
-      </div>
-
-      {/* Activity feed + Issues feed */}
-      <section className="px-4 py-8 sm:px-6">
-        <div className="mx-auto grid max-w-7xl gap-6 grid-cols-1 lg:grid-cols-2">
-          <ActivityFeed />
-          <IssuesFeed />
+          <BowrainContext />
         </div>
       </section>
 
@@ -92,7 +77,7 @@ function DashboardContent() {
       <footer className="border-t px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl text-center">
           <p className="font-mono text-xs text-muted-foreground">
-            Bowrain Agentic Operations Dashboard — Powered by{' '}
+            Bowrain Agentic Operations Dashboard &mdash; Powered by{' '}
             <a
               href="https://github.com/neokapi/neokapi"
               target="_blank"
