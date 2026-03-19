@@ -135,7 +135,7 @@ export function BravoPanel({
         className={cn(
           "fixed inset-y-0 right-0 z-50 flex flex-col bg-background",
           "transition-transform duration-300 ease-in-out",
-          "w-full max-w-[420px] md:hidden",
+          "w-full md:hidden",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
