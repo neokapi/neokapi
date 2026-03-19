@@ -38,10 +38,12 @@ func StreamFromGateway(
 	ctx context.Context,
 	container *AgentContainer,
 	store platagent.AgentStore,
-	conversationID, userID, content string,
+	conversationID, userID, content, mode string,
 	sink EventSink,
 ) (*GatewayResult, error) {
-	payload, _ := json.Marshal(webhookRequest{Message: content})
+	// Prepend mode instructions to the message.
+	message := modePrefix(mode) + content
+	payload, _ := json.Marshal(webhookRequest{Message: message})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		container.GatewayURL+"/webhook", bytes.NewReader(payload))
@@ -98,8 +100,22 @@ func StreamFromGateway(
 func (s *AgentService) streamFromGateway(
 	ctx context.Context,
 	container *AgentContainer,
-	conversationID, userID, content string,
+	conversationID, userID, content, mode string,
 	sse SSEWriter,
 ) (*GatewayResult, error) {
-	return StreamFromGateway(ctx, container, s.store, conversationID, userID, content, sse)
+	return StreamFromGateway(ctx, container, s.store, conversationID, userID, content, mode, sse)
+}
+
+// modePrefix returns a system instruction prefix based on the interaction mode.
+func modePrefix(mode string) string {
+	switch mode {
+	case "ask":
+		return "[MODE: Ask — You are in expert Q&A mode. Answer questions about the Bowrain platform, localization, TM, terminology, and formats. Do NOT perform any mutable operations (no creating, updating, deleting, pushing, or pulling). If the user asks you to perform an action, explain what they could do but do not execute it.]\n\n"
+	case "coworker":
+		return "[MODE: Co-worker — You are in full assistant mode. You can manage projects, run flows, push/pull content, edit terminology, and perform any operation the user requests. Always confirm before destructive operations (deletes, overwrites, pushes).]\n\n"
+	case "bravo":
+		return "[MODE: Brand Voice — You are in brand voice review mode. Focus on reviewing content for brand voice compliance, suggesting improvements, and running brand voice QA flows. Use the check_vocabulary and get_voice_guide tools when relevant.]\n\n"
+	default:
+		return ""
+	}
 }

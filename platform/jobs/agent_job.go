@@ -10,5 +10,6 @@ type AgentJobMessage struct {
 	WorkspaceID    string `json:"workspace_id"`
 	UserID         string `json:"user_id"`
 	WorkspaceRole  string `json:"workspace_role"`
-	Content        string `json:"content"` // user message text (denormalized for convenience)
+	Content        string `json:"content"`          // user message text (denormalized for convenience)
+	Mode           string `json:"mode,omitempty"`   // "ask", "coworker", "bravo"
 }

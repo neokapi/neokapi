@@ -116,6 +116,7 @@ func (s *Server) HandleDeleteBravoConversation(c echo.Context) error {
 
 type sendMessageRequest struct {
 	Content string `json:"content"`
+	Mode    string `json:"mode,omitempty"` // "ask", "coworker", "bravo"
 }
 
 // HandleSendBravoMessage sends a message and returns the agent response.
@@ -153,7 +154,7 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 
 		sse := service.NewSSEWriter(c.Response())
 		if err := s.AgentService.SendMessageStream(
-			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, sse,
+			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, req.Mode, sse,
 		); err != nil {
 			log.Printf("ERROR: bravo stream failed: %v", err)
 			_ = sse.WriteEvent(service.SSEError, service.ErrorData{Error: err.Error()})

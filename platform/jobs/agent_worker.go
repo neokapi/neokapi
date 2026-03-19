@@ -56,7 +56,7 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		return fmt.Errorf("unmarshal agent job: %w", err)
 	}
 
-	log.Printf("Agent worker: processing conversation=%s user=%s", job.ConversationID, job.UserID)
+	log.Printf("Agent worker: processing conversation=%s user=%s mode=%s", job.ConversationID, job.UserID, job.Mode)
 
 	// Create a scoped agent token for MCP delegation.
 	tokenTTL := 30 * time.Minute
@@ -84,7 +84,7 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 		ctx:            ctx,
 	}
 
-	result, err := service.StreamFromGateway(ctx, container, deps.AgentStore, job.ConversationID, job.UserID, job.Content, sink)
+	result, err := service.StreamFromGateway(ctx, container, deps.AgentStore, job.ConversationID, job.UserID, job.Content, job.Mode, sink)
 	if err != nil {
 		return fmt.Errorf("gateway stream: %w", err)
 	}
