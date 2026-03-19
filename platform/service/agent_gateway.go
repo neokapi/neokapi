@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -34,6 +35,10 @@ type GatewayResult struct {
 // StreamFromGateway sends a message to a ZeroClaw gateway container via the
 // /webhook endpoint, converts the JSON response to SSE events, persists the
 // assistant message, and writes events to the sink.
+//
+// Freshly spawned containers may not be ready immediately (Azure Container Apps
+// returns 404/502/503 while the container is starting). The function retries
+// transient errors for up to 60 seconds before giving up.
 func StreamFromGateway(
 	ctx context.Context,
 	container *AgentContainer,
@@ -44,29 +49,54 @@ func StreamFromGateway(
 ) (*GatewayResult, error) {
 	// Prepend mode + context instructions to the message.
 	message := contextPrefix(bravoCtx) + modePrefix(mode) + content
-	payload, _ := json.Marshal(webhookRequest{Message: message})
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		container.GatewayURL+"/webhook", bytes.NewReader(payload))
-	if err != nil {
-		return nil, fmt.Errorf("create gateway request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("gateway request: %w", err)
-	}
-	defer resp.Body.Close()
 
-	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB limit
-	if err != nil {
-		return nil, fmt.Errorf("read gateway response: %w", err)
-	}
+	var body []byte
+	deadline := time.Now().Add(60 * time.Second)
+	backoff := 2 * time.Second
+	for {
+		payload, _ := json.Marshal(webhookRequest{Message: message})
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+			container.GatewayURL+"/webhook", bytes.NewReader(payload))
+		if err != nil {
+			return nil, fmt.Errorf("create gateway request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("gateway returned %d: %s", resp.StatusCode, string(body))
+		resp, err := client.Do(req)
+		if err != nil {
+			if time.Now().Before(deadline) {
+				log.Printf("Gateway request error (retrying): %v", err)
+				if !sleepContext(ctx, backoff) {
+					return nil, ctx.Err()
+				}
+				backoff = min(backoff*2, 10*time.Second)
+				continue
+			}
+			return nil, fmt.Errorf("gateway request: %w", err)
+		}
+
+		body, err = io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1MB limit
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("read gateway response: %w", err)
+		}
+
+		// 404/502/503 are transient during container cold-start — retry.
+		if (resp.StatusCode == 404 || resp.StatusCode == 502 || resp.StatusCode == 503) && time.Now().Before(deadline) {
+			log.Printf("Gateway returned %d (container starting, retrying)...", resp.StatusCode)
+			if !sleepContext(ctx, backoff) {
+				return nil, ctx.Err()
+			}
+			backoff = min(backoff*2, 10*time.Second)
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("gateway returned %d: %s", resp.StatusCode, string(body))
+		}
+		break
 	}
 
 	var webhookResp webhookResponse
@@ -127,6 +157,19 @@ func contextPrefix(ctx map[string]string) string {
 		return ""
 	}
 	return parts + "]\n"
+}
+
+// sleepContext sleeps for the given duration, returning false if the context
+// is cancelled before the sleep completes.
+func sleepContext(ctx context.Context, d time.Duration) bool {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return true
+	case <-ctx.Done():
+		return false
+	}
 }
 
 // modePrefix returns a system instruction prefix based on the interaction mode.
