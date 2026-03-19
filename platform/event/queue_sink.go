@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	platev "github.com/neokapi/neokapi/platform/event"
@@ -208,6 +209,7 @@ func (sb *ServiceBusQueuePublisher) PublishMessage(ctx context.Context, queue st
 
 // MemoryQueuePublisher is a QueuePublisher for testing that records messages.
 type MemoryQueuePublisher struct {
+	mu       sync.Mutex
 	Messages []PublishedMessage
 }
 
@@ -218,8 +220,19 @@ type PublishedMessage struct {
 }
 
 func (m *MemoryQueuePublisher) PublishMessage(_ context.Context, queue string, data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.Messages = append(m.Messages, PublishedMessage{Queue: queue, Data: data})
 	return nil
+}
+
+// GetMessages returns a copy of the published messages (thread-safe).
+func (m *MemoryQueuePublisher) GetMessages() []PublishedMessage {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]PublishedMessage, len(m.Messages))
+	copy(result, m.Messages)
+	return result
 }
 
 // ErrorQueuePublisher always returns an error (for testing error handling).
