@@ -80,6 +80,9 @@ func (r *ACARuntime) Spawn(ctx context.Context, cfg ContainerConfig) (*AgentCont
 		{Name: "ZEROCLAW_GATEWAY_PORT", Value: fmt.Sprintf("%d", gatewayPort)},
 		// Azure OpenAI requires the resource name to construct the endpoint URL.
 		{Name: "AZURE_OPENAI_RESOURCE", Value: cfg.ModelAPIBase},
+		// Bowrain MCP: endpoint + auth token for tool execution (rendered into config.toml via envsubst).
+		{Name: "BRAVO_MCP_ENDPOINT", Value: cfg.MCPEndpoint},
+		{Name: "BRAVO_AGENT_TOKEN", SecretRef: "agent-token"},
 	}
 	for k, v := range cfg.Env {
 		envVars = append(envVars, acaEnvVar{Name: k, Value: v})

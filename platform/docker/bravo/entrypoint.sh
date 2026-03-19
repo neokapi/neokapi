@@ -1,13 +1,10 @@
-#!/bin/sh
-# Render config.toml from template using environment variables.
-# Falls back to the template as-is if envsubst is not available.
-
+#!/bravo/busybox sh
+# Render config.toml from template by substituting env vars with sed.
 set -e
 
-if command -v envsubst >/dev/null 2>&1; then
-    envsubst < /bravo/config.toml.template > /bravo/config.toml
-else
-    cp /bravo/config.toml.template /bravo/config.toml
-fi
+/bravo/busybox sed \
+  -e "s|\${BRAVO_MCP_ENDPOINT}|${BRAVO_MCP_ENDPOINT}|g" \
+  -e "s|\${BRAVO_AGENT_TOKEN}|${BRAVO_AGENT_TOKEN}|g" \
+  /bravo/config.toml.template > /zeroclaw-data/.zeroclaw/config.toml
 
 exec "$@"
