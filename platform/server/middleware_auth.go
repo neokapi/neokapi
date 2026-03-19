@@ -56,6 +56,10 @@ func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareF
 				if err != nil {
 					return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "invalid token: " + err.Error()})
 				}
+				// Auto-provision user if not in DB (supports pre-generated agent tokens).
+				if authStore != nil {
+					ensureUserExists(c.Request().Context(), authStore, claims)
+				}
 				setClaimsOnContext(c, claims)
 				return next(c)
 			}
@@ -70,6 +74,22 @@ func AuthMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareF
 			return c.JSON(http.StatusUnauthorized, ErrorResponse{Error: "missing authorization"})
 		}
 	}
+}
+
+// ensureUserExists creates a user record if it doesn't already exist.
+// This supports agent tokens where the user ID is embedded in the JWT but
+// the user hasn't gone through the OIDC registration flow.
+func ensureUserExists(ctx context.Context, authStore auth.AuthStore, claims *platauth.Claims) {
+	_, err := authStore.GetUser(ctx, claims.Subject)
+	if err == nil {
+		return // already exists
+	}
+	u := &platauth.User{
+		ID:    claims.Subject,
+		Email: claims.Email,
+		Name:  claims.Name,
+	}
+	_ = authStore.CreateUser(ctx, u) // best-effort; ignore duplicate race
 }
 
 // handleAPIToken validates a bwt_ API token, looks up the user, and sets context.

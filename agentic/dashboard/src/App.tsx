@@ -9,6 +9,7 @@ import BowrainContext from './components/BowrainContext';
 import { Separator } from './components/ui/separator';
 import { FilterProvider, useFilter } from './context/FilterContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ApiProvider } from './context/ApiContext';
 import { agents } from './data/agents';
 
 function DashboardContent() {
@@ -105,6 +106,7 @@ function DashboardPage() {
 function App() {
   return (
     <ThemeProvider>
+      <ApiProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<DashboardPage />} />
@@ -113,6 +115,7 @@ function App() {
           <Route path="/workspace/:slug/session/:sessionId" element={<DashboardPage />} />
         </Routes>
       </BrowserRouter>
+      </ApiProvider>
     </ThemeProvider>
   );
 }
