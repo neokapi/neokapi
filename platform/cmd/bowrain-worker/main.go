@@ -129,6 +129,12 @@ func main() {
 		g.Go(func() error {
 			return jobs.RunAgentWorker(ctx, agentDeps)
 		})
+
+		// Cleanup idle agent containers periodically.
+		g.Go(func() error {
+			agentDeps.Pool.RunCleanupLoop(ctx)
+			return nil
+		})
 	}
 
 	log.Println("Starting bowrain worker...")
