@@ -140,6 +140,11 @@ func main() {
 		cfg.AgentModelAPIKey = v
 	}
 
+	// Agentic event forwarding.
+	if v := os.Getenv("BOWRAIN_AGENTIC_EVENTS"); v == "true" || v == "1" {
+		cfg.AgenticEvents = true
+	}
+
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
 		log.Fatalf("Invalid -database-url: must start with postgres:// or postgresql://")

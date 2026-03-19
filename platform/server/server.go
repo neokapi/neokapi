@@ -145,6 +145,10 @@ type Server struct {
 	// AgentService orchestrates @bravo agent lifecycle (AD-028).
 	// Nil when agent system is not configured.
 	AgentService *service.AgentService
+
+	// AgenticQueueSink forwards platform events to queues for agentic testing.
+	// Nil when BOWRAIN_AGENTIC_EVENTS is not set.
+	AgenticQueueSink *event.QueueSink
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -329,6 +333,9 @@ func NewServer(cfg ServerConfig) *Server {
 			log.Printf("WARNING: unknown agent runtime %q", cfg.AgentRuntime)
 		}
 	}
+
+	// Wire up agentic event queue sink.
+	s.initAgenticQueueSink(cfg)
 
 	return s
 }
