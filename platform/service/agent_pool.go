@@ -22,6 +22,11 @@ type ContainerConfig struct {
 	SystemPrompt   string            // agent system prompt
 	GatewayPort    int               // port for ZeroClaw gateway (default 42617)
 	Env            map[string]string // additional environment variables
+
+	// Registry credentials for pulling private container images.
+	RegistryServer   string // e.g. "ghcr.io"
+	RegistryUsername string // e.g. "neokapi"
+	RegistryPassword string // PAT or token
 }
 
 // AgentContainer represents a running ZeroClaw agent container.
@@ -58,6 +63,11 @@ type AgentPool struct {
 	modelAPIBase  string
 	modelAPIKey   string
 
+	// Registry credentials for private images.
+	registryServer   string
+	registryUsername string
+	registryPassword string
+
 	mu         sync.Mutex
 	containers map[string]*AgentContainer // conversationID → container
 }
@@ -75,6 +85,11 @@ type AgentPoolConfig struct {
 	ModelName     string // e.g. "gpt-4o"
 	ModelAPIBase  string
 	ModelAPIKey   string
+
+	// Registry credentials for pulling private container images.
+	RegistryServer   string
+	RegistryUsername string
+	RegistryPassword string
 }
 
 // NewAgentPool creates a new agent container pool.
@@ -89,16 +104,19 @@ func NewAgentPool(cfg AgentPoolConfig) *AgentPool {
 		cfg.BravoImage = "ghcr.io/neokapi/bravo-agent:latest"
 	}
 	return &AgentPool{
-		runtime:         cfg.Runtime,
-		mcpEndpoint:     cfg.MCPEndpoint,
-		bravoImage:      cfg.BravoImage,
-		maxPerWorkspace: cfg.MaxPerWorkspace,
-		idleTimeout:     cfg.IdleTimeout,
-		modelProvider:   cfg.ModelProvider,
-		modelName:       cfg.ModelName,
-		modelAPIBase:    cfg.ModelAPIBase,
-		modelAPIKey:     cfg.ModelAPIKey,
-		containers:      make(map[string]*AgentContainer),
+		runtime:          cfg.Runtime,
+		mcpEndpoint:      cfg.MCPEndpoint,
+		bravoImage:       cfg.BravoImage,
+		maxPerWorkspace:  cfg.MaxPerWorkspace,
+		idleTimeout:      cfg.IdleTimeout,
+		modelProvider:    cfg.ModelProvider,
+		modelName:        cfg.ModelName,
+		modelAPIBase:     cfg.ModelAPIBase,
+		modelAPIKey:      cfg.ModelAPIKey,
+		registryServer:   cfg.RegistryServer,
+		registryUsername: cfg.RegistryUsername,
+		registryPassword: cfg.RegistryPassword,
+		containers:       make(map[string]*AgentContainer),
 	}
 }
 
@@ -156,6 +174,15 @@ func (p *AgentPool) Acquire(ctx context.Context, cfg ContainerConfig) (*AgentCon
 	}
 	if cfg.ModelAPIKey == "" {
 		cfg.ModelAPIKey = p.modelAPIKey
+	}
+	if cfg.RegistryServer == "" {
+		cfg.RegistryServer = p.registryServer
+	}
+	if cfg.RegistryUsername == "" {
+		cfg.RegistryUsername = p.registryUsername
+	}
+	if cfg.RegistryPassword == "" {
+		cfg.RegistryPassword = p.registryPassword
 	}
 
 	container, err := p.runtime.Spawn(ctx, cfg)
