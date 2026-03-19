@@ -187,8 +187,9 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 	})
 
 	pool := service.NewAgentPool(service.AgentPoolConfig{
-		Runtime:      runtime,
-		BravoImage:   envOrDefault("BOWRAIN_AGENT_IMAGE", "ghcr.io/neokapi/bravo-agent:latest"),
+		Runtime:       runtime,
+		MCPEndpoint:   os.Getenv("BOWRAIN_AGENT_MCP_ENDPOINT"),
+		BravoImage:    envOrDefault("BOWRAIN_AGENT_IMAGE", "ghcr.io/neokapi/bravo-agent:latest"),
 		ModelProvider: os.Getenv("BOWRAIN_AGENT_MODEL_PROVIDER"),
 		ModelName:     os.Getenv("BOWRAIN_AGENT_MODEL_NAME"),
 		ModelAPIBase:  os.Getenv("BOWRAIN_AGENT_MODEL_API_BASE"),
