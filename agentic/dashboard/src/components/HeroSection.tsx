@@ -1,20 +1,30 @@
 import { motion } from 'framer-motion';
-import { agents } from '../data/agents';
-import { projects } from '../data/projects';
+import { workspaces } from '../data/workspaces';
+import { sessions } from '../data/sessions';
 import { issues } from '../data/issues';
-import { tmGrowth } from '../data/metrics';
 
 export default function HeroSection() {
-  const totalBlocks = agents.reduce((sum, a) => sum + a.stats.blocksProcessed, 0);
-  const totalTM = tmGrowth[tmGrowth.length - 1].value;
+  const activeWorkspaces = workspaces.filter((w) => w.status === "active").length;
+
+  const now = Date.now();
+  const weekMs = 7 * 24 * 3_600_000;
+  const dayMs = 24 * 3_600_000;
+
+  const sessionsThisWeek = sessions.filter(
+    (s) => now - new Date(s.startTime).getTime() < weekMs
+  ).length;
+
+  const toolCallsToday = sessions
+    .filter((s) => now - new Date(s.startTime).getTime() < dayMs)
+    .reduce((sum, s) => sum + s.toolCalls.length, 0);
+
   const totalIssues = issues.length;
-  const activeProjects = projects.length;
 
   const stats = [
-    { label: "Blocks Translated", value: totalBlocks.toLocaleString() },
-    { label: "TM Entries", value: totalTM.toLocaleString() },
+    { label: "Active Workspaces", value: activeWorkspaces.toString() },
+    { label: "Sessions This Week", value: sessionsThisWeek.toString() },
+    { label: "Tool Calls Today", value: toolCallsToday.toString() },
     { label: "Issues Filed", value: totalIssues.toString() },
-    { label: "Active Projects", value: activeProjects.toString() },
   ];
 
   return (
@@ -50,9 +60,8 @@ export default function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          Bowrain{' '}
-          <span className="text-[var(--color-accent-amber)]">Agentic</span>{' '}
-          Testing
+          Agent{' '}
+          <span className="text-[var(--color-accent-amber)]">Operations</span>
         </motion.h1>
 
         <motion.p
@@ -61,7 +70,7 @@ export default function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          7 AI agents localizing open source projects in real-time
+          What are my agents doing? Sessions, tools, and workspace activity.
         </motion.p>
 
         <motion.div

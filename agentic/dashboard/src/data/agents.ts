@@ -9,144 +9,122 @@ export interface Agent {
   accentColor: string;
   personality: string[];
   status: "active" | "idle" | "sleeping";
-  stats: {
-    blocksProcessed: number;
-    tmEntries: number;
-    issuesFiled: number;
-    sessionsCompleted: number;
-  };
   avatar: string;
+  workspace: string;
+  lastSession: {
+    time: string;
+    duration: string;
+    status: "succeeded" | "failed";
+  };
+  stats: {
+    sessionsThisWeek: number;
+    toolCallsToday: number;
+    lastActive: string;
+    issuesFiled: number;
+  };
 }
+
+const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
 
 export const agents: Agent[] = [
   {
     id: "alex-chen",
     name: "Alex Chen",
-    role: "Developer",
-    title: "Senior DevOps Engineer",
+    role: "L10N Engineer",
+    title: "L10N Engineer",
     model: "GPT-4o-mini",
     schedule: "Weekdays 9am & 5pm",
     accentColor: "amber",
     personality: ["Methodical", "CLI-first", "Ship it"],
     status: "active",
-    stats: {
-      blocksProcessed: 4218,
-      tmEntries: 0,
-      issuesFiled: 12,
-      sessionsCompleted: 187,
-    },
     avatar: "\u{1F6E0}\u{FE0F}",
-  },
-  {
-    id: "maria-santos",
-    name: "Maria Santos",
-    role: "Brand Manager",
-    title: "Localization Brand Specialist",
-    model: "Claude Sonnet 4.5",
-    schedule: "MWF 10am",
-    accentColor: "emerald",
-    personality: ["Detail-oriented", "Brand guardian", "Opinionated"],
-    status: "idle",
-    stats: {
-      blocksProcessed: 1842,
-      tmEntries: 312,
-      issuesFiled: 28,
-      sessionsCompleted: 64,
+    workspace: "excalidraw",
+    lastSession: {
+      time: minutesAgo(12),
+      duration: "3m 22s",
+      status: "succeeded",
     },
-    avatar: "\u{1F3A8}",
+    stats: {
+      sessionsThisWeek: 14,
+      toolCallsToday: 18,
+      lastActive: minutesAgo(12),
+      issuesFiled: 2,
+    },
   },
   {
-    id: "jean-pierre-dubois",
-    name: "Jean-Pierre Dubois",
-    role: "French Translator",
-    title: "Senior French Linguist",
-    model: "Claude Sonnet 4.5",
+    id: "sophie-martin",
+    name: "Sophie Martin",
+    role: "French Language Expert",
+    title: "French Language Expert",
+    model: "GPT-4o",
     schedule: "Weekdays 2pm",
     targetLanguage: "fr-FR",
     accentColor: "blue",
-    personality: ["Formal register", "Termbase-obsessed", "60% accept rate"],
+    personality: ["Nuanced", "Termbase-focused", "Thorough"],
     status: "active",
-    stats: {
-      blocksProcessed: 3156,
-      tmEntries: 2847,
-      issuesFiled: 9,
-      sessionsCompleted: 142,
-    },
     avatar: "\u{1F1EB}\u{1F1F7}",
+    workspace: "excalidraw",
+    lastSession: {
+      time: hoursAgo(1.5),
+      duration: "22m 14s",
+      status: "succeeded",
+    },
+    stats: {
+      sessionsThisWeek: 5,
+      toolCallsToday: 67,
+      lastActive: hoursAgo(1.5),
+      issuesFiled: 1,
+    },
   },
   {
-    id: "katrin-weber",
-    name: "Katrin Weber",
-    role: "German Translator",
-    title: "Technical German Linguist",
-    model: "Claude Sonnet 4.5",
+    id: "thomas-weber",
+    name: "Thomas Weber",
+    role: "German Language Expert",
+    title: "German Language Expert",
+    model: "GPT-4o",
     schedule: "Weekdays 2pm",
     targetLanguage: "de-DE",
     accentColor: "rose",
-    personality: ["Precision-focused", "Engineering mind", "40% accept rate"],
+    personality: ["Precision-focused", "Compound-noun expert", "Concise"],
     status: "sleeping",
-    stats: {
-      blocksProcessed: 2891,
-      tmEntries: 2534,
-      issuesFiled: 15,
-      sessionsCompleted: 128,
-    },
     avatar: "\u{1F1E9}\u{1F1EA}",
-  },
-  {
-    id: "yuki-tanaka",
-    name: "Yuki Tanaka",
-    role: "Japanese Translator",
-    title: "CJK Localization Expert",
-    model: "Claude Sonnet 4.5",
-    schedule: "Weekdays 8pm",
-    targetLanguage: "ja-JP",
-    accentColor: "violet",
-    personality: ["CJK specialist", "UX-aware", "30% accept rate"],
-    status: "sleeping",
-    stats: {
-      blocksProcessed: 2104,
-      tmEntries: 1876,
-      issuesFiled: 22,
-      sessionsCompleted: 96,
+    workspace: "excalidraw",
+    lastSession: {
+      time: hoursAgo(4),
+      duration: "18m 47s",
+      status: "succeeded",
     },
-    avatar: "\u{1F1EF}\u{1F1F5}",
-  },
-  {
-    id: "lisa-chen",
-    name: "Lisa Chen",
-    role: "Project Manager",
-    title: "Localization Program Manager",
-    model: "GPT-4o",
-    schedule: "Weekdays 10am",
-    accentColor: "slate",
-    personality: ["Metrics-driven", "Deadline-focused", "Weekly reports"],
-    status: "idle",
     stats: {
-      blocksProcessed: 0,
-      tmEntries: 0,
-      issuesFiled: 34,
-      sessionsCompleted: 52,
+      sessionsThisWeek: 5,
+      toolCallsToday: 0,
+      lastActive: hoursAgo(4),
+      issuesFiled: 3,
     },
-    avatar: "\u{1F4CA}",
   },
   {
-    id: "taylor-kim",
-    name: "Taylor Kim",
-    role: "QA Engineer",
-    title: "Localization QA Specialist",
+    id: "mei-zhang",
+    name: "Mei Zhang",
+    role: "Reviewer",
+    title: "Reviewer",
     model: "GPT-4o",
     schedule: "Every 2 hours",
     accentColor: "teal",
-    personality: ["Automated QA", "Placeholder hawk", "Zero tolerance"],
+    personality: ["Quality gate", "Cross-lingual", "Strict"],
     status: "active",
-    stats: {
-      blocksProcessed: 5672,
-      tmEntries: 0,
-      issuesFiled: 47,
-      sessionsCompleted: 312,
-    },
     avatar: "\u{1F50D}",
+    workspace: "excalidraw",
+    lastSession: {
+      time: minutesAgo(45),
+      duration: "12m 08s",
+      status: "succeeded",
+    },
+    stats: {
+      sessionsThisWeek: 21,
+      toolCallsToday: 34,
+      lastActive: minutesAgo(45),
+      issuesFiled: 5,
+    },
   },
 ];
 

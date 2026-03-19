@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { activityFeed } from '../data/activity';
 import { accentColorMap } from '../data/agents';
+import { useFilter } from '../context/FilterContext';
 
 function formatRelativeTime(date: Date): string {
   const now = new Date();
@@ -14,6 +15,12 @@ function formatRelativeTime(date: Date): string {
 }
 
 export default function ActivityFeed() {
+  const { selectedWorkspace } = useFilter();
+
+  const filtered = selectedWorkspace
+    ? activityFeed.filter((e) => e.workspace === selectedWorkspace)
+    : activityFeed;
+
   return (
     <div className="flex h-full flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)]">
       <div className="border-b border-[var(--color-border)] px-4 py-3">
@@ -23,7 +30,7 @@ export default function ActivityFeed() {
       </div>
       <div className="relative flex-1 overflow-y-auto p-3" style={{ maxHeight: '600px' }}>
         <AnimatePresence>
-          {activityFeed.map((entry, i) => {
+          {filtered.map((entry, i) => {
             const color = accentColorMap[entry.accentColor] || '#f59e0b';
             return (
               <motion.div
@@ -43,6 +50,9 @@ export default function ActivityFeed() {
                       >
                         {entry.agentName}
                       </span>
+                      <span className="rounded-full bg-[var(--color-bg-card)] px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[9px] text-[var(--color-text-muted)]">
+                        {entry.workspace}
+                      </span>
                       <span className="font-[family-name:var(--font-mono)] text-[10px] text-[var(--color-text-muted)]">
                         {formatRelativeTime(entry.timestamp)}
                       </span>
@@ -50,6 +60,18 @@ export default function ActivityFeed() {
                     <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
                       {entry.action}
                     </p>
+                    {entry.toolsUsed.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {entry.toolsUsed.map((tool) => (
+                          <span
+                            key={tool}
+                            className="rounded-md bg-[var(--color-bg-card)] px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[9px] text-[var(--color-text-muted)]"
+                          >
+                            {tool}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
