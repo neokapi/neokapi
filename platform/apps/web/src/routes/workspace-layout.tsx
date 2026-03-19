@@ -139,6 +139,9 @@ function ConnectedBravoPanel() {
       onCancelStreaming={actions.cancelStreaming}
       loading={state.loading}
       sendDisabled={state.streaming}
+      coldStarting={state.coldStarting}
+      mode={state.mode}
+      onModeChange={actions.setMode}
     />
   );
 }
