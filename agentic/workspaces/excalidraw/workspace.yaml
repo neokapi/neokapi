@@ -1,0 +1,30 @@
+# Excalidraw Localization Experiment
+name: Excalidraw
+slug: excalidraw-l10n
+description: "AI agents localizing Excalidraw — collaborative whiteboard"
+
+upstream:
+  repo: excalidraw/excalidraw
+  fork: neokapi/agentic-excalidraw
+
+source_language: en-US
+target_languages:
+  - fr-FR
+  - de-DE
+
+content_paths:
+  - path: "src/locales/en.json"
+    format: json
+  - path: "docs/**/*.md"
+    format: markdown
+
+# Agents for this workspace (referenced by directory name)
+agents:
+  - name: alex
+    role: "L10N Engineer"
+  - name: sophie
+    role: "French Language Expert"
+  - name: thomas
+    role: "German Language Expert"
+  - name: mei
+    role: "Reviewer"
