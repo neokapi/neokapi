@@ -55,8 +55,9 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
 
 ### Deliverables
 
-- [ ] Add 5 new MCP tools to Bravo server: `github_create_issue`, `github_search_issues`,
-      `github_comment_issue`, `email_send`, `email_list_inbox` (in `platform/server/mcp/`)
+- [ ] Build standalone email MCP server (`agentic/email-mcp/`) wrapping Mailpit SMTP/API
+- [ ] Add Mailpit + email-mcp to docker-compose
+- [ ] Configure `gh` CLI + `GITHUB_TOKEN` for agents that file issues
 - [ ] Create Translator Agent workspace (Jean-Pierre, fr-FR)
 - [ ] Create Brand Manager Agent workspace (Maria Santos)
 - [ ] Docker-compose with all three agents running in daemon mode
