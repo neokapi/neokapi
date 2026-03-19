@@ -11,8 +11,35 @@ import SessionHeatmap from './components/SessionHeatmap';
 import ActivityFeed from './components/ActivityFeed';
 import IssuesFeed from './components/IssuesFeed';
 import { FilterProvider, useFilter } from './context/FilterContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { agents } from './data/agents';
 import { workspaces } from './data/workspaces';
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0 },
+};
+
+const staggerContainer = {
+  visible: {
+    transition: {
+      staggerChildren: 0.08,
+    },
+  },
+};
+
+function SectionDivider() {
+  return (
+    <div className="mx-auto max-w-7xl px-6">
+      <div
+        style={{
+          height: '1px',
+          background: `linear-gradient(to right, transparent, rgb(var(--border)), transparent)`,
+        }}
+      />
+    </div>
+  );
+}
 
 function DashboardContent() {
   const { selectedWorkspace } = useFilter();
@@ -22,11 +49,18 @@ function DashboardContent() {
     : agents;
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)]">
+    <div className="min-h-screen" style={{ backgroundColor: 'rgb(var(--bg-base))' }}>
       <Header />
 
       {/* Workspace selector bar */}
-      <div className="sticky top-[53px] z-40 border-b border-[var(--color-border)] bg-[var(--color-bg-primary)]/95 backdrop-blur-sm">
+      <div
+        className="sticky top-[53px] z-40"
+        style={{
+          borderBottom: '1px solid rgb(var(--border))',
+          backgroundColor: 'rgb(var(--bg-base) / 0.95)',
+          backdropFilter: 'blur(8px)',
+        }}
+      >
         <div className="mx-auto max-w-7xl">
           <WorkspaceSelector />
         </div>
@@ -34,41 +68,63 @@ function DashboardContent() {
 
       <HeroSection />
 
-      {/* Workspace overview cards — only when "All Workspaces" */}
+      {/* Workspace overview cards -- only when "All Workspaces" */}
       {!selectedWorkspace && (
         <motion.section
-          className="px-6 py-8"
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
+          className="px-4 py-16 sm:px-6"
+          variants={sectionVariants}
+          initial="hidden"
+          whileInView="visible"
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
         >
           <div className="mx-auto max-w-7xl">
-            <h2 className="mb-6 font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--color-text-primary)]">
+            <h2
+              className="font-display mb-6 text-xl font-normal sm:text-2xl"
+              style={{ color: 'rgb(var(--text-primary))' }}
+            >
               Workspaces
             </h2>
-            <div className="grid gap-4 md:grid-cols-3">
+            <motion.div
+              className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+            >
               {workspaces.map((ws, i) => (
                 <WorkspaceCard key={ws.id} workspace={ws} index={i} />
               ))}
-            </div>
+            </motion.div>
           </div>
         </motion.section>
       )}
 
-      {/* Agent Cards — horizontal scroll */}
+      <SectionDivider />
+
+      {/* Agent Cards */}
       <motion.section
-        className="px-6 py-8"
-        initial={{ opacity: 0 }}
-        whileInView={{ opacity: 1 }}
+        className="px-4 py-16 sm:px-6"
+        variants={sectionVariants}
+        initial="hidden"
+        whileInView="visible"
         viewport={{ once: true }}
         transition={{ duration: 0.6 }}
       >
         <div className="mx-auto max-w-7xl">
-          <h2 className="mb-6 font-[family-name:var(--font-display)] text-2xl font-bold text-[var(--color-text-primary)]">
+          <h2
+            className="font-display mb-6 text-xl font-normal sm:text-2xl"
+            style={{ color: 'rgb(var(--text-primary))' }}
+          >
             Agent Roster
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          {/* Mobile: vertical grid, Desktop: horizontal scroll */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:hidden">
+            {filteredAgents.map((agent, i) => (
+              <AgentCard key={agent.id} agent={agent} index={i} />
+            ))}
+          </div>
+          <div className="hidden lg:flex gap-4 overflow-x-auto pb-4">
             {filteredAgents.map((agent, i) => (
               <AgentCard key={agent.id} agent={agent} index={i} />
             ))}
@@ -76,37 +132,52 @@ function DashboardContent() {
         </div>
       </motion.section>
 
+      <SectionDivider />
+
       <HandoffChain />
 
-      {/* Session Timeline — THE CENTERPIECE */}
+      <SectionDivider />
+
+      {/* Session Timeline -- THE CENTERPIECE */}
       <SessionTimeline />
 
+      <SectionDivider />
+
       {/* Two-column: Tool usage chart | Session heatmap */}
-      <section className="px-6 py-8">
-        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
+      <section className="px-4 py-16 sm:px-6">
+        <div className="mx-auto grid max-w-7xl gap-6 grid-cols-1 lg:grid-cols-2">
           <ToolUsageChart />
           <SessionHeatmap />
         </div>
       </section>
 
+      <SectionDivider />
+
       {/* Activity feed + Issues feed side by side */}
-      <section className="px-6 py-8">
-        <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-2">
+      <section className="px-4 py-16 sm:px-6">
+        <div className="mx-auto grid max-w-7xl gap-6 grid-cols-1 lg:grid-cols-2">
           <ActivityFeed />
           <IssuesFeed />
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[var(--color-border)] px-6 py-8">
+      <footer
+        className="px-4 py-8 sm:px-6"
+        style={{ borderTop: '1px solid rgb(var(--border))' }}
+      >
         <div className="mx-auto max-w-7xl text-center">
-          <p className="font-[family-name:var(--font-mono)] text-xs text-[var(--color-text-muted)]">
+          <p
+            className="font-mono text-xs"
+            style={{ color: 'rgb(var(--text-muted))' }}
+          >
             Bowrain Agentic Operations Dashboard — Powered by{' '}
             <a
               href="https://github.com/neokapi/neokapi"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[var(--color-accent-amber)] hover:underline"
+              className="hover:underline"
+              style={{ color: 'rgb(var(--accent))' }}
             >
               neokapi
             </a>
@@ -119,9 +190,11 @@ function DashboardContent() {
 
 function App() {
   return (
-    <FilterProvider>
-      <DashboardContent />
-    </FilterProvider>
+    <ThemeProvider>
+      <FilterProvider>
+        <DashboardContent />
+      </FilterProvider>
+    </ThemeProvider>
   );
 }
 

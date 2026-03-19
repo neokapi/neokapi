@@ -22,20 +22,39 @@ export default function ActivityFeed() {
     : activityFeed;
 
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)]">
-      <div className="border-b border-[var(--color-border)] px-4 py-3">
-        <h3 className="font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
+    <div
+      className="flex h-full flex-col rounded-xl"
+      style={{
+        backgroundColor: 'rgb(var(--bg-card))',
+        border: '1px solid rgb(var(--border))',
+      }}
+    >
+      <div
+        className="px-4 py-3"
+        style={{ borderBottom: '1px solid rgb(var(--border))' }}
+      >
+        <h3
+          className="font-mono text-sm font-semibold"
+          style={{ color: 'rgb(var(--text-primary))' }}
+        >
           Activity Feed
         </h3>
       </div>
-      <div className="relative flex-1 overflow-y-auto p-3" style={{ maxHeight: '600px' }}>
+      <div
+        className="relative flex-1 overflow-y-auto p-3"
+        style={{ maxHeight: '600px', scrollBehavior: 'smooth' }}
+      >
         <AnimatePresence>
           {filtered.map((entry, i) => {
-            const color = accentColorMap[entry.accentColor] || '#f59e0b';
+            const color = accentColorMap[entry.accentColor] || '#d9a03c';
             return (
               <motion.div
                 key={entry.id}
-                className="mb-2 rounded-lg bg-[var(--color-bg-elevated)] p-3"
+                className="mb-2 rounded-lg p-3"
+                style={{
+                  backgroundColor: 'rgb(var(--bg-elevated))',
+                  borderLeft: `3px solid ${color}`,
+                }}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: i * 0.03 }}
@@ -43,21 +62,33 @@ export default function ActivityFeed() {
                 <div className="flex items-start gap-2">
                   <span className="flex-shrink-0 text-lg">{entry.agentAvatar}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span
                         className="text-xs font-semibold"
                         style={{ color }}
                       >
                         {entry.agentName}
                       </span>
-                      <span className="rounded-full bg-[var(--color-bg-card)] px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[9px] text-[var(--color-text-muted)]">
+                      <span
+                        className="rounded-full px-1.5 py-0.5 font-mono text-[9px]"
+                        style={{
+                          backgroundColor: 'rgb(var(--bg-card))',
+                          color: 'rgb(var(--text-muted))',
+                        }}
+                      >
                         {entry.workspace}
                       </span>
-                      <span className="font-[family-name:var(--font-mono)] text-[10px] text-[var(--color-text-muted)]">
+                      <span
+                        className="font-mono text-[10px]"
+                        style={{ color: 'rgb(var(--text-muted))' }}
+                      >
                         {formatRelativeTime(entry.timestamp)}
                       </span>
                     </div>
-                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-secondary)]">
+                    <p
+                      className="mt-0.5 text-xs leading-relaxed"
+                      style={{ color: 'rgb(var(--text-secondary))' }}
+                    >
                       {entry.action}
                     </p>
                     {entry.toolsUsed.length > 0 && (
@@ -65,7 +96,11 @@ export default function ActivityFeed() {
                         {entry.toolsUsed.map((tool) => (
                           <span
                             key={tool}
-                            className="rounded-md bg-[var(--color-bg-card)] px-1.5 py-0.5 font-[family-name:var(--font-mono)] text-[9px] text-[var(--color-text-muted)]"
+                            className="rounded-md px-1.5 py-0.5 font-mono text-[9px]"
+                            style={{
+                              backgroundColor: 'rgb(var(--bg-card))',
+                              color: 'rgb(var(--text-muted))',
+                            }}
                           >
                             {tool}
                           </span>
@@ -79,7 +114,12 @@ export default function ActivityFeed() {
           })}
         </AnimatePresence>
         {/* Fade gradient at bottom */}
-        <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-[var(--color-bg-card)] to-transparent" />
+        <div
+          className="pointer-events-none sticky bottom-0 left-0 right-0 h-12"
+          style={{
+            background: `linear-gradient(to top, rgb(var(--bg-card)), transparent)`,
+          }}
+        />
       </div>
     </div>
   );

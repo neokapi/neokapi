@@ -1,28 +1,29 @@
 import { motion } from 'framer-motion';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useFilter } from '../context/FilterContext';
 import { sessions } from '../data/sessions';
 
-const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 function getHeatColor(count: number, maxCount: number): string {
-  if (count === 0) return "var(--color-bg-elevated)";
+  if (count === 0) return 'rgb(var(--bg-elevated))';
   const intensity = count / maxCount;
-  if (intensity < 0.25) return "#78350f"; // dark amber
-  if (intensity < 0.5) return "#b45309";  // amber
-  if (intensity < 0.75) return "#d97706"; // warm amber
-  return "#f59e0b"; // gold
+  // Warm color ramp: brown -> amber -> gold
+  if (intensity < 0.25) return 'rgb(120 80 30)';
+  if (intensity < 0.5) return 'rgb(160 110 30)';
+  if (intensity < 0.75) return 'rgb(200 145 40)';
+  return 'rgb(var(--accent))';
 }
 
 export default function SessionHeatmap() {
   const { selectedWorkspace } = useFilter();
+  const [hoveredCell, setHoveredCell] = useState<{ date: string; count: number; x: number; y: number } | null>(null);
 
   const { grid, weeks, maxCount } = useMemo(() => {
     const filtered = selectedWorkspace
       ? sessions.filter((s) => s.workspace === selectedWorkspace)
       : sessions;
 
-    // Build a grid of weeks x days
     const now = new Date();
     const numWeeks = 4;
     const cellMap = new Map<string, number>();
@@ -36,12 +37,13 @@ export default function SessionHeatmap() {
     const grid: { week: number; day: number; count: number; date: string }[] = [];
     let maxCount = 0;
 
-    // Build grid for past numWeeks weeks
     const weekLabels: string[] = [];
     for (let w = numWeeks - 1; w >= 0; w--) {
       const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 - w * 7); // Monday of that week
-      weekLabels.push(weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 - w * 7);
+      weekLabels.push(
+        weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      );
 
       for (let d = 0; d < 7; d++) {
         const cellDate = new Date(weekStart);
@@ -58,21 +60,32 @@ export default function SessionHeatmap() {
 
   return (
     <motion.div
-      className="rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-5"
+      className="rounded-xl p-5"
+      style={{
+        backgroundColor: 'rgb(var(--bg-card))',
+        border: '1px solid rgb(var(--border))',
+      }}
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
     >
-      <h3 className="mb-4 font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
+      <h3
+        className="mb-4 font-mono text-sm font-semibold"
+        style={{ color: 'rgb(var(--text-primary))' }}
+      >
         Session Activity
       </h3>
 
-      <div className="flex gap-1">
+      <div className="relative flex gap-1">
         {/* Day labels */}
         <div className="flex flex-col gap-1 pr-2 pt-6">
           {dayLabels.map((label) => (
-            <div key={label} className="flex h-5 items-center font-[family-name:var(--font-mono)] text-[10px] text-[var(--color-text-muted)]">
+            <div
+              key={label}
+              className="flex items-center font-mono text-[10px]"
+              style={{ height: '20px', color: 'rgb(var(--text-muted))' }}
+            >
               {label}
             </div>
           ))}
@@ -83,53 +96,102 @@ export default function SessionHeatmap() {
           {/* Week labels */}
           <div className="mb-1 flex gap-1">
             {weeks.map((w, i) => (
-              <div key={i} className="flex-1 text-center font-[family-name:var(--font-mono)] text-[10px] text-[var(--color-text-muted)]">
+              <div
+                key={i}
+                className="flex-1 text-center font-mono text-[10px]"
+                style={{ color: 'rgb(var(--text-muted))' }}
+              >
                 {w}
               </div>
             ))}
           </div>
 
-          {/* Cells: rows = days (0-6), columns = weeks */}
+          {/* Cells */}
           {dayLabels.map((_, dayIdx) => (
-            <div key={dayIdx} className="flex gap-1 mb-1">
+            <div key={dayIdx} className="mb-1 flex gap-1">
               {Array.from({ length: weeks.length }).map((_, weekIdx) => {
-                const cell = grid.find((c) => c.week === weekIdx && c.day === dayIdx);
+                const cell = grid.find(
+                  (c) => c.week === weekIdx && c.day === dayIdx
+                );
                 const count = cell?.count ?? 0;
                 return (
                   <div
                     key={weekIdx}
-                    className="flex-1 rounded-sm transition-colors"
+                    className="flex-1 cursor-default rounded-md transition-colors"
                     style={{
-                      height: "20px",
+                      height: '20px',
                       backgroundColor: getHeatColor(count, maxCount),
                       opacity: count === 0 ? 0.3 : 1,
                     }}
-                    title={cell ? `${cell.date}: ${count} session${count !== 1 ? "s" : ""}` : ""}
+                    onMouseEnter={(e) => {
+                      if (cell) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredCell({
+                          date: cell.date,
+                          count,
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                        });
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredCell(null)}
                   />
                 );
               })}
             </div>
           ))}
         </div>
+
+        {/* Tooltip */}
+        {hoveredCell && (
+          <div
+            className="pointer-events-none fixed z-50 rounded-lg px-2.5 py-1.5 shadow-lg"
+            style={{
+              left: hoveredCell.x,
+              top: hoveredCell.y - 40,
+              transform: 'translateX(-50%)',
+              backgroundColor: 'rgb(var(--bg-base))',
+              border: '1px solid rgb(var(--border))',
+            }}
+          >
+            <div
+              className="font-mono text-[10px]"
+              style={{ color: 'rgb(var(--text-primary))' }}
+            >
+              {hoveredCell.date}: {hoveredCell.count} session
+              {hoveredCell.count !== 1 ? 's' : ''}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Legend */}
       <div className="mt-3 flex items-center justify-end gap-1.5">
-        <span className="text-[10px] text-[var(--color-text-muted)]">Less</span>
+        <span className="text-[10px]" style={{ color: 'rgb(var(--text-muted))' }}>
+          Less
+        </span>
         {[0, 0.25, 0.5, 0.75, 1].map((intensity, i) => (
           <div
             key={i}
-            className="h-3 w-3 rounded-sm"
+            className="h-3 w-3 rounded-md"
             style={{
-              backgroundColor: intensity === 0 ? "var(--color-bg-elevated)" :
-                intensity < 0.25 ? "#78350f" :
-                intensity < 0.5 ? "#b45309" :
-                intensity < 0.75 ? "#d97706" : "#f59e0b",
+              backgroundColor:
+                intensity === 0
+                  ? 'rgb(var(--bg-elevated))'
+                  : intensity < 0.3
+                    ? 'rgb(120 80 30)'
+                    : intensity < 0.55
+                      ? 'rgb(160 110 30)'
+                      : intensity < 0.8
+                        ? 'rgb(200 145 40)'
+                        : 'rgb(var(--accent))',
               opacity: intensity === 0 ? 0.3 : 1,
             }}
           />
         ))}
-        <span className="text-[10px] text-[var(--color-text-muted)]">More</span>
+        <span className="text-[10px]" style={{ color: 'rgb(var(--text-muted))' }}>
+          More
+        </span>
       </div>
     </motion.div>
   );
