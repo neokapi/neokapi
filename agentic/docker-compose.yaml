@@ -56,6 +56,31 @@ services:
     depends_on:
       - mailpit
 
+  # === Optional: Redis for event signaling (accelerated mode) ===
+  redis:
+    image: redis:7-alpine
+    profiles:
+      - accelerated
+    ports:
+      - "6379:6379"
+
+  # === Optional: Release Walker (accelerated mode) ===
+  release-walker:
+    build: ./release-walker
+    profiles:
+      - accelerated
+    environment:
+      REDIS_URL: redis://redis:6379
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      FORKS_DIR: /app/forks
+      CONFIG_DIR: /app/config
+    volumes:
+      - ./forks:/app/forks
+      - ./config:/app/config
+    depends_on:
+      - bowrain-server
+      - redis
+
   # === Optional: Ollama for zero-cost local dev ===
   ollama:
     image: ollama/ollama:latest
