@@ -146,15 +146,14 @@ export function TopBar({
       ) : null}
 
       {/* Theme toggle */}
-      <Button
-        variant="ghost"
-        size="icon-sm"
+      <button
+        className="flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-colors text-muted-foreground hover:text-foreground"
         onClick={() => setTheme(nextTheme[theme])}
         title={`Theme: ${themeLabels[theme]}`}
         data-testid="theme-toggle"
       >
         {themeIcons[theme]}
-      </Button>
+      </button>
 
       {/* Slot before avatar (e.g. @bravo trigger) */}
       {beforeAvatarSlot}

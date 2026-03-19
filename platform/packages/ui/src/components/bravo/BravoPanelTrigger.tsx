@@ -1,5 +1,4 @@
 import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
 
 export interface BravoPanelTriggerProps {
   onClick: () => void;
@@ -35,17 +34,20 @@ function BravoIcon({ className }: { className?: string }) {
 
 export function BravoPanelTrigger({ onClick, active, hasUnread }: BravoPanelTriggerProps) {
   return (
-    <Button
-      variant={active ? "default" : "ghost"}
-      size="icon-sm"
+    <button
+      className={cn(
+        "relative flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-colors",
+        active
+          ? "text-primary"
+          : "text-muted-foreground hover:text-foreground",
+      )}
       onClick={onClick}
-      className={cn("relative")}
       aria-label="Toggle @bravo assistant"
     >
       <BravoIcon />
       {hasUnread && (
         <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
       )}
-    </Button>
+    </button>
   );
 }
