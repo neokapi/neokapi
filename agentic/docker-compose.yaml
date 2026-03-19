@@ -63,6 +63,7 @@ services:
   # using a per-agent JWT token (same auth as Bravo interactive sessions).
   # No MCP sidecar needed — the MCP server is built into bowrain-server.
 
+  # --- Developer ---
   alex-developer:
     image: ghcr.io/zeroclaw-labs/zeroclaw:latest
     command: daemon
@@ -72,9 +73,109 @@ services:
       BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
       BRAVO_AGENT_TOKEN: ${ALEX_AGENT_TOKEN}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      AGENT_NAME: Alex Chen
+      AGENT_EMAIL: alex.chen@bowrain.test
     volumes:
       - ./agents/alex-developer:/root/.zeroclaw
       - ./forks:/root/.zeroclaw/workspace
+    depends_on:
+      - bowrain-server
+
+  # --- Translator: French ---
+  jeanpierre-fr:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${JEANPIERRE_AGENT_TOKEN}
+      AGENT_NAME: Jean-Pierre Dubois
+      AGENT_EMAIL: jeanpierre.dubois@bowrain.test
+    volumes:
+      - ./agents/jeanpierre-fr:/root/.zeroclaw
+    depends_on:
+      - bowrain-server
+
+  # --- Translator: German ---
+  katrin-de:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${KATRIN_AGENT_TOKEN}
+      AGENT_NAME: Katrin Weber
+      AGENT_EMAIL: katrin.weber@bowrain.test
+    volumes:
+      - ./agents/katrin-de:/root/.zeroclaw
+    depends_on:
+      - bowrain-server
+
+  # --- Translator: Japanese ---
+  yuki-ja:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${YUKI_AGENT_TOKEN}
+      AGENT_NAME: Yuki Tanaka
+      AGENT_EMAIL: yuki.tanaka@bowrain.test
+    volumes:
+      - ./agents/yuki-ja:/root/.zeroclaw
+    depends_on:
+      - bowrain-server
+
+  # --- Brand Manager ---
+  maria-brand:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${MARIA_AGENT_TOKEN}
+      AGENT_NAME: Maria Santos
+      AGENT_EMAIL: maria.santos@bowrain.test
+    volumes:
+      - ./agents/maria-brand:/root/.zeroclaw
+    depends_on:
+      - bowrain-server
+
+  # --- Project Manager ---
+  lisa-pm:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${LISA_AGENT_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      AGENT_NAME: Lisa Chen
+      AGENT_EMAIL: lisa.chen@bowrain.test
+    volumes:
+      - ./agents/lisa-pm:/root/.zeroclaw
+    depends_on:
+      - bowrain-server
+
+  # --- QA ---
+  taylor-qa:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    command: daemon
+    restart: unless-stopped
+    environment:
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
+      BRAVO_AGENT_TOKEN: ${TAYLOR_AGENT_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      AGENT_NAME: Taylor Kim
+      AGENT_EMAIL: taylor.kim@bowrain.test
+    volumes:
+      - ./agents/taylor-qa:/root/.zeroclaw
     depends_on:
       - bowrain-server
 
