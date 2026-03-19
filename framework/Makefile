@@ -46,7 +46,7 @@ TIKAL     := bench/pseudobench/tikal.sh
         test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
         fetch-bridge-jar fetch-bridge-testdata \
         cover fmt vet lint check proto deps deps-update clean \
-        bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions
+        bench-build bench-generate bench-run bench-run-all bench-versions
 
 # ── General ──────────────────────────────────────────────────────────────────
 
@@ -198,17 +198,13 @@ bench-build: ## Build PseudoBench tool
 bench-generate: bench-build ## Generate PseudoBench test data
 	cd $(BENCH_DIR) && GOWORK=off ./pseudobench generate
 
-bench-run: bench-build build ## Run PseudoBench (kapi native, single files)
-	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi $(BIN_DIR)/kapi -categories single
+bench-run: bench-build build ## Run PseudoBench (kapi native + bridge)
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi $(BIN_DIR)/kapi
 
-bench-run-bridge: bench-build build ## Run PseudoBench with bridge formats
-	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi $(BIN_DIR)/kapi -bridge -categories single
-
-bench-run-collection: bench-build build ## Run PseudoBench collection benchmarks
-	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi $(BIN_DIR)/kapi -categories collection
-
-bench-run-all: bench-build build ## Run PseudoBench (all categories, kapi + bridge)
-	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi $(BIN_DIR)/kapi -bridge $(if $(wildcard $(TIKAL)),-okapi $(ROOT_DIR)/$(TIKAL))
+bench-run-all: bench-build build ## Run PseudoBench (all engines: native, bridge, bridge-daemon, tikal)
+	cd $(BENCH_DIR) && GOWORK=off ./pseudobench run -kapi $(BIN_DIR)/kapi \
+		-bridge-jar $(BRIDGE_JAR) \
+		$(if $(wildcard $(TIKAL)),-okapi $(ROOT_DIR)/$(TIKAL))
 
 bench-versions: bench-build ## Build kapi from multiple git tags
 	cd $(BENCH_DIR) && GOWORK=off ./pseudobench build-versions -versions "$(VERSIONS)"
