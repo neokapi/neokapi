@@ -5,119 +5,120 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Bowrain — "Sandstone & Terracotta" theme
+ * Bowrain — "Clean Blue" theme
  *
- * Warm neutrals with terracotta primary. Every gray carries a subtle
- * amber tint (OKLCH hue 55–75) so surfaces feel like sunlit stone
- * rather than cold concrete.
+ * Inspired by Mantine's default design system: clean neutral grays
+ * with a blue primary. Surfaces are crisp and minimal with no warm
+ * tint, giving the UI a modern, professional feel.
  */
 
 :root {
   /* ── Surfaces ──────────────────────────────────────────── */
-  --background: oklch(0.985 0.007 70);
-  --foreground: oklch(0.18 0.02 55);
-  --card: oklch(0.995 0.004 70);
-  --card-foreground: oklch(0.18 0.02 55);
-  --popover: oklch(0.995 0.004 70);
-  --popover-foreground: oklch(0.18 0.02 55);
+  --background: oklch(0.985 0.002 265);
+  --foreground: oklch(0.195 0.01 260);
+  --card: oklch(1.0 0 0);
+  --card-foreground: oklch(0.195 0.01 260);
+  --popover: oklch(1.0 0 0);
+  --popover-foreground: oklch(0.195 0.01 260);
 
-  /* ── Primary — terracotta ──────────────────────────────── */
-  --primary: oklch(0.52 0.13 42);
-  --primary-foreground: oklch(0.985 0.01 70);
+  /* ── Primary — blue ────────────────────────────────────── */
+  --primary: oklch(0.546 0.175 252);
+  --primary-foreground: oklch(0.995 0 0);
 
-  /* ── Secondary — warm sand ─────────────────────────────── */
-  --secondary: oklch(0.95 0.015 70);
-  --secondary-foreground: oklch(0.22 0.02 55);
+  /* ── Secondary — cool gray ─────────────────────────────── */
+  --secondary: oklch(0.955 0.003 265);
+  --secondary-foreground: oklch(0.25 0.01 260);
 
-  /* ── Muted — warm gray ─────────────────────────────────── */
-  --muted: oklch(0.95 0.012 70);
-  --muted-foreground: oklch(0.5 0.02 55);
+  /* ── Muted — light gray ────────────────────────────────── */
+  --muted: oklch(0.955 0.003 265);
+  --muted-foreground: oklch(0.55 0.01 260);
 
-  /* ── Accent — peach sand ───────────────────────────────── */
-  --accent: oklch(0.94 0.022 65);
-  --accent-foreground: oklch(0.22 0.02 55);
+  /* ── Accent — subtle blue-gray ─────────────────────────── */
+  --accent: oklch(0.94 0.006 255);
+  --accent-foreground: oklch(0.25 0.01 260);
 
   /* ── Destructive ───────────────────────────────────────── */
   --destructive: oklch(0.577 0.2 25);
 
   /* ── Borders & controls ────────────────────────────────── */
-  --border: oklch(0.9 0.015 70);
-  --input: oklch(0.9 0.015 70);
-  --ring: oklch(0.52 0.13 42);
+  --border: oklch(0.905 0.005 265);
+  --input: oklch(0.905 0.005 265);
+  --ring: oklch(0.546 0.175 252);
 
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
-  /* ── Chart palette — warm spectrum ─────────────────────── */
-  --chart-1: oklch(0.6 0.14 42);
-  --chart-2: oklch(0.7 0.14 70);
-  --chart-3: oklch(0.6 0.1 155);
-  --chart-4: oklch(0.65 0.12 15);
-  --chart-5: oklch(0.55 0.1 250);
+  /* ── Chart palette ─────────────────────────────────────── */
+  --chart-1: oklch(0.546 0.175 252);
+  --chart-2: oklch(0.65 0.17 170);
+  --chart-3: oklch(0.65 0.15 145);
+  --chart-4: oklch(0.7 0.12 50);
+  --chart-5: oklch(0.55 0.15 310);
 
-  /* ── Sidebar — slightly deeper warm tone ───────────────── */
-  --sidebar: oklch(0.975 0.01 65);
-  --sidebar-foreground: oklch(0.18 0.02 55);
-  --sidebar-primary: oklch(0.52 0.13 42);
-  --sidebar-primary-foreground: oklch(0.985 0.01 70);
-  --sidebar-accent: oklch(0.94 0.02 65);
-  --sidebar-accent-foreground: oklch(0.22 0.02 55);
-  --sidebar-border: oklch(0.9 0.015 70);
-  --sidebar-ring: oklch(0.52 0.13 42);
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.975 0.003 265);
+  --sidebar-foreground: oklch(0.195 0.01 260);
+  --sidebar-primary: oklch(0.546 0.175 252);
+  --sidebar-primary-foreground: oklch(0.995 0 0);
+  --sidebar-accent: oklch(0.94 0.006 255);
+  --sidebar-accent-foreground: oklch(0.25 0.01 260);
+  --sidebar-border: oklch(0.905 0.005 265);
+  --sidebar-ring: oklch(0.546 0.175 252);
 }
 
 .dark {
-  /* ── Surfaces — warm charcoal, not pure black ──────────── */
-  --background: oklch(0.16 0.015 55);
-  --foreground: oklch(0.94 0.012 70);
-  --card: oklch(0.2 0.015 55);
-  --card-foreground: oklch(0.94 0.012 70);
-  --popover: oklch(0.22 0.015 55);
-  --popover-foreground: oklch(0.94 0.012 70);
+  /* ── Surfaces — neutral dark ───────────────────────────── */
+  --background: oklch(0.205 0.0 0);
+  --foreground: oklch(0.87 0.005 265);
+  --card: oklch(0.25 0.0 0);
+  --card-foreground: oklch(0.87 0.005 265);
+  --popover: oklch(0.27 0.0 0);
+  --popover-foreground: oklch(0.87 0.005 265);
 
-  /* ── Primary — lighter terracotta for dark bg ──────────── */
-  --primary: oklch(0.72 0.13 45);
-  --primary-foreground: oklch(0.16 0.015 55);
+  /* ── Primary — brighter blue for dark bg ───────────────── */
+  --primary: oklch(0.68 0.155 250);
+  --primary-foreground: oklch(0.15 0.0 0);
 
   /* ── Secondary ─────────────────────────────────────────── */
-  --secondary: oklch(0.26 0.015 55);
-  --secondary-foreground: oklch(0.94 0.012 70);
+  --secondary: oklch(0.3 0.0 0);
+  --secondary-foreground: oklch(0.87 0.005 265);
 
   /* ── Muted ─────────────────────────────────────────────── */
-  --muted: oklch(0.26 0.012 55);
-  --muted-foreground: oklch(0.65 0.02 65);
+  --muted: oklch(0.3 0.0 0);
+  --muted-foreground: oklch(0.65 0.005 265);
 
   /* ── Accent ────────────────────────────────────────────── */
-  --accent: oklch(0.28 0.02 55);
-  --accent-foreground: oklch(0.94 0.012 70);
+  --accent: oklch(0.32 0.005 255);
+  --accent-foreground: oklch(0.87 0.005 265);
 
   /* ── Destructive ───────────────────────────────────────── */
   --destructive: oklch(0.68 0.17 25);
 
   /* ── Borders & controls ────────────────────────────────── */
-  --border: oklch(0.32 0.015 55);
-  --input: oklch(0.32 0.015 55);
-  --ring: oklch(0.72 0.13 45);
+  --border: oklch(0.35 0.0 0);
+  --input: oklch(0.35 0.0 0);
+  --ring: oklch(0.68 0.155 250);
 
   /* ── Chart palette ─────────────────────────────────────── */
-  --chart-1: oklch(0.7 0.14 45);
-  --chart-2: oklch(0.75 0.12 70);
-  --chart-3: oklch(0.65 0.1 155);
-  --chart-4: oklch(0.7 0.1 15);
-  --chart-5: oklch(0.6 0.1 250);
+  --chart-1: oklch(0.68 0.155 250);
+  --chart-2: oklch(0.7 0.15 170);
+  --chart-3: oklch(0.7 0.13 145);
+  --chart-4: oklch(0.75 0.1 50);
+  --chart-5: oklch(0.6 0.13 310);
 
-  /* ── Sidebar — warm deep tone ──────────────────────────── */
-  --sidebar: oklch(0.18 0.015 55);
-  --sidebar-foreground: oklch(0.94 0.012 70);
-  --sidebar-primary: oklch(0.72 0.13 45);
-  --sidebar-primary-foreground: oklch(0.16 0.015 55);
-  --sidebar-accent: oklch(0.28 0.02 55);
-  --sidebar-accent-foreground: oklch(0.94 0.012 70);
-  --sidebar-border: oklch(0.32 0.015 55);
-  --sidebar-ring: oklch(0.72 0.13 45);
+  /* ── Sidebar ───────────────────────────────────────────── */
+  --sidebar: oklch(0.22 0.0 0);
+  --sidebar-foreground: oklch(0.87 0.005 265);
+  --sidebar-primary: oklch(0.68 0.155 250);
+  --sidebar-primary-foreground: oklch(0.15 0.0 0);
+  --sidebar-accent: oklch(0.32 0.005 255);
+  --sidebar-accent-foreground: oklch(0.87 0.005 265);
+  --sidebar-border: oklch(0.35 0.0 0);
+  --sidebar-ring: oklch(0.68 0.155 250);
 }
 
 @theme inline {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
