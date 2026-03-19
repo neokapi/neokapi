@@ -1,13 +1,20 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-interface FilterContextValue {
-  selectedWorkspace: string | null; // null = all
-  setSelectedWorkspace: (ws: string | null) => void;
+interface FilterState {
+  workspace: string | null;
+  agent: string | null;
+}
+
+interface FilterContextValue extends FilterState {
+  setWorkspace: (ws: string | null) => void;
+  setAgent: (agent: string | null) => void;
 }
 
 export const FilterContext = createContext<FilterContextValue>({
-  selectedWorkspace: null,
-  setSelectedWorkspace: () => {},
+  workspace: null,
+  agent: null,
+  setWorkspace: () => {},
+  setAgent: () => {},
 });
 
 export function useFilter() {
@@ -15,10 +22,21 @@ export function useFilter() {
 }
 
 export function FilterProvider({ children }: { children: ReactNode }) {
-  const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null);
+  const [workspace, setWorkspace] = useState<string | null>(null);
+  const [agent, setAgent] = useState<string | null>(null);
 
   return (
-    <FilterContext.Provider value={{ selectedWorkspace, setSelectedWorkspace }}>
+    <FilterContext.Provider
+      value={{
+        workspace,
+        agent,
+        setWorkspace: (ws) => {
+          setWorkspace(ws);
+          setAgent(null); // reset agent when workspace changes
+        },
+        setAgent,
+      }}
+    >
       {children}
     </FilterContext.Provider>
   );
