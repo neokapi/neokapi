@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -38,9 +39,17 @@ func (p *AgentPubSub) Publish(ctx context.Context, conversationID string, event 
 // Returns a channel of events and a cancel function. The event channel is
 // closed when the context is cancelled or cancel is called.
 func (p *AgentPubSub) Subscribe(ctx context.Context, conversationID string) (<-chan SSEEvent, func()) {
-	sub := p.client.Subscribe(ctx, channelName(conversationID))
-	ch := make(chan SSEEvent, 64)
+	channel := channelName(conversationID)
+	sub := p.client.Subscribe(ctx, channel)
 
+	// Wait for subscription confirmation.
+	if _, err := sub.Receive(ctx); err != nil {
+		log.Printf("Redis subscribe failed for %s: %v", channel, err)
+	} else {
+		log.Printf("Redis subscribed to %s", channel)
+	}
+
+	ch := make(chan SSEEvent, 64)
 	ctx, cancel := context.WithCancel(ctx)
 
 	go func() {
