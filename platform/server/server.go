@@ -413,6 +413,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		authProtected.GET("/me", s.HandleAuthMe)
 		authProtected.POST("/logout", s.HandleAuthLogout)
+		authProtected.POST("/token/exchange", s.HandleTokenExchange)
 
 		// JWT-protected routes: project CRUD, blocks, versions, changes.
 		jwtProtected := v1.Group("")
