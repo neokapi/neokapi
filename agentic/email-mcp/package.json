@@ -1,0 +1,19 @@
+{
+  "name": "@neokapi/email-mcp",
+  "version": "0.1.0",
+  "description": "Standalone MCP server for agent email via Mailpit SMTP/API",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "nodemailer": "^6.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "@types/nodemailer": "^6.4.17",
+    "typescript": "^5.8.3"
+  }
+}
