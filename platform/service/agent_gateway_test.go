@@ -66,9 +66,9 @@ func TestModePrefix(t *testing.T) {
 		contains string
 		empty    bool
 	}{
-		{mode: "ask", contains: "[MODE: Ask"},
-		{mode: "coworker", contains: "[MODE: Co-worker"},
-		{mode: "bravo", contains: "[MODE: Brand Voice"},
+		{mode: "ask", contains: "Mode: Ask"},
+		{mode: "coworker", contains: "Mode: Co-worker"},
+		{mode: "bravo", contains: "Mode: Brand Voice"},
 		{mode: "", empty: true},
 		{mode: "unknown", empty: true},
 	}
@@ -87,13 +87,13 @@ func TestModePrefix(t *testing.T) {
 
 func TestModePrefix_AskReadOnly(t *testing.T) {
 	prefix := modePrefix("ask")
-	assert.Contains(t, prefix, "Do NOT perform any mutable operations")
+	assert.Contains(t, prefix, "do not execute any changes")
 }
 
 func TestModePrefix_CoworkerFullAccess(t *testing.T) {
 	prefix := modePrefix("coworker")
-	assert.Contains(t, prefix, "full assistant mode")
-	assert.Contains(t, prefix, "confirm before destructive")
+	assert.Contains(t, prefix, "manage projects")
+	assert.Contains(t, prefix, "Confirm before any destructive")
 }
 
 func TestModePrefix_BravoBrandVoice(t *testing.T) {

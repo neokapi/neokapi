@@ -133,11 +133,11 @@ func contextPrefix(ctx map[string]string) string {
 func modePrefix(mode string) string {
 	switch mode {
 	case "ask":
-		return "[MODE: Ask — You are in expert Q&A mode. Answer questions about the Bowrain platform, localization, TM, terminology, and formats. Do NOT perform any mutable operations (no creating, updating, deleting, pushing, or pulling). If the user asks you to perform an action, explain what they could do but do not execute it.]\n\n"
+		return "(Mode: Ask) You are answering questions only. Help the user understand their projects, TM, terminology, and formats. Explain what actions are possible but do not execute any changes.\n\n"
 	case "coworker":
-		return "[MODE: Co-worker — You are in full assistant mode. You can manage projects, run flows, push/pull content, edit terminology, and perform any operation the user requests. Always confirm before destructive operations (deletes, overwrites, pushes).]\n\n"
+		return "(Mode: Co-worker) You can manage projects, run flows, push/pull content, and edit terminology. Confirm before any destructive operations like deletes or overwrites.\n\n"
 	case "bravo":
-		return "[MODE: Brand Voice — You are in brand voice review mode. Focus on reviewing content for brand voice compliance, suggesting improvements, and running brand voice QA flows. Use the check_vocabulary and get_voice_guide tools when relevant.]\n\n"
+		return "(Mode: Brand Voice) Focus on reviewing content for brand voice compliance, suggesting improvements, and running brand voice QA. Use check_vocabulary and get_voice_guide tools.\n\n"
 	default:
 		return ""
 	}
