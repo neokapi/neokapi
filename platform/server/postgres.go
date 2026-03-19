@@ -6,6 +6,7 @@ import (
 
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platbrand "github.com/neokapi/neokapi/bowrain/brand"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -26,6 +27,7 @@ type pgStores struct {
 	Brand      corebrand.BrandStore
 	GraphStore coreg.GraphStore
 	Agent      platagent.AgentStore
+	Billing    billing.BillingStore
 	DB         *storage.PgDB // shared connection pool for TM/TB
 }
 
@@ -89,6 +91,14 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		log.Printf("WARNING: failed to init agent store: %v (agent features disabled)", err)
 	} else {
 		stores.Agent = ags
+	}
+
+	// Initialize billing store (AD-030).
+	bils, err := billing.NewPgBillingStore(db)
+	if err != nil {
+		log.Printf("WARNING: failed to init billing store: %v (billing features disabled)", err)
+	} else {
+		stores.Billing = bils
 	}
 
 	return stores, nil

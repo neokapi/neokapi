@@ -316,6 +316,13 @@ export type {
   BravoSSENeedsApproval,
   BravoSSEMessageEnd,
   BravoSSEError,
+  BillingPlan,
+  BillingStatus,
+  BillingSubscription,
+  CreditAllocation,
+  BillingOverview,
+  CreditLedgerEntry,
+  BillingUsageBreakdown,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
@@ -394,6 +401,28 @@ export type {
 } from "./components/bravo";
 export { BravoProvider, useBravo } from "./context/BravoContext";
 export { useBravoApi } from "./hooks/useBravoApi";
+
+// Billing
+export {
+  SubscriptionBadge,
+  UsageBar,
+  CreditCounter,
+  PlanCard,
+  PlanComparisonTable,
+  UpgradePrompt,
+  CreditLedger,
+} from "./components/billing";
+export type {
+  SubscriptionBadgeProps,
+  UsageBarProps,
+  CreditCounterProps,
+  PlanCardProps,
+  PlanFeature,
+  PlanComparisonTableProps,
+  ComparisonFeature,
+  UpgradePromptProps,
+  CreditLedgerProps,
+} from "./components/billing";
 
 // Filter config editor
 export { FilterConfigEditor } from "./components/filter";

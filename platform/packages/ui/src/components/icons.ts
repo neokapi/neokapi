@@ -65,4 +65,5 @@ export {
   Loader2,
   BarChart3,
   Languages,
+  CreditCard,
 } from "lucide-react";

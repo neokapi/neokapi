@@ -631,5 +631,33 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       message_count: 0,
     }),
     bravoSendMessageSSE: () => new AbortController(),
+
+    // --- Billing (AD-030) ---------------------------------------------------
+    billingGetOverview: async () => ({
+      subscription: {
+        plan: "pro" as const,
+        status: "active" as const,
+        seatCount: 3,
+        currentPeriodStart: new Date().toISOString(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      },
+      credits: {
+        creditsTotal: 500_000,
+        creditsUsed: 123_000,
+        weekStart: new Date().toISOString(),
+        weekEnd: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+        source: "plan",
+      },
+    }),
+    billingGetUsage: async () => ({
+      aiTranslation: 80_000,
+      aiQualityCheck: 15_000,
+      bravoMessages: 25_000,
+      bravoContainer: 3_000,
+      total: 123_000,
+    }),
+    billingCreateCheckout: async () => ({ url: "#" }),
+    billingCreatePortal: async () => ({ url: "#" }),
+    billingGetLedger: async () => [],
   };
 }

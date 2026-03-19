@@ -24,16 +24,18 @@ const (
 
 // Workspace is the top-level organizational unit containing projects, members, and resources.
 type Workspace struct {
-	ID          string        `json:"id"`
-	Name        string        `json:"name"`
-	Slug        string        `json:"slug"`
-	Description string        `json:"description"`
-	LogoURL     string        `json:"logo_url"`
-	Type        WorkspaceType `json:"type"`
-	Languages   []string      `json:"languages,omitempty"`
-	Role        Role          `json:"role,omitempty"` // current user's role (populated by list/get with user context)
-	CreatedAt   time.Time     `json:"created_at"`
-	UpdatedAt   time.Time     `json:"updated_at"`
+	ID               string        `json:"id"`
+	Name             string        `json:"name"`
+	Slug             string        `json:"slug"`
+	Description      string        `json:"description"`
+	LogoURL          string        `json:"logo_url"`
+	Type             WorkspaceType `json:"type"`
+	Languages        []string      `json:"languages,omitempty"`
+	Plan             string        `json:"plan"`
+	StripeCustomerID string        `json:"stripe_customer_id,omitempty"`
+	Role             Role          `json:"role,omitempty"` // current user's role (populated by list/get with user context)
+	CreatedAt        time.Time     `json:"created_at"`
+	UpdatedAt        time.Time     `json:"updated_at"`
 }
 
 // Role defines a member's permission level within a workspace.
