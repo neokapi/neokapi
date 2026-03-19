@@ -1,16 +1,20 @@
 import { motion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
+import { useFilter } from '../context/FilterContext';
 
 const steps = [
-  { avatar: "\u{1F6E0}\u{FE0F}", role: "Developer", action: "push", color: "#f59e0b", active: false },
-  { avatar: "\u{1F4CA}", role: "PM", action: "tasks", color: "#94a3b8", active: false },
-  { avatar: "\u{1F3A8}", role: "Brand", action: "terminology", color: "#10b981", active: false },
-  { avatar: "\u{1F1EB}\u{1F1F7}", role: "Translators", action: "translate", color: "#3b82f6", active: true },
-  { avatar: "\u{1F50D}", role: "QA", action: "validate", color: "#14b8a6", active: true },
-  { avatar: "\u{1F6E0}\u{FE0F}", role: "Developer", action: "pull", color: "#f59e0b", active: false },
+  { avatar: "\u{1F6E0}\u{FE0F}", role: "L10N Engineer", action: "pull & push", color: "#f59e0b", active: false },
+  { avatar: "\u{1F1EB}\u{1F1F7}", role: "Language Experts", action: "translate", color: "#3b82f6", active: true },
+  { avatar: "\u{1F50D}", role: "Reviewer", action: "validate", color: "#14b8a6", active: true },
+  { avatar: "\u{1F6E0}\u{FE0F}", role: "L10N Engineer", action: "deploy", color: "#f59e0b", active: false },
 ];
 
 export default function HandoffChain() {
+  const { selectedWorkspace } = useFilter();
+
+  // Only show for Excalidraw workspace or "all"
+  if (selectedWorkspace && selectedWorkspace !== "excalidraw") return null;
+
   return (
     <motion.section
       className="px-6 py-12"
