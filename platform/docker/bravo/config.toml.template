@@ -1,13 +1,6 @@
 # ZeroClaw configuration for @bravo agent containers.
-# Rendered from template at container startup via envsubst.
-
-# LLM provider configuration.
-# Rendered from BRAVO_MODEL_* env vars at container startup.
-[llm]
-provider = "${BRAVO_MODEL_PROVIDER}"
-model = "${BRAVO_MODEL_NAME}"
-api_base = "${BRAVO_MODEL_API_BASE}"
-api_key = "${BRAVO_MODEL_API_KEY}"
+# Model/provider config is handled by ZEROCLAW_* env vars (not in this file).
+# Only gateway + MCP settings need to be in the config file.
 
 [gateway]
 port = 42617
