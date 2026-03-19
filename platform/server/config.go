@@ -97,6 +97,11 @@ type ServerConfig struct {
 	AgentModelName     string // e.g. "gpt-4o", "claude-sonnet-4-20250514"
 	AgentModelAPIBase  string // provider API base URL
 	AgentModelAPIKey   string // provider API key
+
+	// AgenticEvents enables forwarding platform events to queues for
+	// agentic testing handoffs (KEDA-triggered Container Apps Jobs).
+	// Set via BOWRAIN_AGENTIC_EVENTS=true.
+	AgenticEvents bool
 }
 
 // DefaultServerConfig returns a ServerConfig with sensible defaults.
