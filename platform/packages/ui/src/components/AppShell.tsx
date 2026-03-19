@@ -12,6 +12,8 @@ export interface AppShellProps<V extends string = string> extends Omit<
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   headerSlot?: ReactNode;
+  /** Slot for a right-side panel (e.g. @bravo chat). Rendered inline beside main content. */
+  rightPanelSlot?: ReactNode;
   children: ReactNode;
   contentClassName?: string;
   topBar?: boolean;
@@ -105,6 +107,7 @@ export function AppShell<V extends string = string>({
   collapsed,
   onCollapsedChange,
   headerSlot,
+  rightPanelSlot,
   children,
   contentClassName,
   activeSubNav,
@@ -152,6 +155,7 @@ export function AppShell<V extends string = string>({
             <div className={cn("flex-1 flex flex-col min-h-0 overflow-auto p-4", contentClassName)}>
               {children}
             </div>
+            {rightPanelSlot}
           </div>
         </SidebarInset>
       </BreadcrumbProvider>

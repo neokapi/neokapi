@@ -375,6 +375,8 @@ export {
   BravoConversationList,
   BravoConfigPanel,
   BravoUsageDashboard,
+  BravoModeSelector,
+  BravoColdStart,
 } from "./components/bravo";
 export type {
   BravoPanelProps,
@@ -387,6 +389,8 @@ export type {
   BravoConversationListProps,
   BravoConfigPanelProps,
   BravoUsageDashboardProps,
+  BravoMode,
+  BravoModeSelectorProps,
 } from "./components/bravo";
 export { BravoProvider, useBravo } from "./context/BravoContext";
 export { useBravoApi } from "./hooks/useBravoApi";
