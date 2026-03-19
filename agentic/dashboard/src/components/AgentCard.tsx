@@ -1,11 +1,21 @@
 import { motion } from 'framer-motion';
-import { Clock, Cpu, Globe } from 'lucide-react';
+import { Clock, Cpu, Globe, Zap, CheckCircle2, XCircle } from 'lucide-react';
 import type { Agent } from '../data/agents';
 import { accentColorMap } from '../data/agents';
 
 interface AgentCardProps {
   agent: Agent;
   index: number;
+}
+
+function formatRelativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${Math.floor(diffHours / 24)}d ago`;
 }
 
 export default function AgentCard({ agent, index }: AgentCardProps) {
@@ -102,6 +112,21 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
         )}
       </div>
 
+      {/* Last session info */}
+      <div className="mt-3 rounded-lg bg-[var(--color-bg-elevated)] p-2.5">
+        <div className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
+          {agent.lastSession.status === "succeeded" ? (
+            <CheckCircle2 size={11} className="text-green-400" />
+          ) : (
+            <XCircle size={11} className="text-red-400" />
+          )}
+          <span>Last session: {agent.lastSession.duration}</span>
+          <span className="ml-auto font-[family-name:var(--font-mono)] text-[10px]">
+            {formatRelativeTime(agent.lastSession.time)}
+          </span>
+        </div>
+      </div>
+
       {/* Personality traits */}
       <div className="mt-3 flex flex-wrap gap-1.5">
         {agent.personality.map((trait) => (
@@ -114,25 +139,26 @@ export default function AgentCard({ agent, index }: AgentCardProps) {
         ))}
       </div>
 
-      {/* Stats row */}
+      {/* Stats row — operations focus */}
       <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[var(--color-border)] pt-3">
         <div className="text-center">
           <div className="font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
-            {agent.stats.blocksProcessed.toLocaleString()}
+            {agent.stats.sessionsThisWeek}
           </div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">blocks</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">sessions/wk</div>
+        </div>
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-0.5 font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
+            <Zap size={10} className="text-[var(--color-accent-amber)]" />
+            {agent.stats.toolCallsToday}
+          </div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">tools today</div>
         </div>
         <div className="text-center">
           <div className="font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
-            {agent.stats.tmEntries.toLocaleString()}
+            {agent.stats.issuesFiled}
           </div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">TM</div>
-        </div>
-        <div className="text-center">
-          <div className="font-[family-name:var(--font-mono)] text-sm font-semibold text-[var(--color-text-primary)]">
-            {agent.stats.sessionsCompleted}
-          </div>
-          <div className="text-[10px] text-[var(--color-text-muted)]">sessions</div>
+          <div className="text-[10px] text-[var(--color-text-muted)]">issues</div>
         </div>
       </div>
     </motion.div>
