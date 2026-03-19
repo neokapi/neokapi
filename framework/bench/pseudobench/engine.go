@@ -7,11 +7,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"syscall"
 	"time"
 )
+
+var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// stripANSI removes ANSI escape codes from a string.
+func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
 // Engine processes a batch of files and returns metrics.
 type Engine interface {
@@ -420,12 +426,14 @@ func detectVersion(binPath string) string {
 		}
 	}
 
-	// Try tikal-style: prints "Version: X.Y.Z".
+	// Try tikal-style: prints "Version: X.Y.Z" (may have logger prefix and ANSI codes).
 	out, err = runCommandCombined(binPath)
 	if err == nil {
 		for _, line := range strings.Split(out, "\n") {
-			if strings.HasPrefix(line, "Version: ") {
-				return strings.TrimPrefix(line, "Version: ")
+			// Strip ANSI escape codes.
+			clean := stripANSI(line)
+			if idx := strings.Index(clean, "Version: "); idx >= 0 {
+				return strings.TrimSpace(clean[idx+len("Version: "):])
 			}
 		}
 	}
