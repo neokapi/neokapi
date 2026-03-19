@@ -27,3 +27,8 @@ export type { BravoConfigPanelProps } from "./BravoConfigPanel";
 
 export { BravoUsageDashboard } from "./BravoUsageDashboard";
 export type { BravoUsageDashboardProps } from "./BravoUsageDashboard";
+
+export { BravoModeSelector } from "./BravoModeSelector";
+export type { BravoMode, BravoModeSelectorProps } from "./BravoModeSelector";
+
+export { BravoColdStart } from "./BravoColdStart";

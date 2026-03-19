@@ -106,38 +106,40 @@ function ConnectedTopBar({
   );
 }
 
-/** Connected @bravo panel — reads state from BravoContext. */
-function ConnectedBravo() {
+/** @bravo trigger button for the top bar. */
+function ConnectedBravoTrigger() {
+  const { state, actions } = useBravo();
+  return <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />;
+}
+
+/** @bravo chat panel — renders as an inline sidebar. */
+function ConnectedBravoPanel() {
   const { state, actions } = useBravo();
   const { pathname } = useLocation();
   const { workspace: workspaceSlug } = useParams({ strict: false });
 
-  // Extract projectId from URL when creating new conversations.
   const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
 
   return (
-    <>
-      <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />
-      <BravoPanel
-        open={state.panelOpen}
-        onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
-        conversations={state.conversations}
-        activeConversation={state.activeConversation}
-        messages={state.messages}
-        streaming={state.streaming}
-        streamingContent={state.streamingContent}
-        streamingToolCalls={state.streamingToolCalls}
-        onNewConversation={() => void actions.newConversation(projectParams?.projectId)}
-        onSelectConversation={(conv) => void actions.selectConversation(conv)}
-        onDeleteConversation={(conv) => void actions.deleteConversation(conv)}
-        onSendMessage={(content) => void actions.sendMessage(content)}
-        onApproveToolCall={(id) => void actions.approveToolCall(id)}
-        onDenyToolCall={(id) => void actions.denyToolCall(id)}
-        onCancelStreaming={actions.cancelStreaming}
-        loading={state.loading}
-        sendDisabled={state.streaming}
-      />
-    </>
+    <BravoPanel
+      open={state.panelOpen}
+      onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
+      conversations={state.conversations}
+      activeConversation={state.activeConversation}
+      messages={state.messages}
+      streaming={state.streaming}
+      streamingContent={state.streamingContent}
+      streamingToolCalls={state.streamingToolCalls}
+      onNewConversation={() => void actions.newConversation(projectParams?.projectId)}
+      onSelectConversation={(conv) => void actions.selectConversation(conv)}
+      onDeleteConversation={(conv) => void actions.deleteConversation(conv)}
+      onSendMessage={(content) => void actions.sendMessage(content)}
+      onApproveToolCall={(id) => void actions.approveToolCall(id)}
+      onDenyToolCall={(id) => void actions.denyToolCall(id)}
+      onCancelStreaming={actions.cancelStreaming}
+      loading={state.loading}
+      sendDisabled={state.streaming}
+    />
   );
 }
 
@@ -522,9 +524,10 @@ export function WorkspaceLayout() {
                       ) : undefined
                     }
                   />
-                  <ConnectedBravo />
+                  <ConnectedBravoTrigger />
                 </>
               }
+              rightPanelSlot={<ConnectedBravoPanel />}
               contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}
             >
               <StreamProvider initialStream={currentStream} onStreamChange={handleStreamChange}>
