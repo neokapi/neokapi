@@ -2,12 +2,12 @@ name: Cloud E2E
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Deploy Server + Worker"]
-    types: [completed]
-    branches: [main]
-  schedule:
-    - cron: "30 2 * * *" # Nightly at 2:30 AM UTC (after Docker E2E at 2:00)
+  # workflow_run:
+  #   workflows: ["Deploy Server + Worker"]
+  #   types: [completed]
+  #   branches: [main]
+  # schedule:
+  #   - cron: "30 2 * * *" # Nightly at 2:30 AM UTC (after Docker E2E at 2:00)
 
 permissions:
   contents: read
@@ -19,9 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # Only run on successful deploys or manual/scheduled triggers.
-    if: >-
-      github.event_name != 'workflow_run' ||
-      github.event.workflow_run.conclusion == 'success'
+    # if: >-
+    #   github.event_name != 'workflow_run' ||
+    #   github.event.workflow_run.conclusion == 'success'
     environment: dev
     steps:
       - uses: actions/checkout@v6
