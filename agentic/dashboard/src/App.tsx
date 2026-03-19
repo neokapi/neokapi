@@ -1,160 +1,87 @@
-import { motion } from 'framer-motion';
 import Header from './components/layout/Header';
-import HeroSection from './components/HeroSection';
-import WorkspaceSelector from './components/WorkspaceSelector';
-import WorkspaceCard from './components/WorkspaceCard';
+import FilterToolbar from './components/FilterToolbar';
+import StatsRow from './components/StatsRow';
 import AgentCard from './components/AgentCard';
-import HandoffChain from './components/HandoffChain';
-import SessionTimeline from './components/SessionTimeline';
+import SessionTable from './components/SessionTable';
 import ToolUsageChart from './components/ToolUsageChart';
 import SessionHeatmap from './components/SessionHeatmap';
 import ActivityFeed from './components/ActivityFeed';
 import IssuesFeed from './components/IssuesFeed';
+import { Separator } from './components/ui/separator';
 import { FilterProvider, useFilter } from './context/FilterContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { agents } from './data/agents';
-import { workspaces } from './data/workspaces';
-
-const sectionVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const staggerContainer = {
-  visible: {
-    transition: {
-      staggerChildren: 0.08,
-    },
-  },
-};
-
-function SectionDivider() {
-  return (
-    <div className="mx-auto max-w-7xl px-6">
-      <div
-        style={{
-          height: '1px',
-          background: `linear-gradient(to right, transparent, rgb(var(--border)), transparent)`,
-        }}
-      />
-    </div>
-  );
-}
 
 function DashboardContent() {
-  const { selectedWorkspace } = useFilter();
+  const { workspace, agent } = useFilter();
 
-  const filteredAgents = selectedWorkspace
-    ? agents.filter((a) => a.workspace === selectedWorkspace)
-    : agents;
+  let filteredAgents = agents;
+  if (workspace) filteredAgents = filteredAgents.filter((a) => a.workspace === workspace);
+  if (agent) filteredAgents = filteredAgents.filter((a) => a.id === agent);
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'rgb(var(--bg-base))' }}>
+    <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Workspace selector bar */}
-      <div
-        className="sticky top-[53px] z-40"
-        style={{
-          borderBottom: '1px solid rgb(var(--border))',
-          backgroundColor: 'rgb(var(--bg-base) / 0.95)',
-          backdropFilter: 'blur(8px)',
-        }}
-      >
+      <div className="sticky top-[53px] z-40 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-7xl">
-          <WorkspaceSelector />
+          <FilterToolbar />
         </div>
       </div>
 
-      <HeroSection />
+      {/* Stats */}
+      <section className="px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-7xl">
+          <StatsRow />
+        </div>
+      </section>
 
-      {/* Workspace overview cards -- only when "All Workspaces" */}
-      {!selectedWorkspace && (
-        <motion.section
-          className="px-4 py-16 sm:px-6"
-          variants={sectionVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="mx-auto max-w-7xl">
-            <h2
-              className="font-display mb-6 text-xl font-normal sm:text-2xl"
-              style={{ color: 'rgb(var(--text-primary))' }}
-            >
-              Workspaces
-            </h2>
-            <motion.div
-              className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-              variants={staggerContainer}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-            >
-              {workspaces.map((ws, i) => (
-                <WorkspaceCard key={ws.id} workspace={ws} index={i} />
-              ))}
-            </motion.div>
-          </div>
-        </motion.section>
-      )}
-
-      <SectionDivider />
+      <div className="mx-auto max-w-7xl px-6">
+        <Separator />
+      </div>
 
       {/* Agent Cards */}
-      <motion.section
-        className="px-4 py-16 sm:px-6"
-        variants={sectionVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        transition={{ duration: 0.6 }}
-      >
+      <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <h2
-            className="font-display mb-6 text-xl font-normal sm:text-2xl"
-            style={{ color: 'rgb(var(--text-primary))' }}
-          >
-            Agent Roster
-          </h2>
-          {/* Mobile: vertical grid, Desktop: horizontal scroll */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:hidden">
-            {filteredAgents.map((agent, i) => (
-              <AgentCard key={agent.id} agent={agent} index={i} />
-            ))}
-          </div>
-          <div className="hidden lg:flex gap-4 overflow-x-auto pb-4">
-            {filteredAgents.map((agent, i) => (
-              <AgentCard key={agent.id} agent={agent} index={i} />
+          <h2 className="mb-4 text-lg font-semibold">Agent Roster</h2>
+          <div className="flex gap-4 overflow-x-auto pb-4">
+            {filteredAgents.map((a) => (
+              <AgentCard key={a.id} agent={a} />
             ))}
           </div>
         </div>
-      </motion.section>
+      </section>
 
-      <SectionDivider />
+      <div className="mx-auto max-w-7xl px-6">
+        <Separator />
+      </div>
 
-      <HandoffChain />
+      {/* Session Table */}
+      <section className="px-4 py-8 sm:px-6">
+        <div className="mx-auto max-w-7xl">
+          <h2 className="mb-4 text-lg font-semibold">Sessions</h2>
+          <SessionTable />
+        </div>
+      </section>
 
-      <SectionDivider />
+      <div className="mx-auto max-w-7xl px-6">
+        <Separator />
+      </div>
 
-      {/* Session Timeline -- THE CENTERPIECE */}
-      <SessionTimeline />
-
-      <SectionDivider />
-
-      {/* Two-column: Tool usage chart | Session heatmap */}
-      <section className="px-4 py-16 sm:px-6">
+      {/* Tool usage chart + Session heatmap */}
+      <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto grid max-w-7xl gap-6 grid-cols-1 lg:grid-cols-2">
           <ToolUsageChart />
           <SessionHeatmap />
         </div>
       </section>
 
-      <SectionDivider />
+      <div className="mx-auto max-w-7xl px-6">
+        <Separator />
+      </div>
 
-      {/* Activity feed + Issues feed side by side */}
-      <section className="px-4 py-16 sm:px-6">
+      {/* Activity feed + Issues feed */}
+      <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto grid max-w-7xl gap-6 grid-cols-1 lg:grid-cols-2">
           <ActivityFeed />
           <IssuesFeed />
@@ -162,22 +89,15 @@ function DashboardContent() {
       </section>
 
       {/* Footer */}
-      <footer
-        className="px-4 py-8 sm:px-6"
-        style={{ borderTop: '1px solid rgb(var(--border))' }}
-      >
+      <footer className="border-t px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl text-center">
-          <p
-            className="font-mono text-xs"
-            style={{ color: 'rgb(var(--text-muted))' }}
-          >
+          <p className="font-mono text-xs text-muted-foreground">
             Bowrain Agentic Operations Dashboard — Powered by{' '}
             <a
               href="https://github.com/neokapi/neokapi"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:underline"
-              style={{ color: 'rgb(var(--accent))' }}
             >
               neokapi
             </a>
