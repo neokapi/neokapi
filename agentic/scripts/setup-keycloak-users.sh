@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# setup-keycloak-users.sh — Create Keycloak users for the 7 Bowrain agent personas.
+# setup-keycloak-users.sh — Create Keycloak users for workspace agent personas.
 #
 # Idempotent: skips users that already exist.
+# Workspace-aware: reads agents from workspace.yaml files.
 #
 # Environment variables (all optional, sensible defaults for local dev):
 #   KEYCLOAK_URL              Base URL (default: http://localhost:8180)
@@ -18,6 +19,9 @@ KEYCLOAK_ADMIN="${KEYCLOAK_ADMIN:-admin}"
 KEYCLOAK_ADMIN_PASSWORD="${KEYCLOAK_ADMIN_PASSWORD:-admin}"
 REALM="${KEYCLOAK_REALM:-master}"
 DEFAULT_PASSWORD="${DEFAULT_PASSWORD:-changeme}"
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+WORKSPACES_DIR="${SCRIPT_DIR}/../workspaces"
 
 # --- Obtain admin access token ---
 get_token() {
@@ -39,18 +43,6 @@ if [ -z "$TOKEN" ] || [ "$TOKEN" = "null" ]; then
 fi
 echo "Authenticated."
 echo
-
-# --- User definitions ---
-# Format: username|email|firstName|lastName
-USERS=(
-  "alex.chen|alex.chen@bowrain.test|Alex|Chen"
-  "jeanpierre.dubois|jeanpierre.dubois@bowrain.test|Jean-Pierre|Dubois"
-  "katrin.weber|katrin.weber@bowrain.test|Katrin|Weber"
-  "yuki.tanaka|yuki.tanaka@bowrain.test|Yuki|Tanaka"
-  "maria.santos|maria.santos@bowrain.test|Maria|Santos"
-  "lisa.chen|lisa.chen@bowrain.test|Lisa|Chen"
-  "taylor.kim|taylor.kim@bowrain.test|Taylor|Kim"
-)
 
 BASE="${KEYCLOAK_URL}/admin/realms/${REALM}/users"
 
@@ -114,13 +106,49 @@ create_user() {
   fi
 }
 
-echo "Creating users in realm '${REALM}' ..."
+# --- Discover workspaces and create users ---
+echo "Scanning workspaces in ${WORKSPACES_DIR} ..."
 echo
 
-for entry in "${USERS[@]}"; do
-  IFS='|' read -r username email first last <<< "$entry"
-  create_user "$username" "$email" "$first" "$last"
+for ws_dir in "${WORKSPACES_DIR}"/*/; do
+  ws_name=$(basename "$ws_dir")
+
+  # Skip the template directory
+  if [ "$ws_name" = "_template" ]; then
+    continue
+  fi
+
+  ws_yaml="${ws_dir}workspace.yaml"
+  if [ ! -f "$ws_yaml" ]; then
+    continue
+  fi
+
+  slug=$(grep '^slug:' "$ws_yaml" | head -1 | sed 's/^slug: *//')
+  echo "=== Workspace: ${ws_name} (${slug}) ==="
+
+  # Find agent directories
+  agents_dir="${ws_dir}agents"
+  if [ ! -d "$agents_dir" ]; then
+    echo "  No agents/ directory found, skipping."
+    echo
+    continue
+  fi
+
+  for agent_dir in "${agents_dir}"/*/; do
+    agent_name=$(basename "$agent_dir")
+    if [ "$agent_name" = "_template" ]; then
+      continue
+    fi
+
+    username="${agent_name}"
+    email="${agent_name}@${slug}.bowrain.test"
+    # Capitalize first letter for display name
+    first=$(echo "$agent_name" | sed 's/./\U&/')
+
+    create_user "$username" "$email" "$first" "(${ws_name})"
+  done
+
+  echo
 done
 
-echo
 echo "Done."
