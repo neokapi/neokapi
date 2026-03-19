@@ -1,0 +1,8 @@
+# ZeroClaw configuration for @bravo agent containers.
+# Model/provider config is injected via ZEROCLAW_* env vars at runtime.
+
+[gateway]
+port = 42617
+host = "0.0.0.0"
+allow_public_bind = true
+require_pairing = false

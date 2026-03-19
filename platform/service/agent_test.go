@@ -15,15 +15,13 @@ import (
 )
 
 // newMockGatewayServer starts a test HTTP server that mimics the ZeroClaw
-// gateway SSE response protocol.
+// gateway /webhook JSON response.
 func newMockGatewayServer(t *testing.T) *httptest.Server {
 	t.Helper()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "event: message_start\ndata: {\"id\":\"msg-gw-1\",\"role\":\"assistant\"}\n\n")
-		fmt.Fprint(w, "event: content_delta\ndata: {\"delta\":\"Hello from gateway\"}\n\n")
-		fmt.Fprint(w, "event: message_end\ndata: {\"id\":\"msg-gw-1\"}\n\n")
+		fmt.Fprint(w, `{"model":"gpt-4o","response":"Hello from gateway"}`)
 	}))
 	t.Cleanup(ts.Close)
 	return ts
