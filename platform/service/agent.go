@@ -223,7 +223,7 @@ func (s *AgentService) CancelConversation(ctx context.Context, conversationID st
 // SendMessageStream sends a user message and streams the agent response via SSE.
 // When a pool is configured, it routes to a real ZeroClaw container.
 // Otherwise, it falls back to the synchronous mock response.
-func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content, mode string, sse SSEWriter) error {
+func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content, mode string, bravoCtx map[string]string, sse SSEWriter) error {
 	// Persist user message.
 	userMsg := &platagent.Message{
 		ConversationID: conversationID,
@@ -236,7 +236,7 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 
 	// Queue mode: enqueue to Service Bus, subscribe to Redis for SSE relay.
 	if s.pool == nil && s.queue != nil && s.pubsub != nil {
-		return s.sendQueuedStream(ctx, conversationID, userID, workspaceID, workspaceRole, content, mode, userMsg.ID, sse)
+		return s.sendQueuedStream(ctx, conversationID, userID, workspaceID, workspaceRole, content, mode, bravoCtx, userMsg.ID, sse)
 	}
 
 	// No pool and no queue: local mock response.
@@ -264,7 +264,7 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 	}
 
 	// Stream response from ZeroClaw gateway → SSE to client.
-	result, err := s.streamFromGateway(ctx, container, conversationID, userID, content, mode, sse)
+	result, err := s.streamFromGateway(ctx, container, conversationID, userID, content, mode, bravoCtx, sse)
 	if err != nil {
 		return fmt.Errorf("gateway stream: %w", err)
 	}
@@ -344,9 +344,9 @@ func (s *AgentService) sendLocalStream(ctx context.Context, conversationID, user
 
 // sendQueuedStream enqueues an agent job to Service Bus and subscribes to
 // Redis pub/sub to relay SSE events back to the client.
-func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content, mode, messageID string, sse SSEWriter) error {
+func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content, mode string, bravoCtx map[string]string, messageID string, sse SSEWriter) error {
 	// Encode the job message.
-	payload, err := json.Marshal(map[string]string{
+	jobData := map[string]any{
 		"conversation_id": conversationID,
 		"message_id":      messageID,
 		"workspace_id":    workspaceID,
@@ -354,7 +354,11 @@ func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, use
 		"workspace_role":  workspaceRole,
 		"content":         content,
 		"mode":            mode,
-	})
+	}
+	if len(bravoCtx) > 0 {
+		jobData["context"] = bravoCtx
+	}
+	payload, err := json.Marshal(jobData)
 	if err != nil {
 		return fmt.Errorf("marshal agent job: %w", err)
 	}

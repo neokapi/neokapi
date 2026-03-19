@@ -39,7 +39,7 @@ func TestStreamFromGateway_CapturesUsage(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", NewSSEWriter(&buf))
+	result, err := svc.streamFromGateway(ctx, container, conv.ID, "user1", "Hello", "ask", nil, NewSSEWriter(&buf))
 	require.NoError(t, err)
 
 	// JSON webhook response does not include usage data.

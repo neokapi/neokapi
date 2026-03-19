@@ -272,7 +272,7 @@ func TestAgentServiceSendMessageStream_LocalMode(t *testing.T) {
 	var buf bytes.Buffer
 	sse := NewSSEWriter(&buf)
 
-	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello local", "ask", sse)
+	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello local", "ask", nil, sse)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -302,7 +302,7 @@ func TestAgentServiceSendMessageStream_WithPool(t *testing.T) {
 	var buf bytes.Buffer
 	sse := NewSSEWriter(&buf)
 
-	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello pool", "ask", sse)
+	err = svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "Hello pool", "ask", nil, sse)
 	require.NoError(t, err)
 
 	// Container should have been acquired.
@@ -326,12 +326,12 @@ func TestAgentServiceSendMessageStream_PoolLimitError(t *testing.T) {
 	// Fill the pool.
 	conv1, _ := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat1")
 	var buf1 bytes.Buffer
-	require.NoError(t, svc.SendMessageStream(ctx, conv1.ID, "user1", "ws1", "member", "msg1", "ask", NewSSEWriter(&buf1)))
+	require.NoError(t, svc.SendMessageStream(ctx, conv1.ID, "user1", "ws1", "member", "msg1", "ask", nil, NewSSEWriter(&buf1)))
 
 	// Second conversation should hit the limit.
 	conv2, _ := svc.CreateConversation(ctx, "ws1", "user1", "", "Chat2")
 	var buf2 bytes.Buffer
-	err := svc.SendMessageStream(ctx, conv2.ID, "user1", "ws1", "member", "msg2", "ask", NewSSEWriter(&buf2))
+	err := svc.SendMessageStream(ctx, conv2.ID, "user1", "ws1", "member", "msg2", "ask", nil, NewSSEWriter(&buf2))
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "max concurrent")
 }
@@ -350,7 +350,7 @@ func TestAgentServiceDeleteConversation_CleansUpPoolAndTokens(t *testing.T) {
 
 	// Stream a message to create container + token.
 	var buf bytes.Buffer
-	require.NoError(t, svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "hi", "ask", NewSSEWriter(&buf)))
+	require.NoError(t, svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "hi", "ask", nil, NewSSEWriter(&buf)))
 
 	_, ok := pool.Get(conv.ID)
 	assert.True(t, ok)
@@ -375,7 +375,7 @@ func TestAgentServiceCancelConversation_CleansUpPool(t *testing.T) {
 	require.NoError(t, err)
 
 	var buf bytes.Buffer
-	require.NoError(t, svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "hi", "ask", NewSSEWriter(&buf)))
+	require.NoError(t, svc.SendMessageStream(ctx, conv.ID, "user1", "ws1", "member", "hi", "ask", nil, NewSSEWriter(&buf)))
 
 	require.NoError(t, svc.CancelConversation(ctx, conv.ID))
 

@@ -136,7 +136,18 @@ function ConnectedBravoPanel() {
       onNewConversation={() => void actions.newConversation(projectParams?.projectId)}
       onSelectConversation={(conv) => void actions.selectConversation(conv)}
       onDeleteConversation={(conv) => void actions.deleteConversation(conv)}
-      onSendMessage={(content) => void actions.sendMessage(content)}
+      onSendMessage={(content) =>
+        void actions.sendMessage(
+          content,
+          projectParams
+            ? {
+                projectId: projectParams.projectId,
+                stream: projectParams.stream,
+                itemId: projectParams.itemId,
+              }
+            : undefined,
+        )
+      }
       onApproveToolCall={(id) => void actions.approveToolCall(id)}
       onDenyToolCall={(id) => void actions.denyToolCall(id)}
       onCancelStreaming={actions.cancelStreaming}

@@ -544,6 +544,7 @@ export interface ApiAdapter {
     content: string,
     handler: BravoSSEHandler,
     mode?: string,
+    context?: { projectId?: string; stream?: string; itemId?: string },
   ): AbortController;
 
   // Utility
