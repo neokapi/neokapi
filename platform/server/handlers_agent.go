@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -154,6 +155,7 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 		if err := s.AgentService.SendMessageStream(
 			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, sse,
 		); err != nil {
+			log.Printf("ERROR: bravo stream failed: %v", err)
 			_ = sse.WriteEvent(service.SSEError, service.ErrorData{Error: err.Error()})
 		}
 		return nil
