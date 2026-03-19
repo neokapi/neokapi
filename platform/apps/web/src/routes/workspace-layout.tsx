@@ -78,6 +78,7 @@ function ConnectedTopBar({
   onSignOut,
   workspaceSlug,
   leftSlot,
+  beforeAvatarSlot,
   onViewAllActivities,
   onViewAllTasks,
 }: {
@@ -85,6 +86,7 @@ function ConnectedTopBar({
   onSignOut?: () => void;
   workspaceSlug: string;
   leftSlot?: React.ReactNode;
+  beforeAvatarSlot?: React.ReactNode;
   onViewAllActivities?: () => void;
   onViewAllTasks?: () => void;
 }) {
@@ -98,6 +100,7 @@ function ConnectedTopBar({
       user={user}
       onSignOut={onSignOut}
       leftSlot={leftSlot}
+      beforeAvatarSlot={beforeAvatarSlot}
       activities={activitiesData?.activities}
       myTasks={myTasksData?.tasks}
       onViewAllActivities={onViewAllActivities}
@@ -505,30 +508,28 @@ export function WorkspaceLayout() {
               activeSubNav={settingsSubNav}
               onSubNavChange={handleSubNavChange}
               headerSlot={
-                <>
-                  <ConnectedTopBar
-                    user={user}
-                    onSignOut={serverMode === "server" ? handleSignOut : undefined}
-                    workspaceSlug={ws}
-                    onViewAllActivities={() =>
-                      void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
-                    }
-                    onViewAllTasks={() =>
-                      void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
-                    }
-                    leftSlot={
-                      sidebarContext?.level === "project" &&
-                      sidebarContext.project.streams &&
-                      sidebarContext.project.streams.length > 0 ? (
-                        <TopBarStreamSelector
-                          sidebarContext={sidebarContext}
-                          onStreamChange={handleStreamChange}
-                        />
-                      ) : undefined
-                    }
-                  />
-                  <ConnectedBravoTrigger />
-                </>
+                <ConnectedTopBar
+                  user={user}
+                  onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                  workspaceSlug={ws}
+                  onViewAllActivities={() =>
+                    void navigate({ to: "/$workspace/activities", params: { workspace: ws } })
+                  }
+                  onViewAllTasks={() =>
+                    void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
+                  }
+                  leftSlot={
+                    sidebarContext?.level === "project" &&
+                    sidebarContext.project.streams &&
+                    sidebarContext.project.streams.length > 0 ? (
+                      <TopBarStreamSelector
+                        sidebarContext={sidebarContext}
+                        onStreamChange={handleStreamChange}
+                      />
+                    ) : undefined
+                  }
+                  beforeAvatarSlot={<ConnectedBravoTrigger />}
+                />
               }
               rightPanelSlot={<ConnectedBravoPanel />}
               contentClassName={isEditor ? "overflow-hidden" : "overflow-auto"}

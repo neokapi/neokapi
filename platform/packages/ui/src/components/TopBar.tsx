@@ -34,6 +34,8 @@ export interface TopBarProps {
   onCompleteTask?: (taskId: string) => void;
   onViewAllTasks?: () => void;
   leftSlot?: React.ReactNode;
+  /** Slot rendered immediately before the user avatar (e.g. @bravo trigger). */
+  beforeAvatarSlot?: React.ReactNode;
 }
 
 const nextTheme: Record<Theme, Theme> = { light: "dark", dark: "system", system: "light" };
@@ -91,6 +93,7 @@ export function TopBar({
   onCompleteTask,
   onViewAllTasks,
   leftSlot,
+  beforeAvatarSlot,
 }: TopBarProps) {
   const { theme, setTheme } = useTheme();
   const isOffline = connectionState === "offline";
@@ -152,6 +155,9 @@ export function TopBar({
       >
         {themeIcons[theme]}
       </Button>
+
+      {/* Slot before avatar (e.g. @bravo trigger) */}
+      {beforeAvatarSlot}
 
       {/* Account menu */}
       {user && onSignOut && (

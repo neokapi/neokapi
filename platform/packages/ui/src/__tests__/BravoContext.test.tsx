@@ -212,7 +212,7 @@ function createSSEMock() {
   const controller = new AbortController();
 
   const mockFn = vi.fn(
-    (_ws: string, _convId: string, _content: string, handler: BravoSSEHandler) => {
+    (_ws: string, _convId: string, _content: string, handler: BravoSSEHandler, _mode?: string) => {
       capturedHandler = handler;
       return controller;
     },
@@ -447,7 +447,7 @@ describe("BravoContext", () => {
     // Should be streaming now with optimistic user message
     expect(screen.getByTestId("streaming").textContent).toBe("true");
     expect(screen.getByTestId("msg-count").textContent).toBe("1"); // optimistic user msg
-    expect(sseMock.mockFn).toHaveBeenCalledWith("acme", "c1", "hello", expect.any(Object));
+    expect(sseMock.mockFn).toHaveBeenCalledWith("acme", "c1", "hello", expect.any(Object), "ask");
 
     // Simulate SSE events
     const handler = sseMock.getHandler();
