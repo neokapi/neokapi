@@ -1,3 +1,4 @@
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Header from './components/layout/Header';
 import FilterBar from './components/FilterBar';
 import StatsRow from './components/StatsRow';
@@ -21,7 +22,7 @@ function DashboardContent() {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* FilterBar — sticky below header */}
+      {/* FilterBar -- sticky below header */}
       <div className="sticky top-[53px] z-40 border-b bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-7xl">
           <FilterBar />
@@ -77,7 +78,7 @@ function DashboardContent() {
       <footer className="border-t px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl text-center">
           <p className="font-mono text-xs text-muted-foreground">
-            Bowrain Agentic Operations Dashboard &mdash; Powered by{' '}
+            Bowrain Agentic Simulation Dashboard &mdash; Powered by{' '}
             <a
               href="https://github.com/neokapi/neokapi"
               target="_blank"
@@ -93,12 +94,25 @@ function DashboardContent() {
   );
 }
 
+function DashboardPage() {
+  return (
+    <FilterProvider>
+      <DashboardContent />
+    </FilterProvider>
+  );
+}
+
 function App() {
   return (
     <ThemeProvider>
-      <FilterProvider>
-        <DashboardContent />
-      </FilterProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<DashboardPage />} />
+          <Route path="/workspace/:slug" element={<DashboardPage />} />
+          <Route path="/workspace/:slug/agent/:agentId" element={<DashboardPage />} />
+          <Route path="/workspace/:slug/session/:sessionId" element={<DashboardPage />} />
+        </Routes>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }

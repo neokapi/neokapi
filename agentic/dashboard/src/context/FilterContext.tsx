@@ -1,74 +1,198 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  type ReactNode,
+} from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { workspaces } from '@/data/workspaces';
+import { agents } from '@/data/agents';
 
-interface FilterState {
+export interface FilterToken {
+  key: string;
+  value: string;
+  label: string;
+}
+
+interface FilterContextType {
+  tokens: FilterToken[];
+  addToken: (token: FilterToken) => void;
+  removeToken: (index: number) => void;
+  clearTokens: () => void;
+  search: string;
+  setSearch: (s: string) => void;
+  // Derived for backward compat
   workspace: string | null;
   agent: string | null;
   status: string | null;
-  search: string;
-  preset: string | null;
 }
 
-interface FilterContextValue extends FilterState {
-  setWorkspace: (ws: string | null) => void;
-  setAgent: (agent: string | null) => void;
-  setStatus: (status: string | null) => void;
-  setSearch: (search: string) => void;
-  setPreset: (preset: string | null) => void;
-  clearFilters: () => void;
-}
-
-export const FilterContext = createContext<FilterContextValue>({
+export const FilterContext = createContext<FilterContextType>({
+  tokens: [],
+  addToken: () => {},
+  removeToken: () => {},
+  clearTokens: () => {},
+  search: '',
+  setSearch: () => {},
   workspace: null,
   agent: null,
   status: null,
-  search: '',
-  preset: null,
-  setWorkspace: () => {},
-  setAgent: () => {},
-  setStatus: () => {},
-  setSearch: () => {},
-  setPreset: () => {},
-  clearFilters: () => {},
 });
 
 export function useFilter() {
   return useContext(FilterContext);
 }
 
+function tokensToPath(tokens: FilterToken[]): string {
+  const wsToken = tokens.find((t) => t.key === 'workspace');
+  const agentToken = tokens.find((t) => t.key === 'agent');
+
+  if (wsToken && agentToken) {
+    return `/workspace/${wsToken.value}/agent/${agentToken.value}`;
+  }
+  if (wsToken) {
+    return `/workspace/${wsToken.value}`;
+  }
+  return '/';
+}
+
+function deriveValue(tokens: FilterToken[], key: string): string | null {
+  const token = tokens.find((t) => t.key === key);
+  return token?.value ?? null;
+}
+
 export function FilterProvider({ children }: { children: ReactNode }) {
-  const [workspace, setWorkspaceRaw] = useState<string | null>(null);
-  const [agent, setAgent] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const params = useParams();
+  const location = useLocation();
+  const [tokens, setTokens] = useState<FilterToken[]>([]);
   const [search, setSearch] = useState('');
-  const [preset, setPreset] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
-  const setWorkspace = useCallback((ws: string | null) => {
-    setWorkspaceRaw(ws);
-    setAgent(null);
-  }, []);
+  // Initialize tokens from URL on first load
+  useEffect(() => {
+    if (initialized) return;
+    const initial: FilterToken[] = [];
+    const slug = params.slug;
+    const agentId = params.agentId;
 
-  const clearFilters = useCallback(() => {
-    setWorkspaceRaw(null);
-    setAgent(null);
-    setStatus(null);
+    if (slug) {
+      const ws = workspaces.find((w) => w.slug === slug);
+      if (ws) {
+        initial.push({ key: 'workspace', value: ws.slug, label: ws.name });
+      }
+    }
+    if (agentId) {
+      const ag = agents.find((a) => a.id === agentId);
+      if (ag) {
+        initial.push({ key: 'agent', value: ag.id, label: ag.name });
+      }
+    }
+
+    // Parse query params for status, time, tool
+    const searchParams = new URLSearchParams(location.search);
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      initial.push({ key: 'status', value: statusParam, label: statusParam });
+    }
+    const timeParam = searchParams.get('time');
+    if (timeParam) {
+      initial.push({ key: 'time', value: timeParam, label: timeParam });
+    }
+    const toolParam = searchParams.get('tool');
+    if (toolParam) {
+      initial.push({ key: 'tool', value: toolParam, label: toolParam });
+    }
+    const q = searchParams.get('q');
+    if (q) {
+      setSearch(q);
+    }
+
+    if (initial.length > 0) {
+      setTokens(initial);
+    }
+    setInitialized(true);
+  }, [params, location.search, initialized]);
+
+  const syncUrl = useCallback(
+    (newTokens: FilterToken[], newSearch?: string) => {
+      const path = tokensToPath(newTokens);
+      const qs = new URLSearchParams();
+
+      for (const t of newTokens) {
+        if (t.key === 'status' || t.key === 'time' || t.key === 'tool') {
+          qs.set(t.key, t.value);
+        }
+      }
+      const s = newSearch ?? search;
+      if (s) qs.set('q', s);
+
+      const query = qs.toString();
+      navigate(query ? `${path}?${query}` : path, { replace: true });
+    },
+    [navigate, search]
+  );
+
+  const addToken = useCallback(
+    (token: FilterToken) => {
+      setTokens((prev) => {
+        // Replace existing token with same key
+        const filtered = prev.filter((t) => t.key !== token.key);
+        const next = [...filtered, token];
+        syncUrl(next);
+        return next;
+      });
+    },
+    [syncUrl]
+  );
+
+  const removeToken = useCallback(
+    (index: number) => {
+      setTokens((prev) => {
+        const next = prev.filter((_, i) => i !== index);
+        syncUrl(next);
+        return next;
+      });
+    },
+    [syncUrl]
+  );
+
+  const clearTokens = useCallback(() => {
+    setTokens([]);
     setSearch('');
-    setPreset(null);
-  }, []);
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  const setSearchWithSync = useCallback(
+    (s: string) => {
+      setSearch(s);
+      // Don't navigate on every keystroke — just update state
+    },
+    []
+  );
+
+  // Derived values for backward compat
+  const workspaceSlug = deriveValue(tokens, 'workspace');
+  const workspace = workspaceSlug
+    ? workspaces.find((w) => w.slug === workspaceSlug)?.id ?? null
+    : null;
+  const agent = deriveValue(tokens, 'agent');
+  const status = deriveValue(tokens, 'status');
 
   return (
     <FilterContext.Provider
       value={{
+        tokens,
+        addToken,
+        removeToken,
+        clearTokens,
+        search,
+        setSearch: setSearchWithSync,
         workspace,
         agent,
         status,
-        search,
-        preset,
-        setWorkspace,
-        setAgent,
-        setStatus,
-        setSearch,
-        setPreset,
-        clearFilters,
       }}
     >
       {children}

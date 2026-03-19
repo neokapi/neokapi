@@ -36,11 +36,38 @@ function isToday(iso: string): boolean {
   return d.toDateString() === today.toDateString();
 }
 
+function isYesterday(iso: string): boolean {
+  const d = new Date(iso);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  return d.toDateString() === yesterday.toDateString();
+}
+
+function isThisWeek(iso: string): boolean {
+  const d = new Date(iso);
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  return d >= startOfWeek;
+}
+
+function isWithinDays(iso: string, days: number): boolean {
+  const d = new Date(iso);
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0, 0, 0, 0);
+  return d >= cutoff;
+}
+
 export default function SessionTable() {
-  const { workspace, agent, status, search, preset } = useFilter();
+  const { workspace, agent, status, search, tokens } = useFilter();
   const [sortKey, setSortKey] = useState<SortKey>('started');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  const timeToken = tokens.find((t) => t.key === 'time');
+  const toolToken = tokens.find((t) => t.key === 'tool');
 
   const filtered = useMemo(() => {
     let s = sessions;
@@ -51,9 +78,37 @@ export default function SessionTable() {
       const q = search.toLowerCase();
       s = s.filter((sess) => sess.summary.toLowerCase().includes(q));
     }
-    if (preset === 'today') s = s.filter((sess) => isToday(sess.startTime));
+    if (timeToken) {
+      const tv = timeToken.value;
+      switch (tv) {
+        case 'today':
+          s = s.filter((sess) => isToday(sess.startTime));
+          break;
+        case 'yesterday':
+          s = s.filter((sess) => isYesterday(sess.startTime));
+          break;
+        case 'this-week':
+          s = s.filter((sess) => isThisWeek(sess.startTime));
+          break;
+        case 'this-month':
+          s = s.filter((sess) => isWithinDays(sess.startTime, 30));
+          break;
+        case '7d':
+          s = s.filter((sess) => isWithinDays(sess.startTime, 7));
+          break;
+        case '14d':
+          s = s.filter((sess) => isWithinDays(sess.startTime, 14));
+          break;
+        case '30d':
+          s = s.filter((sess) => isWithinDays(sess.startTime, 30));
+          break;
+      }
+    }
+    if (toolToken) {
+      s = s.filter((sess) => sess.toolCalls.some((tc) => tc.tool === toolToken.value));
+    }
     return s;
-  }, [workspace, agent, status, search, preset]);
+  }, [workspace, agent, status, search, timeToken, toolToken]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
