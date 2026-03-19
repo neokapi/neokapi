@@ -1,0 +1,16 @@
+# Docusaurus — Meta's documentation framework
+# One of the most-translated open-source projects, with established i18n support.
+
+upstream: facebook/docusaurus
+fork: neokapi/agentic-docusaurus
+
+source_language: en-US
+target_languages:
+  - fr-FR
+  - de-DE
+  - ja-JP
+
+content_paths:
+  - website/i18n/en/**/*.json        # UI strings and theme translations
+  - website/docs/**/*.md             # Documentation pages
+  - website/blog/**/*.md             # Blog posts

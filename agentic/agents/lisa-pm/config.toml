@@ -1,0 +1,26 @@
+[llm]
+# Azure OpenAI GPT-4o — PM needs stronger reasoning for coordination tasks
+default_provider = "custom"
+default_model = "gpt-4o"
+
+[providers.custom]
+name = "azure-openai"
+base_url = "https://oai-bowrain-d.openai.azure.com/openai/deployments/gpt-4o/v1"
+api_key_env = "AZURE_OPENAI_API_KEY"
+
+[security]
+# PM needs gh CLI for issue triage and coordination
+allowed_commands = ["gh"]
+
+[mcp.bowrain]
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
+
+[mcp.email]
+transport = "http"
+url = "http://email-mcp:3001/mcp"
+
+[daemon.cron]
+"morning-review" = "0 10 * * 1-5"   # Weekday mornings

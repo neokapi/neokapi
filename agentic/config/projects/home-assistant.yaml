@@ -1,0 +1,16 @@
+# Home Assistant Frontend — smart home dashboard
+# Single large JSON translation file. Full volume is 10k+ keys; we scope to
+# the core UI subset (~2k keys) to keep agent workload manageable and focused
+# on the most user-visible strings.
+
+upstream: home-assistant/frontend
+fork: neokapi/agentic-home-assistant-frontend
+
+source_language: en-US
+target_languages:
+  - fr-FR
+  - de-DE
+  - ja-JP
+
+content_paths:
+  - src/translations/en.json          # Core UI subset (~2k keys, scoped intentionally)
