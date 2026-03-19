@@ -27,14 +27,14 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
 - [ ] Fork Excalidraw (smallest Tier 1 candidate) to `neokapi/agentic-excalidraw`
 - [ ] Set up local Bowrain server + Keycloak via docker-compose (reuse existing `compose.yaml`)
 - [ ] Create Keycloak users for agent personas (automate via `keycloak-admin.ts`)
-- [ ] Create Developer Agent workspace (config.toml + SOUL.md), using Gemini locally
+- [ ] Create Developer Agent workspace (config.toml + SOUL.md), using Azure OpenAI (GPT-4o-mini)
 - [ ] Connect ZeroClaw daemon to Bowrain's `/mcp/` endpoint with agent JWT token
 - [ ] Developer Agent: `connector_pull` → content in dashboard → `connector_push`
 
 ### What's NOT included
 
 - No AI translation quality decisions (agent executes tools per SOUL.md —
-  but LLM inference runs via Gemini to interpret instructions, so
+  but LLM inference runs via Azure OpenAI to interpret instructions, so
   Phase 0 has non-zero AI cost)
 - No scheduling (manual `zeroclaw agent` invocation)
 - Single project, single language (fr-FR)
@@ -172,8 +172,8 @@ release history to build months of activity.
 
 - [ ] **Early validation:** Confirm `zeroclaw agent -m` (single-shot mode) works with
       Bravo MCP tools — agent processes task, calls tools, exits cleanly.
-- [ ] **Early validation:** Confirm ZeroClaw can authenticate to Azure OpenAI via managed
-      identity bearer token.
+- [ ] **Early validation:** Confirm ZeroClaw can authenticate to Azure OpenAI via API key
+      from a Container Apps Job (same keys as local dev).
 - [ ] Provision Azure AI Foundry endpoint for Claude Sonnet (serverless)
 - [ ] Create `agent-job.bicep` module — Container Apps Jobs (scheduled + event-driven)
 - [ ] Create Service Bus queues for agent handoffs (`content-pushed`, `tasks-created-{locale}`,
@@ -223,7 +223,7 @@ Result: Dashboard shows 6+ months of "activity" with authentic metrics
 - Public demo site live with 4 projects, 12+ agents
 - Months of visible activity history
 - Local dev reproducible via `docker compose up -d`
-- Azure prod running on Container Apps with managed identity
+- Azure dev running on Container Apps Jobs
 
 ---
 
@@ -257,21 +257,21 @@ Result: Dashboard shows 6+ months of "activity" with authentic metrics
 **Cost model assumptions:** Each translator session involves ~4-7 LLM calls per block
 (list tasks, AI translate, list concepts, list TM, review decision, submit, optionally
 add TM). At 30 blocks/session, that's 120-210 LLM calls. Developer/PM/QA sessions are
-lighter (10-30 calls). Gemini 2.5 Flash is ~$0.15/1M input tokens locally; Azure Claude
-Sonnet is ~$3/1M input tokens.
+lighter (10-30 calls). Azure GPT-4o-mini is ~$0.15/1M input tokens; Azure Claude
+Sonnet is ~$3/1M input tokens. Same costs locally and in Azure (API key auth).
 
-| Phase | Agents | Sessions/Day | Est. Daily Cost (Gemini local) | Est. Daily Cost (Azure mixed) |
-|-------|--------|-------------|-------------------------------|-------------------------------|
-| 0 | 1 | 2 | ~$0.50 | N/A (local only) |
-| 1 | 4 | 8 | ~$2-4 | N/A (local only) |
-| 2 | 8 | 16 | ~$4-8 | N/A (local only) |
-| 3 | 20 | 40 | ~$8-15 | N/A (local only) |
-| 4 (accel) | 20 | 100+ | ~$20-40 | ~$40-80 (Azure mixed) |
-| 5+ | 20 | 40 | N/A | ~$15-30 (Azure mixed) |
+| Phase | Agents | Sessions/Day | Est. Daily Cost |
+|-------|--------|-------------|-----------------|
+| 0 | 1 | 2 | ~$0.50 |
+| 1 | 4 | 8 | ~$2-4 |
+| 2 | 8 | 16 | ~$4-8 |
+| 3 | 20 | 40 | ~$8-15 |
+| 4 (accel) | 20 | 100+ | ~$40-80 |
+| 5+ | 20 | 40 | ~$15-30 |
 
-Note: Previous estimates ($5-25/day) were optimistic. Real cost depends on block length
-and model choice. Gemini Flash locally is 10-20x cheaper than Azure Claude Sonnet.
-Monitor actual spend from Phase 1 and adjust.
+Same Azure AI costs locally and in Azure (API key auth). Real cost depends on block
+length and model choice. GPT-4o-mini for simple agents keeps costs low; Claude Sonnet
+for translation review is the main expense. Monitor actual spend from Phase 1 and adjust.
 
 ### Human Time
 
@@ -296,7 +296,7 @@ by ~2 weeks compared to the pre-Bravo plan.
 
 | Risk | Mitigation |
 |------|-----------|
-| AI costs spiral | Daily budget caps, cost-per-session limits, Gemini Flash (cheap) for local |
+| AI costs spiral | Daily budget caps, cost-per-session limits, GPT-4o-mini for simple agents |
 | Agents get stuck in loops | Circuit breaker after 3 failures, session timeouts |
 | Bowrain server instability | Health checks, graceful degradation, retry with backoff |
 | Upstream repo changes break fork | Automated merge conflict detection, manual resolution queue |
@@ -306,5 +306,5 @@ by ~2 weeks compared to the pre-Bravo plan.
 | ZeroClaw daemon instability (local) | 48h smoke test in Phase 0; Azure uses Jobs (no daemon) |
 | Bowrain API gaps (missing endpoints) | REST API audit in Phase 0 prerequisites; file tickets before building MCP |
 | MCP transport version mismatch | Pin ZeroClaw + MCP SDK versions; validate Streamable HTTP in smoke test |
-| Azure managed identity auth failure | Validate ZeroClaw + Azure OpenAI token auth early in Phase 4 |
+| Azure API key rotation | Store keys in Key Vault; rotate via infra automation |
 | Home Assistant volume too large | Scoped to core UI subset (~2000 keys); expand only if throughput allows |

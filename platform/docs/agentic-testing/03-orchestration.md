@@ -265,10 +265,15 @@ accelerated:
 Each agent's behavior is configured in its `config.toml` and `SOUL.md`:
 
 ```toml
-# agents/jeanpierre-fr/config.toml (base config — used locally, overridden in Azure)
+# agents/jeanpierre-fr/config.toml (same config locally and in Azure)
 [llm]
-default_provider = "google"
-default_model = "gemini-2.5-flash"
+default_provider = "custom"
+default_model = "claude-sonnet-4-5-20250514"
+
+[providers.custom]
+name = "azure-claude"
+base_url = "https://bowrain-foundry-d.services.ai.azure.com/v1"
+api_key_env = "AZURE_AI_FOUNDRY_KEY"
 
 [security]
 allowed_commands = []    # Translator: API-only, no shell
@@ -286,22 +291,19 @@ headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
 
 Behavioral parameters (acceptance rate, blocks per session, communication style) live in `SOUL.md` as natural language instructions rather than configuration values. This is more flexible — the LLM interprets and applies them contextually.
 
-The LLM provider differs by environment — see `04-implementation.md` for the full provider strategy:
-- **Local:** Google Gemini (`.env` with `GOOGLE_API_KEY`) or Ollama (free)
-- **Azure:** Managed identity auth to Azure OpenAI (simple agents) and Azure AI Foundry/Claude (translation/brand agents)
+**Same Azure AI config everywhere.** API keys work locally and in Azure — no
+environment-specific overlays needed. See `04-implementation.md` for the provider matrix
+(Azure OpenAI for simple agents, Azure AI Foundry/Claude for translators/brand).
 
 ### Environment Configuration
 
-**Local development** (`.env`):
 ```bash
-# .env — local docker-compose
-GOOGLE_API_KEY=AIza...                  # All agents use Gemini locally
+# .env — same keys work locally and in Azure
+AZURE_OPENAI_API_KEY=...              # Developer, PM, QA (GPT-4o-mini/4o)
+AZURE_AI_FOUNDRY_KEY=...              # Translators, Brand Manager (Claude Sonnet)
 BOWRAIN_URL=http://bowrain-server:8080
 KEYCLOAK_URL=http://keycloak:8080
-GITHUB_ORG=bowrain-l10n
 ```
-
-**Azure deployment** — no `.env` needed; managed identity provides auth to Azure OpenAI and Azure AI Foundry. Environment variables are set in Container Apps configuration.
 
 ## Concurrency Model
 

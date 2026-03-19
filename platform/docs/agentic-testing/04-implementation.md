@@ -157,10 +157,14 @@ neokapi/agentic/
 ```toml
 [llm]
 # Provider set by environment overlay (config.local.toml or config.azure-dev.toml)
-# Local: Gemini (default) or Ollama (free)
-# Azure: GPT-4o-mini via Azure OpenAI (managed identity)
-default_provider = "google"
-default_model = "gemini-2.5-flash"
+# Azure OpenAI — same config works locally and in Azure (API key auth)
+default_provider = "custom"
+default_model = "gpt-4o-mini"
+
+[providers.custom]
+name = "azure-openai"
+base_url = "https://oai-bowrain-d.openai.azure.com/openai/deployments/gpt-4o-mini/v1"
+api_key_env = "AZURE_OPENAI_API_KEY"
 
 [security]
 allowed_commands = ["git", "gh", "bowrain", "ls", "cat", "diff"]
@@ -239,11 +243,14 @@ pull translations and commit.
 **`agents/jeanpierre-fr/config.toml`** (base — provider-agnostic):
 ```toml
 [llm]
-# Provider set by environment overlay
-# Local: Gemini (default) or Ollama (free)
-# Azure: Claude Sonnet via Azure AI Foundry (managed identity)
-default_provider = "google"
-default_model = "gemini-2.5-flash"
+# Azure AI Foundry (Claude) — same config works locally and in Azure (API key auth)
+default_provider = "custom"
+default_model = "claude-sonnet-4-5-20250514"
+
+[providers.custom]
+name = "azure-claude"
+base_url = "https://bowrain-foundry-d.services.ai.azure.com/v1"
+api_key_env = "AZURE_AI_FOUNDRY_KEY"
 
 [security]
 # Translator has no shell access — API only via MCP
@@ -322,11 +329,14 @@ English (en-US) to French (fr-FR).
 **`agents/maria-brand/config.toml`** (base — provider-agnostic):
 ```toml
 [llm]
-# Provider set by environment overlay
-# Local: Gemini (default) or Ollama (free)
-# Azure: Claude Sonnet via Azure AI Foundry (managed identity)
-default_provider = "google"
-default_model = "gemini-2.5-flash"
+# Azure AI Foundry (Claude) — same config works locally and in Azure (API key auth)
+default_provider = "custom"
+default_model = "claude-sonnet-4-5-20250514"
+
+[providers.custom]
+name = "azure-claude"
+base_url = "https://bowrain-foundry-d.services.ai.azure.com/v1"
+api_key_env = "AZURE_AI_FOUNDRY_KEY"
 
 [security]
 allowed_commands = []
@@ -495,9 +505,8 @@ count from 14 to 7.
 
 ## Docker Compose (Local Development)
 
-The local docker-compose runs the full stack on your machine. Because the Azure OpenAI
-resource has `disableLocalAuth: true` (managed-identity-only), **local agents use
-Google Gemini or Ollama** — not Azure endpoints.
+The local docker-compose runs the full stack on your machine. Agents use the **same
+Azure AI API keys** as the Azure deployment — no separate local provider needed.
 
 The agent SOUL.md files, MCP tools, and scheduling are identical across environments.
 Only the `[llm]` provider block in `config.toml` differs.
@@ -549,9 +558,10 @@ services:
     command: daemon
     restart: unless-stopped
     environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
       BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
       BRAVO_AGENT_TOKEN: ${ALEX_AGENT_TOKEN}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
     volumes:
       - ./agents/alex-developer:/root/.zeroclaw
       - ./forks:/root/.zeroclaw/workspace
@@ -562,7 +572,7 @@ services:
     command: daemon
     restart: unless-stopped
     environment:
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      AZURE_AI_FOUNDRY_KEY: ${AZURE_AI_FOUNDRY_KEY}
       BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
       BRAVO_AGENT_TOKEN: ${JEANPIERRE_AGENT_TOKEN}
     volumes:
@@ -590,10 +600,12 @@ volumes:
 
 **Environment variables (`.env`):**
 ```bash
-GOOGLE_API_KEY=AIza...                 # All agents use Gemini locally
-ALEX_AGENT_TOKEN=...                   # Per-agent JWT tokens
+AZURE_OPENAI_API_KEY=...              # For Developer, PM, QA agents (GPT-4o-mini/4o)
+AZURE_AI_FOUNDRY_KEY=...              # For Translator, Brand Manager agents (Claude Sonnet)
+GITHUB_TOKEN=ghp_...                  # For gh CLI (filing issues)
+ALEX_AGENT_TOKEN=...                  # Per-agent Bowrain JWT tokens
 JEANPIERRE_AGENT_TOKEN=...            # (created via Bravo conversation API
-MARIA_AGENT_TOKEN=...                  #  or Keycloak user setup)
+MARIA_AGENT_TOKEN=...                 #  or Keycloak user setup)
 KATRIN_AGENT_TOKEN=...
 YUKI_AGENT_TOKEN=...
 LISA_AGENT_TOKEN=...
@@ -705,15 +717,19 @@ Alternatively, the release walker can use `zeroclaw agent -m` to send a one-shot
 brew install docker
 cargo install zeroclaw   # For local testing outside Docker
 
-# === Option A: Gemini (good quality, cheap, good tool-use) ===
-echo "GOOGLE_API_KEY=AIza..." > .env
+# Configure Azure AI keys (same keys work locally and in Azure)
+cat > .env << 'EOF'
+AZURE_OPENAI_API_KEY=...
+AZURE_AI_FOUNDRY_KEY=...
+GITHUB_TOKEN=ghp_...
+EOF
+
+# Start the full stack
 cd neokapi/agentic
 docker compose up -d
 
-# === Option B: Ollama (free, lower quality, good for MCP/workflow iteration) ===
-cd neokapi/agentic
+# Or use Ollama for zero-cost iteration (override provider in config.toml)
 docker compose --profile ollama up -d
-# Then override agents to use ollama provider (see config overlay below)
 
 # === Common commands ===
 docker compose logs -f alex-developer       # Watch agent logs
@@ -747,83 +763,30 @@ No TypeScript, no Go, no compilation. The agent runtime (ZeroClaw) and tools (Bo
 
 ## Model Provider Strategy
 
-### The Problem: Azure OpenAI Has No API Keys
+### Azure AI with API Keys
 
-The Azure OpenAI resource (`oai-bowrain-{env}`) has `disableLocalAuth: true` in
-`bowrain-infra/modules/openai.bicep`. Only managed identity Bearer tokens work — these
-are only available from Azure resources (Container Apps, VMs with assigned identity).
-A local docker-compose cannot authenticate to Azure OpenAI.
+Azure AI services (Azure OpenAI + Azure AI Foundry) support access keys, so the **same
+provider config works everywhere** — local docker-compose and Azure Container Apps Jobs.
+No environment-specific overlays needed.
 
-### The Solution: Environment-Specific Providers
+Each agent's `config.toml` points to Azure AI endpoints with an API key from `.env`.
+The same config runs locally and in Azure.
 
-Agent SOUL.md, HEARTBEAT.md, and MCP tools are **identical** across all environments.
-Only the `[llm]` block in `config.toml` changes per environment. We use a config overlay
-pattern — a base config.toml per agent, with environment-specific overrides.
+### Provider Matrix
 
-### Three Environments
+| Agent | Task Complexity | Model | Azure Service | Est. Cost |
+|-------|----------------|-------|---------------|-----------|
+| Developer (Alex) | Low — push/pull/git | GPT-4o-mini | Azure OpenAI | ~$0.15/1M tok |
+| PM (Lisa) | Medium — task creation | GPT-4o | Azure OpenAI | ~$2.50/1M tok |
+| QA (Taylor) | Medium — quality checks | GPT-4o | Azure OpenAI | ~$2.50/1M tok |
+| Brand Manager (Maria) | High — terminology, brand | Claude Sonnet 4.5 | Azure AI Foundry | ~$3/1M tok |
+| Translators (JP, Katrin, Yuki) | Medium-High — translation review | Claude Sonnet 4.5 | Azure AI Foundry | ~$3/1M tok |
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Local (docker-compose)                                      │
-│                                                              │
-│  Provider: Google Gemini 2.5 Flash  — or —  Ollama (free)   │
-│  Auth: GOOGLE_API_KEY in .env       — or —  no auth (local) │
-│  Use for: MCP development, persona tuning, workflow testing  │
-│  All agents use the same provider (simplicity)               │
-└─────────────────────────────────────────────────────────────┘
+### Config Examples
 
-┌─────────────────────────────────────────────────────────────┐
-│  Azure Dev (rg-bowrain-d-sdc, dev.bowrain.cloud)            │
-│                                                              │
-│  Simple agents:  Azure OpenAI GPT-4o-mini  (capacity 60)    │
-│  Complex agents: Azure AI Foundry Claude Sonnet (serverless) │
-│  Auth: Managed identity (no keys)                            │
-│  Bowrain target: dev.bowrain.cloud                           │
-│  Demo dashboard: agents.dev.bowrain.cloud                    │
-│  Use for: Long-running agents, public demo, sustained        │
-│           activity generation                                │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Config Overlay Pattern
-
-Each agent workspace has a base `config.toml` and optional environment overrides:
-
-```
-agents/jeanpierre-fr/
-├── config.toml              # Base: provider (Gemini), MCP, cron, security
-├── config.azure-dev.toml    # Azure dev: Claude via Foundry + managed identity
-└── config.azure-prod.toml   # Azure prod: same as dev, different endpoint
-```
-
-The base `config.toml` defaults to Gemini — this is what local docker-compose uses.
-Azure overlays switch to Azure OpenAI / Azure AI Foundry with managed identity.
-
-**Ollama override (optional, for zero-cost iteration):**
+**Developer (GPT-4o-mini via Azure OpenAI):**
 ```toml
-# Override in config.toml when using --profile ollama
-[llm]
-default_provider = "ollama"
-default_model = "llama3.1:8b"
-# Ollama runs as a sibling container, no auth needed
-```
-
-**Azure overlay — Translator (Claude via Foundry):**
-```toml
-# agents/jeanpierre-fr/config.azure-dev.toml
-[llm]
-default_provider = "custom"
-default_model = "claude-sonnet-4-5-20250514"
-
-[providers.custom]
-name = "azure-claude"
-base_url = "https://bowrain-foundry-d.services.ai.azure.com/v1"
-# Auth via managed identity — no api_key_env needed
-```
-
-**Azure overlay — Developer (GPT-4o-mini via Azure OpenAI):**
-```toml
-# agents/alex-developer/config.azure-dev.toml
+# agents/alex-developer/config.toml
 [llm]
 default_provider = "custom"
 default_model = "gpt-4o-mini"
@@ -831,39 +794,57 @@ default_model = "gpt-4o-mini"
 [providers.custom]
 name = "azure-openai"
 base_url = "https://oai-bowrain-d.openai.azure.com/openai/deployments/gpt-4o-mini/v1"
-# Auth via managed identity — no api_key_env needed
+api_key_env = "AZURE_OPENAI_API_KEY"
 ```
 
-### Azure Provider Matrix (dev/prod)
+**Translator (Claude Sonnet via Azure AI Foundry):**
+```toml
+# agents/jeanpierre-fr/config.toml
+[llm]
+default_provider = "custom"
+default_model = "claude-sonnet-4-5-20250514"
 
-| Agent | Task Complexity | Model | Azure Service | Est. Cost |
-|-------|----------------|-------|---------------|-----------|
-| Developer (Alex) | Low — push/pull/git | GPT-4o-mini | Azure OpenAI (existing) | ~$0.15/1M tok |
-| PM (Lisa) | Medium — task creation | GPT-4o | Azure OpenAI (existing) | ~$2.50/1M tok |
-| QA (Taylor) | Medium — quality checks | GPT-4o | Azure OpenAI (existing) | ~$2.50/1M tok |
-| Brand Manager (Maria) | High — terminology, brand | Claude Sonnet 4.5 | Azure AI Foundry (new) | ~$3/1M tok |
-| Translators (JP, Katrin, Yuki) | Medium-High — translation review | Claude Sonnet 4.5 | Azure AI Foundry (new) | ~$3/1M tok |
+[providers.custom]
+name = "azure-claude"
+base_url = "https://bowrain-foundry-d.services.ai.azure.com/v1"
+api_key_env = "AZURE_AI_FOUNDRY_KEY"
+```
+
+**Ollama (optional, zero-cost local iteration):**
+```toml
+# Override for free local dev
+[llm]
+default_provider = "ollama"
+default_model = "llama3.1:8b"
+```
+
+### Environment Variables
+
+```bash
+# .env — same keys work locally and in Azure
+AZURE_OPENAI_API_KEY=...           # For Developer, PM, QA agents
+AZURE_AI_FOUNDRY_KEY=...           # For Translator, Brand Manager agents
+```
 
 ### Azure Infrastructure
 
 **Already provisioned** (from `bowrain-infra/modules/openai.bicep`):
-- Azure OpenAI: `oai-bowrain-d` / `oai-bowrain-p` in Sweden Central
-- GPT-4o: capacity 30 (dev) / 150 (prod)
-- GPT-4o-mini: capacity 60 (dev) / 300 (prod)
-- Auth: `disableLocalAuth: true`, managed identity with `Cognitive Services OpenAI User` role
+- Azure OpenAI: `oai-bowrain-d` in Sweden Central
+- GPT-4o: capacity 30 (dev)
+- GPT-4o-mini: capacity 60 (dev)
+- API key access enabled
 
 **New resource needed:**
 - Azure AI Foundry workspace + Claude Sonnet serverless deployment
 - Deploy via portal initially, codify in Bicep later
-- Same managed identity gets `Cognitive Services User` role on the Foundry resource
 
 ### Azure Deployment: Container Apps Jobs
 
 In Azure, agents run as **Container Apps Jobs** — not always-on containers. Each agent
 session starts, does work, and stops. You pay only for execution time, not 24/7 uptime.
 
-This uses the same Container Apps Environment already deployed for bowrain-server, with
-the same user-assigned managed identity for Azure OpenAI and AI Foundry access.
+This uses the same Container Apps Environment already deployed for bowrain-server.
+Agents authenticate to Azure AI via API keys (same keys as local dev).
 
 **Two job trigger types:**
 
@@ -1130,7 +1111,7 @@ but uses the existing Service Bus resource.
 - **Pay per execution** — ~12x cheaper than always-on containers
 - **Instant handoffs** — Event-driven via KEDA, not 1-2h poll delays
 - **Managed scheduling** — Azure handles cron, no daemon reliability risk
-- **Managed identity** — No API key rotation; Entra ID authentication
+- **Same config everywhere** — API keys work locally and in Azure (no overlays needed)
 - **Execution history** — Built-in job execution logs, status, retry tracking
 - **Git-backed memory** — Agent memory persisted in git with full history, diffs, rollback
 - **Cost Management** — Azure Cost Management tracks per-job, per-agent spend
@@ -1145,4 +1126,4 @@ but uses the existing Service Bus resource.
 4. **maxExecutions** — Cap concurrent job runs per agent type
 5. **Azure Cost Management** — Budgets and alerts per resource group
 6. **max_tokens in config.toml** — Cap LLM output per session
-7. **Local dev is free/cheap** — Gemini or Ollama, no Azure charges
+7. **Ollama for zero-cost iteration** — switch provider for MCP/workflow dev without AI spend
