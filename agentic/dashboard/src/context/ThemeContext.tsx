@@ -29,10 +29,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    if (theme === 'light') {
-      root.classList.add('light');
+    if (theme === 'dark') {
+      root.classList.add('dark');
     } else {
-      root.classList.remove('light');
+      root.classList.remove('dark');
     }
     localStorage.setItem('dashboard-theme', theme);
   }, [theme]);
