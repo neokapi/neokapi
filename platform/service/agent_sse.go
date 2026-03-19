@@ -101,3 +101,9 @@ type MessageUsage struct {
 type ErrorData struct {
 	Error string `json:"error"`
 }
+
+// EventSink is the interface for writing SSE events. Implemented by SSEWriter
+// (writes to HTTP response) and the Redis sink (publishes to pub/sub).
+type EventSink interface {
+	WriteEvent(event string, data any) error
+}

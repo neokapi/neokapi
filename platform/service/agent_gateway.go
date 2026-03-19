@@ -20,16 +20,24 @@ type gatewayMessage struct {
 	ConversationID string `json:"conversation_id"`
 }
 
-// streamFromGateway sends a message to the ZeroClaw gateway and relays
-// the SSE response stream to the client. It also persists the assistant
-// message and any tool calls to the store.
-func (s *AgentService) streamFromGateway(
+// GatewayResult holds data extracted from a relayed gateway SSE stream.
+type GatewayResult struct {
+	MessageID    string
+	InputTokens  int
+	OutputTokens int
+}
+
+// StreamFromGateway sends a message to a ZeroClaw gateway container and relays
+// the SSE response to the given sink. It also persists the assistant message
+// to the store. This is a standalone function usable by both the API server
+// (direct mode) and the worker (queue mode).
+func StreamFromGateway(
 	ctx context.Context,
 	container *AgentContainer,
+	store platagent.AgentStore,
 	conversationID, userID, content string,
-	sse SSEWriter,
-) (*gatewayResult, error) {
-	// POST message to the ZeroClaw gateway.
+	sink EventSink,
+) (*GatewayResult, error) {
 	payload, _ := json.Marshal(gatewayMessage{
 		Content:        content,
 		ConversationID: conversationID,
@@ -55,26 +63,18 @@ func (s *AgentService) streamFromGateway(
 		return nil, fmt.Errorf("gateway returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	// Parse the SSE stream from ZeroClaw and relay to client.
-	return s.relayGatewaySSE(ctx, resp.Body, conversationID, userID, sse)
-}
-
-// gatewayResult holds data extracted from a relayed gateway SSE stream.
-type gatewayResult struct {
-	MessageID    string
-	InputTokens  int
-	OutputTokens int
+	return relayGatewaySSE(ctx, resp.Body, store, conversationID, sink)
 }
 
 // relayGatewaySSE reads SSE events from the gateway response and relays
-// them to the client. It also captures the full assistant message and
-// any tool calls for persistence.
-func (s *AgentService) relayGatewaySSE(
+// them to the sink. It captures the full assistant message for persistence.
+func relayGatewaySSE(
 	ctx context.Context,
 	body io.Reader,
-	conversationID, userID string,
-	sse SSEWriter,
-) (*gatewayResult, error) {
+	store platagent.AgentStore,
+	conversationID string,
+	sink EventSink,
+) (*GatewayResult, error) {
 	scanner := bufio.NewScanner(body)
 	var contentBuf strings.Builder
 	var assistantMsgID string
@@ -98,31 +98,30 @@ func (s *AgentService) relayGatewaySSE(
 				if json.Unmarshal([]byte(data), &d) == nil {
 					assistantMsgID = d.ID
 				}
-				_ = sse.WriteEvent(SSEMessageStart, json.RawMessage(data))
+				_ = sink.WriteEvent(SSEMessageStart, json.RawMessage(data))
 
 			case SSEContentDelta:
 				var d ContentDeltaData
 				if json.Unmarshal([]byte(data), &d) == nil {
 					contentBuf.WriteString(d.Delta)
 				}
-				_ = sse.WriteEvent(SSEContentDelta, json.RawMessage(data))
+				_ = sink.WriteEvent(SSEContentDelta, json.RawMessage(data))
 
 			case SSEToolCallStart, SSEToolCallEnd, SSENeedsApproval:
-				_ = sse.WriteEvent(currentEvent, json.RawMessage(data))
+				_ = sink.WriteEvent(currentEvent, json.RawMessage(data))
 
 			case SSEMessageEnd:
 				var d MessageEndData
 				if json.Unmarshal([]byte(data), &d) == nil {
 					usage = d.Usage
 				}
-				_ = sse.WriteEvent(SSEMessageEnd, json.RawMessage(data))
+				_ = sink.WriteEvent(SSEMessageEnd, json.RawMessage(data))
 
 			case SSEError:
-				_ = sse.WriteEvent(SSEError, json.RawMessage(data))
+				_ = sink.WriteEvent(SSEError, json.RawMessage(data))
 
 			default:
-				// Forward unknown events as-is.
-				_ = sse.WriteEvent(currentEvent, json.RawMessage(data))
+				_ = sink.WriteEvent(currentEvent, json.RawMessage(data))
 			}
 
 			currentEvent = ""
@@ -134,13 +133,13 @@ func (s *AgentService) relayGatewaySSE(
 		return nil, fmt.Errorf("read gateway SSE: %w", err)
 	}
 
-	result := &gatewayResult{MessageID: assistantMsgID}
+	result := &GatewayResult{MessageID: assistantMsgID}
 	if usage != nil {
 		result.InputTokens = usage.InputTokens
 		result.OutputTokens = usage.OutputTokens
 	}
 
-	// Persist the assistant message with token usage.
+	// Persist the assistant message.
 	if contentBuf.Len() > 0 {
 		msg := &platagent.Message{
 			ConversationID: conversationID,
@@ -152,11 +151,22 @@ func (s *AgentService) relayGatewaySSE(
 		if assistantMsgID != "" {
 			msg.ID = assistantMsgID
 		}
-		if err := s.store.AddMessage(ctx, msg); err != nil {
+		if err := store.AddMessage(ctx, msg); err != nil {
 			return nil, fmt.Errorf("persist assistant message: %w", err)
 		}
 		result.MessageID = msg.ID
 	}
 
 	return result, nil
+}
+
+// streamFromGateway is the AgentService method that delegates to the
+// standalone StreamFromGateway function.
+func (s *AgentService) streamFromGateway(
+	ctx context.Context,
+	container *AgentContainer,
+	conversationID, userID, content string,
+	sse SSEWriter,
+) (*GatewayResult, error) {
+	return StreamFromGateway(ctx, container, s.store, conversationID, userID, content, sse)
 }

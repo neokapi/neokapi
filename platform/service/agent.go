@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -10,12 +12,19 @@ import (
 	platev "github.com/neokapi/neokapi/platform/event"
 )
 
+// AgentEnqueuer enqueues agent job messages. Matches the jobs.Queue.Enqueue signature.
+type AgentEnqueuer interface {
+	Enqueue(ctx context.Context, payload string) error
+}
+
 // AgentService orchestrates agent conversations, messages, and tool policy.
 type AgentService struct {
 	store      platagent.AgentStore
 	eventBus   platev.EventBus
-	pool       *AgentPool       // manages ZeroClaw containers (nil = mock mode)
+	pool       *AgentPool       // manages ZeroClaw containers (nil when using queue mode)
 	tokenStore *AgentTokenStore // scoped agent tokens for MCP delegation
+	queue      AgentEnqueuer    // Service Bus queue for bravo-jobs (nil = direct/mock mode)
+	pubsub     *AgentPubSub     // Redis pub/sub for SSE relay (nil = direct/mock mode)
 }
 
 // NewAgentService creates the agent service.
@@ -28,9 +37,17 @@ func NewAgentService(store platagent.AgentStore, eventBus platev.EventBus) *Agen
 }
 
 // SetPool attaches a container pool for ZeroClaw integration.
-// When set, SendMessageStream routes to real agent containers.
+// When set, SendMessageStream routes to real agent containers directly.
 func (s *AgentService) SetPool(pool *AgentPool) {
 	s.pool = pool
+}
+
+// SetQueue configures queue-based agent orchestration.
+// When set (and pool is nil), SendMessageStream enqueues jobs to Service Bus
+// and subscribes to Redis pub/sub for SSE relay.
+func (s *AgentService) SetQueue(queue AgentEnqueuer, pubsub *AgentPubSub) {
+	s.queue = queue
+	s.pubsub = pubsub
 }
 
 // TokenStore returns the agent token store for middleware integration.
@@ -217,7 +234,12 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 		return fmt.Errorf("add user message: %w", err)
 	}
 
-	// If no pool is configured, use local response.
+	// Queue mode: enqueue to Service Bus, subscribe to Redis for SSE relay.
+	if s.pool == nil && s.queue != nil && s.pubsub != nil {
+		return s.sendQueuedStream(ctx, conversationID, userID, workspaceID, workspaceRole, content, userMsg.ID, sse)
+	}
+
+	// No pool and no queue: local mock response.
 	if s.pool == nil {
 		return s.sendLocalStream(ctx, conversationID, userID, content, sse)
 	}
@@ -318,6 +340,61 @@ func (s *AgentService) sendLocalStream(ctx context.Context, conversationID, user
 	}
 
 	return nil
+}
+
+// sendQueuedStream enqueues an agent job to Service Bus and subscribes to
+// Redis pub/sub to relay SSE events back to the client.
+func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, userID, workspaceID, workspaceRole, content, messageID string, sse SSEWriter) error {
+	// Encode the job message.
+	payload, err := json.Marshal(map[string]string{
+		"conversation_id": conversationID,
+		"message_id":      messageID,
+		"workspace_id":    workspaceID,
+		"user_id":         userID,
+		"workspace_role":  workspaceRole,
+		"content":         content,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal agent job: %w", err)
+	}
+
+	// Subscribe to Redis BEFORE enqueuing so we don't miss events.
+	events, cancel := s.pubsub.Subscribe(ctx, conversationID)
+	defer cancel()
+
+	// Enqueue the job.
+	if err := s.queue.Enqueue(ctx, string(payload)); err != nil {
+		return fmt.Errorf("enqueue agent job: %w", err)
+	}
+
+	log.Printf("Agent job enqueued: conversation=%s", conversationID)
+
+	// Relay Redis events → SSE until message_end, error, or timeout.
+	timeout := 5 * time.Minute
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	for {
+		select {
+		case evt, ok := <-events:
+			if !ok {
+				return nil // channel closed
+			}
+			_ = sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
+
+			// Terminal events: stop relaying.
+			if evt.Event == SSEMessageEnd || evt.Event == SSEError {
+				return nil
+			}
+
+		case <-timer.C:
+			_ = sse.WriteEvent(SSEError, ErrorData{Error: "agent response timed out"})
+			return nil
+
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 // cleanupConversation releases pool containers and revokes tokens for a conversation.
