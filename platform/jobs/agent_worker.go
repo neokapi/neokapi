@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	"github.com/neokapi/neokapi/bowrain/service"
 )
@@ -16,8 +17,8 @@ type AgentWorkerDeps struct {
 	Queue      Queue                // Service Bus queue for bravo-jobs
 	AgentStore platagent.AgentStore // conversations + messages
 	Pool       *service.AgentPool   // container lifecycle
-	TokenStore *service.AgentTokenStore
 	PubSub     *service.AgentPubSub // Redis pub/sub for SSE relay
+	JWTSecret  string               // Bowrain JWT secret for creating MCP auth tokens
 }
 
 // RunAgentWorker runs the agent job processing loop.
@@ -58,20 +59,23 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 
 	log.Printf("Agent worker: processing conversation=%s user=%s mode=%s", job.ConversationID, job.UserID, job.Mode)
 
-	// Create a scoped agent token for MCP delegation.
-	tokenTTL := 30 * time.Minute
-	token, err := deps.TokenStore.Create(job.UserID, job.WorkspaceID, job.ConversationID, job.WorkspaceRole, tokenTTL)
+	// Create a proper Bowrain JWT for MCP authentication.
+	// The MCP server validates these using the same JWT secret as the REST API.
+	agentJWT, err := platauth.GenerateToken(&platauth.User{
+		ID:    job.UserID,
+		Email: "bravo-agent@bowrain.internal",
+		Name:  "@bravo",
+	}, deps.JWTSecret, 30*time.Minute)
 	if err != nil {
-		return fmt.Errorf("create agent token: %w", err)
+		return fmt.Errorf("create agent JWT: %w", err)
 	}
-	defer deps.TokenStore.Revoke(token.Token)
 
 	// Acquire a container from the pool.
 	container, err := deps.Pool.Acquire(ctx, service.ContainerConfig{
 		ConversationID: job.ConversationID,
 		WorkspaceID:    job.WorkspaceID,
 		UserID:         job.UserID,
-		AgentToken:     token.Token,
+		AgentToken:     agentJWT,
 	})
 	if err != nil {
 		return fmt.Errorf("acquire container: %w", err)

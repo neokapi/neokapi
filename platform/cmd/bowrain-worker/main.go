@@ -199,8 +199,6 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 		RegistryPassword: os.Getenv("BOWRAIN_AGENT_REGISTRY_PASSWORD"),
 	})
 
-	tokenStore := service.NewAgentTokenStore()
-
 	log.Printf("Agent pool initialized (runtime=aca)")
 
 	cleanup := func() {
@@ -209,12 +207,17 @@ func buildAgentWorkerDeps(ctx context.Context, pgdb *storage.PgDB, serviceBusCon
 		pool.StopAll(context.Background())
 	}
 
+	jwtSecret := os.Getenv("BOWRAIN_JWT_SECRET")
+	if jwtSecret == "" {
+		return nil, nil, fmt.Errorf("BOWRAIN_JWT_SECRET is required for agent worker MCP auth")
+	}
+
 	return &jobs.AgentWorkerDeps{
 		Queue:      agentQueue,
 		AgentStore: agentStore,
 		Pool:       pool,
-		TokenStore: tokenStore,
 		PubSub:     pubsub,
+		JWTSecret:  jwtSecret,
 	}, cleanup, nil
 }
 
