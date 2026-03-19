@@ -31,7 +31,7 @@ jobs:
       - name: Build and push bravo-agent image
         uses: docker/build-push-action@v7
         with:
-          context: .
+          context: platform
           file: platform/docker/bravo/Dockerfile
           push: true
           tags: |
