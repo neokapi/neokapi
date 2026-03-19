@@ -40,6 +40,7 @@ export default function ActivityTab() {
     return entries;
   }, [workspace, agent, search]);
 
+
   // Group by date
   const grouped = useMemo(() => {
     const groups: { label: string; entries: typeof filtered }[] = [];

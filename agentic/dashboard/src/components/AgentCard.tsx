@@ -19,7 +19,7 @@ function formatRelativeTime(iso: string): string {
 }
 
 export default function AgentCard({ agent }: AgentCardProps) {
-  const { setAgent } = useFilter();
+  const { addToken, agent: activeAgent } = useFilter();
 
   const now = Date.now();
   const dayMs = 24 * 3_600_000;
@@ -31,8 +31,8 @@ export default function AgentCard({ agent }: AgentCardProps) {
 
   return (
     <Card
-      className="min-w-[220px] max-w-[280px] flex-shrink-0 cursor-pointer transition-colors hover:bg-accent/30"
-      onClick={() => setAgent(agent.id)}
+      className={`min-w-[220px] max-w-[280px] flex-shrink-0 cursor-pointer transition-colors hover:bg-accent/30 ${activeAgent === agent.id ? 'ring-2 ring-ring' : ''}`}
+      onClick={() => addToken({ key: 'agent', value: agent.id, label: agent.name })}
     >
       <CardContent className="space-y-2.5 pt-4">
         {/* Name + Role */}
