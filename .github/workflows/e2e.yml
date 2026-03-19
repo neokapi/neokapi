@@ -2,10 +2,10 @@ name: E2E
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 2 * * *" # Nightly at 2 AM UTC
-  push:
-    branches: [main]
+  # schedule:
+  #   - cron: "0 2 * * *" # Nightly at 2 AM UTC
+  # push:
+  #   branches: [main]
 
 permissions:
   contents: read
