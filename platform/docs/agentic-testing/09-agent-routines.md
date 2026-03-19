@@ -29,10 +29,11 @@ platform — the kind of messages real team members exchange:
 | Escalation | Translator | Brand Manager | "Need guidance: 'serverless' — transliterate or translate?" |
 | Welcome/onboarding | PM | New translator | "Welcome Yuki! Here's your first batch of ja-JP translations" |
 
-Agents never touch Mailpit directly. They call `email_send` and `email_list_inbox` MCP
-tools, which run inside the `bowrain-server` container (alongside the other 24 Bravo MCP
-tools). The server connects to Mailpit over the compose network (`mailpit:1025` for SMTP,
-`mailpit:8025` for the inbox API).
+Agents never touch Mailpit directly. They call `email.send` and `email.listInbox` MCP
+tools on the standalone email MCP server (`agentic/email-mcp/`), which connects to Mailpit
+over the compose network (`mailpit:1025` for SMTP, `mailpit:8025` for the inbox API).
+This is separate from the Bowrain MCP server — email is agentic testing infrastructure,
+not a Bowrain platform feature.
 
 **Local dev:** Mailpit catches all email inside the compose network. The operator can
 browse captured emails at `http://localhost:8025` (port-forwarded to host).
@@ -461,132 +462,79 @@ Heartbeat ── Quality Check Cycle ──────────────�
 
 ---
 
-## GitHub Issues — MCP Tools
+## GitHub Issues — via `gh` CLI
 
-New tools added to the Bowrain MCP server for GitHub interaction:
+Agents file GitHub Issues using the `gh` CLI directly — not through the Bowrain MCP
+server. GitHub Issues are agentic testing infrastructure, not a Bowrain platform feature.
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `github.createIssue` | All | Create an issue (title, body, labels, repo) |
-| `github.listIssues` | PM, QA | List issues with filters (state, labels, assignee) |
-| `github.commentOnIssue` | PM, QA | Add a comment to an existing issue |
-| `github.searchIssues` | All | Search before filing (avoid duplicates) |
+ZeroClaw's `allowed_commands` grants access to `gh`. Agents call it as a shell command:
 
-### Implementation
+```bash
+# Search before filing (dedup)
+gh issue list --repo neokapi/agent-feedback --search "BOM-encoded JSON" --json number,title
 
-```typescript
-// mcp-server/src/tools/github.ts
-import { Octokit } from "@octokit/rest";
+# File a bug report
+gh issue create --repo neokapi/agent-feedback \
+  --title "[Bug] cli: bowrain push fails with BOM-encoded JSON files" \
+  --body "..." \
+  --label bug,cli
 
-const octokit = new Octokit({ auth: process.env.GITHUB_TOKEN });
-const FEEDBACK_REPO = { owner: "bowrain-l10n", repo: "feedback" };
-
-server.tool("github.createIssue", "File a bug report or feature request", {
-  title: { type: "string" },
-  body: { type: "string" },
-  labels: { type: "array", items: { type: "string" } },
-}, async ({ title, body, labels }) => {
-  // Check for duplicates first
-  const existing = await octokit.rest.search.issuesAndPullRequests({
-    q: `repo:${FEEDBACK_REPO.owner}/${FEEDBACK_REPO.repo} "${title}" is:issue`,
-  });
-  if (existing.data.total_count > 0) {
-    return { content: [{ type: "text", text: `Similar issue already exists: #${existing.data.items[0].number}` }] };
-  }
-
-  const issue = await octokit.rest.issues.create({
-    ...FEEDBACK_REPO,
-    title,
-    body: `${body}\n\n---\n_Filed by agent via agentic testing system_`,
-    labels,
-  });
-  return { content: [{ type: "text", text: `Created issue #${issue.data.number}` }] };
-});
+# Comment on existing issue
+gh issue comment 42 --repo neokapi/agent-feedback --body "Still reproducing on v3.2.1"
 ```
 
-### Issue Templates in SOUL.md
+**Config:** `GITHUB_TOKEN` env var passed to agent containers. Only agents with `gh` in
+their `allowed_commands` can file issues (Developer, QA, PM by default).
+
+### Issue Guidelines in SOUL.md
 
 Each agent's SOUL.md includes guidance on when and how to file issues:
 
 ```markdown
 ## Filing GitHub Issues
 
-When you encounter a platform problem or have an improvement idea, file a GitHub Issue.
+When you encounter a platform problem or have an improvement idea, file a GitHub Issue
+using the `gh` CLI against the `neokapi/agent-feedback` repo.
 
 **Before filing:**
-- Search existing issues to avoid duplicates: `github.searchIssues`
+- Search existing issues: `gh issue list --repo neokapi/agent-feedback --search "keywords"`
 - Only file if the issue is reproducible or the improvement is clearly valuable
 
 **Bug report format:**
-Title: "[Bug] {component}: {short description}"
-Body:
-- What I was trying to do
-- What happened instead
-- Steps to reproduce (which MCP tool, what parameters)
-- Error message or unexpected output
+gh issue create --repo neokapi/agent-feedback \
+  --title "[Bug] {component}: {short description}" \
+  --body "**What I was doing:** ...\n**What happened:** ...\n**Steps:** ...\n**Error:** ..." \
+  --label bug,{component}
 
 **Feature request format:**
-Title: "[Feature] {component}: {short description}"
-Body:
-- What I'm trying to accomplish
-- Why current tooling doesn't support it well
-- Suggested improvement
-
-**Labels:** bug, enhancement, cli, api, web-ui, format, performance, ux
+gh issue create --repo neokapi/agent-feedback \
+  --title "[Feature] {component}: {short description}" \
+  --body "**Goal:** ...\n**Current gap:** ...\n**Suggestion:** ..." \
+  --label enhancement,{component}
 ```
 
 ---
 
-## Email — MCP Tools
+## Email — Standalone MCP Server
 
-New tools for email communication:
+Email is handled by a lightweight standalone MCP server in `agentic/email-mcp/` — not
+part of the Bowrain MCP server. This keeps Bowrain clean (platform tools only) while
+giving agents email capability.
+
+Agents connect to it as a second MCP endpoint in their `config.toml`:
+
+```toml
+[mcp.email]
+transport = "http"
+url = "http://email-mcp:3001/mcp"
+```
+
+### Tools
 
 | Tool | Used By | Description |
 |------|---------|-------------|
-| `email.send` | All | Send an email (to, subject, body) |
-| `email.listInbox` | All | Check received emails |
-
-### Implementation
-
-```typescript
-// mcp-server/src/tools/email.ts
-import nodemailer from "nodemailer";
-
-// Runs inside bowrain-server — connects to Mailpit via compose network
-// Local:  SMTP_HOST=mailpit (compose service name), port 1025
-// Azure:  SMTP_HOST=smtp.sendgrid.net or Azure Communication Services endpoint
-const transport = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "mailpit",  // compose-internal hostname
-  port: parseInt(process.env.SMTP_PORT || "1025"),
-  secure: false,
-});
-
-server.tool("email.send", "Send an email to a team member", {
-  to: { type: "string", description: "Recipient email or role (e.g., 'pm', 'brand-manager', 'translator-fr')" },
-  subject: { type: "string" },
-  body: { type: "string" },
-}, async ({ to, subject, body, agentContext }) => {
-  const resolvedTo = resolveRecipient(to); // Maps roles to email addresses
-  await transport.sendMail({
-    from: `${agentContext.displayName} <${agentContext.email}>`,
-    to: resolvedTo,
-    subject,
-    text: body,
-  });
-  return { content: [{ type: "text", text: `Email sent to ${resolvedTo}` }] };
-});
-
-server.tool("email.listInbox", "Check for new emails", {
-  since: { type: "string", description: "ISO timestamp", optional: true },
-}, async ({ since, agentContext }) => {
-  // Query Mailpit API (compose-internal: mailpit:8025)
-  const response = await fetch(
-    `http://${process.env.MAILPIT_API_HOST || "mailpit"}:8025/api/v1/search?query=to:${agentContext.email}`
-  );
-  const messages = await response.json();
-  return { content: [{ type: "text", text: JSON.stringify(messages.messages) }] };
-});
-```
+| `email.send` | All | Send email (to, subject, body) via Mailpit SMTP |
+| `email.listInbox` | All | Query received emails via Mailpit API |
 
 ### Email Patterns in SOUL.md
 
@@ -621,9 +569,7 @@ Respond to messages that need a reply before starting your main work.
 ```yaml
 # Add to docker-compose.yaml
 
-  # === Email (Mailpit) ===
-  # Internal: agents reach Mailpit via bowrain-server → mailpit:1025 (compose network)
-  # External: operator views captured emails at http://localhost:8025 (port-forwarded)
+  # === Email ===
   mailpit:
     image: axllent/mailpit:latest
     ports:
@@ -632,20 +578,19 @@ Respond to messages that need a reply before starting your main work.
       MP_SMTP_AUTH_ACCEPT_ANY: 1
       MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  # bowrain-server gets GitHub + email config for the new MCP tools:
-  bowrain-server:
+  # Standalone email MCP server (wraps Mailpit SMTP + API)
+  email-mcp:
+    build: ./agentic/email-mcp
     environment:
-      # ... existing config plus:
-      GITHUB_TOKEN: ${GITHUB_TOKEN}          # For github_* MCP tools
-      SMTP_HOST: mailpit                     # For email_* MCP tools
+      SMTP_HOST: mailpit
       SMTP_PORT: 1025
-      MAILPIT_API_HOST: mailpit              # For email_list_inbox
-    depends_on: [postgres, keycloak, mailpit]
+      MAILPIT_API_HOST: mailpit
+    depends_on: [mailpit]
 ```
 
 ### Environment Variables
 
 ```bash
 # .env — add to existing
-GITHUB_TOKEN=ghp_...                # GitHub PAT with issues write access to bowrain-l10n/feedback
+GITHUB_TOKEN=ghp_...                # GitHub PAT with issues write access to neokapi/agent-feedback
 ```

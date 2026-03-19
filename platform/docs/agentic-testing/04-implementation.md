@@ -133,6 +133,11 @@ neokapi/agentic/
 │       ├── home-assistant.yaml
 │       └── excalidraw.yaml
 │
+├── email-mcp/                   # Standalone email MCP server (Mailpit wrapper)
+│   ├── package.json
+│   └── src/
+│       └── index.ts             # email.send + email.listInbox via Mailpit SMTP/API
+│
 ├── release-walker/              # Accelerated mode coordinator (thin)
 │   ├── package.json
 │   └── src/
@@ -158,7 +163,7 @@ default_provider = "google"
 default_model = "gemini-2.5-flash"
 
 [security]
-allowed_commands = ["git", "bowrain", "ls", "cat", "diff"]
+allowed_commands = ["git", "gh", "bowrain", "ls", "cat", "diff"]
 
 [mcp]
 [mcp.bowrain]
@@ -166,6 +171,10 @@ transport = "http"
 url = "${BRAVO_MCP_ENDPOINT}"
 headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
 tool_timeout_secs = 120
+
+[mcp.email]
+transport = "http"
+url = "http://email-mcp:3001/mcp"     # Standalone email MCP (agentic/email-mcp/)
 
 [daemon]
 # Check for upstream changes daily at 9am (with jitter handled by heartbeat)
@@ -436,21 +445,27 @@ already built — the agentic testing system uses them directly.
 |------|---------|-------------|
 | `execute_script` | Developer, QA | Run Python/Bash/Node.js in isolated sandbox |
 
-**Tools to add for agentic testing (5 tools):**
+#### Non-Bowrain Tools (agentic testing infrastructure, NOT in bowrain-server)
 
-| Tool | Used By | Where to Add |
-|------|---------|--------------|
-| `github_create_issue` | All | `platform/server/mcp/tools_github.go` |
-| `github_search_issues` | All | `platform/server/mcp/tools_github.go` |
-| `github_comment_issue` | PM, QA | `platform/server/mcp/tools_github.go` |
-| `email_send` | All | `platform/server/mcp/tools_email.go` |
-| `email_list_inbox` | All | `platform/server/mcp/tools_email.go` |
+These are not Bowrain platform features — they're agentic testing infrastructure handled
+via ZeroClaw's native capabilities:
+
+| Capability | How | Details |
+|-----------|-----|---------|
+| **GitHub Issues** | `gh` CLI via `allowed_commands` | Agents call `gh issue create`, `gh issue list`, `gh issue comment` directly |
+| **Email** | Standalone email MCP in `agentic/email-mcp/` | Lightweight Node.js MCP server wrapping Mailpit SMTP/API |
+| **Git operations** | `git` CLI via `allowed_commands` | Developer agent runs git directly in its workspace |
+
+This keeps the Bowrain MCP server clean (platform tools only) while giving agents the
+external communication channels they need.
 
 **Key workflow mapping:**
 - AI translation → use `run_flow` with an AI translation flow (not pseudo-translate)
 - Push/pull content → use `connector_pull` / `connector_push` with Git connector
 - Submit translation → use `update_block` to set target text per locale
-- Git operations → Developer agent uses ZeroClaw's `allowed_commands` for direct git access
+- Git operations → `allowed_commands: ["git", "gh"]` in agent config.toml
+- GitHub Issues → `gh issue create --repo neokapi/agent-feedback ...` via command execution
+- Email → `email.send` / `email.listInbox` via standalone email MCP sidecar
 
 ### Per-Agent Auth
 
