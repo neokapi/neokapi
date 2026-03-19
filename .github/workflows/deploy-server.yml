@@ -70,9 +70,16 @@ jobs:
       commit: ${{ needs.image-tag.outputs.commit }}
       build-date: ${{ needs.image-tag.outputs.build_date }}
 
+  build-bravo:
+    name: Build Bravo Agent Images
+    needs: image-tag
+    uses: ./.github/workflows/_build-bravo-images.yml
+    with:
+      image-tag: ${{ needs.image-tag.outputs.value }}
+
   trigger-deploy:
     name: Trigger Deploy
-    needs: [image-tag, build]
+    needs: [image-tag, build, build-bravo]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
