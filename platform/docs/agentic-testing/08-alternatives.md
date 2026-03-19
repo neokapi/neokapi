@@ -34,12 +34,9 @@
 | **Mixed: Azure OpenAI + Azure AI Foundry** ✓ | Right model for each task, consolidated Azure billing, data residency | Two providers to configure |
 | **Local LLM (Ollama)** | Free, private, no rate limits | Lower quality decisions, slower |
 
-**Rationale:** The Azure OpenAI resource has `disableLocalAuth: true` (managed-identity-only), so local docker-compose can't use it. This naturally leads to a split: local dev uses Google Gemini (good quality, cheap, existing API key), while Azure deployment uses managed identity to access both Azure OpenAI and Azure AI Foundry. The SOUL.md, MCP tools, and scheduling are identical — only the `[llm]` provider block differs per environment.
+**Rationale:** Azure AI services support API key access, so the same provider config works everywhere — local docker-compose and Azure Container Apps Jobs use the same keys and endpoints. No environment-specific overlays needed. Simple agent tasks use GPT-4o-mini (cheap), while translation and brand agents use Claude Sonnet via Azure AI Foundry (stronger multilingual). All data stays in Sweden Central (EU compliance), billing is consolidated.
 
-In Azure, simple agent tasks use the already-deployed GPT-4o-mini (cheap), while translation and brand agents use Claude Sonnet via Azure AI Foundry (stronger multilingual). All data stays in Sweden Central (EU compliance), billing is consolidated, and managed identity eliminates key management.
-
-**Local:** All agents → Gemini 2.5 Flash (or Ollama for free iteration)
-**Azure model tier mapping:**
+**Model tier mapping (same locally and in Azure):**
 - GPT-4o-mini → Developer, simple decisions (~$0.15/1M tokens)
 - GPT-4o → PM, QA (~$2.50/1M tokens)
 - Claude Sonnet 4.5 → Translators, Brand Manager (~$3/1M tokens)

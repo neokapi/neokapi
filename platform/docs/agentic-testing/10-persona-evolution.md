@@ -116,7 +116,7 @@ Causes:
     Fix: Brand Manager needs more aggressive term extraction
          Adjust Maria's SOUL.md: "extract at least 5 new terms per session"
   - Wrong model for task → Ollama producing poor translations locally
-    Fix: switch to Gemini for translation agents, keep Ollama for Developer only
+    Fix: switch to Azure Claude Sonnet for translation agents, keep GPT-4o-mini for Developer
 ```
 
 #### "Agents talk past each other"
