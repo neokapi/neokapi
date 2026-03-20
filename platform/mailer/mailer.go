@@ -104,6 +104,164 @@ func (m *Mailer) execute(name string, data any) (string, error) {
 	return buf.String(), nil
 }
 
+// CreditsWarningData holds the dynamic values for the credits-warning email.
+type CreditsWarningData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// UsedCredits is the number of credits consumed (formatted string).
+	UsedCredits string
+	// TotalCredits is the total credit allowance (formatted string).
+	TotalCredits string
+	// UsagePercent is the usage percentage (e.g. "80").
+	UsagePercent string
+	// ResetDate is the human-readable date when credits reset.
+	ResetDate string
+	// UpgradeURL is the full URL to the plan upgrade page.
+	UpgradeURL string
+}
+
+// SendCreditsWarning renders and sends a credits-warning email to the given address.
+func (m *Mailer) SendCreditsWarning(ctx context.Context, to string, data CreditsWarningData) error {
+	body, err := m.renderCreditsWarning(data)
+	if err != nil {
+		return err
+	}
+	subject := "Your AI credits are running low — " + data.WorkspaceName
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderCreditsWarning renders the credits-warning email template to an HTML string.
+// Exposed so callers can inspect the output in tests.
+func (m *Mailer) RenderCreditsWarning(data CreditsWarningData) (string, error) {
+	return m.renderCreditsWarning(data)
+}
+
+func (m *Mailer) renderCreditsWarning(data CreditsWarningData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"UsedCredits":   html.EscapeString(data.UsedCredits),
+		"TotalCredits":  html.EscapeString(data.TotalCredits),
+		"UsagePercent":  html.EscapeString(data.UsagePercent),
+		"ResetDate":     html.EscapeString(data.ResetDate),
+		"UpgradeURL":    escapeURL(data.UpgradeURL),
+	}
+	return m.execute("credits-warning.html", td)
+}
+
+// CreditsExhaustedData holds the dynamic values for the credits-exhausted email.
+type CreditsExhaustedData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// ResetDate is the human-readable date when credits reset.
+	ResetDate string
+	// UpgradeURL is the full URL to the plan upgrade page.
+	UpgradeURL string
+	// BuyCreditsURL is the full URL to purchase additional credits.
+	BuyCreditsURL string
+}
+
+// SendCreditsExhausted renders and sends a credits-exhausted email to the given address.
+func (m *Mailer) SendCreditsExhausted(ctx context.Context, to string, data CreditsExhaustedData) error {
+	body, err := m.renderCreditsExhausted(data)
+	if err != nil {
+		return err
+	}
+	subject := "Your AI credits are exhausted — " + data.WorkspaceName
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderCreditsExhausted renders the credits-exhausted email template to an HTML string.
+// Exposed so callers can inspect the output in tests.
+func (m *Mailer) RenderCreditsExhausted(data CreditsExhaustedData) (string, error) {
+	return m.renderCreditsExhausted(data)
+}
+
+func (m *Mailer) renderCreditsExhausted(data CreditsExhaustedData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"ResetDate":     html.EscapeString(data.ResetDate),
+		"UpgradeURL":    escapeURL(data.UpgradeURL),
+		"BuyCreditsURL": escapeURL(data.BuyCreditsURL),
+	}
+	return m.execute("credits-exhausted.html", td)
+}
+
+// PaymentFailedData holds the dynamic values for the payment-failed email.
+type PaymentFailedData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// InvoiceAmount is the formatted invoice amount (e.g. "49.00").
+	InvoiceAmount string
+	// Currency is the three-letter currency code (e.g. "USD").
+	Currency string
+	// UpdatePaymentURL is the full URL to update the payment method.
+	UpdatePaymentURL string
+}
+
+// SendPaymentFailed renders and sends a payment-failed email to the given address.
+func (m *Mailer) SendPaymentFailed(ctx context.Context, to string, data PaymentFailedData) error {
+	body, err := m.renderPaymentFailed(data)
+	if err != nil {
+		return err
+	}
+	subject := "Payment failed for your subscription — " + data.WorkspaceName
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderPaymentFailed renders the payment-failed email template to an HTML string.
+// Exposed so callers can inspect the output in tests.
+func (m *Mailer) RenderPaymentFailed(data PaymentFailedData) (string, error) {
+	return m.renderPaymentFailed(data)
+}
+
+func (m *Mailer) renderPaymentFailed(data PaymentFailedData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName":    html.EscapeString(data.WorkspaceName),
+		"InvoiceAmount":    html.EscapeString(data.InvoiceAmount),
+		"Currency":         html.EscapeString(data.Currency),
+		"UpdatePaymentURL": escapeURL(data.UpdatePaymentURL),
+	}
+	return m.execute("payment-failed.html", td)
+}
+
+// SubscriptionChangedData holds the dynamic values for the subscription-changed email.
+type SubscriptionChangedData struct {
+	// WorkspaceName is the human-readable workspace name.
+	WorkspaceName string
+	// PlanName is the new plan name (e.g. "Pro", "Team").
+	PlanName string
+	// Status is the subscription status (e.g. "Active", "Trialing", "Canceled").
+	Status string
+	// BillingURL is the full URL to the billing management page.
+	BillingURL string
+}
+
+// SendSubscriptionChanged renders and sends a subscription-changed email to the given address.
+func (m *Mailer) SendSubscriptionChanged(ctx context.Context, to string, data SubscriptionChangedData) error {
+	body, err := m.renderSubscriptionChanged(data)
+	if err != nil {
+		return err
+	}
+	subject := "Your subscription has been updated — " + data.WorkspaceName
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+// RenderSubscriptionChanged renders the subscription-changed email template to an HTML string.
+// Exposed so callers can inspect the output in tests.
+func (m *Mailer) RenderSubscriptionChanged(data SubscriptionChangedData) (string, error) {
+	return m.renderSubscriptionChanged(data)
+}
+
+func (m *Mailer) renderSubscriptionChanged(data SubscriptionChangedData) (string, error) {
+	td := map[string]string{
+		"WorkspaceName": html.EscapeString(data.WorkspaceName),
+		"PlanName":      html.EscapeString(data.PlanName),
+		"Status":        html.EscapeString(data.Status),
+		"BillingURL":    escapeURL(data.BillingURL),
+	}
+	return m.execute("subscription-changed.html", td)
+}
+
 // escapeURL encodes a URL for safe use inside an HTML attribute value.
 // It HTML-escapes & (→ &amp;) and other HTML-special characters so the
 // href="…" attribute parses correctly in all email clients.

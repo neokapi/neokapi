@@ -31,7 +31,8 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 		}
 	}
 
-	alloc, _ := s.BillingStore.GetCurrentAllocation(ctx, wsID)
+	// Ensure weekly credit allocation exists for the current week.
+	alloc, _ := billing.EnsureWeeklyAllocation(ctx, s.BillingStore, wsID, sub.Plan)
 	var creditsTotal, creditsUsed, creditsRemaining int64
 	var weekEnd time.Time
 	if alloc != nil {
@@ -137,9 +138,31 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 		customerID = sub.StripeCustomerID
 	}
 
-	url, err := s.StripeClient.CreateCheckoutSession(ctx, customerID, req.PriceID, req.SuccessURL, req.CancelURL)
+	// Create a Stripe customer if one doesn't exist yet.
+	if customerID == "" {
+		email, _ := c.Get("email").(string)
+		wsSlug := c.Param("ws")
+		var err error
+		customerID, err = s.StripeClient.CreateCustomer(ctx, wsID, email, wsSlug)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create stripe customer: " + err.Error()})
+		}
+	}
+
+	url, err := s.StripeClient.CreateCheckoutSession(ctx, customerID, req.PriceID, req.SuccessURL, req.CancelURL, map[string]string{
+		"workspace_id": wsID,
+	})
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Track checkout started event.
+	if s.PostHogClient != nil {
+		userID, _ := c.Get("user_id").(string)
+		s.PostHogClient.CaptureEvent(userID, "billing.checkout_started", map[string]any{
+			"workspace_id": wsID,
+			"price_id":     req.PriceID,
+		})
 	}
 
 	return c.JSON(http.StatusOK, map[string]string{
@@ -205,6 +228,63 @@ func (s *Server) HandleGetInvoices(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]any{
 		"invoices": invoices,
+	})
+}
+
+// HandleBuyCredits creates a one-time Stripe Checkout session for purchasing credit packs.
+// POST /api/v1/workspaces/:ws/billing/buy-credits
+func (s *Server) HandleBuyCredits(c echo.Context) error {
+	if s.StripeClient == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
+	}
+	if s.Config.StripeCreditPriceID == "" {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "credit pack purchases not configured"})
+	}
+
+	if err := s.requireRole(c, platauth.RoleOwner); err != nil {
+		return err
+	}
+
+	wsID, _ := c.Get("workspace_id").(string)
+	ctx := c.Request().Context()
+
+	var req struct {
+		SuccessURL string `json:"success_url"`
+		CancelURL  string `json:"cancel_url"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+	if req.SuccessURL == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "success_url is required"})
+	}
+
+	// Get or create Stripe customer.
+	sub, _ := s.BillingStore.GetSubscription(ctx, wsID)
+	var customerID string
+	if sub != nil && sub.StripeCustomerID != "" {
+		customerID = sub.StripeCustomerID
+	}
+	if customerID == "" {
+		email, _ := c.Get("email").(string)
+		wsSlug := c.Param("ws")
+		var err error
+		customerID, err = s.StripeClient.CreateCustomer(ctx, wsID, email, wsSlug)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create stripe customer: " + err.Error()})
+		}
+	}
+
+	url, err := s.StripeClient.CreatePaymentCheckout(ctx, customerID, s.Config.StripeCreditPriceID, req.SuccessURL, req.CancelURL, map[string]string{
+		"workspace_id": wsID,
+		"type":         "credit_pack",
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{
+		"checkout_url": url,
 	})
 }
 
