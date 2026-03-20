@@ -159,6 +159,7 @@ func (s *Server) HandleDeviceAuthPoll(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
+	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
@@ -475,6 +476,7 @@ func (s *Server) HandleDesktopCallback(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
+	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {
@@ -846,6 +848,7 @@ func (s *Server) handleOIDCCodeExchange(c echo.Context, code, state string) erro
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create user: " + err.Error()})
 	}
+	s.trackUserLogin(user.ID, user.Email, user.CreatedAt)
 
 	token, err := s.Services.Auth.GenerateToken(user, 15*time.Minute)
 	if err != nil {

@@ -151,6 +151,14 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		})
 	}
 
+	userID, _ := c.Get("user_id").(string)
+	s.trackEvent(userID, "sync_push", map[string]any{
+		"project_id":  projectID,
+		"blocks":      totalStored,
+		"items":       len(itemGroups),
+		"stream":      stream,
+	})
+
 	return c.JSON(http.StatusOK, apiclient.SyncPushResponse{
 		Stored:    totalStored,
 		NewCursor: cursor,
