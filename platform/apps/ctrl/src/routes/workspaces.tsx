@@ -1,26 +1,57 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Input } from "@neokapi/ui";
+import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import type { FilterToken, FilterField, FilterPreset } from "@neokapi/ui";
 import { listWorkspaces } from "../api";
 import { WorkspaceTable } from "../components/WorkspaceTable";
 
-const PLAN_OPTIONS = ["", "free", "pro", "team", "enterprise"] as const;
-const STATUS_OPTIONS = ["", "active", "past_due", "canceled", "trialing"] as const;
+const WORKSPACE_FIELDS: FilterField[] = [
+  {
+    key: "plan",
+    label: "Plan",
+    hint: "filter by subscription plan",
+    values: [
+      { value: "free", label: "Free" },
+      { value: "pro", label: "Pro" },
+      { value: "team", label: "Team" },
+      { value: "enterprise", label: "Enterprise" },
+    ],
+  },
+  {
+    key: "status",
+    label: "Status",
+    hint: "filter by billing status",
+    values: [
+      { value: "active", label: "Active" },
+      { value: "past_due", label: "Past Due" },
+      { value: "canceled", label: "Canceled" },
+      { value: "trialing", label: "Trialing" },
+    ],
+  },
+];
+
+const WORKSPACE_PRESETS: FilterPreset[] = [
+  { label: "Past due", filters: [{ key: "status", value: "past_due" }] },
+  { label: "Trialing", filters: [{ key: "status", value: "trialing" }] },
+];
 
 export function WorkspacesRoute() {
+  useSetBreadcrumb("Workspaces");
   const navigate = useNavigate();
+  const [filters, setFilters] = useState<FilterToken[]>([]);
   const [search, setSearch] = useState("");
-  const [planFilter, setPlanFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+
+  const planFilter = filters.find((f) => f.key === "plan")?.value;
+  const statusFilter = filters.find((f) => f.key === "status")?.value;
 
   const { data: workspaces, isLoading } = useQuery({
     queryKey: ["admin", "workspaces", search, planFilter, statusFilter],
     queryFn: () =>
       listWorkspaces({
         q: search || undefined,
-        plan: planFilter || undefined,
-        status: statusFilter || undefined,
+        plan: planFilter,
+        status: statusFilter,
       }),
   });
 
@@ -32,39 +63,16 @@ export function WorkspacesRoute() {
   );
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Workspaces</h2>
-
-      <div className="flex items-center gap-3">
-        <Input
-          placeholder="Search workspaces..."
-          value={search}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
-        <select
-          value={planFilter}
-          onChange={(e) => setPlanFilter(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
-        >
-          {PLAN_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-              {p || "All plans"}
-            </option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="h-9 rounded-md border bg-background px-3 text-sm"
-        >
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s || "All statuses"}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="mx-auto w-full max-w-5xl space-y-4">
+      <FilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        search={search}
+        onSearchChange={setSearch}
+        fields={WORKSPACE_FIELDS}
+        presets={WORKSPACE_PRESETS}
+        placeholder="Search workspaces..."
+      />
 
       <WorkspaceTable
         workspaces={workspaces ?? []}

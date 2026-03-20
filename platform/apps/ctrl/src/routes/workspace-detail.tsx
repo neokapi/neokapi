@@ -2,13 +2,53 @@ import { useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button } from "@neokapi/ui";
-import { SubscriptionBadge, UsageBar, CreditLedger } from "@neokapi/ui";
+import { SubscriptionBadge, CreditLedger, cn, useSetBreadcrumb } from "@neokapi/ui";
+import type { BillingPlan, BillingStatus, CreditLedgerEntry } from "@neokapi/ui";
 import { ExternalLink } from "lucide-react";
 import { getWorkspace, getFeatureOverrides, getNotes, getLedger } from "../api";
 import { ChangePlanDialog } from "../components/ChangePlanDialog";
 import { GrantCreditsDialog } from "../components/GrantCreditsDialog";
 import { FeatureOverrideDialog } from "../components/FeatureOverrideDialog";
 import { AddNoteDialog } from "../components/AddNoteDialog";
+
+function CreditBar({ used, total }: { used: number; total: number }) {
+  const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
+  const barColor =
+    pct > 80
+      ? "bg-red-500 dark:bg-red-400"
+      : pct > 60
+        ? "bg-yellow-500 dark:bg-yellow-400"
+        : "bg-green-500 dark:bg-green-400";
+
+  return (
+    <div className="space-y-1">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className={cn("h-full rounded-full", barColor)} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[11px] text-muted-foreground">{Math.round(pct)}%</span>
+    </div>
+  );
+}
+
+function toLedgerEntries(
+  entries: {
+    id: string;
+    amount: number;
+    balance_after: number;
+    operation: string;
+    reference_id: string | null;
+    created_at: string;
+  }[],
+): CreditLedgerEntry[] {
+  return entries.map((e) => ({
+    id: e.id,
+    amount: e.amount,
+    balanceAfter: e.balance_after,
+    operation: e.operation,
+    referenceId: e.reference_id ?? undefined,
+    createdAt: e.created_at,
+  }));
+}
 
 export function WorkspaceDetailRoute() {
   const { workspaceId } = useParams({ strict: false });
@@ -40,6 +80,8 @@ export function WorkspaceDetailRoute() {
     queryFn: () => getLedger(workspaceId!),
     enabled: !!workspaceId,
   });
+
+  useSetBreadcrumb(workspace?.name ?? "Workspace");
 
   if (isLoading || !workspace) {
     return (
@@ -84,11 +126,14 @@ export function WorkspaceDetailRoute() {
       <div className="grid grid-cols-4 gap-4">
         <div className="rounded-lg border p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Plan</p>
-          <SubscriptionBadge plan={workspace.plan} status={workspace.status} />
+          <SubscriptionBadge
+            plan={workspace.plan as BillingPlan}
+            status={workspace.status as BillingStatus}
+          />
         </div>
         <div className="rounded-lg border p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Credit Usage</p>
-          <UsageBar used={workspace.credits_used} total={workspace.credits_total} compact />
+          <CreditBar used={workspace.credits_used} total={workspace.credits_total} />
         </div>
         <div className="rounded-lg border p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Members</p>
@@ -155,7 +200,7 @@ export function WorkspaceDetailRoute() {
               Grant Credits
             </Button>
           </div>
-          <CreditLedger entries={ledger ?? []} />
+          <CreditLedger entries={toLedgerEntries(ledger ?? [])} />
         </TabsContent>
 
         <TabsContent value="overrides" className="mt-4 space-y-4">

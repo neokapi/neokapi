@@ -110,7 +110,11 @@ export default function Login(props: {
                 )}
                 {realm.resetPasswordAllowed && (
                   <div className="text-right">
-                    <a href={url.loginResetCredentialsUrl} className="text-xs text-primary hover:underline" tabIndex={5}>
+                    <a
+                      href={url.loginResetCredentialsUrl}
+                      className="text-xs text-primary hover:underline"
+                      tabIndex={5}
+                    >
                       {msg("doForgotPassword")}
                     </a>
                   </div>

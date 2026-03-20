@@ -1,4 +1,5 @@
 import { SubscriptionBadge } from "@neokapi/ui";
+import type { BillingPlan } from "@neokapi/ui";
 import type { PlatformMetrics } from "../types";
 
 function formatCurrency(amount: number): string {
@@ -51,9 +52,7 @@ export function MetricsCards({ metrics, loading }: MetricsCardsProps) {
         </div>
         <div className="rounded-lg border p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Credit Utilization</p>
-          <p className="text-2xl font-semibold">
-            {formatPercent(metrics.credit_utilization_pct)}
-          </p>
+          <p className="text-2xl font-semibold">{formatPercent(metrics.credit_utilization_pct)}</p>
         </div>
         <div className="rounded-lg border p-4 space-y-1">
           <p className="text-sm text-muted-foreground">Churn Rate</p>
@@ -81,7 +80,7 @@ export function MetricsCards({ metrics, loading }: MetricsCardsProps) {
                 <tr key={ws.workspace_id} className="hover:bg-muted/30">
                   <td className="px-4 py-2">{ws.workspace_name}</td>
                   <td className="px-4 py-2">
-                    <SubscriptionBadge plan={ws.plan} status="active" />
+                    <SubscriptionBadge plan={ws.plan as BillingPlan} status="active" />
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums">
                     {ws.credits_used.toLocaleString()}

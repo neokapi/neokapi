@@ -176,9 +176,7 @@ export async function listUsers(params?: { q?: string }): Promise<AdminUser[]> {
   const query = new URLSearchParams();
   if (params?.q) query.set("q", params.q);
   const qs = query.toString();
-  const resp = await request<{ users: AdminUser[]; total: number }>(
-    `/users${qs ? `?${qs}` : ""}`,
-  );
+  const resp = await request<{ users: AdminUser[]; total: number }>(`/users${qs ? `?${qs}` : ""}`);
   return resp.users ?? [];
 }
 
