@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useFilter } from '@/context/FilterContext';
-import { sessions } from '@/data/sessions';
+import { useApi } from '@/context/ApiContext';
 
 const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -15,7 +14,7 @@ function getHeatClasses(count: number, maxCount: number): string {
 }
 
 export default function SessionHeatmap() {
-  const { workspace } = useFilter();
+  const api = useApi();
   const [hoveredCell, setHoveredCell] = useState<{
     date: string;
     count: number;
@@ -24,16 +23,13 @@ export default function SessionHeatmap() {
   } | null>(null);
 
   const { grid, weeks, maxCount } = useMemo(() => {
-    const filtered = workspace
-      ? sessions.filter((s) => s.workspace === workspace)
-      : sessions;
-
     const now = new Date();
     const numWeeks = 4;
     const cellMap = new Map<string, number>();
 
-    for (const sess of filtered) {
-      const d = new Date(sess.startTime);
+    // Count audit log events per day
+    for (const entry of api.auditLog) {
+      const d = new Date(entry.created_at);
       const dateStr = d.toISOString().slice(0, 10);
       cellMap.set(dateStr, (cellMap.get(dateStr) ?? 0) + 1);
     }
@@ -60,12 +56,19 @@ export default function SessionHeatmap() {
     }
 
     return { grid, weeks: weekLabels, maxCount: Math.max(maxCount, 1) };
-  }, [workspace]);
+  }, [api.auditLog]);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-sm">Session Activity</CardTitle>
+        <CardTitle className="text-sm">
+          Event Activity
+          {api.connected && (
+            <span className="ml-2 text-xs font-normal text-muted-foreground">
+              (from audit log)
+            </span>
+          )}
+        </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="relative flex gap-1">
@@ -137,7 +140,7 @@ export default function SessionHeatmap() {
               }}
             >
               <div className="font-mono text-[10px]">
-                {hoveredCell.date}: {hoveredCell.count} session
+                {hoveredCell.date}: {hoveredCell.count} event
                 {hoveredCell.count !== 1 ? 's' : ''}
               </div>
             </div>

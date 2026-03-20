@@ -14,18 +14,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { AgentSession } from '@/data/sessions';
-import { agents } from '@/data/agents';
+import type { AuditSession } from '@/context/ApiContext';
+import { agentMeta } from '@/data/agent-meta';
 
 interface SessionDetailProps {
-  session: AgentSession;
+  session: AuditSession;
   onClose: () => void;
-}
-
-function formatDuration(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 function formatTime(iso: string): string {
@@ -44,30 +38,42 @@ function formatDate(iso: string): string {
   });
 }
 
+function formatDuration(startIso: string, endIso: string): string {
+  const diffMs = new Date(endIso).getTime() - new Date(startIso).getTime();
+  const secs = Math.floor(diffMs / 1000);
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m ${s}s`;
+}
+
+function parseDataPreview(data: string): string {
+  try {
+    const parsed = JSON.parse(data);
+    return JSON.stringify(parsed, null, 0).slice(0, 80);
+  } catch {
+    return data.slice(0, 80);
+  }
+}
+
 export default function SessionDetail({ session, onClose }: SessionDetailProps) {
-  const agent = agents.find((a) => a.id === session.agentId);
+  const meta = agentMeta.find((m) => m.userId === session.actor);
+  const displayName = meta?.displayName ?? (session.actor || 'Unknown');
+  const role = meta?.role ?? '';
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{session.agentName}</DialogTitle>
+          <DialogTitle>{displayName}</DialogTitle>
           <DialogDescription>
-            {agent?.role} -- {session.workspace}
+            {role ? `${role} -- ` : ''}Audit session with {session.eventCount} event{session.eventCount !== 1 ? 's' : ''}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Badge
-            variant={
-              session.status === 'succeeded'
-                ? 'default'
-                : session.status === 'failed'
-                  ? 'destructive'
-                  : 'secondary'
-            }
-          >
-            {session.status}
+          <Badge variant="default">
+            {session.eventCount} events
           </Badge>
           <span className="font-mono text-xs text-muted-foreground">
             {formatDate(session.startTime)}
@@ -76,45 +82,36 @@ export default function SessionDetail({ session, onClose }: SessionDetailProps) 
             {formatTime(session.startTime)} &mdash; {formatTime(session.endTime)}
           </span>
           <span className="font-mono text-xs font-semibold">
-            {formatDuration(session.durationSecs)}
+            {formatDuration(session.startTime, session.endTime)}
           </span>
-        </div>
-
-        <div className="rounded-md bg-muted p-3">
-          <p className="text-sm text-muted-foreground">{session.summary}</p>
         </div>
 
         <div>
           <h4 className="mb-2 text-sm font-semibold">
-            Tool Calls ({session.toolCalls.length})
+            Events ({session.eventCount})
           </h4>
           <div className="max-h-[300px] overflow-y-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Tool</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Time</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead>Data</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {session.toolCalls.map((tc, i) => (
+                {session.events.map((evt, i) => (
                   <TableRow key={i}>
-                    <TableCell className="font-mono text-xs">{tc.tool}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {formatTime(tc.timestamp)}
-                    </TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {tc.durationMs}ms
-                    </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={tc.success ? 'default' : 'destructive'}
-                        className="text-[10px]"
-                      >
-                        {tc.success ? 'OK' : 'FAIL'}
+                      <Badge variant="outline" className="text-[10px]">
+                        {evt.event_type}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {formatTime(evt.created_at)}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate font-mono text-xs text-muted-foreground">
+                      {parseDataPreview(evt.data)}
                     </TableCell>
                   </TableRow>
                 ))}

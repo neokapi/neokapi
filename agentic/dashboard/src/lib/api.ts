@@ -63,10 +63,20 @@ export interface Block {
   targets: Record<string, string>;
 }
 
+export interface Member {
+  user_id: string;
+  role: string;
+  joined_at: string;
+}
+
 // --- API calls ---
 
 export async function fetchWorkspaces(): Promise<Workspace[]> {
   return apiFetch("/api/v1/workspaces", []);
+}
+
+export async function fetchMembers(wsSlug: string): Promise<Member[]> {
+  return apiFetch(`/api/v1/workspaces/${wsSlug}/members`, []);
 }
 
 export async function fetchProjects(wsSlug: string): Promise<Project[]> {
