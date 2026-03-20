@@ -1,7 +1,7 @@
 /** Cold start animation shown while the agent container is provisioning. */
 export function BravoColdStart() {
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16 px-8">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 px-8 overflow-hidden">
       {/* Animated bot icon */}
       <div className="relative">
         <svg
