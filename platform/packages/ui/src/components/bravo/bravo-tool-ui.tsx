@@ -47,7 +47,6 @@ function statusLabel(status: string, isError?: boolean): string {
 
 export function BravoToolCallRenderer({
   toolName,
-  toolCallId,
   args,
   result,
   isError,
@@ -83,7 +82,9 @@ export function BravoToolCallRenderer({
         <span className={cn("text-xs font-medium shrink-0", statusColor(displayStatus))}>
           {statusLabel(displayStatus, isError)}
         </span>
-        <span className="text-muted-foreground text-xs shrink-0">{expanded ? "\u25B2" : "\u25BC"}</span>
+        <span className="text-muted-foreground text-xs shrink-0">
+          {expanded ? "\u25B2" : "\u25BC"}
+        </span>
       </button>
 
       {expanded && (
@@ -99,16 +100,18 @@ export function BravoToolCallRenderer({
             </div>
           )}
 
-          {result != null && (typeof result !== "object" || Object.keys(result as Record<string, unknown>).length > 0) && (
-            <div>
-              <div className="text-[10px] uppercase text-muted-foreground font-medium mb-1">
-                Output
+          {result != null &&
+            (typeof result !== "object" ||
+              Object.keys(result as Record<string, unknown>).length > 0) && (
+              <div>
+                <div className="text-[10px] uppercase text-muted-foreground font-medium mb-1">
+                  Output
+                </div>
+                <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                  {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
+                </pre>
               </div>
-              <pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap">
-                {typeof result === "string" ? result : JSON.stringify(result, null, 2)}
-              </pre>
-            </div>
-          )}
+            )}
         </div>
       )}
 

@@ -6,7 +6,7 @@
  * system (shadcn + OKLCH theme tokens).
  */
 
-import { forwardRef, type FC } from "react";
+import { type FC } from "react";
 import {
   ThreadPrimitive,
   MessagePrimitive,
@@ -16,7 +16,6 @@ import {
   useMessagePartText,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { cn } from "../../lib/utils";
 import { BravoFallbackToolUI } from "./bravo-tool-ui";
 
 // ---------------------------------------------------------------------------
@@ -125,13 +124,25 @@ const BravoAssistantMessage: FC = () => {
 
         <BranchPickerPrimitive.Root className="flex items-center gap-0.5 text-xs text-muted-foreground">
           <BranchPickerPrimitive.Previous className="hover:text-foreground transition-colors cursor-pointer disabled:opacity-30">
-            <svg viewBox="0 0 24 24" className="size-3" fill="none" stroke="currentColor" strokeWidth={2}>
+            <svg
+              viewBox="0 0 24 24"
+              className="size-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </BranchPickerPrimitive.Previous>
           <BranchPickerPrimitive.Count />
           <BranchPickerPrimitive.Next className="hover:text-foreground transition-colors cursor-pointer disabled:opacity-30">
-            <svg viewBox="0 0 24 24" className="size-3" fill="none" stroke="currentColor" strokeWidth={2}>
+            <svg
+              viewBox="0 0 24 24"
+              className="size-3"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path d="M9 18l6-6-6-6" />
             </svg>
           </BranchPickerPrimitive.Next>
@@ -146,9 +157,7 @@ const BravoAssistantMessage: FC = () => {
 
 function AssistantTextPart() {
   return (
-    <MarkdownTextPrimitive
-      className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-    />
+    <MarkdownTextPrimitive className="prose prose-sm dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0" />
   );
 }
 

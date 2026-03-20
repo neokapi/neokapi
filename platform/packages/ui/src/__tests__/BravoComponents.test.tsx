@@ -3,9 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { BravoPanelTrigger } from "../components/bravo/BravoPanelTrigger";
 import { BravoConversationList } from "../components/bravo/BravoConversationList";
 import { BravoApprovalCard } from "../components/bravo/BravoApprovalCard";
-import type {
-  BravoConversation,
-} from "../types/api";
+import type { BravoConversation } from "../types/api";
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -193,4 +191,3 @@ describe("BravoApprovalCard", () => {
     expect(denyBtn?.disabled).toBe(true);
   });
 });
-

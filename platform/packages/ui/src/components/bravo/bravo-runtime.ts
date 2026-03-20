@@ -94,9 +94,7 @@ function convertBravoMessage(msg: BravoMessage): ThreadMessageLike {
     content,
     createdAt: new Date(msg.created_at),
     status:
-      role === "assistant"
-        ? { type: "complete" as const, reason: "stop" as const }
-        : undefined,
+      role === "assistant" ? { type: "complete" as const, reason: "stop" as const } : undefined,
     metadata: {
       custom: {
         input_tokens: msg.input_tokens,
@@ -189,9 +187,7 @@ export function useBravoRuntime(opts: BravoRuntimeOptions) {
       convertMessage: (msg: ThreadMessageLike) => msg,
       onNew: async (message) => {
         // Extract text from the AppendMessage content parts.
-        const textParts = message.content.filter(
-          (p): p is TextMessagePart => p.type === "text",
-        );
+        const textParts = message.content.filter((p): p is TextMessagePart => p.type === "text");
         const text = textParts.map((p) => p.text).join("\n");
         if (text.trim()) {
           await onSendMessage(text);
@@ -223,7 +219,13 @@ export function useBravoRuntime(opts: BravoRuntimeOptions) {
 export function useBravoThreadListAdapter(
   opts: BravoThreadListOptions,
 ): ExternalStoreThreadListAdapter {
-  const { conversations, activeConversationId, onNewConversation, onSelectConversation, onDeleteConversation } = opts;
+  const {
+    conversations,
+    activeConversationId,
+    onNewConversation,
+    onSelectConversation,
+    onDeleteConversation,
+  } = opts;
 
   return useMemo(
     (): ExternalStoreThreadListAdapter => ({
@@ -252,6 +254,12 @@ export function useBravoThreadListAdapter(
         await onDeleteConversation(threadId);
       },
     }),
-    [conversations, activeConversationId, onNewConversation, onSelectConversation, onDeleteConversation],
+    [
+      conversations,
+      activeConversationId,
+      onNewConversation,
+      onSelectConversation,
+      onDeleteConversation,
+    ],
   );
 }

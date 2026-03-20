@@ -68,9 +68,7 @@ export const Streaming: Story = {
 };
 
 export const RichMarkdown: Story = {
-  render: () => (
-    <ThreadWithRuntime messages={[sampleAuiUserMessage, sampleAuiMarkdownMessage]} />
-  ),
+  render: () => <ThreadWithRuntime messages={[sampleAuiUserMessage, sampleAuiMarkdownMessage]} />,
 };
 
 export const Empty: Story = {
