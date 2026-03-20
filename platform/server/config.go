@@ -102,6 +102,20 @@ type ServerConfig struct {
 	// agentic testing handoffs (KEDA-triggered Container Apps Jobs).
 	// Set via BOWRAIN_AGENTIC_EVENTS=true.
 	AgenticEvents bool
+
+	// Billing (AD-030)
+	StripeSecretKey     string
+	StripeWebhookSecret string
+	StripeProPriceID    string
+	StripeTeamPriceID   string
+	StripeCreditPriceID string
+	PostHogAPIKey       string
+	PostHogHost         string
+
+	// Admin control plane (AD-030)
+	AdminOIDCIssuerURL    string
+	AdminOIDCClientID     string
+	AdminOIDCClientSecret string
 }
 
 // DefaultServerConfig returns a ServerConfig with sensible defaults.

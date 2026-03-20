@@ -424,13 +424,35 @@ const settingsBravoRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/settings-bravo"), "SettingsBravoRoute"),
 });
 
+const settingsBillingRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: "billing",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/settings-billing"),
+    "SettingsBillingRoute",
+  ),
+});
+
+const pricingRoute = createRoute({
+  getParentRoute: () => authLayout,
+  path: "pricing",
+  component: lazyRouteComponent(() => import("./pricing"), "PricingRoute"),
+});
+
 // ---------------------------------------------------------------------------
 // Route tree
 // ---------------------------------------------------------------------------
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  authLayout.addChildren([joinRoute, claimRoute, deviceVerifyRoute, deviceAuthorizedRoute]),
+  authLayout.addChildren([
+    joinRoute,
+    claimRoute,
+    deviceVerifyRoute,
+    deviceAuthorizedRoute,
+    pricingRoute,
+  ]),
   workspaceRoute.addChildren([
     dashboardRoute,
     projectRoute,
@@ -457,6 +479,7 @@ const routeTree = rootRoute.addChildren([
       settingsTokensRoute,
       settingsSystemRoute,
       settingsBravoRoute,
+      settingsBillingRoute,
     ]),
   ]),
 ]);

@@ -110,10 +110,14 @@ func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Wor
 		w.Type = platauth.WorkspaceTypeTeam
 	}
 
+	if w.Plan == "" {
+		w.Plan = "free"
+	}
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO workspaces (id, name, slug, description, logo_url, type, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		`INSERT INTO workspaces (id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
 		w.ID, w.Name, w.Slug, w.Description, w.LogoURL, string(w.Type),
+		w.Plan, w.StripeCustomerID,
 		w.CreatedAt, w.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert workspace: %w", err)
@@ -123,21 +127,21 @@ func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Wor
 
 func (s *PostgresAuthStore) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at
 		 FROM workspaces WHERE id = $1`, id)
 	return scanWorkspacePg(row)
 }
 
 func (s *PostgresAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at
 		 FROM workspaces WHERE slug = $1`, slug)
 	return scanWorkspacePg(row)
 }
 
 func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.created_at, w.updated_at, wm.role
+		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.created_at, w.updated_at, wm.role
 		 FROM workspaces w
 		 JOIN workspace_members wm ON w.id = wm.workspace_id
 		 WHERE wm.user_id = $1
@@ -161,8 +165,8 @@ func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) (
 func (s *PostgresAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	w.UpdatedAt = time.Now().UTC()
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE workspaces SET name=$1, slug=$2, description=$3, logo_url=$4, updated_at=$5 WHERE id=$6`,
-		w.Name, w.Slug, w.Description, w.LogoURL, w.UpdatedAt, w.ID)
+		`UPDATE workspaces SET name=$1, slug=$2, description=$3, logo_url=$4, plan=$5, stripe_customer_id=$6, updated_at=$7 WHERE id=$8`,
+		w.Name, w.Slug, w.Description, w.LogoURL, w.Plan, w.StripeCustomerID, w.UpdatedAt, w.ID)
 	if err != nil {
 		return fmt.Errorf("update workspace: %w", err)
 	}
@@ -539,23 +543,31 @@ func scanUserPg(row scanner) (*platauth.User, error) {
 func scanWorkspacePg(row scanner) (*platauth.Workspace, error) {
 	var w platauth.Workspace
 	var wsType string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.CreatedAt, &w.UpdatedAt)
+	var stripeCustomerID *string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace: %w", err)
 	}
 	w.Type = platauth.WorkspaceType(wsType)
+	if stripeCustomerID != nil {
+		w.StripeCustomerID = *stripeCustomerID
+	}
 	return &w, nil
 }
 
 func scanWorkspaceWithRolePg(row scanner) (*platauth.Workspace, error) {
 	var w platauth.Workspace
 	var wsType, role string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.CreatedAt, &w.UpdatedAt, &role)
+	var stripeCustomerID *string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &w.CreatedAt, &w.UpdatedAt, &role)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace with role: %w", err)
 	}
 	w.Type = platauth.WorkspaceType(wsType)
 	w.Role = platauth.Role(role)
+	if stripeCustomerID != nil {
+		w.StripeCustomerID = *stripeCustomerID
+	}
 	return &w, nil
 }
 
