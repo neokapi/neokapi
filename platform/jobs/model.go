@@ -16,6 +16,7 @@ const (
 type TranslationJob struct {
 	ID               string    `json:"id"`
 	WorkspaceSlug    string    `json:"workspace_slug"`
+	WorkspaceID      string    `json:"workspace_id,omitempty"` // billing workspace ID (set when created from workspace context)
 	ProjectID        string    `json:"project_id"`
 	ItemName         string    `json:"item_name"`
 	TargetLocale     string    `json:"target_locale"`

@@ -15,10 +15,17 @@ const contextKeyWorkspacePlan = "workspace_plan"
 // PlanGuard returns Echo middleware that rejects requests when the workspace
 // plan does not include the required feature. It reads the plan from
 // the echo context (set by workspace access middleware) and checks overrides.
+// When billing is not configured (plan is empty), all features are allowed.
 func PlanGuard(feature Feature) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			plan := Plan(c.Get(contextKeyWorkspacePlan).(string))
+			planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
+			// When billing is not configured or plan is not set, allow all.
+			if planStr == "" {
+				return next(c)
+			}
+
+			plan := Plan(planStr)
 
 			// Check overrides if available on context.
 			var overrides map[Feature]bool
@@ -41,10 +48,21 @@ func PlanGuard(feature Feature) echo.MiddlewareFunc {
 
 // QuotaGuard returns Echo middleware that rejects requests when weekly credits
 // are exhausted. Returns 429 with Retry-After header set to next Monday 00:00 UTC.
+// When billing is not configured (store is nil or plan is empty), all requests pass.
 func QuotaGuard(store BillingStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			plan := Plan(c.Get(contextKeyWorkspacePlan).(string))
+			// When billing is not configured, allow all.
+			if store == nil {
+				return next(c)
+			}
+
+			planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
+			if planStr == "" {
+				return next(c)
+			}
+
+			plan := Plan(planStr)
 
 			// Enterprise plans have unlimited credits.
 			if plan == PlanEnterprise {

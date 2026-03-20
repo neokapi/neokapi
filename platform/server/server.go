@@ -366,6 +366,11 @@ func NewServer(cfg ServerConfig) *Server {
 		s.StripeClient = billing.NewStripeClient(cfg.StripeSecretKey)
 		if cfg.StripeWebhookSecret != "" && s.BillingStore != nil {
 			s.WebhookHandler = billing.NewWebhookHandler(s.BillingStore, cfg.StripeWebhookSecret)
+			// Wire plan syncer so webhooks update workspace.plan.
+			if s.AuthStore != nil {
+				s.WebhookHandler.SetPlanSyncer(&planSyncAdapter{authStore: s.AuthStore})
+			}
+			// PostHog wiring deferred to after PostHog init below.
 		}
 		log.Printf("Stripe billing enabled")
 	}
@@ -385,6 +390,11 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 	}
 
+	// Wire PostHog to webhook handler now that both are initialized.
+	if s.PostHogClient != nil && s.WebhookHandler != nil {
+		s.WebhookHandler.SetPostHog(s.PostHogClient)
+	}
+
 	// Initialize admin OIDC verifier (AD-030).
 	if cfg.AdminOIDCIssuerURL != "" && cfg.AdminOIDCClientID != "" {
 		ctx := context.Background()
@@ -394,6 +404,40 @@ func NewServer(cfg ServerConfig) *Server {
 		} else {
 			s.AdminVerifier = verifier
 			log.Printf("Admin OIDC verifier enabled (issuer: %s)", cfg.AdminOIDCIssuerURL)
+		}
+	}
+
+	// Build billing hooks for credit deduction + Stripe meter reporting (AD-030).
+	// Must be after Stripe client init so StripeClient is available.
+	if s.BillingStore != nil {
+		// Build billing notifier for email notifications.
+		var notifier *billing.BillingNotifier
+		if s.EmailSender != nil {
+			notifier = &billing.BillingNotifier{
+				Sender: s.EmailSender,
+				Store:  s.BillingStore,
+			}
+		}
+
+		// Wire notifier to webhook handler.
+		if s.WebhookHandler != nil && notifier != nil {
+			s.WebhookHandler.SetNotifier(notifier)
+		}
+
+		billingHooks := &billing.UsageHooks{
+			Store:    s.BillingStore,
+			Stripe:   s.StripeClient, // may be nil; hooks handle that
+			Notifier: notifier,
+		}
+
+		// Wire owner email resolver for credit threshold notifications.
+		if s.AuthStore != nil {
+			resolver := &ownerEmailResolver{authStore: s.AuthStore}
+			billingHooks.GetOwnerEmail = resolver.GetOwnerEmail
+		}
+
+		if s.AgentService != nil {
+			s.AgentService.SetBillingHooks(billingHooks)
 		}
 	}
 
@@ -556,14 +600,16 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.GET("/invites", s.HandleListInvites)
 		wsSpecific.DELETE("/invites/:id", s.HandleDeleteInvite)
 
-		// API token routes (workspace-scoped).
-		wsSpecific.POST("/tokens", s.HandleCreateToken)
-		wsSpecific.GET("/tokens", s.HandleListTokens)
-		wsSpecific.DELETE("/tokens/:id", s.HandleDeleteToken)
+		// API token routes (workspace-scoped, requires Pro+ plan).
+		tokenGroup := wsSpecific.Group("/tokens")
+		tokenGroup.Use(billing.PlanGuard(billing.FeatureAPIAccess))
+		tokenGroup.POST("", s.HandleCreateToken)
+		tokenGroup.GET("", s.HandleListTokens)
+		tokenGroup.DELETE("/:id", s.HandleDeleteToken)
 
 		s.registerWorkspaceContentRoutes(wsSpecific)
 
-		// @bravo agent routes (AD-028)
+		// @bravo agent routes (AD-028) with QuotaGuard for credit-consuming operations.
 		s.registerBravoRoutes(wsSpecific)
 
 		// Billing routes (AD-030, workspace-scoped)
@@ -573,6 +619,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		billingGroup.POST("/checkout", s.HandleCreateCheckout)
 		billingGroup.POST("/portal", s.HandleCreatePortal)
 		billingGroup.GET("/invoices", s.HandleGetInvoices)
+		billingGroup.POST("/buy-credits", s.HandleBuyCredits)
 	}
 
 	// Stripe webhook (no auth, signature-verified) (AD-030).

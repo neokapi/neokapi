@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/billingportal/session"
@@ -40,8 +41,24 @@ func (c *StripeClient) CreateCustomer(_ context.Context, workspaceID, email, nam
 	return cust.ID, nil
 }
 
+// CheckoutOptions configures optional checkout behavior.
+type CheckoutOptions struct {
+	Metadata      map[string]string
+	TrialDays     int64 // 0 = no trial
+}
+
 // CreateCheckoutSession creates a Stripe Checkout session for subscribing to a plan.
-func (c *StripeClient) CreateCheckoutSession(_ context.Context, customerID, priceID, successURL, cancelURL string) (string, error) {
+// metadata is attached to the session (e.g. workspace_id for webhook routing).
+func (c *StripeClient) CreateCheckoutSession(_ context.Context, customerID, priceID, successURL, cancelURL string, metadata ...map[string]string) (string, error) {
+	opts := CheckoutOptions{}
+	if len(metadata) > 0 {
+		opts.Metadata = metadata[0]
+	}
+	return c.CreateCheckoutSessionWithOptions(customerID, priceID, successURL, cancelURL, opts)
+}
+
+// CreateCheckoutSessionWithOptions creates a Stripe Checkout session with full options.
+func (c *StripeClient) CreateCheckoutSessionWithOptions(customerID, priceID, successURL, cancelURL string, opts CheckoutOptions) (string, error) {
 	params := &stripe.CheckoutSessionParams{
 		Customer: stripe.String(customerID),
 		Mode:     stripe.String(string(stripe.CheckoutSessionModeSubscription)),
@@ -53,6 +70,17 @@ func (c *StripeClient) CreateCheckoutSession(_ context.Context, customerID, pric
 		},
 		SuccessURL: stripe.String(successURL),
 		CancelURL:  stripe.String(cancelURL),
+	}
+	for k, v := range opts.Metadata {
+		params.AddMetadata(k, v)
+	}
+	// Also attach metadata to the subscription so webhooks can route events.
+	params.SubscriptionData = &stripe.CheckoutSessionSubscriptionDataParams{}
+	for k, v := range opts.Metadata {
+		params.SubscriptionData.AddMetadata(k, v)
+	}
+	if opts.TrialDays > 0 {
+		params.SubscriptionData.TrialPeriodDays = stripe.Int64(opts.TrialDays)
 	}
 
 	sess, err := checkoutsession.New(params)
@@ -78,6 +106,7 @@ func (c *StripeClient) CreatePortalSession(_ context.Context, customerID, return
 
 // ReportMeterEvent sends a meter event to Stripe for usage-based billing.
 // This is called asynchronously and errors are logged, not returned.
+// An idempotency key is derived from the dimensions to prevent duplicate billing.
 func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName string, value int64, dimensions map[string]string) {
 	params := &stripe.V2BillingMeterEventCreateParams{
 		EventName: stripe.String(eventName),
@@ -90,9 +119,42 @@ func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName
 		params.Payload[k] = v
 	}
 
+	// Idempotency key prevents duplicate meter events on retries.
+	// Uses workspace_id + operation_type + timestamp bucket (per-second).
+	wsID := dimensions["workspace_id"]
+	op := dimensions["operation_type"]
+	if wsID != "" {
+		params.Identifier = stripe.String(fmt.Sprintf("%s-%s-%s-%d", wsID, eventName, op, time.Now().Unix()))
+	}
+
 	if _, err := c.sc.V2BillingMeterEvents.Create(context.Background(), params); err != nil {
 		log.Printf("stripe meter event error: %v", err)
 	}
+}
+
+// CreatePaymentCheckout creates a one-time payment checkout session (e.g. credit packs).
+func (c *StripeClient) CreatePaymentCheckout(_ context.Context, customerID, priceID, successURL, cancelURL string, metadata map[string]string) (string, error) {
+	params := &stripe.CheckoutSessionParams{
+		Customer: stripe.String(customerID),
+		Mode:     stripe.String(string(stripe.CheckoutSessionModePayment)),
+		LineItems: []*stripe.CheckoutSessionLineItemParams{
+			{
+				Price:    stripe.String(priceID),
+				Quantity: stripe.Int64(1),
+			},
+		},
+		SuccessURL: stripe.String(successURL),
+		CancelURL:  stripe.String(cancelURL),
+	}
+	for k, v := range metadata {
+		params.AddMetadata(k, v)
+	}
+
+	sess, err := checkoutsession.New(params)
+	if err != nil {
+		return "", fmt.Errorf("create payment checkout: %w", err)
+	}
+	return sess.URL, nil
 }
 
 // StripeInvoice represents a simplified invoice for API responses.

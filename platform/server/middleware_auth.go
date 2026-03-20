@@ -210,9 +210,11 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 				return c.JSON(http.StatusForbidden, ErrorResponse{Error: "not a member of this workspace"})
 			}
 
-			// Store workspace ID and user role on context for downstream handlers.
+			// Store workspace ID, plan, and user role on context for downstream handlers.
 			c.Set("workspace_id", w.ID)
 			c.Set("workspace_role", m.Role)
+			c.Set("workspace_plan", w.Plan)
+			c.Set("workspace_stripe_customer_id", w.StripeCustomerID)
 			return next(c)
 		}
 	}

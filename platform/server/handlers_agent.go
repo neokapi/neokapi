@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/service"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 )
@@ -417,7 +418,10 @@ func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo.GET("/conversations", s.HandleListBravoConversations)
 	bravo.GET("/conversations/:id", s.HandleGetBravoConversation)
 	bravo.DELETE("/conversations/:id", s.HandleDeleteBravoConversation)
-	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage)
+
+	// Message sending consumes credits — apply QuotaGuard.
+	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage, billing.QuotaGuard(s.BillingStore))
+
 	bravo.GET("/conversations/:id/messages", s.HandleListBravoMessages)
 	bravo.POST("/conversations/:id/tool-calls/:tcid/approve", s.HandleApproveBravoToolCall)
 	bravo.POST("/conversations/:id/tool-calls/:tcid/deny", s.HandleDenyBravoToolCall)

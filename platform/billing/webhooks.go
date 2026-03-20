@@ -11,9 +11,18 @@ import (
 	"github.com/stripe/stripe-go/v82/webhook"
 )
 
+// WorkspacePlanSyncer updates the cached plan and Stripe customer ID
+// on the workspace record. Implemented by AuthStore.
+type WorkspacePlanSyncer interface {
+	SyncWorkspacePlan(ctx context.Context, workspaceID, plan, stripeCustomerID string) error
+}
+
 // WebhookHandler processes Stripe webhook events.
 type WebhookHandler struct {
 	store         BillingStore
+	planSyncer    WorkspacePlanSyncer
+	notifier      *BillingNotifier
+	posthog       *PostHogClient
 	webhookSecret string
 }
 
@@ -22,6 +31,33 @@ func NewWebhookHandler(store BillingStore, webhookSecret string) *WebhookHandler
 	return &WebhookHandler{
 		store:         store,
 		webhookSecret: webhookSecret,
+	}
+}
+
+// SetPlanSyncer configures the workspace plan syncer. When set, webhook
+// handlers will update the workspace plan cache after subscription changes.
+func (h *WebhookHandler) SetPlanSyncer(syncer WorkspacePlanSyncer) {
+	h.planSyncer = syncer
+}
+
+// SetNotifier configures the billing email notifier.
+func (h *WebhookHandler) SetNotifier(notifier *BillingNotifier) {
+	h.notifier = notifier
+}
+
+// SetPostHog configures the PostHog client for conversion tracking.
+func (h *WebhookHandler) SetPostHog(client *PostHogClient) {
+	h.posthog = client
+}
+
+// syncPlan updates the cached workspace plan. Errors are logged, not returned,
+// because failing to sync the cache should not reject the webhook.
+func (h *WebhookHandler) syncPlan(ctx context.Context, workspaceID string, plan Plan, customerID string) {
+	if h.planSyncer == nil {
+		return
+	}
+	if err := h.planSyncer.SyncWorkspacePlan(ctx, workspaceID, string(plan), customerID); err != nil {
+		log.Printf("failed to sync workspace plan for %s: %v", workspaceID, err)
 	}
 }
 
@@ -63,6 +99,19 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 		return nil
 	}
 
+	// Handle one-time credit pack purchase.
+	if sess.Metadata["type"] == "credit_pack" {
+		creditPackAmount := int64(500_000) // 500K credits per pack
+		if err := h.store.GrantCredits(ctx, workspaceID, creditPackAmount, "purchased"); err != nil {
+			return fmt.Errorf("grant credits: %w", err)
+		}
+		return h.store.RecordBillingEvent(ctx, &BillingEvent{
+			WorkspaceID: workspaceID,
+			EventType:   "credits_purchased",
+			Detail:      fmt.Sprintf("Credit pack purchased, +%d credits", creditPackAmount),
+		})
+	}
+
 	sub := &Subscription{
 		WorkspaceID:          workspaceID,
 		StripeCustomerID:     sess.Customer.ID,
@@ -74,6 +123,16 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 
 	if err := h.store.UpsertSubscription(ctx, sub); err != nil {
 		return fmt.Errorf("upsert subscription: %w", err)
+	}
+
+	h.syncPlan(ctx, workspaceID, sub.Plan, sess.Customer.ID)
+
+	// Track checkout completed conversion event.
+	if h.posthog != nil {
+		h.posthog.CaptureEvent(workspaceID, "billing.checkout_completed", map[string]any{
+			"workspace_id": workspaceID,
+			"customer_id":  sess.Customer.ID,
+		})
 	}
 
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
@@ -135,6 +194,8 @@ func (h *WebhookHandler) handleSubscriptionUpdated(ctx context.Context, event st
 		return fmt.Errorf("upsert subscription: %w", err)
 	}
 
+	h.syncPlan(ctx, workspaceID, plan, stripeSub.Customer.ID)
+
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,
 		EventType:   "subscription_updated",
@@ -167,6 +228,8 @@ func (h *WebhookHandler) handleSubscriptionDeleted(ctx context.Context, event st
 	if err := h.store.UpsertSubscription(ctx, sub); err != nil {
 		return fmt.Errorf("upsert subscription: %w", err)
 	}
+
+	h.syncPlan(ctx, workspaceID, PlanFree, stripeSub.Customer.ID)
 
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
 		WorkspaceID: workspaceID,
@@ -227,6 +290,11 @@ func (h *WebhookHandler) handlePaymentFailed(ctx context.Context, event stripe.E
 		if err := h.store.UpsertSubscription(ctx, existing); err != nil {
 			log.Printf("failed to set past_due for workspace %s: %v", workspaceID, err)
 		}
+	}
+
+	// Send payment failed email notification.
+	if h.notifier != nil && inv.CustomerEmail != "" {
+		h.notifier.NotifyPaymentFailed(ctx, inv.CustomerEmail, workspaceID)
 	}
 
 	return h.store.RecordBillingEvent(ctx, &BillingEvent{
