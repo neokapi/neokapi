@@ -20,10 +20,10 @@ type mockBridgeServer struct {
 	pb.UnimplementedBridgeServiceServer
 
 	// Process fields
-	processReadParts []*pb.PartMessage
-	processOutput    []byte
+	processReadParts  []*pb.PartMessage
+	processOutput     []byte
 	processOutputPath string
-	processErr       string
+	processErr        string
 }
 
 func (s *mockBridgeServer) Process(stream pb.BridgeService_ProcessServer) error {

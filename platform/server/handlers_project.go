@@ -14,10 +14,10 @@ import (
 
 // ProjectRequest is the request body for creating/updating a project.
 type ProjectRequest struct {
-	Name          string   `json:"name"`
-	DefaultSourceLanguage  string   `json:"default_source_language"`
-	TargetLanguages []string `json:"target_languages"`
-	Workspace     string   `json:"workspace,omitempty"`
+	Name                  string   `json:"name"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"`
+	Workspace             string   `json:"workspace,omitempty"`
 }
 
 // BlocksRequest is the request body for storing blocks.
@@ -86,22 +86,22 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 	}
 
 	p := &store.Project{
-		Name:          req.Name,
-		DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
-		TargetLanguages: locales,
-		WorkspaceID:   targetWS.ID,
+		Name:                  req.Name,
+		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
+		TargetLanguages:       locales,
+		WorkspaceID:           targetWS.ID,
 	}
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
 	return c.JSON(http.StatusCreated, map[string]any{
-		"id":             p.ID,
-		"name":           p.Name,
-		"default_source_language":  string(p.DefaultSourceLanguage),
-		"target_languages": req.TargetLanguages,
-		"workspace_id":   p.WorkspaceID,
-		"workspace_slug": targetWS.Slug,
+		"id":                      p.ID,
+		"name":                    p.Name,
+		"default_source_language": string(p.DefaultSourceLanguage),
+		"target_languages":        req.TargetLanguages,
+		"workspace_id":            p.WorkspaceID,
+		"workspace_slug":          targetWS.Slug,
 	})
 }
 
@@ -161,11 +161,11 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 	}
 
 	p := &store.Project{
-		ID:            projectID,
-		Name:          req.Name,
-		DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
-		TargetLanguages: locales,
-		WorkspaceID:   workspaceID,
+		ID:                    projectID,
+		Name:                  req.Name,
+		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
+		TargetLanguages:       locales,
+		WorkspaceID:           workspaceID,
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

@@ -582,13 +582,13 @@ func protoProjectToInfo(p *pb.EditorProjectInfo) ProjectInfo {
 		}
 	}
 	return ProjectInfo{
-		ID:            p.Id,
-		Name:          p.Name,
+		ID:                    p.Id,
+		Name:                  p.Name,
 		DefaultSourceLanguage: p.SourceLocale,
 		TargetLanguages:       p.TargetLocales,
-		Items:         items,
-		CreatedAt:     p.CreatedAt,
-		ModifiedAt:    p.ModifiedAt,
+		Items:                 items,
+		CreatedAt:             p.CreatedAt,
+		ModifiedAt:            p.ModifiedAt,
 	}
 }
 

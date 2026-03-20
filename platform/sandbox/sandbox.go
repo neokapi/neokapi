@@ -186,12 +186,12 @@ func (d *DockerSandbox) createContainer(ctx context.Context, image string, cmd [
 		Env:        envList,
 		WorkingDir: "/workspace",
 		HostConfig: hostConfig{
-			Memory:          d.cfg.memoryBytes(),
-			NanoCPUs:        250000000, // 0.25 CPU
-			ReadonlyRootfs:  true,
-			NetworkMode:     "none",
-			AutoRemove:      true,
-			Tmpfs:           map[string]string{"/workspace": "rw,noexec,size=32m"},
+			Memory:         d.cfg.memoryBytes(),
+			NanoCPUs:       250000000, // 0.25 CPU
+			ReadonlyRootfs: true,
+			NetworkMode:    "none",
+			AutoRemove:     true,
+			Tmpfs:          map[string]string{"/workspace": "rw,noexec,size=32m"},
 		},
 		NetworkDisabled: true,
 	}

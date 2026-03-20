@@ -115,9 +115,9 @@ func (s *Server) HandleDeleteBravoConversation(c echo.Context) error {
 // ---------------------------------------------------------------------------
 
 type sendMessageRequest struct {
-	Content string                 `json:"content"`
-	Mode    string                 `json:"mode,omitempty"`    // "ask", "coworker", "bravo"
-	Context *sendMessageContext    `json:"context,omitempty"` // current workspace context
+	Content string              `json:"content"`
+	Mode    string              `json:"mode,omitempty"`    // "ask", "coworker", "bravo"
+	Context *sendMessageContext `json:"context,omitempty"` // current workspace context
 }
 
 type sendMessageContext struct {
@@ -427,4 +427,3 @@ func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo.GET("/tools", s.HandleListBravoTools)
 	bravo.GET("/usage", s.HandleGetBravoUsage)
 }
-

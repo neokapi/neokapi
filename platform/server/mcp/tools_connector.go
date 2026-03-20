@@ -88,11 +88,11 @@ type connectorStatusInput struct {
 	ConnectorID string `json:"connector_id" jsonschema:"the connector ID to check"`
 }
 type connectorStatusOutput struct {
-	ConnectorID string `json:"connector_id"`
-	LastSync    string `json:"last_sync"`
-	ItemCount   int    `json:"item_count"`
-	PendingPull int    `json:"pending_pull"`
-	PendingPush int    `json:"pending_push"`
+	ConnectorID string   `json:"connector_id"`
+	LastSync    string   `json:"last_sync"`
+	ItemCount   int      `json:"item_count"`
+	PendingPull int      `json:"pending_pull"`
+	PendingPush int      `json:"pending_push"`
 	Errors      []string `json:"errors,omitempty"`
 }
 

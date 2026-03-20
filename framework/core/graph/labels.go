@@ -14,17 +14,17 @@ const (
 	LabelHasPart = "HAS_PART" // holonymy — contains component
 
 	// Terminological relationships
-	LabelHasTerm    = "HAS_TERM"     // concept → term designation
-	LabelUseInstead = "USE_INSTEAD"  // deprecated term → preferred term
-	LabelReplacedBy = "REPLACED_BY"  // superseded concept → replacement
+	LabelHasTerm    = "HAS_TERM"    // concept → term designation
+	LabelUseInstead = "USE_INSTEAD" // deprecated term → preferred term
+	LabelReplacedBy = "REPLACED_BY" // superseded concept → replacement
 
 	// Equivalence relationships
 	LabelExactMatch = "EXACT_MATCH" // skos:exactMatch — cross-scheme equivalence
 	LabelCloseMatch = "CLOSE_MATCH" // skos:closeMatch — approximate equivalence
 
 	// Brand voice relationships
-	LabelForbidden = "FORBIDDEN" // brand → forbidden term
-	LabelPreferred = "PREFERRED" // brand → preferred term
+	LabelForbidden  = "FORBIDDEN"  // brand → forbidden term
+	LabelPreferred  = "PREFERRED"  // brand → preferred term
 	LabelCompetitor = "COMPETITOR" // brand → competitor term
 )
 

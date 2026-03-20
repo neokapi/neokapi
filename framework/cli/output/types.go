@@ -799,9 +799,9 @@ func (o TMLookupOutput) FormatText(w io.Writer) error {
 
 // TMSearchEntry represents a single TM entry in search results.
 type TMSearchEntry struct {
-	ID           string `json:"id"`
-	Source       string `json:"source"`
-	Target       string `json:"target"`
+	ID             string `json:"id"`
+	Source         string `json:"source"`
+	Target         string `json:"target"`
 	SourceLanguage string `json:"source_language"`
 	TargetLanguage string `json:"target_language"`
 }

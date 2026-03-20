@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/storage"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/neokapi/neokapi/bowrain/storage"
 )
 
 // PostgresBrandStore implements brand.BrandStore using PostgreSQL.

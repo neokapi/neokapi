@@ -123,10 +123,10 @@ type rewriteInVoiceInput struct {
 
 // rewriteInVoiceOutput is the output for the rewrite_in_voice tool.
 type rewriteInVoiceOutput struct {
-	Original string   `json:"original"`
-	Rewritten string  `json:"rewritten"`
-	Changes  []string `json:"changes"`
-	Guide    string   `json:"voice_guide"`
+	Original  string   `json:"original"`
+	Rewritten string   `json:"rewritten"`
+	Changes   []string `json:"changes"`
+	Guide     string   `json:"voice_guide"`
 }
 
 func (s *MCPServer) handleRewriteInVoice(ctx context.Context, req *mcp.CallToolRequest, input rewriteInVoiceInput) (*mcp.CallToolResult, rewriteInVoiceOutput, error) {

@@ -218,9 +218,9 @@ func (a *App) newTMSearchCmd() *cobra.Command {
 			results := make([]output.TMSearchEntry, len(entries))
 			for i, e := range entries {
 				results[i] = output.TMSearchEntry{
-					ID:           e.ID,
-					Source:       e.SourceText(),
-					Target:       e.TargetText(),
+					ID:             e.ID,
+					Source:         e.SourceText(),
+					Target:         e.TargetText(),
 					SourceLanguage: string(e.SourceLocale),
 					TargetLanguage: string(e.TargetLocale),
 				}

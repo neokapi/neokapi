@@ -52,7 +52,7 @@ type BrandVoiceFinding struct {
 // DimensionScore holds the score breakdown for a single dimension.
 type DimensionScore struct {
 	Dimension Dimension `json:"dimension"`
-	Score     int       `json:"score"`   // 0-100
+	Score     int       `json:"score"` // 0-100
 	Penalty   int       `json:"penalty"`
 	Issues    int       `json:"issues"`
 }
@@ -60,7 +60,7 @@ type DimensionScore struct {
 // BrandComplianceScore holds the overall brand voice compliance result.
 type BrandComplianceScore struct {
 	Overall    int                 `json:"overall"` // 0-100
-	Dimensions []DimensionScore   `json:"dimensions"`
+	Dimensions []DimensionScore    `json:"dimensions"`
 	Findings   []BrandVoiceFinding `json:"findings"`
 	WordCount  int                 `json:"word_count"`
 	ProfileID  string              `json:"profile_id"`

@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	platev "github.com/neokapi/neokapi/platform/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // NotificationTarget resolves which user IDs should be notified for a project event.
@@ -21,12 +21,12 @@ type NotificationSender interface {
 // NotificationDispatcher bridges events to user-targeted notifications
 // with preference-aware routing.
 type NotificationDispatcher struct {
-	bus           platev.EventBus
-	store         *bstore.NotificationStore
-	prefStore     *bstore.PreferenceStore
-	sender        NotificationSender
-	targetFn      NotificationTarget
-	sub           *platev.Subscription
+	bus       platev.EventBus
+	store     *bstore.NotificationStore
+	prefStore *bstore.PreferenceStore
+	sender    NotificationSender
+	targetFn  NotificationTarget
+	sub       *platev.Subscription
 }
 
 // NewNotificationDispatcher creates a dispatcher that listens to events and creates notifications.

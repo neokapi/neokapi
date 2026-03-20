@@ -18,17 +18,17 @@ const (
 
 // Project represents a localization project in the store.
 type Project struct {
-	ID            string            `json:"id"`
-	Name          string            `json:"name"`
+	ID                    string            `json:"id"`
+	Name                  string            `json:"name"`
 	DefaultSourceLanguage model.LocaleID    `json:"default_source_language"`
-	TargetLanguages      []model.LocaleID  `json:"target_languages"`
-	TargetLanguageMode   string            `json:"target_language_mode"`
-	Properties    map[string]string `json:"properties,omitempty"`
-	WorkspaceID   string            `json:"workspace_id,omitempty"`
-	Archived      bool              `json:"archived"`
-	ArchivedAt    *time.Time        `json:"archived_at,omitempty"`
-	CreatedAt     time.Time         `json:"created_at"`
-	UpdatedAt     time.Time         `json:"updated_at"`
+	TargetLanguages       []model.LocaleID  `json:"target_languages"`
+	TargetLanguageMode    string            `json:"target_language_mode"`
+	Properties            map[string]string `json:"properties,omitempty"`
+	WorkspaceID           string            `json:"workspace_id,omitempty"`
+	Archived              bool              `json:"archived"`
+	ArchivedAt            *time.Time        `json:"archived_at,omitempty"`
+	CreatedAt             time.Time         `json:"created_at"`
+	UpdatedAt             time.Time         `json:"updated_at"`
 }
 
 // Item represents a file or data object within a project.
@@ -128,7 +128,7 @@ type Collection struct {
 	ProjectID       string            `json:"project_id"`
 	Name            string            `json:"name"`
 	Kind            CollectionKind    `json:"kind"`
-	ItemLabel       string            `json:"item_label"`  // e.g. "item", "page", "post", "document"
+	ItemLabel       string            `json:"item_label"` // e.g. "item", "page", "post", "document"
 	IsDefault       bool              `json:"is_default"`
 	Stream          string            `json:"stream,omitempty"`           // empty = project-wide
 	ConnectorConfig map[string]string `json:"connector_config,omitempty"` // connector type + settings
@@ -228,16 +228,16 @@ type ChangeSet struct {
 type Asset struct {
 	ID               string            `json:"id"`
 	ProjectID        string            `json:"project_id"`
-	ItemName         string            `json:"item_name"`          // source file this asset belongs to
-	SourceID         string            `json:"source_id"`          // format-reader-assigned ID within the item
-	BlobKey          string            `json:"blob_key"`           // content-addressed key in BlobStore
+	ItemName         string            `json:"item_name"` // source file this asset belongs to
+	SourceID         string            `json:"source_id"` // format-reader-assigned ID within the item
+	BlobKey          string            `json:"blob_key"`  // content-addressed key in BlobStore
 	MimeType         string            `json:"mime_type"`
-	Filename         string            `json:"filename"`           // original filename
+	Filename         string            `json:"filename"` // original filename
 	SizeBytes        int64             `json:"size_bytes"`
-	AltText          string            `json:"alt_text"`           // extractable localized text
-	Properties       map[string]string `json:"properties"`         // dimensions, duration, codec, etc.
-	ProcessingStatus string            `json:"processing_status"`  // none, pending, processing, processed, failed
-	ProcessingHint   string            `json:"processing_hint"`    // ocr, chart-text, subtitle-extract, asr
+	AltText          string            `json:"alt_text"`          // extractable localized text
+	Properties       map[string]string `json:"properties"`        // dimensions, duration, codec, etc.
+	ProcessingStatus string            `json:"processing_status"` // none, pending, processing, processed, failed
+	ProcessingHint   string            `json:"processing_hint"`   // ocr, chart-text, subtitle-extract, asr
 	Stream           string            `json:"stream,omitempty"`
 	CreatedAt        time.Time         `json:"created_at"`
 	UpdatedAt        time.Time         `json:"updated_at"`
@@ -245,15 +245,15 @@ type Asset struct {
 
 // AssetVariant represents a locale-specific variant of an asset.
 type AssetVariant struct {
-	AssetID   string            `json:"asset_id"`
-	Locale    string            `json:"locale"`     // BCP-47 tag
-	BlobKey   string            `json:"blob_key"`   // locale-specific binary in BlobStore
-	Status    string            `json:"status"`     // pending, draft, approved
-	MimeType  string            `json:"mime_type"`
-	SizeBytes int64             `json:"size_bytes"`
+	AssetID    string            `json:"asset_id"`
+	Locale     string            `json:"locale"`   // BCP-47 tag
+	BlobKey    string            `json:"blob_key"` // locale-specific binary in BlobStore
+	Status     string            `json:"status"`   // pending, draft, approved
+	MimeType   string            `json:"mime_type"`
+	SizeBytes  int64             `json:"size_bytes"`
 	Properties map[string]string `json:"properties"`
-	CreatedAt time.Time         `json:"created_at"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	CreatedAt  time.Time         `json:"created_at"`
+	UpdatedAt  time.Time         `json:"updated_at"`
 }
 
 // ---------------------------------------------------------------------------
@@ -276,12 +276,12 @@ type BlockStatRow struct {
 
 // TranslationDashboardStats holds aggregated translation metrics for a project.
 type TranslationDashboardStats struct {
-	LocaleStats        []LocaleTranslationStats      `json:"locale_stats"`
-	ItemStats          []ItemTranslationStats         `json:"item_stats"`
-	CollectionStats    []CollectionTranslationStats   `json:"collection_stats"`
-	TotalBlocks        int                            `json:"total_blocks"`
-	TranslatableBlocks int                            `json:"translatable_blocks"`
-	TotalSourceWords   int                            `json:"total_source_words"`
+	LocaleStats        []LocaleTranslationStats     `json:"locale_stats"`
+	ItemStats          []ItemTranslationStats       `json:"item_stats"`
+	CollectionStats    []CollectionTranslationStats `json:"collection_stats"`
+	TotalBlocks        int                          `json:"total_blocks"`
+	TranslatableBlocks int                          `json:"translatable_blocks"`
+	TotalSourceWords   int                          `json:"total_source_words"`
 }
 
 // LocaleTranslationStats holds translation progress for a single target locale.

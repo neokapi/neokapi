@@ -55,7 +55,7 @@ const (
 	EventItemDeleted EventType = "item.deleted"
 
 	// Brand voice events
-	EventBrandVoiceCheckStarted EventType = "brand.voice.check.started"
+	EventBrandVoiceCheckStarted   EventType = "brand.voice.check.started"
 	EventBrandVoiceCheckCompleted EventType = "brand.voice.check.completed"
 	EventBrandVoiceGateFailed     EventType = "brand.voice.gate.failed"
 	EventBrandVoiceGatePassed     EventType = "brand.voice.gate.passed"

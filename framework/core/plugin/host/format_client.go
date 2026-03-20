@@ -63,12 +63,12 @@ func (c *FormatReaderRPCClient) Open(_ context.Context, doc *model.RawDocument) 
 		}
 	}
 	args := shared.OpenArgs{
-		URI:          doc.URI,
+		URI:            doc.URI,
 		SourceLanguage: string(doc.SourceLocale),
-		Encoding:     doc.Encoding,
-		Content:      content,
-		MimeType:     doc.MimeType,
-		FormatID:     doc.FormatID,
+		Encoding:       doc.Encoding,
+		Content:        content,
+		MimeType:       doc.MimeType,
+		FormatID:       doc.FormatID,
 	}
 	var errStr string
 	if err := c.client.Call("Plugin.Open", &args, &errStr); err != nil {

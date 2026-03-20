@@ -77,9 +77,9 @@ type listProjectsOutput struct {
 	Projects []projectSummaryContent `json:"projects"`
 }
 type projectSummaryContent struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	SourceLanguage string   `json:"source_language"`
+	ID              string   `json:"id"`
+	Name            string   `json:"name"`
+	SourceLanguage  string   `json:"source_language"`
 	TargetLanguages []string `json:"target_languages"`
 }
 
@@ -298,9 +298,9 @@ func (s *MCPServer) handleMergeStream(ctx context.Context, req *mcp.CallToolRequ
 // --- create_project ---
 
 type createProjectInput struct {
-	WorkspaceID    string   `json:"workspace_id" jsonschema:"the workspace ID"`
-	Name           string   `json:"name" jsonschema:"project name"`
-	SourceLanguage string   `json:"source_language" jsonschema:"source language code (e.g. en-US)"`
+	WorkspaceID     string   `json:"workspace_id" jsonschema:"the workspace ID"`
+	Name            string   `json:"name" jsonschema:"project name"`
+	SourceLanguage  string   `json:"source_language" jsonschema:"source language code (e.g. en-US)"`
 	TargetLanguages []string `json:"target_languages" jsonschema:"target language codes"`
 }
 type createProjectOutput struct {

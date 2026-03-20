@@ -27,18 +27,18 @@ func TestResolveProfile_NoOverrides(t *testing.T) {
 
 func TestResolveProfile_LocaleOverride(t *testing.T) {
 	profile := &VoiceProfile{
-		ID:   "test",
-		Name: "Test Profile",
-		Tone: ToneProfile{Formality: "casual", Humor: "light"},
+		ID:    "test",
+		Name:  "Test Profile",
+		Tone:  ToneProfile{Formality: "casual", Humor: "light"},
 		Style: StyleRules{PersonPOV: "second"},
 		Vocabulary: VocabularyRules{
 			PreferredTerms: []TermRule{{Term: "app", Replacement: "application"}},
 		},
 		Locales: map[string]LocaleOverride{
 			"ja-JP": {
-				Formality: "formal",
-				Humor:     "none",
-				PersonPOV: "third",
+				Formality:           "formal",
+				Humor:               "none",
+				PersonPOV:           "third",
 				VocabularyOverrides: []TermRule{{Term: "san", Note: "use honorifics"}},
 				ExampleOverrides:    []VoiceExample{{Before: "Hey!", After: "Dear customer,"}},
 			},
@@ -57,9 +57,9 @@ func TestResolveProfile_LocaleOverride(t *testing.T) {
 
 func TestResolveProfile_ChannelOverride(t *testing.T) {
 	profile := &VoiceProfile{
-		ID:   "test",
-		Name: "Test Profile",
-		Tone: ToneProfile{Formality: "casual", Humor: "light", Personality: []string{"friendly"}},
+		ID:    "test",
+		Name:  "Test Profile",
+		Tone:  ToneProfile{Formality: "casual", Humor: "light", Personality: []string{"friendly"}},
 		Style: StyleRules{PersonPOV: "second", ActiveVoice: true},
 		Channels: map[string]ChannelOverride{
 			"support": {

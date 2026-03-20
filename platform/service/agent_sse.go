@@ -41,13 +41,13 @@ func (s SSEWriter) WriteEvent(event string, data any) error {
 
 // SSE event types matching the AD-028 protocol.
 const (
-	SSEMessageStart   = "message_start"
-	SSEContentDelta   = "content_delta"
-	SSEToolCallStart  = "tool_call_start"
-	SSEToolCallEnd    = "tool_call_end"
-	SSENeedsApproval  = "needs_approval"
-	SSEMessageEnd     = "message_end"
-	SSEError          = "error"
+	SSEMessageStart  = "message_start"
+	SSEContentDelta  = "content_delta"
+	SSEToolCallStart = "tool_call_start"
+	SSEToolCallEnd   = "tool_call_end"
+	SSENeedsApproval = "needs_approval"
+	SSEMessageEnd    = "message_end"
+	SSEError         = "error"
 )
 
 // SSE event data structures.
@@ -65,9 +65,9 @@ type ContentDeltaData struct {
 
 // ToolCallStartData is emitted when the agent invokes a tool.
 type ToolCallStartData struct {
-	ID       string          `json:"id"`
-	Tool     string          `json:"tool"`
-	Input    json.RawMessage `json:"input"`
+	ID    string          `json:"id"`
+	Tool  string          `json:"tool"`
+	Input json.RawMessage `json:"input"`
 }
 
 // ToolCallEndData is emitted when a tool call completes.

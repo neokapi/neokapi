@@ -680,10 +680,10 @@ func TestSourceConnector_ServerTargetLanguagesFallback(t *testing.T) {
 		if r.Method == http.MethodGet && !contains(r.URL.Path, "/sync/") && contains(r.URL.Path, "/projects/") {
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(apiclient.ProjectMetadata{
-				ID:            "proj-auto",
-				Name:          "Test",
-				DefaultSourceLanguage:  "en",
-				TargetLanguages: []string{"fr", "de"},
+				ID:                    "proj-auto",
+				Name:                  "Test",
+				DefaultSourceLanguage: "en",
+				TargetLanguages:       []string{"fr", "de"},
 			})
 			return
 		}

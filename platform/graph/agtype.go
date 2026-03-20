@@ -11,9 +11,9 @@ import (
 
 // agtypeVertex is the JSON structure inside an AGE vertex agtype value.
 type agtypeVertex struct {
-	ID         int64             `json:"id"`
-	Label      string            `json:"label"`
-	Properties map[string]any    `json:"properties"`
+	ID         int64          `json:"id"`
+	Label      string         `json:"label"`
+	Properties map[string]any `json:"properties"`
 }
 
 // agtypeEdge is the JSON structure inside an AGE edge agtype value.

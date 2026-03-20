@@ -12,12 +12,12 @@ import (
 
 // BrandCorrectionRequest is the request body for creating a brand voice correction.
 type BrandCorrectionRequest struct {
-	ProfileID     string           `json:"profile_id"`
-	BlockID       string           `json:"block_id"`
+	ProfileID     string              `json:"profile_id"`
+	BlockID       string              `json:"block_id"`
 	Dimension     corebrand.Dimension `json:"dimension"`
-	OriginalText  string           `json:"original_text"`
-	CorrectedText string           `json:"corrected_text"`
-	FindingID     string           `json:"finding_id,omitempty"`
+	OriginalText  string              `json:"original_text"`
+	CorrectedText string              `json:"corrected_text"`
+	FindingID     string              `json:"finding_id,omitempty"`
 }
 
 // HandleCreateBrandVoiceCorrection records a user correction to a brand voice finding.

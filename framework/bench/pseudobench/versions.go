@@ -77,4 +77,3 @@ func buildVersions(repoRoot, outputDir string, tags []string) error {
 	fmt.Println("Done building versions.")
 	return nil
 }
-

@@ -98,10 +98,10 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	// Plain text translation.
 	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
-		Source:       sourceText,
+		Source:         sourceText,
 		SourceLanguage: t.sourceLocale,
-		TargetLocale: t.targetLocale,
-		Glossary:     t.glossary,
+		TargetLocale:   t.targetLocale,
+		Glossary:       t.glossary,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai-translate: %w", err)
@@ -124,10 +124,10 @@ func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 	)
 
 	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
-		Source:       prompt,
+		Source:         prompt,
 		SourceLanguage: t.sourceLocale,
-		TargetLocale: t.targetLocale,
-		Glossary:     t.glossary,
+		TargetLocale:   t.targetLocale,
+		Glossary:       t.glossary,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ai-translate: %w", err)

@@ -61,16 +61,16 @@ type SandboxResult struct {
 
 // MCPServer wraps the MCP protocol server with brand voice resources and tools.
 type MCPServer struct {
-	brandStore    corebrand.BrandStore
-	contentStore  store.ContentStore
-	tmResolver    TMResolver
-	tbResolver    TBResolver
-	connResolver  ConnectorResolver
-	sandbox       SandboxExecutor
-	toolReg       *registry.ToolRegistry
-	server        *mcp.Server
-	handler       http.Handler
-	metadata      *oauthex.ProtectedResourceMetadata
+	brandStore   corebrand.BrandStore
+	contentStore store.ContentStore
+	tmResolver   TMResolver
+	tbResolver   TBResolver
+	connResolver ConnectorResolver
+	sandbox      SandboxExecutor
+	toolReg      *registry.ToolRegistry
+	server       *mcp.Server
+	handler      http.Handler
+	metadata     *oauthex.ProtectedResourceMetadata
 }
 
 // Config holds configuration for the MCP server.

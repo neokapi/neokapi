@@ -158,12 +158,12 @@ type InfoResult struct {
 
 // OpenArgs holds the arguments for the Open RPC.
 type OpenArgs struct {
-	URI          string `json:"uri"`
+	URI            string `json:"uri"`
 	SourceLanguage string `json:"source_language"`
-	Encoding     string `json:"encoding"`
-	Content      []byte `json:"content"`
-	MimeType     string `json:"mime_type"`
-	FormatID     string `json:"format_id"`
+	Encoding       string `json:"encoding"`
+	Content        []byte `json:"content"`
+	MimeType       string `json:"mime_type"`
+	FormatID       string `json:"format_id"`
 }
 
 // ReadResult holds the response from the Read RPC.

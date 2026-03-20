@@ -445,7 +445,7 @@ func (c *BowrainClient) GetProjectMetadata(ctx context.Context) (*ProjectMetadat
 // targetLocales may be empty (server treats as dynamic).
 func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales []string, email string) (projectID, claimToken string, err error) {
 	payload := map[string]any{
-		"name":          name,
+		"name":                    name,
 		"default_source_language": sourceLocale,
 	}
 	if len(targetLocales) > 0 {
@@ -487,7 +487,7 @@ func CreateAnonymousProject(serverURL, name, sourceLocale string, targetLocales 
 // The project is created in the user's workspace. Returns the project ID.
 func CreateAuthenticatedProject(serverURL, token, name, sourceLocale string, targetLocales []string, workspace string) (projectID, workspaceSlug string, err error) {
 	payload := map[string]any{
-		"name":          name,
+		"name":                    name,
 		"default_source_language": sourceLocale,
 	}
 	if len(targetLocales) > 0 {

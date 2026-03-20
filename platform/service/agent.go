@@ -508,4 +508,3 @@ func ToolNames() []string {
 		"check_vocabulary", "list_profiles", "get_voice_guide",
 	}
 }
-

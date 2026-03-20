@@ -301,4 +301,3 @@ func printSummary(report *Report) {
 		fmt.Println()
 	}
 }
-

@@ -59,11 +59,11 @@ type ServerConfig struct {
 	WebUIDir string
 
 	// Blob storage (AD-029)
-	BlobBackend              string // "azure", "local" (default: "local")
-	AzureStorageAccountURL   string // Azure Blob Storage account URL
-	AzureStorageContainer    string // Azure Blob Storage container name (default: "bowrain-assets")
-	AzureStorageConnStr      string // Azure connection string (dev/Azurite fallback)
-	BlobStorageLocalDir      string // Local blob storage root directory
+	BlobBackend            string // "azure", "local" (default: "local")
+	AzureStorageAccountURL string // Azure Blob Storage account URL
+	AzureStorageContainer  string // Azure Blob Storage container name (default: "bowrain-assets")
+	AzureStorageConnStr    string // Azure connection string (dev/Azurite fallback)
+	BlobStorageLocalDir    string // Local blob storage root directory
 
 	// External services
 	ServiceBusConnection string // Azure Service Bus connection string for job queue

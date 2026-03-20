@@ -11,11 +11,11 @@ import (
 // AgentToken is a short-lived scoped token used by @bravo to authenticate
 // MCP tool calls on behalf of a user.
 type AgentToken struct {
-	Token          string    // full token: "bwt_bravo_<random>"
-	UserID         string    // user the agent acts on behalf of
-	WorkspaceID    string    // workspace scope
-	ConversationID string    // conversation scope
-	WorkspaceRole  string    // inherited workspace role
+	Token          string // full token: "bwt_bravo_<random>"
+	UserID         string // user the agent acts on behalf of
+	WorkspaceID    string // workspace scope
+	ConversationID string // conversation scope
+	WorkspaceRole  string // inherited workspace role
 	CreatedAt      time.Time
 	ExpiresAt      time.Time
 }

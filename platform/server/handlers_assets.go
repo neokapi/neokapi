@@ -33,15 +33,15 @@ type AssetResponse struct {
 }
 
 type CreateAssetRequest struct {
-	BlobKey          string            `json:"blob_key"`
-	ItemName         string            `json:"item_name"`
-	SourceID         string            `json:"source_id"`
-	MimeType         string            `json:"mime_type"`
-	Filename         string            `json:"filename"`
-	SizeBytes        int64             `json:"size_bytes"`
-	AltText          string            `json:"alt_text"`
-	Properties       map[string]string `json:"properties"`
-	ProcessingHint   string            `json:"processing_hint"`
+	BlobKey        string            `json:"blob_key"`
+	ItemName       string            `json:"item_name"`
+	SourceID       string            `json:"source_id"`
+	MimeType       string            `json:"mime_type"`
+	Filename       string            `json:"filename"`
+	SizeBytes      int64             `json:"size_bytes"`
+	AltText        string            `json:"alt_text"`
+	Properties     map[string]string `json:"properties"`
+	ProcessingHint string            `json:"processing_hint"`
 }
 
 type UploadURLRequest struct {
@@ -69,11 +69,11 @@ type AssetVariantResponse struct {
 }
 
 type CreateVariantRequest struct {
-	Locale    string            `json:"locale"`
-	BlobKey   string            `json:"blob_key"`
-	Status    string            `json:"status"`
-	MimeType  string            `json:"mime_type"`
-	SizeBytes int64             `json:"size_bytes"`
+	Locale     string            `json:"locale"`
+	BlobKey    string            `json:"blob_key"`
+	Status     string            `json:"status"`
+	MimeType   string            `json:"mime_type"`
+	SizeBytes  int64             `json:"size_bytes"`
 	Properties map[string]string `json:"properties"`
 }
 

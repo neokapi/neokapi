@@ -123,7 +123,7 @@ const (
 	prefixDesktopAuth  = "desktop:"
 	prefixDeviceVerify = "deviceverify:"
 	prefixUserCode     = "usercode:" // secondary index: userCode → deviceCode
-	prefixIDToken      = "idtoken:" // OIDC ID token for logout (keyed by user ID)
+	prefixIDToken      = "idtoken:"  // OIDC ID token for logout (keyed by user ID)
 )
 
 // Typed helper functions for storing/retrieving auth states via the SessionStateStore.
