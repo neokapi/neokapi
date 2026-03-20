@@ -103,6 +103,14 @@ type ServerConfig struct {
 	// Set via BOWRAIN_AGENTIC_EVENTS=true.
 	AgenticEvents bool
 
+	// FleetRepoURL is the git clone URL for the agentic testing fleet repo.
+	// Set via BOWRAIN_FLEET_REPO_URL. When set, the agentic testing MCP
+	// server is wired with a real FleetRepo and Dispatcher.
+	FleetRepoURL string
+
+	// FleetRepoToken is a PAT for HTTPS fleet repo access.
+	FleetRepoToken string
+
 	// Billing (AD-030)
 	StripeSecretKey     string
 	StripeWebhookSecret string
