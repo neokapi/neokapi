@@ -142,7 +142,7 @@ export function AppShell<V extends string = string>({
         />
         <SidebarInset>
           <Header headerSlot={headerSlot} />
-          <div className="flex flex-1 min-h-0">
+          <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden">
             {panelData && onSubNavChange && (
               <SecondaryPanel
                 title={panelData.title}
