@@ -68,6 +68,7 @@ type MCPServer struct {
 	connResolver ConnectorResolver
 	sandbox      SandboxExecutor
 	toolReg      *registry.ToolRegistry
+	tracker      EventTracker
 	server       *mcp.Server
 	handler      http.Handler
 	metadata     *oauthex.ProtectedResourceMetadata
@@ -159,6 +160,11 @@ func NewMCPServerWithStore(brandStore corebrand.BrandStore, contentStore store.C
 	}
 	if ms.sandbox != nil {
 		ms.registerSandboxTools()
+	}
+
+	// Install analytics middleware when a tracker is configured.
+	if ms.tracker != nil {
+		s.AddReceivingMiddleware(ms.analyticsMiddleware())
 	}
 
 	// Create Streamable HTTP handler.

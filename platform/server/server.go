@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/credentials"
@@ -163,7 +164,7 @@ type Server struct {
 
 	// PostHogClient captures product analytics events (AD-030).
 	// Nil when POSTHOG_API_KEY is not set.
-	PostHogClient *billing.PostHogClient
+	PostHogClient *analytics.PostHogClient
 
 	// WebhookHandler processes Stripe webhook events (AD-030).
 	// Nil when Stripe is not configured.
@@ -324,6 +325,9 @@ func NewServer(cfg ServerConfig) *Server {
 		if s.ToolRegistry != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
 		}
+		if s.PostHogClient != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithEventTracker(&eventTrackerAdapter{client: s.PostHogClient}))
+		}
 		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
 			log.Printf("WARNING: failed to initialize MCP server: %v", err)
@@ -376,7 +380,7 @@ func NewServer(cfg ServerConfig) *Server {
 		if host == "" {
 			host = "https://us.i.posthog.com"
 		}
-		phClient, err := billing.NewPostHogClient(cfg.PostHogAPIKey, host)
+		phClient, err := analytics.NewPostHogClient(cfg.PostHogAPIKey, host)
 		if err != nil {
 			log.Printf("WARNING: failed to init PostHog client: %v (analytics disabled)", err)
 		} else {
