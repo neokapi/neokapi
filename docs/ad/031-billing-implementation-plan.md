@@ -266,8 +266,8 @@ Wire billing events to the existing mailer/email service:
 
 | Trigger | When | Template |
 |---------|------|----------|
-| Credits at 80% | After DeductCredits when used/total >= 0.8 | Warning + usage breakdown + reset date |
-| Credits exhausted | After DeductCredits when remaining <= 0 | Block notice + upgrade CTA or reset countdown |
+| Credits at 80% | After DeductCredits when used/total &gt;= 0.8 | Warning + usage breakdown + reset date |
+| Credits exhausted | After DeductCredits when remaining &lt;= 0 | Block notice + upgrade CTA or reset countdown |
 | Weekly reset | Monday 00:00 UTC cron job | Last week's usage summary |
 | Payment failed | Webhook: invoice.payment_failed | Grace period notice |
 | Subscription change | Webhook: subscription.updated/deleted | Confirmation with new limits |
