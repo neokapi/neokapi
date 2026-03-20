@@ -60,6 +60,12 @@ type QueueSink struct {
 	sub       *platev.Subscription
 }
 
+// Publisher returns the underlying queue publisher for reuse by other
+// components (e.g., the agentic testing MCP dispatcher).
+func (s *QueueSink) Publisher() QueuePublisher {
+	return s.publisher
+}
+
 // DefaultRoutes returns the standard event-to-queue routing table
 // for agentic testing.
 func DefaultRoutes() []EventRoute {

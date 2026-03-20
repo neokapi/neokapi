@@ -1,0 +1,19 @@
+# ZeroClaw configuration for agentic testing agents.
+# Rendered at runtime by entrypoint.sh (envsubst).
+#
+# Model/provider config is handled by ZEROCLAW_* env vars.
+
+[agent]
+name = "${AGENT_NAME}"
+
+# Bowrain MCP — content management tools (all agents).
+[[mcp.servers]]
+name = "bowrain"
+transport = "http"
+url = "${BRAVO_MCP_ENDPOINT}"
+headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
+tool_timeout_secs = 120
+
+# Agentic Testing MCP — fleet management tools (coordinator only).
+# Empty endpoint = server block is skipped by ZeroClaw.
+${AGENTIC_MCP_BLOCK}

@@ -355,6 +355,20 @@ func NewServer(cfg ServerConfig) *Server {
 		if s.ContentStore != nil {
 			agOpts = append(agOpts, agenticmcp.WithContentStore(s.ContentStore))
 		}
+		if cfg.FleetRepoURL != "" {
+			agOpts = append(agOpts, agenticmcp.WithFleetRepo(&agenticmcp.GitFleetRepo{
+				RepoURL:      cfg.FleetRepoURL,
+				Token:        cfg.FleetRepoToken,
+				CommitAuthor: "coordinator",
+			}))
+			log.Printf("Agentic fleet repo configured: %s", cfg.FleetRepoURL)
+		}
+		// Wire dispatcher using the same queue publisher as the agentic event sink.
+		if s.AgenticQueueSink != nil {
+			agOpts = append(agOpts, agenticmcp.WithDispatcher(
+				agenticmcp.NewQueueDispatcher(s.AgenticQueueSink.Publisher(), ""),
+			))
+		}
 		as, err := agenticmcp.NewServer(agCfg, agOpts...)
 		if err != nil {
 			log.Printf("WARNING: failed to initialize Agentic Testing MCP server: %v", err)
