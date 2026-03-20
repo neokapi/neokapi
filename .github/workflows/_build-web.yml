@@ -13,6 +13,9 @@ jobs:
 
       - name: Build web app
         working-directory: platform/apps/web
+        env:
+          VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
+          VITE_POSTHOG_HOST: https://eu.i.posthog.com
         run: npm run build
 
       - name: Upload web artifacts
