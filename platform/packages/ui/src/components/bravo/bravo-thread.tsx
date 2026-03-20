@@ -191,7 +191,7 @@ const BravoComposer: FC = () => {
           className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[40px] max-h-[160px]"
           rows={1}
         />
-        <ComposerPrimitive.Send className="shrink-0 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+        <ComposerPrimitive.Send className="shrink-0 inline-flex items-center justify-center rounded-lg bg-primary size-[40px] text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
           <svg
             viewBox="0 0 24 24"
             className="size-4"
