@@ -33,8 +33,8 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     ports:
-      - "8025:8025"   # Web UI
-      - "1025:1025"   # SMTP
+      - "8025:8025" # Web UI
+      - "1025:1025" # SMTP
 
   bowrain:
     image: ghcr.io/neokapi/bowrain-server:latest
@@ -71,20 +71,20 @@ Mailpit at `http://localhost:8025`.
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BOWRAIN_PORT` | `8080` | HTTP port to listen on |
-| `BOWRAIN_HOST` | `0.0.0.0` | Address to bind to |
-| `BOWRAIN_STORE` | | Path to SQLite database |
-| `BOWRAIN_DATA_DIR` | | Directory for temporary files |
-| `BOWRAIN_JWT_SECRET` | | JWT signing secret (required for auth) |
-| `BOWRAIN_OIDC_ISSUER_URL` | | OIDC issuer URL (internal, reachable from server) |
-| `BOWRAIN_OIDC_PUBLIC_URL` | | OIDC public URL (browser-facing; defaults to issuer URL) |
-| `BOWRAIN_OIDC_CLIENT_ID` | | OIDC client ID |
-| `BOWRAIN_OIDC_CLIENT_SECRET` | | OIDC client secret |
-| `BOWRAIN_SMTP_HOST` | | SMTP server host:port for transactional emails |
-| `BOWRAIN_SMTP_FROM` | | Sender email address for transactional emails |
-| `BOWRAIN_GRPC_PORT` | `0` | gRPC port (0 to disable) |
+| Variable                     | Default   | Description                                              |
+| ---------------------------- | --------- | -------------------------------------------------------- |
+| `BOWRAIN_PORT`               | `8080`    | HTTP port to listen on                                   |
+| `BOWRAIN_HOST`               | `0.0.0.0` | Address to bind to                                       |
+| `BOWRAIN_STORE`              |           | Path to SQLite database                                  |
+| `BOWRAIN_DATA_DIR`           |           | Directory for temporary files                            |
+| `BOWRAIN_JWT_SECRET`         |           | JWT signing secret (required for auth)                   |
+| `BOWRAIN_OIDC_ISSUER_URL`    |           | OIDC issuer URL (internal, reachable from server)        |
+| `BOWRAIN_OIDC_PUBLIC_URL`    |           | OIDC public URL (browser-facing; defaults to issuer URL) |
+| `BOWRAIN_OIDC_CLIENT_ID`     |           | OIDC client ID                                           |
+| `BOWRAIN_OIDC_CLIENT_SECRET` |           | OIDC client secret                                       |
+| `BOWRAIN_SMTP_HOST`          |           | SMTP server host:port for transactional emails           |
+| `BOWRAIN_SMTP_FROM`          |           | Sender email address for transactional emails            |
+| `BOWRAIN_GRPC_PORT`          | `0`       | gRPC port (0 to disable)                                 |
 
 ## OIDC Provider Setup
 
@@ -139,9 +139,9 @@ or bind mount to persist data across container restarts:
 
 ```yaml
 volumes:
-  - /opt/bowrain/data:/data  # Bind mount
+  - /opt/bowrain/data:/data # Bind mount
   # or
-  - bowrain-data:/data       # Named volume
+  - bowrain-data:/data # Named volume
 ```
 
 ### Reverse Proxy
@@ -172,10 +172,10 @@ When using a reverse proxy, update the OIDC redirect URI and the
 
 ## Docker Image Tags
 
-| Tag | Description |
-|-----|-------------|
-| `latest` | Most recent release |
-| `X.Y.Z` | Specific version (e.g., `0.5.0`) |
+| Tag      | Description                      |
+| -------- | -------------------------------- |
+| `latest` | Most recent release              |
+| `X.Y.Z`  | Specific version (e.g., `0.5.0`) |
 
 Pull a specific version:
 

@@ -23,23 +23,35 @@ interface EntityReviewCardProps {
 /** Map entity type to display color. */
 function entityColor(type: string): string {
   switch (type) {
-    case "person": return "#f85149";
-    case "organization": return "#58a6ff";
-    case "location": return "#3fb950";
-    case "date": return "#d29922";
-    case "product": return "#bc8cff";
-    default: return "#8b949e";
+    case "person":
+      return "#f85149";
+    case "organization":
+      return "#58a6ff";
+    case "location":
+      return "#3fb950";
+    case "date":
+      return "#d29922";
+    case "product":
+      return "#bc8cff";
+    default:
+      return "#8b949e";
   }
 }
 
 function entityLabel(type: string): string {
   switch (type) {
-    case "person": return "Person";
-    case "organization": return "Organization";
-    case "location": return "Location";
-    case "date": return "Date";
-    case "product": return "Product";
-    default: return type;
+    case "person":
+      return "Person";
+    case "organization":
+      return "Organization";
+    case "location":
+      return "Location";
+    case "date":
+      return "Date";
+    case "product":
+      return "Product";
+    default:
+      return type;
   }
 }
 
@@ -72,13 +84,11 @@ export function EntityReviewCard({ item, onApprove, onReject, onSkip }: EntityRe
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
-      { rotate: `${interpolate(translateX.value, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [-15, 0, 15])}deg` },
+      {
+        rotate: `${interpolate(translateX.value, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [-15, 0, 15])}deg`,
+      },
     ],
-    opacity: interpolate(
-      Math.abs(translateX.value),
-      [0, SCREEN_WIDTH * 0.5],
-      [1, 0.5],
-    ),
+    opacity: interpolate(Math.abs(translateX.value), [0, SCREEN_WIDTH * 0.5], [1, 0.5]),
   }));
 
   const approveOpacity = useAnimatedStyle(() => ({
@@ -106,8 +116,15 @@ export function EntityReviewCard({ item, onApprove, onReject, onSkip }: EntityRe
 
         {/* Entity type badge */}
         <View style={styles.header}>
-          <View style={[styles.typeBadge, { backgroundColor: typeColor + "22", borderColor: typeColor }]}>
-            <Text style={[styles.typeBadgeText, { color: typeColor }]}>{entityLabel(entityType)}</Text>
+          <View
+            style={[
+              styles.typeBadge,
+              { backgroundColor: typeColor + "22", borderColor: typeColor },
+            ]}
+          >
+            <Text style={[styles.typeBadgeText, { color: typeColor }]}>
+              {entityLabel(entityType)}
+            </Text>
           </View>
           <Text style={styles.confidence}>{confidence}%</Text>
         </View>
@@ -123,9 +140,7 @@ export function EntityReviewCard({ item, onApprove, onReject, onSkip }: EntityRe
         )}
 
         {/* Definition */}
-        {definition && (
-          <Text style={styles.definition}>{definition}</Text>
-        )}
+        {definition && <Text style={styles.definition}>{definition}</Text>}
 
         {/* Occurrences */}
         {item.occurrences.length > 0 && (

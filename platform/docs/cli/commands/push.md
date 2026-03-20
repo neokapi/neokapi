@@ -36,9 +36,9 @@ bowrain push --force
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--force` | Push all blocks, ignoring sync cache | `false` |
+| Flag        | Description                               | Default |
+| ----------- | ----------------------------------------- | ------- |
+| `--force`   | Push all blocks, ignoring sync cache      | `false` |
 | `--dry-run` | Show what would be pushed without sending | `false` |
 
 ## What Happens

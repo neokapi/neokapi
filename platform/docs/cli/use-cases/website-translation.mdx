@@ -92,7 +92,7 @@ Flows automatically process all files matching your `.bowrain/config.yaml` mappi
 
 For visual review and manual edits, open your project in the Bowrain desktop app or web UI:
 
-<video controls width="100%" style={{maxWidth: '900px'}}>
+<video controls width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/bowrain/dark/end-to-end-translation-workflow.webm" type="video/webm" />
   Your browser does not support the video tag.
 </video>
@@ -109,11 +109,11 @@ bowrain serve
 
 Bowrain offers multiple views for different translation tasks:
 
-| View | Best For |
-|------|----------|
-| **Grid View** | Overview, batch operations |
+| View              | Best For                                          |
+| ----------------- | ------------------------------------------------- |
+| **Grid View**     | Overview, batch operations                        |
 | **Split Preview** | Context-sensitive translation with live rendering |
-| **Focus View** | Distraction-free, segment-by-segment work |
+| **Focus View**    | Distraction-free, segment-by-segment work         |
 
 ### Using Terminology
 
@@ -142,12 +142,12 @@ bowrain pull
 
 The push/pull workflow is similar to git:
 
-| Git | Bowrain CLI |
-|-----|------------|
+| Git          | Bowrain CLI      |
+| ------------ | ---------------- |
 | `git status` | `bowrain status` |
-| `git diff` | `bowrain diff` |
-| `git pull` | `bowrain pull` |
-| `git push` | `bowrain push` |
+| `git diff`   | `bowrain diff`   |
+| `git pull`   | `bowrain pull`   |
+| `git push`   | `bowrain push`   |
 
 Bowrain CLI uses content-addressed blocks for efficient incremental sync — only changed blocks transfer over the network.
 

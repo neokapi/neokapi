@@ -40,16 +40,16 @@ than code, tuning is a writing task, not a programming task. You edit prose, not
 
 ### What to Watch
 
-| Signal | Where to Find It | What It Tells You |
-|--------|-------------------|-------------------|
-| Activity feed | Bowrain dashboard | Are agents doing work? At the right times? |
-| Email threads | Mailpit UI (localhost:8025) | Are agents communicating usefully or spamming? |
-| GitHub Issues | bowrain-l10n/feedback repo | Are bug reports real? Are feature requests reasonable? |
-| Translation quality | QA reports, LLM evaluations | Is quality improving over time? |
-| TM growth | Bowrain TM explorer | Are agents building useful translation memory? |
-| Termbase | Bowrain termbase | Is terminology growing organically? |
-| Agent logs | `docker compose logs {agent}` | Are agents erroring, retrying, or stuck? |
-| Cost dashboard | Azure Cost Management / API billing | Is spend within budget? |
+| Signal              | Where to Find It                    | What It Tells You                                      |
+| ------------------- | ----------------------------------- | ------------------------------------------------------ |
+| Activity feed       | Bowrain dashboard                   | Are agents doing work? At the right times?             |
+| Email threads       | Mailpit UI (localhost:8025)         | Are agents communicating usefully or spamming?         |
+| GitHub Issues       | bowrain-l10n/feedback repo          | Are bug reports real? Are feature requests reasonable? |
+| Translation quality | QA reports, LLM evaluations         | Is quality improving over time?                        |
+| TM growth           | Bowrain TM explorer                 | Are agents building useful translation memory?         |
+| Termbase            | Bowrain termbase                    | Is terminology growing organically?                    |
+| Agent logs          | `docker compose logs {agent}`       | Are agents erroring, retrying, or stuck?               |
+| Cost dashboard      | Azure Cost Management / API billing | Is spend within budget?                                |
 
 ### Daily Check (5 minutes)
 
@@ -155,16 +155,20 @@ Causes:
 When an agent's behavior is too vague, add specificity to SOUL.md:
 
 **Before (vague):**
+
 ```markdown
 ## Daily Routine
+
 1. Check for new content
 2. Translate assigned blocks
 3. Report any issues
 ```
 
 **After (sharp):**
+
 ```markdown
 ## Daily Routine
+
 1. Check `email.listInbox` — reply to any messages first
 2. Check `bowrain.listTasks` (assignee: me, status: open, sort: priority)
    - If no tasks: email PM "No tasks assigned, available for work"
@@ -189,11 +193,13 @@ Personality affects decision patterns. Tune via SOUL.md:
 ## Your Translation Philosophy
 
 # More conservative (for production-quality language pairs):
+
 You are meticulous. You accept AI translations only when they are publication-ready.
 You edit roughly 40% and reject 15%. You always verify against the termbase.
 You add TM entries only for translations you're proud of.
 
 # More aggressive (for rapid-coverage language pairs):
+
 You move fast. Accept AI translations unless they have obvious errors.
 Edit only when meaning is wrong or terms are inconsistent.
 Add TM entries for all accepted translations to build memory quickly.
@@ -207,20 +213,20 @@ When you notice agents don't handle a scenario, add it explicitly:
 ## Situations to Handle
 
 When upstream renames a feature (e.g., "Plugins" → "Extensions"):
-  → Check termbase for the old term
-  → Email Brand Manager: "Upstream renamed '{old}' to '{new}' — should I update translations?"
-  → Wait for Brand Manager response before changing existing translations
-  → New blocks with the new term: translate using the new term immediately
+→ Check termbase for the old term
+→ Email Brand Manager: "Upstream renamed '{old}' to '{new}' — should I update translations?"
+→ Wait for Brand Manager response before changing existing translations
+→ New blocks with the new term: translate using the new term immediately
 
 When you encounter a very long block (>500 words):
-  → Translate in logical segments (paragraph by paragraph)
-  → Pay extra attention to internal consistency
-  → Add a TM entry only for the best segment, not the whole block
+→ Translate in logical segments (paragraph by paragraph)
+→ Pay extra attention to internal consistency
+→ Add a TM entry only for the best segment, not the whole block
 
 When the same source text appears in multiple files:
-  → Translate it once, add to TM
-  → Use TM match for subsequent occurrences
-  → Verify context is the same (same term can mean different things in different files)
+→ Translate it once, add to TM
+→ Use TM match for subsequent occurrences
+→ Verify context is the same (same term can mean different things in different files)
 ```
 
 ### Evolving the Team
@@ -228,6 +234,7 @@ When the same source text appears in multiple files:
 As the system matures, evolve the team structure:
 
 **Adding a specialist:**
+
 ```
 Problem: Japanese translations are slow because Yuki handles both technical and UI content
 Solution: Add a second Japanese translator — Kenji (UI specialist)
@@ -240,6 +247,7 @@ Solution: Add a second Japanese translator — Kenji (UI specialist)
 ```
 
 **Retiring a language:**
+
 ```
 Problem: Portuguese (pt-BR) not needed anymore
 Solution: Stop the translator container
@@ -249,6 +257,7 @@ Solution: Stop the translator container
 ```
 
 **Cross-project transfer:**
+
 ```
 Problem: Gitea needs more attention, Excalidraw is mostly complete
 Solution: Adjust SOUL.md to shift focus
@@ -294,17 +303,17 @@ stabilizes.
 
 ### When to Tune
 
-| Signal | Action |
-|--------|--------|
-| QA pass rate drops below 80% | Tighten translator SOUL.md, add term review step |
-| Agent files >5 issues/week | Raise filing threshold in SOUL.md |
-| Agent files 0 issues/week | Lower threshold or add "proactive testing" routine |
-| TM reuse rate plateaus | Encourage more TM contributions in translator SOUL.md |
-| Brand compliance drops | Brand Manager needs more frequent audit schedule |
-| Email volume > 20/day total | Reduce email triggers, move more to Bowrain tasks |
-| Email volume < 2/day total | Agents aren't coordinating; add more email touchpoints |
-| Translator blocked >24h | PM needs faster turnaround; adjust PM schedule |
-| Cost trending up | Switch simple agents to cheaper model, reduce heartbeat frequency |
+| Signal                       | Action                                                            |
+| ---------------------------- | ----------------------------------------------------------------- |
+| QA pass rate drops below 80% | Tighten translator SOUL.md, add term review step                  |
+| Agent files >5 issues/week   | Raise filing threshold in SOUL.md                                 |
+| Agent files 0 issues/week    | Lower threshold or add "proactive testing" routine                |
+| TM reuse rate plateaus       | Encourage more TM contributions in translator SOUL.md             |
+| Brand compliance drops       | Brand Manager needs more frequent audit schedule                  |
+| Email volume > 20/day total  | Reduce email triggers, move more to Bowrain tasks                 |
+| Email volume < 2/day total   | Agents aren't coordinating; add more email touchpoints            |
+| Translator blocked >24h      | PM needs faster turnaround; adjust PM schedule                    |
+| Cost trending up             | Switch simple agents to cheaper model, reduce heartbeat frequency |
 
 ### A/B Testing Personas
 
@@ -358,23 +367,27 @@ shared behavior and project-specific sections:
 
 ```markdown
 ## General Translation Guidelines
+
 (same for all projects — accuracy, fluency, terminology, formatting)
 
 ## Project-Specific Notes
 
 ### Docusaurus
+
 - Heavy use of MDX — preserve JSX interpolation
 - Audience: developers reading documentation
 - Tone: technical but approachable
 - Key terms: "sidebar", "plugin", "preset", "deployment"
 
 ### Gitea
+
 - INI format — watch for escaped characters and line continuations
 - Audience: sysadmins and developers
 - Tone: neutral, professional
 - Key terms: "repository", "pull request", "issue", "milestone"
 
 ### Home Assistant
+
 - Deeply nested JSON — maintain structural hierarchy
 - Audience: home automation enthusiasts (not all technical)
 - Tone: friendly, helpful, accessible

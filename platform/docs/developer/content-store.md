@@ -67,11 +67,11 @@ defer store.Close()
 
 The SQLite backend uses four tables:
 
-| Table | Purpose |
-|-------|---------|
-| `projects` | Project metadata and locale configuration |
-| `blocks` | Block content with content-addressable hashes |
-| `versions` | Named version snapshots |
+| Table            | Purpose                                       |
+| ---------------- | --------------------------------------------- |
+| `projects`       | Project metadata and locale configuration     |
+| `blocks`         | Block content with content-addressable hashes |
+| `versions`       | Named version snapshots                       |
 | `version_blocks` | Block-to-version mapping for diff computation |
 
 ## Block Identity
@@ -85,6 +85,7 @@ identity := model.ComputeIdentity(block)
 ```
 
 This enables:
+
 - **Deduplication**: Identical source text shares the same content hash
 - **Change detection**: Version diffs compare content hashes instead of full text
 - **Cache invalidation**: Translations can be cached by content hash

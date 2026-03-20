@@ -12,6 +12,7 @@ Quality translations start with quality source content. Bowrain CLI provides too
 Issues in source content compound through translation. A misspelled term, an inconsistent placeholder format, or a missing sentence boundary in the source will produce the same problem across every target language. Fixing one source issue prevents N target-language issues.
 
 Common source problems:
+
 - **Inconsistent terminology** — the same concept called different things in different files
 - **Placeholder errors** — mismatched or malformed variables (e.g., `%s` vs `%d` mismatch)
 - **Whitespace issues** — trailing spaces, mixed line endings, zero-width characters
@@ -37,15 +38,15 @@ bowrain flow run xml-validation -i src/locales/en/
 
 The `qa-check` tool validates:
 
-| Rule | What It Checks |
-|------|---------------|
-| `whitespace` | Leading/trailing whitespace, double spaces, mixed line endings |
-| `punctuation` | Missing or mismatched sentence-ending punctuation |
-| `placeholders` | Placeholder format consistency and completeness |
-| `terminology` | Required terms present and correctly used |
-| `length` | String length within configured limits |
-| `patterns` | Custom regex patterns (e.g., brand name capitalization) |
-| `characters` | Invalid or unexpected Unicode characters |
+| Rule           | What It Checks                                                 |
+| -------------- | -------------------------------------------------------------- |
+| `whitespace`   | Leading/trailing whitespace, double spaces, mixed line endings |
+| `punctuation`  | Missing or mismatched sentence-ending punctuation              |
+| `placeholders` | Placeholder format consistency and completeness                |
+| `terminology`  | Required terms present and correctly used                      |
+| `length`       | String length within configured limits                         |
+| `patterns`     | Custom regex patterns (e.g., brand name capitalization)        |
+| `characters`   | Invalid or unexpected Unicode characters                       |
 
 ## Example Flows for Source Prep
 

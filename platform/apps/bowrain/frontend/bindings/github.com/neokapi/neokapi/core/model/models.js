@@ -12,20 +12,20 @@ import { Create as $Create } from "@wailsio/runtime";
  * @enum {string}
  */
 export const LocaleID = {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero: "",
+  /**
+   * The Go zero value for the underlying type of the enum.
+   */
+  $zero: "",
 
-    LocaleEnglish: "en",
-    LocaleFrench: "fr",
-    LocaleGerman: "de",
-    LocaleJapanese: "ja",
-    LocaleSpanish: "es",
-    LocaleChinese: "zh",
-    LocalePortuguese: "pt",
-    LocaleItalian: "it",
-    LocaleKorean: "ko",
-    LocaleRussian: "ru",
-    LocaleArabic: "ar",
+  LocaleEnglish: "en",
+  LocaleFrench: "fr",
+  LocaleGerman: "de",
+  LocaleJapanese: "ja",
+  LocaleSpanish: "es",
+  LocaleChinese: "zh",
+  LocalePortuguese: "pt",
+  LocaleItalian: "it",
+  LocaleKorean: "ko",
+  LocaleRussian: "ru",
+  LocaleArabic: "ar",
 };

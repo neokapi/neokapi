@@ -32,6 +32,7 @@ QA:        -              -              -              run checks
 ```
 
 **Pacing controls:**
+
 - `agent_work_window`: Hours per day an agent is "active" (default: 4-6h)
 - `session_duration`: How long a single work session lasts (default: 30-90min)
 - `blocks_per_session`: Throughput per session (varies by persona)
@@ -50,6 +51,7 @@ All:       full workflow   full workflow  full workflow   full workflow
 ```
 
 **Pacing controls:**
+
 - `release_interval`: Time between processing releases (default: 2h)
 - `max_releases_per_day`: Cap to prevent runaway (default: 6)
 - `wait_for_completion`: Block until all agents finish before next release (default: true)
@@ -121,15 +123,15 @@ Schedules live in each agent's `config.toml`:
 The simplest coordination model: agents discover events by polling Bowrain's activity
 feed on their heartbeat cycle. No external dependencies beyond Bowrain itself.
 
-| What the PM sees in activity feed | What PM does |
-|----------------------------------|--------------|
-| "Alex Chen pushed 142 blocks" | Creates translation tasks |
-| "Jean-Pierre translated 28 blocks" | Updates progress tracking |
-| "Taylor Kim: QA passed for fr-FR" | Marks language as complete |
+| What the PM sees in activity feed  | What PM does               |
+| ---------------------------------- | -------------------------- |
+| "Alex Chen pushed 142 blocks"      | Creates translation tasks  |
+| "Jean-Pierre translated 28 blocks" | Updates progress tracking  |
+| "Taylor Kim: QA passed for fr-FR"  | Marks language as complete |
 
-| What the Translator sees | What Translator does |
-|--------------------------|---------------------|
-| "Lisa Chen created task: Translate docs (fr-FR)" | Starts translating |
+| What the Translator sees                                   | What Translator does         |
+| ---------------------------------------------------------- | ---------------------------- |
+| "Lisa Chen created task: Translate docs (fr-FR)"           | Starts translating           |
 | "Maria Santos updated termbase: 'deploy' is now preferred" | Checks affected translations |
 
 This is more realistic than event-driven triggers — humans check dashboards, not webhooks.
@@ -199,14 +201,15 @@ Bowrain Server Process
 
 **Event routing rules** (configured, not hardcoded):
 
-| ChannelEventBus Event | Redis Channel (local) | Service Bus Queue (Azure) |
-|----------------------|----------------------|--------------------------|
-| `ContentPushed` | `agentic:content-pushed` | `content-pushed` |
-| `TasksCreated` | `agentic:tasks-created-{locale}` | `tasks-created-{locale}` |
-| `TranslationComplete` | `agentic:translation-complete` | `translation-complete` |
-| `QAPassed` | `agentic:qa-passed` | `qa-passed` |
+| ChannelEventBus Event | Redis Channel (local)            | Service Bus Queue (Azure) |
+| --------------------- | -------------------------------- | ------------------------- |
+| `ContentPushed`       | `agentic:content-pushed`         | `content-pushed`          |
+| `TasksCreated`        | `agentic:tasks-created-{locale}` | `tasks-created-{locale}`  |
+| `TranslationComplete` | `agentic:translation-complete`   | `translation-complete`    |
+| `QAPassed`            | `agentic:qa-passed`              | `qa-passed`               |
 
 The adapter backend is selected by environment variable:
+
 - `BOWRAIN_AGENT_RUNTIME=local` → Redis pub/sub (default for docker-compose)
 - `BOWRAIN_AGENT_RUNTIME=queue` → Service Bus (Azure deployments)
 
@@ -215,11 +218,11 @@ API and worker in the same process or as separate processes connected via Servic
 
 **When to use which:**
 
-| Environment | Scheduling | Coordination | Latency | Notes |
-|-------------|-----------|--------------|---------|-------|
-| Local (simple) | ZeroClaw daemon cron | Poll activity feed (heartbeat) | 1-2 hours | No Redis needed |
-| Local (instant) | ZeroClaw daemon cron | Redis pub/sub (agentic:* channels) | Seconds | Same Redis as Bravo SSE |
-| Azure (Container Apps) | Azure scheduled jobs | Event-driven (Service Bus + KEDA) | Seconds | Same Service Bus as bravo-jobs |
+| Environment            | Scheduling           | Coordination                        | Latency   | Notes                          |
+| ---------------------- | -------------------- | ----------------------------------- | --------- | ------------------------------ |
+| Local (simple)         | ZeroClaw daemon cron | Poll activity feed (heartbeat)      | 1-2 hours | No Redis needed                |
+| Local (instant)        | ZeroClaw daemon cron | Redis pub/sub (agentic:\* channels) | Seconds   | Same Redis as Bravo SSE        |
+| Azure (Container Apps) | Azure scheduled jobs | Event-driven (Service Bus + KEDA)   | Seconds   | Same Service Bus as bravo-jobs |
 
 ## Failure Handling
 
@@ -228,21 +231,21 @@ API and worker in the same process or as separate processes connected via Servic
 ```yaml
 retry:
   max_attempts: 3
-  backoff: exponential     # 5min, 15min, 45min
-  on_failure: pause_agent  # Don't retry indefinitely
-  alert_after: 2           # Alert after 2 failures
+  backoff: exponential # 5min, 15min, 45min
+  on_failure: pause_agent # Don't retry indefinitely
+  alert_after: 2 # Alert after 2 failures
 ```
 
 ### Common Failure Scenarios
 
-| Failure | Detection | Recovery |
-|---------|-----------|----------|
-| Server unreachable | MCP tool returns error | ZeroClaw retries; agent skips task if persistent |
-| Auth token expired | 401 from MCP | MCP server refreshes token automatically |
-| Push conflict | 409 from MCP | Agent pulls latest, resolves, retries |
-| AI provider down | LLM timeout | ZeroClaw falls back per config; agent skips session |
-| Agent container crash | Docker restart policy | `restart: unless-stopped` auto-recovers |
-| Rate limit | 429 from MCP | Agent respects Retry-After; next heartbeat retries |
+| Failure               | Detection              | Recovery                                            |
+| --------------------- | ---------------------- | --------------------------------------------------- |
+| Server unreachable    | MCP tool returns error | ZeroClaw retries; agent skips task if persistent    |
+| Auth token expired    | 401 from MCP           | MCP server refreshes token automatically            |
+| Push conflict         | 409 from MCP           | Agent pulls latest, resolves, retries               |
+| AI provider down      | LLM timeout            | ZeroClaw falls back per config; agent skips session |
+| Agent container crash | Docker restart policy  | `restart: unless-stopped` auto-recovers             |
+| Rate limit            | 429 from MCP           | Agent respects Retry-After; next heartbeat retries  |
 
 ### Container Restart Policy
 
@@ -281,11 +284,13 @@ The release-walker is optional — only started with `docker compose --profile a
 For demo authenticity, optionally backdate activity:
 
 **Option A: Natural timestamps (recommended)**
+
 - Activity happens at real wall-clock time
 - Accelerated mode compresses days into hours, but timestamps are real
 - Simplest, no platform modifications needed
 
 **Option B: Simulated timestamps (advanced)**
+
 - Orchestrator passes `simulated_time` to agents
 - Agents include timestamp in API calls (requires server-side support)
 - Activity feed shows "historical" dates

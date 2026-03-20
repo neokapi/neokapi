@@ -26,12 +26,12 @@ is created within the active workspace.
 
 Each workspace member has a role that determines their permissions:
 
-| Role | Description | Permissions |
-|------|-------------|-------------|
-| **Owner** | Workspace creator | Full control, delete workspace, manage billing |
-| **Admin** | Workspace administrator | Manage members, settings, all projects |
-| **Member** | Regular team member | Create/edit projects, pull/push content |
-| **Viewer** | Read-only access | View projects and translations |
+| Role       | Description             | Permissions                                    |
+| ---------- | ----------------------- | ---------------------------------------------- |
+| **Owner**  | Workspace creator       | Full control, delete workspace, manage billing |
+| **Admin**  | Workspace administrator | Manage members, settings, all projects         |
+| **Member** | Regular team member     | Create/edit projects, pull/push content        |
+| **Viewer** | Read-only access        | View projects and translations                 |
 
 ### Personal Workspace
 

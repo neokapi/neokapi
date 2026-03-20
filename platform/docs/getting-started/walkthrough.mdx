@@ -73,7 +73,7 @@ The init command prints two important things — save them both:
   to take ownership of the project
 - **Project ID** — stored in `.bowrain/config.yaml`
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/bowrain-cli/walkthrough-init.webm" type="video/webm" />
 </video>
 
@@ -150,6 +150,7 @@ path, and `target_path` uses `\{locale\}` to write translations to the right
 directory (e.g., `i18n/nb/code.json` for Norwegian).
 
 **`automations`** define hooks that run at specific lifecycle points:
+
 - **`pre-push`** runs before content is uploaded — use for QA gates that block
   broken content from reaching the server
 - **`post-push`** runs after upload — use to wait for AI translation and pull
@@ -191,7 +192,7 @@ The result:
 Any hardcoded strings, truncation, or encoding issues become immediately visible
 against the accented text. Preview with `npm run build -- --locale qps`.
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/bowrain-cli/walkthrough-pseudo.webm" type="video/webm" />
 </video>
 
@@ -246,7 +247,7 @@ $ head -10 i18n/nb/code.json
 }
 ```
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/bowrain-cli/walkthrough-sync.webm" type="video/webm" />
 </video>
 
@@ -270,7 +271,7 @@ Open the claim URL from Step 1 in your browser:
 2. The project appears in your workspace dashboard
 3. The claim token is automatically removed from `.bowrain/config.yaml`
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/web-app/dark/login-and-workspace.webm" type="video/webm" />
 </video>
 
@@ -309,7 +310,7 @@ The translator receives an email with an invitation link. After accepting, they
 can work on translations in the **Translation Editor** — with inline TM
 suggestions, terminology lookup, and AI-assisted drafts.
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/web-app/dark/invite-workflow.webm" type="video/webm" />
 </video>
 
@@ -332,24 +333,24 @@ waits.
 
 Create rules that respond to events:
 
-| Event | Description |
-|-------|-------------|
-| `content.pushed` | New source content was uploaded |
-| `translation.completed` | A locale reached 100% translation |
-| `translation.reviewed` | All translations in a locale are reviewed |
+| Event                   | Description                               |
+| ----------------------- | ----------------------------------------- |
+| `content.pushed`        | New source content was uploaded           |
+| `translation.completed` | A locale reached 100% translation         |
+| `translation.reviewed`  | All translations in a locale are reviewed |
 
 Each rule triggers one or more actions:
 
-| Action | Description |
-|--------|-------------|
-| `ai-translate` | Translate using AI/LLM |
-| `run-flow` | Execute a named flow (QA, formatting) |
-| `notify` | Send notification (email, webhook, Slack) |
-| `export` | Export to a connector (Git, S3) |
+| Action         | Description                               |
+| -------------- | ----------------------------------------- |
+| `ai-translate` | Translate using AI/LLM                    |
+| `run-flow`     | Execute a named flow (QA, formatting)     |
+| `notify`       | Send notification (email, webhook, Slack) |
+| `export`       | Export to a connector (Git, S3)           |
 
 Example: translate on push, then notify Slack when all locales are done.
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/bowrain-cli/walkthrough-automation.webm" type="video/webm" />
 </video>
 
@@ -361,6 +362,7 @@ The final piece: run `bowrain sync` in CI so translations stay up to date
 whenever source content changes.
 
 Two actions work together:
+
 - [`neokapi/setup-bowrain`](https://github.com/neokapi/setup-bowrain) — installs the Bowrain CLI
 - [`neokapi/bowrain-action`](https://github.com/neokapi/bowrain-action) — runs sync and commits translations
 
@@ -371,7 +373,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['i18n/en/**', 'docs/**', 'blog/**']
+    paths: ["i18n/en/**", "docs/**", "blog/**"]
 
 permissions:
   contents: write
@@ -406,7 +408,7 @@ Developer pushes code
         → Translated files committed back to repo
 ```
 
-<video controls autoPlay loop muted width="100%" style={{maxWidth: '900px'}}>
+<video controls autoPlay loop muted width="100%" style={{ maxWidth: "900px" }}>
   <source src="/video/bowrain-cli/walkthrough-gh-actions.webm" type="video/webm" />
 </video>
 
@@ -469,15 +471,15 @@ pulled back — all automatically.
 
 ## Summary
 
-| Step | What | How |
-|------|------|-----|
-| 1. Initialize | Create Bowrain project | `bowrain init --anonymous` |
-| 2. Configure | File mappings + automation rules | `.bowrain/config.yaml` |
-| 3. Pseudo-translate | Validate i18n setup | `bowrain flow run pseudo-translate` |
-| 4. Sync | Push, translate, pull in one step | `bowrain sync --timeout 2m` |
-| 5. Claim + token | Own the project, create CI token | Claim URL + `bowrain auth token create` |
-| 6. Server automation | Auto-translate on push | Server-side automation rules |
-| 7. CI/CD | Continuous translation | `setup-bowrain` + `bowrain-action` |
+| Step                 | What                              | How                                     |
+| -------------------- | --------------------------------- | --------------------------------------- |
+| 1. Initialize        | Create Bowrain project            | `bowrain init --anonymous`              |
+| 2. Configure         | File mappings + automation rules  | `.bowrain/config.yaml`                  |
+| 3. Pseudo-translate  | Validate i18n setup               | `bowrain flow run pseudo-translate`     |
+| 4. Sync              | Push, translate, pull in one step | `bowrain sync --timeout 2m`             |
+| 5. Claim + token     | Own the project, create CI token  | Claim URL + `bowrain auth token create` |
+| 6. Server automation | Auto-translate on push            | Server-side automation rules            |
+| 7. CI/CD             | Continuous translation            | `setup-bowrain` + `bowrain-action`      |
 
 ## What's Next
 

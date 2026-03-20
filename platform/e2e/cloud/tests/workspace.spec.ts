@@ -24,9 +24,9 @@ test.describe("Workspace CRUD", () => {
   test("workspace appears in the UI", async ({ authenticatedPage }) => {
     await authenticatedPage.goto(`/${slug}`);
     await expect(
-      authenticatedPage.getByText("E2E Test Workspace").or(
-        authenticatedPage.getByTestId("nav-translate"),
-      ),
+      authenticatedPage
+        .getByText("E2E Test Workspace")
+        .or(authenticatedPage.getByTestId("nav-translate")),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

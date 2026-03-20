@@ -35,23 +35,23 @@ automations:
 
 ### Local Trigger Types
 
-| Trigger | Fires When |
-|---------|-----------|
-| `pre-push` | Before `bowrain push` sends blocks to the server |
-| `post-push` | After `bowrain push` completes successfully |
-| `pre-pull` | Before `bowrain pull` fetches blocks from the server |
-| `post-pull` | After `bowrain pull` writes files locally |
-| `pre-flow` | Before `bowrain flow run` executes a flow |
-| `post-flow` | After `bowrain flow run` completes |
+| Trigger     | Fires When                                           |
+| ----------- | ---------------------------------------------------- |
+| `pre-push`  | Before `bowrain push` sends blocks to the server     |
+| `post-push` | After `bowrain push` completes successfully          |
+| `pre-pull`  | Before `bowrain pull` fetches blocks from the server |
+| `post-pull` | After `bowrain pull` writes files locally            |
+| `pre-flow`  | Before `bowrain flow run` executes a flow            |
+| `post-flow` | After `bowrain flow run` completes                   |
 
 ### Local Action Types
 
-| Action | Description |
-|--------|-------------|
-| `run_flow` | Execute a flow by name (from `.bowrain/flows/` or built-in) |
+| Action           | Description                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| `run_flow`       | Execute a flow by name (from `.bowrain/flows/` or built-in)               |
 | `wait_translate` | Wait for server-side translations to complete (with configurable timeout) |
-| `pull` | Pull translated content from the server |
-| `push` | Push local content to the server |
+| `pull`           | Pull translated content from the server                                   |
+| `push`           | Push local content to the server                                          |
 
 ### Example: QA Gate Before Push
 
@@ -95,23 +95,23 @@ Server-side automations are event-driven rules that run on Bowrain Server. They 
 
 The server emits events for all major operations:
 
-| Event | Description |
-|-------|-------------|
+| Event                      | Description                                          |
+| -------------------------- | ---------------------------------------------------- |
 | `connector.push.completed` | Content pushed to the server (from CLI or connector) |
-| `connector.pull.completed` | Content pulled from an external source |
-| `connector.sync.completed` | Bidirectional sync completed |
-| `project.created` | New project created |
-| `project.updated` | Project configuration changed |
-| `project.deleted` | Project deleted |
-| `block.created` | New translatable block added |
-| `block.updated` | Existing block content changed |
-| `block.deleted` | Block removed |
-| `version.created` | New content version created |
-| `flow.started` | Flow execution began |
-| `flow.completed` | Flow execution finished successfully |
-| `flow.failed` | Flow execution failed |
-| `quality.gate.pass` | Quality gate evaluation passed |
-| `quality.gate.fail` | Quality gate evaluation failed |
+| `connector.pull.completed` | Content pulled from an external source               |
+| `connector.sync.completed` | Bidirectional sync completed                         |
+| `project.created`          | New project created                                  |
+| `project.updated`          | Project configuration changed                        |
+| `project.deleted`          | Project deleted                                      |
+| `block.created`            | New translatable block added                         |
+| `block.updated`            | Existing block content changed                       |
+| `block.deleted`            | Block removed                                        |
+| `version.created`          | New content version created                          |
+| `flow.started`             | Flow execution began                                 |
+| `flow.completed`           | Flow execution finished successfully                 |
+| `flow.failed`              | Flow execution failed                                |
+| `quality.gate.pass`        | Quality gate evaluation passed                       |
+| `quality.gate.fail`        | Quality gate evaluation failed                       |
 
 ### Creating Rules via Web UI
 
@@ -166,11 +166,11 @@ curl -X DELETE https://bowrain.example.com/api/v1/automations/:id \
 
 Conditions filter which events trigger the rule:
 
-| Operator | Description |
-|----------|-------------|
-| `equals` | Exact match on event field value |
+| Operator   | Description                          |
+| ---------- | ------------------------------------ |
+| `equals`   | Exact match on event field value     |
 | `contains` | Substring match on event field value |
-| `exists` | Field is present in event data |
+| `exists`   | Field is present in event data       |
 
 Multiple conditions are combined with AND logic — all must match for the rule to fire.
 
@@ -202,14 +202,15 @@ Configure quality gates in the web UI or via API:
 
 ### Gate Types
 
-| Type | Behavior |
-|------|----------|
-| **Blocking** | The operation is prevented if the gate fails. Emits `quality.gate.fail`. |
+| Type         | Behavior                                                                                 |
+| ------------ | ---------------------------------------------------------------------------------------- |
+| **Blocking** | The operation is prevented if the gate fails. Emits `quality.gate.fail`.                 |
 | **Advisory** | A warning is logged but the operation proceeds. Emits `quality.gate.pass` with warnings. |
 
 ### Gate Events
 
 Quality gates emit events that other automations can react to:
+
 - `quality.gate.pass` — all checks passed (or advisory warnings only)
 - `quality.gate.fail` — a blocking gate failed
 
@@ -243,6 +244,7 @@ Verify the signature by computing `HMAC-SHA256(secret, request_body)` and compar
 ### Delivery
 
 Webhooks use retry with exponential backoff:
+
 - Up to 3 delivery attempts
 - Backoff: 1s, 5s, 25s
 - Delivery status is visible in the web UI under **Project Settings > Webhooks > Delivery History**

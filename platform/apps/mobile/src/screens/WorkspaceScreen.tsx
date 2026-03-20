@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { useAuth } from "../auth/AuthContext";
 import type { Workspace } from "../api/client";
 
@@ -14,7 +21,8 @@ export function WorkspaceScreen({ onSelect }: WorkspaceScreenProps) {
 
   useEffect(() => {
     if (!api) return;
-    api.get<Workspace[]>("/api/v1/workspaces")
+    api
+      .get<Workspace[]>("/api/v1/workspaces")
       .then(setWorkspaces)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -37,12 +45,12 @@ export function WorkspaceScreen({ onSelect }: WorkspaceScreenProps) {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.card} onPress={() => onSelect(item)}>
             <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardSub}>{item.slug} · {item.role}</Text>
+            <Text style={styles.cardSub}>
+              {item.slug} · {item.role}
+            </Text>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No workspaces found</Text>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>No workspaces found</Text>}
       />
     </View>
   );

@@ -38,10 +38,10 @@ bowrain pull --force
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--locale` | Target locales to pull (repeatable) | all |
-| `--force` | Pull from beginning, ignoring sync cursor | `false` |
+| Flag        | Description                                      | Default |
+| ----------- | ------------------------------------------------ | ------- |
+| `--locale`  | Target locales to pull (repeatable)              | all     |
+| `--force`   | Pull from beginning, ignoring sync cursor        | `false` |
 | `--dry-run` | Show what would be pulled without changing files | `false` |
 
 ## What Happens

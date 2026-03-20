@@ -19,10 +19,7 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
       SSE relay (`bravo:sse:{conversationID}` channels). No new infrastructure needed
       for agentic event handoffs — they use `agentic:*` channels on the same instance.
 - [ ] **MCP tool coverage check:** Verify the 24 existing Bravo MCP tools cover the
-      agentic testing workflows. Key tools to validate:
-      - `connector_pull` / `connector_push` — can these sync git-based content?
-      - `update_block` — can this submit per-block translations?
-      - `run_flow` — does an AI translation flow exist (not just pseudo-translate)?
+      agentic testing workflows. Key tools to validate: - `connector_pull` / `connector_push` — can these sync git-based content? - `update_block` — can this submit per-block translations? - `run_flow` — does an AI translation flow exist (not just pseudo-translate)?
       File tickets for any gaps.
 
 ### Deliverables
@@ -69,12 +66,12 @@ focuses on **connecting ZeroClaw agents to it** and proving the agentic testing 
 
 ### Agent Capabilities at This Phase
 
-| Agent | ZeroClaw Container | Bravo MCP Tools Used |
-|-------|-------------------|----------------------|
-| Developer | alex-developer | connector_pull/push, create_version, list_streams, execute_script (git) |
-| Brand Manager | maria-brand | term_add, term_search, check_vocabulary, list_profiles, get_voice_guide |
-| Translator (fr) | jeanpierre-fr | list_blocks, get_block, update_block, tm_search, run_flow |
-| Translator (de) | katrin-de | list_blocks, get_block, update_block, tm_search, run_flow |
+| Agent           | ZeroClaw Container | Bravo MCP Tools Used                                                    |
+| --------------- | ------------------ | ----------------------------------------------------------------------- |
+| Developer       | alex-developer     | connector_pull/push, create_version, list_streams, execute_script (git) |
+| Brand Manager   | maria-brand        | term_add, term_search, check_vocabulary, list_profiles, get_voice_guide |
+| Translator (fr) | jeanpierre-fr      | list_blocks, get_block, update_block, tm_search, run_flow               |
+| Translator (de) | katrin-de          | list_blocks, get_block, update_block, tm_search, run_flow               |
 
 ### Success Criteria
 
@@ -255,11 +252,11 @@ Result: Dashboard shows 6+ months of "activity" with authentic metrics
 
 ### Compute
 
-| Phase | Infra | Estimated Cost |
-|-------|-------|---------------|
-| 0-2 | Local machine (docker compose) | $0 |
-| 3-4 | Local + cloud VM for Bowrain | ~$50/mo |
-| 5+ | Cloud VM (4 CPU, 8GB RAM — ample for 20 ZeroClaw containers + Bowrain) | ~$100/mo |
+| Phase | Infra                                                                  | Estimated Cost |
+| ----- | ---------------------------------------------------------------------- | -------------- |
+| 0-2   | Local machine (docker compose)                                         | $0             |
+| 3-4   | Local + cloud VM for Bowrain                                           | ~$50/mo        |
+| 5+    | Cloud VM (4 CPU, 8GB RAM — ample for 20 ZeroClaw containers + Bowrain) | ~$100/mo       |
 
 ### AI Spend
 
@@ -269,14 +266,14 @@ add TM). At 30 blocks/session, that's 120-210 LLM calls. Developer/PM/QA session
 lighter (10-30 calls). Azure GPT-4o-mini is ~$0.15/1M input tokens; Azure Claude
 Sonnet is ~$3/1M input tokens. Same costs locally and in Azure (API key auth).
 
-| Phase | Agents | Sessions/Day | Est. Daily Cost |
-|-------|--------|-------------|-----------------|
-| 0 | 1 | 2 | ~$0.50 |
-| 1 | 4 | 8 | ~$2-4 |
-| 2 | 8 | 16 | ~$4-8 |
-| 3 | 20 | 40 | ~$8-15 |
-| 4 (accel) | 20 | 100+ | ~$40-80 |
-| 5+ | 20 | 40 | ~$15-30 |
+| Phase     | Agents | Sessions/Day | Est. Daily Cost |
+| --------- | ------ | ------------ | --------------- |
+| 0         | 1      | 2            | ~$0.50          |
+| 1         | 4      | 8            | ~$2-4           |
+| 2         | 8      | 16           | ~$4-8           |
+| 3         | 20     | 40           | ~$8-15          |
+| 4 (accel) | 20     | 100+         | ~$40-80         |
+| 5+        | 20     | 40           | ~$15-30         |
 
 Same Azure AI costs locally and in Azure (API key auth). Real cost depends on block
 length and model choice. GPT-4o-mini for simple agents keeps costs low; Claude Sonnet
@@ -284,15 +281,15 @@ for translation review is the main expense. Monitor actual spend from Phase 1 an
 
 ### Human Time
 
-| Phase | Effort | Focus |
-|-------|--------|-------|
-| 0 | 1 week | Validate ZeroClaw + Bravo MCP, first agent workspace, smoke test |
-| 1 | 1-2 weeks | Multi-agent docker-compose, 5 new MCP tools (github + email) |
-| 2 | 1-2 weeks | Full team SOUL.md files, heartbeat tuning, Keycloak user automation |
-| 3 | 2 weeks | Scale testing, quality benchmarking, SOUL.md refinement |
-| 4 | 1-2 weeks | Azure deployment, release walker, accelerated mode |
-| 5 | 2-3 weeks | Dashboard, demo site, polish |
-| 6+ | Ongoing | Expansion, new personas and projects |
+| Phase | Effort    | Focus                                                               |
+| ----- | --------- | ------------------------------------------------------------------- |
+| 0     | 1 week    | Validate ZeroClaw + Bravo MCP, first agent workspace, smoke test    |
+| 1     | 1-2 weeks | Multi-agent docker-compose, 5 new MCP tools (github + email)        |
+| 2     | 1-2 weeks | Full team SOUL.md files, heartbeat tuning, Keycloak user automation |
+| 3     | 2 weeks   | Scale testing, quality benchmarking, SOUL.md refinement             |
+| 4     | 1-2 weeks | Azure deployment, release walker, accelerated mode                  |
+| 5     | 2-3 weeks | Dashboard, demo site, polish                                        |
+| 6+    | Ongoing   | Expansion, new personas and projects                                |
 
 Note: Phase 0 is dramatically faster because the Bravo MCP server (PR #43) already
 provides 24 tools. The main Phase 0 work is validating ZeroClaw daemon mode and writing
@@ -303,17 +300,17 @@ by ~2 weeks compared to the pre-Bravo plan.
 
 ## Risk Mitigation
 
-| Risk | Mitigation |
-|------|-----------|
-| AI costs spiral | Daily budget caps, cost-per-session limits, GPT-4o-mini for simple agents |
-| Agents get stuck in loops | Circuit breaker after 3 failures, session timeouts |
-| Bowrain server instability | Health checks, graceful degradation, retry with backoff |
-| Upstream repo changes break fork | Automated merge conflict detection, manual resolution queue |
-| Translation quality too low | Increase human-eval frequency, tighten brand/term enforcement |
-| System complexity overwhelming | Phase gates — each phase must be stable before proceeding |
-| Auth token management | Token refresh automation, long-lived API tokens as fallback |
-| ZeroClaw daemon instability (local) | 48h smoke test in Phase 0; Azure uses Jobs (no daemon) |
+| Risk                                 | Mitigation                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| AI costs spiral                      | Daily budget caps, cost-per-session limits, GPT-4o-mini for simple agents |
+| Agents get stuck in loops            | Circuit breaker after 3 failures, session timeouts                        |
+| Bowrain server instability           | Health checks, graceful degradation, retry with backoff                   |
+| Upstream repo changes break fork     | Automated merge conflict detection, manual resolution queue               |
+| Translation quality too low          | Increase human-eval frequency, tighten brand/term enforcement             |
+| System complexity overwhelming       | Phase gates — each phase must be stable before proceeding                 |
+| Auth token management                | Token refresh automation, long-lived API tokens as fallback               |
+| ZeroClaw daemon instability (local)  | 48h smoke test in Phase 0; Azure uses Jobs (no daemon)                    |
 | Bowrain API gaps (missing endpoints) | REST API audit in Phase 0 prerequisites; file tickets before building MCP |
-| MCP transport version mismatch | Pin ZeroClaw + MCP SDK versions; validate Streamable HTTP in smoke test |
-| Azure API key rotation | Store keys in Key Vault; rotate via infra automation |
-| Home Assistant volume too large | Scoped to core UI subset (~2000 keys); expand only if throughput allows |
+| MCP transport version mismatch       | Pin ZeroClaw + MCP SDK versions; validate Streamable HTTP in smoke test   |
+| Azure API key rotation               | Store keys in Key Vault; rotate via infra automation                      |
+| Home Assistant volume too large      | Scoped to core UI subset (~2000 keys); expand only if throughput allows   |

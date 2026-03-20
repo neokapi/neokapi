@@ -47,12 +47,12 @@ bowrain diff --format unified
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--format` | Output format: `unified`, `json`, `table` | `unified` |
-| `--status` | Filter by change status: `added`, `removed`, `modified` | (all) |
-| `--context` | Lines of context in unified diff | `3` |
-| `--no-color` | Disable colored output | `false` |
+| Flag         | Description                                             | Default   |
+| ------------ | ------------------------------------------------------- | --------- |
+| `--format`   | Output format: `unified`, `json`, `table`               | `unified` |
+| `--status`   | Filter by change status: `added`, `removed`, `modified` | (all)     |
+| `--context`  | Lines of context in unified diff                        | `3`       |
+| `--no-color` | Disable colored output                                  | `false`   |
 
 ## Diff Formats
 

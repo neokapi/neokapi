@@ -11,6 +11,7 @@ Bowrain becomes the **portable brand voice infrastructure layer** for AI-native 
 **Core thesis:** The market splits into generators (Writer, Jasper) and governors (Acrolinx, Grammarly). No tool delivers a composable Guide → Write → QA closed loop that works across AI assistants. Bowrain occupies this gap by being model-agnostic infrastructure rather than another walled garden.
 
 **Three defensible moats:**
+
 1. **Portable brand voice** — configure once, deploy everywhere via MCP
 2. **Terminology as wedge** — concrete, measurable, acknowledged as unsolved by Nimdzi
 3. **Learning feedback loop** — QA corrections improve future generation guidance, which no competitor does
@@ -21,16 +22,16 @@ Bowrain becomes the **portable brand voice infrastructure layer** for AI-native 
 
 The existing architecture provides strong foundations that we extend rather than replace:
 
-| Capability | Current state | Brand voice role |
-|---|---|---|
-| **Terminology** (AD-010) | Phase 1 shipped (concept-oriented termbase, tiered lookup, 6 pipeline tools). Phase 2 (concept relations, streams) planned. Phase 3 (brand voice) outlined. | Preferred/forbidden term lists become brand vocabulary enforcement. Extend to cover monolingual brand terminology. |
-| **AI tools** (AD-008) | 5 tools shipped (ai-translate, ai-qa, ai-review, ai-terminology, ai-entity-extract). `brand-voice-check` listed as planned. | Brand voice check becomes the sixth AI tool. AI translate gains voice-aware prompting. |
-| **MCP integration** (AD-021) | Two stdio servers shipped (kapi mcp, bowrain mcp) with file processing and project sync tools. | Add a third MCP server: `bowrain-server mcp` — cloud-hosted, OAuth 2.1, brand voice resources + tools. This is the primary distribution channel. |
-| **Automation** (AD-011) | Event bus, automation rules, quality gates, webhooks — all shipped. | Brand compliance becomes a quality gate. Voice drift triggers automation rules. |
-| **Content model** (AD-002) | Block annotations (TermAnnotation, EntityAnnotation) with character-level ranges. Block properties for QA issues. | Add BrandVoiceAnnotation for compliance findings. Block properties for voice scores. |
-| **QA system** | Rule-based checks (whitespace, empty targets, span constraints). | Extend with ML-based brand voice dimensions alongside existing rule-based checks. |
-| **Streams** (AD-024) | Git-like content branching with copy-on-write and TM/term scoping. | Brand voice profiles scoped to streams enable A/B testing of voice changes. |
-| **Plugin system** (AD-007) | gRPC plugin architecture with format, tool, connector, provider types. | Brand voice providers (custom scoring backends) register as plugins. |
+| Capability                   | Current state                                                                                                                                               | Brand voice role                                                                                                                                 |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Terminology** (AD-010)     | Phase 1 shipped (concept-oriented termbase, tiered lookup, 6 pipeline tools). Phase 2 (concept relations, streams) planned. Phase 3 (brand voice) outlined. | Preferred/forbidden term lists become brand vocabulary enforcement. Extend to cover monolingual brand terminology.                               |
+| **AI tools** (AD-008)        | 5 tools shipped (ai-translate, ai-qa, ai-review, ai-terminology, ai-entity-extract). `brand-voice-check` listed as planned.                                 | Brand voice check becomes the sixth AI tool. AI translate gains voice-aware prompting.                                                           |
+| **MCP integration** (AD-021) | Two stdio servers shipped (kapi mcp, bowrain mcp) with file processing and project sync tools.                                                              | Add a third MCP server: `bowrain-server mcp` — cloud-hosted, OAuth 2.1, brand voice resources + tools. This is the primary distribution channel. |
+| **Automation** (AD-011)      | Event bus, automation rules, quality gates, webhooks — all shipped.                                                                                         | Brand compliance becomes a quality gate. Voice drift triggers automation rules.                                                                  |
+| **Content model** (AD-002)   | Block annotations (TermAnnotation, EntityAnnotation) with character-level ranges. Block properties for QA issues.                                           | Add BrandVoiceAnnotation for compliance findings. Block properties for voice scores.                                                             |
+| **QA system**                | Rule-based checks (whitespace, empty targets, span constraints).                                                                                            | Extend with ML-based brand voice dimensions alongside existing rule-based checks.                                                                |
+| **Streams** (AD-024)         | Git-like content branching with copy-on-write and TM/term scoping.                                                                                          | Brand voice profiles scoped to streams enable A/B testing of voice changes.                                                                      |
+| **Plugin system** (AD-007)   | gRPC plugin architecture with format, tool, connector, provider types.                                                                                      | Brand voice providers (custom scoring backends) register as plugins.                                                                             |
 
 ---
 
@@ -50,6 +51,7 @@ The existing architecture provides strong foundations that we extend rather than
 ```
 
 **Three access layers, one profile:**
+
 1. **MCP Server** — AI assistants access brand voice as resources and tools
 2. **Pipeline Tools** — neokapi processing flows enforce brand voice during batch operations
 3. **REST API + UI** — Teams manage profiles, review compliance, analyze drift
@@ -119,6 +121,7 @@ Extend the existing terminology system (AD-010) to serve double duty:
 This reuses the entire term lookup infrastructure (exact → normalized → fuzzy matching, morphology-aware stemming, AI-assisted matching) without building a parallel system.
 
 **New pipeline tool:** `brand-vocab-check` — runs `term-lookup` filtered to `term_source=brand_vocabulary`, then flags:
+
 - Forbidden term usage (severity: major)
 - Competitor term usage (severity: critical)
 - Missing preferred term where a forbidden alternative was used (severity: minor, with suggestion)
@@ -168,6 +171,7 @@ Add to both Bowrain web app and desktop app:
 ### 1.5 Starter packs and 30-second aha moment
 
 Ship 4–6 starter brand voice profile templates:
+
 - **Professional B2B** — formal, active voice, no contractions, technical precision
 - **Friendly DTC** — casual, second person, contractions, warm
 - **Technical Documentation** — precise, imperative mood, short sentences
@@ -180,19 +184,19 @@ The 30-second aha moment: User connects Bowrain MCP server in Claude Desktop →
 
 ### Phase 1 deliverables
 
-| Component | Module | Key files |
-|---|---|---|
-| VoiceProfile types | framework (`core/brand/`) | `profile.go`, `vocabulary.go`, `scoring.go` |
-| BrandStore interface | framework (`core/brand/`) | `store.go` |
-| CLI SQLite brand store | cli (`cli/storage/brand/`) | `sqlite.go` |
-| Server PostgreSQL brand store | bowrain (`bowrain/brand/`) | `postgres.go`, `migrations/` |
-| `brand-vocab-check` tool | framework (`core/tools/`) | `brandvocab.go` |
-| Term source extension | framework (`core/termbase/`) | update Concept struct |
-| Cloud MCP server | bowrain (`bowrain/mcp/`) | `server.go`, `resources.go`, `tools.go`, `prompts.go` |
-| MCP auth (OAuth 2.1) | bowrain (`bowrain/mcp/`) | `auth.go` (wraps existing OIDC) |
-| Profile management UI | web + desktop | profile editor, vocabulary table, preview |
-| Starter voice packs | framework (`core/brand/packs/`) | YAML files |
-| REST API endpoints | bowrain (`bowrain/server/`) | `handlers_brand.go` |
+| Component                     | Module                          | Key files                                             |
+| ----------------------------- | ------------------------------- | ----------------------------------------------------- |
+| VoiceProfile types            | framework (`core/brand/`)       | `profile.go`, `vocabulary.go`, `scoring.go`           |
+| BrandStore interface          | framework (`core/brand/`)       | `store.go`                                            |
+| CLI SQLite brand store        | cli (`cli/storage/brand/`)      | `sqlite.go`                                           |
+| Server PostgreSQL brand store | bowrain (`bowrain/brand/`)      | `postgres.go`, `migrations/`                          |
+| `brand-vocab-check` tool      | framework (`core/tools/`)       | `brandvocab.go`                                       |
+| Term source extension         | framework (`core/termbase/`)    | update Concept struct                                 |
+| Cloud MCP server              | bowrain (`bowrain/mcp/`)        | `server.go`, `resources.go`, `tools.go`, `prompts.go` |
+| MCP auth (OAuth 2.1)          | bowrain (`bowrain/mcp/`)        | `auth.go` (wraps existing OIDC)                       |
+| Profile management UI         | web + desktop                   | profile editor, vocabulary table, preview             |
+| Starter voice packs           | framework (`core/brand/packs/`) | YAML files                                            |
+| REST API endpoints            | bowrain (`bowrain/server/`)     | `handlers_brand.go`                                   |
 
 ---
 
@@ -222,6 +226,7 @@ Adapt the translation industry's MQM framework for brand voice:
 | Critical | 25 | Serious violation (competitor terms, legal risk) |
 
 **Score calculation:**
+
 ```
 Penalty = sum(severity_weight * count) per dimension
 Raw Score = max(0, 100 - Penalty)
@@ -244,6 +249,7 @@ type BrandVoiceCheckTool struct {
 ```
 
 **How it works:**
+
 1. Receives Blocks from upstream in the pipeline
 2. For each Block, constructs a prompt containing:
    - The brand voice profile (tone, style, vocabulary, examples)
@@ -256,6 +262,7 @@ type BrandVoiceCheckTool struct {
 **Prompt design:** The prompt includes the voice profile as system context, before/after examples as few-shot demonstrations, and the specific text to check. The structured output schema enforces that the LLM returns typed findings matching the scoring dimensions.
 
 **Pipeline composition:**
+
 ```
 Reader → term-lookup → brand-vocab-check → brand-voice-check → Writer
          (rule-based)   (rule-based)        (LLM-based)
@@ -267,11 +274,11 @@ The rule-based `brand-vocab-check` (Phase 1) catches concrete vocabulary violati
 
 Extend the Phase 1 MCP server with scoring tools:
 
-| Tool | Description |
-|---|---|
+| Tool                     | Description                                                                                                                |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
 | `score_brand_compliance` | Run full brand voice check (vocabulary + AI scoring). Returns per-dimension scores, overall score, and annotated findings. |
-| `suggest_corrections` | Given findings from a check, generate specific rewrite suggestions for each issue. |
-| `rewrite_in_voice` | Rewrite input text to match the brand voice profile. Returns rewritten text + diff. |
+| `suggest_corrections`    | Given findings from a check, generate specific rewrite suggestions for each issue.                                         |
+| `rewrite_in_voice`       | Rewrite input text to match the brand voice profile. Returns rewritten text + diff.                                        |
 
 These compose into the closed loop: an AI assistant reads the voice guide (resource), writes content (using prompts), scores it (tool), and iterates on corrections (tool) — all within a single conversation.
 
@@ -287,9 +294,9 @@ automations:
       - flow: brand-voice-check
         config:
           profile: marketing
-          auto_approve_threshold: 85    # score >= 85 → auto-approve
-          review_threshold: 60          # 60 <= score < 85 → human review queue
-          reject_threshold: 60          # score < 60 → auto-reject with feedback
+          auto_approve_threshold: 85 # score >= 85 → auto-approve
+          review_threshold: 60 # 60 <= score < 85 → human review queue
+          reject_threshold: 60 # score < 60 → auto-reject with feedback
 ```
 
 Content scoring above `auto_approve_threshold` passes the quality gate automatically. Below `review_threshold` enters a human review queue. In between gets random spot-checking (configurable sample rate).
@@ -308,15 +315,15 @@ Add to the web app and desktop app:
 
 ### Phase 2 deliverables
 
-| Component | Module | Key files |
-|---|---|---|
-| BrandVoiceAnnotation | framework (`core/model/`) | `annotation.go` (extend) |
-| Brand Compliance Score | framework (`core/brand/`) | `scoring.go` |
-| `brand-voice-check` AI tool | framework (`core/ai/tools/`) | `brandvoice.go` |
-| MCP scoring tools | bowrain (`bowrain/mcp/`) | `tools_scoring.go` |
-| Confidence-based routing | bowrain (`bowrain/event/`) | extend AutomationEngine |
-| Compliance dashboard UI | web + desktop | dashboard, drill-down, inline annotations |
-| Quality gate integration | bowrain (`bowrain/server/`) | extend `handlers_qa.go` |
+| Component                   | Module                       | Key files                                 |
+| --------------------------- | ---------------------------- | ----------------------------------------- |
+| BrandVoiceAnnotation        | framework (`core/model/`)    | `annotation.go` (extend)                  |
+| Brand Compliance Score      | framework (`core/brand/`)    | `scoring.go`                              |
+| `brand-voice-check` AI tool | framework (`core/ai/tools/`) | `brandvoice.go`                           |
+| MCP scoring tools           | bowrain (`bowrain/mcp/`)     | `tools_scoring.go`                        |
+| Confidence-based routing    | bowrain (`bowrain/event/`)   | extend AutomationEngine                   |
+| Compliance dashboard UI     | web + desktop                | dashboard, drill-down, inline annotations |
+| Quality gate integration    | bowrain (`bowrain/server/`)  | extend `handlers_qa.go`                   |
 
 ---
 
@@ -388,13 +395,13 @@ AI translation agents fetch the target locale's voice profile before translating
 
 ### Phase 3 deliverables
 
-| Component | Module | Key files |
-|---|---|---|
-| LocaleOverride types | framework (`core/brand/`) | `locale.go` |
-| Voice-aware ai-translate | framework (`core/ai/tools/`) | extend `translate.go` |
-| Cross-locale dashboard | web + desktop | language matrix, drift detection |
-| Locale-aware MCP resources | bowrain (`bowrain/mcp/`) | extend `resources.go` |
-| Multilingual voice scoring | framework (`core/ai/tools/`) | extend `brandvoice.go` |
+| Component                  | Module                       | Key files                        |
+| -------------------------- | ---------------------------- | -------------------------------- |
+| LocaleOverride types       | framework (`core/brand/`)    | `locale.go`                      |
+| Voice-aware ai-translate   | framework (`core/ai/tools/`) | extend `translate.go`            |
+| Cross-locale dashboard     | web + desktop                | language matrix, drift detection |
+| Locale-aware MCP resources | bowrain (`bowrain/mcp/`)     | extend `resources.go`            |
+| Multilingual voice scoring | framework (`core/ai/tools/`) | extend `brandvoice.go`           |
 
 ---
 
@@ -405,6 +412,7 @@ AI translation agents fetch the target locale's voice profile before translating
 ### 4.1 Correction capture
 
 When a human reviewer corrects a brand voice issue in the editor:
+
 1. The original text, the correction, and the associated brand voice finding are captured as a `BrandVoiceCorrection`
 2. Corrections are stored in the BrandStore with the profile ID, dimension, and before/after text
 3. The correction count per dimension is tracked over time (error density reporting)
@@ -412,6 +420,7 @@ When a human reviewer corrects a brand voice issue in the editor:
 ### 4.2 Profile refinement from corrections
 
 Corrections feed back into the voice profile:
+
 - **Vocabulary refinement** — if reviewers consistently replace a term, it becomes a candidate for the preferred/forbidden list (surfaced in a "Suggested Rules" queue)
 - **Example generation** — reviewer-approved corrections become candidate before/after examples for the voice profile (human-approved only)
 - **Scoring calibration** — if auto-approved content gets corrected by reviewers, the system suggests lowering the auto-approve threshold for that dimension
@@ -433,6 +442,7 @@ Organizations start at Level 0 and can advance per content type. Legal content m
 ### 4.4 Error density reporting
 
 Track and display:
+
 - **Issues per 1,000 words** — by dimension, over time, per locale
 - **Correction rate** — percentage of auto-approved content that needed human correction
 - **Systematic patterns** — recurring issues (same forbidden term, same tone violation) flagged for profile refinement
@@ -440,14 +450,14 @@ Track and display:
 
 ### Phase 4 deliverables
 
-| Component | Module | Key files |
-|---|---|---|
-| BrandVoiceCorrection model | framework (`core/brand/`) | `correction.go` |
-| Correction capture in editor | bowrain (`bowrain/server/`) | extend `handlers_editor.go` |
-| Suggested Rules queue UI | web + desktop | correction review, rule promotion |
-| Progressive autonomy config | bowrain (`bowrain/event/`) | extend AutomationEngine |
-| Error density reporting | bowrain (`bowrain/server/`) | `handlers_brand_analytics.go` |
-| Drift alerting | bowrain (`bowrain/event/`) | new event: `brand.voice.drift` |
+| Component                    | Module                      | Key files                         |
+| ---------------------------- | --------------------------- | --------------------------------- |
+| BrandVoiceCorrection model   | framework (`core/brand/`)   | `correction.go`                   |
+| Correction capture in editor | bowrain (`bowrain/server/`) | extend `handlers_editor.go`       |
+| Suggested Rules queue UI     | web + desktop               | correction review, rule promotion |
+| Progressive autonomy config  | bowrain (`bowrain/event/`)  | extend AutomationEngine           |
+| Error density reporting      | bowrain (`bowrain/server/`) | `handlers_brand_analytics.go`     |
+| Drift alerting               | bowrain (`bowrain/event/`)  | new event: `brand.voice.drift`    |
 
 ---
 
@@ -468,6 +478,7 @@ Extract a standalone, open-source MCP server from the Bowrain platform:
 ### 5.2 Claude Skill
 
 Publish a Bowrain Skill (agentskills.io) that teaches Claude how to:
+
 - Structure brand voice guidelines effectively
 - Apply voice consistency when writing content
 - Self-check drafts against voice rules before presenting to users
@@ -478,6 +489,7 @@ The Skill provides procedural knowledge ("how to write in brand voice"), while t
 ### 5.3 Agent Skill for Claude Code
 
 Publish a Bowrain agent skill that integrates brand voice checking into development workflows:
+
 - Check documentation changes against brand voice before commit
 - Validate user-facing strings in code against brand vocabulary
 - Suggest rewrites for UI copy that violates brand guidelines
@@ -492,6 +504,7 @@ Publish a Bowrain agent skill that integrates brand voice checking into developm
 ### 5.5 Template gallery
 
 Create a community template gallery for brand voice profiles:
+
 - Starter packs (Phase 1) as seeds
 - User-contributed profiles (anonymized, shared with permission)
 - Industry-specific templates (SaaS, healthcare, finance, e-commerce)
@@ -499,13 +512,13 @@ Create a community template gallery for brand voice profiles:
 
 ### Phase 5 deliverables
 
-| Component | Module | Key files |
-|---|---|---|
-| `kapi brand-check` CLI command | kapi (`kapi/cmd/kapi/`) | `brand.go` |
-| Kapi MCP brand tools | kapi (`kapi/cmd/kapi/`) | extend MCP registration |
-| Claude Skill | standalone repo | `bowrain-skill/` |
-| Claude Code agent skill | skills registry | `bowrain/` |
-| Template gallery | bowrain web app | profile browser + share flow |
+| Component                      | Module                  | Key files                    |
+| ------------------------------ | ----------------------- | ---------------------------- |
+| `kapi brand-check` CLI command | kapi (`kapi/cmd/kapi/`) | `brand.go`                   |
+| Kapi MCP brand tools           | kapi (`kapi/cmd/kapi/`) | extend MCP registration      |
+| Claude Skill                   | standalone repo         | `bowrain-skill/`             |
+| Claude Code agent skill        | skills registry         | `bowrain/`                   |
+| Template gallery               | bowrain web app         | profile browser + share flow |
 
 ---
 
@@ -657,13 +670,13 @@ The MCP endpoint mounts on the existing bowrain-server Echo instance. OAuth 2.1 
 
 ## Phasing and priorities
 
-| Phase | Focus | Primary value | Estimated scope |
-|---|---|---|---|
-| **1** | Profile + Terminology + MCP | 30-second aha moment, vocabulary checking via MCP | New `core/brand/` package, extend termbase, cloud MCP server, profile UI |
-| **2** | AI Scoring + Quality Gates | Measurable Brand Compliance Score, Guide→Write→QA loop | `brand-voice-check` AI tool, MQM scoring, compliance dashboard, confidence routing |
-| **3** | Multilingual Voice | Voice-aware translation, cross-locale governance | Locale overrides, extend ai-translate prompts, language matrix dashboard |
-| **4** | Feedback Loop | Learning system, progressive autonomy | Correction capture, suggested rules, error density reporting, drift alerts |
-| **5** | Open Ecosystem | Community adoption, distribution | Open-source MCP server, Claude Skill, template gallery, registry listings |
+| Phase | Focus                       | Primary value                                          | Estimated scope                                                                    |
+| ----- | --------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| **1** | Profile + Terminology + MCP | 30-second aha moment, vocabulary checking via MCP      | New `core/brand/` package, extend termbase, cloud MCP server, profile UI           |
+| **2** | AI Scoring + Quality Gates  | Measurable Brand Compliance Score, Guide→Write→QA loop | `brand-voice-check` AI tool, MQM scoring, compliance dashboard, confidence routing |
+| **3** | Multilingual Voice          | Voice-aware translation, cross-locale governance       | Locale overrides, extend ai-translate prompts, language matrix dashboard           |
+| **4** | Feedback Loop               | Learning system, progressive autonomy                  | Correction capture, suggested rules, error density reporting, drift alerts         |
+| **5** | Open Ecosystem              | Community adoption, distribution                       | Open-source MCP server, Claude Skill, template gallery, registry listings          |
 
 **Phase 1 is the wedge.** Terminology enforcement is concrete, measurable, and ships fast because it extends existing infrastructure. The MCP server makes it instantly useful in Claude Desktop, Cursor, and VS Code. Everything else builds on this foundation.
 

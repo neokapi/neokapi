@@ -29,13 +29,13 @@ type Connector interface {
 
 Connectors are organized by category:
 
-| Category | Description | Built-in |
-|----------|-------------|----------|
-| `File` | Local filesystem content | FileConnector |
-| `Code` | Source code repositories | GitConnector |
-| `CMS` | Content management systems | WordPressConnector |
-| `Design` | Design tools | FigmaConnector |
-| `Marketing` | Marketing platforms | HubSpotConnector |
+| Category    | Description                | Built-in           |
+| ----------- | -------------------------- | ------------------ |
+| `File`      | Local filesystem content   | FileConnector      |
+| `Code`      | Source code repositories   | GitConnector       |
+| `CMS`       | Content management systems | WordPressConnector |
+| `Design`    | Design tools               | FigmaConnector     |
+| `Marketing` | Marketing platforms        | HubSpotConnector   |
 
 ## Built-in Connectors
 

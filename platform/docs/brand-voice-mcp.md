@@ -18,44 +18,45 @@ Authorization: Bearer <jwt-token>
 ```
 
 Protected resource metadata:
+
 ```
 GET /.well-known/oauth-protected-resource
 ```
 
 ## Resources
 
-| URI Template | Description |
-|---|---|
-| `brand://profiles/{id}` | Full voice profile (tone, style, vocabulary, examples) |
-| `brand://profiles/{id}/vocabulary` | Preferred/forbidden/competitor term rules |
-| `brand://profiles/{id}/examples` | Before/after transformation examples |
-| `brand://terminology/{workspace}` | Workspace terminology index |
+| URI Template                       | Description                                            |
+| ---------------------------------- | ------------------------------------------------------ |
+| `brand://profiles/{id}`            | Full voice profile (tone, style, vocabulary, examples) |
+| `brand://profiles/{id}/vocabulary` | Preferred/forbidden/competitor term rules              |
+| `brand://profiles/{id}/examples`   | Before/after transformation examples                   |
+| `brand://terminology/{workspace}`  | Workspace terminology index                            |
 
 ## Tools
 
 ### Phase 1
 
-| Tool | Description |
-|---|---|
-| `check_vocabulary` | Validate text against brand vocabulary rules |
-| `list_profiles` | List available brand voice profiles |
-| `get_voice_guide` | Formatted voice guide optimized for LLM consumption |
+| Tool               | Description                                         |
+| ------------------ | --------------------------------------------------- |
+| `check_vocabulary` | Validate text against brand vocabulary rules        |
+| `list_profiles`    | List available brand voice profiles                 |
+| `get_voice_guide`  | Formatted voice guide optimized for LLM consumption |
 
 ### Phase 2
 
-| Tool | Description |
-|---|---|
+| Tool                     | Description                                         |
+| ------------------------ | --------------------------------------------------- |
 | `score_brand_compliance` | Full compliance check with MQM-inspired 0-100 score |
-| `suggest_corrections` | Generate specific text corrections for findings |
-| `rewrite_in_voice` | Rewrite text to match brand voice with diff |
+| `suggest_corrections`    | Generate specific text corrections for findings     |
+| `rewrite_in_voice`       | Rewrite text to match brand voice with diff         |
 
 ## Prompts
 
-| Prompt | Description |
-|---|---|
-| `write_in_voice` | Write new content in a brand voice |
+| Prompt             | Description                                  |
+| ------------------ | -------------------------------------------- |
+| `write_in_voice`   | Write new content in a brand voice           |
 | `rewrite_in_voice` | Rewrite existing text to match a brand voice |
-| `check_draft` | Check a draft against brand voice guidelines |
+| `check_draft`      | Check a draft against brand voice guidelines |
 
 ## Client Configuration
 

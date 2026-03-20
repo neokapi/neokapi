@@ -40,6 +40,7 @@ bowrain flow run ai-translate
 ```
 
 Bowrain CLI automatically:
+
 - Reads files matching your `.bowrain/config.yaml` mappings
 - Translates from source to target locales
 - Writes results back to local files
@@ -85,16 +86,16 @@ bowrain flow run my-flow
 
 ## Key Commands
 
-| Command | Description |
-|---------|-------------|
-| `bowrain init` | Initialize a project |
-| `bowrain status` | Show sync state |
-| `bowrain flow run` | Execute a workflow |
-| `bowrain flow list` | List available flows |
-| `bowrain push` | Upload to server |
-| `bowrain pull` | Fetch from server |
-| `bowrain config` | View or set configuration |
-| `bowrain serve` | Open local web editor |
+| Command             | Description               |
+| ------------------- | ------------------------- |
+| `bowrain init`      | Initialize a project      |
+| `bowrain status`    | Show sync state           |
+| `bowrain flow run`  | Execute a workflow        |
+| `bowrain flow list` | List available flows      |
+| `bowrain push`      | Upload to server          |
+| `bowrain pull`      | Fetch from server         |
+| `bowrain config`    | View or set configuration |
+| `bowrain serve`     | Open local web editor     |
 
 ## Next Steps
 

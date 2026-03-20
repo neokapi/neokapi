@@ -63,13 +63,11 @@ export function SwipeCard({ item, onApprove, onReject, onSkip }: SwipeCardProps)
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
       { translateX: translateX.value },
-      { rotate: `${interpolate(translateX.value, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [-15, 0, 15])}deg` },
+      {
+        rotate: `${interpolate(translateX.value, [-SCREEN_WIDTH, 0, SCREEN_WIDTH], [-15, 0, 15])}deg`,
+      },
     ],
-    opacity: interpolate(
-      Math.abs(translateX.value),
-      [0, SCREEN_WIDTH * 0.5],
-      [1, 0.5],
-    ),
+    opacity: interpolate(Math.abs(translateX.value), [0, SCREEN_WIDTH * 0.5], [1, 0.5]),
   }));
 
   const approveOpacity = useAnimatedStyle(() => ({
@@ -104,7 +102,9 @@ export function SwipeCard({ item, onApprove, onReject, onSkip }: SwipeCardProps)
         <Text style={styles.title}>{itemTitle(item)}</Text>
 
         {itemDetails(item).map((detail, i) => (
-          <Text key={i} style={styles.detail}>{detail}</Text>
+          <Text key={i} style={styles.detail}>
+            {detail}
+          </Text>
         ))}
 
         {/* Occurrences / context */}

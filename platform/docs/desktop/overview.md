@@ -101,10 +101,10 @@ Bowrain runs as a single native application on macOS, Windows, and Linux — no 
 
 Bowrain ships with sample projects for immediate testing:
 
-| Project | Content | Status | Use Case |
-|---------|---------|--------|----------|
-| Website Translation | Corporate website (HTML) | Half-translated (en→fr,de) | TM leverage demo — auto-fill translations |
-| Software UI | Task manager UI strings (JSON) | New, with 27-entry TM | Start with existing TM, translate remaining strings |
-| Marketing Content | Marketing landing page (HTML) | Fully translated (en→fr,de,es) | Review and export workflows |
+| Project             | Content                        | Status                         | Use Case                                            |
+| ------------------- | ------------------------------ | ------------------------------ | --------------------------------------------------- |
+| Website Translation | Corporate website (HTML)       | Half-translated (en→fr,de)     | TM leverage demo — auto-fill translations           |
+| Software UI         | Task manager UI strings (JSON) | New, with 27-entry TM          | Start with existing TM, translate remaining strings |
+| Marketing Content   | Marketing landing page (HTML)  | Fully translated (en→fr,de,es) | Review and export workflows                         |
 
 Sample files are located in `bowrain/apps/bowrain/samples/`. Each project includes its own TM entries and termbase concepts.

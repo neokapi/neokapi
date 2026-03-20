@@ -27,11 +27,7 @@ interface InviteEmailProps {
  * doubles as a Go template. The mailer package fills in real values at
  * send time using text/template.Execute().
  */
-export const InviteEmail = ({
-  workspaceName,
-  role,
-  joinURL,
-}: InviteEmailProps) => (
+export const InviteEmail = ({ workspaceName, role, joinURL }: InviteEmailProps) => (
   <Html lang="en" dir="ltr">
     <Head />
     <Preview>
@@ -84,9 +80,7 @@ export const InviteEmail = ({
         <Section style={footer}>
           <Text style={footerText}>{"© Bowrain. All rights reserved."}</Text>
           <Text style={footerText}>
-            {
-              "If you didn't request this invitation, you can safely ignore this email."
-            }
+            {"If you didn't request this invitation, you can safely ignore this email."}
           </Text>
         </Section>
       </Container>

@@ -7,17 +7,21 @@ This directory contains sample source files, termbases, and terminology data for
 These files can be added to any Bowrain project using the "Add Files" button or drag-and-drop.
 
 ### help-center.html
+
 A multi-section help center page with FAQs. Good for testing HTML format handling with nested elements, definition lists, and inline formatting (`<strong>`, `&amp;`).
 
 ### app-strings.json
+
 Application UI strings with placeholder variables (`{remaining}`, `{count}`, `{percent}`). Tests JSON key extraction and string interpolation preservation.
 
 ## Sample Termbases
 
 ### sample-termbase.json
+
 A comprehensive software development termbase with 10 concepts across 4 domains (development, infrastructure, security, UI/data) in 4 languages (en, fr, de, ja). Import this in the Terminology panel of any project.
 
 ### sample-terms.csv
+
 A flat CSV termbase with English-French term pairs. Import using the CSV import feature in the Terminology panel.
 
 ## Workflow Walkthrough

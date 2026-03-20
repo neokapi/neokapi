@@ -68,7 +68,7 @@ steps:
       provider: anthropic
       model: claude-sonnet-4.5
       temperature: 0.3
-      skip_translated: true  # Only translate empty targets
+      skip_translated: true # Only translate empty targets
 
   # 4. Validate terminology compliance
   - tool: term-enforce
@@ -156,8 +156,8 @@ Each tool has its own configuration options. Common patterns:
   config:
     provider: anthropic | openai | ollama
     model: claude-sonnet-4.5 | gpt-4o | llama3:70b
-    temperature: 0.0-1.0  # Creativity (0 = deterministic)
-    skip_translated: true  # Only translate empty targets
+    temperature: 0.0-1.0 # Creativity (0 = deterministic)
+    skip_translated: true # Only translate empty targets
 ```
 
 ### MT Translation Tools
@@ -166,7 +166,7 @@ Each tool has its own configuration options. Common patterns:
 - tool: mt-translate
   config:
     provider: deepl | google | microsoft | modernmt | mymemory
-    api_key: ${DEEPL_API_KEY}  # Environment variable
+    api_key: ${DEEPL_API_KEY} # Environment variable
     formality: formal | informal
     skip_translated: true
 ```
@@ -176,9 +176,9 @@ Each tool has its own configuration options. Common patterns:
 ```yaml
 - tool: tm-leverage
   config:
-    fuzzy_threshold: 70  # Match threshold (0-100)
+    fuzzy_threshold: 70 # Match threshold (0-100)
     provider: sievepen | null
-    tmx_path: ./my-tm.tmx  # Optional TMX import
+    tmx_path: ./my-tm.tmx # Optional TMX import
 ```
 
 ### QA Check
@@ -187,13 +187,13 @@ Each tool has its own configuration options. Common patterns:
 - tool: qa-check
   config:
     rules:
-      - whitespace      # Leading/trailing/double spaces
-      - punctuation     # Mismatched punctuation
-      - placeholders    # Missing/extra placeholders
-      - numbers         # Number consistency
-      - case            # Uppercase/lowercase consistency
-      - spelling        # Spell check (requires hunspell)
-      - terminology     # Term compliance (requires termbase)
+      - whitespace # Leading/trailing/double spaces
+      - punctuation # Mismatched punctuation
+      - placeholders # Missing/extra placeholders
+      - numbers # Number consistency
+      - case # Uppercase/lowercase consistency
+      - spelling # Spell check (requires hunspell)
+      - terminology # Term compliance (requires termbase)
 ```
 
 ### Terminology
@@ -203,13 +203,13 @@ Each tool has its own configuration options. Common patterns:
   config:
     termbase: .bowrain/termbase.tbx
     fuzzy_threshold: 85
-    domain: software  # Filter by domain
+    domain: software # Filter by domain
 
 - tool: term-enforce
   config:
     termbase: .bowrain/termbase.tbx
-    required: true              # Block must use term if available
-    fail_on_violation: true     # Exit flow if violation found
+    required: true # Block must use term if available
+    fail_on_violation: true # Exit flow if violation found
 ```
 
 ## Variable Substitution
@@ -220,7 +220,7 @@ Use environment variables in flow configs:
 - tool: ai-translate
   config:
     provider: anthropic
-    api_key: ${ANTHROPIC_API_KEY}  # From environment
+    api_key: ${ANTHROPIC_API_KEY} # From environment
 ```
 
 ## Running Custom Flows

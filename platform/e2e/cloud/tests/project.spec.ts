@@ -90,8 +90,6 @@ test.describe("Project & Translation", () => {
     await expect(authenticatedPage.getByTestId("nav-translate")).toBeVisible({ timeout: 15_000 });
     await authenticatedPage.getByTestId("nav-translate").click();
     // Should see the project name or files listed.
-    await expect(
-      authenticatedPage.getByText("Browser Test"),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(authenticatedPage.getByText("Browser Test")).toBeVisible({ timeout: 15_000 });
   });
 });

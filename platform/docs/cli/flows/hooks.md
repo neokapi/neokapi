@@ -80,7 +80,7 @@ description: Strict QA checks that block push
 steps:
   - tool: qa-check
     config:
-      fail_on_error: true  # Exit with error code
+      fail_on_error: true # Exit with error code
 
   - tool: term-enforce
     config:
@@ -148,6 +148,7 @@ bowrain push --force
 ```
 
 **Difference:**
+
 - `--no-hooks`: Don't run any hooks
 - `--force`: Run hooks but ignore errors
 
@@ -165,12 +166,14 @@ Hooks run as regular flows:
 ### Pre-Push Hooks
 
 **Do:**
+
 - Enforce terminology compliance
 - Check for formatting errors
 - Validate required translations
 - Block on critical errors
 
 **Don't:**
+
 - Run expensive operations (AI translation)
 - Make network calls (MT services)
 - Modify content (hooks should validate, not transform)
@@ -178,12 +181,14 @@ Hooks run as regular flows:
 ### Post-Pull Hooks
 
 **Do:**
+
 - Segment new source text
 - Extract terminology
 - Warm up caches
 - Format content consistently
 
 **Don't:**
+
 - Make network calls
 - Run expensive analysis
 - Modify source blocks

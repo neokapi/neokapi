@@ -60,9 +60,7 @@ export function AppNavigator() {
           <ReviewQueueScreen
             workspace={screen.workspace}
             project={screen.project}
-            onBack={() =>
-              setScreen({ name: "projects", workspace: screen.workspace })
-            }
+            onBack={() => setScreen({ name: "projects", workspace: screen.workspace })}
           />
         );
       case "notifications":
@@ -73,16 +71,13 @@ export function AppNavigator() {
           />
         );
       case "settings":
-        return (
-          <SettingsScreen
-            onBack={() => setScreen({ name: "workspaces" })}
-          />
-        );
+        return <SettingsScreen onBack={() => setScreen({ name: "workspaces" })} />;
     }
   };
 
   // Show tab bar only at top-level screens (workspaces, notifications, settings).
-  const showTabBar = screen.name === "workspaces" || screen.name === "notifications" || screen.name === "settings";
+  const showTabBar =
+    screen.name === "workspaces" || screen.name === "notifications" || screen.name === "settings";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -115,24 +110,21 @@ export function AppNavigator() {
   );
 }
 
-function TabButton({ label, active, onPress, disabled }: {
+function TabButton({
+  label,
+  active,
+  onPress,
+  disabled,
+}: {
   label: string;
   active: boolean;
   onPress: () => void;
   disabled?: boolean;
 }) {
   return (
-    <TouchableOpacity
-      style={styles.tab}
-      onPress={onPress}
-      disabled={disabled}
-    >
+    <TouchableOpacity style={styles.tab} onPress={onPress} disabled={disabled}>
       <Text
-        style={[
-          styles.tabText,
-          active && styles.tabTextActive,
-          disabled && styles.tabTextDisabled,
-        ]}
+        style={[styles.tabText, active && styles.tabTextActive, disabled && styles.tabTextDisabled]}
       >
         {label}
       </Text>

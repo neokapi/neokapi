@@ -28,19 +28,19 @@ The action downloads the correct binary for the runner platform (Linux, macOS, o
 
 ### Action Inputs
 
-| Input | Description | Default |
-|-------|-------------|---------|
-| `version` | CLI version (e.g. `0.5.0` or `latest`) | `latest` |
-| `token` | GitHub token with read access to `neokapi/neokapi` releases | — |
-| `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`) | `""` |
-| `server` | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`) | `""` |
-| `plugins` | Comma or newline-separated plugin refs to install | `""` |
+| Input        | Description                                                 | Default  |
+| ------------ | ----------------------------------------------------------- | -------- |
+| `version`    | CLI version (e.g. `0.5.0` or `latest`)                      | `latest` |
+| `token`      | GitHub token with read access to `neokapi/neokapi` releases | —        |
+| `auth-token` | Bowrain server JWT (exported as `BOWRAIN_AUTH_TOKEN`)       | `""`     |
+| `server`     | Bowrain server URL (exported as `BOWRAIN_SERVER_URL`)       | `""`     |
+| `plugins`    | Comma or newline-separated plugin refs to install           | `""`     |
 
 ### Action Outputs
 
-| Output | Description |
-|--------|-------------|
-| `version` | Installed version (e.g. `0.5.0`) |
+| Output      | Description                      |
+| ----------- | -------------------------------- |
+| `version`   | Installed version (e.g. `0.5.0`) |
 | `cache-hit` | Whether the plugin cache was hit |
 
 ## Recommended: Full Sync with `bowrain-action`
@@ -85,23 +85,23 @@ jobs:
 
 The `bowrain-action` runs `bowrain sync` (push → wait → pull), checks for changes, commits, and pushes. It sets outputs you can use in subsequent steps:
 
-| Output | Description |
-|--------|-------------|
-| `status` | `success`, `no-changes`, or `failed` |
-| `committed` | `true` if a commit was created |
-| `commit-sha` | SHA of the created commit |
+| Output       | Description                          |
+| ------------ | ------------------------------------ |
+| `status`     | `success`, `no-changes`, or `failed` |
+| `committed`  | `true` if a commit was created       |
+| `commit-sha` | SHA of the created commit            |
 
 ### bowrain-action Inputs
 
-| Input | Default | Description |
-|-------|---------|-------------|
-| `command` | `sync` | Bowrain command to run |
-| `args` | `--timeout 10m` | Additional arguments |
-| `commit` | `true` | Whether to commit changes |
-| `commit-message` | `chore: sync translations via Bowrain` | Commit message |
-| `git-user-name` | `Bowrain Bot` | Git committer name |
-| `git-user-email` | `bot@bowrain.cloud` | Git committer email |
-| `paths` | `i18n/ docs/ blog/` | Paths to stage for commit |
+| Input            | Default                                | Description               |
+| ---------------- | -------------------------------------- | ------------------------- |
+| `command`        | `sync`                                 | Bowrain command to run    |
+| `args`           | `--timeout 10m`                        | Additional arguments      |
+| `commit`         | `true`                                 | Whether to commit changes |
+| `commit-message` | `chore: sync translations via Bowrain` | Commit message            |
+| `git-user-name`  | `Bowrain Bot`                          | Git committer name        |
+| `git-user-email` | `bot@bowrain.cloud`                    | Git committer email       |
+| `paths`          | `i18n/ docs/ blog/`                    | Paths to stage for commit |
 
 :::note
 The workflow needs `permissions: contents: write` for the action to push commits.
@@ -179,7 +179,7 @@ name: Nightly Translation
 
 on:
   schedule:
-    - cron: "0 2 * * *"  # 2 AM UTC
+    - cron: "0 2 * * *" # 2 AM UTC
 
 jobs:
   translate:
@@ -215,7 +215,7 @@ name: Pull Translations
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 8 * * 1"  # Monday 8 AM UTC
+    - cron: "0 8 * * 1" # Monday 8 AM UTC
 
 jobs:
   pull:
@@ -253,10 +253,10 @@ jobs:
 
 The Bowrain CLI supports two authentication methods in CI:
 
-| Method | How | Best For |
-|--------|-----|----------|
-| **Environment variable** | Set `BOWRAIN_AUTH_TOKEN` | GitHub Actions (via `auth-token` input) |
-| **Device flow** | Run `bowrain auth login` interactively | Local development |
+| Method                   | How                                    | Best For                                |
+| ------------------------ | -------------------------------------- | --------------------------------------- |
+| **Environment variable** | Set `BOWRAIN_AUTH_TOKEN`               | GitHub Actions (via `auth-token` input) |
+| **Device flow**          | Run `bowrain auth login` interactively | Local development                       |
 
 The `auth-token` input on the setup action is the simplest approach — it exports the token as `BOWRAIN_AUTH_TOKEN`, which the CLI checks before looking for stored credentials.
 

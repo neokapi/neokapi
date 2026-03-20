@@ -13,6 +13,7 @@ This document bridges the market intelligence with the technical implementation 
 **Bowrain's position:** Portable brand voice infrastructure layer — configure once, enforce everywhere via MCP across Claude, ChatGPT, Copilot, Cursor, and any MCP-capable tool. Not another walled garden; open infrastructure.
 
 **Three defensible moats:**
+
 1. **Portable brand voice** — universal format via MCP, not locked to one AI platform
 2. **Terminology as wedge** — concrete, measurable, acknowledged as unsolved by Nimdzi
 3. **Learning feedback loop** — QA corrections improve future generation guidance (no competitor does this)
@@ -23,16 +24,16 @@ This document bridges the market intelligence with the technical implementation 
 
 The existing Neokapi/Bowrain architecture provides strong foundations:
 
-| Capability | Current state | Brand voice extension |
-|---|---|---|
-| **Two MCP servers** (AD-021) | `kapi mcp` (file processing, stdio) and `bowrain mcp` (project sync, stdio) | Add third: `bowrain-server mcp` — cloud-hosted, Streamable HTTP + OAuth 2.1 |
-| **Terminology** (AD-010) | Concept-oriented termbase, tiered lookup (exact → normalized → fuzzy), morphology-aware. SQLite + PostgreSQL. | Extend with `term_source: brand_vocabulary`. Preferred/forbidden/competitor terms reuse same lookup pipeline. |
-| **5 AI tools** (AD-008) | ai-translate, ai-qa, ai-review, ai-terminology, ai-entity-extract. Worker pool with rate limiting, circuit breakers. | Add `brand-voice-check` as sixth AI tool. Extend ai-translate with voice-aware prompting. |
-| **80+ pipeline tools** | QA checks, term enforcement, word count, segmentation, encoding. Channel-based streaming. | Add `brand-vocab-check` (rule-based) before `brand-voice-check` (LLM-based). |
-| **Event bus + automation** (AD-011) | Event types, automation rules, quality gates, webhooks. | Brand compliance becomes quality gate. Voice drift triggers automation rules. |
-| **Content model** (AD-002) | Block annotations (TermAnnotation, EntityAnnotation), coded text fragments, content-addressable blocks. | Add BrandVoiceAnnotation. Store compliance scores in Block.Properties. |
-| **REST API** | 50+ handlers, WebSocket collab editing, gRPC multiplexed. Keycloak OIDC auth. | Add brand profile CRUD, compliance scoring, correction endpoints. MCP endpoint on `/mcp/`. |
-| **Plugin system** (AD-007) | gRPC plugins, Okapi Bridge (40+ format filters). Format, tool, connector, provider types. | Brand voice scoring backends register as provider plugins. |
+| Capability                          | Current state                                                                                                        | Brand voice extension                                                                                         |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Two MCP servers** (AD-021)        | `kapi mcp` (file processing, stdio) and `bowrain mcp` (project sync, stdio)                                          | Add third: `bowrain-server mcp` — cloud-hosted, Streamable HTTP + OAuth 2.1                                   |
+| **Terminology** (AD-010)            | Concept-oriented termbase, tiered lookup (exact → normalized → fuzzy), morphology-aware. SQLite + PostgreSQL.        | Extend with `term_source: brand_vocabulary`. Preferred/forbidden/competitor terms reuse same lookup pipeline. |
+| **5 AI tools** (AD-008)             | ai-translate, ai-qa, ai-review, ai-terminology, ai-entity-extract. Worker pool with rate limiting, circuit breakers. | Add `brand-voice-check` as sixth AI tool. Extend ai-translate with voice-aware prompting.                     |
+| **80+ pipeline tools**              | QA checks, term enforcement, word count, segmentation, encoding. Channel-based streaming.                            | Add `brand-vocab-check` (rule-based) before `brand-voice-check` (LLM-based).                                  |
+| **Event bus + automation** (AD-011) | Event types, automation rules, quality gates, webhooks.                                                              | Brand compliance becomes quality gate. Voice drift triggers automation rules.                                 |
+| **Content model** (AD-002)          | Block annotations (TermAnnotation, EntityAnnotation), coded text fragments, content-addressable blocks.              | Add BrandVoiceAnnotation. Store compliance scores in Block.Properties.                                        |
+| **REST API**                        | 50+ handlers, WebSocket collab editing, gRPC multiplexed. Keycloak OIDC auth.                                        | Add brand profile CRUD, compliance scoring, correction endpoints. MCP endpoint on `/mcp/`.                    |
+| **Plugin system** (AD-007)          | gRPC plugins, Okapi Bridge (40+ format filters). Format, tool, connector, provider types.                            | Brand voice scoring backends register as provider plugins.                                                    |
 
 ---
 
@@ -40,12 +41,12 @@ The existing Neokapi/Bowrain architecture provides strong foundations:
 
 ### Direct competitors
 
-| Competitor | Strength | Weakness vs. Bowrain |
-|---|---|---|
-| **Writer.com** ($47M ARR, 194% YoY) | Deep brand governance, personality profiles, proprietary LLMs | Closed ecosystem — requires adopting their LLMs. No MCP. No open API for external AI tools. |
-| **Acrolinx/Markup AI** | Deepest content governance, machine-enforceable style rules, quality gates | Enterprise-only, complex implementation, no MCP server, no feedback loop. |
-| **Grammarly Business** (30M+ DAU) | Broadest reach via browser extensions | Shallow brand governance, post-generation overlay, no composable architecture. |
-| **Jasper AI** ($35-55M ARR, declining) | Brand voice learning from samples, multi-model | Thin-moat AI wrapper, no governance layer, peaked and declining. |
+| Competitor                             | Strength                                                                   | Weakness vs. Bowrain                                                                        |
+| -------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| **Writer.com** ($47M ARR, 194% YoY)    | Deep brand governance, personality profiles, proprietary LLMs              | Closed ecosystem — requires adopting their LLMs. No MCP. No open API for external AI tools. |
+| **Acrolinx/Markup AI**                 | Deepest content governance, machine-enforceable style rules, quality gates | Enterprise-only, complex implementation, no MCP server, no feedback loop.                   |
+| **Grammarly Business** (30M+ DAU)      | Broadest reach via browser extensions                                      | Shallow brand governance, post-generation overlay, no composable architecture.              |
+| **Jasper AI** ($35-55M ARR, declining) | Brand voice learning from samples, multi-model                             | Thin-moat AI wrapper, no governance layer, peaked and declining.                            |
 
 ### Why Bowrain wins
 
@@ -56,13 +57,13 @@ The existing Neokapi/Bowrain architecture provides strong foundations:
 
 ### Market gaps we fill
 
-| Gap | Bowrain's answer |
-|---|---|
-| No brand voice MCP server exists (across 5,800+ servers) | Cloud MCP server with OAuth 2.1, shipping in Phase 1 |
+| Gap                                                                           | Bowrain's answer                                                   |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| No brand voice MCP server exists (across 5,800+ servers)                      | Cloud MCP server with OAuth 2.1, shipping in Phase 1               |
 | Guide → Write → QA loop is broken (30-40% time re-establishing brand context) | Resources (guide) + Prompts (write) + Tools (QA) in one MCP server |
-| Terminology vetting has no API-first solution | Existing termbase + `check_vocabulary` MCP tool |
-| Multilingual brand voice unsolved | Per-locale voice adaptations, voice-aware ai-translate (Phase 3) |
-| Brand voice not portable across AI tools | Universal voice profile format, MCP as distribution |
+| Terminology vetting has no API-first solution                                 | Existing termbase + `check_vocabulary` MCP tool                    |
+| Multilingual brand voice unsolved                                             | Per-locale voice adaptations, voice-aware ai-translate (Phase 3)   |
+| Brand voice not portable across AI tools                                      | Universal voice profile format, MCP as distribution                |
 
 ---
 
@@ -111,6 +112,7 @@ The existing Neokapi/Bowrain architecture provides strong foundations:
    - PostgreSQL for bowrain-server (`bowrain/brand/`)
 
 **Distribution (day one):**
+
 - List on PulseMCP, MCP.so, official MCP Registry, modelcontextprotocol/servers
 - Ship in existing Homebrew formulae (kapi, bowrain)
 - Claude Desktop, Cursor, VS Code configuration templates
@@ -439,12 +441,12 @@ Plug into existing automation engine — compose with content.changed, translati
 
 ## Phasing summary
 
-| Phase | Focus | What ships | Primary value |
-|---|---|---|---|
-| **1** | Profile + Terminology + MCP | core/brand types, termbase extension, cloud MCP server, profile UI, starter packs | 30-second aha moment, vocabulary checking via MCP |
-| **2** | AI Scoring + Quality Gates | brand-voice-check AI tool, MQM scoring, confidence routing, compliance dashboard | Measurable Brand Compliance Score, Guide→Write→QA loop closes |
-| **3** | Multilingual Voice | Locale overrides, voice-aware ai-translate, cross-locale dashboard | Voice-aware translation, cross-locale governance |
-| **4** | Feedback Loop | Correction capture, suggested rules, progressive autonomy, drift alerts | Learning system that improves with use |
-| **5** | Open Ecosystem | Open-source MCP server, Claude Skill, template gallery | Community adoption, distribution |
+| Phase | Focus                       | What ships                                                                        | Primary value                                                 |
+| ----- | --------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| **1** | Profile + Terminology + MCP | core/brand types, termbase extension, cloud MCP server, profile UI, starter packs | 30-second aha moment, vocabulary checking via MCP             |
+| **2** | AI Scoring + Quality Gates  | brand-voice-check AI tool, MQM scoring, confidence routing, compliance dashboard  | Measurable Brand Compliance Score, Guide→Write→QA loop closes |
+| **3** | Multilingual Voice          | Locale overrides, voice-aware ai-translate, cross-locale dashboard                | Voice-aware translation, cross-locale governance              |
+| **4** | Feedback Loop               | Correction capture, suggested rules, progressive autonomy, drift alerts           | Learning system that improves with use                        |
+| **5** | Open Ecosystem              | Open-source MCP server, Claude Skill, template gallery                            | Community adoption, distribution                              |
 
 Phase 1 is the wedge. Terminology enforcement ships fast because it extends existing infrastructure. Everything else builds on this foundation. Phases overlap — Phase 2 starts as soon as Phase 1's data model is stable.

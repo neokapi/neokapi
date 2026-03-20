@@ -97,16 +97,19 @@ A dedicated view showing agent-specific metrics:
 ### Implementation Options
 
 **Option A: Bowrain Web Extension**
+
 - Add an `/agentic` route to the Bowrain web app
 - Query Bowrain's own activity/metrics APIs
 - Fully integrated experience
 
 **Option B: Standalone Dashboard**
+
 - Separate React app reading from Bowrain API + container logs
 - Independent deployment
 - Can be shared publicly (demo site)
 
 **Option C: Grafana Dashboard**
+
 - Export metrics to Prometheus
 - Build Grafana dashboards
 - Rich visualization, time-series analysis
@@ -123,19 +126,19 @@ A separate Playwright-based screenshot service (or cron job) captures screenshot
 ```typescript
 // Screenshots captured automatically
 const screenshotTriggers = [
-  { event: "content_pushed",         view: "dashboard",     name: "post-push-dashboard" },
-  { event: "translation_batch_done", view: "translate",     name: "translation-progress" },
-  { event: "terminology_updated",    view: "termbase",      name: "termbase-growth" },
-  { event: "brand_profile_created",  view: "brand-dashboard", name: "brand-setup" },
-  { event: "qa_complete",            view: "activities",    name: "qa-results" },
-  { event: "tasks_created",          view: "tasks",         name: "task-board" },
+  { event: "content_pushed", view: "dashboard", name: "post-push-dashboard" },
+  { event: "translation_batch_done", view: "translate", name: "translation-progress" },
+  { event: "terminology_updated", view: "termbase", name: "termbase-growth" },
+  { event: "brand_profile_created", view: "brand-dashboard", name: "brand-setup" },
+  { event: "qa_complete", view: "activities", name: "qa-results" },
+  { event: "tasks_created", view: "tasks", name: "task-board" },
 ];
 
 // Scheduled captures (hourly/daily)
 const scheduledCaptures = [
-  { cron: "0 * * * *",   view: "dashboard",   name: "hourly-dashboard" },
-  { cron: "0 9 * * *",   view: "activities",  name: "daily-activity" },
-  { cron: "0 0 * * 1",   view: "dashboard",   name: "weekly-overview" },
+  { cron: "0 * * * *", view: "dashboard", name: "hourly-dashboard" },
+  { cron: "0 9 * * *", view: "activities", name: "daily-activity" },
+  { cron: "0 0 * * 1", view: "dashboard", name: "weekly-overview" },
 ];
 ```
 
@@ -241,44 +244,44 @@ with status "preferred" across the bowrain-l10n workspace.
 
 ### Platform Health Metrics
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| API response time (p95) | Server performance under agent load | < 500ms |
-| Push/pull success rate | CLI reliability | > 99% |
-| Auth token refresh rate | Token management health | 0 failures |
-| Concurrent agent sessions | Load testing | Up to 10 |
-| Database size growth | Storage planning | Linear |
+| Metric                    | Description                         | Target     |
+| ------------------------- | ----------------------------------- | ---------- |
+| API response time (p95)   | Server performance under agent load | < 500ms    |
+| Push/pull success rate    | CLI reliability                     | > 99%      |
+| Auth token refresh rate   | Token management health             | 0 failures |
+| Concurrent agent sessions | Load testing                        | Up to 10   |
+| Database size growth      | Storage planning                    | Linear     |
 
 ### Translation Quality Metrics
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| AI acceptance rate | % of AI translations accepted without edit | 40-70% |
-| TM reuse rate | % of blocks matched from TM | Growing over time |
-| QA pass rate | % passing quality checks first time | > 85% |
-| Brand compliance score | Avg compliance across checked content | > 90% |
-| Time to translate | Hours from push to 100% translated | Decreasing |
+| Metric                 | Description                                | Target            |
+| ---------------------- | ------------------------------------------ | ----------------- |
+| AI acceptance rate     | % of AI translations accepted without edit | 40-70%            |
+| TM reuse rate          | % of blocks matched from TM                | Growing over time |
+| QA pass rate           | % passing quality checks first time        | > 85%             |
+| Brand compliance score | Avg compliance across checked content      | > 90%             |
+| Time to translate      | Hours from push to 100% translated         | Decreasing        |
 
 ### Agent Performance Metrics
 
-| Metric | Description | Target |
-|--------|-------------|--------|
-| Sessions per day | Agent activity level | Per persona config |
-| Blocks per session | Throughput | Per persona config |
-| Error rate | Agent failures per session | < 5% |
-| LLM cost per session | AI spend per agent invocation | < $5 |
-| Decision latency | Time for LLM to make translation decision | < 10s |
+| Metric               | Description                               | Target             |
+| -------------------- | ----------------------------------------- | ------------------ |
+| Sessions per day     | Agent activity level                      | Per persona config |
+| Blocks per session   | Throughput                                | Per persona config |
+| Error rate           | Agent failures per session                | < 5%               |
+| LLM cost per session | AI spend per agent invocation             | < $5               |
+| Decision latency     | Time for LLM to make translation decision | < 10s              |
 
 ### Business Value Metrics
 
-| Metric | Description | Demo Value |
-|--------|-------------|------------|
-| Total words translated | Cumulative throughput | "100k words across 4 projects" |
-| Languages supported | Breadth | "3-4 languages per project" |
-| File formats processed | Format breadth | "JSON, MD, HTML, YAML, INI, MDX" |
-| TM entries created | Asset growth | "3,500 TM entries building over 12 weeks" |
-| Terminology concepts | Knowledge base | "150 standardized terms" |
-| Cost per word | Efficiency | "$0.02/word with TM, vs $0.05 pure AI" |
+| Metric                 | Description           | Demo Value                                |
+| ---------------------- | --------------------- | ----------------------------------------- |
+| Total words translated | Cumulative throughput | "100k words across 4 projects"            |
+| Languages supported    | Breadth               | "3-4 languages per project"               |
+| File formats processed | Format breadth        | "JSON, MD, HTML, YAML, INI, MDX"          |
+| TM entries created     | Asset growth          | "3,500 TM entries building over 12 weeks" |
+| Terminology concepts   | Knowledge base        | "150 standardized terms"                  |
+| Cost per word          | Efficiency            | "$0.02/word with TM, vs $0.05 pure AI"    |
 
 ## Public Demo Site
 

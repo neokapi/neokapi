@@ -56,24 +56,24 @@ The translation editor supports four layout modes, accessible from the toolbar:
 
 Each translation block has a status that is automatically tracked:
 
-| Status | Indicator | Condition |
-|--------|-----------|-----------|
-| Not Started | Gray | No target text |
-| Draft | Yellow | Has target text but no translation origin |
-| Translated | Blue | Translation origin is set (AI, TM, etc.) |
-| Reviewed | Green | Manually marked as reviewed |
+| Status      | Indicator | Condition                                 |
+| ----------- | --------- | ----------------------------------------- |
+| Not Started | Gray      | No target text                            |
+| Draft       | Yellow    | Has target text but no translation origin |
+| Translated  | Blue      | Translation origin is set (AI, TM, etc.)  |
+| Reviewed    | Green     | Manually marked as reviewed               |
 
 The progress bar at the top of the editor shows the distribution of block statuses.
 
 ## Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl+S` | Save project |
-| `Cmd/Ctrl+O` | Open project |
-| `Cmd/Ctrl+Enter` | Confirm translation and move to next |
-| `Cmd/Ctrl+Shift+Enter` | Copy source to target |
-| `Cmd/Ctrl+Shift+R` | Mark block as reviewed |
+| Shortcut               | Action                               |
+| ---------------------- | ------------------------------------ |
+| `Cmd/Ctrl+S`           | Save project                         |
+| `Cmd/Ctrl+O`           | Open project                         |
+| `Cmd/Ctrl+Enter`       | Confirm translation and move to next |
+| `Cmd/Ctrl+Shift+Enter` | Copy source to target                |
+| `Cmd/Ctrl+Shift+R`     | Mark block as reviewed               |
 
 ## Using Translation Memory
 

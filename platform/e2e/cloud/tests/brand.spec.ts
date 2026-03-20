@@ -6,15 +6,16 @@ test.describe("Brand Voice Profiles", () => {
   let brandAvailable = true;
 
   test.beforeAll(async ({ api }) => {
-    const ws = await api.getOrCreateWorkspace(
-      "E2E Brand",
-      `e2e-brand-${Date.now().toString(36)}`,
-    );
+    const ws = await api.getOrCreateWorkspace("E2E Brand", `e2e-brand-${Date.now().toString(36)}`);
     wsSlug = ws.slug;
 
     // Try to create a profile to verify brand feature availability.
     try {
-      const profile = await api.createBrandProfileFromStarter(wsSlug, "professional-b2b", "E2E Brand Voice");
+      const profile = await api.createBrandProfileFromStarter(
+        wsSlug,
+        "professional-b2b",
+        "E2E Brand Voice",
+      );
       createdProfileId = profile.id;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
