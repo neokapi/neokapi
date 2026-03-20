@@ -22,8 +22,7 @@
       "clientId": "bowrain-admin",
       "name": "Bowrain Control Plane",
       "enabled": true,
-      "publicClient": false,
-      "secret": "bowrain-admin-secret",
+      "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "redirectUris": [

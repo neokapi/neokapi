@@ -1,25 +1,90 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
+import type { FilterField } from "@neokapi/ui";
 import { getUpsells } from "../api";
 import { UpsellTable } from "../components/UpsellTable";
+import { useUrlFilters } from "../hooks/useUrlFilters";
+import type { UpsellOpportunity } from "../types";
+
+const UPSELL_FIELDS: FilterField[] = [
+  {
+    key: "plan",
+    label: "Current Plan",
+    hint: "filter by current plan",
+    values: [
+      { value: "free", label: "Free" },
+      { value: "pro", label: "Pro" },
+      { value: "team", label: "Team" },
+    ],
+  },
+  {
+    key: "signal",
+    label: "Signal",
+    hint: "filter by upsell signal type",
+    values: [
+      { value: "credit_exhaustion", label: "Credit Exhaustion" },
+      { value: "seat_pressure", label: "Seat Pressure" },
+      { value: "feature_gate_hits", label: "Feature Gate Hits" },
+      { value: "high_usage", label: "High Usage" },
+      { value: "dormant_paid", label: "Dormant Paid" },
+    ],
+  },
+];
+
+function matchesFilters(
+  upsell: UpsellOpportunity,
+  planFilter: string | undefined,
+  signalFilter: string | undefined,
+  search: string,
+): boolean {
+  if (planFilter && upsell.current_plan !== planFilter) return false;
+  if (signalFilter && upsell.signal !== signalFilter) return false;
+  if (search) {
+    const q = search.toLowerCase();
+    if (
+      !upsell.workspace_name.toLowerCase().includes(q) &&
+      !upsell.detail.toLowerCase().includes(q)
+    )
+      return false;
+  }
+  return true;
+}
 
 export function UpsellsRoute() {
+  useSetBreadcrumb("Upsell Opportunities");
   const navigate = useNavigate();
+  const { filters, search, setFilters, setSearch } = useUrlFilters(["plan", "signal"], "/upsells");
+
+  const planFilter = filters.find((f) => f.key === "plan")?.value;
+  const signalFilter = filters.find((f) => f.key === "signal")?.value;
 
   const { data: upsells, isLoading } = useQuery({
     queryKey: ["admin", "upsells"],
     queryFn: () => getUpsells(),
   });
 
+  const filtered = (upsells ?? []).filter((u) =>
+    matchesFilters(u, planFilter, signalFilter, search),
+  );
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Upsell Opportunities</h2>
+    <div className="mx-auto w-full max-w-5xl space-y-4">
       <p className="text-sm text-muted-foreground">
         Workspaces that are likely candidates for an upgrade, ranked by priority.
       </p>
 
+      <FilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        search={search}
+        onSearchChange={setSearch}
+        fields={UPSELL_FIELDS}
+        placeholder="Search upsells..."
+      />
+
       <UpsellTable
-        upsells={upsells ?? []}
+        upsells={filtered}
         loading={isLoading}
         onRowClick={(id) =>
           void navigate({ to: "/workspaces/$workspaceId", params: { workspaceId: id } })

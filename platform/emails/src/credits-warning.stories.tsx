@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { CreditsWarningEmail } from "./credits-warning";
+import { EmailPreview } from "./storybook-decorator";
 
 const meta: Meta<typeof CreditsWarningEmail> = {
   title: "Emails/Credits Warning",
   component: CreditsWarningEmail,
   tags: ["autodocs"],
-  parameters: {
-    layout: "padded",
-  },
+  parameters: { layout: "padded" },
+  decorators: [
+    (_, { args }) => (
+      <EmailPreview>
+        <CreditsWarningEmail {...args} />
+      </EmailPreview>
+    ),
+  ],
 };
 
 export default meta;

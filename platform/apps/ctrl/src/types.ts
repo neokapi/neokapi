@@ -89,9 +89,9 @@ export interface PlatformMetrics {
   active_workspaces: number;
   new_signups_7d: number;
   new_signups_30d: number;
-  credit_utilization_percent: number;
-  churn_rate_percent: number;
-  top_workspaces: TopWorkspaceUsage[];
+  credit_utilization_pct: number;
+  churn_rate: number;
+  top_workspaces?: TopWorkspaceUsage[];
 }
 
 export interface TopWorkspaceUsage {
