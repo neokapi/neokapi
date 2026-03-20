@@ -122,9 +122,7 @@ function ConnectedBravoPanel() {
   const { state, actions } = useBravo();
   const runtime = useBravoAssistantRuntime();
 
-  const [view, setView] = useState<"list" | "chat">(
-    state.activeConversation ? "chat" : "list",
-  );
+  const [view, setView] = useState<"list" | "chat">(state.activeConversation ? "chat" : "list");
 
   // Switch to chat view when a conversation becomes active.
   useEffect(() => {
