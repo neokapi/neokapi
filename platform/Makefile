@@ -30,6 +30,7 @@ COVER_DIR   := $(ROOT_DIR)/coverage
 
 FRONTEND_DIR := apps/bowrain/frontend
 WEB_DIR      := apps/web
+CTRL_DIR     := apps/ctrl
 KC_THEME_DIR := apps/keycloak-theme
 EMAILS_DIR   := emails
 CERT_DIR     := docker/traefik/certs
@@ -50,11 +51,13 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         build-server build-worker build-bowrain-cli build-bowrain build-headless install-bowrain-cli \
         ui-deps ui-build ui-check storybook storybook-dev storybook-build \
         frontend-deps frontend-dev frontend-build frontend-check build-ui \
-        web-deps web-build web-check email-deps email-build keycloak-theme keycloak-check \
+        web-deps web-build web-check \
+        ctrl-deps ctrl-dev ctrl-build ctrl-check \
+        email-deps email-build keycloak-theme keycloak-check \
         frontend-check-all \
         docker-server docker-web docker-keycloak docker-all \
         docker-push-server docker-push-web docker-push-keycloak docker-push \
-        dev-deps dev-deps-down dev-server dev-web bowrain-dev certs \
+        dev-deps dev-deps-down dev-server dev-web dev-ctrl bowrain-dev certs \
         screenshots recordings bowrain-cli-recordings \
         test test-fast test-unit test-race test-verbose test-integration \
         test-platform test-bowrain-cli test-bowrain test-e2e-bowrain test-e2e-cloud test-e2e-dev \
@@ -126,13 +129,13 @@ ui-build: ui-deps ## Build shared UI declarations
 ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
 	cd packages/ui && $(NPM) run check
 
-storybook: ui-deps ## Launch Storybook dev server (port 6006)
+storybook: ui-deps email-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
 	cd packages/ui && $(NPM) run storybook
 
 storybook-dev: storybook ## Alias for storybook
 
-storybook-build: ui-deps ## Build Storybook static site
+storybook-build: ui-deps email-deps ## Build Storybook static site
 	cd packages/ui && $(NPM) run storybook:build
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
@@ -147,10 +150,27 @@ web-build: ui-build web-deps ## Build SaaS web UI for production
 web-check: web-deps ## Lint, format-check, and typecheck SaaS web UI
 	cd $(WEB_DIR) && $(NPM) run check
 
+# ── Control Plane (ctrl.bowrain.cloud) ───────────────────────────────────────
+
+ctrl-deps: ## Install control plane dependencies
+	cd $(CTRL_DIR) && $(NPM) install
+
+ctrl-dev: ctrl-deps ## Start control plane dev server (port 3100)
+	@printf '\033]0;Ctrl UI\007'
+	cd $(CTRL_DIR) && \
+	VITE_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
+	$(NPM) run dev
+
+ctrl-build: ui-build ctrl-deps ## Build control plane for production
+	cd $(CTRL_DIR) && $(NPM) run build
+
+ctrl-check: ctrl-deps ## Lint, format-check, and typecheck control plane
+	cd $(CTRL_DIR) && $(NPM) run check
+
 # ── Email Templates (React Email -> HTML) ────────────────────────────────────
 
 email-deps: ## Install React Email template dependencies
-	cd $(EMAILS_DIR) && $(NPM) install
+	cd $(EMAILS_DIR) && $(NPM) install --legacy-peer-deps
 
 email-build: email-deps ## Pre-render React Email templates
 	cd $(EMAILS_DIR) && $(NPM) run build
@@ -165,7 +185,7 @@ keycloak-check: ## Lint, format-check, and typecheck Keycloak theme
 
 # ── Frontend Checks (all) ────────────────────────────────────────────────
 
-frontend-check-all: ui-check web-check frontend-check keycloak-check ## Run checks across all frontend projects
+frontend-check-all: ui-check web-check ctrl-check frontend-check keycloak-check ## Run checks across all frontend projects
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 
@@ -227,11 +247,19 @@ dev-server: ## Run bowrain-server locally (no UI build; use dev-web for HMR)
 	BOWRAIN_SMTP_FROM=noreply@bowrain.cloud \
 	BOWRAIN_DATABASE_URL=postgres://bowrain:bowrain@localhost:5432/bowrain_test?sslmode=disable \
 	BOWRAIN_REDIS_URL=redis://localhost:6379 \
+	BOWRAIN_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
+	BOWRAIN_ADMIN_OIDC_CLIENT_ID=bowrain-admin \
 	$(BIN_DIR)/bowrain-server
 
 dev-web: ## Run web UI dev server with HMR (proxy -> localhost:8080)
 	@printf '\033]0;Web UI\007'
 	cd apps/web && $(NPM) run dev
+
+dev-ctrl: ctrl-deps ## Run control plane dev server with HMR (proxy -> localhost:8080)
+	@printf '\033]0;Ctrl UI\007'
+	cd $(CTRL_DIR) && \
+	VITE_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
+	$(NPM) run dev
 
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
 
@@ -355,6 +383,8 @@ clean: ## Clean platform build artifacts
 	rm -rf $(FRONTEND_DIR)/node_modules
 	rm -rf $(WEB_DIR)/dist
 	rm -rf $(WEB_DIR)/node_modules
+	rm -rf $(CTRL_DIR)/dist
+	rm -rf $(CTRL_DIR)/node_modules
 	rm -rf $(KC_THEME_DIR)/dist_keycloak
 	rm -rf $(KC_THEME_DIR)/node_modules
 	$(GO) clean -cache -testcache

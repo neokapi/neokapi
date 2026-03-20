@@ -1,5 +1,5 @@
-import { Badge } from "@neokapi/ui";
-import { SubscriptionBadge } from "@neokapi/ui";
+import { Badge, SubscriptionBadge } from "@neokapi/ui";
+import type { BillingPlan } from "@neokapi/ui";
 import type { UpsellOpportunity, UpsellSignal } from "../types";
 
 const signalBadge: Record<UpsellSignal, { label: string; className: string }> = {
@@ -84,7 +84,7 @@ export function UpsellTable({ upsells, loading, onRowClick }: UpsellTableProps) 
                   </span>
                 </td>
                 <td className="px-4 py-2">
-                  <SubscriptionBadge plan={upsell.current_plan} status="active" />
+                  <SubscriptionBadge plan={upsell.current_plan as BillingPlan} status="active" />
                 </td>
                 <td className="px-4 py-2">
                   <Badge variant="outline">{upsell.suggested_plan}</Badge>

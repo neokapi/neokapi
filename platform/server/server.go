@@ -170,9 +170,14 @@ type Server struct {
 	// Nil when Stripe is not configured.
 	WebhookHandler *billing.WebhookHandler
 
-	// AdminVerifier validates JWTs from the admin OIDC realm (AD-030).
+	// AdminVerifier validates ID tokens from the admin OIDC realm (AD-030).
 	// Nil when admin OIDC is not configured.
 	AdminVerifier *oidc.IDTokenVerifier
+
+	// AdminAccessVerifier validates access tokens from the admin OIDC realm.
+	// Keycloak access tokens use aud="account" so the standard ID-token
+	// verifier rejects them. This verifier skips the audience check.
+	AdminAccessVerifier *oidc.IDTokenVerifier
 }
 
 // NewServer creates a new Server with the given configuration.
@@ -407,6 +412,13 @@ func NewServer(cfg ServerConfig) *Server {
 			log.Printf("WARNING: failed to init admin OIDC verifier: %v (admin API disabled)", err)
 		} else {
 			s.AdminVerifier = verifier
+			// Access token verifier skips audience check (Keycloak uses aud="account").
+			accessVerifier, err := auth.NewOIDCAccessTokenVerifier(ctx, cfg.AdminOIDCIssuerURL)
+			if err != nil {
+				log.Printf("WARNING: failed to init admin access token verifier: %v", err)
+			} else {
+				s.AdminAccessVerifier = accessVerifier
+			}
 			log.Printf("Admin OIDC verifier enabled (issuer: %s)", cfg.AdminOIDCIssuerURL)
 		}
 	}
@@ -631,7 +643,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Admin routes (admin realm auth) (AD-030).
 	if s.AdminVerifier != nil {
-		adminGroup := e.Group("/api/admin", billing.AdminGuard(s.AdminVerifier))
+		accessVerifier := s.AdminAccessVerifier
+		if accessVerifier == nil {
+			accessVerifier = s.AdminVerifier // fallback
+		}
+		adminGroup := e.Group("/api/admin", billing.AdminGuard(s.AdminVerifier, accessVerifier))
 		adminGroup.GET("/workspaces", s.HandleAdminListWorkspaces)
 		adminGroup.GET("/workspaces/:id", s.HandleAdminGetWorkspace)
 		adminGroup.PUT("/workspaces/:id/plan", s.HandleAdminUpdatePlan)

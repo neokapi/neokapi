@@ -1,17 +1,60 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mockAuthStore implements a minimal auth.AuthStore for admin user handler tests.
+type mockAuthStore struct {
+	auth.AuthStore
+	users      map[string]*platauth.User
+	emails     map[string]*platauth.User
+	workspaces map[string][]*platauth.Workspace
+}
+
+func newMockAuthStore() *mockAuthStore {
+	return &mockAuthStore{
+		users:      make(map[string]*platauth.User),
+		emails:     make(map[string]*platauth.User),
+		workspaces: make(map[string][]*platauth.Workspace),
+	}
+}
+
+func (m *mockAuthStore) GetUser(_ context.Context, id string) (*platauth.User, error) {
+	if u, ok := m.users[id]; ok {
+		return u, nil
+	}
+	return nil, assert.AnError
+}
+
+func (m *mockAuthStore) GetUserByEmail(_ context.Context, email string) (*platauth.User, error) {
+	if u, ok := m.emails[email]; ok {
+		return u, nil
+	}
+	return nil, assert.AnError
+}
+
+func (m *mockAuthStore) ListWorkspaces(_ context.Context, userID string) ([]*platauth.Workspace, error) {
+	if ws, ok := m.workspaces[userID]; ok {
+		return ws, nil
+	}
+	return nil, nil
+}
+
+func (m *mockAuthStore) Close() error { return nil }
 
 func TestHandleAdminListWorkspaces_NilStore(t *testing.T) {
 	s := &Server{}
@@ -440,4 +483,175 @@ func TestHandleAdminListOverrides(t *testing.T) {
 	err := s.HandleAdminListOverrides(c)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+// ---------------------------------------------------------------------------
+// Admin user handler tests
+// ---------------------------------------------------------------------------
+
+func TestHandleAdminListUsers_NilAuthStore(t *testing.T) {
+	s := &Server{}
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users?q=test", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := s.HandleAdminListUsers(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}
+
+func TestHandleAdminListUsers_EmptyQuery(t *testing.T) {
+	authStore := newMockAuthStore()
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := s.HandleAdminListUsers(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, float64(0), resp["total"])
+}
+
+func TestHandleAdminListUsers_FoundByEmail(t *testing.T) {
+	authStore := newMockAuthStore()
+	user := &platauth.User{
+		ID:        "u-1",
+		Email:     "alice@acme.com",
+		Name:      "Alice",
+		CreatedAt: time.Now().UTC(),
+	}
+	authStore.emails["alice@acme.com"] = user
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users?q=alice@acme.com", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := s.HandleAdminListUsers(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, float64(1), resp["total"])
+	users := resp["users"].([]any)
+	firstUser := users[0].(map[string]any)
+	assert.Equal(t, "alice@acme.com", firstUser["email"])
+}
+
+func TestHandleAdminListUsers_NotFound(t *testing.T) {
+	authStore := newMockAuthStore()
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users?q=nobody@example.com", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := s.HandleAdminListUsers(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, float64(0), resp["total"])
+}
+
+func TestHandleAdminGetUser_NilAuthStore(t *testing.T) {
+	s := &Server{}
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-1", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("u-1")
+
+	err := s.HandleAdminGetUser(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+}
+
+func TestHandleAdminGetUser_NotFound(t *testing.T) {
+	authStore := newMockAuthStore()
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-999", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("u-999")
+
+	err := s.HandleAdminGetUser(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
+}
+
+func TestHandleAdminGetUser_Found(t *testing.T) {
+	authStore := newMockAuthStore()
+	user := &platauth.User{
+		ID:        "u-1",
+		Email:     "alice@acme.com",
+		Name:      "Alice",
+		CreatedAt: time.Now().UTC(),
+	}
+	authStore.users["u-1"] = user
+	authStore.workspaces["u-1"] = []*platauth.Workspace{
+		{ID: "ws-1", Name: "Acme Corp", Slug: "acme", Plan: "pro"},
+		{ID: "ws-2", Name: "Side Project", Slug: "side", Plan: "free"},
+	}
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-1", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("u-1")
+
+	err := s.HandleAdminGetUser(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	userResp := resp["user"].(map[string]any)
+	assert.Equal(t, "alice@acme.com", userResp["email"])
+	workspaces := resp["workspaces"].([]any)
+	assert.Len(t, workspaces, 2)
+}
+
+func TestHandleAdminGetUser_NoWorkspaces(t *testing.T) {
+	authStore := newMockAuthStore()
+	user := &platauth.User{
+		ID:    "u-2",
+		Email: "bob@example.com",
+		Name:  "Bob",
+	}
+	authStore.users["u-2"] = user
+	// No workspaces for this user.
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users/u-2", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("u-2")
+
+	err := s.HandleAdminGetUser(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.NotNil(t, resp["user"])
 }

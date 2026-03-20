@@ -1,6 +1,6 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
-import { Mail, User } from "lucide-react";
+import { Lock, Mail, User } from "lucide-react";
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
@@ -19,6 +19,7 @@ export default function Login(props: {
 }) {
   const { kcContext, i18n } = props;
   const { url, realm, login, messagesPerField, message } = kcContext;
+  const isFullLogin = kcContext.pageId === "login.ftl";
   const social = (kcContext as any).social as
     | {
         displayInfo?: boolean;
@@ -87,6 +88,39 @@ export default function Login(props: {
                 <p className="text-xs text-destructive">{messagesPerField.get("username")}</p>
               )}
             </div>
+
+            {isFullLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="password">{msg("password")}</Label>
+                <InputGroup>
+                  <InputGroupAddon>
+                    <Lock className="size-4" />
+                  </InputGroupAddon>
+                  <InputGroupInput
+                    id="password"
+                    name="password"
+                    type="password"
+                    autoComplete="current-password"
+                    tabIndex={2}
+                    aria-invalid={messagesPerField.existsError("password")}
+                  />
+                </InputGroup>
+                {messagesPerField.existsError("password") && (
+                  <p className="text-xs text-destructive">{messagesPerField.get("password")}</p>
+                )}
+                {realm.resetPasswordAllowed && (
+                  <div className="text-right">
+                    <a
+                      href={url.loginResetCredentialsUrl}
+                      className="text-xs text-primary hover:underline"
+                      tabIndex={5}
+                    >
+                      {msg("doForgotPassword")}
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
 
             {realm.rememberMe && (
               <div className="flex items-center gap-2">

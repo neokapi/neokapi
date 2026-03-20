@@ -2,7 +2,22 @@
 export { cn } from "./lib/utils";
 
 // UI primitives (shadcn/ui)
-export { SidebarProvider, SidebarInset, useSidebar } from "./components/ui/sidebar";
+export {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "./components/ui/sidebar";
 export { TooltipProvider } from "./components/ui/tooltip";
 export { Button, buttonVariants } from "./components/ui/button";
 export {

@@ -1,12 +1,14 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Input, Badge } from "@neokapi/ui";
+import { Badge, FilterBar, useSetBreadcrumb } from "@neokapi/ui";
 import { listUsers, getUser } from "../api";
 import { UserTable } from "../components/UserTable";
+import { useUrlFilters } from "../hooks/useUrlFilters";
 import type { AdminUserDetail } from "../types";
 
 export function UsersRoute() {
-  const [search, setSearch] = useState("");
+  useSetBreadcrumb("Users");
+  const { filters, search, setFilters, setSearch } = useUrlFilters([], "/users");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: users, isLoading } = useQuery({
@@ -25,14 +27,14 @@ export function UsersRoute() {
   }, []);
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold">Users</h2>
-
-      <Input
-        placeholder="Search by email or name..."
-        value={search}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-        className="max-w-sm"
+    <div className="mx-auto w-full max-w-5xl space-y-4">
+      <FilterBar
+        filters={filters}
+        onFiltersChange={setFilters}
+        search={search}
+        onSearchChange={setSearch}
+        fields={[]}
+        placeholder="Search by email..."
       />
 
       <UserTable
