@@ -24,8 +24,8 @@ import { BravoFallbackToolUI } from "./bravo-tool-ui";
 
 export const BravoAssistantThread: FC = () => {
   return (
-    <ThreadPrimitive.Root className="flex flex-col h-full">
-      <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto">
+    <ThreadPrimitive.Root className="flex flex-col flex-1 min-h-0">
+      <ThreadPrimitive.Viewport className="flex-1 overflow-y-auto overscroll-contain">
         <ThreadPrimitive.Empty>
           <BravoThreadEmpty />
         </ThreadPrimitive.Empty>
@@ -82,7 +82,7 @@ const BravoUserMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="flex flex-col gap-1 items-end px-4 py-2">
       <div className="text-xs font-medium text-muted-foreground px-1">You</div>
-      <div className="max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed bg-primary text-primary-foreground">
+      <div className="max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed bg-primary text-primary-foreground break-words overflow-hidden">
         <MessagePrimitive.Content
           components={{
             Text: UserTextPart,
@@ -106,7 +106,7 @@ const BravoAssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root className="flex flex-col gap-1 items-start px-4 py-2 group">
       <div className="text-xs font-medium text-muted-foreground px-1">@bravo</div>
-      <div className="max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed bg-muted text-foreground">
+      <div className="max-w-[85%] rounded-lg px-3 py-2 text-sm leading-relaxed bg-muted text-foreground break-words overflow-hidden">
         <MessagePrimitive.Content
           components={{
             Text: AssistantTextPart,
@@ -191,7 +191,7 @@ const BravoComposer: FC = () => {
           className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm leading-relaxed placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring min-h-[40px] max-h-[160px]"
           rows={1}
         />
-        <ComposerPrimitive.Send className="shrink-0 inline-flex items-center justify-center rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
+        <ComposerPrimitive.Send className="shrink-0 inline-flex items-center justify-center rounded-lg bg-primary size-[40px] text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer">
           <svg
             viewBox="0 0 24 24"
             className="size-4"

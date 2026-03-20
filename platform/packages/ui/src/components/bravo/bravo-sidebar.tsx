@@ -77,15 +77,16 @@ export const BravoSidebar: FC<BravoSidebarProps> = ({
         role="complementary"
         aria-label="@bravo assistant"
         className={cn(
-          "shrink-0 flex flex-col border-l bg-background",
+          "shrink-0 flex flex-col border-l bg-background overflow-hidden",
           // Desktop
           "md:relative md:z-auto",
           "md:transition-[width,opacity] md:duration-300 md:ease-in-out",
           open
             ? "md:w-[400px] md:opacity-100"
             : "md:w-0 md:opacity-0 md:overflow-hidden md:border-l-0",
-          // Mobile
+          // Mobile — fixed overlay with safe area support
           "fixed inset-y-0 right-0 z-50 w-full max-md:transition-transform max-md:duration-300 max-md:ease-in-out",
+          "pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]",
           open ? "max-md:translate-x-0" : "max-md:translate-x-full",
         )}
       >
