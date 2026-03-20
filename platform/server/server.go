@@ -674,7 +674,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/editor/projects/:pid/restore", s.HandleRestoreProject)
 	g.DELETE("/editor/projects/:pid/permanent", s.HandlePermanentlyDeleteProject)
 
-	// Archived projects (bin)
+	// Archived projects (recycle bin)
 	g.GET("/archived/projects", s.HandleListArchivedProjects)
 
 	// Translation dashboard (project-scoped, cached)

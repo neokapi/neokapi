@@ -239,7 +239,7 @@ func (s *Server) HandleRestoreStream(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-// HandleListArchivedProjects lists archived projects in a workspace (the "bin").
+// HandleListArchivedProjects lists archived projects in a workspace (the "recycle bin").
 func (s *Server) HandleListArchivedProjects(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})

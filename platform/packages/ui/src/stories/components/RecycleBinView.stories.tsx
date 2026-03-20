@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { BinView } from "../../components/BinView";
+import { RecycleBinView } from "../../components/RecycleBinView";
 import { sampleArchivedProjects } from "./fixtures";
 
-const meta: Meta<typeof BinView> = {
-  title: "Components/BinView",
-  component: BinView,
+const meta: Meta<typeof RecycleBinView> = {
+  title: "Components/RecycleBinView",
+  component: RecycleBinView,
   tags: ["autodocs"],
   decorators: [
     (Story) => (
@@ -17,7 +17,7 @@ const meta: Meta<typeof BinView> = {
 };
 
 export default meta;
-type Story = StoryObj<typeof BinView>;
+type Story = StoryObj<typeof RecycleBinView>;
 
 export const Empty: Story = {
   args: { projects: [], onRestoreProject: fn(), onPermanentlyDelete: fn() },

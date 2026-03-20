@@ -117,7 +117,7 @@ export const subNavConfig: Record<string, SubNavItem[]> = {
     { id: "providers", label: "Providers", icon: <KeyRound /> },
     { id: "tokens", label: "API Tokens", icon: <KeyRound /> },
     { id: "auditlog", label: "Audit Log", icon: <Clock /> },
-    { id: "bin", label: "Bin", icon: <Trash2 /> },
+    { id: "bin", label: "Recycle Bin", icon: <Trash2 /> },
     { id: "bravo", label: "@bravo Agent", icon: <Sparkles /> },
     { id: "billing", label: "Billing", icon: <CreditCard /> },
     { id: "system", label: "System Info", icon: <Info /> },
