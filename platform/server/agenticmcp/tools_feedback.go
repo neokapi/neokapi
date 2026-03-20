@@ -1,4 +1,4 @@
-package agentic_mcp
+package agenticmcp
 
 import (
 	"context"

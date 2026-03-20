@@ -1,7 +1,7 @@
 // Package agentic_mcp provides the Agentic Testing MCP server that exposes
 // fleet management tools for the coordinator agent. It runs as a separate
 // MCP endpoint (/agentic-mcp/) alongside the main Bowrain MCP (/mcp/).
-package agentic_mcp
+package agenticmcp
 
 import (
 	"context"
