@@ -10,20 +10,18 @@ import (
 	checkoutsession "github.com/stripe/stripe-go/v82/checkout/session"
 	"github.com/stripe/stripe-go/v82/customer"
 	"github.com/stripe/stripe-go/v82/invoice"
-	"github.com/stripe/stripe-go/v82/v2/billing/meterevent"
 )
 
 // StripeClient wraps the Stripe SDK for billing operations.
 type StripeClient struct {
-	meterClient meterevent.Client
+	sc *stripe.Client
 }
 
 // NewStripeClient creates a StripeClient with the given secret key.
 func NewStripeClient(secretKey string) *StripeClient {
 	stripe.Key = secretKey
-	backends := stripe.NewBackends(nil)
 	return &StripeClient{
-		meterClient: meterevent.Client{B: backends.API, Key: secretKey},
+		sc: stripe.NewClient(secretKey),
 	}
 }
 
@@ -81,7 +79,7 @@ func (c *StripeClient) CreatePortalSession(_ context.Context, customerID, return
 // ReportMeterEvent sends a meter event to Stripe for usage-based billing.
 // This is called asynchronously and errors are logged, not returned.
 func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName string, value int64, dimensions map[string]string) {
-	params := &stripe.V2BillingMeterEventParams{
+	params := &stripe.V2BillingMeterEventCreateParams{
 		EventName: stripe.String(eventName),
 		Payload: map[string]string{
 			"value":              fmt.Sprintf("%d", value),
@@ -92,7 +90,7 @@ func (c *StripeClient) ReportMeterEvent(_ context.Context, customerID, eventName
 		params.Payload[k] = v
 	}
 
-	if _, err := c.meterClient.New(params); err != nil {
+	if _, err := c.sc.V2BillingMeterEvents.Create(context.Background(), params); err != nil {
 		log.Printf("stripe meter event error: %v", err)
 	}
 }
