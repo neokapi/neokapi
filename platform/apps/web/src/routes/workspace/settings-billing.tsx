@@ -40,6 +40,7 @@ export function SettingsBillingRoute() {
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [usage, setUsage] = useState<BillingUsageBreakdown | null>(null);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (activeWorkspace) {
@@ -52,7 +53,8 @@ export function SettingsBillingRoute() {
     void api
       .billingGetOverview(ws)
       .then(setOverview)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
     void api
       .billingGetUsage(ws)
       .then(setUsage)
@@ -92,10 +94,28 @@ export function SettingsBillingRoute() {
   );
 
   if (!activeWorkspace) return null;
-  if (!overview) return <SettingsSkeleton />;
+  if (!loaded) return <SettingsSkeleton />;
 
-  const { subscription, credits } = overview;
-  const weekEnd = new Date(credits.weekEnd);
+  if (!overview) {
+    return (
+      <div className="mx-auto w-full max-w-3xl py-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Billing</CardTitle>
+            <CardDescription>Billing is not available for this workspace.</CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
+  const subscription = overview.subscription ?? {
+    plan: "free" as const,
+    status: "active" as const,
+    seatCount: 1,
+  };
+  const credits = overview.credits;
+  const weekEnd = credits?.weekEnd ? new Date(credits.weekEnd) : undefined;
   const isOwner = activeWorkspace.role === "owner";
 
   return (
@@ -141,19 +161,21 @@ export function SettingsBillingRoute() {
       </Card>
 
       {/* Credit Usage */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Weekly Credit Usage</CardTitle>
-          <CardDescription>AI credits reset every Monday at 00:00 UTC</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <UsageBar
-            creditsUsed={credits.creditsUsed}
-            creditsTotal={credits.creditsTotal}
-            weekEnd={weekEnd}
-          />
-        </CardContent>
-      </Card>
+      {credits && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Weekly Credit Usage</CardTitle>
+            <CardDescription>AI credits reset every Monday at 00:00 UTC</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <UsageBar
+              creditsUsed={credits.creditsUsed}
+              creditsTotal={credits.creditsTotal}
+              weekEnd={weekEnd!}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Usage Breakdown */}
       {usage && (
