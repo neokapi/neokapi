@@ -372,20 +372,14 @@ export {
 
 // Bravo (@bravo agent) — assistant-ui powered components
 export {
-  // New assistant-ui components
   BravoSidebar,
   BravoAssistantThread,
   BravoToolCallRenderer,
   BravoFallbackToolUI,
   useBravoRuntime,
   useBravoThreadListAdapter,
-  // Legacy components (kept for backwards compatibility)
-  BravoPanel,
   BravoPanelTrigger,
-  BravoThread,
-  BravoComposer,
   BravoToolCall,
-  BravoCodeBlock,
   BravoApprovalCard,
   BravoConversationList,
   BravoConfigPanel,
@@ -397,12 +391,8 @@ export type {
   BravoSidebarProps,
   BravoRuntimeOptions,
   BravoThreadListOptions,
-  BravoPanelProps,
   BravoPanelTriggerProps,
-  BravoThreadProps,
-  BravoComposerProps,
   BravoToolCallProps,
-  BravoCodeBlockProps,
   BravoApprovalCardProps,
   BravoConversationListProps,
   BravoConfigPanelProps,
