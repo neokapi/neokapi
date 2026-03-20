@@ -99,7 +99,7 @@ const viewLabels: Record<string, string> = {
   termbase: "Termbase",
   memory: "Memory",
   auditlog: "Audit Log",
-  bin: "Bin",
+  bin: "Recycle Bin",
   settings: "Settings",
 };
 

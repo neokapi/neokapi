@@ -247,7 +247,7 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     uploadFiles: notImpl,
     removeFile: notImpl,
 
-    // --- Archive / Bin ----------------------------------------------------
+    // --- Archive / Recycle Bin ----------------------------------------------------
     restoreProject: noop,
     permanentlyDeleteProject: noop,
     listArchivedProjects: async () => [],

@@ -375,7 +375,7 @@ export const sampleCollectionStats: CollectionTranslationStats[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Archived Projects (Bin)
+// Archived Projects (Recycle Bin)
 // ---------------------------------------------------------------------------
 
 export const sampleArchivedProjects: ArchivedProject[] = [

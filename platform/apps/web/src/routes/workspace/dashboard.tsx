@@ -89,7 +89,7 @@ export function ProjectDashboardRoute() {
           if (!v) setArchiveProjectId(null);
         }}
         title="Archive project"
-        description="This project will be moved to the Bin. You can restore it at any time."
+        description="This project will be moved to the Recycle Bin. You can restore it at any time."
         confirmLabel="Archive"
         variant="destructive"
         onConfirm={confirmArchiveProject}

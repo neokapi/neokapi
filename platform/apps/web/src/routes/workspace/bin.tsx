@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { BinView, ConfirmDialog, useWorkspace, useApi, Card } from "@neokapi/ui";
+import { RecycleBinView, ConfirmDialog, useWorkspace, useApi, Card } from "@neokapi/ui";
 
 export function BinRoute() {
   const { activeWorkspace } = useWorkspace();
@@ -10,7 +10,7 @@ export function BinRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Bin — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Recycle Bin — ${activeWorkspace.name} — Bowrain`;
     }
   }, [activeWorkspace]);
 
@@ -48,7 +48,7 @@ export function BinRoute() {
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <BinView
+      <RecycleBinView
         projects={projects ?? []}
         loading={isFetching}
         onRestoreProject={handleRestore}

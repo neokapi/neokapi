@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Trash2, ArrowLeft } from "./icons";
 
-export interface BinViewProps {
+export interface RecycleBinViewProps {
   projects: ArchivedProject[];
   loading?: boolean;
   onRestoreProject: (id: string) => void;
@@ -31,18 +31,18 @@ function daysRemaining(archivedAt?: string, retentionDays = 30): number {
   return Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
 }
 
-export function BinView({
+export function RecycleBinView({
   projects,
   loading,
   onRestoreProject,
   onPermanentlyDelete,
   retentionDays = 30,
-}: BinViewProps) {
+}: RecycleBinViewProps) {
   return (
     <div className="flex-1 min-h-0 overflow-auto">
       <Card className="p-6 mb-4">
         <div className="mb-2">
-          <h2 className="text-xl font-semibold">Bin</h2>
+          <h2 className="text-xl font-semibold">Recycle Bin</h2>
           <p className="text-[13px] text-muted-foreground mt-1">
             Archived projects are kept for {retentionDays} days before permanent deletion. You can
             restore them at any time during this period.
@@ -54,7 +54,7 @@ export function BinView({
         {projects.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Trash2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">The bin is empty</p>
+            <p className="text-sm text-muted-foreground">The recycle bin is empty</p>
             <p className="text-[12px] text-muted-foreground/60 mt-1">
               Archived projects and streams will appear here
             </p>

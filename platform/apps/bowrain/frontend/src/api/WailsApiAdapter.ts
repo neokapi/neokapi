@@ -211,7 +211,7 @@ export class WailsApiAdapter implements ApiAdapter {
     return Backend.RemoveItem(projectId, fileName) as Promise<ProjectInfo>;
   }
 
-  // --- Archive / Bin (not applicable in desktop) ---
+  // --- Archive / Recycle Bin (not applicable in desktop) ---
   async restoreProject(): Promise<void> {}
   async permanentlyDeleteProject(): Promise<void> {}
   async listArchivedProjects(): Promise<ArchivedProject[]> {
