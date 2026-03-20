@@ -9,20 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockPostHogClient captures events for testing.
-type capturedEvent struct {
-	DistinctID string
-	Event      string
-	Properties map[string]any
-}
-
-type capturedIdentify struct {
-	DistinctID string
-	Properties map[string]any
-}
-
-// testAnalyticsCollector wraps a real PostHogClient and captures events.
-// We use the no-op PostHogClient from billing and intercept via trackEvent.
 
 func TestTrackEvent_NilClient(t *testing.T) {
 	s := &Server{} // PostHogClient is nil

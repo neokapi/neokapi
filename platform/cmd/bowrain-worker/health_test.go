@@ -35,7 +35,7 @@ func TestHealthEndpoint(t *testing.T) {
 		<-ctx.Done()
 		srv.Close()
 	}()
-	go srv.ListenAndServe()
+	go func() { _ = srv.ListenAndServe() }()
 
 	// Wait for server to start.
 	var resp *http.Response

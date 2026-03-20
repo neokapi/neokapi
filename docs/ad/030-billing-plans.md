@@ -624,7 +624,7 @@ The upsell page surfaces workspaces that are likely candidates for an upgrade, h
 | **Feature gate hits** | Workspaces receiving repeated `403 upgrade_required` responses | Offer trial of the gated feature |
 | **High usage, low plan** | Workspaces consistently using >80% of weekly credits | Proactive upgrade conversation |
 | **Trial expiring** | Workspaces on trial ending within 3 days | Follow up on conversion |
-| **Dormant paid** | Paid workspaces with <10% credit usage for 4+ weeks | Check in to prevent churn |
+| **Dormant paid** | Paid workspaces with less than 10% credit usage for 4+ weeks | Check in to prevent churn |
 
 The upsell view is powered by a `/api/admin/upsells` endpoint that queries usage patterns and returns ranked opportunities:
 
