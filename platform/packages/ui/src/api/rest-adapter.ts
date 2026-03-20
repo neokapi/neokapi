@@ -67,6 +67,9 @@ import type {
   BravoSSENeedsApproval,
   BravoSSEMessageEnd,
   BravoSSEError,
+  BillingOverview,
+  BillingUsageBreakdown,
+  CreditLedgerEntry,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1665,6 +1668,55 @@ export class RestApiAdapter implements ApiAdapter {
 
     void run();
     return controller;
+  }
+
+  // ── Billing (AD-030) ────────────────────────────────────────────────────
+
+  private billingEp(ws: string) {
+    return `/api/v1/workspaces/${ws}/billing`;
+  }
+
+  async billingGetOverview(workspaceSlug: string): Promise<BillingOverview> {
+    return this.fetchJSON(this.billingEp(workspaceSlug));
+  }
+
+  async billingGetUsage(workspaceSlug: string): Promise<BillingUsageBreakdown> {
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/usage`);
+  }
+
+  async billingCreateCheckout(
+    workspaceSlug: string,
+    priceId: string,
+    successUrl: string,
+    cancelUrl: string,
+  ): Promise<{ url: string }> {
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/checkout`, {
+      method: "POST",
+      body: JSON.stringify({
+        price_id: priceId,
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+      }),
+    });
+  }
+
+  async billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }> {
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/portal`, {
+      method: "POST",
+      body: JSON.stringify({ return_url: returnUrl }),
+    });
+  }
+
+  async billingGetLedger(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<CreditLedgerEntry[]> {
+    const params = new URLSearchParams();
+    if (from) params.set("from", from);
+    if (to) params.set("to", to);
+    const qs = params.toString();
+    return this.fetchJSON(`${this.billingEp(workspaceSlug)}/ledger${qs ? `?${qs}` : ""}`);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

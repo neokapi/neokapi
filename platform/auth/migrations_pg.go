@@ -101,4 +101,12 @@ var authMigrationsPg = []storage.Migration{
 			ALTER TABLE unclaimed_projects RENAME COLUMN target_locales TO target_languages;
 		`,
 	},
+	{
+		Version:     4,
+		Description: "add plan and stripe_customer_id to workspaces",
+		SQL: `
+			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS plan TEXT NOT NULL DEFAULT 'free';
+			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+		`,
+	},
 }

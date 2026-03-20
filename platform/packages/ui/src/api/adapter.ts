@@ -59,6 +59,9 @@ import type {
   BravoToolInfo,
   BravoUsageSummary,
   BravoSSEHandler,
+  BillingOverview,
+  BillingUsageBreakdown,
+  CreditLedgerEntry,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -546,6 +549,18 @@ export interface ApiAdapter {
     mode?: string,
     context?: { projectId?: string; stream?: string; itemId?: string },
   ): AbortController;
+
+  // Billing
+  billingGetOverview(workspaceSlug: string): Promise<BillingOverview>;
+  billingGetUsage(workspaceSlug: string): Promise<BillingUsageBreakdown>;
+  billingCreateCheckout(
+    workspaceSlug: string,
+    priceId: string,
+    successUrl: string,
+    cancelUrl: string,
+  ): Promise<{ url: string }>;
+  billingCreatePortal(workspaceSlug: string, returnUrl: string): Promise<{ url: string }>;
+  billingGetLedger(workspaceSlug: string, from?: string, to?: string): Promise<CreditLedgerEntry[]>;
 
   // Utility
   getKnownLocales(): Promise<LocaleInfo[]>;

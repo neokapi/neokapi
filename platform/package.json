@@ -3,6 +3,7 @@
   "workspaces": [
     "packages/ui",
     "apps/web",
+    "apps/ctrl",
     "apps/bowrain/frontend"
   ],
   "devDependencies": {

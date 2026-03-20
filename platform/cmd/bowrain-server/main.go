@@ -145,6 +145,40 @@ func main() {
 		cfg.AgenticEvents = true
 	}
 
+	// Billing (AD-030).
+	if v := os.Getenv("STRIPE_SECRET_KEY"); v != "" {
+		cfg.StripeSecretKey = v
+	}
+	if v := os.Getenv("STRIPE_WEBHOOK_SECRET"); v != "" {
+		cfg.StripeWebhookSecret = v
+	}
+	if v := os.Getenv("STRIPE_PRO_PRICE_ID"); v != "" {
+		cfg.StripeProPriceID = v
+	}
+	if v := os.Getenv("STRIPE_TEAM_PRICE_ID"); v != "" {
+		cfg.StripeTeamPriceID = v
+	}
+	if v := os.Getenv("STRIPE_CREDIT_PRICE_ID"); v != "" {
+		cfg.StripeCreditPriceID = v
+	}
+	if v := os.Getenv("POSTHOG_API_KEY"); v != "" {
+		cfg.PostHogAPIKey = v
+	}
+	if v := os.Getenv("POSTHOG_HOST"); v != "" {
+		cfg.PostHogHost = v
+	}
+
+	// Admin control plane (AD-030).
+	if v := os.Getenv("BOWRAIN_ADMIN_OIDC_ISSUER_URL"); v != "" {
+		cfg.AdminOIDCIssuerURL = v
+	}
+	if v := os.Getenv("BOWRAIN_ADMIN_OIDC_CLIENT_ID"); v != "" {
+		cfg.AdminOIDCClientID = v
+	}
+	if v := os.Getenv("BOWRAIN_ADMIN_OIDC_CLIENT_SECRET"); v != "" {
+		cfg.AdminOIDCClientSecret = v
+	}
+
 	// Validate that DatabaseURL is a PostgreSQL connection string.
 	if cfg.DatabaseURL != "" && !strings.HasPrefix(cfg.DatabaseURL, "postgres://") && !strings.HasPrefix(cfg.DatabaseURL, "postgresql://") {
 		log.Fatalf("Invalid -database-url: must start with postgres:// or postgresql://")

@@ -15,6 +15,7 @@ import {
   Users,
   KeyRound,
   Info,
+  CreditCard,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -118,6 +119,7 @@ export const subNavConfig: Record<string, SubNavItem[]> = {
     { id: "auditlog", label: "Audit Log", icon: <Clock /> },
     { id: "bin", label: "Bin", icon: <Trash2 /> },
     { id: "bravo", label: "@bravo Agent", icon: <Sparkles /> },
+    { id: "billing", label: "Billing", icon: <CreditCard /> },
     { id: "system", label: "System Info", icon: <Info /> },
   ],
 };

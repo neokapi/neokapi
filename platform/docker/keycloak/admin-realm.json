@@ -1,0 +1,60 @@
+{
+  "realm": "bowrain-admin",
+  "enabled": true,
+  "loginTheme": "bowrain",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": true,
+  "resetPasswordAllowed": true,
+  "verifyEmail": true,
+  "loginWithEmailAllowed": true,
+  "sslRequired": "none",
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "noreply@bowrain.cloud",
+    "fromDisplayName": "Bowrain Admin",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false"
+  },
+  "clients": [
+    {
+      "clientId": "bowrain-admin",
+      "name": "Bowrain Control Plane",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "bowrain-admin-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3100/*",
+        "http://localhost:8080/api/v1/auth/admin/callback",
+        "https://ctrl.bowrain.mymac/*",
+        "https://ctrl.bowrain.cloud/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3100",
+        "https://ctrl.bowrain.mymac",
+        "https://ctrl.bowrain.cloud"
+      ],
+      "protocol": "openid-connect"
+    }
+  ],
+  "users": [
+    {
+      "username": "admin@bowrain.cloud",
+      "email": "admin@bowrain.cloud",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "Bowrain",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}
