@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -111,6 +112,27 @@ func main() {
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
+
+	// Health endpoint for liveness/readiness probes.
+	healthPort := envOrDefault("BOWRAIN_HEALTH_PORT", "8081")
+	g.Go(func() error {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
+		})
+		srv := &http.Server{Addr: ":" + healthPort, Handler: mux}
+		go func() {
+			<-ctx.Done()
+			srv.Close()
+		}()
+		log.Printf("Health endpoint listening on :%s", healthPort)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			return fmt.Errorf("health server: %w", err)
+		}
+		return nil
+	})
 
 	// Translation worker.
 	g.Go(func() error {

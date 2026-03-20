@@ -388,6 +388,14 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 
 	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
+
+	userID, _ := c.Get("user_id").(string)
+	s.trackEvent(userID, "translation_saved", map[string]any{
+		"project_id": pid,
+		"block_id":   bid,
+		"locale":     req.TargetLocale,
+	})
+
 	return c.NoContent(http.StatusNoContent)
 }
 
