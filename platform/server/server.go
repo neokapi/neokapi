@@ -363,11 +363,21 @@ func NewServer(cfg ServerConfig) *Server {
 			}))
 			log.Printf("Agentic fleet repo configured: %s", cfg.FleetRepoURL)
 		}
-		// Wire dispatcher using the same queue publisher as the agentic event sink.
-		if s.AgenticQueueSink != nil {
-			agOpts = append(agOpts, agenticmcp.WithDispatcher(
-				agenticmcp.NewQueueDispatcher(s.AgenticQueueSink.Publisher(), ""),
-			))
+		// Wire execution store and Redis subscriber for agentic event persistence.
+		if cfg.AgenticEvents && cfg.RedisURL != "" && s.wsStores.pgDB != nil {
+			execStore, err := agenticmcp.NewPostgresExecutionStore(s.wsStores.pgDB)
+			if err != nil {
+				log.Printf("WARNING: failed to init agentic execution store: %v", err)
+			} else {
+				agOpts = append(agOpts, agenticmcp.WithExecutionStore(execStore))
+				execSub, err := agenticmcp.NewExecutionSubscriber(cfg.RedisURL, cfg.RedisPassword, execStore)
+				if err != nil {
+					log.Printf("WARNING: failed to init agentic execution subscriber: %v", err)
+				} else {
+					execSub.Start(context.Background())
+					log.Printf("Agentic execution subscriber active (Redis → PostgreSQL)")
+				}
+			}
 		}
 		as, err := agenticmcp.NewServer(agCfg, agOpts...)
 		if err != nil {
