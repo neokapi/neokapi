@@ -52,6 +52,13 @@ jobs:
             echo "Warning: docs-assets release not found, building without screenshots/recordings"
           fi
 
+          # Ensure test-comparison.json exists (stub if not fetched)
+          if [ ! -f website/static/data/test-comparison.json ]; then
+            mkdir -p website/static/data
+            echo '{"generatedAt":"","okapiVersion":"","neokapiVersion":"","filters":[],"summary":{"totalFiltersOkapi":0,"totalFiltersBridge":0,"totalFiltersNative":0,"totalFiltersBoth":0,"totalTestsOkapi":0,"totalTestsBridge":0,"totalTestsNative":0,"coveragePct":0}}' > website/static/data/test-comparison.json
+            echo "Created stub test-comparison.json"
+          fi
+
       # Build Docusaurus site
       - run: npm ci
         working-directory: website
