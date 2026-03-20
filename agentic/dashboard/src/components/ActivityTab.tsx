@@ -2,17 +2,19 @@ import { useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
-import { activityFeed } from '@/data/activity';
 import { useFilter } from '@/context/FilterContext';
+import { useApi } from '@/context/ApiContext';
+import { agentMeta } from '@/data/agent-meta';
 
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('en-US', {
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
   });
 }
 
-function dateLabel(date: Date): string {
+function dateLabel(iso: string): string {
+  const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
@@ -26,26 +28,59 @@ function dateLabel(date: Date): string {
   });
 }
 
-export default function ActivityTab() {
-  const { workspace, agent, search } = useFilter();
+function getDisplayName(actor: string): string {
+  const meta = agentMeta.find((m) => m.userId === actor);
+  return meta?.displayName ?? (actor || 'System');
+}
 
-  const filtered = useMemo(() => {
-    let entries = activityFeed;
-    if (workspace) entries = entries.filter((e) => e.workspace === workspace);
-    if (agent) entries = entries.filter((e) => e.agentId === agent);
+function formatEventDescription(eventType: string, data: string): string {
+  try {
+    const parsed = JSON.parse(data);
+    switch (eventType) {
+      case 'block.target.updated':
+      case 'block.updated':
+        return `Updated block ${parsed.block_id ?? ''}`;
+      case 'stream.created':
+        return `Created stream ${parsed.stream ?? ''}${parsed.parent ? ` in ${parsed.parent}` : ''}`;
+      case 'connector.push.completed':
+        return `Push completed: ${parsed.items ?? 0} items (push ${parsed.push_id ?? ''})`;
+      case 'item.created':
+        return `Created item ${parsed.item_name ?? ''} (${parsed.format ?? ''})`;
+      default:
+        return eventType;
+    }
+  } catch {
+    return eventType;
+  }
+}
+
+export default function ActivityTab() {
+  const { agent, search } = useFilter();
+  const api = useApi();
+
+  const entries = useMemo(() => {
+    // Sort audit log descending by time
+    let items = [...api.auditLog].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    if (agent) items = items.filter((e) => e.actor === agent);
     if (search) {
       const q = search.toLowerCase();
-      entries = entries.filter((e) => e.action.toLowerCase().includes(q));
+      items = items.filter((e) =>
+        e.event_type.toLowerCase().includes(q) ||
+        e.data.toLowerCase().includes(q) ||
+        getDisplayName(e.actor).toLowerCase().includes(q)
+      );
     }
-    return entries;
-  }, [workspace, agent, search]);
+    return items;
+  }, [api.auditLog, agent, search]);
 
   // Group by date
   const grouped = useMemo(() => {
-    const groups: { label: string; entries: typeof filtered }[] = [];
+    const groups: { label: string; entries: typeof entries }[] = [];
     let currentLabel = '';
-    for (const entry of filtered) {
-      const label = dateLabel(entry.timestamp);
+    for (const entry of entries) {
+      const label = dateLabel(entry.created_at);
       if (label !== currentLabel) {
         groups.push({ label, entries: [] });
         currentLabel = label;
@@ -53,13 +88,23 @@ export default function ActivityTab() {
       groups[groups.length - 1].entries.push(entry);
     }
     return groups;
-  }, [filtered]);
+  }, [entries]);
+
+  if (api.loading) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        Loading activity...
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Agent actions from the Bowrain activity feed
+          {api.connected
+            ? `${entries.length} audit log entries from the Bowrain API`
+            : 'Not connected to Bowrain API'}
         </p>
         <Button
           variant="ghost"
@@ -97,24 +142,18 @@ export default function ActivityTab() {
                   className="flex items-start gap-3 rounded-md px-3 py-2 transition-colors hover:bg-accent/30"
                 >
                   <span className="font-mono text-[11px] text-muted-foreground/60 mt-0.5 shrink-0 w-14">
-                    {formatTime(entry.timestamp)}
+                    {formatTime(entry.created_at)}
                   </span>
                   <Badge variant="secondary" className="text-[10px] shrink-0 mt-0.5">
-                    {entry.agentName}
+                    {getDisplayName(entry.actor)}
                   </Badge>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-foreground/80 leading-relaxed">
-                      {entry.action}
+                      {formatEventDescription(entry.event_type, entry.data)}
                     </p>
-                    {entry.toolsUsed.length > 0 && (
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {entry.toolsUsed.map((tool) => (
-                          <Badge key={tool} variant="outline" className="text-[9px]">
-                            {tool}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
+                    <Badge variant="outline" className="text-[9px] mt-1">
+                      {entry.event_type}
+                    </Badge>
                   </div>
                 </div>
               ))}

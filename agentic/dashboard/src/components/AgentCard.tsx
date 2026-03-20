@@ -1,12 +1,10 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Agent } from '@/data/agents';
-import { sessions } from '@/data/sessions';
-import { workspaces } from '@/data/workspaces';
 import { useFilter } from '@/context/FilterContext';
+import { useApi, type AgentProfile } from '@/context/ApiContext';
 
 interface AgentCardProps {
-  agent: Agent;
+  agent: AgentProfile;
 }
 
 function formatRelativeTime(iso: string): string {
@@ -21,22 +19,17 @@ function formatRelativeTime(iso: string): string {
 
 export default function AgentCard({ agent }: AgentCardProps) {
   const { addToken } = useFilter();
+  const api = useApi();
 
-  const now = Date.now();
-  const dayMs = 24 * 3_600_000;
-  const runsToday = sessions.filter(
-    (s) => s.agentId === agent.id && now - new Date(s.startTime).getTime() < dayMs
-  ).length;
-
-  const isIdle = agent.status === 'sleeping' || agent.status === 'idle';
+  const isIdle = !agent.lastActive;
 
   function handleClick() {
-    // Add workspace token first if not already present, then agent
-    const ws = workspaces.find((w) => w.id === agent.workspace);
-    if (ws) {
+    // Add workspace token first if available, then agent
+    if (api.workspaces.length > 0) {
+      const ws = api.workspaces[0];
       addToken({ key: 'workspace', value: ws.slug, label: ws.name });
     }
-    addToken({ key: 'agent', value: agent.id, label: agent.name });
+    addToken({ key: 'agent', value: agent.id, label: agent.displayName });
   }
 
   return (
@@ -48,7 +41,7 @@ export default function AgentCard({ agent }: AgentCardProps) {
         {/* Name + Role */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{agent.name}</div>
+            <div className="text-sm font-semibold truncate">{agent.displayName}</div>
           </div>
           <Badge variant="secondary" className="text-[10px] shrink-0">
             {agent.role}
@@ -74,14 +67,14 @@ export default function AgentCard({ agent }: AgentCardProps) {
             <span className="text-muted-foreground">Idle</span>
           ) : (
             <span className="text-muted-foreground">
-              Last: {formatRelativeTime(agent.lastSession.time)}
+              Last: {formatRelativeTime(agent.lastActive!)}
             </span>
           )}
         </div>
 
-        {/* Runs today */}
+        {/* Events today */}
         <div className="text-[11px] text-muted-foreground/70">
-          {runsToday} run{runsToday !== 1 ? 's' : ''} today
+          {agent.eventsToday} event{agent.eventsToday !== 1 ? 's' : ''} today
         </div>
       </CardContent>
     </Card>

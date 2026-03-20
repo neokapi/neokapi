@@ -9,17 +9,12 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { useFilter } from '@/context/FilterContext';
-import { sessions } from '@/data/sessions';
+import { useApi, groupAuditSessions, type AuditSession } from '@/context/ApiContext';
+import { agentMeta } from '@/data/agent-meta';
 import SessionDetail from './SessionDetail';
 
-type SortKey = 'agent' | 'started' | 'duration' | 'status';
+type SortKey = 'actor' | 'started' | 'events' | 'type';
 type SortDir = 'asc' | 'desc';
-
-function formatDuration(secs: number): string {
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
-}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('en-US', {
@@ -30,38 +25,52 @@ function formatDate(iso: string): string {
   });
 }
 
+function formatDuration(startIso: string, endIso: string): string {
+  const diffMs = new Date(endIso).getTime() - new Date(startIso).getTime();
+  const secs = Math.floor(diffMs / 1000);
+  if (secs < 60) return `${secs}s`;
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m}m ${s}s`;
+}
+
 function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const today = new Date();
-  return d.toDateString() === today.toDateString();
+  return new Date(iso).toDateString() === new Date().toDateString();
 }
 
 function isYesterday(iso: string): boolean {
-  const d = new Date(iso);
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  return d.toDateString() === yesterday.toDateString();
+  return new Date(iso).toDateString() === yesterday.toDateString();
+}
+
+function isWithinDays(iso: string, days: number): boolean {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0, 0, 0, 0);
+  return new Date(iso) >= cutoff;
 }
 
 function isThisWeek(iso: string): boolean {
-  const d = new Date(iso);
   const now = new Date();
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - now.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
-  return d >= startOfWeek;
+  return new Date(iso) >= startOfWeek;
 }
 
-function isWithinDays(iso: string, days: number): boolean {
-  const d = new Date(iso);
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  cutoff.setHours(0, 0, 0, 0);
-  return d >= cutoff;
+function getActorDisplayName(actor: string): string {
+  const meta = agentMeta.find((m) => m.userId === actor);
+  return meta?.displayName ?? (actor || 'Unknown');
+}
+
+function getEventTypes(session: AuditSession): string[] {
+  return [...new Set(session.events.map((e) => e.event_type))];
 }
 
 export default function SessionTable() {
-  const { workspace, agent, status, search, tokens } = useFilter();
+  const { agent, status, search, tokens } = useFilter();
+  const api = useApi();
   const [sortKey, setSortKey] = useState<SortKey>('started');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -69,14 +78,19 @@ export default function SessionTable() {
   const timeToken = tokens.find((t) => t.key === 'time');
   const toolToken = tokens.find((t) => t.key === 'tool');
 
+  const sessions = useMemo(() => groupAuditSessions(api.auditLog), [api.auditLog]);
+
   const filtered = useMemo(() => {
     let s = sessions;
-    if (workspace) s = s.filter((sess) => sess.workspace === workspace);
-    if (agent) s = s.filter((sess) => sess.agentId === agent);
-    if (status) s = s.filter((sess) => sess.status === status);
+    if (agent) s = s.filter((sess) => sess.actor === agent);
+    if (status) {
+      // No real status from audit log, skip
+    }
     if (search) {
       const q = search.toLowerCase();
-      s = s.filter((sess) => sess.summary.toLowerCase().includes(q));
+      s = s.filter((sess) =>
+        sess.events.some((e) => e.event_type.toLowerCase().includes(q) || e.data.toLowerCase().includes(q))
+      );
     }
     if (timeToken) {
       const tv = timeToken.value;
@@ -91,6 +105,7 @@ export default function SessionTable() {
           s = s.filter((sess) => isThisWeek(sess.startTime));
           break;
         case 'this-month':
+        case '30d':
           s = s.filter((sess) => isWithinDays(sess.startTime, 30));
           break;
         case '7d':
@@ -99,33 +114,32 @@ export default function SessionTable() {
         case '14d':
           s = s.filter((sess) => isWithinDays(sess.startTime, 14));
           break;
-        case '30d':
-          s = s.filter((sess) => isWithinDays(sess.startTime, 30));
-          break;
       }
     }
     if (toolToken) {
-      s = s.filter((sess) => sess.toolCalls.some((tc) => tc.tool === toolToken.value));
+      s = s.filter((sess) => sess.events.some((e) => e.event_type === toolToken.value));
     }
+    // Suppress unused variable warning
+    void status;
     return s;
-  }, [workspace, agent, status, search, timeToken, toolToken]);
+  }, [sessions, agent, status, search, timeToken, toolToken]);
 
   const sorted = useMemo(() => {
     const copy = [...filtered];
     copy.sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
-        case 'agent':
-          cmp = a.agentName.localeCompare(b.agentName);
+        case 'actor':
+          cmp = getActorDisplayName(a.actor).localeCompare(getActorDisplayName(b.actor));
           break;
         case 'started':
           cmp = new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
           break;
-        case 'duration':
-          cmp = a.durationSecs - b.durationSecs;
+        case 'events':
+          cmp = a.eventCount - b.eventCount;
           break;
-        case 'status':
-          cmp = a.status.localeCompare(b.status);
+        case 'type':
+          cmp = (getEventTypes(a)[0] ?? '').localeCompare(getEventTypes(b)[0] ?? '');
           break;
       }
       return sortDir === 'asc' ? cmp : -cmp;
@@ -151,8 +165,12 @@ export default function SessionTable() {
     ? sessions.find((s) => s.id === selectedSessionId) ?? null
     : null;
 
-  function uniqueTools(session: (typeof sessions)[0]) {
-    return [...new Set(session.toolCalls.map((tc) => tc.tool))];
+  if (api.loading) {
+    return (
+      <p className="py-8 text-center text-sm text-muted-foreground">
+        Loading audit log...
+      </p>
+    );
   }
 
   return (
@@ -163,9 +181,9 @@ export default function SessionTable() {
             <TableRow>
               <TableHead
                 className="cursor-pointer select-none"
-                onClick={() => handleSort('agent')}
+                onClick={() => handleSort('actor')}
               >
-                Agent{sortIndicator('agent')}
+                Actor{sortIndicator('actor')}
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none"
@@ -173,27 +191,27 @@ export default function SessionTable() {
               >
                 Started{sortIndicator('started')}
               </TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead
                 className="cursor-pointer select-none"
-                onClick={() => handleSort('duration')}
+                onClick={() => handleSort('events')}
               >
-                Duration{sortIndicator('duration')}
+                Events{sortIndicator('events')}
               </TableHead>
               <TableHead
                 className="cursor-pointer select-none"
-                onClick={() => handleSort('status')}
+                onClick={() => handleSort('type')}
               >
-                Status{sortIndicator('status')}
+                Types{sortIndicator('type')}
               </TableHead>
-              <TableHead>Tools</TableHead>
-              <TableHead className="hidden md:table-cell">Summary</TableHead>
+              <TableHead className="hidden md:table-cell">Preview</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sorted.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="py-8 text-center text-muted-foreground">
-                  No sessions found.
+                  No audit sessions found.
                 </TableCell>
               </TableRow>
             ) : (
@@ -203,38 +221,31 @@ export default function SessionTable() {
                   className="cursor-pointer"
                   onClick={() => setSelectedSessionId(sess.id)}
                 >
-                  <TableCell className="font-medium">{sess.agentName}</TableCell>
+                  <TableCell className="font-medium">
+                    {getActorDisplayName(sess.actor)}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">
                     {formatDate(sess.startTime)}
                   </TableCell>
                   <TableCell className="font-mono text-xs">
-                    {formatDuration(sess.durationSecs)}
+                    {formatDuration(sess.startTime, sess.endTime)}
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        sess.status === 'succeeded'
-                          ? 'default'
-                          : sess.status === 'failed'
-                            ? 'destructive'
-                            : 'secondary'
-                      }
-                      className="text-xs"
-                    >
-                      {sess.status}
-                    </Badge>
+                  <TableCell className="font-mono text-xs">
+                    {sess.eventCount}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
-                      {uniqueTools(sess).map((tool) => (
-                        <Badge key={tool} variant="outline" className="text-[10px]">
-                          {tool}
+                      {getEventTypes(sess).map((t) => (
+                        <Badge key={t} variant="outline" className="text-[10px]">
+                          {t}
                         </Badge>
                       ))}
                     </div>
                   </TableCell>
                   <TableCell className="hidden max-w-[300px] truncate text-xs text-muted-foreground md:table-cell">
-                    {sess.summary}
+                    {sess.events[0]?.data
+                      ? (() => { try { const d = JSON.parse(sess.events[0].data); return d.block_id ?? d.stream ?? d.item_name ?? sess.events[0].data; } catch { return sess.events[0].data; } })()
+                      : '--'}
                   </TableCell>
                 </TableRow>
               ))
