@@ -22,6 +22,7 @@ import (
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/mailer"
+	agenticmcp "github.com/neokapi/neokapi/bowrain/server/agentic_mcp"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -111,6 +112,9 @@ type Server struct {
 
 	// mcpServer is the MCP protocol server for brand voice. Nil when brand store is not configured.
 	mcpServer *mcpserver.MCPServer
+
+	// agenticMCP is the Agentic Testing MCP server for fleet management. Nil when not configured.
+	agenticMCP *agenticmcp.Server
 
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
@@ -338,6 +342,24 @@ func NewServer(cfg ServerConfig) *Server {
 			log.Printf("WARNING: failed to initialize MCP server: %v", err)
 		} else {
 			s.mcpServer = ms
+		}
+	}
+
+	// Initialize Agentic Testing MCP server for fleet coordination.
+	{
+		agCfg := agenticmcp.Config{
+			JWTSecret: cfg.JWTSecret,
+			PublicURL: cfg.OIDCPublicURL,
+		}
+		var agOpts []agenticmcp.Option
+		if s.ContentStore != nil {
+			agOpts = append(agOpts, agenticmcp.WithContentStore(s.ContentStore))
+		}
+		as, err := agenticmcp.NewServer(agCfg, agOpts...)
+		if err != nil {
+			log.Printf("WARNING: failed to initialize Agentic Testing MCP server: %v", err)
+		} else {
+			s.agenticMCP = as
 		}
 	}
 
@@ -667,6 +689,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).
 	if s.mcpServer != nil {
 		s.mcpServer.RegisterRoutes(e)
+	}
+
+	// Agentic Testing MCP server (fleet management tools for coordinator).
+	if s.agenticMCP != nil {
+		s.agenticMCP.RegisterRoutes(e)
 	}
 
 	// Web UI static file serving (development and E2E only).
