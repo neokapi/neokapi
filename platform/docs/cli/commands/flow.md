@@ -52,18 +52,18 @@ bowrain flow list
 
 ## Flags (flow run)
 
-| Flag | Short | Description |
-|------|-------|-------------|
-| `--input` | `-i` | Input file path(s); repeat for multiple files (required) |
-| `--output` | `-o` | Output file path (single-file mode only) |
-| `--format` | `-f` | Override input format detection |
-| `--encoding` | `-e` | Input encoding (default: UTF-8) |
-| `--source-lang` | | Source language, BCP 47 (default: en) |
-| `--target-lang` | | Target language, BCP 47 (required) |
-| `--concurrency` | `-j` | Max parallel documents (0 = auto, 1 = sequential) |
-| `--provider` | | LLM provider: anthropic, openai, ollama (default: anthropic) |
-| `--api-key` | | API key for LLM provider |
-| `--model` | | LLM model name |
+| Flag            | Short | Description                                                  |
+| --------------- | ----- | ------------------------------------------------------------ |
+| `--input`       | `-i`  | Input file path(s); repeat for multiple files (required)     |
+| `--output`      | `-o`  | Output file path (single-file mode only)                     |
+| `--format`      | `-f`  | Override input format detection                              |
+| `--encoding`    | `-e`  | Input encoding (default: UTF-8)                              |
+| `--source-lang` |       | Source language, BCP 47 (default: en)                        |
+| `--target-lang` |       | Target language, BCP 47 (required)                           |
+| `--concurrency` | `-j`  | Max parallel documents (0 = auto, 1 = sequential)            |
+| `--provider`    |       | LLM provider: anthropic, openai, ollama (default: anthropic) |
+| `--api-key`     |       | API key for LLM provider                                     |
+| `--model`       |       | LLM model name                                               |
 
 :::note
 The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags are
@@ -117,14 +117,14 @@ bowrain flow run ai-translate -i input.html -o output.html --source-lang en --ta
 
 Available built-in flows:
 
-| Flow | Description |
-|------|-------------|
-| `ai-translate` | Translate content using AI/LLM |
-| `ai-translate-qa` | Translate then quality check using AI/LLM |
-| `pseudo-translate` | Generate pseudo-translations for testing |
-| `qa-check` | Run rule-based quality checks on translations |
-| `tm-leverage` | Pre-fill translations from translation memory |
-| `segmentation` | Split source text into sentence segments |
+| Flow               | Description                                   |
+| ------------------ | --------------------------------------------- |
+| `ai-translate`     | Translate content using AI/LLM                |
+| `ai-translate-qa`  | Translate then quality check using AI/LLM     |
+| `pseudo-translate` | Generate pseudo-translations for testing      |
+| `qa-check`         | Run rule-based quality checks on translations |
+| `tm-leverage`      | Pre-fill translations from translation memory |
+| `segmentation`     | Split source text into sentence segments      |
 
 ## Listing Available Tools
 

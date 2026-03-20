@@ -7,11 +7,11 @@
       "domain": "development",
       "definition": "A defined set of operations to be performed by a computer program",
       "terms": [
-        {"text": "function", "locale": "en", "status": "preferred"},
-        {"text": "fonction", "locale": "fr", "status": "preferred"},
-        {"text": "Funktion", "locale": "de", "status": "preferred"},
-        {"text": "関数", "locale": "ja", "status": "preferred"},
-        {"text": "método", "locale": "es", "status": "admitted", "note": "Use for class methods"}
+        { "text": "function", "locale": "en", "status": "preferred" },
+        { "text": "fonction", "locale": "fr", "status": "preferred" },
+        { "text": "Funktion", "locale": "de", "status": "preferred" },
+        { "text": "関数", "locale": "ja", "status": "preferred" },
+        { "text": "método", "locale": "es", "status": "admitted", "note": "Use for class methods" }
       ]
     },
     {
@@ -19,10 +19,10 @@
       "domain": "development",
       "definition": "A named storage location in computer memory",
       "terms": [
-        {"text": "variable", "locale": "en", "status": "preferred"},
-        {"text": "variable", "locale": "fr", "status": "preferred"},
-        {"text": "Variable", "locale": "de", "status": "preferred"},
-        {"text": "変数", "locale": "ja", "status": "preferred"}
+        { "text": "variable", "locale": "en", "status": "preferred" },
+        { "text": "variable", "locale": "fr", "status": "preferred" },
+        { "text": "Variable", "locale": "de", "status": "preferred" },
+        { "text": "変数", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -30,12 +30,12 @@
       "domain": "development",
       "definition": "A software defect that causes incorrect behavior",
       "terms": [
-        {"text": "bug", "locale": "en", "status": "preferred"},
-        {"text": "bogue", "locale": "fr", "status": "preferred"},
-        {"text": "bug", "locale": "fr", "status": "admitted", "note": "Informal, widely used"},
-        {"text": "Fehler", "locale": "de", "status": "preferred"},
-        {"text": "Bug", "locale": "de", "status": "admitted"},
-        {"text": "バグ", "locale": "ja", "status": "preferred"}
+        { "text": "bug", "locale": "en", "status": "preferred" },
+        { "text": "bogue", "locale": "fr", "status": "preferred" },
+        { "text": "bug", "locale": "fr", "status": "admitted", "note": "Informal, widely used" },
+        { "text": "Fehler", "locale": "de", "status": "preferred" },
+        { "text": "Bug", "locale": "de", "status": "admitted" },
+        { "text": "バグ", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -43,10 +43,10 @@
       "domain": "infrastructure",
       "definition": "An isolated computing environment that packages code and dependencies",
       "terms": [
-        {"text": "container", "locale": "en", "status": "preferred"},
-        {"text": "conteneur", "locale": "fr", "status": "preferred"},
-        {"text": "Container", "locale": "de", "status": "preferred"},
-        {"text": "コンテナ", "locale": "ja", "status": "preferred"}
+        { "text": "container", "locale": "en", "status": "preferred" },
+        { "text": "conteneur", "locale": "fr", "status": "preferred" },
+        { "text": "Container", "locale": "de", "status": "preferred" },
+        { "text": "コンテナ", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -54,10 +54,10 @@
       "domain": "infrastructure",
       "definition": "A system that automatically manages containerized applications",
       "terms": [
-        {"text": "orchestration", "locale": "en", "status": "preferred"},
-        {"text": "orchestration", "locale": "fr", "status": "preferred"},
-        {"text": "Orchestrierung", "locale": "de", "status": "preferred"},
-        {"text": "オーケストレーション", "locale": "ja", "status": "preferred"}
+        { "text": "orchestration", "locale": "en", "status": "preferred" },
+        { "text": "orchestration", "locale": "fr", "status": "preferred" },
+        { "text": "Orchestrierung", "locale": "de", "status": "preferred" },
+        { "text": "オーケストレーション", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -65,10 +65,10 @@
       "domain": "security",
       "definition": "The process of verifying identity",
       "terms": [
-        {"text": "authentication", "locale": "en", "status": "preferred"},
-        {"text": "authentification", "locale": "fr", "status": "preferred"},
-        {"text": "Authentifizierung", "locale": "de", "status": "preferred"},
-        {"text": "認証", "locale": "ja", "status": "preferred"}
+        { "text": "authentication", "locale": "en", "status": "preferred" },
+        { "text": "authentification", "locale": "fr", "status": "preferred" },
+        { "text": "Authentifizierung", "locale": "de", "status": "preferred" },
+        { "text": "認証", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -76,10 +76,10 @@
       "domain": "security",
       "definition": "The process of granting access to resources",
       "terms": [
-        {"text": "authorization", "locale": "en", "status": "preferred"},
-        {"text": "autorisation", "locale": "fr", "status": "preferred"},
-        {"text": "Autorisierung", "locale": "de", "status": "preferred"},
-        {"text": "認可", "locale": "ja", "status": "preferred"}
+        { "text": "authorization", "locale": "en", "status": "preferred" },
+        { "text": "autorisation", "locale": "fr", "status": "preferred" },
+        { "text": "Autorisierung", "locale": "de", "status": "preferred" },
+        { "text": "認可", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -87,10 +87,15 @@
       "domain": "ui",
       "definition": "A visual component that displays information or accepts input",
       "terms": [
-        {"text": "widget", "locale": "en", "status": "preferred"},
-        {"text": "widget", "locale": "fr", "status": "preferred"},
-        {"text": "Widget", "locale": "de", "status": "preferred"},
-        {"text": "composant", "locale": "fr", "status": "deprecated", "note": "Use widget instead"}
+        { "text": "widget", "locale": "en", "status": "preferred" },
+        { "text": "widget", "locale": "fr", "status": "preferred" },
+        { "text": "Widget", "locale": "de", "status": "preferred" },
+        {
+          "text": "composant",
+          "locale": "fr",
+          "status": "deprecated",
+          "note": "Use widget instead"
+        }
       ]
     },
     {
@@ -98,10 +103,10 @@
       "domain": "data",
       "definition": "A structured collection of data stored electronically",
       "terms": [
-        {"text": "database", "locale": "en", "status": "preferred"},
-        {"text": "base de données", "locale": "fr", "status": "preferred"},
-        {"text": "Datenbank", "locale": "de", "status": "preferred"},
-        {"text": "データベース", "locale": "ja", "status": "preferred"}
+        { "text": "database", "locale": "en", "status": "preferred" },
+        { "text": "base de données", "locale": "fr", "status": "preferred" },
+        { "text": "Datenbank", "locale": "de", "status": "preferred" },
+        { "text": "データベース", "locale": "ja", "status": "preferred" }
       ]
     },
     {
@@ -109,10 +114,10 @@
       "domain": "data",
       "definition": "A standardized way to access and manipulate data",
       "terms": [
-        {"text": "API", "locale": "en", "status": "preferred"},
-        {"text": "API", "locale": "fr", "status": "preferred"},
-        {"text": "API", "locale": "de", "status": "preferred"},
-        {"text": "API", "locale": "ja", "status": "preferred", "note": "Do not translate"}
+        { "text": "API", "locale": "en", "status": "preferred" },
+        { "text": "API", "locale": "fr", "status": "preferred" },
+        { "text": "API", "locale": "de", "status": "preferred" },
+        { "text": "API", "locale": "ja", "status": "preferred", "note": "Do not translate" }
       ]
     }
   ]

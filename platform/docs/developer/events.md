@@ -30,22 +30,22 @@ bus.Unsubscribe(sub)
 
 ## Event Types
 
-| Event | Emitted When |
-|-------|-------------|
-| `block.stored` | Blocks are stored or updated |
-| `block.deleted` | A block is deleted |
-| `project.created` | A project is created |
-| `project.updated` | A project is updated |
-| `project.deleted` | A project is deleted |
-| `version.created` | A version snapshot is created |
-| `connector.pulled` | Content is pulled from a connector |
-| `connector.pushed` | Content is pushed to a connector |
-| `flow.started` | A flow begins execution |
-| `flow.completed` | A flow completes successfully |
-| `flow.failed` | A flow fails |
-| `quality.passed` | Quality gate passes |
-| `quality.failed` | Quality gate fails |
-| `quality.warning` | Quality gate issues advisory warning |
+| Event              | Emitted When                         |
+| ------------------ | ------------------------------------ |
+| `block.stored`     | Blocks are stored or updated         |
+| `block.deleted`    | A block is deleted                   |
+| `project.created`  | A project is created                 |
+| `project.updated`  | A project is updated                 |
+| `project.deleted`  | A project is deleted                 |
+| `version.created`  | A version snapshot is created        |
+| `connector.pulled` | Content is pulled from a connector   |
+| `connector.pushed` | Content is pushed to a connector     |
+| `flow.started`     | A flow begins execution              |
+| `flow.completed`   | A flow completes successfully        |
+| `flow.failed`      | A flow fails                         |
+| `quality.passed`   | Quality gate passes                  |
+| `quality.failed`   | Quality gate fails                   |
+| `quality.warning`  | Quality gate issues advisory warning |
 
 ## EventEmittingStore
 

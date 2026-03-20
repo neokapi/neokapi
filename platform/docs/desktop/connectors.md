@@ -39,10 +39,10 @@ The sync status indicator shows:
 
 ## Supported Connectors
 
-| Type | What it connects to |
-|------|-------------------|
-| File | Local files (JSON, HTML, XLIFF, etc.) |
-| Git | Git repositories with resource files |
+| Type      | What it connects to                    |
+| --------- | -------------------------------------- |
+| File      | Local files (JSON, HTML, XLIFF, etc.)  |
+| Git       | Git repositories with resource files   |
 | WordPress | WordPress posts and pages via REST API |
-| Figma | Text nodes in Figma designs |
-| HubSpot | HubSpot CMS pages |
+| Figma     | Text nodes in Figma designs            |
+| HubSpot   | HubSpot CMS pages                      |

@@ -16,14 +16,14 @@ The brand voice tool market divides cleanly into two camps. **Generation-first t
 
 **Terminology management tools** remain largely stuck in the translation era. SDL MultiTerm is the industry standard but desktop-focused with dated UI. **Kaleidoscope Quickterm** is the most interesting player — its AI Pro module explicitly provides terminology to LLMs for fine-tuning, with real-time verification across writing environments. However, none of these tools offer API-first terminology checking designed for integration with modern AI writing workflows.
 
-| Tool | Focus | Brand Voice Depth | AI-Native? | MCP Support | Pricing |
-|------|-------|-------------------|------------|-------------|---------|
-| Writer.com | Enterprise AI platform | Deep | Yes (own LLMs) | No | $29–39/user/mo |
-| Acrolinx/Markup AI | Content governance | Deepest | Yes (scoring) | No | Enterprise only |
-| Grammarly Business | Writing assistant | Moderate | Yes (NLP) | No | $12–25/user/mo |
-| Jasper AI | Marketing content | Deep | Yes (multi-model) | No | $39–69/mo |
-| Typeface | Brand content | Deep | Yes | No | Enterprise |
-| Frontify | Brand guidelines/DAM | Visual-focused | Limited | No | Custom |
+| Tool               | Focus                  | Brand Voice Depth | AI-Native?        | MCP Support | Pricing         |
+| ------------------ | ---------------------- | ----------------- | ----------------- | ----------- | --------------- |
+| Writer.com         | Enterprise AI platform | Deep              | Yes (own LLMs)    | No          | $29–39/user/mo  |
+| Acrolinx/Markup AI | Content governance     | Deepest           | Yes (scoring)     | No          | Enterprise only |
+| Grammarly Business | Writing assistant      | Moderate          | Yes (NLP)         | No          | $12–25/user/mo  |
+| Jasper AI          | Marketing content      | Deep              | Yes (multi-model) | No          | $39–69/mo       |
+| Typeface           | Brand content          | Deep              | Yes               | No          | Enterprise      |
+| Frontify           | Brand guidelines/DAM   | Visual-focused    | Limited           | No          | Custom          |
 
 ---
 
@@ -34,6 +34,7 @@ The **Nimdzi Language Technology Radar** tracks **900+ products from 660+ compan
 The dominant trend is TMS platforms rebranding as "multilingual content platforms" while bolting AI onto traditional segment-based translation workflows. Nimdzi's assessment is blunt: "At the core, these platforms still revolve around the same fundamental units: translation segments, translation memories, and workflows." Companies like **Smartcat** (AI Agents that learn brand voice through feedback), **Transifex** (tone/style analysis for brand voice alignment), and **Bureau Works** (semantic engine powered by vector search) are moving toward AI-native approaches, but remain anchored in translation workflows rather than content creation.
 
 The Nimdzi landscape reveals four strategic gaps Bowrain can exploit:
+
 - **No dedicated brand voice category exists** in the language technology taxonomy — the closest is "Multilingual Creation Tools," which doesn't capture governance
 - **Terminology management is acknowledged as underdeveloped** even by the industry's leading analyst firm
 - **TMS vendors are adding AI copywriting** but can't escape their segment-based architecture — a "strong endorsement of leveraging LLMs for multilingual content creation" that validates the market
@@ -67,7 +68,7 @@ For Bowrain's architecture, the MCP server should expose:
 
 **Critical technical considerations**: A 2025 Invariant Labs audit found **43% of early MCP servers had command injection vulnerabilities** — security must be defense-in-depth from day one. OAuth 2.1 with PKCE is mandatory for remote servers. The trend is decisively toward remote-first deployment: **80% of the 20 most-searched MCP servers** offer remote deployment, and remote servers have grown 4x since May 2025. Large companies (Atlassian, Figma, Asana) predominantly choose remote. Bowrain should launch as a cloud-hosted remote MCP server for maximum ease of adoption.
 
-**Skills complement MCP servers**. Skills are procedural knowledge that teach Claude *how* to do things, while MCP provides connectivity to *what* it needs. A Bowrain Skill could teach Claude brand voice writing methodology, while the Bowrain MCP server provides the specific guidelines and QA tools. Publishing as an **open Agent Skill** (agentskills.io) ensures cross-platform portability beyond just Claude.
+**Skills complement MCP servers**. Skills are procedural knowledge that teach Claude _how_ to do things, while MCP provides connectivity to _what_ it needs. A Bowrain Skill could teach Claude brand voice writing methodology, while the Bowrain MCP server provides the specific guidelines and QA tools. Publishing as an **open Agent Skill** (agentskills.io) ensures cross-platform portability beyond just Claude.
 
 ---
 
@@ -78,6 +79,7 @@ The most successful developer and content tools follow a consistent growth patte
 **Grammarly's PLG masterclass** proves the model works for writing tools: free browser extension delivered a **50% activation rate** (highest among software categories), programmatic SEO generating content for 1M+ keywords drives 27M+ organic monthly visits, and the bottom-up enterprise motion converts individual users into team buyers. Grammarly now approaches **$700M in revenue** from this flywheel. The key insight: the free tier must deliver genuine, standalone value — not a crippled demo.
 
 **The open-source to cloud playbook** (proven by Supabase at $5B valuation, Vercel/Next.js, PostHog) maps perfectly to Bowrain:
+
 - **Open-source**: Brand voice MCP server on GitHub (MIT license). Single brand voice profile, local configuration. Genuine utility standalone
 - **Cloud platform**: Managed service with team features — multiple brand voices, shared terminology, version history, analytics, SSO, audit logs
 - **Enterprise tier**: Custom model fine-tuning, multilingual voice profiles, integration with existing DAM/CMS, compliance workflows
@@ -85,6 +87,7 @@ The most successful developer and content tools follow a consistent growth patte
 **Supabase's "Launch Week" strategy** — shipping a new feature daily for one week every quarter — creates compound attention spikes and could work for Bowrain's release cadence. PostHog's radical transparency (public handbook, compensation, strategy) builds trust with developer audiences.
 
 **Immediate tactical priorities for viral adoption**:
+
 - List on PulseMCP, MCP.so, the official MCP Registry, modelcontextprotocol/servers repo, and all major awesome-lists on day one
 - Ship starter brand voice packs ("Professional B2B," "Friendly DTC," "Technical Documentation") so users see value without custom configuration
 - Design a **30-second aha moment**: user connects MCP server → pastes any text → instantly sees it rewritten in a brand voice with a before/after diff showing exactly what changed and why

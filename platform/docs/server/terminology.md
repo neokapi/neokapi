@@ -18,14 +18,14 @@ There are two ways to open the Terminology Explorer:
 
 The explorer displays concepts in a paginated table with these columns:
 
-| Column | Description |
-|--------|-------------|
-| **Source Term** | The term in the source language |
-| **Target Term** | The translated term |
-| **Domain** | Subject area classification (e.g., "legal", "medical", "UI") |
-| **Status** | Lifecycle status badge |
-| **Updated** | Date the concept was last modified |
-| **Actions** | Edit and Delete buttons |
+| Column          | Description                                                  |
+| --------------- | ------------------------------------------------------------ |
+| **Source Term** | The term in the source language                              |
+| **Target Term** | The translated term                                          |
+| **Domain**      | Subject area classification (e.g., "legal", "medical", "UI") |
+| **Status**      | Lifecycle status badge                                       |
+| **Updated**     | Date the concept was last modified                           |
+| **Actions**     | Edit and Delete buttons                                      |
 
 The concept count badge in the header shows the total number of concepts matching current filters.
 
@@ -33,14 +33,14 @@ The concept count badge in the header shows the total number of concepts matchin
 
 Each term carries a lifecycle status that communicates its approval level:
 
-| Status | Meaning |
-|--------|---------|
-| **Preferred** | The recommended term — translators should use this |
-| **Approved** | Accepted for use |
-| **Admitted** | Acceptable but not preferred |
-| **Deprecated** | Was once approved but should no longer be used |
-| **Proposed** | Under review, not yet approved |
-| **Forbidden** | Must not be used in translations |
+| Status         | Meaning                                            |
+| -------------- | -------------------------------------------------- |
+| **Preferred**  | The recommended term — translators should use this |
+| **Approved**   | Accepted for use                                   |
+| **Admitted**   | Acceptable but not preferred                       |
+| **Deprecated** | Was once approved but should no longer be used     |
+| **Proposed**   | Under review, not yet approved                     |
+| **Forbidden**  | Must not be used in translations                   |
 
 ## Searching
 

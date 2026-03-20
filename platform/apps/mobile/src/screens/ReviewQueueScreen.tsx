@@ -4,7 +4,14 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useAuth } from "../auth/AuthContext";
 import { SwipeCard } from "../components/SwipeCard";
 import { EntityReviewCard } from "../components/EntityReviewCard";
-import type { ReviewItem, ReviewDecision, ProjectInfo, Workspace, SyncRequest, SyncResponse } from "../api/client";
+import type {
+  ReviewItem,
+  ReviewDecision,
+  ProjectInfo,
+  Workspace,
+  SyncRequest,
+  SyncResponse,
+} from "../api/client";
 
 interface ReviewQueueScreenProps {
   workspace: Workspace;
@@ -62,18 +69,21 @@ export function ReviewQueueScreen({ workspace, project, onBack }: ReviewQueueScr
     };
   }, [syncDecisions]);
 
-  const handleDecision = useCallback((status: "approved" | "rejected" | "skipped") => {
-    const item = items[currentIndex];
-    if (!item) return;
+  const handleDecision = useCallback(
+    (status: "approved" | "rejected" | "skipped") => {
+      const item = items[currentIndex];
+      if (!item) return;
 
-    pendingDecisions.current.push({ item_id: item.id, status });
-    setCurrentIndex((i) => i + 1);
+      pendingDecisions.current.push({ item_id: item.id, status });
+      setCurrentIndex((i) => i + 1);
 
-    // Auto-sync after every 5 decisions.
-    if (pendingDecisions.current.length >= 5) {
-      syncDecisions();
-    }
-  }, [items, currentIndex, syncDecisions]);
+      // Auto-sync after every 5 decisions.
+      if (pendingDecisions.current.length >= 5) {
+        syncDecisions();
+      }
+    },
+    [items, currentIndex, syncDecisions],
+  );
 
   const remaining = items.length - currentIndex;
   const currentItem = items[currentIndex];
@@ -90,16 +100,16 @@ export function ReviewQueueScreen({ workspace, project, onBack }: ReviewQueueScr
     <GestureHandlerRootView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.back} onPress={onBack}>← {project.name}</Text>
+        <Text style={styles.back} onPress={onBack}>
+          ← {project.name}
+        </Text>
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{remaining}</Text>
         </View>
       </View>
 
       <Text style={styles.title}>Review Queue</Text>
-      <Text style={styles.subtitle}>
-        Swipe right to approve, left to reject
-      </Text>
+      <Text style={styles.subtitle}>Swipe right to approve, left to reject</Text>
 
       {/* Card stack */}
       <View style={styles.cardStack}>

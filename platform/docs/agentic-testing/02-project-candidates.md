@@ -2,15 +2,15 @@
 
 ## Selection Criteria
 
-| Criterion | Weight | Rationale |
-|-----------|--------|-----------|
-| Active development | High | Agents need ongoing changes to react to |
-| Translatable content variety | High | Showcases Bowrain's format breadth |
-| Multiple file formats | High | JSON + Markdown + HTML + YAML minimum |
-| Existing i18n | Medium | Enables quality benchmarking |
-| Manageable size | Medium | Not so large it overwhelms, not trivial |
-| Clear release cadence | High | Enables chronological walkthrough |
-| Permissive license | Medium | MIT/Apache preferred for unrestricted forking |
+| Criterion                    | Weight | Rationale                                     |
+| ---------------------------- | ------ | --------------------------------------------- |
+| Active development           | High   | Agents need ongoing changes to react to       |
+| Translatable content variety | High   | Showcases Bowrain's format breadth            |
+| Multiple file formats        | High   | JSON + Markdown + HTML + YAML minimum         |
+| Existing i18n                | Medium | Enables quality benchmarking                  |
+| Manageable size              | Medium | Not so large it overwhelms, not trivial       |
+| Clear release cadence        | High   | Enables chronological walkthrough             |
+| Permissive license           | Medium | MIT/Apache preferred for unrestricted forking |
 
 ## Recommended Starting Set (Tier 1)
 
@@ -26,6 +26,7 @@ These four projects form the initial cohort — balanced across size, formats, a
 Docusaurus is the gold standard for documentation-site i18n. Its own website is translated via Crowdin using a structured folder layout. This gives you JSON translation files (`code.json`, `footer.json`, `navbar.json`), Markdown documentation pages, MDX components, and YAML config — a rich format mix in a single repo.
 
 **What to localize:**
+
 - Theme/UI strings → JSON (`i18n/{locale}/code.json`)
 - Documentation pages → Markdown/MDX (`docs/`)
 - Blog posts → Markdown (`blog/`)
@@ -40,6 +41,7 @@ Docusaurus is the gold standard for documentation-site i18n. Its own website is 
 **Challenges:** Monorepo (Lerna) — target `website/` subtree. MDX with JSX interpolation adds complexity (good stress test).
 
 **Agent team:**
+
 - 1 Developer Agent (manages fork, pushes content)
 - 1 Brand Manager (technical documentation voice)
 - 3 Translator Agents (fr-FR, de-DE, ja-JP)
@@ -57,6 +59,7 @@ Docusaurus is the gold standard for documentation-site i18n. Its own website is 
 Gitea uses INI-format locale files — a less common format that tests Bowrain's breadth beyond JSON. The English locale file has 4000+ keys. The project also has HTML templates, Markdown docs, and YAML configs. Clear monthly releases with tagged versions make chronological walkthrough straightforward.
 
 **What to localize:**
+
 - UI strings → INI (`options/locale/locale_en-US.ini`)
 - Email templates → HTML (`templates/mail/`)
 - Documentation → Markdown (`docs/`)
@@ -71,6 +74,7 @@ Gitea uses INI-format locale files — a less common format that tests Bowrain's
 **Challenges:** INI format parsing. The locale file is very large (scalability test). Go template syntax in HTML.
 
 **Agent team:**
+
 - 1 Developer Agent
 - 1 Brand Manager (developer tool voice)
 - 2 Translator Agents (fr-FR, zh-CN)
@@ -88,6 +92,7 @@ Gitea uses INI-format locale files — a less common format that tests Bowrain's
 Home Assistant has one of the most mature community-driven translation systems in open source — 60+ languages, 10,000+ translation keys, managed via Lokalise. The deeply nested JSON structure and per-integration `strings.json` files provide excellent format complexity. Strict monthly release calendar (first Wednesday) is perfect for chronological simulation.
 
 **What to localize:**
+
 - UI strings → JSON (`src/translations/en.json`, deeply nested)
 - Integration descriptions → JSON (per-component `strings.json`)
 - Documentation → Markdown
@@ -105,6 +110,7 @@ at 30 blocks/session and create a permanently-stuck progress bar. Frontend-only 
 (core is separate).
 
 **Agent team:**
+
 - 1 Developer Agent
 - 2 Brand Managers (IoT terminology, user-facing UI voice)
 - 4 Translator Agents (fr-FR, de-DE, ja-JP, pt-BR)
@@ -126,6 +132,7 @@ Phase 0 iteration and proving the agentic testing concept before scaling to larg
 projects. The codebase also includes Markdown docs and component labels.
 
 **What to localize:**
+
 - UI strings → JSON (`src/locales/en.json`, i18next format)
 - Documentation → Markdown
 - Component labels and tooltips
@@ -140,6 +147,7 @@ projects. The codebase also includes Markdown docs and component labels.
 than Docusaurus or Gitea. Pre-1.0 so APIs may shift between versions.
 
 **Agent team:**
+
 - 1 Developer Agent
 - 1 Brand Manager (creative/design tool voice)
 - 2 Translator Agents (fr-FR, de-DE)
@@ -197,32 +205,35 @@ For maximum showcase impact, if resources permit.
 
 ## Comparison Matrix
 
-| Project | License | Formats | Keys | Languages | Releases | Complexity |
-|---------|---------|---------|------|-----------|----------|------------|
-| **Docusaurus** | MIT | JSON, MD, MDX, YAML | ~2k | 20+ | Monthly | Medium |
-| **Gitea** | MIT | INI, HTML, MD, YAML | ~4k | 30+ | Monthly | Medium |
-| **Home Assistant** | Apache | JSON, YAML, MD | ~10k | 60+ | Monthly | High |
-| **Excalidraw** | MIT | JSON, MD | ~600 | 20+ | Quarterly | Low |
-| Immich | AGPL | JSON, MD, YAML, ARB | ~1.5k | 20+ | Weekly | Medium |
-| Cal.com | AGPL | JSON, MD, YAML | ~2k | 65+ | Weekly | Medium |
-| Grafana | AGPL | JSON, YAML, MD, HTML | ~5k | 10+ | Monthly | High |
+| Project            | License | Formats              | Keys  | Languages | Releases  | Complexity |
+| ------------------ | ------- | -------------------- | ----- | --------- | --------- | ---------- |
+| **Docusaurus**     | MIT     | JSON, MD, MDX, YAML  | ~2k   | 20+       | Monthly   | Medium     |
+| **Gitea**          | MIT     | INI, HTML, MD, YAML  | ~4k   | 30+       | Monthly   | Medium     |
+| **Home Assistant** | Apache  | JSON, YAML, MD       | ~10k  | 60+       | Monthly   | High       |
+| **Excalidraw**     | MIT     | JSON, MD             | ~600  | 20+       | Quarterly | Low        |
+| Immich             | AGPL    | JSON, MD, YAML, ARB  | ~1.5k | 20+       | Weekly    | Medium     |
+| Cal.com            | AGPL    | JSON, MD, YAML       | ~2k   | 65+       | Weekly    | Medium     |
+| Grafana            | AGPL    | JSON, YAML, MD, HTML | ~5k   | 10+       | Monthly   | High       |
 
 ## Fork Strategy
 
 ### Mirror vs. Fork
 
 **Option A: GitHub Fork (Recommended for Tier 1)**
+
 - Fork to a Bowrain org (e.g., `bowrain-l10n/docusaurus`)
 - Maintain a `bowrain-main` branch tracking upstream `main`
 - Create `l10n/*` branches for localization work
 - PRs from `l10n/*` → `bowrain-main` show translation diffs
 
 **Option B: Selective Mirror**
+
 - Clone only translatable content (docs, locales, templates)
 - Smaller footprint, faster operations
 - Loses git history context
 
 **Option C: Release Snapshot**
+
 - Download tagged releases sequentially
 - Simulates walking through release history
 - Simplest but loses branch/PR workflow

@@ -416,17 +416,10 @@ export class BowrainAPI {
     ruleId: string,
     rule: Partial<AutomationRule>,
   ): Promise<AutomationRule> {
-    return this.put(
-      `/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`,
-      rule,
-    );
+    return this.put(`/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`, rule);
   }
 
-  async deleteAutomationRule(
-    wsSlug: string,
-    projectId: string,
-    ruleId: string,
-  ): Promise<void> {
+  async deleteAutomationRule(wsSlug: string, projectId: string, ruleId: string): Promise<void> {
     return this.del(`/workspaces/${wsSlug}/projects/${projectId}/automations/${ruleId}`);
   }
 
@@ -486,7 +479,9 @@ export class BowrainAPI {
   }
 
   async getStream(wsSlug: string, projectId: string, streamName: string): Promise<Stream> {
-    return this.get(`/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`);
+    return this.get(
+      `/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`,
+    );
   }
 
   async updateStream(
@@ -502,7 +497,9 @@ export class BowrainAPI {
   }
 
   async deleteStream(wsSlug: string, projectId: string, streamName: string): Promise<void> {
-    return this.del(`/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`);
+    return this.del(
+      `/workspaces/${wsSlug}/projects/${projectId}/streams/${encodeURIComponent(streamName)}`,
+    );
   }
 
   async mergeStream(wsSlug: string, streamId: string): Promise<unknown> {
@@ -518,7 +515,9 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listTasks(wsSlug: string): Promise<Task[]> {
-    const result = await this.get<{ tasks: Task[]; next_cursor: string }>(`/workspaces/${wsSlug}/tasks`);
+    const result = await this.get<{ tasks: Task[]; next_cursor: string }>(
+      `/workspaces/${wsSlug}/tasks`,
+    );
     return result.tasks;
   }
 
@@ -567,7 +566,9 @@ export class BowrainAPI {
   }
 
   async myTasks(wsSlug: string): Promise<Task[]> {
-    const result = await this.get<{ tasks: Task[]; next_cursor: string }>(`/workspaces/${wsSlug}/my/tasks`);
+    const result = await this.get<{ tasks: Task[]; next_cursor: string }>(
+      `/workspaces/${wsSlug}/my/tasks`,
+    );
     return result.tasks;
   }
 
@@ -592,7 +593,9 @@ export class BowrainAPI {
   }
 
   async getNotificationPreferences(wsSlug: string): Promise<NotificationPreferences> {
-    const result = await this.get<{ preferences: unknown }>(`/workspaces/${wsSlug}/notifications/preferences`);
+    const result = await this.get<{ preferences: unknown }>(
+      `/workspaces/${wsSlug}/notifications/preferences`,
+    );
     return result as NotificationPreferences;
   }
 
@@ -605,7 +608,9 @@ export class BowrainAPI {
     // into the format the server expects.
     let body: unknown = prefs;
     if (Array.isArray((prefs as Record<string, unknown>).preferences)) {
-      const prefsArray = (prefs as Record<string, unknown>).preferences as Array<Record<string, unknown>>;
+      const prefsArray = (prefs as Record<string, unknown>).preferences as Array<
+        Record<string, unknown>
+      >;
       body = {
         preferences: prefsArray.map((p) => ({
           category: p.category,
@@ -626,7 +631,9 @@ export class BowrainAPI {
   // -----------------------------------------------------------------------
 
   async listActivities(wsSlug: string): Promise<Activity[]> {
-    const result = await this.get<{ activities: Activity[]; next_cursor: string }>(`/workspaces/${wsSlug}/activities`);
+    const result = await this.get<{ activities: Activity[]; next_cursor: string }>(
+      `/workspaces/${wsSlug}/activities`,
+    );
     return result.activities;
   }
 }
@@ -687,10 +694,7 @@ export async function deviceAuth(
  * Accepts "unhealthy" status when the database reports "up" or "unconfigured"
  * (e.g. SQLite mode or non-critical components missing).
  */
-export async function waitForReady(
-  baseUrl: string,
-  maxWaitMs = 120_000,
-): Promise<ReadinessInfo> {
+export async function waitForReady(baseUrl: string, maxWaitMs = 120_000): Promise<ReadinessInfo> {
   const start = Date.now();
   let lastError: string | undefined;
 

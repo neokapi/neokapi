@@ -129,6 +129,7 @@ Invite colleagues to your workspace using the invitation system:
 5. Click **Invite**
 
 This creates an invite link. You can:
+
 - **Copy the link** and share it directly (via Slack, email, etc.)
 - If SMTP is configured, the invite is also sent by email automatically
 

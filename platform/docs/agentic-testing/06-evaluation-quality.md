@@ -13,16 +13,16 @@ The agentic testing system needs two levels of quality assessment:
 
 Bowrain's built-in QA pipeline catches mechanical issues:
 
-| Check | What It Catches | Severity |
-|-------|-----------------|----------|
+| Check                   | What It Catches                                 | Severity |
+| ----------------------- | ----------------------------------------------- | -------- |
 | Placeholder consistency | Missing/extra `{variables}`, `%s`, `{{tokens}}` | Critical |
-| Whitespace/formatting | Leading/trailing spaces, line break changes | Warning |
-| Terminology compliance | Terms not matching termbase entries | Medium |
-| Brand compliance | Tone/style violations per brand profile | Medium |
-| Character limits | Translations exceeding UI constraints | High |
-| Empty translations | Blocks with no target text | Critical |
-| Numeric consistency | Numbers changed or reformatted | Warning |
-| Punctuation | Period/comma/quote conventions per locale | Low |
+| Whitespace/formatting   | Leading/trailing spaces, line break changes     | Warning  |
+| Terminology compliance  | Terms not matching termbase entries             | Medium   |
+| Brand compliance        | Tone/style violations per brand profile         | Medium   |
+| Character limits        | Translations exceeding UI constraints           | High     |
+| Empty translations      | Blocks with no target text                      | Critical |
+| Numeric consistency     | Numbers changed or reformatted                  | Warning  |
+| Punctuation             | Period/comma/quote conventions per locale       | Low      |
 
 ### LLM-Based Quality Assessment
 
@@ -114,16 +114,16 @@ Periodically sample translations for human review (by the actual project maintai
 
 Because agents exercise the full platform continuously, they naturally discover:
 
-| Category | Example Issues | Detection Method |
-|----------|---------------|------------------|
-| API bugs | 500 errors, wrong status codes | HTTP response monitoring |
-| CLI bugs | Push/pull failures, corrupt output | Exit code + stderr analysis |
-| Auth issues | Token expiry, refresh failures | 401/403 responses |
-| Data integrity | Lost translations, TM corruption | Before/after comparison |
-| Performance | Slow responses under load | Response time tracking |
-| UX friction | Confusing workflows, missing features | Agent "confusion" (LLM uncertainty) |
-| Format bugs | Incorrect parsing, round-trip failures | Output file validation |
-| Concurrency | Race conditions, lost writes | Parallel agent operations |
+| Category       | Example Issues                         | Detection Method                    |
+| -------------- | -------------------------------------- | ----------------------------------- |
+| API bugs       | 500 errors, wrong status codes         | HTTP response monitoring            |
+| CLI bugs       | Push/pull failures, corrupt output     | Exit code + stderr analysis         |
+| Auth issues    | Token expiry, refresh failures         | 401/403 responses                   |
+| Data integrity | Lost translations, TM corruption       | Before/after comparison             |
+| Performance    | Slow responses under load              | Response time tracking              |
+| UX friction    | Confusing workflows, missing features  | Agent "confusion" (LLM uncertainty) |
+| Format bugs    | Incorrect parsing, round-trip failures | Output file validation              |
+| Concurrency    | Race conditions, lost writes           | Parallel agent operations           |
 
 ### Structured Platform Testing
 
@@ -176,19 +176,20 @@ interface BugReport {
   project: string;
   timestamp: Date;
   description: string;
-  steps: string[];        // Steps to reproduce
+  steps: string[]; // Steps to reproduce
   expected: string;
   actual: string;
   context: {
-    request?: object;     // HTTP request details
-    response?: object;    // HTTP response details
-    state?: object;       // Agent state at time of bug
-    screenshot?: string;  // Screenshot if web UI issue
+    request?: object; // HTTP request details
+    response?: object; // HTTP response details
+    state?: object; // Agent state at time of bug
+    screenshot?: string; // Screenshot if web UI issue
   };
 }
 ```
 
 Bug reports are:
+
 1. Logged to a shared volume (JSON files) or Bowrain's activity feed
 2. Deduplicated against known issues
 3. Optionally filed as GitHub issues (with approval)

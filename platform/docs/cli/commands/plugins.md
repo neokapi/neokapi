@@ -68,14 +68,14 @@ bowrain plugins remove <name>             # remove all versions
 
 ## Search Flags
 
-| Flag | Description |
-|------|-------------|
-| `--bundle` | Show only bundles (collections of formats/tools) |
-| `--format` | Show only plugins providing format capabilities |
-| `--tool` | Show only plugins providing tool capabilities |
+| Flag            | Description                                        |
+| --------------- | -------------------------------------------------- |
+| `--bundle`      | Show only bundles (collections of formats/tools)   |
+| `--format`      | Show only plugins providing format capabilities    |
+| `--tool`        | Show only plugins providing tool capabilities      |
 | `--type <type>` | Filter by capability type (e.g., "format", "tool") |
-| `--mime <type>` | Filter by MIME type (e.g., "text/html") |
-| `--ext <ext>` | Filter by file extension (e.g., ".docx") |
+| `--mime <type>` | Filter by MIME type (e.g., "text/html")            |
+| `--ext <ext>`   | Filter by file extension (e.g., ".docx")           |
 
 ## Plugin Directory
 

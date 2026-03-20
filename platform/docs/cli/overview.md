@@ -21,6 +21,7 @@ Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first proje
 ### Project Model
 
 `.bowrain/` directories (like `.git/`) contain:
+
 - **config.yaml** — project settings, file mappings, locales
 - **flows/** — custom YAML flow definitions
 - **.sync-cache** — sync cache (gitignored, local only)

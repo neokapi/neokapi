@@ -120,10 +120,20 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       await page.locator("#email").fill(email);
 
       // Handle first/last name fields if present.
-      if (await page.locator("#firstName").isVisible().catch(() => false)) {
+      if (
+        await page
+          .locator("#firstName")
+          .isVisible()
+          .catch(() => false)
+      ) {
         await page.locator("#firstName").fill("E2E");
       }
-      if (await page.locator("#lastName").isVisible().catch(() => false)) {
+      if (
+        await page
+          .locator("#lastName")
+          .isVisible()
+          .catch(() => false)
+      ) {
         await page.locator("#lastName").fill("Test User");
       }
 
@@ -162,9 +172,9 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
       // a) The passkey registration page (button id="authenticateWebAuthnButton")
       // b) Direct redirect to the app (if passkey enrollment was skipped)
       const passkeyButton = page.locator("#authenticateWebAuthnButton");
-      const inApp = page.locator("[data-testid='nav-translate']").or(
-        page.getByText(/workspace|create.*workspace/i),
-      );
+      const inApp = page
+        .locator("[data-testid='nav-translate']")
+        .or(page.getByText(/workspace|create.*workspace/i));
 
       await expect(passkeyButton.or(inApp)).toBeVisible({ timeout: 20_000 });
 
@@ -176,10 +186,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
         });
 
         // Wait for Keycloak to process the registration and redirect to app.
-        await page.waitForURL(
-          (url) => !url.href.includes("/realms/"),
-          { timeout: 30_000 },
-        );
+        await page.waitForURL((url) => !url.href.includes("/realms/"), { timeout: 30_000 });
       }
 
       // ── Step 5: Extract session token ──────────────────────────

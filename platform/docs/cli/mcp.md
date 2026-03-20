@@ -142,14 +142,14 @@ If `bowrain` is not in your `$PATH`, use the full path to the binary (e.g. `/usr
 
 Once connected, your AI assistant can call these tools:
 
-| Tool | What it does |
-|------|-------------|
-| `project_config` | Read project configuration from `.bowrain/config.yaml` |
-| `project_status` | Show sync status — pending push/pull counts, server connection |
-| `project_ls` | List tracked files with optional stats (word counts, dirty detection) |
-| `project_push` | Upload local changes to Bowrain Server |
-| `project_pull` | Download translations from Bowrain Server |
-| `list_flows` | List available flows (built-in and project-defined) |
+| Tool             | What it does                                                          |
+| ---------------- | --------------------------------------------------------------------- |
+| `project_config` | Read project configuration from `.bowrain/config.yaml`                |
+| `project_status` | Show sync status — pending push/pull counts, server connection        |
+| `project_ls`     | List tracked files with optional stats (word counts, dirty detection) |
+| `project_push`   | Upload local changes to Bowrain Server                                |
+| `project_pull`   | Download translations from Bowrain Server                             |
+| `list_flows`     | List available flows (built-in and project-defined)                   |
 
 ## Example Conversations
 
@@ -215,31 +215,31 @@ No parameters.
 
 List files tracked by the project.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `paths` | string[] | no | Filter by path prefixes |
-| `stats` | bool | no | Include block and word counts per file |
-| `dirty` | bool | no | Show only files with local changes |
+| Parameter | Type     | Required | Description                            |
+| --------- | -------- | -------- | -------------------------------------- |
+| `paths`   | string[] | no       | Filter by path prefixes                |
+| `stats`   | bool     | no       | Include block and word counts per file |
+| `dirty`   | bool     | no       | Show only files with local changes     |
 
 ### project_push
 
 Upload local changes to Bowrain Server.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `paths` | string[] | no | Specific file paths to push (default: all) |
-| `force` | bool | no | Re-upload everything even if unchanged |
-| `dry_run` | bool | no | Show what would be uploaded without sending |
+| Parameter | Type     | Required | Description                                 |
+| --------- | -------- | -------- | ------------------------------------------- |
+| `paths`   | string[] | no       | Specific file paths to push (default: all)  |
+| `force`   | bool     | no       | Re-upload everything even if unchanged      |
+| `dry_run` | bool     | no       | Show what would be uploaded without sending |
 
 ### project_pull
 
 Download translations from Bowrain Server.
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `locales` | string[] | no | Languages to download (e.g. `["fr", "de"]`) |
-| `force` | bool | no | Re-download everything even if unchanged |
-| `dry_run` | bool | no | Show what would change without writing files |
+| Parameter | Type     | Required | Description                                  |
+| --------- | -------- | -------- | -------------------------------------------- |
+| `locales` | string[] | no       | Languages to download (e.g. `["fr", "de"]`)  |
+| `force`   | bool     | no       | Re-download everything even if unchanged     |
+| `dry_run` | bool     | no       | Show what would change without writing files |
 
 ### list_flows
 

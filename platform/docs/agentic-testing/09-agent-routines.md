@@ -20,14 +20,14 @@ This is where the core localization work happens.
 Agents send and receive email for communication that happens _outside_ the
 platform — the kind of messages real team members exchange:
 
-| Email Type | From | To | Example |
-|------------|------|----|---------|
-| Weekly status digest | PM | All | "Week 12 summary: 78% fr-FR, 62% de-DE, 41% ja-JP" |
-| Terminology proposal | Brand Manager | Translators | "Proposing 'déploiement' as preferred term for 'deployment'" |
-| Release coordination | Developer | PM | "Upstream v3.2.1 merged, 47 new blocks pushed" |
-| Quality concern | QA | Translator + PM | "3 placeholder mismatches in fr-FR release-notes.md" |
-| Escalation | Translator | Brand Manager | "Need guidance: 'serverless' — transliterate or translate?" |
-| Welcome/onboarding | PM | New translator | "Welcome Yuki! Here's your first batch of ja-JP translations" |
+| Email Type           | From          | To              | Example                                                       |
+| -------------------- | ------------- | --------------- | ------------------------------------------------------------- |
+| Weekly status digest | PM            | All             | "Week 12 summary: 78% fr-FR, 62% de-DE, 41% ja-JP"            |
+| Terminology proposal | Brand Manager | Translators     | "Proposing 'déploiement' as preferred term for 'deployment'"  |
+| Release coordination | Developer     | PM              | "Upstream v3.2.1 merged, 47 new blocks pushed"                |
+| Quality concern      | QA            | Translator + PM | "3 placeholder mismatches in fr-FR release-notes.md"          |
+| Escalation           | Translator    | Brand Manager   | "Need guidance: 'serverless' — transliterate or translate?"   |
+| Welcome/onboarding   | PM            | New translator  | "Welcome Yuki! Here's your first batch of ja-JP translations" |
 
 Agents never touch Mailpit directly. They call `email.send` and `email.listInbox` MCP
 tools on the standalone email MCP server (`agentic/email-mcp/`), which connects to Mailpit
@@ -51,18 +51,18 @@ generates authentic issue history.
 
 **Issue types agents file:**
 
-| Category | Filed By | Example |
-|----------|----------|---------|
-| **Bug: CLI** | Developer | "bowrain push fails with BOM-encoded JSON files" |
-| **Bug: API** | Translator, PM | "listTasks returns 500 when filtering by assignee + status" |
-| **Bug: Web UI** | Brand Manager | "Brand profile tone slider resets to 0 after save" |
-| **Bug: Format** | Developer, QA | "Markdown reader strips frontmatter during round-trip" |
-| **Feature: CLI** | Developer | "Add --dry-run flag to bowrain push" |
-| **Feature: API** | PM | "Batch task creation endpoint (create N tasks in one call)" |
-| **Feature: Translation** | Translator | "Show TM match percentage in task list view" |
-| **Feature: Brand** | Brand Manager | "Export brand profile as shareable template" |
-| **Improvement: DX** | Developer | "bowrain status should show per-language completion %" |
-| **Improvement: UX** | Translator | "Keyboard shortcut to accept AI translation and advance" |
+| Category                 | Filed By       | Example                                                     |
+| ------------------------ | -------------- | ----------------------------------------------------------- |
+| **Bug: CLI**             | Developer      | "bowrain push fails with BOM-encoded JSON files"            |
+| **Bug: API**             | Translator, PM | "listTasks returns 500 when filtering by assignee + status" |
+| **Bug: Web UI**          | Brand Manager  | "Brand profile tone slider resets to 0 after save"          |
+| **Bug: Format**          | Developer, QA  | "Markdown reader strips frontmatter during round-trip"      |
+| **Feature: CLI**         | Developer      | "Add --dry-run flag to bowrain push"                        |
+| **Feature: API**         | PM             | "Batch task creation endpoint (create N tasks in one call)" |
+| **Feature: Translation** | Translator     | "Show TM match percentage in task list view"                |
+| **Feature: Brand**       | Brand Manager  | "Export brand profile as shareable template"                |
+| **Improvement: DX**      | Developer      | "bowrain status should show per-language completion %"      |
+| **Improvement: UX**      | Translator     | "Keyboard shortcut to accept AI translation and advance"    |
 
 **Labels:** Agents apply appropriate labels (`bug`, `enhancement`, `ux`, `cli`, `api`, `format`).
 
@@ -497,20 +497,21 @@ When you encounter a platform problem or have an improvement idea, file a GitHub
 using the `gh` CLI against the `neokapi/agent-feedback` repo.
 
 **Before filing:**
+
 - Search existing issues: `gh issue list --repo neokapi/agent-feedback --search "keywords"`
 - Only file if the issue is reproducible or the improvement is clearly valuable
 
 **Bug report format:**
 gh issue create --repo neokapi/agent-feedback \
-  --title "[Bug] {component}: {short description}" \
-  --body "**What I was doing:** ...\n**What happened:** ...\n**Steps:** ...\n**Error:** ..." \
-  --label bug,{component}
+ --title "[Bug] {component}: {short description}" \
+ --body "**What I was doing:** ...\n**What happened:** ...\n**Steps:** ...\n**Error:** ..." \
+ --label bug,{component}
 
 **Feature request format:**
 gh issue create --repo neokapi/agent-feedback \
-  --title "[Feature] {component}: {short description}" \
-  --body "**Goal:** ...\n**Current gap:** ...\n**Suggestion:** ..." \
-  --label enhancement,{component}
+ --title "[Feature] {component}: {short description}" \
+ --body "**Goal:** ...\n**Current gap:** ...\n**Suggestion:** ..." \
+ --label enhancement,{component}
 ```
 
 ---
@@ -531,10 +532,10 @@ url = "http://email-mcp:3001/mcp"
 
 ### Tools
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `email.send` | All | Send email (to, subject, body) via Mailpit SMTP |
-| `email.listInbox` | All | Query received emails via Mailpit API |
+| Tool              | Used By | Description                                     |
+| ----------------- | ------- | ----------------------------------------------- |
+| `email.send`      | All     | Send email (to, subject, body) via Mailpit SMTP |
+| `email.listInbox` | All     | Query received emails via Mailpit API           |
 
 ### Email Patterns in SOUL.md
 
@@ -543,12 +544,14 @@ url = "http://email-mcp:3001/mcp"
 
 You communicate with team members via email for coordination that doesn't
 belong in the Bowrain task system:
+
 - Status updates and summaries (weekly reports)
 - Questions and escalations
 - Terminology discussions
 - Release coordination
 
 Use `email.send` with the recipient's role:
+
 - "pm" → Lisa Chen
 - "brand-manager" → Maria Santos
 - "developer" → Alex Chen
@@ -569,23 +572,23 @@ Respond to messages that need a reply before starting your main work.
 ```yaml
 # Add to docker-compose.yaml
 
-  # === Email ===
-  mailpit:
-    image: axllent/mailpit:latest
-    ports:
-      - "8025:8025"   # Web UI for operator (browse captured emails)
-    environment:
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+# === Email ===
+mailpit:
+  image: axllent/mailpit:latest
+  ports:
+    - "8025:8025" # Web UI for operator (browse captured emails)
+  environment:
+    MP_SMTP_AUTH_ACCEPT_ANY: 1
+    MP_SMTP_AUTH_ALLOW_INSECURE: 1
 
-  # Standalone email MCP server (wraps Mailpit SMTP + API)
-  email-mcp:
-    build: ./agentic/email-mcp
-    environment:
-      SMTP_HOST: mailpit
-      SMTP_PORT: 1025
-      MAILPIT_API_HOST: mailpit
-    depends_on: [mailpit]
+# Standalone email MCP server (wraps Mailpit SMTP + API)
+email-mcp:
+  build: ./agentic/email-mcp
+  environment:
+    SMTP_HOST: mailpit
+    SMTP_PORT: 1025
+    MAILPIT_API_HOST: mailpit
+  depends_on: [mailpit]
 ```
 
 ### Environment Variables

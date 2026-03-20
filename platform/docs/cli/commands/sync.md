@@ -53,13 +53,13 @@ bowrain sync --locale fr-FR --locale de-DE
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--no-wait` | Push only — skip wait and pull phases | `false` |
-| `--timeout` | Maximum time to wait for translations | `5m` |
-| `--locale` | Pull only specific locales (repeatable) | all locales |
-| `--force` | Push all blocks, ignoring sync cache | `false` |
-| `--dry-run` | Show what would happen without making changes | `false` |
+| Flag        | Description                                   | Default     |
+| ----------- | --------------------------------------------- | ----------- |
+| `--no-wait` | Push only — skip wait and pull phases         | `false`     |
+| `--timeout` | Maximum time to wait for translations         | `5m`        |
+| `--locale`  | Pull only specific locales (repeatable)       | all locales |
+| `--force`   | Push all blocks, ignoring sync cache          | `false`     |
+| `--dry-run` | Show what would happen without making changes | `false`     |
 
 ## Three Phases
 
@@ -72,6 +72,7 @@ Identical to [`bowrain push`](/bowrain/cli/commands/push). Sends changed blocks 
 Polls the server for completion of all flows triggered by the push. The server tracks which flows were triggered by a specific push via PushID correlation.
 
 The wait phase ends when:
+
 - All triggered flows complete successfully
 - The `--timeout` duration is reached (exit code 2)
 - A flow fails (exit code 3)
@@ -94,7 +95,7 @@ Push (PushID: abc123)
     → Automation: run qa-check (linked to abc123)
 ```
 
-The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until all linked flows complete or the timeout expires. This ensures that `bowrain sync` only pulls translations that result from *this* push, not from unrelated server activity.
+The wait phase polls `GET /api/v1/projects/:id/sync/push/:pushId/status` until all linked flows complete or the timeout expires. This ensures that `bowrain sync` only pulls translations that result from _this_ push, not from unrelated server activity.
 
 ## Exit Codes
 

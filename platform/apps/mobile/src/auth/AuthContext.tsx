@@ -50,24 +50,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const login = useCallback(async (url: string, config: keycloak.KeycloakConfig): Promise<boolean> => {
-    const tokens = await keycloak.login(config);
-    if (!tokens) return false;
+  const login = useCallback(
+    async (url: string, config: keycloak.KeycloakConfig): Promise<boolean> => {
+      const tokens = await keycloak.login(config);
+      if (!tokens) return false;
 
-    const client = new ApiClient({
-      baseUrl: url,
-      getToken: keycloak.getStoredToken,
-      onUnauthorized: () => {
-        setAuthenticated(false);
-        keycloak.clearTokens();
-      },
-    });
+      const client = new ApiClient({
+        baseUrl: url,
+        getToken: keycloak.getStoredToken,
+        onUnauthorized: () => {
+          setAuthenticated(false);
+          keycloak.clearTokens();
+        },
+      });
 
-    setApi(client);
-    setServerUrl(url);
-    setAuthenticated(true);
-    return true;
-  }, []);
+      setApi(client);
+      setServerUrl(url);
+      setAuthenticated(true);
+      return true;
+    },
+    [],
+  );
 
   const logout = useCallback(async () => {
     await keycloak.clearTokens();

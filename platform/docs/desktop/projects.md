@@ -37,4 +37,3 @@ Store-backed projects work seamlessly with connectors:
 1. **Pull** content from a connector into your project
 2. Translate using the translation editor, TM, or AI
 3. **Push** translations back to the connector
-

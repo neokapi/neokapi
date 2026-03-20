@@ -1,5 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { useAuth } from "../auth/AuthContext";
 import type { ProjectInfo, Workspace } from "../api/client";
 
@@ -16,7 +23,8 @@ export function ProjectScreen({ workspace, onSelect, onBack }: ProjectScreenProp
 
   useEffect(() => {
     if (!api) return;
-    api.get<ProjectInfo[]>(`/api/v1/workspaces/${workspace.slug}/editor/projects`)
+    api
+      .get<ProjectInfo[]>(`/api/v1/workspaces/${workspace.slug}/editor/projects`)
       .then(setProjects)
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -47,9 +55,7 @@ export function ProjectScreen({ workspace, onSelect, onBack }: ProjectScreenProp
             </Text>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No projects in this workspace</Text>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>No projects in this workspace</Text>}
       />
     </View>
   );

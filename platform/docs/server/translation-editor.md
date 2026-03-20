@@ -41,29 +41,29 @@ The toolbar at the top of the editor provides these tools:
 
 ### Translation Tools
 
-| Button | Action |
-|--------|--------|
-| **Pseudo** | Generate pseudo-translations for the entire file (for layout testing) |
-| **AI Translate** | Translate the file using the configured AI provider |
-| **TM Lookup** | Match source blocks against translation memory and apply matches |
-| **Provider selector** | Choose between configured AI/MT providers |
+| Button                | Action                                                                |
+| --------------------- | --------------------------------------------------------------------- |
+| **Pseudo**            | Generate pseudo-translations for the entire file (for layout testing) |
+| **AI Translate**      | Translate the file using the configured AI provider                   |
+| **TM Lookup**         | Match source blocks against translation memory and apply matches      |
+| **Provider selector** | Choose between configured AI/MT providers                             |
 
 ### Navigation
 
-| Button | Action |
-|--------|--------|
-| **Untranslated** arrows | Jump to the previous or next untranslated block |
-| **Copy Source** | Copy the source text to the target for the selected block |
-| **Reviewed** | Mark the selected block as reviewed |
+| Button                  | Action                                                    |
+| ----------------------- | --------------------------------------------------------- |
+| **Untranslated** arrows | Jump to the previous or next untranslated block           |
+| **Copy Source**         | Copy the source text to the target for the selected block |
+| **Reviewed**            | Mark the selected block as reviewed                       |
 
 ### View Controls
 
-| Button | Action |
-|--------|--------|
+| Button              | Action                                                 |
+| ------------------- | ------------------------------------------------------ |
 | **Layout switcher** | Toggle between grid, focus, split-h, and split-v modes |
-| **Context panel** | Show/hide the TM and terminology sidebar |
-| **Search** | Filter blocks by source or target text |
-| **Export** | Download the translated file in its original format |
+| **Context panel**   | Show/hide the TM and terminology sidebar               |
+| **Search**          | Filter blocks by source or target text                 |
+| **Export**          | Download the translated file in its original format    |
 
 ### Target Locale Selector
 
@@ -115,6 +115,7 @@ When a block is selected, the context panel shows translation memory matches:
 - **Apply button** — one-click to copy the TM match into the target
 
 The TM system uses three-tier matching:
+
 1. **Generalized** — ignores inline tags for broader matching
 2. **Structural** — considers tag structure but tolerates text changes
 3. **Plain** — exact text matching including all tags
@@ -149,11 +150,11 @@ The bottom of the editor shows:
 
 ## Keyboard Shortcuts
 
-| Key | Action |
-|-----|--------|
-| **Enter** | Start editing / save and advance |
-| **Escape** | Cancel editing |
-| **Arrow Up/Down** or **j/k** | Navigate between blocks (grid mode) |
+| Key                           | Action                               |
+| ----------------------------- | ------------------------------------ |
+| **Enter**                     | Start editing / save and advance     |
+| **Escape**                    | Cancel editing                       |
+| **Arrow Up/Down** or **j/k**  | Navigate between blocks (grid mode)  |
 | **Ctrl+1** through **Ctrl+9** | Insert tag from palette (focus mode) |
 
 ## File Export

@@ -5,6 +5,7 @@ The compliance dashboard provides real-time visibility into brand voice adherenc
 ## Overview
 
 The dashboard shows:
+
 - **Overall Brand Compliance Score** (0-100) with trend over time
 - **Per-dimension breakdown** (Tone, Style, Vocabulary, Clarity, Brand Compliance)
 - **Issue density** (issues per 1,000 words)
@@ -14,12 +15,12 @@ The dashboard shows:
 
 Scores use an MQM-inspired model with five dimensions and four severity levels:
 
-| Severity | Weight | Meaning |
-|---|---|---|
-| Neutral | 0 | Observation, no penalty |
-| Minor | 1 | Slight deviation |
-| Major | 5 | Clear violation |
-| Critical | 25 | Serious violation |
+| Severity | Weight | Meaning                 |
+| -------- | ------ | ----------------------- |
+| Neutral  | 0      | Observation, no penalty |
+| Minor    | 1      | Slight deviation        |
+| Major    | 5      | Clear violation         |
+| Critical | 25     | Serious violation       |
 
 **Score = max(0, 100 - total_penalty)**
 

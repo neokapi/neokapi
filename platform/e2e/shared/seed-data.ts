@@ -58,7 +58,12 @@ export const PROJECTS: ProjectDef[] = [
 
 export const TM_ENTRIES: TMEntry[] = [
   // en -> fr
-  { source: "About Acme Inc.", target: "A propos d'Acme Inc.", source_locale: "en", target_locale: "fr" },
+  {
+    source: "About Acme Inc.",
+    target: "A propos d'Acme Inc.",
+    source_locale: "en",
+    target_locale: "fr",
+  },
   { source: "Our Mission", target: "Notre mission", source_locale: "en", target_locale: "fr" },
   { source: "Our Team", target: "Notre equipe", source_locale: "en", target_locale: "fr" },
   { source: "Our Values", target: "Nos valeurs", source_locale: "en", target_locale: "fr" },
@@ -66,10 +71,31 @@ export const TM_ENTRIES: TMEntry[] = [
   { source: "Dashboard", target: "Tableau de bord", source_locale: "en", target_locale: "fr" },
   { source: "Settings", target: "Parametres", source_locale: "en", target_locale: "fr" },
   { source: "Sign Out", target: "Deconnexion", source_locale: "en", target_locale: "fr" },
-  { source: "Something went wrong. Please try again later.", target: "Une erreur est survenue. Veuillez reessayer plus tard.", source_locale: "en", target_locale: "fr" },
-  { source: "Your session has expired. Please sign in again.", target: "Votre session a expire. Veuillez vous reconnecter.", source_locale: "en", target_locale: "fr" },
-  { source: "We believe every developer deserves reliable, fast, and secure infrastructure.", target: "Nous croyons que chaque developpeur merite une infrastructure fiable, rapide et securisee.", source_locale: "en", target_locale: "fr" },
-  { source: "Are you sure you want to delete this project? This action cannot be undone.", target: "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible.", source_locale: "en", target_locale: "fr" },
+  {
+    source: "Something went wrong. Please try again later.",
+    target: "Une erreur est survenue. Veuillez reessayer plus tard.",
+    source_locale: "en",
+    target_locale: "fr",
+  },
+  {
+    source: "Your session has expired. Please sign in again.",
+    target: "Votre session a expire. Veuillez vous reconnecter.",
+    source_locale: "en",
+    target_locale: "fr",
+  },
+  {
+    source: "We believe every developer deserves reliable, fast, and secure infrastructure.",
+    target:
+      "Nous croyons que chaque developpeur merite une infrastructure fiable, rapide et securisee.",
+    source_locale: "en",
+    target_locale: "fr",
+  },
+  {
+    source: "Are you sure you want to delete this project? This action cannot be undone.",
+    target: "Etes-vous sur de vouloir supprimer ce projet ? Cette action est irreversible.",
+    source_locale: "en",
+    target_locale: "fr",
+  },
   // en -> de
   { source: "About Acme Inc.", target: "Uber Acme Inc.", source_locale: "en", target_locale: "de" },
   { source: "Our Mission", target: "Unsere Mission", source_locale: "en", target_locale: "de" },
@@ -93,7 +119,8 @@ export const CONCEPTS: Concept[] = [
   },
   {
     domain: "cloud",
-    definition: "The process of releasing a new version of an application to a server or hosting environment",
+    definition:
+      "The process of releasing a new version of an application to a server or hosting environment",
     terms: [
       { text: "deployment", locale: "en", status: "preferred" },
       { text: "deploiement", locale: "fr", status: "preferred" },
@@ -165,7 +192,8 @@ export const CONCEPTS: Concept[] = [
   },
   {
     domain: "cloud",
-    definition: "A lightweight, standalone executable package that includes everything needed to run software",
+    definition:
+      "A lightweight, standalone executable package that includes everything needed to run software",
     terms: [
       { text: "container", locale: "en", status: "preferred" },
       { text: "conteneur", locale: "fr", status: "preferred" },
@@ -199,7 +227,8 @@ export interface TaskDef {
 export const TASKS: TaskDef[] = [
   {
     title: "Review French translations for Company Website",
-    description: "Check all French translations for the about-us and landing pages. Pay attention to brand terminology.",
+    description:
+      "Check all French translations for the about-us and landing pages. Pay attention to brand terminology.",
     type: "review",
     priority: "high",
     projectIndex: 0,

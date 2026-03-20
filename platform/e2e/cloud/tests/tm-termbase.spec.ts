@@ -13,9 +13,9 @@ test.describe("Translation Memory & Terminology", () => {
     await api.addTMEntry(wsSlug, "Goodbye", "Au revoir", "en", "fr");
     await api.addTMEntry(wsSlug, "Hello", "Hallo", "en", "de");
 
-    const results = await api.searchTM(wsSlug, "Hello") as any;
+    const results = (await api.searchTM(wsSlug, "Hello")) as any;
     // Response may be an array or { entries: [...], total: N }
-    const entries = Array.isArray(results) ? results : results.entries ?? results.results ?? [];
+    const entries = Array.isArray(results) ? results : (results.entries ?? results.results ?? []);
     expect(entries.length).toBeGreaterThan(0);
   });
 

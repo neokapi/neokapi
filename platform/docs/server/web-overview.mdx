@@ -3,7 +3,7 @@ sidebar_position: 1
 title: Overview
 ---
 
-import ThemedImage from '@theme/ThemedImage';
+import ThemedImage from "@theme/ThemedImage";
 
 # Web Application
 
@@ -18,8 +18,8 @@ Server mode authenticates through your identity provider. Depending on configura
 <ThemedImage
   alt="Login page with identity provider options"
   sources={{
-    light: '/img/web-app/light/login.png',
-    dark: '/img/web-app/dark/login.png',
+    light: "/img/web-app/light/login.png",
+    dark: "/img/web-app/dark/login.png",
   }}
 />
 
@@ -30,8 +30,8 @@ In server mode, the workspace rail on the left lets you switch between workspace
 <ThemedImage
   alt="Workspace rail with multiple workspaces"
   sources={{
-    light: '/img/web-app/light/workspace-rail.png',
-    dark: '/img/web-app/dark/workspace-rail.png',
+    light: "/img/web-app/light/workspace-rail.png",
+    dark: "/img/web-app/dark/workspace-rail.png",
   }}
 />
 
@@ -42,8 +42,8 @@ The dashboard shows all projects in the active workspace. Each card displays the
 <ThemedImage
   alt="Project dashboard with project cards"
   sources={{
-    light: '/img/web-app/light/dashboard.png',
-    dark: '/img/web-app/dark/dashboard.png',
+    light: "/img/web-app/light/dashboard.png",
+    dark: "/img/web-app/dark/dashboard.png",
   }}
 />
 
@@ -54,8 +54,8 @@ The project view shows files in the selected project with format detection, word
 <ThemedImage
   alt="Project view with file list and upload zone"
   sources={{
-    light: '/img/web-app/light/project-view.png',
-    dark: '/img/web-app/dark/project-view.png',
+    light: "/img/web-app/light/project-view.png",
+    dark: "/img/web-app/dark/project-view.png",
   }}
 />
 
@@ -66,8 +66,8 @@ The editor shows source and target text side by side with a toolbar for translat
 <ThemedImage
   alt="Translation editor in grid layout"
   sources={{
-    light: '/img/web-app/light/editor.png',
-    dark: '/img/web-app/dark/editor.png',
+    light: "/img/web-app/light/editor.png",
+    dark: "/img/web-app/dark/editor.png",
   }}
 />
 
@@ -78,8 +78,8 @@ Focus mode provides a single-block deep editing experience with full-width sourc
 <ThemedImage
   alt="Focus view with single-block editing"
   sources={{
-    light: '/img/web-app/light/editor-focus.png',
-    dark: '/img/web-app/dark/editor-focus.png',
+    light: "/img/web-app/light/editor-focus.png",
+    dark: "/img/web-app/dark/editor-focus.png",
   }}
 />
 
@@ -90,8 +90,8 @@ The context panel provides instant per-block linguistic resources. TM matches sh
 <ThemedImage
   alt="Context panel showing TM matches and terminology"
   sources={{
-    light: '/img/web-app/light/context-panel.png',
-    dark: '/img/web-app/dark/context-panel.png',
+    light: "/img/web-app/light/context-panel.png",
+    dark: "/img/web-app/dark/context-panel.png",
   }}
 />
 
@@ -102,8 +102,8 @@ The TM Explorer provides full access to the workspace translation memory. Browse
 <ThemedImage
   alt="TM Explorer with search and filtering"
   sources={{
-    light: '/img/web-app/light/tm-explorer.png',
-    dark: '/img/web-app/dark/tm-explorer.png',
+    light: "/img/web-app/light/tm-explorer.png",
+    dark: "/img/web-app/dark/tm-explorer.png",
   }}
 />
 
@@ -114,8 +114,8 @@ The terminology panel provides concept-oriented term management. Browse, search,
 <ThemedImage
   alt="Terminology explorer with concept browser"
   sources={{
-    light: '/img/web-app/light/term-explorer.png',
-    dark: '/img/web-app/dark/term-explorer.png',
+    light: "/img/web-app/light/term-explorer.png",
+    dark: "/img/web-app/dark/term-explorer.png",
   }}
 />
 
@@ -126,8 +126,8 @@ View workspace information including name, slug, description, and your role.
 <ThemedImage
   alt="Settings page with workspace information"
   sources={{
-    light: '/img/web-app/light/settings.png',
-    dark: '/img/web-app/dark/settings.png',
+    light: "/img/web-app/light/settings.png",
+    dark: "/img/web-app/dark/settings.png",
   }}
 />
 
@@ -148,10 +148,10 @@ View workspace information including name, slug, description, and your role.
 
 ## Deployment Modes
 
-| Mode | Command | Auth | Workspaces | Use Case |
-|------|---------|------|------------|----------|
-| **Server** | `bowrain-server` | SSO | Multiple, multi-user | Team/SaaS deployments |
-| **Local** | `bowrain serve` | None (single user) | Single, auto-created | Local development, personal use |
+| Mode       | Command          | Auth               | Workspaces           | Use Case                        |
+| ---------- | ---------------- | ------------------ | -------------------- | ------------------------------- |
+| **Server** | `bowrain-server` | SSO                | Multiple, multi-user | Team/SaaS deployments           |
+| **Local**  | `bowrain serve`  | None (single user) | Single, auto-created | Local development, personal use |
 
 In **local mode**, authentication is bypassed and a single workspace is created automatically. The workspace rail is hidden, giving you a streamlined single-workspace experience.
 
@@ -161,18 +161,18 @@ In **server mode**, users authenticate through your identity provider and can be
 
 The web application and [Bowrain desktop app](/bowrain/desktop/overview) share the same core components (translation editor, TM explorer, terminology explorer) through the `@neokapi/ui` shared package. Key differences:
 
-| Feature | Web App | Bowrain Desktop |
-|---------|---------|-----------------|
-| Translation editor | Yes | Yes |
-| TM explorer | Yes | Yes |
-| Terminology explorer | Yes | Yes |
-| Context panel (TM + terms) | Yes | Yes |
-| AI/MT translation | Yes | Yes |
-| Flow editor | No | Yes |
-| Document preview | No | Yes (live preview) |
-| File open from disk | Upload via browser | Native file dialog |
-| Multi-user | Yes (server mode) | No (single user) |
-| OIDC authentication | Yes (server mode) | No |
-| Multiple workspaces | Yes (server mode) | No |
-| Local project storage | No | Yes |
-| Offline use | No | Yes |
+| Feature                    | Web App            | Bowrain Desktop    |
+| -------------------------- | ------------------ | ------------------ |
+| Translation editor         | Yes                | Yes                |
+| TM explorer                | Yes                | Yes                |
+| Terminology explorer       | Yes                | Yes                |
+| Context panel (TM + terms) | Yes                | Yes                |
+| AI/MT translation          | Yes                | Yes                |
+| Flow editor                | No                 | Yes                |
+| Document preview           | No                 | Yes (live preview) |
+| File open from disk        | Upload via browser | Native file dialog |
+| Multi-user                 | Yes (server mode)  | No (single user)   |
+| OIDC authentication        | Yes (server mode)  | No                 |
+| Multiple workspaces        | Yes (server mode)  | No                 |
+| Local project storage      | No                 | Yes                |
+| Offline use                | No                 | Yes                |

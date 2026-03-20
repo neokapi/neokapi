@@ -79,7 +79,9 @@ export async function seedFoundation(api: BowrainAPI): Promise<StoryContext> {
   const projects: Record<string, { id: string; name: string }> = {};
 
   for (const def of PROJECTS) {
-    console.log(`[seed]   Project "${def.name}" (${def.sourceLanguage} -> ${def.targetLanguages.join(", ")})...`);
+    console.log(
+      `[seed]   Project "${def.name}" (${def.sourceLanguage} -> ${def.targetLanguages.join(", ")})...`,
+    );
 
     // Check if project already exists (idempotent).
     const existing = await api.listProjects(ws.slug);
@@ -122,7 +124,13 @@ export async function seedLanguageAssets(ctx: StoryContext): Promise<StoryContex
 
   console.log(`[seed] Seeding ${TM_ENTRIES.length} TM entries...`);
   for (const entry of TM_ENTRIES) {
-    await api.addTMEntry(wsSlug, entry.source, entry.target, entry.source_locale, entry.target_locale);
+    await api.addTMEntry(
+      wsSlug,
+      entry.source,
+      entry.target,
+      entry.source_locale,
+      entry.target_locale,
+    );
   }
 
   console.log(`[seed] Seeding ${CONCEPTS.length} terminology concepts...`);
@@ -285,10 +293,10 @@ export async function fullSeed(api: BowrainAPI): Promise<StoryContext> {
   ctx = await seedAutomation(ctx);
   console.log(
     `[seed] Full seed complete: ws=${ctx.wsSlug}, ` +
-    `${Object.keys(ctx.projects).length} projects, ` +
-    `${ctx.tmCount} TM entries, ` +
-    `${ctx.conceptCount} concepts, ` +
-    `${ctx.taskIds?.length ?? 0} tasks`,
+      `${Object.keys(ctx.projects).length} projects, ` +
+      `${ctx.tmCount} TM entries, ` +
+      `${ctx.conceptCount} concepts, ` +
+      `${ctx.taskIds?.length ?? 0} tasks`,
   );
   return ctx;
 }

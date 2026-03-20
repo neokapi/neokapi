@@ -22,6 +22,7 @@ The system forks/mirrors active open source projects and manages their localizat
 Each agent persona runs as an independent **ZeroClaw** container — a lightweight Rust-based AI agent runtime (~3.4MB binary, &lt;5MB RAM). Agents interact with Bowrain through the Bravo MCP server (24 tools, already built) and coordinate through the platform.
 
 **Two deployment models, identical personas:**
+
 - **Local (docker-compose):** ZeroClaw daemons with cron + heartbeat polling, optionally supplemented by Redis pub/sub for instant handoffs (Redis is already in the platform compose stack for Bravo SSE relay)
 - **Azure (Container Apps Jobs):** Scheduled + event-driven jobs via KEDA/Service Bus — pay only for execution time, instant handoffs
 
@@ -63,18 +64,18 @@ Each agent persona runs as an independent **ZeroClaw** container — a lightweig
 
 ## Document Index
 
-| Document | Description |
-|----------|-------------|
-| [01-agent-personas.md](01-agent-personas.md) | Agent roles, behaviors, prompts, and interaction patterns |
-| [02-project-candidates.md](02-project-candidates.md) | Open source projects to fork/mirror, evaluation criteria |
-| [03-orchestration.md](03-orchestration.md) | Scheduling, pacing, timeline simulation, state management |
-| [04-implementation.md](04-implementation.md) | ZeroClaw containers, Bowrain MCP server, infrastructure |
-| [05-activity-visualization.md](05-activity-visualization.md) | Dashboards, feeds, metrics, and demo material |
-| [06-evaluation-quality.md](06-evaluation-quality.md) | Translation quality assessment, platform health metrics |
-| [07-rollout-phases.md](07-rollout-phases.md) | Phased rollout plan from MVP to full system |
-| [08-alternatives.md](08-alternatives.md) | Alternative approaches, trade-offs, and decision log |
-| [09-agent-routines.md](09-agent-routines.md) | Detailed daily/weekly routines, GitHub Issues, email communication |
-| [10-persona-evolution.md](10-persona-evolution.md) | Tuning loop, diagnosis, metrics-driven evolution, scaling |
+| Document                                                     | Description                                                        |
+| ------------------------------------------------------------ | ------------------------------------------------------------------ |
+| [01-agent-personas.md](01-agent-personas.md)                 | Agent roles, behaviors, prompts, and interaction patterns          |
+| [02-project-candidates.md](02-project-candidates.md)         | Open source projects to fork/mirror, evaluation criteria           |
+| [03-orchestration.md](03-orchestration.md)                   | Scheduling, pacing, timeline simulation, state management          |
+| [04-implementation.md](04-implementation.md)                 | ZeroClaw containers, Bowrain MCP server, infrastructure            |
+| [05-activity-visualization.md](05-activity-visualization.md) | Dashboards, feeds, metrics, and demo material                      |
+| [06-evaluation-quality.md](06-evaluation-quality.md)         | Translation quality assessment, platform health metrics            |
+| [07-rollout-phases.md](07-rollout-phases.md)                 | Phased rollout plan from MVP to full system                        |
+| [08-alternatives.md](08-alternatives.md)                     | Alternative approaches, trade-offs, and decision log               |
+| [09-agent-routines.md](09-agent-routines.md)                 | Detailed daily/weekly routines, GitHub Issues, email communication |
+| [10-persona-evolution.md](10-persona-evolution.md)           | Tuning loop, diagnosis, metrics-driven evolution, scaling          |
 
 ## Key Design Principles
 

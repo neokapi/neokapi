@@ -8,16 +8,14 @@
     <header>
       <h1>Acme CloudOps API Reference</h1>
       <p>
-        Complete reference for the Acme CloudOps REST API. All endpoints require
-        authentication via API key or OAuth 2.0 bearer token.
+        Complete reference for the Acme CloudOps REST API. All endpoints require authentication via
+        API key or OAuth 2.0 bearer token.
       </p>
     </header>
 
     <section id="authentication">
       <h2>Authentication</h2>
-      <p>
-        Include your API key in the <code>Authorization</code> header of every request:
-      </p>
+      <p>Include your API key in the <code>Authorization</code> header of every request:</p>
       <pre>Authorization: Bearer YOUR_API_KEY</pre>
       <p>
         API keys can be generated from the <a href="/settings/api-keys">API Keys</a>
@@ -34,10 +32,26 @@
 
       <h4>Query Parameters</h4>
       <table>
-        <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-        <tr><td>page</td><td>integer</td><td>Page number (default: 1)</td></tr>
-        <tr><td>per_page</td><td>integer</td><td>Items per page (default: 20, max: 100)</td></tr>
-        <tr><td>status</td><td>string</td><td>Filter by status: active, archived, or all</td></tr>
+        <tr>
+          <th>Parameter</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td>page</td>
+          <td>integer</td>
+          <td>Page number (default: 1)</td>
+        </tr>
+        <tr>
+          <td>per_page</td>
+          <td>integer</td>
+          <td>Items per page (default: 20, max: 100)</td>
+        </tr>
+        <tr>
+          <td>status</td>
+          <td>string</td>
+          <td>Filter by status: active, archived, or all</td>
+        </tr>
       </table>
 
       <h3>Create Project</h3>
@@ -46,10 +60,30 @@
 
       <h4>Request Body</h4>
       <table>
-        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
-        <tr><td>name</td><td>string</td><td>Yes</td><td>Project display name</td></tr>
-        <tr><td>region</td><td>string</td><td>Yes</td><td>Deployment region (e.g., us-east-1)</td></tr>
-        <tr><td>plan</td><td>string</td><td>No</td><td>Plan tier: free, pro, or enterprise</td></tr>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td>name</td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Project display name</td>
+        </tr>
+        <tr>
+          <td>region</td>
+          <td>string</td>
+          <td>Yes</td>
+          <td>Deployment region (e.g., us-east-1)</td>
+        </tr>
+        <tr>
+          <td>plan</td>
+          <td>string</td>
+          <td>No</td>
+          <td>Plan tier: free, pro, or enterprise</td>
+        </tr>
       </table>
     </section>
 
@@ -62,15 +96,30 @@
 
       <h4>Request Body</h4>
       <table>
-        <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
-        <tr><td>branch</td><td>string</td><td>No</td><td>Git branch to deploy (default: main)</td></tr>
-        <tr><td>environment</td><td>string</td><td>No</td><td>Target environment: staging or production</td></tr>
+        <tr>
+          <th>Field</th>
+          <th>Type</th>
+          <th>Required</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td>branch</td>
+          <td>string</td>
+          <td>No</td>
+          <td>Git branch to deploy (default: main)</td>
+        </tr>
+        <tr>
+          <td>environment</td>
+          <td>string</td>
+          <td>No</td>
+          <td>Target environment: staging or production</td>
+        </tr>
       </table>
 
       <h3>Rollback Deployment</h3>
       <p>
-        Rolls back to a previous deployment. This creates a new deployment using
-        the artifact from the specified version.
+        Rolls back to a previous deployment. This creates a new deployment using the artifact from
+        the specified version.
       </p>
       <pre>POST /api/v1/projects/:id/deployments/:deploymentId/rollback</pre>
     </section>
@@ -78,25 +127,46 @@
     <section id="errors">
       <h2>Error Handling</h2>
       <p>
-        The API uses standard HTTP status codes. Error responses include a JSON body
-        with a <code>message</code> field describing the error.
+        The API uses standard HTTP status codes. Error responses include a JSON body with a
+        <code>message</code> field describing the error.
       </p>
       <table>
-        <tr><th>Status Code</th><th>Meaning</th></tr>
-        <tr><td>400</td><td>Bad Request — invalid parameters or request body</td></tr>
-        <tr><td>401</td><td>Unauthorized — missing or invalid API key</td></tr>
-        <tr><td>403</td><td>Forbidden — insufficient permissions</td></tr>
-        <tr><td>404</td><td>Not Found — resource does not exist</td></tr>
-        <tr><td>429</td><td>Too Many Requests — rate limit exceeded</td></tr>
-        <tr><td>500</td><td>Internal Server Error — please contact support</td></tr>
+        <tr>
+          <th>Status Code</th>
+          <th>Meaning</th>
+        </tr>
+        <tr>
+          <td>400</td>
+          <td>Bad Request — invalid parameters or request body</td>
+        </tr>
+        <tr>
+          <td>401</td>
+          <td>Unauthorized — missing or invalid API key</td>
+        </tr>
+        <tr>
+          <td>403</td>
+          <td>Forbidden — insufficient permissions</td>
+        </tr>
+        <tr>
+          <td>404</td>
+          <td>Not Found — resource does not exist</td>
+        </tr>
+        <tr>
+          <td>429</td>
+          <td>Too Many Requests — rate limit exceeded</td>
+        </tr>
+        <tr>
+          <td>500</td>
+          <td>Internal Server Error — please contact support</td>
+        </tr>
       </table>
     </section>
 
     <section id="rate-limits">
       <h2>Rate Limits</h2>
       <p>
-        API requests are limited to 1,000 requests per minute per API key.
-        Rate limit headers are included in every response:
+        API requests are limited to 1,000 requests per minute per API key. Rate limit headers are
+        included in every response:
       </p>
       <ul>
         <li><code>X-RateLimit-Limit</code> — Maximum requests per window</li>
@@ -107,8 +177,8 @@
 
     <footer>
       <p>
-        Need help? Contact our <a href="/support">developer support team</a> or
-        visit the <a href="/community">community forum</a>.
+        Need help? Contact our <a href="/support">developer support team</a> or visit the
+        <a href="/community">community forum</a>.
       </p>
     </footer>
   </body>

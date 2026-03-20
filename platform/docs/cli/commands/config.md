@@ -44,28 +44,28 @@ bowrain config --global server.url https://bowrain.example.com
 
 ## Options
 
-| Flag | Description |
-|------|-------------|
+| Flag       | Description                                                                   |
+| ---------- | ----------------------------------------------------------------------------- |
 | `--global` | Use global config file (`~/.config/kapi/kapi.yaml`) instead of project config |
 
 ## Config Keys
 
 ### Project Config (`.bowrain/config.yaml`)
 
-| Key | Description | Example |
-|-----|-------------|---------|
-| `project.name` | Project name | `My App` |
-| `project.source_locale` | Source locale (BCP 47) | `en-US` |
-| `server.url` | Bowrain Server URL | `https://bowrain.example.com` |
-| `server.project_id` | Server project ID | `proj_abc123` |
-| `server.workspace` | Workspace slug | `my-team` |
+| Key                     | Description            | Example                       |
+| ----------------------- | ---------------------- | ----------------------------- |
+| `project.name`          | Project name           | `My App`                      |
+| `project.source_locale` | Source locale (BCP 47) | `en-US`                       |
+| `server.url`            | Bowrain Server URL     | `https://bowrain.example.com` |
+| `server.project_id`     | Server project ID      | `proj_abc123`                 |
+| `server.workspace`      | Workspace slug         | `my-team`                     |
 
 ### Global Config (`~/.config/kapi/kapi.yaml`)
 
-| Key | Description | Example |
-|-----|-------------|---------|
-| `server.url` | Default server URL for all projects | `https://bowrain.example.com` |
-| `plugin_directory` | Plugin directory path | `/home/user/.bowrain/plugins` |
+| Key                | Description                         | Example                       |
+| ------------------ | ----------------------------------- | ----------------------------- |
+| `server.url`       | Default server URL for all projects | `https://bowrain.example.com` |
+| `plugin_directory` | Plugin directory path               | `/home/user/.bowrain/plugins` |
 
 ## Global vs Project Config
 

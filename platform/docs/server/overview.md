@@ -56,13 +56,13 @@ workspace/contoso
 
 Integrate with external systems:
 
-| Connector Type | Examples | Purpose |
-|----------------|----------|---------|
-| **CMS** | Contentful, Sanity, Strapi | Source content |
-| **Design** | Figma, Sketch | UI text strings |
-| **Code** | GitHub, GitLab | Localization files |
-| **Marketing** | HubSpot, Marketo | Campaign content |
-| **File** | Kapi CLI | Local file sync |
+| Connector Type | Examples                   | Purpose            |
+| -------------- | -------------------------- | ------------------ |
+| **CMS**        | Contentful, Sanity, Strapi | Source content     |
+| **Design**     | Figma, Sketch              | UI text strings    |
+| **Code**       | GitHub, GitLab             | Localization files |
+| **Marketing**  | HubSpot, Marketo           | Campaign content   |
+| **File**       | Kapi CLI                   | Local file sync    |
 
 ### Automation
 

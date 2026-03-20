@@ -45,6 +45,7 @@ brew install --cask neokapi/tap/bowrain
 ### Binary Downloads
 
 Download from [GitHub Releases](https://github.com/neokapi/neokapi/releases):
+
 - macOS (universal DMG)
 - Linux (amd64, arm64)
 - Windows (amd64, arm64)

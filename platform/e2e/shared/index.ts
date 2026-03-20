@@ -6,11 +6,7 @@
  */
 
 // API client + static helpers
-export {
-  BowrainAPI,
-  deviceAuth,
-  waitForReady,
-} from "./api-client.js";
+export { BowrainAPI, deviceAuth, waitForReady } from "./api-client.js";
 
 // Types from API client
 export type {

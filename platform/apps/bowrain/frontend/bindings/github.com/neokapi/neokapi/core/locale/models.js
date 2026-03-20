@@ -10,36 +10,36 @@ import { Create as $Create } from "@wailsio/runtime";
  * LocaleInfo holds a locale code and its English display name.
  */
 export class LocaleInfo {
-    /**
-     * Creates a new LocaleInfo instance.
-     * @param {Partial<LocaleInfo>} [$$source = {}] - The source object to create the LocaleInfo.
-     */
-    constructor($$source = {}) {
-        if (!("code" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["code"] = "";
-        }
-        if (!("display_name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["display_name"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new LocaleInfo instance.
+   * @param {Partial<LocaleInfo>} [$$source = {}] - The source object to create the LocaleInfo.
+   */
+  constructor($$source = {}) {
+    if (!("code" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["code"] = "";
+    }
+    if (!("display_name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["display_name"] = "";
     }
 
-    /**
-     * Creates a new LocaleInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {LocaleInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new LocaleInfo(/** @type {Partial<LocaleInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new LocaleInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {LocaleInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new LocaleInfo(/** @type {Partial<LocaleInfo>} */ ($$parsedSource));
+  }
 }

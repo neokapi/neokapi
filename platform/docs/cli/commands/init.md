@@ -23,12 +23,12 @@ to workspace selection, then project name and source locale.
 
 **If you are not signed in**, the wizard offers four paths:
 
-| Option | Description |
-|--------|-------------|
-| **Sign in to Bowrain** | Authenticate via browser (OAuth device flow), select workspace, create project |
-| **Email me a claim link** | Create anonymous project, receive claim email |
-| **Continue without signing in** | Create anonymous project, print claim URL |
-| **Local only** | No server connection — pure local project |
+| Option                          | Description                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------------ |
+| **Sign in to Bowrain**          | Authenticate via browser (OAuth device flow), select workspace, create project |
+| **Email me a claim link**       | Create anonymous project, receive claim email                                  |
+| **Continue without signing in** | Create anonymous project, print claim URL                                      |
+| **Local only**                  | No server connection — pure local project                                      |
 
 All interactive paths include a **BCP-47 locale selector** with type-ahead
 filtering (press `/` to search) for the source locale.
@@ -69,17 +69,17 @@ After initialization, the directory becomes a Bowrain project. You can run `bowr
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--name` | Project name | Directory name |
-| `--source` | Source locale code (BCP 47) | `en` |
-| `--targets` | Comma-separated target locale codes | (none) |
-| `--server` | Bowrain Server URL | `BOWRAIN_SERVER_URL` or config |
-| `--project` | Server project ID (connect to existing) | (none) |
-| `--anonymous` | Create anonymous project (prints claim URL) | `false` |
-| `--email` | Create anonymous project, send claim email | (none) |
-| `--json` | Output in JSON format | `false` |
-| `--text` | Output in text format (default) | `true` |
+| Flag          | Description                                 | Default                        |
+| ------------- | ------------------------------------------- | ------------------------------ |
+| `--name`      | Project name                                | Directory name                 |
+| `--source`    | Source locale code (BCP 47)                 | `en`                           |
+| `--targets`   | Comma-separated target locale codes         | (none)                         |
+| `--server`    | Bowrain Server URL                          | `BOWRAIN_SERVER_URL` or config |
+| `--project`   | Server project ID (connect to existing)     | (none)                         |
+| `--anonymous` | Create anonymous project (prints claim URL) | `false`                        |
+| `--email`     | Create anonymous project, send claim email  | (none)                         |
+| `--json`      | Output in JSON format                       | `false`                        |
+| `--text`      | Output in text format (default)             | `true`                         |
 
 ## JSON Output
 
@@ -166,10 +166,12 @@ bowrain status  # Finds .bowrain/ at ../../.bowrain/
 ## Version Control
 
 **Commit to git:**
+
 - `.bowrain/config.yaml` — project settings
 - `.bowrain/flows/*.yaml` — flow definitions
 
 **Do NOT commit:**
+
 - `.bowrain/.sync-cache` — sync cache (auto-gitignored)
 - `.bowrain/.server-token` — auth token (auto-gitignored)
 

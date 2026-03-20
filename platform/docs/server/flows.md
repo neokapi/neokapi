@@ -107,12 +107,12 @@ curl https://bowrain.example.com/api/v1/projects/:id/flows/executions/:execId \
 
 ### Execution States
 
-| Status | Description |
-|--------|-------------|
-| `pending` | Queued, waiting to start |
-| `running` | Currently processing blocks |
-| `completed` | Finished successfully |
-| `failed` | Stopped due to an error |
+| Status      | Description                  |
+| ----------- | ---------------------------- |
+| `pending`   | Queued, waiting to start     |
+| `running`   | Currently processing blocks  |
+| `completed` | Finished successfully        |
+| `failed`    | Stopped due to an error      |
 | `cancelled` | Cancelled by user or timeout |
 
 ### Listing Executions

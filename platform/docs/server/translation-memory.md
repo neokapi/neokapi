@@ -18,14 +18,14 @@ There are two ways to open the TM Explorer:
 
 The TM Explorer displays entries in a paginated table with these columns:
 
-| Column | Description |
-|--------|-------------|
-| **Source** | The source language text |
-| **Target** | The target language translation |
+| Column            | Description                      |
+| ----------------- | -------------------------------- |
+| **Source**        | The source language text         |
+| **Target**        | The target language translation  |
 | **Source Locale** | Language code of the source text |
 | **Target Locale** | Language code of the target text |
-| **Updated** | Date the entry was last modified |
-| **Actions** | Edit and Delete buttons |
+| **Updated**       | Date the entry was last modified |
+| **Actions**       | Edit and Delete buttons          |
 
 The entry count badge in the header shows the total number of entries matching current filters.
 
@@ -91,6 +91,7 @@ The TM system uses a three-tier matching approach:
 3. **Plain matching** — exact text comparison including all inline tags, for precise matches
 
 Each match receives a **score** (0-100%) based on Levenshtein distance similarity. Matches are color-coded:
+
 - **Green** (100%) — exact match
 - **Yellow** (70-99%) — fuzzy match
 - Lower scores appear with reduced emphasis

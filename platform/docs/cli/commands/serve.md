@@ -37,9 +37,9 @@ bowrain serve ./my-project/ --no-open
 
 ## Options
 
-| Flag | Description | Default |
-|------|-------------|---------|
-| `--port` | Port to listen on | `3000` |
+| Flag        | Description                      | Default |
+| ----------- | -------------------------------- | ------- |
+| `--port`    | Port to listen on                | `3000`  |
 | `--no-open` | Don't open browser automatically | `false` |
 
 ## When to Use
@@ -56,10 +56,10 @@ For full multi-user collaboration with workspaces and access control, use
 
 ## Comparison
 
-| Feature | `bowrain serve` | `bowrain-server` |
-|---------|-------------|-----------------|
-| Auth required | No | Yes (SSO) |
-| Workspaces | No (single project) | Yes (multi-workspace) |
-| Binding | localhost only | 0.0.0.0 (configurable) |
-| Use case | Local editing | Team deployment |
-| Users | Single user | Multiple users |
+| Feature       | `bowrain serve`     | `bowrain-server`       |
+| ------------- | ------------------- | ---------------------- |
+| Auth required | No                  | Yes (SSO)              |
+| Workspaces    | No (single project) | Yes (multi-workspace)  |
+| Binding       | localhost only      | 0.0.0.0 (configurable) |
+| Use case      | Local editing       | Team deployment        |
+| Users         | Single user         | Multiple users         |

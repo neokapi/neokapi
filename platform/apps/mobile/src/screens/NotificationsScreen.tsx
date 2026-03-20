@@ -1,5 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { useAuth } from "../auth/AuthContext";
 import type { NotificationInfo } from "../api/client";
 
@@ -44,17 +51,18 @@ export function NotificationsScreen({ workspace, onBack }: NotificationsScreenPr
     loadNotifications();
   }, [loadNotifications]);
 
-  const markRead = useCallback(async (id: string) => {
-    if (!api) return;
-    try {
-      await api.put(`/api/v1/workspaces/${workspace.slug}/notifications/${id}/read`);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-    } catch {
-      // ignore
-    }
-  }, [api, workspace.slug]);
+  const markRead = useCallback(
+    async (id: string) => {
+      if (!api) return;
+      try {
+        await api.put(`/api/v1/workspaces/${workspace.slug}/notifications/${id}/read`);
+        setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      } catch {
+        // ignore
+      }
+    },
+    [api, workspace.slug],
+  );
 
   const markAllRead = useCallback(async () => {
     if (!api) return;
@@ -89,9 +97,7 @@ export function NotificationsScreen({ workspace, onBack }: NotificationsScreenPr
         )}
       </View>
 
-      <Text style={styles.title}>
-        Notifications{unreadCount > 0 ? ` (${unreadCount})` : ""}
-      </Text>
+      <Text style={styles.title}>Notifications{unreadCount > 0 ? ` (${unreadCount})` : ""}</Text>
 
       <FlatList
         data={notifications}
@@ -111,9 +117,7 @@ export function NotificationsScreen({ workspace, onBack }: NotificationsScreenPr
             </View>
           </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          <Text style={styles.empty}>No notifications</Text>
-        }
+        ListEmptyComponent={<Text style={styles.empty}>No notifications</Text>}
       />
     </View>
   );

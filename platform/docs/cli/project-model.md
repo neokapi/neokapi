@@ -65,29 +65,29 @@ hooks:
 
 ### All config.yaml Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `version` | string | Schema version (currently `v1`) |
-| `url` | string | Compound project URL encoding server, workspace, and project ID |
-| `stream` | string | Content stream name (`$auto` for auto-detection from git branch) |
-| `defaults` | object | Project-wide language and organization defaults |
-| `content` | list | File patterns to track (see [Content Entries](#content-entries)) |
-| `plugins` | list | Plugin dependencies (e.g. `["okapi@1.0.0"]`) |
-| `registries` | list | Plugin registry overrides |
-| `preset` | string | Framework preset name (e.g. `nextjs`, `react-intl`, `angular`) |
-| `format_presets` | map | Local format preset definitions |
-| `exclude` | list | Glob patterns to skip during scanning |
-| `hooks` | map | Flows that run at lifecycle points (`pre-push`, `post-pull`, etc.) |
-| `flows` | map | Per-flow settings |
-| `automations` | list | Local automation rules (see [Automations](#automations)) |
+| Field            | Type   | Description                                                        |
+| ---------------- | ------ | ------------------------------------------------------------------ |
+| `version`        | string | Schema version (currently `v1`)                                    |
+| `url`            | string | Compound project URL encoding server, workspace, and project ID    |
+| `stream`         | string | Content stream name (`$auto` for auto-detection from git branch)   |
+| `defaults`       | object | Project-wide language and organization defaults                    |
+| `content`        | list   | File patterns to track (see [Content Entries](#content-entries))   |
+| `plugins`        | list   | Plugin dependencies (e.g. `["okapi@1.0.0"]`)                       |
+| `registries`     | list   | Plugin registry overrides                                          |
+| `preset`         | string | Framework preset name (e.g. `nextjs`, `react-intl`, `angular`)     |
+| `format_presets` | map    | Local format preset definitions                                    |
+| `exclude`        | list   | Glob patterns to skip during scanning                              |
+| `hooks`          | map    | Flows that run at lifecycle points (`pre-push`, `post-pull`, etc.) |
+| `flows`          | map    | Per-flow settings                                                  |
+| `automations`    | list   | Local automation rules (see [Automations](#automations))           |
 
 ### Defaults
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `source_language` | string | BCP-47 source language (e.g. `en-US`) |
-| `target_languages` | list | BCP-47 target languages |
-| `collection` | string | Default collection name for organizing content |
+| Field              | Type   | Description                                    |
+| ------------------ | ------ | ---------------------------------------------- |
+| `source_language`  | string | BCP-47 source language (e.g. `en-US`)          |
+| `target_languages` | list   | BCP-47 target languages                        |
+| `collection`       | string | Default collection name for organizing content |
 
 ## Content Entries
 
@@ -113,16 +113,16 @@ content:
 
 ### Content Entry Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `path` | string | Glob pattern for source files (supports `{lang}` placeholder) |
-| `dest` | string | Output path pattern for target files (supports `{lang}` placeholder) |
-| `format` | string | File format ID (e.g. `json`, `html`) or `$auto` for auto-detection |
-| `base` | string | Path prefix to strip when reporting files |
-| `collection` | string | Collection override for this entry |
-| `language` | string | Source language override for this entry |
-| `target_languages` | list | Target language override for this entry |
-| `overrides` | map | Per-entry format config overrides |
+| Field              | Type   | Description                                                          |
+| ------------------ | ------ | -------------------------------------------------------------------- |
+| `path`             | string | Glob pattern for source files (supports `{lang}` placeholder)        |
+| `dest`             | string | Output path pattern for target files (supports `{lang}` placeholder) |
+| `format`           | string | File format ID (e.g. `json`, `html`) or `$auto` for auto-detection   |
+| `base`             | string | Path prefix to strip when reporting files                            |
+| `collection`       | string | Collection override for this entry                                   |
+| `language`         | string | Source language override for this entry                              |
+| `target_languages` | list   | Target language override for this entry                              |
+| `overrides`        | map    | Per-entry format config overrides                                    |
 
 ## Automations
 
@@ -146,12 +146,12 @@ automations:
 
 ### Automation Fields
 
-| Field | Description |
-|-------|-------------|
-| `name` | Rule name |
+| Field     | Description                                                                                |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `name`    | Rule name                                                                                  |
 | `trigger` | Lifecycle point: `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, `post-flow` |
-| `actions` | List of actions (`run_flow`, `wait_translate`, `pull`, `push`) |
-| `enabled` | Optional boolean (defaults to `true`) |
+| `actions` | List of actions (`run_flow`, `wait_translate`, `pull`, `push`)                             |
+| `enabled` | Optional boolean (defaults to `true`)                                                      |
 
 ## Project Discovery
 
@@ -169,12 +169,14 @@ All commands work from any subdirectory within the project.
 ### Commit to git
 
 Files to commit:
+
 - `.bowrain/config.yaml` — project settings
 - `.bowrain/flows/*.yaml` — flow definitions
 
 ### Do NOT commit
 
 Files that should NOT be committed (auto-gitignored):
+
 - `.bowrain/.sync-cache` — local sync cache (block hashes, stream cursors, claim token)
 
 `bowrain init` automatically creates `.bowrain/.gitignore` with these entries.
@@ -208,18 +210,19 @@ bowrain init --server https://bowrain.example.com --project abc123
 
 ### Init Flags
 
-| Flag | Description |
-|------|-------------|
-| `--server` | Server URL |
-| `--project` | Connect to an existing project by ID |
-| `--name` | Project name (default: current directory name) |
-| `--source` | Source locale (default: `en`) |
-| `--targets` | Target locales, comma-separated (e.g. `nb,fr`) |
-| `--anonymous` | Create a project without signing in |
-| `--email` | Create a project and email a link to claim it |
-| `--preset` | Apply a framework preset (e.g. `nextjs`, `react-intl`, `angular`) |
+| Flag          | Description                                                       |
+| ------------- | ----------------------------------------------------------------- |
+| `--server`    | Server URL                                                        |
+| `--project`   | Connect to an existing project by ID                              |
+| `--name`      | Project name (default: current directory name)                    |
+| `--source`    | Source locale (default: `en`)                                     |
+| `--targets`   | Target locales, comma-separated (e.g. `nb,fr`)                    |
+| `--anonymous` | Create a project without signing in                               |
+| `--email`     | Create a project and email a link to claim it                     |
+| `--preset`    | Apply a framework preset (e.g. `nextjs`, `react-intl`, `angular`) |
 
 This creates:
+
 1. `.bowrain/` directory
 2. `.bowrain/config.yaml` with specified settings
 3. `.bowrain/flows/pseudo.yaml` — an example flow
@@ -246,6 +249,7 @@ bowrain status  # Show sync state (pending push/pull)
 ```
 
 The server URL is resolved from (first match wins):
+
 1. `url` field in `.bowrain/config.yaml`
 2. `--server` flag
 3. `BOWRAIN_SERVER_URL` environment variable / `server.url` in `~/.config/bowrain/bowrain.yaml`

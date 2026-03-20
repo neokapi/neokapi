@@ -27,19 +27,16 @@ export class KeycloakAdmin {
       return this.token;
     }
 
-    const resp = await fetch(
-      `${this.config.baseUrl}/realms/master/protocol/openid-connect/token`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          client_id: "admin-cli",
-          username: "admin",
-          password: this.config.adminPassword,
-          grant_type: "password",
-        }),
-      },
-    );
+    const resp = await fetch(`${this.config.baseUrl}/realms/master/protocol/openid-connect/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: "admin-cli",
+        username: "admin",
+        password: this.config.adminPassword,
+        grant_type: "password",
+      }),
+    });
 
     if (!resp.ok) {
       throw new Error(`Keycloak admin auth failed: ${resp.status} ${await resp.text()}`);

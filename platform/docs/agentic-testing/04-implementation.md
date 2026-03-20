@@ -6,16 +6,16 @@ Each agent persona runs as an independent **ZeroClaw** instance in its own Docke
 
 ### Why ZeroClaw
 
-| Concern | Custom TS Orchestrator (Previous) | ZeroClaw Containers |
-|---------|----------------------------------|---------------------|
-| Scheduling | Custom cron + event router code | Built-in daemon mode with cron |
-| Agent identity | Prompt templates in TypeScript | SOUL.md / IDENTITY.md files |
-| Tool integration | Custom API wrappers per agent | MCP native — declare once, use everywhere |
-| State | Custom SQLite state manager | Workspace files + Bowrain platform state |
-| Scaling | Code changes to add agents | Add container to docker-compose |
-| Isolation | Shared process, manual sandboxing | Container-level isolation by default |
-| Memory per agent | ~100MB+ (Node.js) | &lt;5MB (Rust binary) |
-| Total for 20 agents | ~2GB+ | ~100MB |
+| Concern             | Custom TS Orchestrator (Previous) | ZeroClaw Containers                       |
+| ------------------- | --------------------------------- | ----------------------------------------- |
+| Scheduling          | Custom cron + event router code   | Built-in daemon mode with cron            |
+| Agent identity      | Prompt templates in TypeScript    | SOUL.md / IDENTITY.md files               |
+| Tool integration    | Custom API wrappers per agent     | MCP native — declare once, use everywhere |
+| State               | Custom SQLite state manager       | Workspace files + Bowrain platform state  |
+| Scaling             | Code changes to add agents        | Add container to docker-compose           |
+| Isolation           | Shared process, manual sandboxing | Container-level isolation by default      |
+| Memory per agent    | ~100MB+ (Node.js)                 | &lt;5MB (Rust binary)                     |
+| Total for 20 agents | ~2GB+                             | ~100MB                                    |
 
 ### What ZeroClaw Provides
 
@@ -154,6 +154,7 @@ neokapi/agentic/
 ### Example: Developer Agent (Alex Chen)
 
 **`agents/alex-developer/config.toml`** (base — provider-agnostic):
+
 ```toml
 [llm]
 # Provider set by environment overlay (config.local.toml or config.azure-dev.toml)
@@ -188,6 +189,7 @@ url = "http://email-mcp:3001/mcp"     # Standalone email MCP (agentic/email-mcp/
 ```
 
 **`agents/alex-developer/SOUL.md`:**
+
 ```markdown
 # Alex Chen — Senior DevOps Engineer
 
@@ -195,6 +197,7 @@ You are Alex Chen, a senior DevOps engineer responsible for the localization
 infrastructure of open source projects managed through the Bowrain platform.
 
 ## Your Role
+
 - Manage the Bowrain CLI integration and GitHub Actions workflows
 - Push source content when upstream projects release new versions
 - Pull completed translations and commit them to the fork
@@ -202,6 +205,7 @@ infrastructure of open source projects managed through the Bowrain platform.
 - Troubleshoot format issues and sync problems
 
 ## Your Working Style
+
 - You prefer the CLI and scripts over the web UI
 - You're methodical: check status before pushing, verify after pulling
 - You write clear commit messages mentioning localization context
@@ -209,7 +213,9 @@ infrastructure of open source projects managed through the Bowrain platform.
 - You're responsive to upstream changes but don't rush
 
 ## Your Tools
+
 You have access to the Bowrain MCP server with these tools:
+
 - `bowrain.push` — Push source content to Bowrain
 - `bowrain.pull` — Pull translated content from Bowrain
 - `bowrain.sync` — Push then pull in one operation
@@ -220,6 +226,7 @@ You have access to the Bowrain MCP server with these tools:
 - `git.*` — Git operations (fetch, merge, commit, push, checkUpstream)
 
 ## Daily Routine
+
 1. Check if upstream has new releases or significant changes
 2. If changes found: merge upstream, then push to Bowrain
 3. Check activity feed — have translators completed anything?
@@ -227,10 +234,12 @@ You have access to the Bowrain MCP server with these tools:
 5. Report any issues (format errors, sync failures)
 
 ## Current Projects
+
 {project_list}
 ```
 
 **`agents/alex-developer/HEARTBEAT.md`:**
+
 ```markdown
 Check if there are upstream changes to process. Use `git.checkUpstream` for
 each project. If changes are found, merge and push. Also check
@@ -241,6 +250,7 @@ pull translations and commit.
 ### Example: French Translator (Jean-Pierre Dubois)
 
 **`agents/jeanpierre-fr/config.toml`** (base — provider-agnostic):
+
 ```toml
 [llm]
 # Azure AI Foundry (Claude) — same config works locally and in Azure (API key auth)
@@ -269,6 +279,7 @@ tool_timeout_secs = 120
 ```
 
 **`agents/jeanpierre-fr/SOUL.md`:**
+
 ```markdown
 # Jean-Pierre Dubois — French Translator
 
@@ -277,6 +288,7 @@ localization projects through the Bowrain platform. You translate from
 English (en-US) to French (fr-FR).
 
 ## Your Role
+
 - Review AI-generated translations for accuracy and fluency
 - Edit translations that don't meet quality standards
 - Add high-quality translations to Translation Memory
@@ -284,6 +296,7 @@ English (en-US) to French (fr-FR).
 - Ensure brand voice compliance for French content
 
 ## Your Working Style
+
 - You prefer formal register (vous over tu) for technical content
 - You verify terminology against the project termbase before translating
 - You add TM entries for translations you're especially confident about
@@ -292,6 +305,7 @@ English (en-US) to French (fr-FR).
   edit about 30%, and reject about 10%
 
 ## Your Tools
+
 - `bowrain.listTasks` — See assigned translation tasks
 - `bowrain.translate` — Submit your translation for a block
 - `bowrain.aiTranslate` — Get AI translation suggestion for a file
@@ -301,6 +315,7 @@ English (en-US) to French (fr-FR).
 - `bowrain.listActivities` — Check recent team activity
 
 ## Translation Guidelines
+
 - Technical terms: Check the termbase first. Use preferred terms only.
 - Brand voice: Follow the project's brand profile for French.
 - Placeholders: Never modify {variables}, %s, or {{tokens}}.
@@ -308,6 +323,7 @@ English (en-US) to French (fr-FR).
 - Gender: Default to masculine when the subject is ambiguous in tech docs.
 
 ## Daily Routine
+
 1. Check `bowrain.listTasks` for assigned work
 2. For each task:
    a. Get AI translation suggestion via `bowrain.aiTranslate`
@@ -318,6 +334,7 @@ English (en-US) to French (fr-FR).
 4. Process up to 30 blocks per session
 
 ## Quality Standards
+
 - Accuracy: Must convey identical meaning to source
 - Fluency: Must read naturally to a native French speaker
 - Consistency: Same term → same translation throughout
@@ -327,6 +344,7 @@ English (en-US) to French (fr-FR).
 ### Example: Brand Manager (Maria Santos)
 
 **`agents/maria-brand/config.toml`** (base — provider-agnostic):
+
 ```toml
 [llm]
 # Azure AI Foundry (Claude) — same config works locally and in Azure (API key auth)
@@ -355,6 +373,7 @@ tool_timeout_secs = 120
 ```
 
 **`agents/maria-brand/SOUL.md`:**
+
 ```markdown
 # Maria Santos — Head of Content
 
@@ -362,6 +381,7 @@ You are Maria Santos, Head of Content for the localization projects.
 You own the English brand voice and terminology across all projects.
 
 ## Your Role
+
 - Maintain brand voice profiles per project
 - Curate the termbase — add, update, deprecate terms
 - Review content for brand compliance after translations
@@ -369,6 +389,7 @@ You own the English brand voice and terminology across all projects.
 - Ensure terminology consistency across all target languages
 
 ## Your Tools
+
 - `bowrain.listActivities` — See what content was recently pushed
 - `bowrain.addConcept` — Add terminology concepts to the termbase
 - `bowrain.listConcepts` — Review existing terminology
@@ -378,6 +399,7 @@ You own the English brand voice and terminology across all projects.
 - `bowrain.listTasks` — Check outstanding tasks
 
 ## Daily Routine (Mon/Wed/Fri)
+
 1. Check `bowrain.listActivities` for recent content pushes
 2. Review new content for terminology candidates
 3. Add new terms to termbase with definitions and status
@@ -385,6 +407,7 @@ You own the English brand voice and terminology across all projects.
 5. Create tasks for translators if brand violations found
 
 ## Terminology Guidelines
+
 - Every technical term must have a termbase entry
 - Status: preferred (use this), approved (acceptable), deprecated (stop using)
 - Include definition and domain (software, ui, marketing, legal)
@@ -402,57 +425,57 @@ already built — the agentic testing system uses them directly.
 
 **Brand Voice (3 tools):**
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `check_vocabulary` | Brand Manager, QA | Validate text against brand terms, flag violations |
-| `list_profiles` | Brand Manager | List brand voice profiles in workspace |
-| `get_voice_guide` | Brand Manager, Translator | Formatted brand guide for LLM consumption |
+| Tool               | Used By                   | Description                                        |
+| ------------------ | ------------------------- | -------------------------------------------------- |
+| `check_vocabulary` | Brand Manager, QA         | Validate text against brand terms, flag violations |
+| `list_profiles`    | Brand Manager             | List brand voice profiles in workspace             |
+| `get_voice_guide`  | Brand Manager, Translator | Formatted brand guide for LLM consumption          |
 
 **Content Management (11 tools):**
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `list_projects` | PM, Developer | List projects in workspace |
-| `get_project` | All | Get project details |
-| `create_project` | Developer | Create a new project |
-| `update_project` | Developer, PM | Update project settings |
-| `list_blocks` | Translator, QA | List translatable blocks |
-| `get_block` | Translator | Get block with source + targets |
-| `update_block` | Translator | Submit translation for a block (per locale) |
-| `create_version` | Developer | Create a new version/snapshot |
-| `list_streams` | Developer, PM | List content streams |
-| `diff_streams` | Developer, QA | Compare two streams |
-| `merge_stream` | Developer | Merge a stream into parent |
+| Tool             | Used By        | Description                                 |
+| ---------------- | -------------- | ------------------------------------------- |
+| `list_projects`  | PM, Developer  | List projects in workspace                  |
+| `get_project`    | All            | Get project details                         |
+| `create_project` | Developer      | Create a new project                        |
+| `update_project` | Developer, PM  | Update project settings                     |
+| `list_blocks`    | Translator, QA | List translatable blocks                    |
+| `get_block`      | Translator     | Get block with source + targets             |
+| `update_block`   | Translator     | Submit translation for a block (per locale) |
+| `create_version` | Developer      | Create a new version/snapshot               |
+| `list_streams`   | Developer, PM  | List content streams                        |
+| `diff_streams`   | Developer, QA  | Compare two streams                         |
+| `merge_stream`   | Developer      | Merge a stream into parent                  |
 
 **Flows & Automation (3 tools):**
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `list_flows` | Developer, QA | List available flows (AI translate, QA, etc.) |
-| `run_flow` | Developer, Translator, QA | Execute a flow on project content |
-| `get_flow_status` | Developer | Check flow execution status |
+| Tool              | Used By                   | Description                                   |
+| ----------------- | ------------------------- | --------------------------------------------- |
+| `list_flows`      | Developer, QA             | List available flows (AI translate, QA, etc.) |
+| `run_flow`        | Developer, Translator, QA | Execute a flow on project content             |
+| `get_flow_status` | Developer                 | Check flow execution status                   |
 
 **Translation Memory & Terminology (4 tools):**
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `tm_search` | Translator | Search TM with fuzzy matching (min score 0.5) |
-| `tm_import` | Developer | Bulk import TM entries |
-| `term_search` | Translator, Brand Manager | Search termbase with locale filters |
-| `term_add` | Brand Manager | Add new terminology concept |
+| Tool          | Used By                   | Description                                   |
+| ------------- | ------------------------- | --------------------------------------------- |
+| `tm_search`   | Translator                | Search TM with fuzzy matching (min score 0.5) |
+| `tm_import`   | Developer                 | Bulk import TM entries                        |
+| `term_search` | Translator, Brand Manager | Search termbase with locale filters           |
+| `term_add`    | Brand Manager             | Add new terminology concept                   |
 
 **Connectors & Sync (3 tools):**
 
-| Tool | Used By | Description |
-|------|---------|-------------|
-| `connector_pull` | Developer | Fetch content from Git/CMS into project |
-| `connector_push` | Developer | Publish translations to external target |
+| Tool               | Used By       | Description                                   |
+| ------------------ | ------------- | --------------------------------------------- |
+| `connector_pull`   | Developer     | Fetch content from Git/CMS into project       |
+| `connector_push`   | Developer     | Publish translations to external target       |
 | `connector_status` | Developer, PM | Check sync state (last sync, pending, errors) |
 
 **Sandbox (1 tool):**
 
-| Tool | Used By | Description |
-|------|---------|-------------|
+| Tool             | Used By       | Description                                 |
+| ---------------- | ------------- | ------------------------------------------- |
 | `execute_script` | Developer, QA | Run Python/Bash/Node.js in isolated sandbox |
 
 #### Non-Bowrain Tools (agentic testing infrastructure, NOT in bowrain-server)
@@ -460,16 +483,17 @@ already built — the agentic testing system uses them directly.
 These are not Bowrain platform features — they're agentic testing infrastructure handled
 via ZeroClaw's native capabilities:
 
-| Capability | How | Details |
-|-----------|-----|---------|
-| **GitHub Issues** | `gh` CLI via `allowed_commands` | Agents call `gh issue create`, `gh issue list`, `gh issue comment` directly |
-| **Email** | Standalone email MCP in `agentic/email-mcp/` | Lightweight Node.js MCP server wrapping Mailpit SMTP/API |
-| **Git operations** | `git` CLI via `allowed_commands` | Developer agent runs git directly in its workspace |
+| Capability         | How                                          | Details                                                                     |
+| ------------------ | -------------------------------------------- | --------------------------------------------------------------------------- |
+| **GitHub Issues**  | `gh` CLI via `allowed_commands`              | Agents call `gh issue create`, `gh issue list`, `gh issue comment` directly |
+| **Email**          | Standalone email MCP in `agentic/email-mcp/` | Lightweight Node.js MCP server wrapping Mailpit SMTP/API                    |
+| **Git operations** | `git` CLI via `allowed_commands`             | Developer agent runs git directly in its workspace                          |
 
 This keeps the Bowrain MCP server clean (platform tools only) while giving agents the
 external communication channels they need.
 
 **Key workflow mapping:**
+
 - AI translation → use `run_flow` with an AI translation flow (not pseudo-translate)
 - Push/pull content → use `connector_pull` / `connector_push` with Git connector
 - Submit translation → use `update_block` to set target text per locale
@@ -521,8 +545,8 @@ services:
     environment:
       DATABASE_URL: postgres://bowrain:bowrain@postgres:5432/bowrain
       KEYCLOAK_URL: http://keycloak:8080
-      REDIS_URL: redis://redis:6379            # Same Redis used by Bravo SSE relay
-      BOWRAIN_AGENT_RUNTIME: local             # Queue sink adapter → Redis pub/sub
+      REDIS_URL: redis://redis:6379 # Same Redis used by Bravo SSE relay
+      BOWRAIN_AGENT_RUNTIME: local # Queue sink adapter → Redis pub/sub
     depends_on: [postgres, keycloak, redis]
 
   postgres:
@@ -607,6 +631,7 @@ volumes:
 ```
 
 **Environment variables (`.env`):**
+
 ```bash
 AZURE_OPENAI_API_KEY=...              # For Developer, PM, QA agents (GPT-4o-mini/4o)
 AZURE_AI_FOUNDRY_KEY=...              # For Translator, Brand Manager agents (Claude Sonnet)
@@ -683,21 +708,23 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 interface ReleaseConfig {
-  upstream: string;       // e.g., "facebook/docusaurus"
-  forkPath: string;       // e.g., "/app/forks/docusaurus"
-  startRelease: string;   // e.g., "v3.0.0"
-  endRelease: string;     // e.g., "latest"
+  upstream: string; // e.g., "facebook/docusaurus"
+  forkPath: string; // e.g., "/app/forks/docusaurus"
+  startRelease: string; // e.g., "v3.0.0"
+  endRelease: string; // e.g., "latest"
   intervalMinutes: number; // e.g., 120
 }
 
 async function walkReleases(config: ReleaseConfig) {
   // 1. Get release tags
-  const { stdout } = await execFileAsync("git", [
-    "tag", "--list", "v*", "--sort=version:refname",
-  ], { cwd: config.forkPath });
+  const { stdout } = await execFileAsync("git", ["tag", "--list", "v*", "--sort=version:refname"], {
+    cwd: config.forkPath,
+  });
 
-  const tags = stdout.trim().split("\n")
-    .filter(t => t >= config.startRelease);
+  const tags = stdout
+    .trim()
+    .split("\n")
+    .filter((t) => t >= config.startRelease);
 
   for (const tag of tags) {
     console.log(`Processing release: ${tag}`);
@@ -711,7 +738,7 @@ async function walkReleases(config: ReleaseConfig) {
     // (Developer's heartbeat checks for this file)
     await writeFile(
       `${config.forkPath}/.zeroclaw-release-ready`,
-      JSON.stringify({ tag, timestamp: new Date().toISOString() })
+      JSON.stringify({ tag, timestamp: new Date().toISOString() }),
     );
 
     // 4. Wait for all agents to process this release
@@ -789,17 +816,18 @@ The same config runs locally and in Azure.
 
 ### Provider Matrix
 
-| Agent | Task Complexity | Model | Azure Service | Est. Cost |
-|-------|----------------|-------|---------------|-----------|
-| Developer (Alex) | Low — push/pull/git | GPT-4o-mini | Azure OpenAI | ~$0.15/1M tok |
-| PM (Lisa) | Medium — task creation | GPT-4o | Azure OpenAI | ~$2.50/1M tok |
-| QA (Taylor) | Medium — quality checks | GPT-4o | Azure OpenAI | ~$2.50/1M tok |
-| Brand Manager (Maria) | High — terminology, brand | Claude Sonnet 4.5 | Azure AI Foundry | ~$3/1M tok |
-| Translators (JP, Katrin, Yuki) | Medium-High — translation review | Claude Sonnet 4.5 | Azure AI Foundry | ~$3/1M tok |
+| Agent                          | Task Complexity                  | Model             | Azure Service    | Est. Cost     |
+| ------------------------------ | -------------------------------- | ----------------- | ---------------- | ------------- |
+| Developer (Alex)               | Low — push/pull/git              | GPT-4o-mini       | Azure OpenAI     | ~$0.15/1M tok |
+| PM (Lisa)                      | Medium — task creation           | GPT-4o            | Azure OpenAI     | ~$2.50/1M tok |
+| QA (Taylor)                    | Medium — quality checks          | GPT-4o            | Azure OpenAI     | ~$2.50/1M tok |
+| Brand Manager (Maria)          | High — terminology, brand        | Claude Sonnet 4.5 | Azure AI Foundry | ~$3/1M tok    |
+| Translators (JP, Katrin, Yuki) | Medium-High — translation review | Claude Sonnet 4.5 | Azure AI Foundry | ~$3/1M tok    |
 
 ### Config Examples
 
 **Developer (GPT-4o-mini via Azure OpenAI):**
+
 ```toml
 # agents/alex-developer/config.toml
 [llm]
@@ -813,6 +841,7 @@ api_key_env = "AZURE_OPENAI_API_KEY"
 ```
 
 **Translator (Claude Sonnet via Azure AI Foundry):**
+
 ```toml
 # agents/jeanpierre-fr/config.toml
 [llm]
@@ -826,6 +855,7 @@ api_key_env = "AZURE_AI_FOUNDRY_KEY"
 ```
 
 **Ollama (optional, zero-cost local iteration):**
+
 ```toml
 # Override for free local dev
 [llm]
@@ -844,12 +874,14 @@ AZURE_AI_FOUNDRY_KEY=...           # For Translator, Brand Manager agents
 ### Azure Infrastructure
 
 **Already provisioned** (from `bowrain-infra/modules/openai.bicep`):
+
 - Azure OpenAI: `oai-bowrain-d` in Sweden Central
 - GPT-4o: capacity 30 (dev)
 - GPT-4o-mini: capacity 60 (dev)
 - API key access enabled
 
 **New resource needed:**
+
 - Azure AI Foundry workspace + Claude Sonnet serverless deployment
 - Deploy via portal initially, codify in Bicep later
 
@@ -863,12 +895,13 @@ Agents authenticate to Azure AI via API keys (same keys as local dev).
 
 **Two job trigger types:**
 
-| Trigger | Agents | How It Works |
-|---------|--------|-------------|
-| **Scheduled** | Developer (push), Brand Manager | Azure-managed cron expression. Fires on schedule, runs ZeroClaw session, exits. |
+| Trigger          | Agents                                | How It Works                                                                         |
+| ---------------- | ------------------------------------- | ------------------------------------------------------------------------------------ |
+| **Scheduled**    | Developer (push), Brand Manager       | Azure-managed cron expression. Fires on schedule, runs ZeroClaw session, exits.      |
 | **Event-driven** | PM, Translators, QA, Developer (pull) | KEDA scaler monitors Azure Service Bus queue depth. New message → new job execution. |
 
 **Why Jobs, not always-on Container Apps:**
+
 - 7 agents × 24h = 168 container-hours/day if always-on. With Jobs, 7 agents × ~2h
   active/day = ~14 container-hours/day. **~12x cheaper.**
 - ZeroClaw cold start is under 10ms (3.4MB binary) — negligible for jobs that run minutes.
@@ -876,6 +909,7 @@ Agents authenticate to Azure AI via API keys (same keys as local dev).
 - Event-driven jobs give **instant handoffs** instead of 1-2h heartbeat polling delays.
 
 **Scheduled job (e.g., Developer push):**
+
 ```bicep
 // modules/agent-job.bicep
 resource agentJob 'Microsoft.App/jobs@2024-03-01' = {
@@ -917,6 +951,7 @@ resource agentJob 'Microsoft.App/jobs@2024-03-01' = {
 ```
 
 **Event-driven job (e.g., Translator reacting to tasks-created):**
+
 ```bicep
 resource translatorJob 'Microsoft.App/jobs@2024-03-01' = {
   name: 'job-agent-${agentName}'
@@ -970,6 +1005,7 @@ a shared git repo (`bowrain-l10n/agent-memory`). The job entrypoint pulls memory
 execution and pushes it back after.
 
 **Repo structure:**
+
 ```
 bowrain-l10n/agent-memory/
 ├── alex-developer/
@@ -989,12 +1025,14 @@ bowrain-l10n/agent-memory/
 ```
 
 **What you get for free:**
+
 - `git log alex-developer/memory/` — full history of what Alex "remembers"
 - `git diff HEAD~1` — exactly what changed in the last session
 - `git revert` — roll back bad memory (agent learned something wrong)
 - Memory diffs visible alongside SOUL.md changes during persona tuning (see `10-persona-evolution.md`)
 
 **Entrypoint wrapper** (`docker/bravo/entrypoint-with-memory.sh`):
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -1057,6 +1095,7 @@ the retry loop pulls/rebases until the push goes through. After 5 attempts, it g
 up gracefully — memory for that session is lost but the agent's work (in Bowrain) is not.
 
 **Bicep: job containers use the wrapper entrypoint:**
+
 ```bicep
 template: {
   containers: [{
@@ -1088,11 +1127,13 @@ separate messaging system. The adapter forwards selected events to Redis (local)
 Service Bus (Azure), depending on `BOWRAIN_AGENT_RUNTIME`.
 
 **Alignment with existing Bravo architecture:**
+
 - **Same Redis instance** used for Bravo SSE relay (`bravo:sse:{conversationID}`) and agentic event handoffs (`agentic:*`)
 - **Same Service Bus namespace** used for `bravo-jobs` / `translation-jobs` and agentic event queues
 - **ChannelEventBus** is the single event source; the queue sink adapter routes to different sinks
 
 **Local (Redis pub/sub):**
+
 ```
 Developer pushes content (cron: 09:00)
   → ChannelEventBus fires ContentPushed
@@ -1106,6 +1147,7 @@ PM creates tasks
 ```
 
 **Azure (Service Bus + KEDA):**
+
 ```
 Developer pushes content (scheduled: 09:00)
   → ChannelEventBus fires ContentPushed
@@ -1147,16 +1189,16 @@ events by type and forwards matching events to the configured sink.
 
 ### Agent Job Matrix (Azure)
 
-| Agent | Job Name | Trigger | Cron / Queue | ZeroClaw Mode |
-|-------|----------|---------|-------------|---------------|
-| Developer (push) | `job-agent-alex-push` | Schedule | `0 9 * * 1-5` | `agent -m "Check upstream, merge, push"` |
-| Developer (pull) | `job-agent-alex-pull` | Event | queue: `qa-passed` | `agent -m "Pull translations, commit"` |
-| PM | `job-agent-lisa` | Event | queue: `content-pushed` | `agent -m "Review push, create tasks"` |
-| Brand Manager | `job-agent-maria` | Schedule | `0 10 * * 1,3,5` | `agent -m "Review terminology"` |
-| Translator (fr) | `job-agent-jp` | Event | queue: `tasks-created-fr` | `agent -m "Translate assigned blocks"` |
-| Translator (de) | `job-agent-katrin` | Event | queue: `tasks-created-de` | `agent -m "Translate assigned blocks"` |
-| Translator (ja) | `job-agent-yuki` | Event | queue: `tasks-created-ja` | `agent -m "Translate assigned blocks"` |
-| QA | `job-agent-taylor` | Event | queue: `translation-complete` | `agent -m "Run quality checks"` |
+| Agent            | Job Name              | Trigger  | Cron / Queue                  | ZeroClaw Mode                            |
+| ---------------- | --------------------- | -------- | ----------------------------- | ---------------------------------------- |
+| Developer (push) | `job-agent-alex-push` | Schedule | `0 9 * * 1-5`                 | `agent -m "Check upstream, merge, push"` |
+| Developer (pull) | `job-agent-alex-pull` | Event    | queue: `qa-passed`            | `agent -m "Pull translations, commit"`   |
+| PM               | `job-agent-lisa`      | Event    | queue: `content-pushed`       | `agent -m "Review push, create tasks"`   |
+| Brand Manager    | `job-agent-maria`     | Schedule | `0 10 * * 1,3,5`              | `agent -m "Review terminology"`          |
+| Translator (fr)  | `job-agent-jp`        | Event    | queue: `tasks-created-fr`     | `agent -m "Translate assigned blocks"`   |
+| Translator (de)  | `job-agent-katrin`    | Event    | queue: `tasks-created-de`     | `agent -m "Translate assigned blocks"`   |
+| Translator (ja)  | `job-agent-yuki`      | Event    | queue: `tasks-created-ja`     | `agent -m "Translate assigned blocks"`   |
+| QA               | `job-agent-taylor`    | Event    | queue: `translation-complete` | `agent -m "Run quality checks"`          |
 
 ### Benefits of Azure AI + Container Apps Jobs
 

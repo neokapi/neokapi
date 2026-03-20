@@ -71,8 +71,8 @@ redirect is not available.
 
 ## Options
 
-| Flag | Description |
-|------|-------------|
+| Flag       | Description                                             |
+| ---------- | ------------------------------------------------------- |
 | `--server` | Server URL to authenticate against (required for login) |
 
 ## Token Storage
@@ -99,7 +99,7 @@ Authentication is only required when connecting to a `bowrain-server` running in
 multi-user mode. When using `bowrain serve` for local project editing, no
 authentication is needed — the local server runs on localhost without auth.
 
-| Mode | Auth Required | Description |
-|------|--------------|-------------|
-| `bowrain serve` | No | Local project server, localhost only |
-| `bowrain-server` | Yes | Multi-user deployment with workspaces |
+| Mode             | Auth Required | Description                           |
+| ---------------- | ------------- | ------------------------------------- |
+| `bowrain serve`  | No            | Local project server, localhost only  |
+| `bowrain-server` | Yes           | Multi-user deployment with workspaces |

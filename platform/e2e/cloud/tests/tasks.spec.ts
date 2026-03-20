@@ -5,10 +5,7 @@ test.describe("Task Management", () => {
   let projectId: string;
 
   test.beforeAll(async ({ api }) => {
-    const ws = await api.getOrCreateWorkspace(
-      "E2E Tasks",
-      `e2e-tasks-${Date.now().toString(36)}`,
-    );
+    const ws = await api.getOrCreateWorkspace("E2E Tasks", `e2e-tasks-${Date.now().toString(36)}`);
     wsSlug = ws.slug;
     const project = await api.createProject(wsSlug, "Task Project", "en", ["fr"]);
     projectId = project.id;

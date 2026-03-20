@@ -9,13 +9,13 @@ Connectors integrate Bowrain Server with external systems (CMS, design tools, co
 
 ## Connector Types
 
-| Type | Examples | Purpose |
-|------|----------|---------|
-| **CMS** | Contentful, Sanity, Strapi | Source content for translation |
-| **Design** | Figma, Sketch | UI text strings from designs |
-| **Code** | GitHub, GitLab, Bitbucket | Localization files in repos |
-| **Marketing** | HubSpot, Marketo | Campaign and email content |
-| **File** | Bowrain CLI | Local file sync |
+| Type          | Examples                   | Purpose                        |
+| ------------- | -------------------------- | ------------------------------ |
+| **CMS**       | Contentful, Sanity, Strapi | Source content for translation |
+| **Design**    | Figma, Sketch              | UI text strings from designs   |
+| **Code**      | GitHub, GitLab, Bitbucket  | Localization files in repos    |
+| **Marketing** | HubSpot, Marketo           | Campaign and email content     |
+| **File**      | Bowrain CLI                | Local file sync                |
 
 ## How Connectors Work
 

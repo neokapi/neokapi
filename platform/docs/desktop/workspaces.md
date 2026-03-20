@@ -85,12 +85,12 @@ on roles and permissions.
 
 All resources are scoped to the active workspace:
 
-| Resource | Scope |
-|----------|-------|
-| Projects | Per workspace |
-| Connectors | Per workspace |
-| Flows | Per workspace |
-| TM entries | Per project (within workspace) |
+| Resource    | Scope                          |
+| ----------- | ------------------------------ |
+| Projects    | Per workspace                  |
+| Connectors  | Per workspace                  |
+| Flows       | Per workspace                  |
+| TM entries  | Per project (within workspace) |
 | Terminology | Per project (within workspace) |
 
 Switching workspaces shows a completely different set of projects and resources.
