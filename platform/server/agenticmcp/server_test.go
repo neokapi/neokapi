@@ -40,40 +40,6 @@ func (m *mockFleetRepo) CommitFile(_ context.Context, path, content, message str
 	return "abc1234", nil
 }
 
-type mockDispatcher struct {
-	dispatches []DispatchRequest
-}
-
-func (m *mockDispatcher) Dispatch(_ context.Context, req DispatchRequest) (*DispatchResult, error) {
-	m.dispatches = append(m.dispatches, req)
-	return &DispatchResult{
-		ExecutionID: "exec_001",
-		QueuedAt:    "2026-03-20T14:00:00Z",
-		Queue:       "agent-" + req.Persona,
-	}, nil
-}
-
-type mockExecStore struct {
-	executions []Execution
-}
-
-func (m *mockExecStore) ListExecutions(_ context.Context, filter ExecutionFilter) ([]Execution, error) {
-	var result []Execution
-	for _, e := range m.executions {
-		if filter.WorkspaceSlug != "" && e.Workspace != filter.WorkspaceSlug {
-			continue
-		}
-		if filter.Agent != "" && e.Agent != filter.Agent {
-			continue
-		}
-		result = append(result, e)
-		if filter.Limit > 0 && len(result) >= filter.Limit {
-			break
-		}
-	}
-	return result, nil
-}
-
 type mockWalker struct {
 	calls []struct{ Workspace, Project, Tag string }
 }
@@ -138,32 +104,6 @@ func testPlan() *WorkspacePlan {
 	}
 }
 
-func testExecutions() []Execution {
-	return []Execution{
-		{
-			ID:          "exec_001",
-			Workspace:   "excalidraw-l10n",
-			Agent:       "sophie-translator",
-			Role:        "translator",
-			StartedAt:   "2026-03-20T14:00:00Z",
-			CompletedAt: "2026-03-20T14:22:00Z",
-			Status:      "completed",
-			Task:        "Translate 30 fr-FR blocks",
-			Summary:     "Translated 28/30 blocks",
-			TokensUsed:  45200,
-		},
-		{
-			ID:        "exec_002",
-			Workspace: "excalidraw-l10n",
-			Agent:     "alex-developer",
-			Role:      "developer",
-			StartedAt: "2026-03-20T09:00:00Z",
-			Status:    "running",
-			Task:      "Push Excalidraw v0.18.1",
-		},
-	}
-}
-
 // ── Test helpers ─────────────────────────────────────────────────────────
 
 func newTestServer(t *testing.T, opts ...Option) *Server {
@@ -173,25 +113,21 @@ func newTestServer(t *testing.T, opts ...Option) *Server {
 	return s
 }
 
-func newFullTestServer(t *testing.T) (*Server, *mockFleetRepo, *mockDispatcher, *mockExecStore, *mockWalker, *mockIssueTracker) {
+func newFullTestServer(t *testing.T) (*Server, *mockFleetRepo, *mockWalker, *mockIssueTracker) {
 	t.Helper()
 	fleet := &mockFleetRepo{
 		workspaces: testWorkspaces(),
 		plans:      map[string]*WorkspacePlan{"excalidraw-l10n": testPlan()},
 	}
-	dispatcher := &mockDispatcher{}
-	execStore := &mockExecStore{executions: testExecutions()}
 	walker := &mockWalker{}
 	issues := &mockIssueTracker{}
 
 	s := newTestServer(t,
 		WithFleetRepo(fleet),
-		WithDispatcher(dispatcher),
-		WithExecutionStore(execStore),
 		WithReleaseWalker(walker),
 		WithIssueTracker(issues),
 	)
-	return s, fleet, dispatcher, execStore, walker, issues
+	return s, fleet, walker, issues
 }
 
 // ── Protocol-level tests ─────────────────────────────────────────────────
@@ -219,7 +155,7 @@ func TestServerInitialize(t *testing.T) {
 }
 
 func TestServerListTools(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
+	s, _, _, _ := newFullTestServer(t)
 	ts := httptest.NewServer(s.handler)
 	defer ts.Close()
 
@@ -252,7 +188,6 @@ func TestServerListTools(t *testing.T) {
 		"get_fleet_summary",
 		"get_workspace_status",
 		"list_workspaces",
-		"trigger_agent_session",
 		"list_agent_executions",
 		"walk_release",
 		"onboard_project",
@@ -262,13 +197,13 @@ func TestServerListTools(t *testing.T) {
 	for _, name := range expected {
 		assert.Contains(t, toolNames, name)
 	}
-	assert.Len(t, result.Tools, 9, "expected exactly 9 tools")
+	assert.Len(t, result.Tools, 8, "expected exactly 8 tools")
 }
 
 // ── Handler-level tests (direct, no transport) ───────────────────────────
 
 func TestHandleGetFleetSummary(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
+	s, _, _, _ := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, out, err := s.handleGetFleetSummary(ctx, nil, getFleetSummaryInput{})
@@ -282,12 +217,9 @@ func TestHandleGetFleetSummary(t *testing.T) {
 	// First workspace should have untranslated blocks.
 	assert.Equal(t, 142, out.Workspaces[0].UntranslatedBlocks["fr-FR"])
 
-	// Should have last session enriched from exec store.
-	assert.NotNil(t, out.Workspaces[0].LastAgentSession)
-	assert.Equal(t, "sophie-translator", out.Workspaces[0].LastAgentSession.Agent)
-
-	// Should count active sessions.
-	assert.Equal(t, 1, out.Global.ActiveSessions)
+	// No exec store wired — last session and active sessions should be empty.
+	assert.Nil(t, out.Workspaces[0].LastAgentSession)
+	assert.Equal(t, 0, out.Global.ActiveSessions)
 }
 
 func TestHandleGetFleetSummary_NoFleetRepo(t *testing.T) {
@@ -300,7 +232,7 @@ func TestHandleGetFleetSummary_NoFleetRepo(t *testing.T) {
 }
 
 func TestHandleGetWorkspaceStatus(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
+	s, _, _, _ := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, out, err := s.handleGetWorkspaceStatus(ctx, nil, getWorkspaceStatusInput{
@@ -312,13 +244,10 @@ func TestHandleGetWorkspaceStatus(t *testing.T) {
 	require.Len(t, out.Projects, 1)
 	assert.Equal(t, "Excalidraw", out.Projects[0].Name)
 	assert.Equal(t, "en-US", out.Projects[0].SourceLanguage)
-
-	// Should have recent activity from exec store.
-	assert.NotEmpty(t, out.RecentActivity)
 }
 
 func TestHandleGetWorkspaceStatus_NotFound(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
+	s, _, _, _ := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, _, err := s.handleGetWorkspaceStatus(ctx, nil, getWorkspaceStatusInput{
@@ -328,7 +257,7 @@ func TestHandleGetWorkspaceStatus_NotFound(t *testing.T) {
 }
 
 func TestHandleListWorkspaces(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
+	s, _, _, _ := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, out, err := s.handleListWorkspaces(ctx, nil, listWorkspacesInput{})
@@ -341,99 +270,17 @@ func TestHandleListWorkspaces(t *testing.T) {
 	assert.Equal(t, "docusaurus-l10n", out.Workspaces[1].Slug)
 }
 
-func TestHandleTriggerAgentSession(t *testing.T) {
-	s, _, dispatcher, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
-
-	_, out, err := s.handleTriggerAgentSession(ctx, nil, triggerAgentSessionInput{
-		WorkspaceSlug: "excalidraw-l10n",
-		AgentRole:     "translator",
-		Persona:       "sophie-translator",
-		Task:          "Translate 142 fr-FR blocks",
-		Locale:        "fr-FR",
-	})
-	require.NoError(t, err)
-
-	assert.Equal(t, "exec_001", out.ExecutionID)
-	assert.Equal(t, "agent-sophie-translator", out.Queue)
-
-	require.Len(t, dispatcher.dispatches, 1)
-	d := dispatcher.dispatches[0]
-	assert.Equal(t, "excalidraw-l10n", d.WorkspaceSlug)
-	assert.Equal(t, "translator", d.AgentRole)
-	assert.Equal(t, "sophie-translator", d.Persona)
-	assert.Equal(t, "fr-FR", d.Locale)
-	assert.Equal(t, "normal", d.Priority)
-}
-
-func TestHandleTriggerAgentSession_HighPriority(t *testing.T) {
-	s, _, dispatcher, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
-
-	_, _, err := s.handleTriggerAgentSession(ctx, nil, triggerAgentSessionInput{
-		WorkspaceSlug: "excalidraw-l10n",
-		AgentRole:     "developer",
-		Persona:       "alex-developer",
-		Task:          "Push urgent hotfix",
-		Priority:      "high",
-	})
-	require.NoError(t, err)
-
-	require.Len(t, dispatcher.dispatches, 1)
-	assert.Equal(t, "high", dispatcher.dispatches[0].Priority)
-}
-
-func TestHandleTriggerAgentSession_NoDispatcher(t *testing.T) {
+func TestHandleListAgentExecutions_NoStore(t *testing.T) {
 	s := newTestServer(t)
 	ctx := context.Background()
 
-	_, _, err := s.handleTriggerAgentSession(ctx, nil, triggerAgentSessionInput{
-		WorkspaceSlug: "x", AgentRole: "dev", Persona: "a", Task: "t",
-	})
+	_, _, err := s.handleListAgentExecutions(ctx, nil, listAgentExecutionsInput{})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "dispatcher not configured")
-}
-
-func TestHandleListAgentExecutions(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
-
-	_, out, err := s.handleListAgentExecutions(ctx, nil, listAgentExecutionsInput{
-		WorkspaceSlug: "excalidraw-l10n",
-	})
-	require.NoError(t, err)
-
-	assert.Len(t, out.Executions, 2)
-	assert.Equal(t, "sophie-translator", out.Executions[0].Agent)
-	assert.Equal(t, "alex-developer", out.Executions[1].Agent)
-}
-
-func TestHandleListAgentExecutions_FilterByAgent(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
-
-	_, out, err := s.handleListAgentExecutions(ctx, nil, listAgentExecutionsInput{
-		Agent: "sophie-translator",
-		Limit: 10,
-	})
-	require.NoError(t, err)
-
-	assert.Len(t, out.Executions, 1)
-	assert.Equal(t, "sophie-translator", out.Executions[0].Agent)
-}
-
-func TestHandleListAgentExecutions_DefaultLimit(t *testing.T) {
-	s, _, _, _, _, _ := newFullTestServer(t)
-	ctx := context.Background()
-
-	// No limit specified — should default to 50.
-	_, out, err := s.handleListAgentExecutions(ctx, nil, listAgentExecutionsInput{})
-	require.NoError(t, err)
-	assert.Len(t, out.Executions, 2) // only 2 in test data, < 50
+	assert.Contains(t, err.Error(), "execution store not configured")
 }
 
 func TestHandleWalkRelease(t *testing.T) {
-	s, _, _, _, walker, _ := newFullTestServer(t)
+	s, _, walker, _ := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, out, err := s.handleWalkRelease(ctx, nil, walkReleaseInput{
@@ -454,7 +301,7 @@ func TestHandleWalkRelease(t *testing.T) {
 }
 
 func TestHandleWalkRelease_NoTag(t *testing.T) {
-	s, _, _, _, walker, _ := newFullTestServer(t)
+	s, _, walker, _ := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, _, err := s.handleWalkRelease(ctx, nil, walkReleaseInput{
@@ -497,7 +344,7 @@ func TestHandleOnboardProject(t *testing.T) {
 }
 
 func TestHandleFileFeedbackIssue(t *testing.T) {
-	s, _, _, _, _, issues := newFullTestServer(t)
+	s, _, _, issues := newFullTestServer(t)
 	ctx := context.Background()
 
 	_, out, err := s.handleFileFeedbackIssue(ctx, nil, fileFeedbackIssueInput{

@@ -28,35 +28,6 @@ type FleetRepo interface {
 	CommitFile(ctx context.Context, path, content, message string) (string, error)
 }
 
-// AgentDispatcher places agent session messages on the appropriate queue.
-type AgentDispatcher interface {
-	// Dispatch sends a task message to trigger an agent session.
-	Dispatch(ctx context.Context, req DispatchRequest) (*DispatchResult, error)
-}
-
-// DispatchRequest describes an agent session to trigger.
-type DispatchRequest struct {
-	WorkspaceSlug string
-	AgentRole     string
-	Persona       string
-	Task          string
-	Locale        string
-	Priority      string // "normal" or "high"
-}
-
-// DispatchResult is returned after queuing an agent session.
-type DispatchResult struct {
-	ExecutionID string
-	QueuedAt    string
-	Queue       string
-}
-
-// ExecutionStore provides access to agent execution history.
-type ExecutionStore interface {
-	// ListExecutions returns recent agent session records.
-	ListExecutions(ctx context.Context, filter ExecutionFilter) ([]Execution, error)
-}
-
 // ExecutionFilter controls which executions to return.
 type ExecutionFilter struct {
 	WorkspaceSlug string
@@ -75,6 +46,7 @@ type Execution struct {
 	CompletedAt  string `json:"completed_at,omitempty"`
 	Status       string `json:"status"` // completed | failed | running
 	Task         string `json:"task"`
+	Locale       string `json:"locale,omitempty"`
 	Summary      string `json:"result_summary,omitempty"`
 	TokensUsed   int    `json:"ai_tokens_used,omitempty"`
 	Error        string `json:"error,omitempty"`
@@ -104,8 +76,7 @@ type IssueTracker interface {
 type Server struct {
 	contentStore store.ContentStore
 	fleetRepo    FleetRepo
-	dispatcher   AgentDispatcher
-	execStore    ExecutionStore
+	execStore    *PostgresExecutionStore
 	walker       ReleaseWalker
 	issues       IssueTracker
 	server       *mcp.Server
@@ -131,13 +102,8 @@ func WithFleetRepo(r FleetRepo) Option {
 	return func(s *Server) { s.fleetRepo = r }
 }
 
-// WithDispatcher adds agent session dispatch capability.
-func WithDispatcher(d AgentDispatcher) Option {
-	return func(s *Server) { s.dispatcher = d }
-}
-
 // WithExecutionStore adds agent execution history access.
-func WithExecutionStore(es ExecutionStore) Option {
+func WithExecutionStore(es *PostgresExecutionStore) Option {
 	return func(s *Server) { s.execStore = es }
 }
 
@@ -166,9 +132,9 @@ func NewServer(cfg Config, opts ...Option) (*Server, error) {
 		opt(as)
 	}
 
-	// Register all 9 fleet management tools.
+	// Register all 8 fleet management tools.
 	as.registerFleetTools()
-	as.registerDispatchTools()
+	as.registerExecutionTools()
 	as.registerReleaseTools()
 	as.registerFeedbackTools()
 
