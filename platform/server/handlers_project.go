@@ -196,10 +196,12 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 			if ws, ok := c.Get("workspace_slug").(string); ok {
 				wsSlug = ws
 			}
+			userID, _ := c.Get("user_id").(string)
 			s.EventBus.Publish(platev.Event{
 				Type:      platev.EventProjectUpdated,
 				Source:    "api",
 				ProjectID: projectID,
+				Actor:     userID,
 				Data: map[string]string{
 					"new_locales":    strings.Join(newLocales, ","),
 					"workspace_slug": wsSlug,

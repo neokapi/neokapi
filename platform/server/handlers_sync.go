@@ -124,6 +124,8 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	userID, _ := c.Get("user_id").(string)
+
 	// Publish push completed event if blocks were stored.
 	if totalStored > 0 && s.EventBus != nil {
 		var itemNames []string
@@ -143,6 +145,7 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 			Type:      platev.EventPushCompleted,
 			Source:    "sync",
 			ProjectID: projectID,
+			Actor:     userID,
 			Data: map[string]string{
 				"items":          strings.Join(itemNames, ","),
 				"push_id":        pushID,
@@ -151,7 +154,6 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		})
 	}
 
-	userID, _ := c.Get("user_id").(string)
 	s.trackEvent(userID, "sync_push", map[string]any{
 		"project_id":  projectID,
 		"blocks":      totalStored,

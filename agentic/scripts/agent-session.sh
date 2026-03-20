@@ -228,17 +228,21 @@ else:
     print('  All locales above 90% coverage threshold.')
 PYEOF
 
-    # If there are alerts and gh is available, consider filing an issue
+    # If there are alerts and gh is available, file an issue
     if [ -f "$TMPDIR_SESSION/alerts.txt" ] && command -v gh &>/dev/null; then
       ALERTS=$(cat "$TMPDIR_SESSION/alerts.txt")
       echo ""
-      echo "  Coverage alerts detected. Would file GH issue with:"
-      echo "    $ALERTS"
-      # Uncomment below to actually create issues:
-      # gh issue create \
-      #   --repo neokapi/agent-feedback \
-      #   --title "Translation coverage below 90% for $(date +%Y-%m-%d)" \
-      #   --body "The following locales are below the 90% threshold:\n\n$ALERTS"
+      echo "  Coverage alerts detected — filing GH issue..."
+      gh issue create \
+        --repo neokapi/agent-feedback \
+        --title "[${AGENT_ID}] Coverage below 90% — $(date +%Y-%m-%d)" \
+        --body "Agent **${AGENT_ID}** (reviewer) detected the following locales below the 90% coverage threshold:
+
+${ALERTS}
+
+Workspace: \`${WS_SLUG}\`
+Project: \`${PROJECT_ID}\`" \
+        --label "coverage-alert" 2>/dev/null || echo "  (could not create GH issue)"
     fi
 
     echo "  Review session complete."
@@ -301,5 +305,50 @@ for p in ps:
     exit 1
     ;;
 esac
+
+# --- Persist session memory ---
+MEMORY_REPO_DIR="${MEMORY_REPO_DIR:-/tmp/agent-memory}"
+AGENT_ID="agent-${AGENT}"
+
+persist_memory() {
+  if ! command -v git &>/dev/null; then return; fi
+
+  # Clone or update the memory repo
+  if [ -d "$MEMORY_REPO_DIR/.git" ]; then
+    git -C "$MEMORY_REPO_DIR" pull --rebase origin main 2>/dev/null || true
+  else
+    git clone --depth 1 https://github.com/neokapi/agent-memory.git "$MEMORY_REPO_DIR" 2>/dev/null || return
+  fi
+
+  # Write session log
+  local session_dir="$MEMORY_REPO_DIR/${AGENT_ID}/sessions"
+  mkdir -p "$session_dir"
+  local ts=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  local fname="${ts//:/}-${ROLE}.md"
+  cat > "$session_dir/$fname" <<MEMEOF
+---
+agent: ${AGENT_ID}
+role: ${ROLE}
+workspace: ${WORKSPACE}
+timestamp: ${ts}
+---
+
+# Session: ${ROLE} (${ts})
+
+$([ "${ROLE}" = "translator" ] && echo "- Locale: ${LOCALE}" || true)
+- Workspace: ${WORKSPACE}
+- Project: ${PROJECT_ID}
+MEMEOF
+
+  # Commit and push
+  cd "$MEMORY_REPO_DIR"
+  git add "${AGENT_ID}/" 2>/dev/null
+  if ! git diff --cached --quiet 2>/dev/null; then
+    git commit -m "${AGENT_ID}: ${ROLE} session ${ts}" 2>/dev/null || true
+    git push origin main 2>/dev/null || true
+  fi
+}
+
+persist_memory 2>/dev/null || true
 
 echo "[$(date -Iseconds)] Agent ${AGENT} session finished."

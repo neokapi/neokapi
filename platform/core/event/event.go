@@ -3,8 +3,38 @@
 package event
 
 import (
+	"context"
 	"time"
 )
+
+type actorKeyType struct{}
+type actorNameKeyType struct{}
+
+// WithActor returns a context that carries the given actor (user) ID and name.
+// The EventEmittingStore uses this to attribute events to the authenticated user.
+func WithActor(ctx context.Context, actorID, actorName string) context.Context {
+	ctx = context.WithValue(ctx, actorKeyType{}, actorID)
+	if actorName != "" {
+		ctx = context.WithValue(ctx, actorNameKeyType{}, actorName)
+	}
+	return ctx
+}
+
+// ActorFromContext extracts the actor ID from the context, or "" if not set.
+func ActorFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(actorKeyType{}).(string); ok {
+		return v
+	}
+	return ""
+}
+
+// ActorNameFromContext extracts the actor name from the context, or "" if not set.
+func ActorNameFromContext(ctx context.Context) string {
+	if v, ok := ctx.Value(actorNameKeyType{}).(string); ok {
+		return v
+	}
+	return ""
+}
 
 // EventType classifies events emitted by the system.
 type EventType string
