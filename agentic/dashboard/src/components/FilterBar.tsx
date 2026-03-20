@@ -5,9 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { useFilter, type FilterToken } from '@/context/FilterContext';
-import { workspaces } from '@/data/workspaces';
-import { agents } from '@/data/agents';
-import { sessions } from '@/data/sessions';
+import { useApi } from '@/context/ApiContext';
 
 // -- Filter definitions --
 
@@ -16,7 +14,7 @@ const filterKeys = [
   { key: 'agent', description: 'Filter by agent name', icon: '@' },
   { key: 'status', description: 'succeeded, failed, running', icon: '!' },
   { key: 'time', description: 'today, yesterday, this-week, 7d, 14d, 30d', icon: '#' },
-  { key: 'tool', description: 'connector_pull, update_block, tm_search...', icon: '>' },
+  { key: 'tool', description: 'event type filter', icon: '>' },
 ] as const;
 
 const presets: { id: string; label: string; icon: React.ReactNode; tokens: FilterToken[] }[] = [
@@ -49,18 +47,9 @@ const presets: { id: string; label: string; icon: React.ReactNode; tokens: Filte
 const statusValues = ['succeeded', 'failed', 'running'];
 const timeValues = ['today', 'yesterday', 'this-week', 'this-month', '7d', '14d', '30d'];
 
-function getToolValues(): string[] {
-  const tools = new Set<string>();
-  for (const s of sessions) {
-    for (const tc of s.toolCalls) {
-      tools.add(tc.tool);
-    }
-  }
-  return [...tools].sort();
-}
-
 export default function FilterBar() {
   const { tokens, addToken, removeToken, clearTokens, search, setSearch } = useFilter();
+  const api = useApi();
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [hintDropdownOpen, setHintDropdownOpen] = useState(false);
@@ -69,7 +58,14 @@ export default function FilterBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const toolValues = useMemo(() => getToolValues(), []);
+  // Derive event types from audit log
+  const eventTypeValues = useMemo(() => {
+    const types = new Set<string>();
+    for (const entry of api.auditLog) {
+      types.add(entry.event_type);
+    }
+    return [...types].sort();
+  }, [api.auditLog]);
 
   // Derive bowrain URL from workspace token
   const wsToken = tokens.find((t) => t.key === 'workspace');
@@ -93,23 +89,15 @@ export default function FilterBar() {
   function getValuesForKey(key: string): { value: string; label: string }[] {
     switch (key) {
       case 'workspace':
-        return workspaces
-          .filter((w) => w.status !== 'idle')
-          .map((w) => ({ value: w.slug, label: w.name }));
-      case 'agent': {
-        const wsId = tokens.find((t) => t.key === 'workspace');
-        const wsObj = wsId ? workspaces.find((w) => w.slug === wsId.value) : null;
-        const filtered = wsObj
-          ? agents.filter((a) => a.workspace === wsObj.id)
-          : agents;
-        return filtered.map((a) => ({ value: a.id, label: a.name }));
-      }
+        return api.workspaces.map((w) => ({ value: w.slug, label: w.name }));
+      case 'agent':
+        return api.agents.map((a) => ({ value: a.id, label: a.displayName }));
       case 'status':
         return statusValues.map((v) => ({ value: v, label: v }));
       case 'time':
         return timeValues.map((v) => ({ value: v, label: v }));
       case 'tool':
-        return toolValues.map((v) => ({ value: v, label: v }));
+        return eventTypeValues.map((v) => ({ value: v, label: v }));
       default:
         return [];
     }

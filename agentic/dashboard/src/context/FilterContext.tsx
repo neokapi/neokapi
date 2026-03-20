@@ -7,8 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { workspaces } from '@/data/workspaces';
-import { agents } from '@/data/agents';
+import { useApi } from '@/context/ApiContext';
 
 export interface FilterToken {
   key: string;
@@ -67,6 +66,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const params = useParams();
   const location = useLocation();
+  const api = useApi();
   const [tokens, setTokens] = useState<FilterToken[]>([]);
   const [search, setSearch] = useState('');
   const [initialized, setInitialized] = useState(false);
@@ -79,16 +79,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     const agentId = params.agentId;
 
     if (slug) {
-      const ws = workspaces.find((w) => w.slug === slug);
-      if (ws) {
-        initial.push({ key: 'workspace', value: ws.slug, label: ws.name });
-      }
+      // Try API workspaces first, then use slug as label fallback
+      const ws = api.workspaces.find((w) => w.slug === slug);
+      initial.push({ key: 'workspace', value: slug, label: ws?.name ?? slug });
     }
     if (agentId) {
-      const ag = agents.find((a) => a.id === agentId);
-      if (ag) {
-        initial.push({ key: 'agent', value: ag.id, label: ag.name });
-      }
+      const ag = api.agents.find((a) => a.id === agentId);
+      initial.push({ key: 'agent', value: agentId, label: ag?.displayName ?? agentId });
     }
 
     // Parse query params for status, time, tool
@@ -114,7 +111,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       setTokens(initial);
     }
     setInitialized(true);
-  }, [params, location.search, initialized]);
+  }, [params, location.search, initialized, api.workspaces, api.agents]);
 
   const syncUrl = useCallback(
     (newTokens: FilterToken[], newSearch?: string) => {
@@ -168,16 +165,13 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const setSearchWithSync = useCallback(
     (s: string) => {
       setSearch(s);
-      // Don't navigate on every keystroke — just update state
+      // Don't navigate on every keystroke -- just update state
     },
     []
   );
 
   // Derived values for backward compat
-  const workspaceSlug = deriveValue(tokens, 'workspace');
-  const workspace = workspaceSlug
-    ? workspaces.find((w) => w.slug === workspaceSlug)?.id ?? null
-    : null;
+  const workspace = deriveValue(tokens, 'workspace');
   const agent = deriveValue(tokens, 'agent');
   const status = deriveValue(tokens, 'status');
 

@@ -9,14 +9,13 @@ import BowrainContext from './components/BowrainContext';
 import { Separator } from './components/ui/separator';
 import { FilterProvider, useFilter } from './context/FilterContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { ApiProvider } from './context/ApiContext';
-import { agents } from './data/agents';
+import { ApiProvider, useApi } from './context/ApiContext';
 
 function DashboardContent() {
-  const { workspace, agent } = useFilter();
+  const { agent } = useFilter();
+  const api = useApi();
 
-  let filteredAgents = agents;
-  if (workspace) filteredAgents = filteredAgents.filter((a) => a.workspace === workspace);
+  let filteredAgents = api.agents;
   if (agent) filteredAgents = filteredAgents.filter((a) => a.id === agent);
 
   return (
@@ -44,11 +43,21 @@ function DashboardContent() {
       {/* Agent Cards */}
       <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl">
-          <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
-            {filteredAgents.map((a) => (
-              <AgentCard key={a.id} agent={a} />
-            ))}
-          </div>
+          {api.loading ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              Loading agents...
+            </p>
+          ) : filteredAgents.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              No agents found.
+            </p>
+          ) : (
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+              {filteredAgents.map((a) => (
+                <AgentCard key={a.id} agent={a} />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
