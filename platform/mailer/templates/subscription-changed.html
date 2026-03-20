@@ -1,0 +1,267 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html dir="ltr" lang="en">
+  <head>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <style>
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 400;
+      }
+    </style>
+  </head>
+  <body
+    style="
+      background-color: #f1f5f9;
+      font-family:
+        -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, Roboto, &quot;Helvetica Neue&quot;,
+        Arial, sans-serif;
+    "
+  >
+    <div
+      style="
+        display: none;
+        overflow: hidden;
+        line-height: 1px;
+        opacity: 0;
+        max-height: 0;
+        max-width: 0;
+      "
+    >
+      Your subscription has been updated for {{.WorkspaceName}}
+      <div>‌​‍‎‏</div>
+    </div>
+    <table
+      align="center"
+      width="100%"
+      border="0"
+      cellpadding="0"
+      cellspacing="0"
+      role="presentation"
+      style="max-width: 560px; margin: 40px auto; padding: 0"
+    >
+      <tbody>
+        <tr style="width: 100%">
+          <td>
+            <table
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="
+                background-color: #0f172a;
+                border-radius: 12px 12px 0 0;
+                padding: 28px 32px 24px;
+              "
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <p
+                      style="
+                        font-size: 22px;
+                        line-height: 24px;
+                        margin: 0 0 2px;
+                        color: #f8fafc;
+                        font-weight: 700;
+                        letter-spacing: -0.3px;
+                      "
+                    >
+                      Bowrain
+                    </p>
+                    <p style="font-size: 13px; line-height: 24px; margin: 0; color: #94a3b8">
+                      Localization platform
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <table
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="background-color: #ffffff; padding: 40px 32px 32px"
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <h1
+                      style="
+                        color: #0f172a;
+                        font-size: 26px;
+                        font-weight: 700;
+                        margin: 0 0 16px;
+                        line-height: 1.2;
+                      "
+                    >
+                      Your subscription has been updated
+                    </h1>
+                    <p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px; color: #334155">
+                      The subscription for <strong>{{.WorkspaceName}}</strong> has been updated.
+                      Here are the details:
+                    </p>
+                    <!-- Plan details box -->
+                    <table
+                      align="center"
+                      width="100%"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="
+                        background-color: #f8fafc;
+                        border-radius: 8px;
+                        border: 1px solid #e2e8f0;
+                        padding: 20px 24px;
+                        margin: 0 0 16px;
+                      "
+                    >
+                      <tbody>
+                        <tr>
+                          <td>
+                            <p
+                              style="
+                                color: #64748b;
+                                font-size: 13px;
+                                font-weight: 600;
+                                margin: 0 0 2px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                              "
+                            >
+                              Plan
+                            </p>
+                            <p
+                              style="
+                                color: #0f172a;
+                                font-size: 16px;
+                                font-weight: 600;
+                                margin: 0 0 12px;
+                              "
+                            >
+                              {{.PlanName}}
+                            </p>
+                            <p
+                              style="
+                                color: #64748b;
+                                font-size: 13px;
+                                font-weight: 600;
+                                margin: 0 0 2px;
+                                text-transform: uppercase;
+                                letter-spacing: 0.5px;
+                              "
+                            >
+                              Status
+                            </p>
+                            <p
+                              style="
+                                color: #0f172a;
+                                font-size: 16px;
+                                font-weight: 600;
+                                margin: 0 0 12px;
+                              "
+                            >
+                              {{.Status}}
+                            </p>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p style="font-size: 16px; line-height: 1.6; margin: 0 0 16px; color: #334155">
+                      You can view your full billing details and manage your subscription from
+                      the billing page.
+                    </p>
+                    <table
+                      align="center"
+                      width="100%"
+                      border="0"
+                      cellpadding="0"
+                      cellspacing="0"
+                      role="presentation"
+                      style="margin: 28px 0"
+                    >
+                      <tbody>
+                        <tr>
+                          <td>
+                            <a
+                              href="{{.BillingURL}}"
+                              style="
+                                background-color: #2563eb;
+                                border-radius: 8px;
+                                color: #ffffff;
+                                display: inline-block;
+                                font-size: 15px;
+                                font-weight: 600;
+                                padding: 14px 28px;
+                                text-decoration: none;
+                                line-height: 1;
+                              "
+                              target="_blank"
+                              >View Billing</a
+                            >
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <hr
+                      style="
+                        width: 100%;
+                        border: none;
+                        border-top: 1px solid #e2e8f0;
+                        border-color: #e2e8f0;
+                        border-top-width: 1px;
+                        margin: 28px 0 20px;
+                      "
+                    />
+                    <p style="font-size: 13px; line-height: 24px; margin: 0 0 6px; color: #64748b">
+                      Button not working? Copy and paste this link into your browser:
+                    </p>
+                    <a
+                      href="{{.BillingURL}}"
+                      style="color: #2563eb; font-size: 13px; word-break: break-all"
+                      target="_blank"
+                      >{{.BillingURL}}</a
+                    >
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <table
+              align="center"
+              width="100%"
+              border="0"
+              cellpadding="0"
+              cellspacing="0"
+              role="presentation"
+              style="
+                background-color: #f8fafc;
+                border-radius: 0 0 12px 12px;
+                border-top: 1px solid #e2e8f0;
+                padding: 20px 32px;
+              "
+            >
+              <tbody>
+                <tr>
+                  <td>
+                    <p style="font-size: 12px; line-height: 1.5; margin: 0 0 4px; color: #94a3b8">
+                      © Bowrain. All rights reserved.
+                    </p>
+                    <p style="font-size: 12px; line-height: 1.5; margin: 0 0 4px; color: #94a3b8">
+                      You received this email because you are an admin of this workspace.
+                    </p>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>

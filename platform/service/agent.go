@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/core/id"
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	platev "github.com/neokapi/neokapi/platform/event"
@@ -19,12 +20,13 @@ type AgentEnqueuer interface {
 
 // AgentService orchestrates agent conversations, messages, and tool policy.
 type AgentService struct {
-	store      platagent.AgentStore
-	eventBus   platev.EventBus
-	pool       *AgentPool       // manages ZeroClaw containers (nil when using queue mode)
-	tokenStore *AgentTokenStore // scoped agent tokens for MCP delegation
-	queue      AgentEnqueuer    // Service Bus queue for bravo-jobs (nil = direct/mock mode)
-	pubsub     *AgentPubSub     // Redis pub/sub for SSE relay (nil = direct/mock mode)
+	store        platagent.AgentStore
+	eventBus     platev.EventBus
+	pool         *AgentPool           // manages ZeroClaw containers (nil when using queue mode)
+	tokenStore   *AgentTokenStore     // scoped agent tokens for MCP delegation
+	queue        AgentEnqueuer        // Service Bus queue for bravo-jobs (nil = direct/mock mode)
+	pubsub       *AgentPubSub         // Redis pub/sub for SSE relay (nil = direct/mock mode)
+	billingHooks *billing.UsageHooks  // billing credit deduction (nil = disabled)
 }
 
 // NewAgentService creates the agent service.
@@ -48,6 +50,11 @@ func (s *AgentService) SetPool(pool *AgentPool) {
 func (s *AgentService) SetQueue(queue AgentEnqueuer, pubsub *AgentPubSub) {
 	s.queue = queue
 	s.pubsub = pubsub
+}
+
+// SetBillingHooks configures billing credit deduction for agent usage.
+func (s *AgentService) SetBillingHooks(hooks *billing.UsageHooks) {
+	s.billingHooks = hooks
 }
 
 // TokenStore returns the agent token store for middleware integration.
@@ -280,6 +287,12 @@ func (s *AgentService) SendMessageStream(ctx context.Context, conversationID, us
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 		})
+
+		// Deduct billing credits and report to Stripe.
+		if s.billingHooks != nil {
+			totalTokens := result.InputTokens + result.OutputTokens
+			s.billingHooks.DeductTokens(ctx, workspaceID, totalTokens, "bravo_message", conversationID)
+		}
 	}
 
 	// Update conversation timestamp.
@@ -412,14 +425,19 @@ func (s *AgentService) cleanupConversation(ctx context.Context, conversationID s
 	if s.pool != nil {
 		container, _ := s.pool.Release(ctx, conversationID)
 		if container != nil && !container.CreatedAt.IsZero() {
-			durationSec := time.Since(container.CreatedAt).Seconds()
+			duration := time.Since(container.CreatedAt)
 			_ = s.store.RecordUsage(ctx, &platagent.UsageRecord{
 				WorkspaceID:    container.WorkspaceID,
 				UserID:         container.UserID,
 				ConversationID: conversationID,
 				Kind:           "container_time",
-				DurationSec:    durationSec,
+				DurationSec:    duration.Seconds(),
 			})
+
+			// Deduct billing credits for container time.
+			if s.billingHooks != nil {
+				s.billingHooks.DeductContainerTime(ctx, container.WorkspaceID, duration, conversationID)
+			}
 		}
 	}
 	if s.tokenStore != nil {

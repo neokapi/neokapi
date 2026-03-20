@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/core/model"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
@@ -47,16 +48,21 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 
 	// Add the creator as owner of the new workspace.
 	userID, _ := c.Get("user_id").(string)
+	ctx := c.Request().Context()
 	if s.Services != nil && s.Services.Auth != nil && userID != "" {
-		if err := s.Services.Auth.CreateWorkspaceWithOwner(c.Request().Context(), w, userID); err != nil {
+		if err := s.Services.Auth.CreateWorkspaceWithOwner(ctx, w, userID); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
 		w.Role = platauth.RoleOwner
 	} else {
-		if err := s.AuthStore.CreateWorkspace(c.Request().Context(), w); err != nil {
+		if err := s.AuthStore.CreateWorkspace(ctx, w); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
 	}
+
+	// Set up 14-day Pro trial for new workspaces.
+	billing.SetupTrial(ctx, s.BillingStore, w.ID)
+
 	return c.JSON(http.StatusCreated, w)
 }
 
@@ -171,13 +177,29 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	w, err := s.AuthStore.GetWorkspaceBySlug(c.Request().Context(), c.Param("ws"))
+	ctx := c.Request().Context()
+	w, err := s.AuthStore.GetWorkspaceBySlug(ctx, c.Param("ws"))
 	if err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
+	// Enforce seat limit based on workspace plan.
+	if w.Plan != "" {
+		limit := billing.GetLimit(billing.Plan(w.Plan), "max-seats")
+		if limit > 0 {
+			members, err := s.AuthStore.ListMembers(ctx, w.ID)
+			if err == nil && len(members) >= limit {
+				return c.JSON(http.StatusForbidden, map[string]any{
+					"error":   "seat_limit_reached",
+					"current": len(members),
+					"limit":   limit,
+				})
+			}
+		}
+	}
+
 	role := platauth.Role(req.Role)
-	if err := s.AuthStore.AddMember(c.Request().Context(), w.ID, req.UserID, role); err != nil {
+	if err := s.AuthStore.AddMember(ctx, w.ID, req.UserID, role); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusCreated, map[string]string{"status": "added"})
@@ -256,13 +278,38 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
+	ctx := c.Request().Context()
+
+	// Enforce project limit based on workspace plan.
+	plan, _ := c.Get("workspace_plan").(string)
+	if plan != "" {
+		limit := billing.GetLimit(billing.Plan(plan), "max-projects")
+		if limit > 0 {
+			allProjects, err := s.Services.Project.ListProjects(ctx)
+			if err == nil {
+				count := 0
+				for _, p := range allProjects {
+					if p.WorkspaceID == workspaceID {
+						count++
+					}
+				}
+				if count >= limit {
+					return c.JSON(http.StatusForbidden, map[string]any{
+						"error":   "project_limit_reached",
+						"current": count,
+						"limit":   limit,
+					})
+				}
+			}
+		}
+	}
+
 	p := &store.Project{
 		Name:                  req.Name,
 		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
 		TargetLanguages:       locales,
 		WorkspaceID:           workspaceID,
 	}
-	ctx := c.Request().Context()
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { ActivityIndicator, TaskIndicator } from "../../components/ActivityTaskIndicators";
-import { sampleActivities, sampleTasks } from "./fixtures";
+import { ActivityIndicator } from "../../components/ActivityTaskIndicators";
+import { sampleActivities } from "./fixtures";
 
 const activityMeta: Meta<typeof ActivityIndicator> = {
   title: "Components/ActivityIndicator",

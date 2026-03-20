@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
@@ -31,6 +32,7 @@ type WorkerDeps struct {
 	Queue        Queue
 	QuotaStore   QuotaStore              // optional; nil disables quota enforcement
 	Platform     *PlatformProviderConfig // optional; nil disables platform provider
+	BillingHooks *billing.UsageHooks     // optional; nil disables billing credit deduction
 }
 
 // providerRateLimits maps provider types to their default rate limits (requests/sec).
@@ -212,6 +214,11 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 				Model:         job.Model,
 				TotalTokens:   chunkTokens,
 			})
+		}
+
+		// Deduct billing credits and report to Stripe Meters.
+		if deps.BillingHooks != nil && job.WorkspaceID != "" {
+			deps.BillingHooks.DeductTokens(ctx, job.WorkspaceID, chunkTokens, "ai_translation", job.ID)
 		}
 
 		// Update progress.

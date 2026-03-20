@@ -32,8 +32,9 @@ func newTokenTestServer(t *testing.T) (*Server, string, string) {
 	user := &platauth.User{Email: "tokenuser@example.com", Name: "Token User"}
 	require.NoError(t, srv.AuthStore.CreateUser(ctx, user))
 
-	// Create a workspace and add user as owner.
-	ws := &platauth.Workspace{Name: "Token WS", Slug: "token-ws"}
+	// Create a workspace with Pro plan (token routes require FeatureAPIAccess)
+	// and add user as owner.
+	ws := &platauth.Workspace{Name: "Token WS", Slug: "token-ws", Plan: "pro"}
 	require.NoError(t, srv.AuthStore.CreateWorkspace(ctx, ws))
 	require.NoError(t, srv.AuthStore.AddMember(ctx, ws.ID, user.ID, platauth.RoleOwner))
 
