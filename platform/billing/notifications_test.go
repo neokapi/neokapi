@@ -2,7 +2,6 @@ package billing
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -134,7 +133,7 @@ func TestNotifySubscriptionChanged(t *testing.T) {
 	assert.Contains(t, call.Subject, "updated")
 
 	// Body should contain plan name
-	assert.Contains(t, call.Body, fmt.Sprintf("%s", PlanPro))
+	assert.Contains(t, call.Body, string(PlanPro))
 	// Body should contain status
 	assert.Contains(t, call.Body, "active")
 	// Body should contain billing link
