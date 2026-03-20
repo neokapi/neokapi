@@ -96,8 +96,11 @@ func QuotaGuard(store BillingStore) echo.MiddlewareFunc {
 }
 
 // AdminGuard returns Echo middleware that verifies the JWT was issued by the
-// admin Keycloak realm. It sets "admin_email" and "admin_name" on the context.
-func AdminGuard(adminVerifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
+// admin Keycloak realm. It accepts both access tokens and ID tokens.
+// Two verifiers are needed because Keycloak access tokens use aud="account"
+// while ID tokens use aud=<client_id>.
+// It sets "admin_email" and "admin_name" on the context.
+func AdminGuard(idTokenVerifier, accessTokenVerifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			token := extractBearerToken(c)
@@ -105,20 +108,33 @@ func AdminGuard(adminVerifier *oidc.IDTokenVerifier) echo.MiddlewareFunc {
 				return echo.ErrUnauthorized
 			}
 
-			idToken, err := adminVerifier.Verify(c.Request().Context(), token)
+			ctx := c.Request().Context()
+
+			// Try ID token verifier first (audience = client ID).
+			idToken, err := idTokenVerifier.Verify(ctx, token)
 			if err != nil {
-				return echo.ErrUnauthorized
+				// Fall back to access token verifier (skips audience check).
+				idToken, err = accessTokenVerifier.Verify(ctx, token)
+				if err != nil {
+					return echo.ErrUnauthorized
+				}
 			}
 
 			var claims struct {
-				Email string `json:"email"`
-				Name  string `json:"name"`
+				Email             string `json:"email"`
+				Name              string `json:"name"`
+				PreferredUsername string `json:"preferred_username"`
 			}
 			if err := idToken.Claims(&claims); err != nil {
 				return echo.ErrUnauthorized
 			}
 
-			c.Set("admin_email", claims.Email)
+			email := claims.Email
+			if email == "" {
+				email = claims.PreferredUsername
+			}
+
+			c.Set("admin_email", email)
 			c.Set("admin_name", claims.Name)
 			return next(c)
 		}

@@ -87,7 +87,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 // Workspaces
 // ---------------------------------------------------------------------------
 
-export function listWorkspaces(params?: {
+export async function listWorkspaces(params?: {
   q?: string;
   plan?: string;
   status?: string;
@@ -97,7 +97,10 @@ export function listWorkspaces(params?: {
   if (params?.plan) query.set("plan", params.plan);
   if (params?.status) query.set("status", params.status);
   const qs = query.toString();
-  return request(`/workspaces${qs ? `?${qs}` : ""}`);
+  const resp = await request<{ workspaces: AdminWorkspace[]; total: number }>(
+    `/workspaces${qs ? `?${qs}` : ""}`,
+  );
+  return resp.workspaces ?? [];
 }
 
 export function getWorkspace(id: string): Promise<AdminWorkspaceDetail> {
@@ -122,8 +125,11 @@ export function grantCredits(id: string, amount: number, reason: string): Promis
 // Feature overrides
 // ---------------------------------------------------------------------------
 
-export function getFeatureOverrides(workspaceId: string): Promise<FeatureOverride[]> {
-  return request(`/workspaces/${encodeURIComponent(workspaceId)}/feature-overrides`);
+export async function getFeatureOverrides(workspaceId: string): Promise<FeatureOverride[]> {
+  const resp = await request<{ overrides: FeatureOverride[] }>(
+    `/workspaces/${encodeURIComponent(workspaceId)}/feature-overrides`,
+  );
+  return resp.overrides ?? [];
 }
 
 export function setFeatureOverride(
@@ -139,16 +145,20 @@ export function setFeatureOverride(
   });
 }
 
-export function listAllOverrides(): Promise<FeatureOverride[]> {
-  return request("/overrides");
+export async function listAllOverrides(): Promise<FeatureOverride[]> {
+  const resp = await request<{ overrides: FeatureOverride[] }>("/overrides");
+  return resp.overrides ?? [];
 }
 
 // ---------------------------------------------------------------------------
 // Notes
 // ---------------------------------------------------------------------------
 
-export function getNotes(workspaceId: string): Promise<WorkspaceNote[]> {
-  return request(`/workspaces/${encodeURIComponent(workspaceId)}/notes`);
+export async function getNotes(workspaceId: string): Promise<WorkspaceNote[]> {
+  const resp = await request<{ notes: WorkspaceNote[] }>(
+    `/workspaces/${encodeURIComponent(workspaceId)}/notes`,
+  );
+  return resp.notes ?? [];
 }
 
 export function addNote(workspaceId: string, content: string): Promise<void> {
@@ -162,11 +172,14 @@ export function addNote(workspaceId: string, content: string): Promise<void> {
 // Users
 // ---------------------------------------------------------------------------
 
-export function listUsers(params?: { q?: string }): Promise<AdminUser[]> {
+export async function listUsers(params?: { q?: string }): Promise<AdminUser[]> {
   const query = new URLSearchParams();
   if (params?.q) query.set("q", params.q);
   const qs = query.toString();
-  return request(`/users${qs ? `?${qs}` : ""}`);
+  const resp = await request<{ users: AdminUser[]; total: number }>(
+    `/users${qs ? `?${qs}` : ""}`,
+  );
+  return resp.users ?? [];
 }
 
 export function getUser(id: string): Promise<AdminUserDetail> {
@@ -181,7 +194,7 @@ export function getMetrics(): Promise<PlatformMetrics> {
   return request("/metrics");
 }
 
-export function listEvents(params?: {
+export async function listEvents(params?: {
   type?: string;
   from?: string;
   to?: string;
@@ -191,11 +204,13 @@ export function listEvents(params?: {
   if (params?.from) query.set("from", params.from);
   if (params?.to) query.set("to", params.to);
   const qs = query.toString();
-  return request(`/events${qs ? `?${qs}` : ""}`);
+  const resp = await request<{ events: BillingEvent[] }>(`/events${qs ? `?${qs}` : ""}`);
+  return resp.events ?? [];
 }
 
-export function getUpsells(): Promise<UpsellOpportunity[]> {
-  return request("/upsells");
+export async function getUpsells(): Promise<UpsellOpportunity[]> {
+  const resp = await request<{ upsells: UpsellOpportunity[] }>("/upsells");
+  return resp.upsells ?? [];
 }
 
 // ---------------------------------------------------------------------------
