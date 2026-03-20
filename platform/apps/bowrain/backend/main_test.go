@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/termbase"
 )
 
 func TestMain(m *testing.M) {
@@ -30,9 +31,14 @@ func newTestApp(t *testing.T) *App {
 		t.Fatalf("create in-memory store: %v", err)
 	}
 	app := newAppWithStore(cs)
-	// Use a temp directory for the TM so tests don't share state.
+	// Use a temp directory for the TM and TB so tests don't share state.
 	tmpDir := t.TempDir()
 	app.tmPath = filepath.Join(tmpDir, "test.db")
+	tb, err := termbase.NewSQLiteTermBase(filepath.Join(tmpDir, "test-tb.db"))
+	if err != nil {
+		t.Fatalf("create test termbase: %v", err)
+	}
+	app.tb = tb
 	t.Cleanup(func() {
 		app.ServiceShutdown()
 	})
