@@ -76,6 +76,7 @@ Each agent persona runs as an independent **ZeroClaw** container — a lightweig
 | [08-alternatives.md](08-alternatives.md)                     | Alternative approaches, trade-offs, and decision log               |
 | [09-agent-routines.md](09-agent-routines.md)                 | Detailed daily/weekly routines, GitHub Issues, email communication |
 | [10-persona-evolution.md](10-persona-evolution.md)           | Tuning loop, diagnosis, metrics-driven evolution, scaling          |
+| [11-central-coordinator.md](11-central-coordinator.md)       | Central coordinator architecture for fleet-wide orchestration      |
 
 ## Key Design Principles
 
