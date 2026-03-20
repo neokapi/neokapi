@@ -95,6 +95,14 @@ func (s *Server) HandleCreateProject(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	s.trackEvent(userID, "project_created", map[string]any{
+		"project_id":      p.ID,
+		"project_name":    p.Name,
+		"source_language": string(p.DefaultSourceLanguage),
+		"target_count":    len(req.TargetLanguages),
+		"workspace_slug":  targetWS.Slug,
+	})
+
 	return c.JSON(http.StatusCreated, map[string]any{
 		"id":                      p.ID,
 		"name":                    p.Name,
