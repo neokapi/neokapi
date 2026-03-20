@@ -232,7 +232,7 @@ export function WorkspaceLayout() {
   // Derive activeView from current URL for sidebar highlighting.
   const activeView = viewFromPath(pathname, workspaceSlug ?? "");
 
-  // Map auditlog and bin to settings for sidebar highlighting (they're now sub-items of settings).
+  // Map auditlog and recycle bin to settings for sidebar highlighting (they're now sub-items of settings).
   const effectiveView =
     activeView === "auditlog" || activeView === "bin" ? ("settings" as const) : activeView;
 
