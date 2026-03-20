@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/platform/auth"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 const sessionCookieName = "bowrain_session"
@@ -28,11 +29,16 @@ func validateSessionCookie(c echo.Context, jwtSecret string) *platauth.Claims {
 	return claims
 }
 
-// setClaimsOnContext sets user claims on the Echo context for downstream handlers.
+// setClaimsOnContext sets user claims on both the Echo context and the request
+// context (for actor attribution in events emitted by the ContentStore).
 func setClaimsOnContext(c echo.Context, claims *platauth.Claims) {
 	c.Set("user_id", claims.Subject)
 	c.Set("email", claims.Email)
 	c.Set("name", claims.Name)
+	// Propagate actor into the request context so the EventEmittingStore can
+	// attribute events to the authenticated user.
+	ctx := platev.WithActor(c.Request().Context(), claims.Subject, claims.Name)
+	c.SetRequest(c.Request().WithContext(ctx))
 }
 
 // AuthMiddleware validates JWT tokens from the Authorization header (Bearer),
@@ -117,6 +123,9 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 	c.Set("email", user.Email)
 	c.Set("name", user.Name)
 	c.Set("api_token_id", apiToken.ID)
+	// Propagate actor into the request context for event attribution.
+	ctx = platev.WithActor(ctx, user.ID, user.Name)
+	c.SetRequest(c.Request().WithContext(ctx))
 
 	// Fire-and-forget last-used update.
 	go func() {

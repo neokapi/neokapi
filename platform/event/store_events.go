@@ -19,11 +19,25 @@ func NewEventEmittingStore(inner store.ContentStore, bus platev.EventBus) *Event
 	return &EventEmittingStore{inner: inner, bus: bus}
 }
 
+func (s *EventEmittingStore) publish(ctx context.Context, ev platev.Event) {
+	if ev.Actor == "" {
+		ev.Actor = platev.ActorFromContext(ctx)
+	}
+	if ev.Data != nil {
+		if _, ok := ev.Data["actor_name"]; !ok {
+			if name := platev.ActorNameFromContext(ctx); name != "" {
+				ev.Data["actor_name"] = name
+			}
+		}
+	}
+	s.bus.Publish(ev)
+}
+
 func (s *EventEmittingStore) CreateProject(ctx context.Context, p *store.Project) error {
 	if err := s.inner.CreateProject(ctx, p); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventProjectCreated,
 		Source:    "store",
 		ProjectID: p.ID,
@@ -44,7 +58,7 @@ func (s *EventEmittingStore) UpdateProject(ctx context.Context, p *store.Project
 	if err := s.inner.UpdateProject(ctx, p); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventProjectUpdated,
 		Source:    "store",
 		ProjectID: p.ID,
@@ -57,7 +71,7 @@ func (s *EventEmittingStore) DeleteProject(ctx context.Context, id string) error
 	if err := s.inner.DeleteProject(ctx, id); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventProjectDeleted,
 		Source:    "store",
 		ProjectID: id,
@@ -83,7 +97,7 @@ func (s *EventEmittingStore) CreateStream(ctx context.Context, st *store.Stream)
 	if err := s.inner.CreateStream(ctx, st); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventStreamCreated,
 		Source:    "store",
 		ProjectID: st.ProjectID,
@@ -108,7 +122,7 @@ func (s *EventEmittingStore) DeleteStream(ctx context.Context, projectID, name s
 	if err := s.inner.DeleteStream(ctx, projectID, name); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventStreamDeleted,
 		Source:    "store",
 		ProjectID: projectID,
@@ -125,7 +139,7 @@ func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamN
 		return nil, err
 	}
 	if !opts.DryRun {
-		s.bus.Publish(platev.Event{
+		s.publish(ctx, platev.Event{
 			Type:      platev.EventStreamMerged,
 			Source:    "store",
 			ProjectID: projectID,
@@ -159,7 +173,7 @@ func (s *EventEmittingStore) CreateCollection(ctx context.Context, c *store.Coll
 	if err := s.inner.CreateCollection(ctx, c); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventCollectionCreated,
 		Source:    "store",
 		ProjectID: c.ProjectID,
@@ -188,7 +202,7 @@ func (s *EventEmittingStore) UpdateCollection(ctx context.Context, c *store.Coll
 	if err := s.inner.UpdateCollection(ctx, c); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventCollectionUpdated,
 		Source:    "store",
 		ProjectID: c.ProjectID,
@@ -201,7 +215,7 @@ func (s *EventEmittingStore) DeleteCollection(ctx context.Context, projectID, co
 	if err := s.inner.DeleteCollection(ctx, projectID, collectionID); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventCollectionDeleted,
 		Source:    "store",
 		ProjectID: projectID,
@@ -216,7 +230,7 @@ func (s *EventEmittingStore) StoreItem(ctx context.Context, projectID, stream st
 	if err := s.inner.StoreItem(ctx, projectID, stream, item); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventItemCreated,
 		Source:    "store",
 		ProjectID: projectID,
@@ -237,7 +251,7 @@ func (s *EventEmittingStore) DeleteItem(ctx context.Context, projectID, stream, 
 	if err := s.inner.DeleteItem(ctx, projectID, stream, itemName); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventItemDeleted,
 		Source:    "store",
 		ProjectID: projectID,
@@ -257,7 +271,7 @@ func (s *EventEmittingStore) StoreBlocks(ctx context.Context, projectID, stream 
 		return err
 	}
 	for _, b := range blocks {
-		s.bus.Publish(platev.Event{
+		s.publish(ctx, platev.Event{
 			Type:      platev.EventBlockUpdated,
 			Source:    "store",
 			ProjectID: projectID,
@@ -272,7 +286,7 @@ func (s *EventEmittingStore) StoreBlocksForItem(ctx context.Context, projectID, 
 		return err
 	}
 	for _, b := range blocks {
-		s.bus.Publish(platev.Event{
+		s.publish(ctx, platev.Event{
 			Type:      platev.EventBlockUpdated,
 			Source:    "store",
 			ProjectID: projectID,
@@ -298,7 +312,7 @@ func (s *EventEmittingStore) DeleteBlock(ctx context.Context, projectID, stream,
 	if err := s.inner.DeleteBlock(ctx, projectID, stream, blockID); err != nil {
 		return err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventBlockDeleted,
 		Source:    "store",
 		ProjectID: projectID,
@@ -314,7 +328,7 @@ func (s *EventEmittingStore) CreateVersion(ctx context.Context, projectID, strea
 	if err != nil {
 		return nil, err
 	}
-	s.bus.Publish(platev.Event{
+	s.publish(ctx, platev.Event{
 		Type:      platev.EventVersionCreated,
 		Source:    "store",
 		ProjectID: projectID,
