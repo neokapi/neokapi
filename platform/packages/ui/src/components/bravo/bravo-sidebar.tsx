@@ -1,83 +1,67 @@
-import { useState } from "react";
+/**
+ * BravoSidebar — the main @bravo side panel built on assistant-ui.
+ *
+ * Replaces the old BravoPanel. Wraps the assistant-ui Thread in the same
+ * responsive layout (inline 400px on desktop, full overlay on mobile) with
+ * the familiar header (mode selector, settings, close button).
+ */
+
+import { type FC } from "react";
+import { AssistantRuntimeProvider, type AssistantRuntime } from "@assistant-ui/react";
 import { cn } from "../../lib/utils";
-import type { BravoConversation, BravoMessage, BravoToolCall } from "../../types/api";
-import { BravoConversationList } from "./BravoConversationList";
-import { BravoThread } from "./BravoThread";
-import { BravoComposer } from "./BravoComposer";
+import { BravoAssistantThread } from "./bravo-thread";
+import { BravoConversationList, type BravoConversationListProps } from "./BravoConversationList";
 import { BravoModeSelector, type BravoMode } from "./BravoModeSelector";
 import { BravoColdStart } from "./BravoColdStart";
 
-export interface BravoPanelProps {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface BravoSidebarProps {
+  /** Whether the sidebar is open. */
   open: boolean;
+  /** Toggle open/close. */
   onOpenChange: (open: boolean) => void;
-  conversations: BravoConversation[];
-  activeConversation?: BravoConversation;
-  messages: BravoMessage[];
-  streaming?: boolean;
-  streamingContent?: string;
-  streamingToolCalls?: BravoToolCall[];
-  onNewConversation: () => void;
-  onSelectConversation: (conv: BravoConversation) => void;
-  onDeleteConversation: (conv: BravoConversation) => void;
-  onSendMessage: (content: string) => void;
-  onApproveToolCall: (toolCallId: string) => void;
-  onDenyToolCall: (toolCallId: string) => void;
-  onCancelStreaming?: () => void;
+  /** The assistant-ui runtime instance (from useBravoRuntime). */
+  runtime: AssistantRuntime;
+  /** Which view to show: the conversation list or the active chat thread. */
+  view: "list" | "chat";
+  /** Switch back to conversation list. */
+  onBack: () => void;
+  /** Title of the active conversation (shown in header). */
+  activeTitle?: string;
+  /** Props for the conversation list view. */
+  conversationListProps?: BravoConversationListProps;
+  /** Open the @bravo settings panel. */
   onShowConfig?: () => void;
-  loading?: boolean;
-  sendDisabled?: boolean;
+  /** Whether the agent is cold-starting. */
   coldStarting?: boolean;
+  /** Current interaction mode. */
   mode?: BravoMode;
+  /** Mode change handler. */
   onModeChange?: (mode: BravoMode) => void;
+  /** Composer placeholder override based on mode. */
+  placeholder?: string;
 }
 
-type View = "list" | "chat";
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
-export function BravoPanel({
+export const BravoSidebar: FC<BravoSidebarProps> = ({
   open,
   onOpenChange,
-  conversations,
-  activeConversation,
-  messages,
-  streaming,
-  streamingContent,
-  streamingToolCalls,
-  onNewConversation,
-  onSelectConversation,
-  onDeleteConversation,
-  onSendMessage,
-  onApproveToolCall,
-  onDenyToolCall,
-  onCancelStreaming,
+  runtime,
+  view,
+  onBack,
+  activeTitle,
+  conversationListProps,
   onShowConfig,
-  loading,
-  sendDisabled,
   coldStarting,
   mode = "ask",
   onModeChange,
-}: BravoPanelProps) {
-  const [view, setView] = useState<View>(activeConversation ? "chat" : "list");
-
-  const handleSelect = (conv: BravoConversation) => {
-    onSelectConversation(conv);
-    setView("chat");
-  };
-
-  const handleNew = () => {
-    onNewConversation();
-    setView("chat");
-  };
-
-  const handleBack = () => {
-    setView("list");
-  };
-
-  const placeholders: Record<BravoMode, string> = {
-    ask: "Ask about projects, formats, TM...",
-    coworker: "Tell @bravo what to do...",
-    bravo: "Paste content for voice review...",
-  };
-
+}) => {
   return (
     <>
       {/* Backdrop for mobile — tap to close */}
@@ -88,19 +72,19 @@ export function BravoPanel({
         />
       )}
 
-      {/* Single panel — responsive: inline on desktop, fixed overlay on mobile */}
+      {/* Panel — responsive: inline on desktop, fixed overlay on mobile */}
       <aside
         role="complementary"
         aria-label="@bravo assistant"
         className={cn(
           "shrink-0 flex flex-col border-l bg-background",
-          // Desktop: inline in the layout flow with width transition
+          // Desktop
           "md:relative md:z-auto",
           "md:transition-[width,opacity] md:duration-300 md:ease-in-out",
           open
             ? "md:w-[400px] md:opacity-100"
             : "md:w-0 md:opacity-0 md:overflow-hidden md:border-l-0",
-          // Mobile: fixed overlay from right
+          // Mobile
           "fixed inset-y-0 right-0 z-50 w-full max-md:transition-transform max-md:duration-300 max-md:ease-in-out",
           open ? "max-md:translate-x-0" : "max-md:translate-x-full",
         )}
@@ -110,7 +94,7 @@ export function BravoPanel({
           <div className="flex items-center gap-2">
             {view === "chat" && (
               <button
-                onClick={handleBack}
+                onClick={onBack}
                 className="text-muted-foreground hover:text-foreground transition-colors"
                 aria-label="Back to conversations"
               >
@@ -126,9 +110,7 @@ export function BravoPanel({
               </button>
             )}
             <span className="flex-1 text-sm font-semibold truncate">
-              {view === "chat" && activeConversation
-                ? activeConversation.title || "Conversation"
-                : "@bravo"}
+              {view === "chat" && activeTitle ? activeTitle : "@bravo"}
             </span>
             {onShowConfig && (
               <button
@@ -176,42 +158,16 @@ export function BravoPanel({
         {/* Content */}
         {view === "list" ? (
           <div className="flex-1 overflow-y-auto p-4">
-            <BravoConversationList
-              conversations={conversations}
-              activeId={activeConversation?.id}
-              onSelect={handleSelect}
-              onDelete={onDeleteConversation}
-              onNew={handleNew}
-              loading={loading}
-            />
+            {conversationListProps && <BravoConversationList {...conversationListProps} />}
           </div>
         ) : (
-          <>
-            <div className="flex-1 overflow-y-auto">
-              {coldStarting ? (
-                <BravoColdStart />
-              ) : (
-                <BravoThread
-                  messages={messages}
-                  streaming={streaming}
-                  streamingContent={streamingContent}
-                  streamingToolCalls={streamingToolCalls}
-                  onApprove={onApproveToolCall}
-                  onDeny={onDenyToolCall}
-                  onCancel={onCancelStreaming}
-                />
-              )}
+          <AssistantRuntimeProvider runtime={runtime}>
+            <div className="flex-1 flex flex-col min-h-0">
+              {coldStarting ? <BravoColdStart /> : <BravoAssistantThread />}
             </div>
-            <div className="shrink-0">
-              <BravoComposer
-                onSend={onSendMessage}
-                disabled={sendDisabled || streaming || coldStarting}
-                placeholder={placeholders[mode]}
-              />
-            </div>
-          </>
+          </AssistantRuntimeProvider>
         )}
       </aside>
     </>
   );
-}
+};

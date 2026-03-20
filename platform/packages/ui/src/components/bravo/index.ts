@@ -1,20 +1,26 @@
-export { BravoPanel } from "./BravoPanel";
-export type { BravoPanelProps } from "./BravoPanel";
+// ---------------------------------------------------------------------------
+// assistant-ui powered components (new)
+// ---------------------------------------------------------------------------
+
+export { BravoSidebar } from "./bravo-sidebar";
+export type { BravoSidebarProps } from "./bravo-sidebar";
+
+export { BravoAssistantThread } from "./bravo-thread";
+
+export { BravoToolCallRenderer, BravoFallbackToolUI } from "./bravo-tool-ui";
+
+export { useBravoRuntime, useBravoThreadListAdapter } from "./bravo-runtime";
+export type { BravoRuntimeOptions, BravoThreadListOptions } from "./bravo-runtime";
+
+// ---------------------------------------------------------------------------
+// Supporting components (still in use by assistant-ui powered components)
+// ---------------------------------------------------------------------------
 
 export { BravoPanelTrigger } from "./BravoPanelTrigger";
 export type { BravoPanelTriggerProps } from "./BravoPanelTrigger";
 
-export { BravoThread } from "./BravoThread";
-export type { BravoThreadProps } from "./BravoThread";
-
-export { BravoComposer } from "./BravoComposer";
-export type { BravoComposerProps } from "./BravoComposer";
-
 export { BravoToolCall } from "./BravoToolCall";
 export type { BravoToolCallProps } from "./BravoToolCall";
-
-export { BravoCodeBlock } from "./BravoCodeBlock";
-export type { BravoCodeBlockProps } from "./BravoCodeBlock";
 
 export { BravoApprovalCard } from "./BravoApprovalCard";
 export type { BravoApprovalCardProps } from "./BravoApprovalCard";
