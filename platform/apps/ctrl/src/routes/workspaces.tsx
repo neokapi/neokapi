@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
-import type { FilterToken, FilterField, FilterPreset } from "@neokapi/ui";
+import type { FilterField, FilterPreset } from "@neokapi/ui";
 import { listWorkspaces } from "../api";
 import { WorkspaceTable } from "../components/WorkspaceTable";
+import { useUrlFilters } from "../hooks/useUrlFilters";
 
 const WORKSPACE_FIELDS: FilterField[] = [
   {
@@ -39,8 +40,10 @@ const WORKSPACE_PRESETS: FilterPreset[] = [
 export function WorkspacesRoute() {
   useSetBreadcrumb("Workspaces");
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<FilterToken[]>([]);
-  const [search, setSearch] = useState("");
+  const { filters, search, setFilters, setSearch } = useUrlFilters(
+    ["plan", "status"],
+    "/workspaces",
+  );
 
   const planFilter = filters.find((f) => f.key === "plan")?.value;
   const statusFilter = filters.find((f) => f.key === "status")?.value;

@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, FilterBar, useSetBreadcrumb } from "@neokapi/ui";
-import type { FilterToken, FilterField } from "@neokapi/ui";
+import type { FilterField } from "@neokapi/ui";
 import { listAllOverrides } from "../api";
+import { useUrlFilters } from "../hooks/useUrlFilters";
 import type { FeatureOverride } from "../types";
 
 const OVERRIDE_FIELDS: FilterField[] = [
@@ -24,17 +24,16 @@ const OVERRIDE_FIELDS: FilterField[] = [
 
 function matchesFilters(
   override: FeatureOverride,
-  filters: FilterToken[],
+  statusFilter: string | undefined,
+  featureFilter: string | undefined,
   search: string,
 ): boolean {
-  for (const f of filters) {
-    if (f.key === "status") {
-      const wantEnabled = f.value === "enabled";
-      if (override.enabled !== wantEnabled) return false;
-    }
-    if (f.key === "feature") {
-      if (!override.feature.toLowerCase().includes(f.value.toLowerCase())) return false;
-    }
+  if (statusFilter) {
+    const wantEnabled = statusFilter === "enabled";
+    if (override.enabled !== wantEnabled) return false;
+  }
+  if (featureFilter) {
+    if (!override.feature.toLowerCase().includes(featureFilter.toLowerCase())) return false;
   }
   if (search) {
     const q = search.toLowerCase();
@@ -46,15 +45,22 @@ function matchesFilters(
 
 export function OverridesRoute() {
   useSetBreadcrumb("Feature Overrides");
-  const [filters, setFilters] = useState<FilterToken[]>([]);
-  const [search, setSearch] = useState("");
+  const { filters, search, setFilters, setSearch } = useUrlFilters(
+    ["status", "feature"],
+    "/overrides",
+  );
+
+  const statusFilter = filters.find((f) => f.key === "status")?.value;
+  const featureFilter = filters.find((f) => f.key === "feature")?.value;
 
   const { data: overrides, isLoading } = useQuery({
     queryKey: ["admin", "overrides"],
     queryFn: () => listAllOverrides(),
   });
 
-  const filtered = (overrides ?? []).filter((o) => matchesFilters(o, filters, search));
+  const filtered = (overrides ?? []).filter((o) =>
+    matchesFilters(o, statusFilter, featureFilter, search),
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">

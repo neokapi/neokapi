@@ -1,15 +1,14 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, FilterBar, useSetBreadcrumb } from "@neokapi/ui";
-import type { FilterToken } from "@neokapi/ui";
 import { listUsers, getUser } from "../api";
 import { UserTable } from "../components/UserTable";
+import { useUrlFilters } from "../hooks/useUrlFilters";
 import type { AdminUserDetail } from "../types";
 
 export function UsersRoute() {
   useSetBreadcrumb("Users");
-  const [filters, setFilters] = useState<FilterToken[]>([]);
-  const [search, setSearch] = useState("");
+  const { filters, search, setFilters, setSearch } = useUrlFilters([], "/users");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   const { data: users, isLoading } = useQuery({

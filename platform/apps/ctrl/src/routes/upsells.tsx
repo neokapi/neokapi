@@ -1,10 +1,10 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
-import type { FilterToken, FilterField } from "@neokapi/ui";
+import type { FilterField } from "@neokapi/ui";
 import { getUpsells } from "../api";
 import { UpsellTable } from "../components/UpsellTable";
+import { useUrlFilters } from "../hooks/useUrlFilters";
 import type { UpsellOpportunity } from "../types";
 
 const UPSELL_FIELDS: FilterField[] = [
@@ -34,13 +34,12 @@ const UPSELL_FIELDS: FilterField[] = [
 
 function matchesFilters(
   upsell: UpsellOpportunity,
-  filters: FilterToken[],
+  planFilter: string | undefined,
+  signalFilter: string | undefined,
   search: string,
 ): boolean {
-  for (const f of filters) {
-    if (f.key === "plan" && upsell.current_plan !== f.value) return false;
-    if (f.key === "signal" && upsell.signal !== f.value) return false;
-  }
+  if (planFilter && upsell.current_plan !== planFilter) return false;
+  if (signalFilter && upsell.signal !== signalFilter) return false;
   if (search) {
     const q = search.toLowerCase();
     if (
@@ -55,15 +54,19 @@ function matchesFilters(
 export function UpsellsRoute() {
   useSetBreadcrumb("Upsell Opportunities");
   const navigate = useNavigate();
-  const [filters, setFilters] = useState<FilterToken[]>([]);
-  const [search, setSearch] = useState("");
+  const { filters, search, setFilters, setSearch } = useUrlFilters(["plan", "signal"], "/upsells");
+
+  const planFilter = filters.find((f) => f.key === "plan")?.value;
+  const signalFilter = filters.find((f) => f.key === "signal")?.value;
 
   const { data: upsells, isLoading } = useQuery({
     queryKey: ["admin", "upsells"],
     queryFn: () => getUpsells(),
   });
 
-  const filtered = (upsells ?? []).filter((u) => matchesFilters(u, filters, search));
+  const filtered = (upsells ?? []).filter((u) =>
+    matchesFilters(u, planFilter, signalFilter, search),
+  );
 
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">

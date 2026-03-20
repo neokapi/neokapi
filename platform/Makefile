@@ -129,13 +129,13 @@ ui-build: ui-deps ## Build shared UI declarations
 ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
 	cd packages/ui && $(NPM) run check
 
-storybook: ui-deps ## Launch Storybook dev server (port 6006)
+storybook: ui-deps email-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
 	cd packages/ui && $(NPM) run storybook
 
 storybook-dev: storybook ## Alias for storybook
 
-storybook-build: ui-deps ## Build Storybook static site
+storybook-build: ui-deps email-deps ## Build Storybook static site
 	cd packages/ui && $(NPM) run storybook:build
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
@@ -170,7 +170,7 @@ ctrl-check: ctrl-deps ## Lint, format-check, and typecheck control plane
 # ── Email Templates (React Email -> HTML) ────────────────────────────────────
 
 email-deps: ## Install React Email template dependencies
-	cd $(EMAILS_DIR) && $(NPM) install
+	cd $(EMAILS_DIR) && $(NPM) install --legacy-peer-deps
 
 email-build: email-deps ## Pre-render React Email templates
 	cd $(EMAILS_DIR) && $(NPM) run build

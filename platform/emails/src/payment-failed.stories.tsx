@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { PaymentFailedEmail } from "./payment-failed";
+import { EmailPreview } from "./storybook-decorator";
 
 const meta: Meta<typeof PaymentFailedEmail> = {
   title: "Emails/Payment Failed",
   component: PaymentFailedEmail,
   tags: ["autodocs"],
-  parameters: {
-    layout: "padded",
-  },
+  parameters: { layout: "padded" },
+  decorators: [
+    (_, { args }) => (
+      <EmailPreview>
+        <PaymentFailedEmail {...args} />
+      </EmailPreview>
+    ),
+  ],
 };
 
 export default meta;

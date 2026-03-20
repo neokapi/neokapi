@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SubscriptionChangedEmail } from "./subscription-changed";
+import { EmailPreview } from "./storybook-decorator";
 
 const meta: Meta<typeof SubscriptionChangedEmail> = {
   title: "Emails/Subscription Changed",
   component: SubscriptionChangedEmail,
   tags: ["autodocs"],
-  parameters: {
-    layout: "padded",
-  },
+  parameters: { layout: "padded" },
+  decorators: [
+    (_, { args }) => (
+      <EmailPreview>
+        <SubscriptionChangedEmail {...args} />
+      </EmailPreview>
+    ),
+  ],
 };
 
 export default meta;

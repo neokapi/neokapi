@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { InviteEmail } from "./invite";
+import { EmailPreview } from "./storybook-decorator";
 
 const meta: Meta<typeof InviteEmail> = {
   title: "Emails/Invite",
   component: InviteEmail,
   tags: ["autodocs"],
-  parameters: {
-    layout: "padded",
-  },
+  parameters: { layout: "padded" },
+  decorators: [
+    (_, { args }) => (
+      <EmailPreview>
+        <InviteEmail {...args} />
+      </EmailPreview>
+    ),
+  ],
 };
 
 export default meta;

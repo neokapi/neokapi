@@ -41,7 +41,7 @@ function isActive(pathname: string, path: string) {
   return pathname.startsWith(path);
 }
 
-function DesktopNav({
+function NavItems({
   pathname,
   onNavigate,
 }: {
@@ -50,6 +50,7 @@ function DesktopNav({
 }) {
   return (
     <SidebarGroup>
+      <SidebarGroupLabel>Admin</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
           {navItems.map((item) => (
@@ -60,6 +61,7 @@ function DesktopNav({
                 onClick={() => onNavigate(item.path)}
               >
                 {item.icon}
+                <span>{item.label}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ))}
@@ -130,13 +132,20 @@ export function CtrlSidebar() {
     );
   }
 
+  // Desktop: collapsible="icon" — collapsed (icon-only) by default,
+  // expanded (with labels) on lg+ screens via defaultOpen on SidebarProvider.
   return (
-    <Sidebar collapsible="none" className="!w-(--sidebar-width-icon)">
-      <SidebarHeader className="flex items-center justify-center py-3">
-        <Shield className="size-5 text-sidebar-foreground/70" />
+    <Sidebar collapsible="icon" className="border-r">
+      <SidebarHeader className="flex items-center justify-center py-3 group-data-[collapsible=icon]:px-0">
+        <div className="flex items-center gap-2 group-data-[state=collapsed]:justify-center">
+          <Shield className="size-5 shrink-0 text-sidebar-foreground/70" />
+          <span className="text-sm font-semibold group-data-[state=collapsed]:hidden">
+            Control Plane
+          </span>
+        </div>
       </SidebarHeader>
-      <SidebarContent className="[&_[data-slot=sidebar-menu]]:gap-1 [&_[data-slot=sidebar-menu-button]]:justify-center [&_[data-slot=sidebar-menu-button]]:aspect-square [&_[data-slot=sidebar-menu-button]]:p-0 [&_[data-slot=sidebar-menu-button]_svg]:size-5 [&_svg]:stroke-[1.5]">
-        <DesktopNav pathname={pathname} onNavigate={handleNavigate} />
+      <SidebarContent>
+        <NavItems pathname={pathname} onNavigate={handleNavigate} />
       </SidebarContent>
     </Sidebar>
   );

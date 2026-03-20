@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { FilterBar, useSetBreadcrumb } from "@neokapi/ui";
-import type { FilterToken, FilterField, FilterPreset } from "@neokapi/ui";
+import type { FilterField, FilterPreset } from "@neokapi/ui";
 import { listEvents } from "../api";
 import { EventFeed } from "../components/EventFeed";
+import { useUrlFilters } from "../hooks/useUrlFilters";
 import type { BillingEventType } from "../types";
 
 const EVENT_FIELDS: FilterField[] = [
@@ -31,8 +31,7 @@ const EVENT_PRESETS: FilterPreset[] = [
 
 export function EventsRoute() {
   useSetBreadcrumb("Billing Events");
-  const [filters, setFilters] = useState<FilterToken[]>([]);
-  const [search, setSearch] = useState("");
+  const { filters, search, setFilters, setSearch } = useUrlFilters(["type"], "/events");
 
   const typeFilter = filters.find((f) => f.key === "type")?.value;
 

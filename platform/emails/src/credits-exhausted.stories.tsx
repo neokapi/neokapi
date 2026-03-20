@@ -1,13 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { CreditsExhaustedEmail } from "./credits-exhausted";
+import { EmailPreview } from "./storybook-decorator";
 
 const meta: Meta<typeof CreditsExhaustedEmail> = {
   title: "Emails/Credits Exhausted",
   component: CreditsExhaustedEmail,
   tags: ["autodocs"],
-  parameters: {
-    layout: "padded",
-  },
+  parameters: { layout: "padded" },
+  decorators: [
+    (_, { args }) => (
+      <EmailPreview>
+        <CreditsExhaustedEmail {...args} />
+      </EmailPreview>
+    ),
+  ],
 };
 
 export default meta;

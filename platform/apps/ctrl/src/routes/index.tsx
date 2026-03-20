@@ -25,6 +25,36 @@ export interface RouterContext {
 }
 
 // ---------------------------------------------------------------------------
+// Search param types (shared across routes and page components)
+// ---------------------------------------------------------------------------
+
+export interface WorkspacesSearch {
+  q?: string;
+  plan?: string;
+  status?: string;
+}
+
+export interface UsersSearch {
+  q?: string;
+}
+
+export interface EventsSearch {
+  type?: string;
+}
+
+export interface OverridesSearch {
+  q?: string;
+  status?: string;
+  feature?: string;
+}
+
+export interface UpsellsSearch {
+  q?: string;
+  plan?: string;
+  signal?: string;
+}
+
+// ---------------------------------------------------------------------------
 // Root route
 // ---------------------------------------------------------------------------
 
@@ -64,6 +94,11 @@ const workspacesRoute = createRoute({
   path: "workspaces",
   beforeLoad: requireAuth,
   component: WorkspacesRoute,
+  validateSearch: (search: Record<string, unknown>): WorkspacesSearch => ({
+    q: (search.q as string) || undefined,
+    plan: (search.plan as string) || undefined,
+    status: (search.status as string) || undefined,
+  }),
 });
 
 const workspaceDetailRoute = createRoute({
@@ -78,6 +113,9 @@ const usersRoute = createRoute({
   path: "users",
   beforeLoad: requireAuth,
   component: UsersRoute,
+  validateSearch: (search: Record<string, unknown>): UsersSearch => ({
+    q: (search.q as string) || undefined,
+  }),
 });
 
 const eventsRoute = createRoute({
@@ -85,6 +123,9 @@ const eventsRoute = createRoute({
   path: "events",
   beforeLoad: requireAuth,
   component: EventsRoute,
+  validateSearch: (search: Record<string, unknown>): EventsSearch => ({
+    type: (search.type as string) || undefined,
+  }),
 });
 
 const overridesRoute = createRoute({
@@ -92,6 +133,11 @@ const overridesRoute = createRoute({
   path: "overrides",
   beforeLoad: requireAuth,
   component: OverridesRoute,
+  validateSearch: (search: Record<string, unknown>): OverridesSearch => ({
+    q: (search.q as string) || undefined,
+    status: (search.status as string) || undefined,
+    feature: (search.feature as string) || undefined,
+  }),
 });
 
 const upsellsRoute = createRoute({
@@ -99,6 +145,11 @@ const upsellsRoute = createRoute({
   path: "upsells",
   beforeLoad: requireAuth,
   component: UpsellsRoute,
+  validateSearch: (search: Record<string, unknown>): UpsellsSearch => ({
+    q: (search.q as string) || undefined,
+    plan: (search.plan as string) || undefined,
+    signal: (search.signal as string) || undefined,
+  }),
 });
 
 // ---------------------------------------------------------------------------
