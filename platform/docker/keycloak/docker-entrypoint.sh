@@ -23,4 +23,11 @@ if [ -f "$IMPORT_DIR/realm.json" ]; then
   fi
 fi
 
-exec /opt/keycloak/bin/kc.sh "$@"
+# Keycloak 26+ bootstrap admin service account for CI/CD configuration.
+# Uses client credentials grant instead of the deprecated password grant.
+EXTRA_ARGS=()
+if [ -n "$KC_BOOTSTRAP_ADMIN_CLIENT_ID" ] && [ -n "$KC_BOOTSTRAP_ADMIN_CLIENT_SECRET" ]; then
+  EXTRA_ARGS+=("--bootstrap-admin-client-id=$KC_BOOTSTRAP_ADMIN_CLIENT_ID" "--bootstrap-admin-client-secret=$KC_BOOTSTRAP_ADMIN_CLIENT_SECRET")
+fi
+
+exec /opt/keycloak/bin/kc.sh "$@" "${EXTRA_ARGS[@]}"
