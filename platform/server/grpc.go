@@ -40,7 +40,7 @@ func (g *GRPCServer) CreateProject(ctx context.Context, req *pb.CreateProjectReq
 		Name:                  req.Name,
 		DefaultSourceLanguage: model.LocaleID(req.SourceLocale),
 		TargetLanguages:       locales,
-		Properties:    req.Properties,
+		Properties:            req.Properties,
 	}
 	if err := g.srv.Services.Project.CreateProject(ctx, p); err != nil {
 		return nil, status.Errorf(codes.Internal, "create project: %v", err)

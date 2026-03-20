@@ -54,7 +54,7 @@ func TestCalculateScore_MixedSeverities(t *testing.T) {
 	for _, dim := range score.Dimensions {
 		switch dim.Dimension {
 		case DimensionTone:
-			assert.Equal(t, 94, dim.Score)  // 100 - 1 - 5
+			assert.Equal(t, 94, dim.Score) // 100 - 1 - 5
 			assert.Equal(t, 6, dim.Penalty)
 			assert.Equal(t, 2, dim.Issues)
 		case DimensionVocabulary:

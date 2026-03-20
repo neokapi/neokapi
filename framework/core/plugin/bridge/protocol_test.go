@@ -63,4 +63,3 @@ func TestEncodeFilterParams_HierarchicalParams(t *testing.T) {
 	assert.Contains(t, result["elements"], `"pre"`)
 	assert.Contains(t, result["parser"], `"assumeWellformed"`)
 }
-

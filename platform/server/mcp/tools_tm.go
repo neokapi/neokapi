@@ -36,9 +36,9 @@ type tmSearchOutput struct {
 }
 type tmMatch struct {
 	Source    string  `json:"source"`
-	Target   string  `json:"target"`
-	Score    float64 `json:"score"`
-	MatchType string `json:"match_type"`
+	Target    string  `json:"target"`
+	Score     float64 `json:"score"`
+	MatchType string  `json:"match_type"`
 }
 
 func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest, input tmSearchInput) (*mcp.CallToolResult, tmSearchOutput, error) {
@@ -80,8 +80,8 @@ func (s *MCPServer) handleTMSearch(ctx context.Context, req *mcp.CallToolRequest
 		}
 		result = append(result, tmMatch{
 			Source:    m.Entry.Source.Text(),
-			Target:   m.Entry.Target.Text(),
-			Score:    m.Score,
+			Target:    m.Entry.Target.Text(),
+			Score:     m.Score,
 			MatchType: matchType,
 		})
 	}

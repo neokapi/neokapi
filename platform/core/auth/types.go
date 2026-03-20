@@ -64,13 +64,13 @@ type Membership struct {
 
 // UnclaimedProject represents an anonymous project awaiting user claim.
 type UnclaimedProject struct {
-	ProjectID     string    `json:"project_id"`
-	ClaimToken    string    `json:"-"` // hashed token stored in DB
-	Name          string    `json:"name"`
-	DefaultSourceLanguage string `json:"default_source_language"`
-	TargetLanguages       string `json:"target_languages"` // comma-separated
-	CreatedAt     time.Time `json:"created_at"`
-	ExpiresAt     time.Time `json:"expires_at"`
+	ProjectID             string    `json:"project_id"`
+	ClaimToken            string    `json:"-"` // hashed token stored in DB
+	Name                  string    `json:"name"`
+	DefaultSourceLanguage string    `json:"default_source_language"`
+	TargetLanguages       string    `json:"target_languages"` // comma-separated
+	CreatedAt             time.Time `json:"created_at"`
+	ExpiresAt             time.Time `json:"expires_at"`
 }
 
 // APIToken represents a long-lived, revocable API token for CI/CD and programmatic access.

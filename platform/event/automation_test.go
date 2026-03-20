@@ -208,9 +208,9 @@ func TestAutomationBrandVoiceRule(t *testing.T) {
 		Actions:   []AutomationAction{{Type: "notify", Config: map[string]string{"channel": "brand-alerts"}}},
 	})
 
-	bus.Publish(platev.Event{Type: platev.EventBrandVoiceCheckStarted})   // Should not trigger
-	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGateFailed})     // Should trigger
-	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGatePassed})     // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventBrandVoiceCheckStarted}) // Should not trigger
+	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGateFailed})   // Should trigger
+	bus.Publish(platev.Event{Type: platev.EventBrandVoiceGatePassed})   // Should not trigger
 
 	time.Sleep(100 * time.Millisecond)
 

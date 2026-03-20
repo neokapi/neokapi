@@ -124,7 +124,7 @@ type PullOptions struct {
 // PushResult summarizes the result of a push operation.
 type PushResult struct {
 	BlocksPushed int
-	AssetsPushed int    // number of media assets pushed (AD-029)
+	AssetsPushed int // number of media assets pushed (AD-029)
 	FilesScanned int
 	ChunkCount   int
 	WordCount    int    // total source words across pushed blocks

@@ -29,13 +29,13 @@ type Term struct {
 // Concept is the central unit of a termbase — a language-neutral concept
 // with terms in multiple locales, organized following TBX principles.
 type Concept struct {
-	ID         string            `json:"id"`                    // unique concept identifier
-	ProjectID  string            `json:"project_id,omitempty"`  // project scope (empty = workspace-scoped)
-	Domain     string            `json:"domain,omitempty"`      // subject field (software, medical, legal, etc.)
-	Definition string            `json:"definition,omitempty"`  // language-neutral definition
-	Source     TermSource        `json:"source,omitempty"`      // "terminology" or "brand_vocabulary"
-	Terms      []Term            `json:"terms,omitempty"`       // terms across locales
-	Properties map[string]string `json:"properties,omitempty"`  // extensible metadata
+	ID         string            `json:"id"`                   // unique concept identifier
+	ProjectID  string            `json:"project_id,omitempty"` // project scope (empty = workspace-scoped)
+	Domain     string            `json:"domain,omitempty"`     // subject field (software, medical, legal, etc.)
+	Definition string            `json:"definition,omitempty"` // language-neutral definition
+	Source     TermSource        `json:"source,omitempty"`     // "terminology" or "brand_vocabulary"
+	Terms      []Term            `json:"terms,omitempty"`      // terms across locales
+	Properties map[string]string `json:"properties,omitempty"` // extensible metadata
 	CreatedAt  time.Time         `json:"created_at"`
 	UpdatedAt  time.Time         `json:"updated_at"`
 }

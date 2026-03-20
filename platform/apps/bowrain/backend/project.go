@@ -19,14 +19,14 @@ import (
 
 // ProjectInfo describes a translation project exposed to the frontend.
 type ProjectInfo struct {
-	ID            string        `json:"id"`
-	Name          string        `json:"name"`
-	DefaultSourceLanguage string   `json:"default_source_language"`
-	TargetLanguages       []string `json:"target_languages"`
-	Path          string        `json:"path"`
-	Items         []ProjectItem `json:"items"`
-	CreatedAt     string        `json:"created_at"`
-	ModifiedAt    string        `json:"modified_at"`
+	ID                    string        `json:"id"`
+	Name                  string        `json:"name"`
+	DefaultSourceLanguage string        `json:"default_source_language"`
+	TargetLanguages       []string      `json:"target_languages"`
+	Path                  string        `json:"path"`
+	Items                 []ProjectItem `json:"items"`
+	CreatedAt             string        `json:"created_at"`
+	ModifiedAt            string        `json:"modified_at"`
 }
 
 // ProjectItem describes an item within a project.
@@ -119,10 +119,10 @@ func (a *App) CreateProject(name, sourceLang string, targetLangs []string) (*Pro
 	}
 
 	p := &store.Project{
-		Name:          name,
+		Name:                  name,
 		DefaultSourceLanguage: model.LocaleID(sourceLang),
 		TargetLanguages:       locales,
-		Properties:    map[string]string{},
+		Properties:            map[string]string{},
 	}
 
 	ctx := context.Background()
@@ -347,9 +347,9 @@ func projectToInfo(p *store.Project) ProjectInfo {
 		Name:                  p.Name,
 		DefaultSourceLanguage: string(p.DefaultSourceLanguage),
 		TargetLanguages:       locales,
-		Items:         []ProjectItem{},
-		CreatedAt:     p.CreatedAt.Format(time.RFC3339),
-		ModifiedAt:    p.UpdatedAt.Format(time.RFC3339),
+		Items:                 []ProjectItem{},
+		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
+		ModifiedAt:            p.UpdatedAt.Format(time.RFC3339),
 	}
 }
 

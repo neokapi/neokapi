@@ -154,9 +154,9 @@ func (p *BridgeProcessor) SetFilterParams(params map[string]any) {
 
 // ProcessExecuteParams configures a single-pass Process execution.
 type ProcessExecuteParams struct {
-	InputPath      string  // absolute file path (preferred)
-	Content        []byte  // inline content (fallback)
-	OutputPath     string  // output file path (Java writes to disk)
+	InputPath      string // absolute file path (preferred)
+	Content        []byte // inline content (fallback)
+	OutputPath     string // output file path (Java writes to disk)
 	SourceLocale   string
 	TargetLocale   string
 	OutputLocale   string

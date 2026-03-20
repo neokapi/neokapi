@@ -62,14 +62,14 @@ type managedBridge struct {
 
 // PluginLoader discovers and loads plugins from a directory.
 type PluginLoader struct {
-	dir     string
-	manager *host.PluginManager
+	dir      string
+	manager  *host.PluginManager
 	registry *bridge.BridgeRegistry // single shared registry for all bridge plugins
-	bridges []*managedBridge
-	plugins []PluginInfo
-	schemas *SchemaRegistry        // filter parameter schemas
-	presets *preset.PresetRegistry // format and framework presets
-	logger  *log.Logger
+	bridges  []*managedBridge
+	plugins  []PluginInfo
+	schemas  *SchemaRegistry        // filter parameter schemas
+	presets  *preset.PresetRegistry // format and framework presets
+	logger   *log.Logger
 
 	// disabledPlugins is a set of plugin names to skip during scan and load.
 	disabledPlugins map[string]bool

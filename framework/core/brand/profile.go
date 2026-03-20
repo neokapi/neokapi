@@ -6,37 +6,37 @@ import (
 
 // VoiceProfile defines a brand voice configuration with tone, style, and vocabulary rules.
 type VoiceProfile struct {
-	ID          string                    `json:"id" yaml:"id,omitempty"`
-	Name        string                    `json:"name" yaml:"name"`
-	Description string                    `json:"description,omitempty" yaml:"description,omitempty"`
-	Tone        ToneProfile               `json:"tone" yaml:"tone"`
-	Style       StyleRules                `json:"style" yaml:"style"`
-	Vocabulary  VocabularyRules           `json:"vocabulary" yaml:"vocabulary"`
-	Examples    []VoiceExample            `json:"examples" yaml:"examples"`
-	Locales     map[string]LocaleOverride `json:"locales,omitempty" yaml:"locales,omitempty"`
+	ID          string                     `json:"id" yaml:"id,omitempty"`
+	Name        string                     `json:"name" yaml:"name"`
+	Description string                     `json:"description,omitempty" yaml:"description,omitempty"`
+	Tone        ToneProfile                `json:"tone" yaml:"tone"`
+	Style       StyleRules                 `json:"style" yaml:"style"`
+	Vocabulary  VocabularyRules            `json:"vocabulary" yaml:"vocabulary"`
+	Examples    []VoiceExample             `json:"examples" yaml:"examples"`
+	Locales     map[string]LocaleOverride  `json:"locales,omitempty" yaml:"locales,omitempty"`
 	Channels    map[string]ChannelOverride `json:"channels,omitempty" yaml:"channels,omitempty"`
-	WorkspaceID string                    `json:"workspace_id" yaml:"workspace_id,omitempty"`
-	Version     int                       `json:"version" yaml:"version,omitempty"`
-	CreatedAt   time.Time                 `json:"created_at" yaml:"created_at,omitempty"`
-	UpdatedAt   time.Time                 `json:"updated_at" yaml:"updated_at,omitempty"`
-	CreatedBy   string                    `json:"created_by,omitempty" yaml:"created_by,omitempty"`
+	WorkspaceID string                     `json:"workspace_id" yaml:"workspace_id,omitempty"`
+	Version     int                        `json:"version" yaml:"version,omitempty"`
+	CreatedAt   time.Time                  `json:"created_at" yaml:"created_at,omitempty"`
+	UpdatedAt   time.Time                  `json:"updated_at" yaml:"updated_at,omitempty"`
+	CreatedBy   string                     `json:"created_by,omitempty" yaml:"created_by,omitempty"`
 }
 
 // ToneProfile describes the desired tone characteristics.
 type ToneProfile struct {
-	Personality []string `json:"personality" yaml:"personality"`           // e.g. ["friendly", "knowledgeable", "direct"]
-	Formality   string   `json:"formality" yaml:"formality"`              // "casual", "neutral", "formal", "technical"
-	Emotion     string   `json:"emotion" yaml:"emotion"`                  // "warm", "neutral", "authoritative"
-	Humor       string   `json:"humor" yaml:"humor"`                      // "none", "light", "frequent"
+	Personality []string `json:"personality" yaml:"personality"` // e.g. ["friendly", "knowledgeable", "direct"]
+	Formality   string   `json:"formality" yaml:"formality"`     // "casual", "neutral", "formal", "technical"
+	Emotion     string   `json:"emotion" yaml:"emotion"`         // "warm", "neutral", "authoritative"
+	Humor       string   `json:"humor" yaml:"humor"`             // "none", "light", "frequent"
 	Guidelines  string   `json:"guidelines,omitempty" yaml:"guidelines,omitempty"`
 }
 
 // StyleRules defines writing style constraints.
 type StyleRules struct {
 	ActiveVoice        bool      `json:"active_voice" yaml:"active_voice"`
-	SentenceLength     string    `json:"sentence_length" yaml:"sentence_length"`           // "short", "medium", "varied"
-	PersonPOV          string    `json:"person_pov" yaml:"person_pov"`                     // "first_plural", "second", "third"
-	Contractions       string    `json:"contractions" yaml:"contractions"`                  // "always", "sometimes", "never"
+	SentenceLength     string    `json:"sentence_length" yaml:"sentence_length"` // "short", "medium", "varied"
+	PersonPOV          string    `json:"person_pov" yaml:"person_pov"`           // "first_plural", "second", "third"
+	Contractions       string    `json:"contractions" yaml:"contractions"`       // "always", "sometimes", "never"
 	ProhibitedPatterns []Pattern `json:"prohibited_patterns,omitempty" yaml:"prohibited_patterns,omitempty"`
 	RequiredPatterns   []Pattern `json:"required_patterns,omitempty" yaml:"required_patterns,omitempty"`
 }

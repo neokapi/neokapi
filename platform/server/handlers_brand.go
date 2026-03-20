@@ -13,10 +13,10 @@ import (
 
 // BrandProfileRequest is the request body for creating/updating a brand voice profile.
 type BrandProfileRequest struct {
-	Name        string                              `json:"name"`
-	Description string                              `json:"description,omitempty"`
-	Tone        corebrand.ToneProfile               `json:"tone"`
-	Style       corebrand.StyleRules                `json:"style"`
+	Name        string                               `json:"name"`
+	Description string                               `json:"description,omitempty"`
+	Tone        corebrand.ToneProfile                `json:"tone"`
+	Style       corebrand.StyleRules                 `json:"style"`
 	Vocabulary  corebrand.VocabularyRules            `json:"vocabulary"`
 	Examples    []corebrand.VoiceExample             `json:"examples"`
 	Locales     map[string]corebrand.LocaleOverride  `json:"locales,omitempty"`

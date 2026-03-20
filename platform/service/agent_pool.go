@@ -32,8 +32,8 @@ type ContainerConfig struct {
 
 // AgentContainer represents a running ZeroClaw agent container.
 type AgentContainer struct {
-	ID             string    // container ID (from runtime)
-	GatewayURL     string    // e.g. "http://10.0.1.42:42617"
+	ID             string // container ID (from runtime)
+	GatewayURL     string // e.g. "http://10.0.1.42:42617"
 	ConversationID string
 	WorkspaceID    string
 	UserID         string

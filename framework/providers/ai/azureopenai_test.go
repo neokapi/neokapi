@@ -72,9 +72,9 @@ func TestAzureOpenAIProviderTranslate(t *testing.T) {
 	})
 
 	resp, err := p.Translate(context.Background(), TranslateRequest{
-		Source:       "Hello",
+		Source:         "Hello",
 		SourceLanguage: "en",
-		TargetLocale: "fr",
+		TargetLocale:   "fr",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "Bonjour", resp.Translation)

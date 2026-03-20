@@ -263,4 +263,3 @@ func checkVocab(text string, profile *corebrand.VoiceProfile) []corebrand.BrandV
 
 	return findings
 }
-

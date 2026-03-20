@@ -34,11 +34,11 @@ const (
 	ActivityStreamMerged  ActivityType = "stream.merged"
 
 	// Automation & AI
-	ActivityFlowCompleted    ActivityType = "flow.completed"
-	ActivityFlowFailed       ActivityType = "flow.failed"
-	ActivityJobCompleted     ActivityType = "job.completed"
-	ActivityJobFailed        ActivityType = "job.failed"
-	ActivityExtractionDone   ActivityType = "extraction.completed"
+	ActivityFlowCompleted  ActivityType = "flow.completed"
+	ActivityFlowFailed     ActivityType = "flow.failed"
+	ActivityJobCompleted   ActivityType = "job.completed"
+	ActivityJobFailed      ActivityType = "job.failed"
+	ActivityExtractionDone ActivityType = "extraction.completed"
 
 	// Quality
 	ActivityGatePassed ActivityType = "gate.passed"

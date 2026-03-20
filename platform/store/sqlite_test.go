@@ -22,10 +22,10 @@ func newTestStore(t *testing.T) *SQLiteStore {
 func createTestProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 	t.Helper()
 	p := &platstore.Project{
-		Name:          "Test Project",
-		DefaultSourceLanguage:  model.LocaleEnglish,
-		TargetLanguages: []model.LocaleID{model.LocaleFrench, model.LocaleGerman},
-		Properties:    map[string]string{"client": "acme"},
+		Name:                  "Test Project",
+		DefaultSourceLanguage: model.LocaleEnglish,
+		TargetLanguages:       []model.LocaleID{model.LocaleFrench, model.LocaleGerman},
+		Properties:            map[string]string{"client": "acme"},
 	}
 	require.NoError(t, s.CreateProject(context.Background(), p))
 	return p
@@ -662,13 +662,13 @@ func TestAssetCRUD(t *testing.T) {
 
 	// Store asset.
 	asset := &platstore.Asset{
-		ItemName:  "docs/manual.docx",
-		SourceID:  "image1",
-		BlobKey:   "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
-		MimeType:  "image/png",
-		Filename:  "diagram.png",
-		SizeBytes: 102400,
-		AltText:   "Architecture diagram",
+		ItemName:   "docs/manual.docx",
+		SourceID:   "image1",
+		BlobKey:    "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2",
+		MimeType:   "image/png",
+		Filename:   "diagram.png",
+		SizeBytes:  102400,
+		AltText:    "Architecture diagram",
 		Properties: map[string]string{"width": "800", "height": "600"},
 	}
 	err := s.StoreAsset(ctx, p.ID, "main", asset)
@@ -718,12 +718,12 @@ func TestAssetVariantCRUD(t *testing.T) {
 
 	// Store variant.
 	variant := &platstore.AssetVariant{
-		AssetID:   asset.ID,
-		Locale:    "fr-FR",
-		BlobKey:   "eeff0011",
-		Status:    "draft",
-		MimeType:  "image/png",
-		SizeBytes: 98304,
+		AssetID:    asset.ID,
+		Locale:     "fr-FR",
+		BlobKey:    "eeff0011",
+		Status:     "draft",
+		MimeType:   "image/png",
+		SizeBytes:  98304,
 		Properties: map[string]string{"width": "800"},
 	}
 	err := s.StoreAssetVariant(ctx, p.ID, variant)

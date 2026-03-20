@@ -257,10 +257,10 @@ func (s *Server) HandleCreateWorkspaceProject(c echo.Context) error {
 
 	workspaceID, _ := c.Get("workspace_id").(string)
 	p := &store.Project{
-		Name:          req.Name,
-		DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
-		TargetLanguages: locales,
-		WorkspaceID:   workspaceID,
+		Name:                  req.Name,
+		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
+		TargetLanguages:       locales,
+		WorkspaceID:           workspaceID,
 	}
 	ctx := c.Request().Context()
 	if err := s.Services.Project.CreateProject(ctx, p); err != nil {

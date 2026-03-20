@@ -223,10 +223,10 @@ func (a *App) StoreProject(name, sourceLocale string, targetLocales []string) (*
 		locales[i] = model.LocaleID(l)
 	}
 	p := &store.Project{
-		Name:          name,
+		Name:                  name,
 		DefaultSourceLanguage: model.LocaleID(sourceLocale),
 		TargetLanguages:       locales,
-		Properties:    map[string]string{},
+		Properties:            map[string]string{},
 	}
 	if err := a.store.CreateProject(context.Background(), p); err != nil {
 		return nil, err

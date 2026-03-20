@@ -7,12 +7,12 @@ import (
 	bragent "github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platbrand "github.com/neokapi/neokapi/bowrain/brand"
+	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	coreg "github.com/neokapi/neokapi/core/graph"
-	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	"github.com/neokapi/neokapi/platform/store"
 )

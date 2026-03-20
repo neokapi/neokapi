@@ -7,12 +7,12 @@ package model
 type Media struct {
 	ID         string
 	MimeType   string
-	Data       []byte            // Inline binary (small assets, pipeline-internal)
-	BlobKey    string            // Content-addressed key in BlobStore (large assets)
-	URI        string            // External reference (CDN URL, SAS URL)
-	Filename   string            // Original filename
-	AltText    string            // Accessible alternative text
-	Size       int64             // Size in bytes
+	Data       []byte // Inline binary (small assets, pipeline-internal)
+	BlobKey    string // Content-addressed key in BlobStore (large assets)
+	URI        string // External reference (CDN URL, SAS URL)
+	Filename   string // Original filename
+	AltText    string // Accessible alternative text
+	Size       int64  // Size in bytes
 	Properties map[string]string
 }
 

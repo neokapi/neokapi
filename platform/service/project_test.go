@@ -25,7 +25,7 @@ func TestProjectServiceCRUD(t *testing.T) {
 	ctx := context.Background()
 
 	p := &store.Project{
-		Name:         "Test",
+		Name:                  "Test",
 		DefaultSourceLanguage: model.LocaleEnglish,
 	}
 	require.NoError(t, svc.CreateProject(ctx, p))

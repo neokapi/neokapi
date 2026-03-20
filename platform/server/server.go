@@ -15,19 +15,19 @@ import (
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/bowrain/event"
+	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/mailer"
+	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
-	platagent "github.com/neokapi/neokapi/platform/agent"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
 	coreg "github.com/neokapi/neokapi/core/graph"
 	"github.com/neokapi/neokapi/core/registry"
 	corestorage "github.com/neokapi/neokapi/core/storage"
-	platgraph "github.com/neokapi/neokapi/bowrain/graph"
-	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	platagent "github.com/neokapi/neokapi/platform/agent"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/store"
 	"golang.org/x/net/http2"
@@ -285,7 +285,7 @@ func NewServer(cfg ServerConfig) *Server {
 		mcpCfg := mcpserver.Config{
 			JWTSecret:     cfg.JWTSecret,
 			OIDCIssuerURL: cfg.OIDCIssuerURL,
-			PublicURL:      cfg.OIDCPublicURL,
+			PublicURL:     cfg.OIDCPublicURL,
 		}
 		var mcpOpts []mcpserver.Option
 		if s.wsStores != nil {

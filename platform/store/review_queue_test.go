@@ -25,10 +25,10 @@ func newTestReviewStore(t *testing.T) (*ReviewQueueStore, *SQLiteStore) {
 func createReviewProject(t *testing.T, s *SQLiteStore) *platstore.Project {
 	t.Helper()
 	p := &platstore.Project{
-		Name:          "Test Project",
-		DefaultSourceLanguage:  model.LocaleEnglish,
-		TargetLanguages: []model.LocaleID{model.LocaleFrench},
-		Properties:    map[string]string{},
+		Name:                  "Test Project",
+		DefaultSourceLanguage: model.LocaleEnglish,
+		TargetLanguages:       []model.LocaleID{model.LocaleFrench},
+		Properties:            map[string]string{},
 	}
 	require.NoError(t, s.CreateProject(context.Background(), p))
 	return p

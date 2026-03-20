@@ -13,10 +13,10 @@ import (
 
 // AnonymousProjectRequest is the request body for creating an anonymous project.
 type AnonymousProjectRequest struct {
-	Name          string   `json:"name"`
-	DefaultSourceLanguage  string   `json:"default_source_language"`
-	TargetLanguages []string `json:"target_languages"` // optional; empty = dynamic
-	Email         string   `json:"email"`          // optional; if set, server sends claim email
+	Name                  string   `json:"name"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"` // optional; empty = dynamic
+	Email                 string   `json:"email"`            // optional; if set, server sends claim email
 }
 
 // AnonymousProjectResponse is the response body for anonymous project creation.
@@ -56,10 +56,10 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 			targetLocales[i] = model.LocaleID(l)
 		}
 		p := &store.Project{
-			ID:            projectID,
-			Name:          req.Name,
-			DefaultSourceLanguage:  model.LocaleID(req.DefaultSourceLanguage),
-			TargetLanguages: targetLocales,
+			ID:                    projectID,
+			Name:                  req.Name,
+			DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
+			TargetLanguages:       targetLocales,
 		}
 		if err := s.Services.Project.CreateProject(ctx, p); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "create content project: " + err.Error()})

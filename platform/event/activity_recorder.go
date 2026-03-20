@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	platev "github.com/neokapi/neokapi/platform/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // ActivityRecorder subscribes to all events and creates curated activities

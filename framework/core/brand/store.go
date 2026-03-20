@@ -49,7 +49,7 @@ type Correction struct {
 	OriginalText  string    `json:"original_text"`
 	CorrectedText string    `json:"corrected_text"`
 	FindingID     string    `json:"finding_id,omitempty"`
-	CorrectedBy   string   `json:"corrected_by"`
+	CorrectedBy   string    `json:"corrected_by"`
 	CorrectedAt   time.Time `json:"corrected_at"`
 }
 

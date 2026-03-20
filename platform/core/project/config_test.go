@@ -269,7 +269,7 @@ func TestAssetConfigRoundTrip(t *testing.T) {
 
 	fl := false
 	cfg := &Config{
-		URL: FormatProjectURL("https://test.example.com", "ws", "proj-1"),
+		URL:      FormatProjectURL("https://test.example.com", "ws", "proj-1"),
 		Defaults: Defaults{SourceLanguage: "en"},
 		Content: []ContentEntry{
 			{
