@@ -324,6 +324,9 @@ func NewServer(cfg ServerConfig) *Server {
 		if s.ToolRegistry != nil {
 			mcpOpts = append(mcpOpts, mcpserver.WithToolRegistry(s.ToolRegistry))
 		}
+		if s.PostHogClient != nil {
+			mcpOpts = append(mcpOpts, mcpserver.WithEventTracker(&eventTrackerAdapter{client: s.PostHogClient}))
+		}
 		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
 			log.Printf("WARNING: failed to initialize MCP server: %v", err)

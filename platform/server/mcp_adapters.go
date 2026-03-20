@@ -1,9 +1,19 @@
 package server
 
 import (
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )
+
+// eventTrackerAdapter bridges billing.PostHogClient → mcpserver.EventTracker.
+type eventTrackerAdapter struct {
+	client *billing.PostHogClient
+}
+
+func (a *eventTrackerAdapter) TrackEvent(userID, event string, properties map[string]any) {
+	a.client.CaptureEvent(userID, event, properties)
+}
 
 // tmResolverAdapter bridges workspaceStores → MCPServer.TMResolver.
 type tmResolverAdapter struct {
