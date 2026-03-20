@@ -1,4 +1,4 @@
-package billing
+package analytics
 
 import (
 	"testing"

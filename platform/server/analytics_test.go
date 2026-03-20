@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestTrackEvent_NilClient(t *testing.T) {
 }
 
 func TestTrackEvent_WithClient(t *testing.T) {
-	client, err := billing.NewPostHogClient("phc_test", "https://test.posthog.com")
+	client, err := analytics.NewPostHogClient("phc_test", "https://test.posthog.com")
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -29,7 +29,7 @@ func TestTrackEvent_WithClient(t *testing.T) {
 }
 
 func TestTrackUserLogin_Signup(t *testing.T) {
-	client, err := billing.NewPostHogClient("phc_test", "https://test.posthog.com")
+	client, err := analytics.NewPostHogClient("phc_test", "https://test.posthog.com")
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -40,7 +40,7 @@ func TestTrackUserLogin_Signup(t *testing.T) {
 }
 
 func TestTrackUserLogin_ExistingUser(t *testing.T) {
-	client, err := billing.NewPostHogClient("phc_test", "https://test.posthog.com")
+	client, err := analytics.NewPostHogClient("phc_test", "https://test.posthog.com")
 	require.NoError(t, err)
 	defer client.Close()
 
@@ -56,7 +56,7 @@ func TestTrackUserLogin_NilClient(t *testing.T) {
 }
 
 func TestTrackEvent_NilProperties(t *testing.T) {
-	client, err := billing.NewPostHogClient("phc_test", "https://test.posthog.com")
+	client, err := analytics.NewPostHogClient("phc_test", "https://test.posthog.com")
 	require.NoError(t, err)
 	defer client.Close()
 

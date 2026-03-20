@@ -1,14 +1,14 @@
 package server
 
 import (
-	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 )
 
-// eventTrackerAdapter bridges billing.PostHogClient → mcpserver.EventTracker.
+// eventTrackerAdapter bridges analytics.PostHogClient → mcpserver.EventTracker.
 type eventTrackerAdapter struct {
-	client *billing.PostHogClient
+	client *analytics.PostHogClient
 }
 
 func (a *eventTrackerAdapter) TrackEvent(userID, event string, properties map[string]any) {
