@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
+import { identifyUser } from "../posthog";
 import {
   Outlet,
   useNavigate,
@@ -194,6 +195,12 @@ export function WorkspaceLayout() {
   const { serverMode, user, workspaces, activeWorkspace } = useRouteContext({
     strict: false,
   }) as WorkspaceRouteContext;
+
+  useEffect(() => {
+    if (user && user.id !== "local") {
+      identifyUser(user.id, { email: user.email, name: user.name });
+    }
+  }, [user]);
 
   const sidebarCollapsed = useUIStore((s) => s.sidebarCollapsed);
   const setSidebarCollapsed = useUIStore((s) => s.setSidebarCollapsed);
