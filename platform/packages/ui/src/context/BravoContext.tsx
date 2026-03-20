@@ -12,6 +12,7 @@ import type { BravoConversation, BravoMessage, BravoToolCall } from "../types/ap
 import type { BravoMode } from "../components/bravo/BravoModeSelector";
 import { useApi } from "./ApiContext";
 import { useWorkspace } from "./WorkspaceContext";
+import { useBravoRuntime, useBravoThreadListAdapter } from "../components/bravo/bravo-runtime";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -495,4 +496,47 @@ export function useBravo(): BravoContextValue {
     throw new Error("useBravo must be used within a BravoProvider");
   }
   return ctx;
+}
+
+/**
+ * Hook that creates an assistant-ui runtime backed by the BravoContext state.
+ * Use this in components that render the assistant-ui Thread.
+ */
+export function useBravoAssistantRuntime() {
+  const { state, actions } = useBravo();
+
+  return useBravoRuntime({
+    messages: state.messages,
+    streaming: state.streaming,
+    streamingContent: state.streamingContent,
+    streamingToolCalls: state.streamingToolCalls,
+    onSendMessage: (content: string) => actions.sendMessage(content),
+    onCancel: actions.cancelStreaming,
+    onApproveToolCall: actions.approveToolCall,
+    onDenyToolCall: actions.denyToolCall,
+    mode: state.mode,
+  });
+}
+
+/**
+ * Hook that creates an assistant-ui thread list adapter from BravoContext.
+ */
+export function useBravoAssistantThreadList() {
+  const { state, actions } = useBravo();
+
+  return useBravoThreadListAdapter({
+    conversations: state.conversations,
+    activeConversationId: state.activeConversation?.id,
+    onNewConversation: async () => {
+      await actions.newConversation();
+    },
+    onSelectConversation: async (id: string) => {
+      const conv = state.conversations.find((c) => c.id === id);
+      if (conv) await actions.selectConversation(conv);
+    },
+    onDeleteConversation: async (id: string) => {
+      const conv = state.conversations.find((c) => c.id === id);
+      if (conv) await actions.deleteConversation(conv);
+    },
+  });
 }

@@ -523,23 +523,29 @@ Chosen because it uses the **same UI stack** as bowrain (shadcn/ui + Radix + Tai
 
 #### Component Structure
 
+The frontend uses `@assistant-ui/react` for the chat thread/composer and `@assistant-ui/react-markdown` for rich markdown rendering with syntax highlighting. An `ExternalStoreRuntime` adapter bridges the existing `BravoContext` state (SSE streaming, conversations, tool calls) to assistant-ui's runtime system — no backend changes required.
+
 ```
 packages/ui/src/
 ├── components/bravo/
-│   ├── BravoPanel.tsx              # Collapsible right-side sheet
+│   ├── bravo-sidebar.tsx           # Main panel (AssistantRuntimeProvider + layout)
+│   ├── bravo-thread.tsx            # Styled assistant-ui Thread/Composer/ActionBar
+│   ├── bravo-runtime.ts            # ExternalStoreRuntime adapter (BravoContext ↔ assistant-ui)
+│   ├── bravo-tool-ui.tsx           # Custom tool call renderer (makeAssistantToolUI)
 │   ├── BravoPanelTrigger.tsx       # TopBar button to toggle panel
-│   ├── BravoThread.tsx             # Message thread (assistant-ui Thread)
-│   ├── BravoComposer.tsx           # Message input with file attach
-│   ├── BravoToolCall.tsx           # Tool call card (expandable)
-│   ├── BravoCodeBlock.tsx          # Code + execution result display
+│   ├── BravoToolCall.tsx           # Legacy tool call card (expandable)
 │   ├── BravoApprovalCard.tsx       # Human-in-the-loop approve/deny
-│   └── BravoConversationList.tsx   # Conversation history list
+│   ├── BravoConversationList.tsx   # Conversation history list
+│   ├── BravoConfigPanel.tsx        # Per-workspace agent settings
+│   ├── BravoUsageDashboard.tsx     # Token usage analytics
+│   ├── BravoModeSelector.tsx       # Ask/Co-worker/Voice mode switch
+│   └── BravoColdStart.tsx          # Cold start provisioning animation
 ├── hooks/
-│   └── useBravo.ts                 # SSE stream management, state, API calls
+│   └── useBravoApi.ts              # REST API wrapper hooks
 ├── context/
-│   └── BravoContext.tsx            # Panel state, active conversation
+│   └── BravoContext.tsx            # Panel state, SSE streaming, useBravoAssistantRuntime()
 └── types/
-    └── bravo.ts                    # TS types matching Go data model
+    └── api.ts                      # TS types matching Go data model
 ```
 
 #### Panel Design

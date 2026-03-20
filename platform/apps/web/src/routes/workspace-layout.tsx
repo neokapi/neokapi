@@ -30,9 +30,10 @@ import {
   StreamActionsProvider,
   useStreamActions,
   BravoProvider,
-  BravoPanel,
+  BravoSidebar,
   BravoPanelTrigger,
   useBravo,
+  useBravoAssistantRuntime,
 } from "@neokapi/ui";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUIStore } from "../stores/ui-store";
@@ -116,44 +117,42 @@ function ConnectedBravoTrigger() {
   return <BravoPanelTrigger onClick={actions.togglePanel} active={state.panelOpen} />;
 }
 
-/** @bravo chat panel — renders as an inline sidebar. */
+/** @bravo chat panel — renders as an assistant-ui powered sidebar. */
 function ConnectedBravoPanel() {
   const { state, actions } = useBravo();
-  const { pathname } = useLocation();
-  const { workspace: workspaceSlug } = useParams({ strict: false });
+  const runtime = useBravoAssistantRuntime();
 
-  const projectParams = parseProjectParams(pathname, workspaceSlug ?? "");
+  const [view, setView] = useState<"list" | "chat">(
+    state.activeConversation ? "chat" : "list",
+  );
+
+  // Switch to chat view when a conversation becomes active.
+  useEffect(() => {
+    if (state.activeConversation) setView("chat");
+  }, [state.activeConversation]);
 
   return (
-    <BravoPanel
+    <BravoSidebar
       open={state.panelOpen}
       onOpenChange={(open) => (open ? actions.openPanel() : actions.closePanel())}
-      conversations={state.conversations}
-      activeConversation={state.activeConversation}
-      messages={state.messages}
-      streaming={state.streaming}
-      streamingContent={state.streamingContent}
-      streamingToolCalls={state.streamingToolCalls}
-      onNewConversation={() => void actions.newConversation(projectParams?.projectId)}
-      onSelectConversation={(conv) => void actions.selectConversation(conv)}
-      onDeleteConversation={(conv) => void actions.deleteConversation(conv)}
-      onSendMessage={(content) =>
-        void actions.sendMessage(
-          content,
-          projectParams
-            ? {
-                projectId: projectParams.projectId,
-                stream: projectParams.stream,
-                itemId: projectParams.itemId,
-              }
-            : undefined,
-        )
-      }
-      onApproveToolCall={(id) => void actions.approveToolCall(id)}
-      onDenyToolCall={(id) => void actions.denyToolCall(id)}
-      onCancelStreaming={actions.cancelStreaming}
-      loading={state.loading}
-      sendDisabled={state.streaming}
+      runtime={runtime}
+      view={view}
+      onBack={() => setView("list")}
+      activeTitle={state.activeConversation?.title || "Conversation"}
+      conversationListProps={{
+        conversations: state.conversations,
+        activeId: state.activeConversation?.id,
+        onSelect: (conv) => {
+          void actions.selectConversation(conv);
+          setView("chat");
+        },
+        onDelete: (conv) => void actions.deleteConversation(conv),
+        onNew: () => {
+          void actions.newConversation();
+          setView("chat");
+        },
+        loading: state.loading,
+      }}
       coldStarting={state.coldStarting}
       mode={state.mode}
       onModeChange={actions.setMode}

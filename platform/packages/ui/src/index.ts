@@ -370,8 +370,16 @@ export {
   useBrandTrends,
 } from "./hooks/useBrandApi";
 
-// Bravo (@bravo agent)
+// Bravo (@bravo agent) — assistant-ui powered components
 export {
+  // New assistant-ui components
+  BravoSidebar,
+  BravoAssistantThread,
+  BravoToolCallRenderer,
+  BravoFallbackToolUI,
+  useBravoRuntime,
+  useBravoThreadListAdapter,
+  // Legacy components (kept for backwards compatibility)
   BravoPanel,
   BravoPanelTrigger,
   BravoThread,
@@ -386,6 +394,9 @@ export {
   BravoColdStart,
 } from "./components/bravo";
 export type {
+  BravoSidebarProps,
+  BravoRuntimeOptions,
+  BravoThreadListOptions,
   BravoPanelProps,
   BravoPanelTriggerProps,
   BravoThreadProps,
@@ -399,7 +410,12 @@ export type {
   BravoMode,
   BravoModeSelectorProps,
 } from "./components/bravo";
-export { BravoProvider, useBravo } from "./context/BravoContext";
+export {
+  BravoProvider,
+  useBravo,
+  useBravoAssistantRuntime,
+  useBravoAssistantThreadList,
+} from "./context/BravoContext";
 export { useBravoApi } from "./hooks/useBravoApi";
 
 // Billing
