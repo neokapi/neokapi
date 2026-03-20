@@ -22,7 +22,7 @@ import (
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/mailer"
-	agenticmcp "github.com/neokapi/neokapi/bowrain/server/agentic_mcp"
+	"github.com/neokapi/neokapi/bowrain/server/agenticmcp"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"

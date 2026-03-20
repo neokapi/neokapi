@@ -1,4 +1,4 @@
-package agentic_mcp
+package agenticmcp
 
 // WorkspaceMeta holds basic metadata for a testing workspace,
 // read from the fleet repo's workspaces/*/plan.yaml files.
