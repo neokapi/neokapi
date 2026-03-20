@@ -173,7 +173,11 @@ function createMockAdapter(overrides: Partial<ApiAdapter> = {}): ApiAdapter {
     listMyTasks: vi.fn(),
     getNotificationPreferences: vi.fn(),
     updateNotificationPreferences: vi.fn(),
-    bravoCreateConversation: vi.fn().mockResolvedValue(conv),
+    bravoCreateConversation: vi.fn().mockResolvedValue({
+      ...conv,
+      id: "c-auto",
+      title: "Untitled",
+    }),
     bravoListConversations: vi.fn().mockResolvedValue({
       conversations: [conv],
       total: 1,
@@ -195,6 +199,12 @@ function createMockAdapter(overrides: Partial<ApiAdapter> = {}): ApiAdapter {
     bravoUpdateConfig: vi.fn(),
     bravoListTools: vi.fn(),
     bravoGetUsage: vi.fn(),
+    // Billing
+    billingGetOverview: vi.fn(),
+    billingGetUsage: vi.fn(),
+    billingCreateCheckout: vi.fn(),
+    billingCreatePortal: vi.fn(),
+    billingGetLedger: vi.fn(),
     ...overrides,
   } as ApiAdapter;
 }
