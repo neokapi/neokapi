@@ -17,12 +17,17 @@ type WorkspacePlanSyncer interface {
 	SyncWorkspacePlan(ctx context.Context, workspaceID, plan, stripeCustomerID string) error
 }
 
+// EventTracker captures product analytics events (e.g. PostHog).
+type EventTracker interface {
+	CaptureEvent(distinctID, event string, properties map[string]any)
+}
+
 // WebhookHandler processes Stripe webhook events.
 type WebhookHandler struct {
 	store         BillingStore
 	planSyncer    WorkspacePlanSyncer
 	notifier      *BillingNotifier
-	posthog       *PostHogClient
+	tracker       EventTracker
 	webhookSecret string
 }
 
@@ -45,9 +50,9 @@ func (h *WebhookHandler) SetNotifier(notifier *BillingNotifier) {
 	h.notifier = notifier
 }
 
-// SetPostHog configures the PostHog client for conversion tracking.
-func (h *WebhookHandler) SetPostHog(client *PostHogClient) {
-	h.posthog = client
+// SetEventTracker configures the event tracker for conversion tracking.
+func (h *WebhookHandler) SetEventTracker(tracker EventTracker) {
+	h.tracker = tracker
 }
 
 // syncPlan updates the cached workspace plan. Errors are logged, not returned,
@@ -128,8 +133,8 @@ func (h *WebhookHandler) handleCheckoutCompleted(ctx context.Context, event stri
 	h.syncPlan(ctx, workspaceID, sub.Plan, sess.Customer.ID)
 
 	// Track checkout completed conversion event.
-	if h.posthog != nil {
-		h.posthog.CaptureEvent(workspaceID, "billing.checkout_completed", map[string]any{
+	if h.tracker != nil {
+		h.tracker.CaptureEvent(workspaceID, "billing.checkout_completed", map[string]any{
 			"workspace_id": workspaceID,
 			"customer_id":  sess.Customer.ID,
 		})

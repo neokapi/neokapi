@@ -392,7 +392,7 @@ func NewServer(cfg ServerConfig) *Server {
 
 	// Wire PostHog to webhook handler now that both are initialized.
 	if s.PostHogClient != nil && s.WebhookHandler != nil {
-		s.WebhookHandler.SetPostHog(s.PostHogClient)
+		s.WebhookHandler.SetEventTracker(s.PostHogClient)
 	}
 
 	// Initialize admin OIDC verifier (AD-030).

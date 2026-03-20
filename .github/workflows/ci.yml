@@ -451,6 +451,11 @@ jobs:
         run: |
           mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
 
+      - name: Download modules
+        run: |
+          cd platform/core && go mod download
+          cd ../../platform && go mod download
+
       - name: Lint platform
         uses: golangci/golangci-lint-action@v9
         with:

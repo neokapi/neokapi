@@ -190,10 +190,9 @@ func (s *Server) HandleAddMember(c echo.Context) error {
 			members, err := s.AuthStore.ListMembers(ctx, w.ID)
 			if err == nil && len(members) >= limit {
 				return c.JSON(http.StatusForbidden, map[string]any{
-					"error":        "seat_limit_reached",
-					"current":      len(members),
-					"limit":        limit,
-					"minimum_plan": billing.MinimumPlanFor(billing.FeatureConnectorsGit), // next tier hint
+					"error":   "seat_limit_reached",
+					"current": len(members),
+					"limit":   limit,
 				})
 			}
 		}
