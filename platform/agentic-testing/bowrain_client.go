@@ -1,0 +1,188 @@
+// Package agentictesting provides the standalone agentic testing server.
+package agentictesting
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strconv"
+)
+
+// BowrainClient wraps bowrain's REST API for read-only workspace data access.
+type BowrainClient struct {
+	BaseURL string       // e.g. https://dev.bowrain.cloud
+	Token   string       // bwt_* API token
+	HTTP    *http.Client // defaults to http.DefaultClient
+}
+
+func (c *BowrainClient) httpClient() *http.Client {
+	if c.HTTP != nil {
+		return c.HTTP
+	}
+	return http.DefaultClient
+}
+
+func (c *BowrainClient) get(ctx context.Context, path string, query url.Values) ([]byte, error) {
+	u := c.BaseURL + path
+	if len(query) > 0 {
+		u += "?" + query.Encode()
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("bowrain API %s: %d %s", path, resp.StatusCode, string(body))
+	}
+	return body, nil
+}
+
+// Workspace is a bowrain workspace summary.
+type Workspace struct {
+	ID   string `json:"id"`
+	Slug string `json:"slug"`
+	Name string `json:"name"`
+	Plan string `json:"plan,omitempty"`
+}
+
+// ListWorkspaces returns all workspaces visible to the API token.
+func (c *BowrainClient) ListWorkspaces(ctx context.Context) ([]Workspace, error) {
+	data, err := c.get(ctx, "/api/v1/workspaces", nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Workspaces []Workspace `json:"workspaces"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode workspaces: %w", err)
+	}
+	return resp.Workspaces, nil
+}
+
+// Project is a bowrain project summary.
+type Project struct {
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	SourceLanguage string `json:"source_language"`
+	Status         string `json:"status,omitempty"`
+}
+
+// ListProjects returns projects in a workspace.
+func (c *BowrainClient) ListProjects(ctx context.Context, wsSlug string) ([]Project, error) {
+	data, err := c.get(ctx, fmt.Sprintf("/api/v1/workspaces/%s/projects", wsSlug), nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Projects []Project `json:"projects"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode projects: %w", err)
+	}
+	return resp.Projects, nil
+}
+
+// Member is a bowrain workspace member.
+type Member struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
+	Role   string `json:"role"`
+}
+
+// ListMembers returns members of a workspace.
+func (c *BowrainClient) ListMembers(ctx context.Context, wsSlug string) ([]Member, error) {
+	data, err := c.get(ctx, fmt.Sprintf("/api/v1/workspaces/%s/members", wsSlug), nil)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Members []Member `json:"members"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode members: %w", err)
+	}
+	return resp.Members, nil
+}
+
+// AuditEntry is a bowrain audit log entry.
+type AuditEntry struct {
+	ID        string         `json:"id"`
+	Action    string         `json:"action"`
+	Actor     string         `json:"actor"`
+	Timestamp string         `json:"timestamp"`
+	Details   map[string]any `json:"details,omitempty"`
+}
+
+// ListAuditLog returns recent audit log entries for a workspace.
+func (c *BowrainClient) ListAuditLog(ctx context.Context, wsSlug string, limit int) ([]AuditEntry, error) {
+	q := url.Values{}
+	if limit > 0 {
+		q.Set("limit", strconv.Itoa(limit))
+	}
+	data, err := c.get(ctx, fmt.Sprintf("/api/v1/workspaces/%s/audit-log", wsSlug), q)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Entries []AuditEntry `json:"entries"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode audit log: %w", err)
+	}
+	return resp.Entries, nil
+}
+
+// Block is a bowrain translation block.
+type Block struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	Target string `json:"target,omitempty"`
+	Status string `json:"status,omitempty"`
+}
+
+// BlockListOptions controls block listing.
+type BlockListOptions struct {
+	Locale string
+	Status string
+	Limit  int
+}
+
+// ListBlocks returns translation blocks for a project.
+func (c *BowrainClient) ListBlocks(ctx context.Context, wsSlug, projectID string, opts BlockListOptions) ([]Block, error) {
+	q := url.Values{}
+	if opts.Locale != "" {
+		q.Set("locale", opts.Locale)
+	}
+	if opts.Status != "" {
+		q.Set("status", opts.Status)
+	}
+	if opts.Limit > 0 {
+		q.Set("limit", strconv.Itoa(opts.Limit))
+	}
+	data, err := c.get(ctx, fmt.Sprintf("/api/v1/workspaces/%s/projects/%s/sync/blocks", wsSlug, projectID), q)
+	if err != nil {
+		return nil, err
+	}
+	var resp struct {
+		Blocks []Block `json:"blocks"`
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, fmt.Errorf("decode blocks: %w", err)
+	}
+	return resp.Blocks, nil
+}

@@ -98,27 +98,6 @@ type ServerConfig struct {
 	AgentModelAPIBase  string // provider API base URL
 	AgentModelAPIKey   string // provider API key
 
-	// AgenticEvents enables forwarding platform events to queues for
-	// agentic testing handoffs (KEDA-triggered Container Apps Jobs).
-	// Set via BOWRAIN_AGENTIC_EVENTS=true.
-	AgenticEvents bool
-
-	// FleetRepoURL is the git clone URL for the agentic testing fleet repo.
-	// Set via BOWRAIN_FLEET_REPO_URL. When set, the agentic testing MCP
-	// server is wired with a real FleetRepo and Dispatcher.
-	FleetRepoURL string
-
-	// FleetRepoToken is a PAT for HTTPS fleet repo access.
-	FleetRepoToken string
-
-	// GitHubIssuesRepo is the "owner/repo" for filing agent feedback issues.
-	// Set via BOWRAIN_GITHUB_ISSUES_REPO (e.g., "neokapi/agentic-fleet").
-	GitHubIssuesRepo string
-
-	// GitHubIssuesToken is a PAT with issues write permission.
-	// Set via BOWRAIN_GITHUB_ISSUES_TOKEN. Defaults to FleetRepoToken.
-	GitHubIssuesToken string
-
 	// Billing (AD-030)
 	StripeSecretKey     string
 	StripeWebhookSecret string
