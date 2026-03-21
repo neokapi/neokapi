@@ -17,6 +17,8 @@ import {
   DialogTitle,
   useStreamActions,
   ConfirmDialog,
+  ProjectMemberManager,
+  useWorkspace,
 } from "@neokapi/ui";
 import type {
   StreamVisibility,
@@ -69,6 +71,7 @@ export function ProjectDetailRoute() {
   // ── Project actions ────────────────────────────────────────────────
 
   const [showEditProject, setShowEditProject] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
 
   const handleEditProjectSubmit = useCallback(
     async (data: { name: string; default_source_language: string; target_languages: string[] }) => {
@@ -266,6 +269,7 @@ export function ProjectDetailRoute() {
         }
         serverMode={ws ? { serverURL: window.location.origin, workspaceSlug: ws } : undefined}
         // Project actions
+        onManageMembers={() => setShowMembers(true)}
         onEditProject={() => setShowEditProject(true)}
         onArchiveProject={() => setShowArchiveProject(true)}
         // Collection callbacks
@@ -286,6 +290,20 @@ export function ProjectDetailRoute() {
         workspaceLanguages={activeWorkspace.languages}
         onSubmit={handleEditProjectSubmit}
       />
+
+      {/* Project Members Dialog */}
+      <Dialog open={showMembers} onOpenChange={setShowMembers}>
+        <DialogContent className="sm:max-w-[640px]">
+          <DialogHeader>
+            <DialogTitle>Project Members</DialogTitle>
+          </DialogHeader>
+          <ProjectMemberManager
+            workspace={activeWorkspace}
+            projectId={project.id}
+            projectLanguages={project.target_languages}
+          />
+        </DialogContent>
+      </Dialog>
 
       {/* Create / Edit Collection Dialog */}
       <CreateCollectionDialog

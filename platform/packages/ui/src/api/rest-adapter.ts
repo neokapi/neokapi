@@ -70,6 +70,8 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
+  RoleTemplate,
+  ProjectMembership,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -335,6 +337,74 @@ export class RestApiAdapter implements ApiAdapter {
 
   async deleteInvite(workspaceSlug: string, inviteId: string): Promise<void> {
     await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites/${inviteId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ── Role Templates ───────────────────────────────────────────────────
+
+  async listRoleTemplates(workspaceSlug: string): Promise<RoleTemplate[]> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles`);
+  }
+
+  async createRoleTemplate(
+    workspaceSlug: string,
+    data: { name: string; display_name: string; description: string; permissions: string[]; position?: number },
+  ): Promise<RoleTemplate> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateRoleTemplate(
+    workspaceSlug: string,
+    roleId: string,
+    data: { name?: string; display_name?: string; description?: string; permissions?: string[]; position?: number },
+  ): Promise<RoleTemplate> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // ── Project Members ─────────────────────────────────────────────────
+
+  async listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members`);
+  }
+
+  async addProjectMember(
+    workspaceSlug: string,
+    projectId: string,
+    data: { user_id: string; role_id: string; languages?: string[] },
+  ): Promise<ProjectMembership> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateProjectMember(
+    workspaceSlug: string,
+    projectId: string,
+    userId: string,
+    data: { role_id: string; languages?: string[] },
+  ): Promise<ProjectMembership> {
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async removeProjectMember(workspaceSlug: string, projectId: string, userId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members/${userId}`, {
       method: "DELETE",
     });
   }

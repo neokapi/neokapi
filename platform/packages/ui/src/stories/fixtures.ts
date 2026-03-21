@@ -19,6 +19,7 @@ import type {
   AutomationEvent,
   AutomationHistoryEntry,
   TranslationDashboardStats,
+  RoleTemplate,
 } from "../types/api";
 
 // ---------------------------------------------------------------------------
@@ -1510,3 +1511,61 @@ export const largeDashboardStats: TranslationDashboardStats = {
   translatable_blocks: 500,
   total_source_words: 38000,
 };
+
+// ---------------------------------------------------------------------------
+// Role Templates
+// ---------------------------------------------------------------------------
+
+export const sampleRoleTemplates: RoleTemplate[] = [
+  {
+    id: "role-1",
+    workspace_id: "ws-1",
+    name: "translator",
+    display_name: "Translator",
+    description: "Can view content and submit translations",
+    permissions: 0,
+    permission_names: ["view_content", "translate"],
+    is_builtin: true,
+    position: 1,
+    created_at: "2026-01-01T10:00:00Z",
+    updated_at: "2026-01-01T10:00:00Z",
+  },
+  {
+    id: "role-2",
+    workspace_id: "ws-1",
+    name: "reviewer",
+    display_name: "Reviewer",
+    description: "Can review and approve translations",
+    permissions: 0,
+    permission_names: ["view_content", "translate", "review", "manage_terms"],
+    is_builtin: true,
+    position: 2,
+    created_at: "2026-01-01T10:00:00Z",
+    updated_at: "2026-01-01T10:00:00Z",
+  },
+  {
+    id: "role-3",
+    workspace_id: "ws-1",
+    name: "project-manager",
+    display_name: "Project Manager",
+    description: "Full project management access",
+    permissions: 0,
+    permission_names: [
+      "view_content",
+      "edit_source",
+      "translate",
+      "review",
+      "manage_terms",
+      "manage_tm",
+      "run_flows",
+      "manage_files",
+      "manage_streams",
+      "manage_members",
+      "manage_project",
+    ],
+    is_builtin: false,
+    position: 3,
+    created_at: "2026-02-15T10:00:00Z",
+    updated_at: "2026-03-01T10:00:00Z",
+  },
+];

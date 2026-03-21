@@ -101,6 +101,8 @@ export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
 export { InviteManager } from "./components/InviteManager";
 export { ApiTokenManager } from "./components/ApiTokenManager";
+export { RoleTemplateManager } from "./components/RoleTemplateManager";
+export { ProjectMemberManager } from "./components/ProjectMemberManager";
 export { WorkspaceLanguageSettings } from "./components/WorkspaceLanguageSettings";
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";

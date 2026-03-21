@@ -263,6 +263,9 @@ export function WorkspaceLayout() {
         case "members":
           void navigate({ to: "/$workspace/settings/members", params: { workspace: wsSlug } });
           break;
+        case "roles":
+          void navigate({ to: "/$workspace/settings/roles", params: { workspace: wsSlug } });
+          break;
         case "providers":
           void navigate({ to: "/$workspace/settings/providers", params: { workspace: wsSlug } });
           break;
