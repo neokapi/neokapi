@@ -36,7 +36,7 @@ RUN CGO_ENABLED=0 cd platform && go build \
 
 # ── Stage 2: Minimal runtime ─────────────────────────────────────────────
 FROM alpine:3.21
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata git
 
 COPY --from=builder /out/bowrain-server /usr/local/bin/bowrain-server
 

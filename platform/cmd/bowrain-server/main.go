@@ -150,6 +150,12 @@ func main() {
 	if v := os.Getenv("BOWRAIN_FLEET_REPO_TOKEN"); v != "" {
 		cfg.FleetRepoToken = v
 	}
+	if v := os.Getenv("BOWRAIN_GITHUB_ISSUES_REPO"); v != "" {
+		cfg.GitHubIssuesRepo = v
+	}
+	if v := os.Getenv("BOWRAIN_GITHUB_ISSUES_TOKEN"); v != "" {
+		cfg.GitHubIssuesToken = v
+	}
 
 	// Billing (AD-030).
 	if v := os.Getenv("STRIPE_SECRET_KEY"); v != "" {

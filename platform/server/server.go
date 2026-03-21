@@ -363,6 +363,21 @@ func NewServer(cfg ServerConfig) *Server {
 			}))
 			log.Printf("Agentic fleet repo configured: %s", cfg.FleetRepoURL)
 		}
+		if cfg.GitHubIssuesRepo != "" {
+			token := cfg.GitHubIssuesToken
+			if token == "" {
+				token = cfg.FleetRepoToken // fall back to fleet repo PAT
+			}
+			parts := strings.SplitN(cfg.GitHubIssuesRepo, "/", 2)
+			if len(parts) == 2 {
+				agOpts = append(agOpts, agenticmcp.WithIssueTracker(&agenticmcp.GitHubIssueTracker{
+					Owner: parts[0],
+					Repo:  parts[1],
+					Token: token,
+				}))
+				log.Printf("Agentic issue tracker configured: %s", cfg.GitHubIssuesRepo)
+			}
+		}
 		// Wire execution store and Redis subscriber for agentic event persistence.
 		if cfg.AgenticEvents && cfg.RedisURL != "" && s.wsStores.pgDB != nil {
 			execStore, err := agenticmcp.NewPostgresExecutionStore(s.wsStores.pgDB)
