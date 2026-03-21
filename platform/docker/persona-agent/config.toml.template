@@ -3,6 +3,10 @@
 #
 # Model/provider config is handled by ZEROCLAW_* env vars.
 
+# Allow all tool calls without interactive confirmation (headless agent mode).
+[permissions]
+allow = ["*"]
+
 # Bowrain MCP — content management tools (all agents).
 [[mcp.servers]]
 name = "bowrain"
