@@ -1732,6 +1732,8 @@ export class RestApiAdapter implements ApiAdapter {
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
+        let currentEvent = "";
+        let receivedEnd = false;
 
         for (;;) {
           const { done, value } = await reader.read();
@@ -1741,7 +1743,6 @@ export class RestApiAdapter implements ApiAdapter {
           const lines = buffer.split("\n");
           buffer = lines.pop() ?? "";
 
-          let currentEvent = "";
           for (const line of lines) {
             if (line.startsWith("event: ")) {
               currentEvent = line.slice(7).trim();
@@ -1766,12 +1767,14 @@ export class RestApiAdapter implements ApiAdapter {
                     handler.onNeedsApproval?.(data as BravoSSENeedsApproval);
                     break;
                   case "message_end":
+                    receivedEnd = true;
                     handler.onMessageEnd?.(data as BravoSSEMessageEnd);
                     break;
                   case "step_up":
                     handler.onStepUp?.(data as BravoSSEStepUp);
                     break;
                   case "error":
+                    receivedEnd = true;
                     handler.onError?.(data as BravoSSEError);
                     break;
                 }
@@ -1783,6 +1786,11 @@ export class RestApiAdapter implements ApiAdapter {
               currentEvent = "";
             }
           }
+        }
+
+        // Stream closed without a terminal event — clean up.
+        if (!receivedEnd) {
+          handler.onError?.({ error: "stream ended unexpectedly" });
         }
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
