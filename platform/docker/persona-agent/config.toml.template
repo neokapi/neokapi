@@ -4,6 +4,12 @@
 # Model/provider config comes from ZEROCLAW_* env vars.
 # Tool auto-approval is handled by piping `yes A` to stdin in headless mode.
 
+[agent]
+# Allow enough tool calls for a meaningful translation/review session.
+max_tool_iterations = 50
+# Enable parallel tool calls for efficiency (e.g. multiple tm_search calls).
+parallel_tools = true
+
 # Bowrain MCP — content management tools (all agents).
 # The JWT is obtained by exchanging the agent's API token (bwt_*) at startup.
 [[mcp.servers]]
