@@ -13,6 +13,7 @@
   "overrides": {
     "@tailwindcss/vite": {
       "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
-    }
+    },
+    "@tanstack/react-query": "5.94.5"
   }
 }
