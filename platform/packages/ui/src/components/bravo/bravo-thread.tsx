@@ -164,8 +164,8 @@ function AssistantTextPart() {
 
 /** Display token usage from message metadata if available. */
 function MessageTokenUsage() {
-  const message = useMessage((m) => m.message);
-  const custom = (message?.metadata as Record<string, unknown>)?.custom as
+  const metadata = useMessage((m) => m.metadata);
+  const custom = (metadata as Record<string, unknown>)?.custom as
     | { input_tokens?: number; output_tokens?: number }
     | undefined;
 
