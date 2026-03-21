@@ -1,4 +1,4 @@
-name: Deploy Server + Worker
+name: Deploy Agentic Testing
 
 on:
   workflow_dispatch:
@@ -13,11 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'platform/**'
-      - '!platform/agentic-testing/**'
-      - '!platform/apps/web/**'
-      - '!platform/apps/keycloak-theme/**'
-      - '!platform/cli/**'
+      - 'platform/agentic-testing/**'
+      - 'platform/docker/agentic-testing/**'
 
 permissions:
   packages: write
@@ -62,41 +59,27 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   build:
-    name: Build Server Images
+    name: Build Agentic Testing Image
     needs: image-tag
-    uses: ./.github/workflows/_build-server-images.yml
+    uses: ./.github/workflows/_build-agentic-testing-image.yml
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
       version: ${{ needs.image-tag.outputs.version }}
       commit: ${{ needs.image-tag.outputs.commit }}
       build-date: ${{ needs.image-tag.outputs.build_date }}
 
-  build-bravo:
-    name: Build Bravo Agent Images
-    needs: image-tag
-    uses: ./.github/workflows/_build-bravo-images.yml
-    with:
-      image-tag: ${{ needs.image-tag.outputs.value }}
-
   trigger-deploy:
     name: Trigger Deploy
-    needs: [image-tag, build, build-bravo]
+    needs: [image-tag, build]
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
       IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
     steps:
-      - name: Deploy server
+      - name: Deploy agentic-testing
         run: |
-          gh workflow run deploy-server.yml \
-            --repo neokapi/bowrain-infra \
-            -f environment="$ENVIRONMENT" \
-            -f imageTag="$IMAGE_TAG"
-
-      - name: Deploy worker
-        run: |
-          gh workflow run deploy-worker.yml \
+          gh workflow run deploy-agentic-testing.yml \
             --repo neokapi/bowrain-infra \
             -f environment="$ENVIRONMENT" \
             -f imageTag="$IMAGE_TAG"
