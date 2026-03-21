@@ -64,14 +64,15 @@ export const BravoAssistantThread: FC<{ coldStart?: boolean }> = ({ coldStart })
         {coldStart ? (
           <BravoColdStart />
         ) : (
-          <>
-            <AuiIf condition={(s) => s.thread.isEmpty}>
-              <BravoThreadWelcome />
-            </AuiIf>
-
-            <ThreadPrimitive.Messages>{() => <BravoThreadMessage />}</ThreadPrimitive.Messages>
-          </>
+          <AuiIf condition={(s) => s.thread.isEmpty}>
+            <BravoThreadWelcome />
+          </AuiIf>
         )}
+
+        <ThreadPrimitive.Messages>{() => <BravoThreadMessage />}</ThreadPrimitive.Messages>
+
+        {/* Cold start indicator shown inline after the user's message */}
+        {coldStart && <BravoColdStart />}
 
         <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mt-auto flex w-full flex-col gap-4 overflow-visible rounded-t-(--composer-radius) bg-background pb-4">
           <BravoScrollToBottom />
