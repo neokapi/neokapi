@@ -166,7 +166,7 @@ publish_exec_event() {
     ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD" --no-auth-warning} \
     PUBLISH "agentic:events" "$payload" 2>&1) || true
   case "$REDIS_RESULT" in
-    *integer*) ;; # success — N subscribers received the event
+    *[0-9]*) ;; # success — N subscribers received the event (integer response)
     *) echo "WARNING: Redis PUBLISH ${event_type} failed: ${REDIS_RESULT}" ;;
   esac
 }
