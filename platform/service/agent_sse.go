@@ -47,6 +47,7 @@ const (
 	SSEToolCallEnd   = "tool_call_end"
 	SSENeedsApproval = "needs_approval"
 	SSEMessageEnd    = "message_end"
+	SSEStepUp        = "step_up"
 	SSEError         = "error"
 )
 
@@ -95,6 +96,15 @@ type MessageEndData struct {
 type MessageUsage struct {
 	InputTokens  int `json:"input_tokens"`
 	OutputTokens int `json:"output_tokens"`
+}
+
+// StepUpData is emitted when an action requires a higher permission mode.
+// The frontend renders this as an inline card with mode switch buttons.
+type StepUpData struct {
+	CurrentMode  string   `json:"current_mode"`
+	RequiredMode string   `json:"required_mode"`
+	Action       string   `json:"action"`       // human-readable description of blocked action
+	Permissions  []string `json:"permissions"`   // permission names needed
 }
 
 // ErrorData is emitted when an error occurs during processing.

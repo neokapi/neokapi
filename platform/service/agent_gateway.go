@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	platagent "github.com/neokapi/neokapi/platform/agent"
@@ -108,6 +109,21 @@ func StreamFromGateway(
 		return nil, fmt.Errorf("gateway error: %s", webhookResp.Error)
 	}
 
+	// Check for mode step-up markers in the response.
+	if idx := strings.Index(webhookResp.Response, "[STEP_UP:"); idx >= 0 {
+		if end := strings.Index(webhookResp.Response[idx:], "]"); end > 0 {
+			markerJSON := webhookResp.Response[idx+9 : idx+end]
+			var stepUp StepUpData
+			if json.Unmarshal([]byte(markerJSON), &stepUp) == nil {
+				stepUp.CurrentMode = mode
+				_ = sink.WriteEvent(SSEStepUp, stepUp)
+				// Remove the marker from the response text.
+				webhookResp.Response = strings.Replace(webhookResp.Response, webhookResp.Response[idx:idx+end+1], "", 1)
+				webhookResp.Response = strings.TrimSpace(webhookResp.Response)
+			}
+		}
+	}
+
 	// Persist the assistant message.
 	msg := &platagent.Message{
 		ConversationID: conversationID,
@@ -176,11 +192,23 @@ func sleepContext(ctx context.Context, d time.Duration) bool {
 func modePrefix(mode string) string {
 	switch mode {
 	case "ask":
-		return "(Mode: Ask) You are answering questions only. Help the user understand their projects, TM, terminology, and formats. Explain what actions are possible but do not execute any changes.\n\n"
+		return `(Mode: Ask) You are answering questions only. Help the user understand their projects, TM, terminology, and formats. Explain what actions are possible but do not execute any changes.
+
+If the user asks you to perform a mutating action (translate, edit, delete, run flows, manage files, push/pull), respond with a step-up marker followed by a helpful explanation:
+[STEP_UP:{"required_mode":"coworker","action":"<brief description of what the user wants>"}]
+Then explain what you can help with in Ask mode instead.
+
+`
 	case "coworker":
 		return "(Mode: Co-worker) You can manage projects, run flows, push/pull content, and edit terminology. Confirm before any destructive operations like deletes or overwrites.\n\n"
 	case "bravo":
-		return "(Mode: Brand Voice) Focus on reviewing content for brand voice compliance, suggesting improvements, and running brand voice QA. Use check_vocabulary and get_voice_guide tools.\n\n"
+		return `(Mode: Brand Voice) Focus on reviewing content for brand voice compliance, suggesting improvements, and running brand voice QA. Use check_vocabulary and get_voice_guide tools.
+
+If the user asks you to perform actions beyond brand voice scope (translate, manage files, run non-brand flows), respond with a step-up marker:
+[STEP_UP:{"required_mode":"coworker","action":"<brief description>"}]
+Then explain what you can help with in Voice mode instead.
+
+`
 	default:
 		return ""
 	}

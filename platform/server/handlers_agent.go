@@ -176,6 +176,17 @@ func (s *Server) HandleSendBravoMessage(c echo.Context) error {
 			}
 		}
 
+		// Create or update session grant based on the requested mode.
+		if s.SessionStore != nil && req.Mode != "" {
+			userPerms, _ := c.Get("project_permissions").(platauth.Permission)
+			if userPerms == 0 {
+				userPerms = platauth.DefaultPermissionsForRole(platauth.Role(wsRole)).Permissions
+			}
+			userLangs, _ := c.Get("project_languages").([]string)
+			grant := CreateSessionGrantForMode(convID, userID, platauth.AgentMode(req.Mode), userPerms, userLangs)
+			_ = SetSessionGrant(c.Request().Context(), s.SessionStore, grant)
+		}
+
 		if err := s.AgentService.SendMessageStream(
 			c.Request().Context(), convID, userID, wsID, wsRole, req.Content, req.Mode, bravoCtx, sse,
 		); err != nil {
@@ -266,6 +277,55 @@ func (s *Server) HandleCancelBravoConversation(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "cancelled"})
+}
+
+// ---------------------------------------------------------------------------
+// Mode
+// ---------------------------------------------------------------------------
+
+// HandleUpdateBravoMode updates the session grant mode for a conversation.
+// Used for step-up prompting: when @bravo suggests switching modes, the frontend
+// calls this endpoint to update the session grant without starting a new conversation.
+func (s *Server) HandleUpdateBravoMode(c echo.Context) error {
+	if s.SessionStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "session store not configured"})
+	}
+
+	convID := c.Param("id")
+	userID, _ := c.Get("user_id").(string)
+
+	var req struct {
+		Mode string `json:"mode"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid request body"})
+	}
+
+	mode := platauth.AgentMode(req.Mode)
+	if !platauth.ValidAgentModes[mode] {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid mode: must be ask, coworker, or voice"})
+	}
+
+	// Get the user's base permissions to create the new grant.
+	wsRole := ""
+	if r, ok := c.Get("workspace_role").(platauth.Role); ok {
+		wsRole = string(r)
+	}
+	userPerms, _ := c.Get("project_permissions").(platauth.Permission)
+	if userPerms == 0 {
+		userPerms = platauth.DefaultPermissionsForRole(platauth.Role(wsRole)).Permissions
+	}
+	userLangs, _ := c.Get("project_languages").([]string)
+
+	grant := CreateSessionGrantForMode(convID, userID, mode, userPerms, userLangs)
+	if err := SetSessionGrant(c.Request().Context(), s.SessionStore, grant); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to update session grant"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"mode":        req.Mode,
+		"permissions": grant.Permissions.Strings(),
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -423,6 +483,7 @@ func (s *Server) registerBravoRoutes(g *echo.Group) {
 	bravo.POST("/conversations/:id/messages", s.HandleSendBravoMessage, billing.QuotaGuard(s.BillingStore))
 
 	bravo.GET("/conversations/:id/messages", s.HandleListBravoMessages)
+	bravo.PATCH("/conversations/:id/mode", s.HandleUpdateBravoMode)
 	bravo.POST("/conversations/:id/tool-calls/:tcid/approve", s.HandleApproveBravoToolCall)
 	bravo.POST("/conversations/:id/tool-calls/:tcid/deny", s.HandleDenyBravoToolCall)
 	bravo.POST("/conversations/:id/cancel", s.HandleCancelBravoConversation)

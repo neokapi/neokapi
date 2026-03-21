@@ -154,6 +154,9 @@ function ConnectedBravoPanel() {
       coldStarting={state.coldStarting}
       mode={state.mode}
       onModeChange={actions.setMode}
+      stepUp={state.stepUp}
+      onStepUpSwitch={actions.handleModeSwitch}
+      onStepUpDismiss={actions.dismissStepUp}
     />
   );
 }
@@ -262,6 +265,9 @@ export function WorkspaceLayout() {
           break;
         case "members":
           void navigate({ to: "/$workspace/settings/members", params: { workspace: wsSlug } });
+          break;
+        case "roles":
+          void navigate({ to: "/$workspace/settings/roles", params: { workspace: wsSlug } });
           break;
         case "providers":
           void navigate({ to: "/$workspace/settings/providers", params: { workspace: wsSlug } });

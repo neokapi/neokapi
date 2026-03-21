@@ -494,3 +494,310 @@ func TestDeleteWorkspaceCascadesAPITokens(t *testing.T) {
 	_, err := s.GetAPITokenByHash(ctx, "cascadehash_ws")
 	assert.Error(t, err)
 }
+
+// ---------------------------------------------------------------------------
+// Role Templates
+// ---------------------------------------------------------------------------
+
+func setupWorkspaceWithRoles(t *testing.T, s *SQLiteAuthStore) (workspaceID string, roles []*platauth.RoleTemplate) {
+	t.Helper()
+	ctx := context.Background()
+
+	w := &platauth.Workspace{Name: "Roles WS", Slug: "roles-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+	require.NoError(t, s.SeedDefaultRoleTemplates(ctx, w.ID))
+
+	templates, err := s.ListRoleTemplates(ctx, w.ID)
+	require.NoError(t, err)
+	return w.ID, templates
+}
+
+func TestRoleTemplateCRUD(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	w := &platauth.Workspace{Name: "RT CRUD", Slug: "rt-crud"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	// Create with all fields, check ID is auto-generated.
+	rt := &platauth.RoleTemplate{
+		WorkspaceID: w.ID,
+		Name:        "custom-role",
+		DisplayName: "Custom Role",
+		Description: "A custom role for testing",
+		Permissions: platauth.PermViewContent | platauth.PermTranslate,
+		IsBuiltin:   false,
+		Position:    10,
+	}
+	require.NoError(t, s.CreateRoleTemplate(ctx, rt))
+	assert.NotEmpty(t, rt.ID, "ID should be auto-generated")
+	assert.False(t, rt.CreatedAt.IsZero())
+	assert.False(t, rt.UpdatedAt.IsZero())
+
+	// Get by workspace_id + role_id.
+	got, err := s.GetRoleTemplate(ctx, w.ID, rt.ID)
+	require.NoError(t, err)
+	assert.Equal(t, rt.ID, got.ID)
+	assert.Equal(t, w.ID, got.WorkspaceID)
+	assert.Equal(t, "custom-role", got.Name)
+	assert.Equal(t, "Custom Role", got.DisplayName)
+	assert.Equal(t, "A custom role for testing", got.Description)
+	assert.Equal(t, platauth.PermViewContent|platauth.PermTranslate, got.Permissions)
+	assert.False(t, got.IsBuiltin)
+	assert.Equal(t, 10, got.Position)
+
+	// Create a second template to verify list ordering.
+	rt2 := &platauth.RoleTemplate{
+		WorkspaceID: w.ID,
+		Name:        "earlier-role",
+		DisplayName: "Earlier Role",
+		Permissions: platauth.PermViewContent,
+		Position:    5,
+	}
+	require.NoError(t, s.CreateRoleTemplate(ctx, rt2))
+
+	// List returns ordered by position.
+	list, err := s.ListRoleTemplates(ctx, w.ID)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	assert.Equal(t, "earlier-role", list[0].Name, "position 5 should come first")
+	assert.Equal(t, "custom-role", list[1].Name, "position 10 should come second")
+
+	// Update name, permissions, position.
+	rt.Name = "updated-role"
+	rt.DisplayName = "Updated Role"
+	rt.Permissions = platauth.PermViewContent | platauth.PermTranslate | platauth.PermReview
+	rt.Position = 20
+	require.NoError(t, s.UpdateRoleTemplate(ctx, rt))
+
+	got, err = s.GetRoleTemplate(ctx, w.ID, rt.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "updated-role", got.Name)
+	assert.Equal(t, "Updated Role", got.DisplayName)
+	assert.Equal(t, platauth.PermViewContent|platauth.PermTranslate|platauth.PermReview, got.Permissions)
+	assert.Equal(t, 20, got.Position)
+
+	// Delete non-builtin succeeds.
+	require.NoError(t, s.DeleteRoleTemplate(ctx, w.ID, rt.ID))
+	_, err = s.GetRoleTemplate(ctx, w.ID, rt.ID)
+	assert.Error(t, err)
+
+	// Delete builtin fails — seed defaults first.
+	require.NoError(t, s.SeedDefaultRoleTemplates(ctx, w.ID))
+	templates, err := s.ListRoleTemplates(ctx, w.ID)
+	require.NoError(t, err)
+	var builtinID string
+	for _, tmpl := range templates {
+		if tmpl.IsBuiltin {
+			builtinID = tmpl.ID
+			break
+		}
+	}
+	require.NotEmpty(t, builtinID, "should have a builtin template")
+	err = s.DeleteRoleTemplate(ctx, w.ID, builtinID)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "builtin")
+}
+
+func TestSeedDefaultRoleTemplates(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	w := &platauth.Workspace{Name: "Seed WS", Slug: "seed-ws"}
+	require.NoError(t, s.CreateWorkspace(ctx, w))
+
+	require.NoError(t, s.SeedDefaultRoleTemplates(ctx, w.ID))
+
+	templates, err := s.ListRoleTemplates(ctx, w.ID)
+	require.NoError(t, err)
+	require.Len(t, templates, 5, "should seed 5 default role templates")
+
+	// Verify correct names in position order.
+	expectedNames := []string{"project-admin", "developer", "translator", "reviewer", "observer"}
+	for i, tmpl := range templates {
+		assert.Equal(t, expectedNames[i], tmpl.Name)
+		assert.True(t, tmpl.IsBuiltin)
+		assert.Equal(t, w.ID, tmpl.WorkspaceID)
+		assert.NotEmpty(t, tmpl.ID)
+		assert.NotEmpty(t, tmpl.DisplayName)
+	}
+
+	// Verify specific permissions.
+	assert.Equal(t, platauth.PermAll, templates[0].Permissions, "project-admin should have PermAll")
+	assert.True(t, templates[1].Permissions.Has(platauth.PermViewContent|platauth.PermTranslate|platauth.PermManageFiles), "developer should have view+translate+manage_files")
+	assert.Equal(t, platauth.PermViewContent|platauth.PermTranslate, templates[2].Permissions, "translator should have view+translate")
+	assert.Equal(t, platauth.PermViewContent|platauth.PermTranslate|platauth.PermReview, templates[3].Permissions, "reviewer should have view+translate+review")
+	assert.Equal(t, platauth.PermViewContent, templates[4].Permissions, "observer should have view only")
+}
+
+// ---------------------------------------------------------------------------
+// Project Membership
+// ---------------------------------------------------------------------------
+
+func TestProjectMemberCRUD(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	wsID, roles := setupWorkspaceWithRoles(t, s)
+
+	u := &platauth.User{Email: "pm-user@example.com", Name: "PM User"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	// Find the translator role.
+	var translatorRole *platauth.RoleTemplate
+	for _, r := range roles {
+		if r.Name == "translator" {
+			translatorRole = r
+			break
+		}
+	}
+	require.NotNil(t, translatorRole)
+
+	projectID := "proj-1"
+
+	// Add member with role_id and languages.
+	pm := &platauth.ProjectMembership{
+		ProjectID:   projectID,
+		UserID:      u.ID,
+		RoleID:      translatorRole.ID,
+		WorkspaceID: wsID,
+		Languages:   []string{"fr", "de"},
+	}
+	require.NoError(t, s.AddProjectMember(ctx, pm))
+	assert.False(t, pm.CreatedAt.IsZero())
+
+	// Get membership returns correct fields.
+	got, err := s.GetProjectMembership(ctx, projectID, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, projectID, got.ProjectID)
+	assert.Equal(t, u.ID, got.UserID)
+	assert.Equal(t, translatorRole.ID, got.RoleID)
+	assert.Equal(t, wsID, got.WorkspaceID)
+	assert.Equal(t, []string{"fr", "de"}, got.Languages)
+
+	// List returns all members.
+	members, err := s.ListProjectMembers(ctx, projectID)
+	require.NoError(t, err)
+	require.Len(t, members, 1)
+	assert.Equal(t, u.ID, members[0].UserID)
+
+	// Update role_id and languages.
+	var reviewerRole *platauth.RoleTemplate
+	for _, r := range roles {
+		if r.Name == "reviewer" {
+			reviewerRole = r
+			break
+		}
+	}
+	require.NotNil(t, reviewerRole)
+
+	pm.RoleID = reviewerRole.ID
+	pm.Languages = []string{"es"}
+	require.NoError(t, s.UpdateProjectMember(ctx, pm))
+
+	got, err = s.GetProjectMembership(ctx, projectID, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, reviewerRole.ID, got.RoleID)
+	assert.Equal(t, []string{"es"}, got.Languages)
+
+	// Remove member succeeds.
+	require.NoError(t, s.RemoveProjectMember(ctx, projectID, u.ID))
+	_, err = s.GetProjectMembership(ctx, projectID, u.ID)
+	assert.Error(t, err)
+
+	// Remove non-existent fails.
+	err = s.RemoveProjectMember(ctx, projectID, "nonexistent-user")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestResolveProjectPermissions(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	wsID, roles := setupWorkspaceWithRoles(t, s)
+
+	u := &platauth.User{Email: "resolve@example.com", Name: "Resolve User"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	// Find the translator role.
+	var translatorRole *platauth.RoleTemplate
+	for _, r := range roles {
+		if r.Name == "translator" {
+			translatorRole = r
+			break
+		}
+	}
+	require.NotNil(t, translatorRole)
+
+	projectID := "proj-resolve"
+
+	// Add project member with translator role and specific languages.
+	pm := &platauth.ProjectMembership{
+		ProjectID:   projectID,
+		UserID:      u.ID,
+		RoleID:      translatorRole.ID,
+		WorkspaceID: wsID,
+		Languages:   []string{"fr", "de"},
+	}
+	require.NoError(t, s.AddProjectMember(ctx, pm))
+
+	// Resolve permissions — verify bitmask matches translator permissions.
+	resolved, err := s.ResolveProjectPermissions(ctx, projectID, u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, platauth.PermViewContent|platauth.PermTranslate, resolved.Permissions)
+
+	// Verify languages are returned correctly.
+	assert.Equal(t, []string{"fr", "de"}, resolved.Languages)
+
+	// Verify non-member returns error.
+	_, err = s.ResolveProjectPermissions(ctx, projectID, "nonexistent-user")
+	assert.Error(t, err)
+}
+
+func TestProjectMemberLanguages(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	wsID, roles := setupWorkspaceWithRoles(t, s)
+
+	u := &platauth.User{Email: "langs@example.com", Name: "Langs User"}
+	require.NoError(t, s.CreateUser(ctx, u))
+
+	var translatorRole *platauth.RoleTemplate
+	for _, r := range roles {
+		if r.Name == "translator" {
+			translatorRole = r
+			break
+		}
+	}
+	require.NotNil(t, translatorRole)
+
+	// Empty languages → nil on read.
+	pm := &platauth.ProjectMembership{
+		ProjectID:   "proj-lang-empty",
+		UserID:      u.ID,
+		RoleID:      translatorRole.ID,
+		WorkspaceID: wsID,
+		Languages:   nil,
+	}
+	require.NoError(t, s.AddProjectMember(ctx, pm))
+
+	got, err := s.GetProjectMembership(ctx, "proj-lang-empty", u.ID)
+	require.NoError(t, err)
+	assert.Nil(t, got.Languages, "empty languages should be nil on read")
+
+	// ["fr","de"] → correct slice on read.
+	pm2 := &platauth.ProjectMembership{
+		ProjectID:   "proj-lang-set",
+		UserID:      u.ID,
+		RoleID:      translatorRole.ID,
+		WorkspaceID: wsID,
+		Languages:   []string{"fr", "de"},
+	}
+	require.NoError(t, s.AddProjectMember(ctx, pm2))
+
+	got2, err := s.GetProjectMembership(ctx, "proj-lang-set", u.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"fr", "de"}, got2.Languages)
+}

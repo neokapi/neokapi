@@ -34,6 +34,7 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
+  Users,
 } from "./icons";
 
 export interface ProjectViewProps {
@@ -61,6 +62,8 @@ export interface ProjectViewProps {
   onMergeStream?: (streamName: string) => void;
   onDiffStream?: (streamName: string) => void;
   onDeleteStream?: (streamName: string) => void;
+  /** Open project member management. */
+  onManageMembers?: () => void;
   /** Navigate to the translation dashboard for this project. */
   onOpenDashboard?: () => void;
 }
@@ -85,6 +88,7 @@ export function ProjectView({
   onMergeStream: _onMergeStream,
   onDiffStream: _onDiffStream,
   onDeleteStream: _onDeleteStream,
+  onManageMembers,
   onOpenDashboard,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
@@ -228,7 +232,7 @@ export function ProjectView({
                 Translation Memory
               </Button>
             )}
-            {(onEditProject || onArchiveProject) && (
+            {(onEditProject || onArchiveProject || onManageMembers) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer bg-transparent border-none">
@@ -236,6 +240,14 @@ export function ProjectView({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[150px]">
+                  {onManageMembers && (
+                    <DropdownMenuItem
+                      onClick={onManageMembers}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <Users className="w-3.5 h-3.5" /> Members
+                    </DropdownMenuItem>
+                  )}
                   {onEditProject && (
                     <DropdownMenuItem
                       onClick={onEditProject}

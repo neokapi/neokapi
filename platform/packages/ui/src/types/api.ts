@@ -839,7 +839,8 @@ export type BravoSSEEventType =
   | "tool_call_end"
   | "needs_approval"
   | "message_end"
-  | "error";
+  | "error"
+  | "step_up";
 
 /** SSE event data: message_start */
 export interface BravoSSEMessageStart {
@@ -888,6 +889,14 @@ export interface BravoSSEError {
   error: string;
 }
 
+/** SSE event data: step_up (mode restriction) */
+export interface BravoSSEStepUp {
+  current_mode: string;
+  required_mode: string;
+  action: string;
+  permissions: string[];
+}
+
 /** Union of all SSE event data types */
 export type BravoSSEEventData =
   | BravoSSEMessageStart
@@ -896,7 +905,8 @@ export type BravoSSEEventData =
   | BravoSSEToolCallEnd
   | BravoSSENeedsApproval
   | BravoSSEMessageEnd
-  | BravoSSEError;
+  | BravoSSEError
+  | BravoSSEStepUp;
 
 /** Callback handler for SSE events from @bravo. */
 export interface BravoSSEHandler {
@@ -907,6 +917,7 @@ export interface BravoSSEHandler {
   onNeedsApproval?: (data: BravoSSENeedsApproval) => void;
   onMessageEnd?: (data: BravoSSEMessageEnd) => void;
   onError?: (data: BravoSSEError) => void;
+  onStepUp?: (data: BravoSSEStepUp) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -962,4 +973,91 @@ export interface BillingUsageBreakdown {
   bravoMessages: number;
   bravoContainer: number;
   total: number;
+}
+
+// ---------------------------------------------------------------------------
+// Role Templates & Project Membership
+// ---------------------------------------------------------------------------
+
+/** Permission name (matches Go bitmask names) */
+export type PermissionName =
+  | "view_content"
+  | "edit_source"
+  | "translate"
+  | "review"
+  | "manage_terms"
+  | "manage_tm"
+  | "run_flows"
+  | "manage_files"
+  | "manage_streams"
+  | "manage_connectors"
+  | "manage_automation"
+  | "manage_members"
+  | "manage_project"
+  | "manage_brand"
+  | "manage_assets";
+
+/** All available permissions in display order */
+export const ALL_PERMISSIONS: readonly PermissionName[] = [
+  "view_content",
+  "edit_source",
+  "translate",
+  "review",
+  "manage_terms",
+  "manage_tm",
+  "run_flows",
+  "manage_files",
+  "manage_streams",
+  "manage_connectors",
+  "manage_automation",
+  "manage_members",
+  "manage_project",
+  "manage_brand",
+  "manage_assets",
+] as const;
+
+/** Human-readable labels for permission names */
+export const PERMISSION_LABELS: Record<PermissionName, string> = {
+  view_content: "View content",
+  edit_source: "Edit source",
+  translate: "Translate",
+  review: "Review",
+  manage_terms: "Manage terminology",
+  manage_tm: "Manage TM",
+  run_flows: "Run flows",
+  manage_files: "Manage files",
+  manage_streams: "Manage streams",
+  manage_connectors: "Manage connectors",
+  manage_automation: "Manage automation",
+  manage_members: "Manage members",
+  manage_project: "Manage project",
+  manage_brand: "Manage brand voice",
+  manage_assets: "Manage assets",
+};
+
+/** Workspace-scoped role template */
+export interface RoleTemplate {
+  id: string;
+  workspace_id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  permissions: number;
+  permission_names: PermissionName[];
+  is_builtin: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Project membership — links a user to a project with a role and language scope */
+export interface ProjectMembership {
+  project_id: string;
+  user_id: string;
+  role_id: string;
+  workspace_id: string;
+  languages: string[];
+  created_at: string;
+  user?: User;
+  role_template?: RoleTemplate;
 }

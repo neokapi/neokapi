@@ -8,6 +8,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -29,6 +30,10 @@ type UpdateEntityRequest struct {
 
 // HandleCreateEntity adds a new entity annotation to a block (manual marking).
 func (s *Server) HandleCreateEntity(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -85,6 +90,10 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 
 // HandleUpdateEntity updates an existing entity annotation on a block.
 func (s *Server) HandleUpdateEntity(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -132,6 +141,10 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 
 // HandleDeleteEntity removes an entity annotation from a block.
 func (s *Server) HandleDeleteEntity(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermEditSource); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -161,6 +174,10 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 
 // HandlePromoteEntity promotes an entity annotation to a term candidate review item.
 func (s *Server) HandlePromoteEntity(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageTerms); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil || s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

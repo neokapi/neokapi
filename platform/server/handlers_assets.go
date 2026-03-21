@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
+
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/platform/store"
 )
@@ -139,6 +141,10 @@ func (s *Server) generateDownloadURL(blobKey string) string {
 
 // HandleAssetUploadURL returns a pre-signed upload URL for direct client upload.
 func (s *Server) HandleAssetUploadURL(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil || s.BlobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "blob storage not configured"})
 	}
@@ -175,6 +181,10 @@ func (s *Server) HandleAssetUploadURL(c echo.Context) error {
 
 // HandleCreateAsset registers asset metadata after the blob has been uploaded.
 func (s *Server) HandleCreateAsset(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -259,6 +269,10 @@ func (s *Server) HandleGetAsset(c echo.Context) error {
 
 // HandleDeleteAsset deletes an asset and its variants.
 func (s *Server) HandleDeleteAsset(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -280,6 +294,10 @@ func (s *Server) HandleDeleteAsset(c echo.Context) error {
 
 // HandleVariantUploadURL returns a pre-signed upload URL for a locale variant.
 func (s *Server) HandleVariantUploadURL(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
+		return err
+	}
+
 	if s.BlobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "blob storage not configured"})
 	}
@@ -305,6 +323,10 @@ func (s *Server) HandleVariantUploadURL(c echo.Context) error {
 
 // HandleCreateVariant registers a locale variant for an asset.
 func (s *Server) HandleCreateVariant(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAssets); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

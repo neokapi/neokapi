@@ -7,6 +7,8 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
+
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
@@ -65,6 +67,10 @@ func (s *Server) HandleGetReviewQueueItem(c echo.Context) error {
 
 // HandleDecideReviewItem applies an approve/reject decision to a review item.
 func (s *Server) HandleDecideReviewItem(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermReview); err != nil {
+		return err
+	}
+
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "review queue not configured"})
 	}
@@ -83,9 +89,21 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "decision must be 'approve' or 'reject'"})
 	}
 
-	userID, _ := c.Get("user_id").(string)
 	ctx := c.Request().Context()
-	err := s.ReviewQueueStore.Decide(ctx, itemID, bstore.DecideRequest{
+
+	// Load the item to check language permission and for side effects.
+	item, err := s.ReviewQueueStore.GetItem(ctx, itemID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "review item not found"})
+	}
+	if item.Locale != "" {
+		if err := s.requireLanguagePermission(c, platauth.PermReview, item.Locale); err != nil {
+			return err
+		}
+	}
+
+	userID, _ := c.Get("user_id").(string)
+	err = s.ReviewQueueStore.Decide(ctx, itemID, bstore.DecideRequest{
 		Decision: req.Decision,
 		Comment:  req.Comment,
 		Edits:    req.Edits,
@@ -96,16 +114,18 @@ func (s *Server) HandleDecideReviewItem(c echo.Context) error {
 	}
 
 	// Process side effects (termbase creation, rejected terms, DNT entries).
-	if item, getErr := s.ReviewQueueStore.GetItem(ctx, itemID); getErr == nil {
-		wsSlug, _ := c.Get("workspace_slug").(string)
-		go s.processDecisionSideEffects(context.Background(), item, wsSlug)
-	}
+	wsSlug, _ := c.Get("workspace_slug").(string)
+	go s.processDecisionSideEffects(context.Background(), item, wsSlug)
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
 // HandleAssignReviewItem assigns a review item to a user.
 func (s *Server) HandleAssignReviewItem(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageMembers); err != nil {
+		return err
+	}
+
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "review queue not configured"})
 	}
@@ -155,6 +175,10 @@ func (s *Server) HandleSplitReviewItem(c echo.Context) error {
 
 // HandleBatchDecideReviewItems applies the same decision to multiple review items.
 func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermReview); err != nil {
+		return err
+	}
+
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "review queue not configured"})
 	}
@@ -171,8 +195,22 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "decision must be 'approve' or 'reject'"})
 	}
 
-	userID, _ := c.Get("user_id").(string)
 	ctx := c.Request().Context()
+
+	// Check language permission for each item before deciding.
+	for _, id := range req.ItemIDs {
+		item, getErr := s.ReviewQueueStore.GetItem(ctx, id)
+		if getErr != nil {
+			continue
+		}
+		if item.Locale != "" {
+			if err := s.requireLanguagePermission(c, platauth.PermReview, item.Locale); err != nil {
+				return err
+			}
+		}
+	}
+
+	userID, _ := c.Get("user_id").(string)
 	decided, err := s.ReviewQueueStore.BatchDecide(ctx, req.ItemIDs, bstore.DecideRequest{
 		Decision: req.Decision,
 		UserID:   userID,
@@ -197,6 +235,10 @@ func (s *Server) HandleBatchDecideReviewItems(c echo.Context) error {
 
 // HandleSyncReviewDecisions processes offline review decisions from the mobile app.
 func (s *Server) HandleSyncReviewDecisions(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermReview); err != nil {
+		return err
+	}
+
 	if s.ReviewQueueStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "review queue not configured"})
 	}

@@ -152,6 +152,38 @@ var authMigrations = []storage.Migration{
 			ALTER TABLE workspaces ADD COLUMN stripe_customer_id TEXT;
 		`,
 	},
+	{
+		Version:     12,
+		Description: "create role_templates and project_members tables",
+		SQL: `
+			CREATE TABLE role_templates (
+				id           TEXT NOT NULL,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				display_name TEXT NOT NULL DEFAULT '',
+				description  TEXT NOT NULL DEFAULT '',
+				permissions  INTEGER NOT NULL DEFAULT 0,
+				is_builtin   INTEGER NOT NULL DEFAULT 0,
+				position     INTEGER NOT NULL DEFAULT 0,
+				created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (workspace_id, id),
+				UNIQUE (workspace_id, name)
+			);
+
+			CREATE TABLE project_members (
+				project_id   TEXT NOT NULL,
+				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				role_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				languages    TEXT NOT NULL DEFAULT '[]',
+				created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, user_id)
+			);
+			CREATE INDEX idx_project_members_user ON project_members(user_id, workspace_id);
+			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
+		`,
+	},
 }
 
 // SQLiteAuthStore implements AuthStore using SQLite.
@@ -783,4 +815,228 @@ func (s *SQLiteAuthStore) UpdateAPITokenLastUsed(ctx context.Context, id string)
 		return fmt.Errorf("update api token last used: %w", err)
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Role Templates
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteAuthStore) CreateRoleTemplate(ctx context.Context, rt *platauth.RoleTemplate) error {
+	if rt.ID == "" {
+		rt.ID = id.New()
+	}
+	now := time.Now().UTC()
+	if rt.CreatedAt.IsZero() {
+		rt.CreatedAt = now
+	}
+	rt.UpdatedAt = now
+	isBuiltin := 0
+	if rt.IsBuiltin {
+		isBuiltin = 1
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO role_templates (id, workspace_id, name, display_name, description, permissions, is_builtin, position, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		rt.ID, rt.WorkspaceID, rt.Name, rt.DisplayName, rt.Description,
+		int64(rt.Permissions), isBuiltin, rt.Position,
+		rt.CreatedAt.Format(time.RFC3339), rt.UpdatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("insert role template: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) GetRoleTemplate(ctx context.Context, workspaceID, roleID string) (*platauth.RoleTemplate, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, workspace_id, name, display_name, description, permissions, is_builtin, position, created_at, updated_at
+		 FROM role_templates WHERE workspace_id = ? AND id = ?`, workspaceID, roleID)
+	return scanRoleTemplate(row)
+}
+
+func (s *SQLiteAuthStore) ListRoleTemplates(ctx context.Context, workspaceID string) ([]*platauth.RoleTemplate, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, workspace_id, name, display_name, description, permissions, is_builtin, position, created_at, updated_at
+		 FROM role_templates WHERE workspace_id = ?
+		 ORDER BY position, name`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list role templates: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.RoleTemplate, 0)
+	for rows.Next() {
+		rt, err := scanRoleTemplate(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, rt)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteAuthStore) UpdateRoleTemplate(ctx context.Context, rt *platauth.RoleTemplate) error {
+	rt.UpdatedAt = time.Now().UTC()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE role_templates SET name=?, display_name=?, description=?, permissions=?, position=?, updated_at=?
+		 WHERE workspace_id=? AND id=?`,
+		rt.Name, rt.DisplayName, rt.Description, int64(rt.Permissions), rt.Position,
+		rt.UpdatedAt.Format(time.RFC3339), rt.WorkspaceID, rt.ID)
+	if err != nil {
+		return fmt.Errorf("update role template: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("role template not found")
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) DeleteRoleTemplate(ctx context.Context, workspaceID, roleID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM role_templates WHERE workspace_id=? AND id=? AND is_builtin = 0`,
+		workspaceID, roleID)
+	if err != nil {
+		return fmt.Errorf("delete role template: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("role template not found or is builtin")
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) SeedDefaultRoleTemplates(ctx context.Context, workspaceID string) error {
+	for _, def := range platauth.DefaultRoleTemplates {
+		rt := def // copy
+		rt.ID = id.New()
+		rt.WorkspaceID = workspaceID
+		if err := s.CreateRoleTemplate(ctx, &rt); err != nil {
+			return fmt.Errorf("seed role template %s: %w", def.Name, err)
+		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Project Membership
+// ---------------------------------------------------------------------------
+
+func (s *SQLiteAuthStore) AddProjectMember(ctx context.Context, pm *platauth.ProjectMembership) error {
+	if pm.CreatedAt.IsZero() {
+		pm.CreatedAt = time.Now().UTC()
+	}
+	langs := marshalLanguages(pm.Languages)
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO project_members (project_id, user_id, role_id, workspace_id, languages, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		pm.ProjectID, pm.UserID, pm.RoleID, pm.WorkspaceID, langs,
+		pm.CreatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("add project member: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) GetProjectMembership(ctx context.Context, projectID, userID string) (*platauth.ProjectMembership, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT project_id, user_id, role_id, workspace_id, languages, created_at
+		 FROM project_members WHERE project_id = ? AND user_id = ?`, projectID, userID)
+	return scanProjectMember(row)
+}
+
+func (s *SQLiteAuthStore) ListProjectMembers(ctx context.Context, projectID string) ([]*platauth.ProjectMembership, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT project_id, user_id, role_id, workspace_id, languages, created_at
+		 FROM project_members WHERE project_id = ?
+		 ORDER BY created_at`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("list project members: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.ProjectMembership, 0)
+	for rows.Next() {
+		pm, err := scanProjectMember(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, pm)
+	}
+	return result, rows.Err()
+}
+
+func (s *SQLiteAuthStore) UpdateProjectMember(ctx context.Context, pm *platauth.ProjectMembership) error {
+	langs := marshalLanguages(pm.Languages)
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE project_members SET role_id=?, languages=? WHERE project_id=? AND user_id=?`,
+		pm.RoleID, langs, pm.ProjectID, pm.UserID)
+	if err != nil {
+		return fmt.Errorf("update project member: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project membership not found")
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) RemoveProjectMember(ctx context.Context, projectID, userID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM project_members WHERE project_id=? AND user_id=?`,
+		projectID, userID)
+	if err != nil {
+		return fmt.Errorf("remove project member: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project membership not found")
+	}
+	return nil
+}
+
+func (s *SQLiteAuthStore) ResolveProjectPermissions(ctx context.Context, projectID, userID string) (*platauth.ResolvedPermission, error) {
+	var perms int64
+	var langsStr string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT rt.permissions, pm.languages
+		 FROM project_members pm
+		 JOIN role_templates rt ON rt.workspace_id = pm.workspace_id AND rt.id = pm.role_id
+		 WHERE pm.project_id = ? AND pm.user_id = ?`, projectID, userID).
+		Scan(&perms, &langsStr)
+	if err != nil {
+		return nil, fmt.Errorf("resolve project permissions: %w", err)
+	}
+	return &platauth.ResolvedPermission{
+		Permissions: platauth.Permission(perms),
+		Languages:   unmarshalLanguages(langsStr),
+	}, nil
+}
+
+func scanRoleTemplate(row scanner) (*platauth.RoleTemplate, error) {
+	var rt platauth.RoleTemplate
+	var perms int64
+	var isBuiltin int
+	var createdStr, updatedStr string
+	err := row.Scan(&rt.ID, &rt.WorkspaceID, &rt.Name, &rt.DisplayName, &rt.Description,
+		&perms, &isBuiltin, &rt.Position, &createdStr, &updatedStr)
+	if err != nil {
+		return nil, fmt.Errorf("scan role template: %w", err)
+	}
+	rt.Permissions = platauth.Permission(perms)
+	rt.IsBuiltin = isBuiltin != 0
+	rt.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	rt.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
+	return &rt, nil
+}
+
+func scanProjectMember(row scanner) (*platauth.ProjectMembership, error) {
+	var pm platauth.ProjectMembership
+	var langsStr, createdStr string
+	err := row.Scan(&pm.ProjectID, &pm.UserID, &pm.RoleID, &pm.WorkspaceID, &langsStr, &createdStr)
+	if err != nil {
+		return nil, fmt.Errorf("scan project member: %w", err)
+	}
+	pm.Languages = unmarshalLanguages(langsStr)
+	pm.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	return &pm, nil
 }

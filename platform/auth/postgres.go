@@ -528,6 +528,201 @@ func (s *PostgresAuthStore) UpdateAPITokenLastUsed(ctx context.Context, id strin
 }
 
 // ---------------------------------------------------------------------------
+// Role Templates
+// ---------------------------------------------------------------------------
+
+func (s *PostgresAuthStore) CreateRoleTemplate(ctx context.Context, rt *platauth.RoleTemplate) error {
+	if rt.ID == "" {
+		rt.ID = id.New()
+	}
+	now := time.Now().UTC()
+	if rt.CreatedAt.IsZero() {
+		rt.CreatedAt = now
+	}
+	rt.UpdatedAt = now
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO role_templates (id, workspace_id, name, display_name, description, permissions, is_builtin, position, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		rt.ID, rt.WorkspaceID, rt.Name, rt.DisplayName, rt.Description,
+		int64(rt.Permissions), rt.IsBuiltin, rt.Position, rt.CreatedAt, rt.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("insert role template: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) GetRoleTemplate(ctx context.Context, workspaceID, roleID string) (*platauth.RoleTemplate, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, workspace_id, name, display_name, description, permissions, is_builtin, position, created_at, updated_at
+		 FROM role_templates WHERE workspace_id = $1 AND id = $2`, workspaceID, roleID)
+	return scanRoleTemplatePg(row)
+}
+
+func (s *PostgresAuthStore) ListRoleTemplates(ctx context.Context, workspaceID string) ([]*platauth.RoleTemplate, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, workspace_id, name, display_name, description, permissions, is_builtin, position, created_at, updated_at
+		 FROM role_templates WHERE workspace_id = $1
+		 ORDER BY position, name`, workspaceID)
+	if err != nil {
+		return nil, fmt.Errorf("list role templates: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.RoleTemplate, 0)
+	for rows.Next() {
+		rt, err := scanRoleTemplatePg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, rt)
+	}
+	return result, rows.Err()
+}
+
+func (s *PostgresAuthStore) UpdateRoleTemplate(ctx context.Context, rt *platauth.RoleTemplate) error {
+	rt.UpdatedAt = time.Now().UTC()
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE role_templates SET name=$1, display_name=$2, description=$3, permissions=$4, position=$5, updated_at=$6
+		 WHERE workspace_id=$7 AND id=$8`,
+		rt.Name, rt.DisplayName, rt.Description, int64(rt.Permissions), rt.Position, rt.UpdatedAt,
+		rt.WorkspaceID, rt.ID)
+	if err != nil {
+		return fmt.Errorf("update role template: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("role template not found")
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) DeleteRoleTemplate(ctx context.Context, workspaceID, roleID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM role_templates WHERE workspace_id=$1 AND id=$2 AND is_builtin = FALSE`,
+		workspaceID, roleID)
+	if err != nil {
+		return fmt.Errorf("delete role template: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("role template not found or is builtin")
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) SeedDefaultRoleTemplates(ctx context.Context, workspaceID string) error {
+	for _, def := range platauth.DefaultRoleTemplates {
+		rt := def // copy
+		rt.ID = id.New()
+		rt.WorkspaceID = workspaceID
+		if err := s.CreateRoleTemplate(ctx, &rt); err != nil {
+			return fmt.Errorf("seed role template %s: %w", def.Name, err)
+		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Project Membership
+// ---------------------------------------------------------------------------
+
+func (s *PostgresAuthStore) AddProjectMember(ctx context.Context, pm *platauth.ProjectMembership) error {
+	if pm.CreatedAt.IsZero() {
+		pm.CreatedAt = time.Now().UTC()
+	}
+	langs := "[]"
+	if len(pm.Languages) > 0 {
+		langs = marshalLanguages(pm.Languages)
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO project_members (project_id, user_id, role_id, workspace_id, languages, created_at)
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		pm.ProjectID, pm.UserID, pm.RoleID, pm.WorkspaceID, langs, pm.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("add project member: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) GetProjectMembership(ctx context.Context, projectID, userID string) (*platauth.ProjectMembership, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT project_id, user_id, role_id, workspace_id, languages, created_at
+		 FROM project_members WHERE project_id = $1 AND user_id = $2`, projectID, userID)
+	return scanProjectMemberPg(row)
+}
+
+func (s *PostgresAuthStore) ListProjectMembers(ctx context.Context, projectID string) ([]*platauth.ProjectMembership, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT project_id, user_id, role_id, workspace_id, languages, created_at
+		 FROM project_members WHERE project_id = $1
+		 ORDER BY created_at`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("list project members: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.ProjectMembership, 0)
+	for rows.Next() {
+		pm, err := scanProjectMemberPg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, pm)
+	}
+	return result, rows.Err()
+}
+
+func (s *PostgresAuthStore) UpdateProjectMember(ctx context.Context, pm *platauth.ProjectMembership) error {
+	langs := "[]"
+	if len(pm.Languages) > 0 {
+		langs = marshalLanguages(pm.Languages)
+	}
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE project_members SET role_id=$1, languages=$2 WHERE project_id=$3 AND user_id=$4`,
+		pm.RoleID, langs, pm.ProjectID, pm.UserID)
+	if err != nil {
+		return fmt.Errorf("update project member: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project membership not found")
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) RemoveProjectMember(ctx context.Context, projectID, userID string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM project_members WHERE project_id=$1 AND user_id=$2`,
+		projectID, userID)
+	if err != nil {
+		return fmt.Errorf("remove project member: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("project membership not found")
+	}
+	return nil
+}
+
+func (s *PostgresAuthStore) ResolveProjectPermissions(ctx context.Context, projectID, userID string) (*platauth.ResolvedPermission, error) {
+	var perms int64
+	var langsStr string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT rt.permissions, pm.languages
+		 FROM project_members pm
+		 JOIN role_templates rt ON rt.workspace_id = pm.workspace_id AND rt.id = pm.role_id
+		 WHERE pm.project_id = $1 AND pm.user_id = $2`, projectID, userID).
+		Scan(&perms, &langsStr)
+	if err != nil {
+		return nil, fmt.Errorf("resolve project permissions: %w", err)
+	}
+	return &platauth.ResolvedPermission{
+		Permissions: platauth.Permission(perms),
+		Languages:   unmarshalLanguages(langsStr),
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
 // Scan helpers (PostgreSQL — uses time.Time directly for TIMESTAMPTZ)
 // ---------------------------------------------------------------------------
 
@@ -580,4 +775,27 @@ func scanMembershipPg(row scanner) (*platauth.Membership, error) {
 	}
 	m.Role = platauth.Role(role)
 	return &m, nil
+}
+
+func scanRoleTemplatePg(row scanner) (*platauth.RoleTemplate, error) {
+	var rt platauth.RoleTemplate
+	var perms int64
+	err := row.Scan(&rt.ID, &rt.WorkspaceID, &rt.Name, &rt.DisplayName, &rt.Description,
+		&perms, &rt.IsBuiltin, &rt.Position, &rt.CreatedAt, &rt.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("scan role template: %w", err)
+	}
+	rt.Permissions = platauth.Permission(perms)
+	return &rt, nil
+}
+
+func scanProjectMemberPg(row scanner) (*platauth.ProjectMembership, error) {
+	var pm platauth.ProjectMembership
+	var langsStr string
+	err := row.Scan(&pm.ProjectID, &pm.UserID, &pm.RoleID, &pm.WorkspaceID, &langsStr, &pm.CreatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("scan project member: %w", err)
+	}
+	pm.Languages = unmarshalLanguages(langsStr)
+	return &pm, nil
 }

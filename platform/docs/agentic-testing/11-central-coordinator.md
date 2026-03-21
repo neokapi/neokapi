@@ -119,11 +119,13 @@ On each coordination cycle:
 You have two MCP servers:
 
 ### Bowrain MCP (content awareness)
+
 - `list_projects` — see all projects across workspaces
 - `list_blocks` — check untranslated block counts
 - `connector_status` — see if upstream has changes
 
 ### Agentic Testing MCP (fleet management)
+
 - `get_fleet_summary` — aggregated status of all workspaces and agents
 - `trigger_agent_session` — dispatch a specific agent for a specific task
 - `list_agent_executions` — recent session history (who ran, when, outcome)
@@ -249,14 +251,14 @@ Dispatches a worker agent session by placing a message on the appropriate queue.
 
 **Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `workspace_slug` | string | Target workspace |
-| `agent_role` | string | `developer`, `translator`, `brand_manager`, `qa`, `pm` |
-| `persona` | string | Agent persona name (e.g., `sophie-translator`) |
-| `task` | string | Natural language task description for the agent's `-m` flag |
-| `locale` | string? | Target locale (for translators) |
-| `priority` | string? | `normal`, `high` (high = skip inter-session gap) |
+| Parameter        | Type    | Description                                                 |
+| ---------------- | ------- | ----------------------------------------------------------- |
+| `workspace_slug` | string  | Target workspace                                            |
+| `agent_role`     | string  | `developer`, `translator`, `brand_manager`, `qa`, `pm`      |
+| `persona`        | string  | Agent persona name (e.g., `sophie-translator`)              |
+| `task`           | string  | Natural language task description for the agent's `-m` flag |
+| `locale`         | string? | Target locale (for translators)                             |
+| `priority`       | string? | `normal`, `high` (high = skip inter-session gap)            |
 
 **Example:**
 
@@ -444,30 +446,35 @@ This means:
 Base personas in `personas/` are generic — they define the role, tools, working style, and quality standards without reference to any specific project. Workspace agent directories extend the base with project-specific context:
 
 **`personas/translator/SOUL.md`** (template):
+
 ```markdown
 # Translator
 
 You are a professional translator working on localization projects through Bowrain.
 
 ## Your Role
+
 - Review AI-generated translations for accuracy and fluency
 - Edit translations that don't meet quality standards
 - Add high-quality translations to Translation Memory
 - Flag ambiguous source text or terminology issues
 
 ## Your Tools
+
 - `bowrain.listTasks` — See assigned translation tasks
 - `bowrain.translate` — Submit your translation for a block
-...
+  ...
 ```
 
 **`workspaces/excalidraw-l10n/agents/sophie-translator/SOUL.md`** (workspace override):
+
 ```markdown
 # Sophie Martin — French Translator (Excalidraw)
 
 You are Sophie Martin, translating Excalidraw from English to French (fr-FR).
 
 ## Project Context
+
 - Excalidraw is a virtual whiteboard for sketching hand-drawn diagrams
 - UI strings are in flat JSON files under packages/excalidraw/locales/
 - Keys are descriptive (e.g., "toolBar.eraser") — use them for context
@@ -475,6 +482,7 @@ You are Sophie Martin, translating Excalidraw from English to French (fr-FR).
 - Use formal register (vous) for UI labels, informal (tu) for tooltips and hints
 
 ## Inherited Behavior
+
 Follow all guidelines from the base translator persona.
 ```
 
@@ -485,6 +493,7 @@ The entrypoint script concatenates the base and override SOUL.md files (or the o
 Human users who need to log in and monitor agent activity are defined at two levels:
 
 **`observers.yaml`** (fleet-wide — added to every workspace):
+
 ```yaml
 # People who monitor the entire fleet
 observers:
@@ -493,10 +502,11 @@ observers:
 ```
 
 **`workspaces/{slug}/plan.yaml`** (per-workspace — added only to that workspace):
+
 ```yaml
 observers:
   - email: demo@bowrain.com
-    role: viewer    # Read-only for demo purposes
+    role: viewer # Read-only for demo purposes
 ```
 
 During onboarding, both lists are merged. Observers get Keycloak accounts (if they don't already exist) and are added as workspace members with the specified role. This lets them log in to the web UI to browse the activity feed, review translations, inspect dashboards, and see agent work in progress — without being part of the agent team.
@@ -703,7 +713,7 @@ For local development, the coordinator runs as a Docker container alongside the 
 # docker-compose.yaml additions
 coordinator:
   image: ghcr.io/neokapi/bravo-agent:latest
-  command: daemon  # In local mode, coordinator runs as a daemon with cron
+  command: daemon # In local mode, coordinator runs as a daemon with cron
   environment:
     BRAVO_MCP_ENDPOINT: http://bowrain-server:8080/mcp/
     AGENTIC_MCP_ENDPOINT: http://bowrain-server:8080/agentic-mcp/
@@ -723,17 +733,17 @@ The Agentic Testing MCP server is implemented in `platform/server/agentic_mcp/` 
 
 The MCP tools aggregate data from existing platform components:
 
-| Tool | Primary Data Source |
-|------|-------------------|
-| `get_fleet_summary` | ContentStore (block stats), audit_log (recent activity), Container Apps API (active jobs) |
-| `get_workspace_status` | ContentStore, audit_log, git connector status |
-| `trigger_agent_session` | Service Bus SDK (Azure) or Redis PUBLISH (local) |
-| `list_agent_executions` | audit_log filtered by agent actors + Container Apps execution history |
-| `walk_release` | git tags on upstream fork + ContentStore push history |
-| `file_feedback_issue` | GitHub API via `gh` CLI or octokit |
-| `commit_memory` | git operations on fleet repo |
-| `list_workspaces` | Fleet repo `workspaces/` directory listing + `plan.yaml` metadata |
-| `onboard_project` | Creates workspace directory in fleet repo, forks upstream, generates plan |
+| Tool                    | Primary Data Source                                                                       |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `get_fleet_summary`     | ContentStore (block stats), audit_log (recent activity), Container Apps API (active jobs) |
+| `get_workspace_status`  | ContentStore, audit_log, git connector status                                             |
+| `trigger_agent_session` | Service Bus SDK (Azure) or Redis PUBLISH (local)                                          |
+| `list_agent_executions` | audit_log filtered by agent actors + Container Apps execution history                     |
+| `walk_release`          | git tags on upstream fork + ContentStore push history                                     |
+| `file_feedback_issue`   | GitHub API via `gh` CLI or octokit                                                        |
+| `commit_memory`         | git operations on fleet repo                                                              |
+| `list_workspaces`       | Fleet repo `workspaces/` directory listing + `plan.yaml` metadata                         |
+| `onboard_project`       | Creates workspace directory in fleet repo, forks upstream, generates plan                 |
 
 ### Workspace Discovery
 
@@ -786,32 +796,32 @@ content:
       format: markdown
       estimated_blocks: 450
   total_estimated_blocks: 1650
-  complexity: medium  # No nested formats, some ICU plurals
+  complexity: medium # No nested formats, some ICU plurals
 
 release_strategy:
   mode: accelerated-then-realtime
-  start_tag: v0.14.0          # First release with stable i18n structure
-  skip_tags: [v0.14.1-rc*]    # Skip release candidates
+  start_tag: v0.14.0 # First release with stable i18n structure
+  skip_tags: [v0.14.1-rc*] # Skip release candidates
   end_tag: latest
-  estimated_releases: 28       # v0.14.0 through v0.18.1
+  estimated_releases: 28 # v0.14.0 through v0.18.1
   pace: 2_hours_between_releases
-  switch_to_realtime_at: latest  # After catching up, track main
+  switch_to_realtime_at: latest # After catching up, track main
 
 agent_team:
   developer: alex-developer
   translators:
     fr-FR: sophie-translator
-    de-DE: thomas-translator    # thomas doubles as QA
-    ja-JP: mei-translator       # mei doubles as PM
+    de-DE: thomas-translator # thomas doubles as QA
+    ja-JP: mei-translator # mei doubles as PM
   brand: maria-brand
   qa: thomas-qa
   pm: mei-pm
 
-observers:                           # Human users added to the workspace for monitoring
+observers: # Human users added to the workspace for monitoring
   - email: asgeir@bowrain.com
-    role: admin                      # Can view everything, edit settings
+    role: admin # Can view everything, edit settings
   - email: demo@bowrain.com
-    role: viewer                     # Read-only access for demos
+    role: viewer # Read-only access for demos
 
 notes: |
   - Excalidraw's i18n JSON uses flat key-value pairs, no nesting.
@@ -885,5 +895,5 @@ Starting clean avoids the complexity of running two scheduling systems in parall
 
 - [03-orchestration.md](03-orchestration.md) — describes the decentralized model that this architecture evolves from. The operating modes (real-time, accelerated, hybrid) and failure handling remain valid. The scheduling mechanism changes.
 - [04-implementation.md](04-implementation.md) — ZeroClaw containers, Bowrain MCP, and Azure deployment remain unchanged. The Agentic Testing MCP is additive. The release-walker is subsumed by the coordinator.
-- [09-agent-routines.md](09-agent-routines.md) — agent daily routines still define *what* each persona does. The coordinator decides *when* they do it.
+- [09-agent-routines.md](09-agent-routines.md) — agent daily routines still define _what_ each persona does. The coordinator decides _when_ they do it.
 - [10-persona-evolution.md](10-persona-evolution.md) — the coordinator's cross-workspace visibility feeds the tuning loop with richer data than per-agent metrics alone.

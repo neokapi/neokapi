@@ -34,6 +34,7 @@ import {
   sampleAutomationRules,
   sampleAutomationEvents,
   sampleAutomationHistory,
+  sampleRoleTemplates,
 } from "./fixtures";
 
 // ---------------------------------------------------------------------------
@@ -229,6 +230,18 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     createInvite: notImpl,
     deleteInvite: noop,
     acceptInvite: notImpl,
+
+    // --- Role Templates --------------------------------------------------
+    listRoleTemplates: async () => [...sampleRoleTemplates],
+    createRoleTemplate: notImpl,
+    updateRoleTemplate: notImpl,
+    deleteRoleTemplate: noop,
+
+    // --- Project Members -------------------------------------------------
+    listProjectMembers: async () => [],
+    addProjectMember: notImpl,
+    updateProjectMember: notImpl,
+    removeProjectMember: noop,
 
     // --- API Tokens -----------------------------------------------------
     listApiTokens: async () => [],
@@ -629,6 +642,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       total_output_tokens: 0,
       total_container_sec: 0,
       message_count: 0,
+    }),
+    bravoUpdateMode: async (_ws: string, _id: string, mode: string) => ({
+      mode,
+      permissions: ["view_content"],
     }),
     bravoSendMessageSSE: () => new AbortController(),
 

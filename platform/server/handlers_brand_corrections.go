@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
+
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/id"
 )
@@ -22,6 +24,10 @@ type BrandCorrectionRequest struct {
 
 // HandleCreateBrandVoiceCorrection records a user correction to a brand voice finding.
 func (s *Server) HandleCreateBrandVoiceCorrection(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageBrand); err != nil {
+		return err
+	}
+
 	if s.BrandStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "brand voice not configured"})
 	}

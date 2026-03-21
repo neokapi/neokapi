@@ -16,6 +16,7 @@ import {
   KeyRound,
   Info,
   CreditCard,
+  Shield,
 } from "./icons";
 import { WorkspaceSwitcher } from "./WorkspaceSwitcher";
 import { MobileWorkspaceSwitcher } from "./MobileWorkspaceSwitcher";
@@ -114,6 +115,7 @@ export const subNavConfig: Record<string, SubNavItem[]> = {
     { id: "general", label: "General", icon: <Settings /> },
     { id: "languages", label: "Languages", icon: <Globe /> },
     { id: "members", label: "Members", icon: <Users /> },
+    { id: "roles", label: "Roles", icon: <Shield /> },
     { id: "providers", label: "Providers", icon: <KeyRound /> },
     { id: "tokens", label: "API Tokens", icon: <KeyRound /> },
     { id: "auditlog", label: "Audit Log", icon: <Clock /> },
