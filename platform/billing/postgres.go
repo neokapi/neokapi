@@ -84,6 +84,18 @@ var billingMigrations = []storage.Migration{
 			CREATE INDEX idx_billing_events_type ON billing_events(event_type, created_at);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "allow empty stripe_customer_id for non-Stripe subscriptions (trials, admin overrides)",
+		SQL: `
+			ALTER TABLE subscriptions ALTER COLUMN stripe_customer_id DROP NOT NULL;
+			ALTER TABLE subscriptions ALTER COLUMN stripe_customer_id SET DEFAULT '';
+			DROP INDEX IF EXISTS subscriptions_stripe_customer_id_key;
+			CREATE UNIQUE INDEX subscriptions_stripe_customer_id_key
+				ON subscriptions (stripe_customer_id)
+				WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id != '';
+		`,
+	},
 }
 
 // PgBillingStore implements BillingStore using PostgreSQL.
