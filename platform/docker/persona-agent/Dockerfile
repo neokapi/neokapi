@@ -14,7 +14,7 @@ FROM alpine:3.21
 
 # Install runtime dependencies: git (fleet repo), envsubst (config templating),
 # redis (execution event publishing via redis-cli).
-RUN apk add --no-cache git gettext redis gcompat
+RUN apk add --no-cache git gettext redis gcompat libgcc
 
 # Copy zeroclaw binary from official image.
 COPY --from=zeroclaw /usr/local/bin/zeroclaw /usr/local/bin/zeroclaw
