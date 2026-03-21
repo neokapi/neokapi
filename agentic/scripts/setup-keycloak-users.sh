@@ -107,48 +107,57 @@ create_user() {
 }
 
 # --- Discover workspaces and create users ---
-echo "Scanning workspaces in ${WORKSPACES_DIR} ..."
-echo
 
-for ws_dir in "${WORKSPACES_DIR}"/*/; do
+# If a workspace name is passed as $1, only process that workspace.
+TARGET_WS="${1:-}"
+
+process_workspace() {
+  local ws_dir="$1"
+  local ws_name
   ws_name=$(basename "$ws_dir")
 
-  # Skip the template directory
-  if [ "$ws_name" = "_template" ]; then
-    continue
-  fi
+  [ "$ws_name" = "_template" ] && return
 
-  ws_yaml="${ws_dir}workspace.yaml"
-  if [ ! -f "$ws_yaml" ]; then
-    continue
-  fi
+  local ws_yaml="${ws_dir}/workspace.yaml"
+  [ ! -f "$ws_yaml" ] && return
 
+  local slug
   slug=$(grep '^slug:' "$ws_yaml" | head -1 | sed 's/^slug: *//')
   echo "=== Workspace: ${ws_name} (${slug}) ==="
 
-  # Find agent directories
-  agents_dir="${ws_dir}agents"
+  local agents_dir="${ws_dir}/agents"
   if [ ! -d "$agents_dir" ]; then
     echo "  No agents/ directory found, skipping."
     echo
-    continue
+    return
   fi
 
   for agent_dir in "${agents_dir}"/*/; do
+    local agent_name
     agent_name=$(basename "$agent_dir")
-    if [ "$agent_name" = "_template" ]; then
-      continue
-    fi
+    [ "$agent_name" = "_template" ] && continue
 
-    username="${agent_name}"
-    email="${agent_name}@${slug}.bowrain.test"
-    # Capitalize first letter for display name
+    local username="${agent_name}"
+    local email="${agent_name}@${slug}.bowrain.test"
+    local first
     first=$(echo "$agent_name" | sed 's/./\U&/')
 
     create_user "$username" "$email" "$first" "(${ws_name})"
   done
 
   echo
-done
+}
+
+if [ -n "$TARGET_WS" ]; then
+  echo "Processing workspace: ${TARGET_WS}"
+  echo
+  process_workspace "${WORKSPACES_DIR}/${TARGET_WS}"
+else
+  echo "Scanning all workspaces in ${WORKSPACES_DIR} ..."
+  echo
+  for ws_dir in "${WORKSPACES_DIR}"/*/; do
+    process_workspace "$ws_dir"
+  done
+fi
 
 echo "Done."
