@@ -69,7 +69,9 @@ export const SubscriptionChangedEmail = ({
           </Section>
 
           <Text style={paragraph}>
-            {"You can view your full billing details and manage your subscription from the billing page."}
+            {
+              "You can view your full billing details and manage your subscription from the billing page."
+            }
           </Text>
 
           <Section style={btnWrapper}>

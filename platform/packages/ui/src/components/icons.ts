@@ -66,4 +66,5 @@ export {
   BarChart3,
   Languages,
   CreditCard,
+  Shield,
 } from "lucide-react";

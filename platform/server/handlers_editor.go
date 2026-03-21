@@ -13,6 +13,7 @@ import (
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 	"github.com/neokapi/neokapi/providers/ai"
 	"github.com/neokapi/neokapi/sievepen"
@@ -108,6 +109,10 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 
 // HandleUpdateEditorProject updates a project's name and locales.
 func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -190,6 +195,10 @@ func (s *Server) HandleUpdateStreamName(c echo.Context) error {
 
 // HandleDeleteEditorProject archives a project (soft delete).
 func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -204,6 +213,10 @@ func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
 
 // HandleRestoreProject restores an archived project.
 func (s *Server) HandleRestoreProject(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -218,6 +231,10 @@ func (s *Server) HandleRestoreProject(c echo.Context) error {
 
 // HandleRestoreStream restores an archived stream.
 func (s *Server) HandleRestoreStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -256,6 +273,10 @@ func (s *Server) HandleListArchivedProjects(c echo.Context) error {
 
 // HandlePermanentlyDeleteProject permanently deletes an archived project.
 func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -281,6 +302,10 @@ func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
 
 // HandleUploadFiles uploads files to a project via multipart form.
 func (s *Server) HandleUploadFiles(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -322,6 +347,10 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 
 // HandleRemoveFile removes a file from a project.
 func (s *Server) HandleRemoveFile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -370,6 +399,10 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 
 // HandleUpdateBlockTarget updates the target text for a block.
 func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -380,6 +413,9 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 	var req UpdateBlockTargetRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+		return err
 	}
 
 	if err := editorUpdateBlockTarget(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
@@ -401,6 +437,10 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 
 // HandleUpdateBlockTargetCoded updates a block target with coded text and spans.
 func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -411,6 +451,9 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 	var req UpdateBlockTargetCodedRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+		return err
 	}
 
 	if err := editorUpdateBlockTargetCoded(c.Request().Context(), s.ContentStore, pid, streamParam(c), bid, req); err != nil {
@@ -424,6 +467,10 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 
 // HandlePseudoTranslate pseudo-translates all blocks in a file.
 func (s *Server) HandlePseudoTranslate(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -436,6 +483,9 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+		return err
 	}
 
 	stats, err := editorPseudoTranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req.TargetLocale)
@@ -450,6 +500,10 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 
 // HandleAITranslate translates all blocks using an AI provider.
 func (s *Server) HandleAITranslate(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -460,6 +514,9 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 	var req TranslateRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+		return err
 	}
 
 	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req, s.CredentialStore)
@@ -474,6 +531,10 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 
 // HandleTMTranslate leverages translation memory to translate blocks.
 func (s *Server) HandleTMTranslate(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermTranslate); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -487,6 +548,9 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if err := s.requireLanguagePermission(c, platauth.PermTranslate, req.TargetLocale); err != nil {
+		return err
 	}
 
 	stats, err := editorTMTranslate(c.Request().Context(), s.ContentStore, s.wsStores, ws, pid, streamParam(c), fname, req.TargetLocale)

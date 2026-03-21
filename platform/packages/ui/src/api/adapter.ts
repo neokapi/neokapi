@@ -62,6 +62,8 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
+  RoleTemplate,
+  ProjectMembership,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -105,6 +107,53 @@ export interface ApiAdapter {
   ): Promise<Invite>;
   deleteInvite(workspaceSlug: string, inviteId: string): Promise<void>;
   acceptInvite(code: string): Promise<AcceptInviteResponse>;
+
+  // Role Templates
+  listRoleTemplates(workspaceSlug: string): Promise<RoleTemplate[]>;
+  createRoleTemplate(
+    workspaceSlug: string,
+    data: {
+      name: string;
+      display_name: string;
+      description: string;
+      permissions: string[];
+      position?: number;
+    },
+  ): Promise<RoleTemplate>;
+  updateRoleTemplate(
+    workspaceSlug: string,
+    roleId: string,
+    data: {
+      name?: string;
+      display_name?: string;
+      description?: string;
+      permissions?: string[];
+      position?: number;
+    },
+  ): Promise<RoleTemplate>;
+  deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void>;
+
+  // Project Members
+  listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]>;
+  addProjectMember(
+    workspaceSlug: string,
+    projectId: string,
+    data: {
+      user_id: string;
+      role_id: string;
+      languages?: string[];
+    },
+  ): Promise<ProjectMembership>;
+  updateProjectMember(
+    workspaceSlug: string,
+    projectId: string,
+    userId: string,
+    data: {
+      role_id: string;
+      languages?: string[];
+    },
+  ): Promise<ProjectMembership>;
+  removeProjectMember(workspaceSlug: string, projectId: string, userId: string): Promise<void>;
 
   // API Tokens
   listApiTokens(workspaceSlug: string): Promise<ApiToken[]>;
@@ -540,6 +589,11 @@ export interface ApiAdapter {
   bravoUpdateConfig(workspaceSlug: string, config: Partial<BravoConfig>): Promise<BravoConfig>;
   bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }>;
   bravoGetUsage(workspaceSlug: string, from?: string, to?: string): Promise<BravoUsageSummary>;
+  bravoUpdateMode(
+    workspaceSlug: string,
+    conversationId: string,
+    mode: string,
+  ): Promise<{ mode: string; permissions: string[] }>;
   /** Send a message and stream the response via SSE. Returns an AbortController to cancel. */
   bravoSendMessageSSE(
     workspaceSlug: string,

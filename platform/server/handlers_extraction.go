@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
 // ExtractionSettings holds extraction configuration for a project.
@@ -43,6 +44,10 @@ func (s *Server) HandleGetExtractionSettings(c echo.Context) error {
 
 // HandleUpdateExtractionSettings updates the extraction configuration for a project.
 func (s *Server) HandleUpdateExtractionSettings(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageProject); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

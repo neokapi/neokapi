@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/core/id"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	platev "github.com/neokapi/neokapi/platform/event"
 )
 
@@ -29,6 +30,10 @@ func (s *Server) HandleListAutomationRules(c echo.Context) error {
 
 // HandleCreateAutomationRule creates a new automation rule.
 func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
+		return err
+	}
+
 	projectID := c.Param("id")
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "automation store not configured"})
@@ -64,6 +69,10 @@ func (s *Server) HandleCreateAutomationRule(c echo.Context) error {
 
 // HandleUpdateAutomationRule updates an existing rule.
 func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
+		return err
+	}
+
 	ruleID := c.Param("ruleId")
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "automation store not configured"})
@@ -98,6 +107,10 @@ func (s *Server) HandleUpdateAutomationRule(c echo.Context) error {
 
 // HandleDeleteAutomationRule deletes a custom rule.
 func (s *Server) HandleDeleteAutomationRule(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
+		return err
+	}
+
 	ruleID := c.Param("ruleId")
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "automation store not configured"})
@@ -112,6 +125,10 @@ func (s *Server) HandleDeleteAutomationRule(c echo.Context) error {
 
 // HandleToggleAutomationRule enables or disables a rule.
 func (s *Server) HandleToggleAutomationRule(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageAutomation); err != nil {
+		return err
+	}
+
 	ruleID := c.Param("ruleId")
 	if s.AutomationRuleStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, map[string]string{"error": "automation store not configured"})

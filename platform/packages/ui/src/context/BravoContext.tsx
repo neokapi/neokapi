@@ -8,7 +8,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import type { BravoConversation, BravoMessage, BravoToolCall } from "../types/api";
+import type { BravoConversation, BravoMessage, BravoToolCall, BravoSSEStepUp } from "../types/api";
 import type { BravoMode } from "../components/bravo/BravoModeSelector";
 import { useApi } from "./ApiContext";
 import { useWorkspace } from "./WorkspaceContext";
@@ -39,6 +39,8 @@ interface BravoState {
   mode: BravoMode;
   /** True while waiting for the agent container to provision (cold start). */
   coldStarting: boolean;
+  /** Active step-up prompt (mode restriction detected by @bravo). */
+  stepUp: BravoSSEStepUp | null;
 }
 
 interface BravoActions {
@@ -66,6 +68,10 @@ interface BravoActions {
   refreshConversations: () => Promise<void>;
   /** Change the interaction mode. */
   setMode: (mode: BravoMode) => void;
+  /** Switch mode in response to a step-up prompt (calls API, clears step-up, re-sends last message). */
+  handleModeSwitch: (newMode: string) => Promise<void>;
+  /** Dismiss the step-up prompt without switching mode. */
+  dismissStepUp: () => void;
 }
 
 interface BravoContextValue {
@@ -104,6 +110,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<BravoMode>("ask");
   const [coldStarting, setColdStarting] = useState(false);
+  const [stepUp, setStepUp] = useState<BravoSSEStepUp | null>(null);
 
   // AbortController for the current SSE stream.
   const abortRef = useRef<AbortController | null>(null);
@@ -316,6 +323,10 @@ export function BravoProvider({ children }: { children: ReactNode }) {
             );
           },
 
+          onStepUp: (data) => {
+            setStepUp(data);
+          },
+
           onMessageEnd: (data) => {
             // Assemble the final assistant message and add to the message list.
             const finalMsg: BravoMessage = {
@@ -419,6 +430,30 @@ export function BravoProvider({ children }: { children: ReactNode }) {
     await fetchConversations();
   }, [fetchConversations]);
 
+  const handleModeSwitch = useCallback(
+    async (newMode: string) => {
+      if (!ws || !activeConversation) return;
+      try {
+        await api.bravoUpdateMode(ws, activeConversation.id, newMode);
+        setMode(newMode as BravoMode);
+        setStepUp(null);
+
+        // Re-send the last user message to auto-retry after step-up.
+        const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+        if (lastUserMsg) {
+          await sendMessage(lastUserMsg.content);
+        }
+      } catch {
+        // Silently fail — user can retry manually.
+      }
+    },
+    [api, ws, activeConversation, messages, sendMessage],
+  );
+
+  const dismissStepUp = useCallback(() => {
+    setStepUp(null);
+  }, []);
+
   // -----------------------------------------------------------------------
   // Memoized value
   // -----------------------------------------------------------------------
@@ -435,6 +470,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       loading,
       mode,
       coldStarting,
+      stepUp,
     }),
     [
       panelOpen,
@@ -447,6 +483,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       loading,
       mode,
       coldStarting,
+      stepUp,
     ],
   );
 
@@ -464,6 +501,8 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       denyToolCall,
       refreshConversations,
       setMode,
+      handleModeSwitch,
+      dismissStepUp,
     }),
     [
       openPanel,
@@ -478,6 +517,8 @@ export function BravoProvider({ children }: { children: ReactNode }) {
       denyToolCall,
       refreshConversations,
       setMode,
+      handleModeSwitch,
+      dismissStepUp,
     ],
   );
 

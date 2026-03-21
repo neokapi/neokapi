@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
+
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
@@ -18,6 +20,10 @@ import (
 
 // HandleSyncPush receives source blocks from a client and stores them.
 func (s *Server) HandleSyncPush(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
