@@ -152,9 +152,10 @@ publish_exec_event() {
   REDIS_HOST=$(echo "$REDIS_URL" | sed 's|rediss\?://||' | cut -d: -f1)
   REDIS_PORT=$(echo "$REDIS_URL" | sed 's|rediss\?://||' | cut -d: -f2)
 
-  redis-cli -h "$REDIS_HOST" -p "${REDIS_PORT:-6380}" ${REDIS_CLI_ARGS} \
+  REDIS_RESULT=$(redis-cli -h "$REDIS_HOST" -p "${REDIS_PORT:-6380}" ${REDIS_CLI_ARGS} \
     ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} \
-    PUBLISH "agentic:events" "$payload" >/dev/null 2>&1 || echo "WARNING: Failed to publish event ${event_type}"
+    PUBLISH "agentic:events" "$payload" 2>&1) || true
+  echo "Redis PUBLISH ${event_type}: ${REDIS_RESULT}"
 }
 
 echo ""
