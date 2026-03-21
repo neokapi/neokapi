@@ -15,4 +15,4 @@ tool_timeout_secs = 120
 
 [daemon]
 [daemon.cron]
-"translate-batch" = "0 14 * * 1-5"   # Weekday afternoons
+"translate-batch" = "0 10 * * 2,4"
