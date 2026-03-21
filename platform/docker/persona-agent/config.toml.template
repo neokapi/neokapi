@@ -3,9 +3,6 @@
 #
 # Model/provider config is handled by ZEROCLAW_* env vars.
 
-[agent]
-name = "${AGENT_NAME}"
-
 # Bowrain MCP — content management tools (all agents).
 [[mcp.servers]]
 name = "bowrain"

@@ -171,7 +171,7 @@ AGENT_LOG="/tmp/agent-output.log"
 # Run agent, capturing output to a log file. We avoid piping through tee
 # because $? in plain sh reflects the last pipe stage, not the agent.
 set +e
-zeroclaw agent -m "${AGENT_TASK_MESSAGE:-Run your standard routine}" >"$AGENT_LOG" 2>&1
+zeroclaw agent --auto-approve -m "${AGENT_TASK_MESSAGE:-Run your standard routine}" >"$AGENT_LOG" 2>&1
 EXIT_CODE=$?
 set -e
 cat "$AGENT_LOG"
