@@ -23,7 +23,7 @@
 # 5. Run zeroclaw agent -m "<task>"
 # 6. Push memory changes back to fleet repo
 
-set -eu
+set -u
 
 FLEET_DIR="/tmp/fleet"
 AGENT_DIR="/root/.zeroclaw"
@@ -40,13 +40,19 @@ echo ""
 # If a long-lived API token is provided, exchange it for a short-lived JWT.
 if [ -n "${BOWRAIN_API_TOKEN:-}" ]; then
   EXCHANGE_URL="${BRAVO_MCP_ENDPOINT%/mcp/}/api/v1/auth/token/exchange"
-  BRAVO_AGENT_TOKEN=$(wget -qO- \
+  EXCHANGE_RESP=$(wget -qO- \
     --header="Authorization: Bearer ${BOWRAIN_API_TOKEN}" \
     --post-data="" \
-    "${EXCHANGE_URL}" \
-    | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
-  export BRAVO_AGENT_TOKEN
-  echo "Exchanged API token for session JWT"
+    "${EXCHANGE_URL}" 2>/dev/null || true)
+  if [ -n "$EXCHANGE_RESP" ]; then
+    BRAVO_AGENT_TOKEN=$(echo "$EXCHANGE_RESP" | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
+    export BRAVO_AGENT_TOKEN
+    echo "Exchanged API token for session JWT"
+  else
+    echo "WARNING: Token exchange failed (401?), using raw API token"
+    BRAVO_AGENT_TOKEN="${BOWRAIN_API_TOKEN}"
+    export BRAVO_AGENT_TOKEN
+  fi
 fi
 
 # ── Clone or pull fleet repo ───────────────────────────────────────────
@@ -60,7 +66,9 @@ if [ -n "${FLEET_REPO:-}" ]; then
     if [ -n "${FLEET_REPO_TOKEN:-}" ]; then
       REPO_URL=$(echo "$FLEET_REPO" | sed "s|https://|https://x-access-token:${FLEET_REPO_TOKEN}@|")
     fi
-    git clone --depth 1 "$REPO_URL" "$FLEET_DIR"
+    if ! git clone --depth 1 "$REPO_URL" "$FLEET_DIR"; then
+      echo "WARNING: Failed to clone fleet repo, continuing without fleet state"
+    fi
   fi
 else
   echo "WARNING: FLEET_REPO not set, skipping fleet sync"
@@ -134,7 +142,19 @@ publish_exec_event() {
   fi
 
   local payload="{\"type\":\"${event_type}\",\"execution_id\":\"${EXEC_ID}\",\"workspace\":\"${WORKSPACE_SLUG:-}\",\"agent\":\"${AGENT_NAME}\",\"role\":\"${ROLE}\",\"timestamp\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"${extra_data}}"
-  redis-cli -u "$REDIS_URL" PUBLISH "agentic:events" "$payload" >/dev/null 2>&1 || true
+
+  # Build redis-cli args. Azure Redis requires TLS (--tls) and auth (-a).
+  REDIS_CLI_ARGS=""
+  case "$REDIS_URL" in
+    rediss://*) REDIS_CLI_ARGS="--tls" ;;
+  esac
+  # Extract host and port from URL (rediss://host:port or redis://host:port).
+  REDIS_HOST=$(echo "$REDIS_URL" | sed 's|rediss\?://||' | cut -d: -f1)
+  REDIS_PORT=$(echo "$REDIS_URL" | sed 's|rediss\?://||' | cut -d: -f2)
+
+  redis-cli -h "$REDIS_HOST" -p "${REDIS_PORT:-6380}" ${REDIS_CLI_ARGS} \
+    ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD"} \
+    PUBLISH "agentic:events" "$payload" >/dev/null 2>&1 || echo "WARNING: Failed to publish event ${event_type}"
 }
 
 echo ""
