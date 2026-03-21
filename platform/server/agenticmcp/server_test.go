@@ -280,6 +280,15 @@ func TestHandleListAgentExecutions_NoStore(t *testing.T) {
 	assert.Contains(t, err.Error(), "execution store not configured")
 }
 
+func TestHandleListAgentEvents_NoStore(t *testing.T) {
+	s := newTestServer(t)
+	ctx := context.Background()
+
+	_, _, err := s.handleListAgentEvents(ctx, nil, listAgentEventsInput{})
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "execution store not configured")
+}
+
 func TestHandleWalkRelease(t *testing.T) {
 	s, _, walker, _ := newFullTestServer(t)
 	ctx := context.Background()
