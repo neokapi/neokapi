@@ -111,6 +111,14 @@ type ServerConfig struct {
 	// FleetRepoToken is a PAT for HTTPS fleet repo access.
 	FleetRepoToken string
 
+	// GitHubIssuesRepo is the "owner/repo" for filing agent feedback issues.
+	// Set via BOWRAIN_GITHUB_ISSUES_REPO (e.g., "neokapi/agentic-fleet").
+	GitHubIssuesRepo string
+
+	// GitHubIssuesToken is a PAT with issues write permission.
+	// Set via BOWRAIN_GITHUB_ISSUES_TOKEN. Defaults to FleetRepoToken.
+	GitHubIssuesToken string
+
 	// Billing (AD-030)
 	StripeSecretKey     string
 	StripeWebhookSecret string
