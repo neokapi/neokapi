@@ -753,10 +753,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	if s.agenticMCP != nil {
 		agGroup := v1.Group("/agentic")
 		agGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+		agGroup.GET("/agents", s.HandleListAgenticAgents)
 		agGroup.GET("/executions", s.HandleListAgenticExecutions)
 		agGroup.GET("/executions/:id/events", s.HandleGetAgenticExecutionEvents)
 		agGroup.GET("/events", s.HandleListAgenticEvents)
 		agGroup.GET("/events/ws", s.HandleAgenticEventsWebSocket)
+		agGroup.GET("/issues", s.HandleListAgenticIssues)
 
 		// Agentic Testing MCP server (fleet management tools for coordinator).
 		s.agenticMCP.RegisterRoutes(e)

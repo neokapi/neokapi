@@ -17,20 +17,35 @@ function formatRelativeTime(iso: string): string {
   return `${Math.floor(diffHours / 24)}d ago`;
 }
 
+function statusColor(status: string): string {
+  switch (status) {
+    case "healthy":
+      return "bg-green-500";
+    case "degraded":
+      return "bg-yellow-500";
+    case "failing":
+      return "bg-red-500";
+    default:
+      return "bg-muted-foreground/40";
+  }
+}
+
 export default function AgentCard({ agent }: AgentCardProps) {
   const { addToken } = useFilter();
   const api = useApi();
 
-  const isIdle = !agent.lastActive;
-
   function handleClick() {
-    // Add workspace token first if available, then agent
     if (api.workspaces.length > 0) {
       const ws = api.workspaces[0];
       addToken({ key: "workspace", value: ws.slug, label: ws.name });
     }
-    addToken({ key: "agent", value: agent.id, label: agent.displayName });
+    addToken({ key: "agent", value: agent.agent, label: agent.agent });
   }
+
+  const successRate =
+    agent.total_sessions > 0
+      ? Math.round((agent.successful_count / agent.total_sessions) * 100)
+      : 0;
 
   return (
     <Card
@@ -41,40 +56,37 @@ export default function AgentCard({ agent }: AgentCardProps) {
         {/* Name + Role */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{agent.displayName}</div>
+            <div className="text-sm font-semibold truncate">{agent.agent}</div>
           </div>
           <Badge variant="secondary" className="text-[10px] shrink-0">
             {agent.role}
           </Badge>
         </div>
 
-        {/* Model */}
-        <Badge variant="outline" className="text-[10px]">
-          {agent.model}
-        </Badge>
+        {/* Sessions stats */}
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span className="font-mono tabular-nums">{agent.total_sessions} sessions</span>
+          <span>&middot;</span>
+          <span className="font-mono tabular-nums">{successRate}% success</span>
+        </div>
 
-        {/* Schedule */}
-        <p className="text-[11px] text-muted-foreground">{agent.schedule}</p>
+        {/* Tokens used */}
+        {agent.total_tokens_used > 0 && (
+          <div className="text-[11px] text-muted-foreground/70">
+            {(agent.total_tokens_used / 1000).toFixed(1)}k tokens used
+          </div>
+        )}
 
         {/* Status line */}
         <div className="flex items-center gap-1.5 text-xs">
-          <span
-            className={`inline-block h-2 w-2 rounded-full ${
-              isIdle ? "bg-muted-foreground/40" : "bg-green-500"
-            }`}
-          />
-          {isIdle ? (
-            <span className="text-muted-foreground">Idle</span>
-          ) : (
+          <span className={`inline-block h-2 w-2 rounded-full ${statusColor(agent.last_status)}`} />
+          {agent.last_session_at ? (
             <span className="text-muted-foreground">
-              Last: {formatRelativeTime(agent.lastActive!)}
+              Last: {formatRelativeTime(agent.last_session_at)}
             </span>
+          ) : (
+            <span className="text-muted-foreground">No sessions</span>
           )}
-        </div>
-
-        {/* Events today */}
-        <div className="text-[11px] text-muted-foreground/70">
-          {agent.eventsToday} event{agent.eventsToday !== 1 ? "s" : ""} today
         </div>
       </CardContent>
     </Card>

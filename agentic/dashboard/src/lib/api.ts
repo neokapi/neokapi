@@ -1,12 +1,10 @@
 /**
  * Bowrain API client for the agentic dashboard.
  *
- * Fetches real data from the Bowrain REST API. Falls back to empty results
- * when the server is unreachable (e.g. during static deployment).
+ * All data comes from the Bowrain REST API backed by PostgreSQL.
+ * No mock data, no static fallbacks.
  */
 
-// In dev mode, Vite proxies /api → localhost:8080 so no base URL needed.
-// In production, set VITE_BOWRAIN_API_URL to the actual server URL.
 const API_BASE = import.meta.env.VITE_BOWRAIN_API_URL || "";
 const API_TOKEN = import.meta.env.VITE_BOWRAIN_TOKEN || "";
 
@@ -24,7 +22,7 @@ async function apiFetch<T>(path: string, fallback: T): Promise<T> {
   }
 }
 
-// --- Types matching Bowrain API responses ---
+// --- Bowrain core types ---
 
 export interface Workspace {
   id: string;
@@ -69,7 +67,62 @@ export interface Member {
   joined_at: string;
 }
 
-// --- API calls ---
+// --- Agentic types (from PostgreSQL execution store) ---
+
+export interface AgentProfile {
+  agent: string;
+  role: string;
+  total_sessions: number;
+  successful_count: number;
+  failed_count: number;
+  last_session_at: string;
+  last_status: string;
+  total_tokens_used: number;
+}
+
+export interface Execution {
+  id: string;
+  workspace_slug: string;
+  agent: string;
+  role: string;
+  status: string;
+  task: string;
+  locale: string;
+  summary: string;
+  tokens_used: number;
+  error: string;
+  started_at: string;
+  completed_at: string;
+}
+
+export interface AgenticEvent {
+  type: string;
+  execution_id: string;
+  workspace: string;
+  agent: string;
+  role: string;
+  timestamp: string;
+  data: Record<string, unknown>;
+}
+
+export interface GitHubIssue {
+  number: number;
+  title: string;
+  state: string;
+  html_url: string;
+  labels: string[];
+  created_at: string;
+  updated_at: string;
+  author: string;
+}
+
+export interface TranslationProgress {
+  locale: string;
+  translated: number;
+  total: number;
+}
+
+// --- Bowrain core API calls ---
 
 export async function fetchWorkspaces(): Promise<Workspace[]> {
   return apiFetch("/api/v1/workspaces", []);
@@ -98,15 +151,6 @@ export async function fetchBlocks(
   return apiFetch(`/api/v1/workspaces/${wsSlug}/projects/${projectId}/sync/blocks?${params}`, []);
 }
 
-export interface TranslationProgress {
-  locale: string;
-  translated: number;
-  total: number;
-}
-
-/**
- * Compute translation progress by fetching all blocks and counting targets.
- */
 export async function fetchTranslationProgress(
   wsSlug: string,
   projectId: string,
@@ -120,4 +164,44 @@ export async function fetchTranslationProgress(
     translated: blocks.filter((b) => locale in b.targets).length,
     total,
   }));
+}
+
+// --- Agentic API calls (PostgreSQL-backed) ---
+
+export async function fetchAgents(): Promise<AgentProfile[]> {
+  const resp = await apiFetch<{ agents: AgentProfile[] }>("/api/v1/agentic/agents", { agents: [] });
+  return resp.agents ?? [];
+}
+
+export async function fetchExecutions(opts: {
+  workspace?: string;
+  agent?: string;
+  limit?: number;
+} = {}): Promise<Execution[]> {
+  const params = new URLSearchParams();
+  if (opts.workspace) params.set("workspace", opts.workspace);
+  if (opts.agent) params.set("agent", opts.agent);
+  params.set("limit", String(opts.limit ?? 100));
+  const resp = await apiFetch<{ executions: Execution[] }>(`/api/v1/agentic/executions?${params}`, { executions: [] });
+  return resp.executions ?? [];
+}
+
+export async function fetchAgenticEvents(opts: {
+  execution_id?: string;
+  workspace?: string;
+  event_type?: string;
+  limit?: number;
+} = {}): Promise<AgenticEvent[]> {
+  const params = new URLSearchParams();
+  if (opts.execution_id) params.set("execution_id", opts.execution_id);
+  if (opts.workspace) params.set("workspace", opts.workspace);
+  if (opts.event_type) params.set("event_type", opts.event_type);
+  params.set("limit", String(opts.limit ?? 100));
+  const resp = await apiFetch<{ events: AgenticEvent[] }>(`/api/v1/agentic/events?${params}`, { events: [] });
+  return resp.events ?? [];
+}
+
+export async function fetchGitHubIssues(state = "all", limit = 20): Promise<GitHubIssue[]> {
+  const resp = await apiFetch<{ issues: GitHubIssue[] }>(`/api/v1/agentic/issues?state=${state}&limit=${limit}`, { issues: [] });
+  return resp.issues ?? [];
 }

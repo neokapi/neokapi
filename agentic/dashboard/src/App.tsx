@@ -16,7 +16,7 @@ function DashboardContent() {
   const api = useApi();
 
   let filteredAgents = api.agents;
-  if (agent) filteredAgents = filteredAgents.filter((a) => a.id === agent);
+  if (agent) filteredAgents = filteredAgents.filter((a) => a.agent === agent);
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,7 +50,7 @@ function DashboardContent() {
           ) : (
             <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
               {filteredAgents.map((a) => (
-                <AgentCard key={a.id} agent={a} />
+                <AgentCard key={a.agent} agent={a} />
               ))}
             </div>
           )}

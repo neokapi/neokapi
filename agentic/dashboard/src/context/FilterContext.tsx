@@ -77,8 +77,8 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       initial.push({ key: "workspace", value: slug, label: ws?.name ?? slug });
     }
     if (agentId) {
-      const ag = api.agents.find((a) => a.id === agentId);
-      initial.push({ key: "agent", value: agentId, label: ag?.displayName ?? agentId });
+      const ag = api.agents.find((a) => a.agent === agentId);
+      initial.push({ key: "agent", value: agentId, label: ag?.agent ?? agentId });
     }
 
     // Parse query params for status, time, tool

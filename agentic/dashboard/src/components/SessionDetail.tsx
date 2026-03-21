@@ -15,7 +15,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { AuditSession } from "@/context/ApiContext";
-import { agentMeta } from "@/data/agent-meta";
 
 interface SessionDetailProps {
   session: AuditSession;
@@ -57,9 +56,7 @@ function parseDataPreview(data: string): string {
 }
 
 export default function SessionDetail({ session, onClose }: SessionDetailProps) {
-  const meta = agentMeta.find((m) => m.userId === session.actor);
-  const displayName = meta?.displayName ?? (session.actor || "Unknown");
-  const role = meta?.role ?? "";
+  const displayName = session.actor || "Unknown";
 
   return (
     <Dialog
@@ -72,7 +69,7 @@ export default function SessionDetail({ session, onClose }: SessionDetailProps) 
         <DialogHeader>
           <DialogTitle>{displayName}</DialogTitle>
           <DialogDescription>
-            {role ? `${role} -- ` : ""}Audit session with {session.eventCount} event
+            Audit session with {session.eventCount} event
             {session.eventCount !== 1 ? "s" : ""}
           </DialogDescription>
         </DialogHeader>

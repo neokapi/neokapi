@@ -249,6 +249,61 @@ func (s *PostgresExecutionStore) ListEvents(ctx context.Context, filter EventFil
 	return events, rows.Err()
 }
 
+// AgentSummary is a derived agent profile from execution history.
+type AgentSummary struct {
+	Agent             string `json:"agent"`
+	Role              string `json:"role"`
+	TotalSessions     int    `json:"total_sessions"`
+	SuccessfulCount   int    `json:"successful_count"`
+	FailedCount       int    `json:"failed_count"`
+	LastSessionAt     string `json:"last_session_at"`
+	LastStatus        string `json:"last_status"`
+	TotalTokensUsed   int    `json:"total_tokens_used"`
+}
+
+// ListAgents returns distinct agents with aggregated stats from execution history.
+func (s *PostgresExecutionStore) ListAgents(ctx context.Context) ([]AgentSummary, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			agent,
+			role,
+			COUNT(*) AS total_sessions,
+			COUNT(*) FILTER (WHERE status = 'completed') AS successful_count,
+			COUNT(*) FILTER (WHERE status = 'failed') AS failed_count,
+			MAX(started_at) AS last_session_at,
+			COALESCE(SUM(tokens_used), 0) AS total_tokens_used
+		FROM agentic_executions
+		GROUP BY agent, role
+		ORDER BY MAX(started_at) DESC
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query agents: %w", err)
+	}
+	defer rows.Close()
+
+	var agents []AgentSummary
+	for rows.Next() {
+		var a AgentSummary
+		if err := rows.Scan(
+			&a.Agent, &a.Role, &a.TotalSessions,
+			&a.SuccessfulCount, &a.FailedCount,
+			&a.LastSessionAt, &a.TotalTokensUsed,
+		); err != nil {
+			return nil, fmt.Errorf("scan agent: %w", err)
+		}
+		// Derive last status
+		if a.FailedCount > 0 && a.SuccessfulCount == 0 {
+			a.LastStatus = "failing"
+		} else if a.FailedCount == 0 {
+			a.LastStatus = "healthy"
+		} else {
+			a.LastStatus = "degraded"
+		}
+		agents = append(agents, a)
+	}
+	return agents, rows.Err()
+}
+
 // intFromData extracts an integer from a map[string]any, handling float64 (JSON default).
 func intFromData(data map[string]any, key string) int {
 	if v, ok := data[key]; ok {

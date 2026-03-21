@@ -154,6 +154,59 @@ func (s *Server) HandleAgenticEventsWebSocket(c echo.Context) error {
 	}
 }
 
+// HandleListAgenticAgents returns agent profiles derived from execution history.
+// GET /api/v1/agentic/agents
+func (s *Server) HandleListAgenticAgents(c echo.Context) error {
+	store := s.agenticExecStore()
+	if store == nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "agentic execution store not configured")
+	}
+
+	agents, err := store.ListAgents(c.Request().Context())
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"agents": agents,
+	})
+}
+
+// HandleListAgenticIssues returns GitHub issues from the agent feedback repo.
+// GET /api/v1/agentic/issues?state=open&limit=20
+func (s *Server) HandleListAgenticIssues(c echo.Context) error {
+	tracker := s.agenticIssueTracker()
+	if tracker == nil {
+		return echo.NewHTTPError(http.StatusServiceUnavailable, "issue tracker not configured")
+	}
+
+	state := c.QueryParam("state")
+	if state == "" {
+		state = "all"
+	}
+	limit, _ := strconv.Atoi(c.QueryParam("limit"))
+	if limit <= 0 {
+		limit = 20
+	}
+
+	issues, err := tracker.ListIssues(c.Request().Context(), state, limit)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"issues": issues,
+	})
+}
+
+// agenticIssueTracker returns the issue tracker from the agentic MCP server, or nil.
+func (s *Server) agenticIssueTracker() *agenticmcp.GitHubIssueTracker {
+	if s.agenticMCP == nil {
+		return nil
+	}
+	return s.agenticMCP.IssueTracker()
+}
+
 // agenticExecStore returns the execution store from the agentic MCP server, or nil.
 func (s *Server) agenticExecStore() *agenticmcp.PostgresExecutionStore {
 	if s.agenticMCP == nil {

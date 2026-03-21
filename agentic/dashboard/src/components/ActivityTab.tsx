@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { useFilter } from "@/context/FilterContext";
 import { useApi } from "@/context/ApiContext";
-import { agentMeta } from "@/data/agent-meta";
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("en-US", {
@@ -29,8 +28,7 @@ function dateLabel(iso: string): string {
 }
 
 function getDisplayName(actor: string): string {
-  const meta = agentMeta.find((m) => m.userId === actor);
-  return meta?.displayName ?? (actor || "System");
+  return actor || "System";
 }
 
 function formatEventDescription(eventType: string, data: string): string {
