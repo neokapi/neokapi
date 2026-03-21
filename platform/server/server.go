@@ -22,7 +22,6 @@ import (
 	platgraph "github.com/neokapi/neokapi/bowrain/graph"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/mailer"
-	"github.com/neokapi/neokapi/bowrain/server/agenticmcp"
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -113,9 +112,6 @@ type Server struct {
 	// mcpServer is the MCP protocol server for brand voice. Nil when brand store is not configured.
 	mcpServer *mcpserver.MCPServer
 
-	// agenticMCP is the Agentic Testing MCP server for fleet management. Nil when not configured.
-	agenticMCP *agenticmcp.Server
-
 	// ReviewQueueStore persists entity/term extraction review items. Nil when not configured.
 	ReviewQueueStore *bstore.ReviewQueueStore
 
@@ -153,10 +149,6 @@ type Server struct {
 	// AgentService orchestrates @bravo agent lifecycle (AD-028).
 	// Nil when agent system is not configured.
 	AgentService *service.AgentService
-
-	// AgenticQueueSink forwards platform events to queues for agentic testing.
-	// Nil when BOWRAIN_AGENTIC_EVENTS is not set.
-	AgenticQueueSink *event.QueueSink
 
 	// BillingStore persists subscription and credit data (AD-030).
 	// Nil when billing is not configured.
@@ -345,68 +337,6 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 	}
 
-	// Initialize Agentic Testing MCP server for fleet coordination.
-	{
-		agCfg := agenticmcp.Config{
-			JWTSecret: cfg.JWTSecret,
-			PublicURL: cfg.OIDCPublicURL,
-		}
-		var agOpts []agenticmcp.Option
-		if s.ContentStore != nil {
-			agOpts = append(agOpts, agenticmcp.WithContentStore(s.ContentStore))
-		}
-		if cfg.FleetRepoURL != "" {
-			agOpts = append(agOpts, agenticmcp.WithFleetRepo(&agenticmcp.GitFleetRepo{
-				RepoURL:      cfg.FleetRepoURL,
-				Token:        cfg.FleetRepoToken,
-				CommitAuthor: "coordinator",
-			}))
-			log.Printf("Agentic fleet repo configured: %s", cfg.FleetRepoURL)
-		}
-		if cfg.GitHubIssuesRepo != "" {
-			token := cfg.GitHubIssuesToken
-			if token == "" {
-				token = cfg.FleetRepoToken // fall back to fleet repo PAT
-			}
-			parts := strings.SplitN(cfg.GitHubIssuesRepo, "/", 2)
-			if len(parts) == 2 {
-				agOpts = append(agOpts, agenticmcp.WithIssueTracker(&agenticmcp.GitHubIssueTracker{
-					Owner: parts[0],
-					Repo:  parts[1],
-					Token: token,
-				}))
-				log.Printf("Agentic issue tracker configured: %s", cfg.GitHubIssuesRepo)
-			}
-		}
-		// Wire execution store and Redis subscriber for agentic event persistence.
-		if cfg.AgenticEvents && cfg.RedisURL != "" && s.wsStores.pgDB != nil {
-			execStore, err := agenticmcp.NewPostgresExecutionStore(s.wsStores.pgDB)
-			if err != nil {
-				log.Printf("WARNING: failed to init agentic execution store: %v", err)
-			} else {
-				eventHub := agenticmcp.NewEventHub()
-				agOpts = append(agOpts,
-					agenticmcp.WithExecutionStore(execStore),
-					agenticmcp.WithEventHub(eventHub),
-				)
-				execSub, err := agenticmcp.NewExecutionSubscriber(cfg.RedisURL, cfg.RedisPassword, execStore)
-				if err != nil {
-					log.Printf("WARNING: failed to init agentic execution subscriber: %v", err)
-				} else {
-					execSub.SetEventHub(eventHub)
-					execSub.Start(context.Background())
-					log.Printf("Agentic execution subscriber active (Redis → PostgreSQL + WebSocket)")
-				}
-			}
-		}
-		as, err := agenticmcp.NewServer(agCfg, agOpts...)
-		if err != nil {
-			log.Printf("WARNING: failed to initialize Agentic Testing MCP server: %v", err)
-		} else {
-			s.agenticMCP = as
-		}
-	}
-
 	// Initialize agent service (AD-028).
 	if s.AgentStore != nil {
 		s.AgentService = service.NewAgentService(s.AgentStore, s.EventBus)
@@ -432,9 +362,6 @@ func NewServer(cfg ServerConfig) *Server {
 			log.Printf("WARNING: unknown agent runtime %q", cfg.AgentRuntime)
 		}
 	}
-
-	// Wire up agentic event queue sink.
-	s.initAgenticQueueSink(cfg)
 
 	// Initialize Stripe client (AD-030).
 	if cfg.StripeSecretKey != "" {
@@ -747,21 +674,6 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// MCP server (brand voice resources, tools, prompts via Streamable HTTP).
 	if s.mcpServer != nil {
 		s.mcpServer.RegisterRoutes(e)
-	}
-
-	// Agentic Testing dashboard REST + WebSocket endpoints (public, no auth).
-	// The dashboard at agents.dev.bowrain.cloud is a public read-only view.
-	if s.agenticMCP != nil {
-		agGroup := v1.Group("/agentic")
-		agGroup.GET("/agents", s.HandleListAgenticAgents)
-		agGroup.GET("/executions", s.HandleListAgenticExecutions)
-		agGroup.GET("/executions/:id/events", s.HandleGetAgenticExecutionEvents)
-		agGroup.GET("/events", s.HandleListAgenticEvents)
-		agGroup.GET("/events/ws", s.HandleAgenticEventsWebSocket)
-		agGroup.GET("/issues", s.HandleListAgenticIssues)
-
-		// Agentic Testing MCP server (fleet management tools for coordinator).
-		s.agenticMCP.RegisterRoutes(e)
 	}
 
 	// Web UI static file serving (development and E2E only).

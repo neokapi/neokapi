@@ -1,0 +1,144 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+
+	"github.com/neokapi/neokapi/bowrain/agentic-testing/agenticmcp"
+	"github.com/neokapi/neokapi/bowrain/storage"
+)
+
+func main() {
+	cfg := config{
+		Port: 8080,
+	}
+
+	if v := os.Getenv("AGENTIC_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			cfg.Port = p
+		}
+	}
+	cfg.DatabaseURL = os.Getenv("AGENTIC_DATABASE_URL")
+	cfg.DatabaseAuth = os.Getenv("AGENTIC_DATABASE_AUTH")
+	cfg.RedisURL = os.Getenv("AGENTIC_REDIS_URL")
+	cfg.RedisPassword = os.Getenv("AGENTIC_REDIS_PASSWORD")
+	cfg.JWTSecret = os.Getenv("AGENTIC_JWT_SECRET")
+	cfg.FleetRepoURL = os.Getenv("AGENTIC_FLEET_REPO_URL")
+	cfg.FleetRepoToken = os.Getenv("AGENTIC_FLEET_REPO_TOKEN")
+	cfg.GitHubIssuesRepo = os.Getenv("AGENTIC_GITHUB_ISSUES_REPO")
+	cfg.GitHubIssuesToken = os.Getenv("AGENTIC_GITHUB_ISSUES_TOKEN")
+	cfg.BowrainAPIURL = os.Getenv("AGENTIC_BOWRAIN_API_URL")
+	cfg.BowrainAPIToken = os.Getenv("AGENTIC_BOWRAIN_API_TOKEN")
+
+	// Build MCP server options.
+	mcpCfg := agenticmcp.Config{
+		JWTSecret: cfg.JWTSecret,
+	}
+	var mcpOpts []agenticmcp.Option
+
+	if cfg.FleetRepoURL != "" {
+		mcpOpts = append(mcpOpts, agenticmcp.WithFleetRepo(&agenticmcp.GitFleetRepo{
+			RepoURL:      cfg.FleetRepoURL,
+			Token:        cfg.FleetRepoToken,
+			CommitAuthor: "coordinator",
+		}))
+		log.Printf("Fleet repo configured: %s", cfg.FleetRepoURL)
+	}
+
+	if cfg.GitHubIssuesRepo != "" {
+		token := cfg.GitHubIssuesToken
+		if token == "" {
+			token = cfg.FleetRepoToken
+		}
+		parts := strings.SplitN(cfg.GitHubIssuesRepo, "/", 2)
+		if len(parts) == 2 {
+			mcpOpts = append(mcpOpts, agenticmcp.WithIssueTracker(&agenticmcp.GitHubIssueTracker{
+				Owner: parts[0],
+				Repo:  parts[1],
+				Token: token,
+			}))
+			log.Printf("Issue tracker configured: %s", cfg.GitHubIssuesRepo)
+		}
+	}
+
+	// Wire execution store + Redis subscriber.
+	var pgDB *storage.PgDB
+	if cfg.DatabaseURL != "" {
+		var err error
+		if cfg.DatabaseAuth == "azure" {
+			pgDB, err = storage.OpenPostgresAzure(cfg.DatabaseURL, os.Getenv("AZURE_CLIENT_ID"))
+		} else {
+			pgDB, err = storage.OpenPostgres(cfg.DatabaseURL)
+		}
+		if err != nil {
+			log.Fatalf("Failed to connect to PostgreSQL: %v", err)
+		}
+		defer pgDB.Close()
+	}
+
+	if cfg.RedisURL != "" && pgDB != nil {
+		execStore, err := agenticmcp.NewPostgresExecutionStore(pgDB)
+		if err != nil {
+			log.Printf("WARNING: failed to init execution store: %v", err)
+		} else {
+			eventHub := agenticmcp.NewEventHub()
+			mcpOpts = append(mcpOpts,
+				agenticmcp.WithExecutionStore(execStore),
+				agenticmcp.WithEventHub(eventHub),
+			)
+			execSub, err := agenticmcp.NewExecutionSubscriber(cfg.RedisURL, cfg.RedisPassword, execStore)
+			if err != nil {
+				log.Printf("WARNING: failed to init execution subscriber: %v", err)
+			} else {
+				execSub.SetEventHub(eventHub)
+				execSub.Start(context.Background())
+				log.Printf("Execution subscriber active (Redis -> PostgreSQL + WebSocket)")
+			}
+		}
+	}
+
+	mcpServer, err := agenticmcp.NewServer(mcpCfg, mcpOpts...)
+	if err != nil {
+		log.Fatalf("Failed to create MCP server: %v", err)
+	}
+
+	mux := http.NewServeMux()
+
+	// Agentic REST endpoints.
+	registerHandlers(mux, mcpServer)
+
+	// Bowrain data wrapper endpoints.
+	if cfg.BowrainAPIURL != "" && cfg.BowrainAPIToken != "" {
+		registerBowrainHandlers(mux, cfg)
+		log.Printf("Bowrain API wrapper configured: %s", cfg.BowrainAPIURL)
+	}
+
+	// MCP endpoint at /mcp/.
+	mux.Handle("/mcp/", http.StripPrefix("/mcp", mcpServer.Handler()))
+
+	addr := fmt.Sprintf(":%d", cfg.Port)
+	log.Printf("Agentic Testing server listening on %s", addr)
+	if err := http.ListenAndServe(addr, mux); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
+}
+
+type config struct {
+	Port             int
+	DatabaseURL      string
+	DatabaseAuth     string
+	RedisURL         string
+	RedisPassword    string
+	JWTSecret        string
+	FleetRepoURL     string
+	FleetRepoToken   string
+	GitHubIssuesRepo string
+	GitHubIssuesToken string
+	BowrainAPIURL    string
+	BowrainAPIToken  string
+}

@@ -1,6 +1,6 @@
-// Package agentic_mcp provides the Agentic Testing MCP server that exposes
-// fleet management tools for the coordinator agent. It runs as a separate
-// MCP endpoint (/agentic-mcp/) alongside the main Bowrain MCP (/mcp/).
+// Package agenticmcp provides the Agentic Testing MCP server that exposes
+// fleet management tools for the coordinator agent. It runs as a standalone
+// server separate from bowrain-server.
 package agenticmcp
 
 import (
@@ -8,12 +8,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/labstack/echo/v4"
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	platauth "github.com/neokapi/neokapi/platform/auth"
-	"github.com/neokapi/neokapi/platform/store"
 )
 
 // FleetRepo provides access to the git-ops fleet state repository.
@@ -74,14 +72,13 @@ type IssueTracker interface {
 
 // Server wraps the MCP protocol server with agentic testing fleet tools.
 type Server struct {
-	contentStore store.ContentStore
-	fleetRepo    FleetRepo
-	execStore    *PostgresExecutionStore
-	eventHub     *EventHub
-	walker       ReleaseWalker
-	issues       IssueTracker
-	server       *mcp.Server
-	handler      http.Handler
+	fleetRepo FleetRepo
+	execStore *PostgresExecutionStore
+	eventHub  *EventHub
+	walker    ReleaseWalker
+	issues    IssueTracker
+	server    *mcp.Server
+	handler   http.Handler
 }
 
 // Config holds configuration for the Agentic Testing MCP server.
@@ -92,11 +89,6 @@ type Config struct {
 
 // Option configures optional Server dependencies.
 type Option func(*Server)
-
-// WithContentStore adds content store access for block stats.
-func WithContentStore(cs store.ContentStore) Option {
-	return func(s *Server) { s.contentStore = cs }
-}
 
 // WithFleetRepo adds fleet repo access for workspace discovery.
 func WithFleetRepo(r FleetRepo) Option {
@@ -194,7 +186,5 @@ func (s *Server) IssueTracker() *GitHubIssueTracker {
 	return nil
 }
 
-// RegisterRoutes mounts the agentic MCP handler on the Echo server.
-func (s *Server) RegisterRoutes(e *echo.Echo) {
-	e.Any("/agentic-mcp/*", echo.WrapHandler(http.StripPrefix("/agentic-mcp", s.handler)))
-}
+// Handler returns the HTTP handler for mounting the MCP server.
+func (s *Server) Handler() http.Handler { return s.handler }
