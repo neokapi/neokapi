@@ -112,29 +112,55 @@ export interface ApiAdapter {
   listRoleTemplates(workspaceSlug: string): Promise<RoleTemplate[]>;
   createRoleTemplate(
     workspaceSlug: string,
-    data: { name: string; display_name: string; description: string; permissions: string[]; position?: number },
+    data: {
+      name: string;
+      display_name: string;
+      description: string;
+      permissions: string[];
+      position?: number;
+    },
   ): Promise<RoleTemplate>;
   updateRoleTemplate(
     workspaceSlug: string,
     roleId: string,
-    data: { name?: string; display_name?: string; description?: string; permissions?: string[]; position?: number },
+    data: {
+      name?: string;
+      display_name?: string;
+      description?: string;
+      permissions?: string[];
+      position?: number;
+    },
   ): Promise<RoleTemplate>;
   deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void>;
 
   // Project Members
-  listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]>;
+  listProjectMembers(
+    workspaceSlug: string,
+    projectId: string,
+  ): Promise<ProjectMembership[]>;
   addProjectMember(
     workspaceSlug: string,
     projectId: string,
-    data: { user_id: string; role_id: string; languages?: string[] },
+    data: {
+      user_id: string;
+      role_id: string;
+      languages?: string[];
+    },
   ): Promise<ProjectMembership>;
   updateProjectMember(
     workspaceSlug: string,
     projectId: string,
     userId: string,
-    data: { role_id: string; languages?: string[] },
+    data: {
+      role_id: string;
+      languages?: string[];
+    },
   ): Promise<ProjectMembership>;
-  removeProjectMember(workspaceSlug: string, projectId: string, userId: string): Promise<void>;
+  removeProjectMember(
+    workspaceSlug: string,
+    projectId: string,
+    userId: string,
+  ): Promise<void>;
 
   // API Tokens
   listApiTokens(workspaceSlug: string): Promise<ApiToken[]>;

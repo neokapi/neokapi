@@ -210,7 +210,9 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
                     </td>
                     <td className="px-4 py-2.5">
                       <Badge variant="secondary" className="text-xs">
-                        {role.permission_names.length} permission{role.permission_names.length !== 1 ? "s" : ""}
+                        {role.permission_names.length}{" "}
+                        permission
+                        {role.permission_names.length !== 1 ? "s" : ""}
                       </Badge>
                     </td>
                     <td className="px-4 py-2.5">

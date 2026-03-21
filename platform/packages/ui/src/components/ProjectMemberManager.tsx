@@ -17,7 +17,11 @@ interface ProjectMemberManagerProps {
   projectLanguages: string[];
 }
 
-export function ProjectMemberManager({ workspace, projectId, projectLanguages }: ProjectMemberManagerProps) {
+export function ProjectMemberManager({
+  workspace,
+  projectId,
+  projectLanguages,
+}: ProjectMemberManagerProps) {
   const api = useApi();
   const [members, setMembers] = useState<ProjectMembership[]>([]);
   const [roleTemplates, setRoleTemplates] = useState<RoleTemplate[]>([]);
@@ -62,10 +66,18 @@ export function ProjectMemberManager({ workspace, projectId, projectLanguages }:
     setError("");
     try {
       if (editingMember) {
-        const updated = await api.updateProjectMember(workspace.slug, projectId, editingMember.user_id, {
-          role_id: roleId,
-          languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
-        });
+        const updated = await api.updateProjectMember(
+          workspace.slug,
+          projectId,
+          editingMember.user_id,
+          {
+            role_id: roleId,
+            languages:
+              selectedLanguages.length > 0
+                ? selectedLanguages
+                : undefined,
+          },
+        );
         setMembers((prev) => prev.map((m) => (m.user_id === editingMember.user_id ? updated : m)));
       } else {
         const added = await api.addProjectMember(workspace.slug, projectId, {
