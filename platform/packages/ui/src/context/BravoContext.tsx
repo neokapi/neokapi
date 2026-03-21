@@ -372,7 +372,7 @@ export function BravoProvider({ children }: { children: ReactNode }) {
 
       abortRef.current = controller;
     },
-    [api, ws, activeConversation],
+    [api, ws, activeConversation, mode],
   );
 
   const cancelStreaming = useCallback(() => {
