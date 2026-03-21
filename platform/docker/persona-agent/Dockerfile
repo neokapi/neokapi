@@ -6,25 +6,23 @@
 #
 # Build: docker build -t ghcr.io/neokapi/persona-agent:latest -f platform/docker/persona-agent/Dockerfile .
 
-# ── Prep stage: entrypoint + tools ──────────────────────────────────────
-FROM alpine:3.21 AS prep
-RUN apk add --no-cache git gettext
+# ── Stage 1: grab zeroclaw binary from official image ─────────────────
+FROM ghcr.io/zeroclaw-labs/zeroclaw:latest AS zeroclaw
+
+# ── Stage 2: Alpine with shell + tools + zeroclaw ─────────────────────
+FROM alpine:3.21
+
+# Install runtime dependencies: git (fleet repo), envsubst (config templating),
+# redis (execution event publishing via redis-cli).
+RUN apk add --no-cache git gettext redis gcompat
+
+# Copy zeroclaw binary from official image.
+COPY --from=zeroclaw /usr/local/bin/zeroclaw /usr/local/bin/zeroclaw
+
+# Copy entrypoint and config template.
 COPY platform/docker/persona-agent/entrypoint.sh /agentic/entrypoint.sh
-RUN chmod +x /agentic/entrypoint.sh
-
-# ── Final: ZeroClaw + git + entrypoint ──────────────────────────────────
-FROM ghcr.io/zeroclaw-labs/zeroclaw:latest
-
-# Install git, envsubst (gettext), and redis-cli for fleet repo sync,
-# config templating, and execution event publishing.
-# ZeroClaw base image is Alpine-based.
-USER root
-RUN apk add --no-cache git gettext redis
-
-COPY --from=prep /agentic/entrypoint.sh /agentic/entrypoint.sh
-
-# Config template for agent mode (rendered at runtime by entrypoint).
 COPY platform/docker/persona-agent/config.toml.template /agentic/config.toml.template
+RUN chmod +x /agentic/entrypoint.sh
 
 # No baked-in SOUL.md — assembled at runtime from fleet repo.
 # No gateway port — agent mode is single-shot.
