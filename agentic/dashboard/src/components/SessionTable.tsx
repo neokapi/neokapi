@@ -10,7 +10,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useFilter } from "@/context/FilterContext";
 import { useApi, groupAuditSessions, type AuditSession } from "@/context/ApiContext";
-import { agentMeta } from "@/data/agent-meta";
 import SessionDetail from "./SessionDetail";
 
 type SortKey = "actor" | "started" | "events" | "type";
@@ -60,8 +59,7 @@ function isThisWeek(iso: string): boolean {
 }
 
 function getActorDisplayName(actor: string): string {
-  const meta = agentMeta.find((m) => m.userId === actor);
-  return meta?.displayName ?? (actor || "Unknown");
+  return actor || "Unknown";
 }
 
 function getEventTypes(session: AuditSession): string[] {

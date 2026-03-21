@@ -91,7 +91,7 @@ export default function FilterBar() {
       case "workspace":
         return api.workspaces.map((w) => ({ value: w.slug, label: w.name }));
       case "agent":
-        return api.agents.map((a) => ({ value: a.id, label: a.displayName }));
+        return api.agents.map((a) => ({ value: a.agent, label: a.agent }));
       case "status":
         return statusValues.map((v) => ({ value: v, label: v }));
       case "time":

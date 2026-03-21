@@ -186,6 +186,14 @@ func (s *Server) EventHub() *EventHub { return s.eventHub }
 // ExecStore returns the execution store, or nil.
 func (s *Server) ExecStore() *PostgresExecutionStore { return s.execStore }
 
+// IssueTracker returns the GitHub issue tracker, or nil.
+func (s *Server) IssueTracker() *GitHubIssueTracker {
+	if t, ok := s.issues.(*GitHubIssueTracker); ok {
+		return t
+	}
+	return nil
+}
+
 // RegisterRoutes mounts the agentic MCP handler on the Echo server.
 func (s *Server) RegisterRoutes(e *echo.Echo) {
 	e.Any("/agentic-mcp/*", echo.WrapHandler(http.StripPrefix("/agentic-mcp", s.handler)))
