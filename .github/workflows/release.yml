@@ -85,6 +85,7 @@ jobs:
           - { image: bravo-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
           - { image: bravo-sandbox-node, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
           - { image: bravo-sandbox-python, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
+          - { image: persona-agent, arch: amd64, runner: ubuntu-latest, platform: linux/amd64 }
     steps:
       - uses: actions/checkout@v6
 
@@ -156,7 +157,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          for IMAGE in bravo-agent bravo-sandbox-node bravo-sandbox-python; do
+          for IMAGE in bravo-agent bravo-sandbox-node bravo-sandbox-python persona-agent; do
             docker buildx imagetools create \
               -t "ghcr.io/neokapi/$IMAGE:$VERSION" \
               -t "ghcr.io/neokapi/$IMAGE:latest" \
