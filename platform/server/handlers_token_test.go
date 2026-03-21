@@ -65,6 +65,7 @@ func TestCreateToken(t *testing.T) {
 	assert.Equal(t, "CI Token", resp.Name)
 	assert.True(t, strings.HasPrefix(resp.Token, "bwt_"))
 	assert.Equal(t, resp.Token[:8], resp.TokenPrefix)
+	assert.Equal(t, `["*"]`, resp.Scopes) // default full access
 	assert.Nil(t, resp.ExpiresAt)
 }
 
@@ -86,6 +87,87 @@ func TestCreateTokenWithExpiration(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
 	assert.NotNil(t, resp.ExpiresAt)
 	assert.True(t, resp.ExpiresAt.After(time.Now()))
+}
+
+func TestCreateTokenWithScopes(t *testing.T) {
+	srv, jwt, wsSlug := newTokenTestServer(t)
+	e := srv.GetEcho()
+
+	body := `{"name":"Scoped Token","scopes":["translate:fr,de"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp CreateTokenResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "Scoped Token", resp.Name)
+	assert.Equal(t, `["translate:fr,de"]`, resp.Scopes)
+}
+
+func TestCreateTokenWithInvalidScopes(t *testing.T) {
+	srv, jwt, wsSlug := newTokenTestServer(t)
+	e := srv.GetEcho()
+
+	body := `{"name":"Bad Scopes","scopes":["delete"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusBadRequest, rec.Code)
+}
+
+func TestCreateTokenWithMultipleScopes(t *testing.T) {
+	srv, jwt, wsSlug := newTokenTestServer(t)
+	e := srv.GetEcho()
+
+	body := `{"name":"Multi Scope","scopes":["read","translate:fr"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	require.Equal(t, http.StatusCreated, rec.Code)
+
+	var resp CreateTokenResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, `["read","translate:fr"]`, resp.Scopes)
+}
+
+func TestCreateTokenScopesPersistedInList(t *testing.T) {
+	srv, jwt, wsSlug := newTokenTestServer(t)
+	e := srv.GetEcho()
+
+	// Create a scoped token.
+	body := `{"name":"Review Token","scopes":["review"]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+		strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusCreated, rec.Code)
+
+	// List tokens and verify scopes persisted.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/tokens", nil)
+	req.Header.Set("Authorization", "Bearer "+jwt)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var tokens []*platauth.APIToken
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &tokens))
+	require.Len(t, tokens, 1)
+	assert.Equal(t, `["review"]`, tokens[0].Scopes)
 }
 
 func TestCreateTokenMissingName(t *testing.T) {

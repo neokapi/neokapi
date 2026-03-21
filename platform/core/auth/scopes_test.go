@@ -150,6 +150,38 @@ func TestScopeParseScopes_BackwardCompatDefault(t *testing.T) {
 	assert.Equal(t, PermAll, result.Permissions)
 }
 
+func TestValidateScopes_Valid(t *testing.T) {
+	tests := []string{
+		`["*"]`,
+		`["read"]`,
+		`["translate:fr,de"]`,
+		`["read", "translate:fr"]`,
+		`["project:proj-1:translate:fr,de"]`,
+	}
+	for _, tt := range tests {
+		t.Run(tt, func(t *testing.T) {
+			assert.NoError(t, ValidateScopes(tt))
+		})
+	}
+}
+
+func TestValidateScopes_Invalid(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"bad json", `not json`},
+		{"empty array", `[]`},
+		{"unknown action", `["delete"]`},
+		{"bad scope format", `["read:fr:extra"]`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Error(t, ValidateScopes(tt.input))
+		})
+	}
+}
+
 func TestScopeManageExcludesProjectAndMembers(t *testing.T) {
 	got, err := ParseScope("manage")
 	require.NoError(t, err)

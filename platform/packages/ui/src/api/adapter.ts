@@ -161,6 +161,7 @@ export interface ApiAdapter {
     workspaceSlug: string,
     name: string,
     expireDays: number,
+    scopes?: string[],
   ): Promise<CreateApiTokenResponse>;
   deleteApiToken(workspaceSlug: string, tokenId: string): Promise<void>;
 
