@@ -38,6 +38,12 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "name is required"})
+	}
+	if req.Slug == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "slug is required"})
+	}
 
 	w := &platauth.Workspace{
 		Name:        req.Name,
@@ -61,7 +67,11 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	}
 
 	// Set up 14-day Pro trial for new workspaces.
-	billing.SetupTrial(ctx, s.BillingStore, w.ID)
+	var planSyncer billing.WorkspacePlanSyncer
+	if s.AuthStore != nil {
+		planSyncer = &planSyncAdapter{authStore: s.AuthStore}
+	}
+	billing.SetupTrial(ctx, s.BillingStore, w.ID, planSyncer)
 
 	return c.JSON(http.StatusCreated, w)
 }
