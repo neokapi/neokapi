@@ -2,26 +2,32 @@
 # Agentic testing agent entrypoint.
 #
 # Environment variables:
-#   AGENT_NAME          — agent identifier (e.g., "coordinator", "sophie-translator")
+#   AGENT_NAME          — agent identifier (e.g., "coordinator", "maria")
 #   AGENT_ROLE          — persona role (e.g., "coordinator", "translator")
 #   AGENT_TASK_MESSAGE  — task message for this session
 #   AGENT_LOCALE        — target locale for this agent (e.g., "fr-FR")
 #   WORKSPACE_SLUG      — target workspace (empty for coordinator)
 #   FLEET_REPO          — git clone URL for the fleet state repo
-#   FLEET_REPO_TOKEN    — PAT for fleet repo access (optional if SSH)
-#   BRAVO_MCP_ENDPOINT  — Bowrain MCP server URL
-#   BRAVO_AGENT_TOKEN   — JWT for MCP authentication
-#   BOWRAIN_API_TOKEN   — long-lived API token (exchanged for JWT)
+#   FLEET_REPO_TOKEN    — PAT for fleet repo access
+#   BRAVO_MCP_ENDPOINT  — Bowrain MCP server URL (e.g., https://api.bowrain.cloud/mcp/)
+#   BOWRAIN_API_TOKEN   — long-lived API token (bwt_*), exchanged for JWT at startup
 #   AGENTIC_MCP_ENDPOINT — Agentic Testing MCP URL (coordinator only)
 #   REDIS_URL           — Redis URL for execution event publishing
+#   REDIS_PASSWORD      — Redis auth password (Azure Redis)
 #
-# Flow:
-# 1. Exchange API token for JWT (if needed)
-# 2. Clone/pull fleet repo
-# 3. Assemble SOUL.md from base persona + workspace override
-# 4. Render config.toml from template
-# 5. Run zeroclaw agent -m "<task>"
-# 6. Push memory changes back to fleet repo
+# Auth flow (AD-032):
+#   Agents are full Bowrain users with API tokens (bwt_*) created via onboard.sh.
+#   At startup, the API token is exchanged for a short-lived JWT via POST
+#   /api/v1/auth/token/exchange. The JWT is used to authenticate MCP tool calls.
+#
+# Execution flow:
+#   1. Exchange API token for JWT
+#   2. Clone fleet repo, assemble SOUL.md, load memory
+#   3. Render config.toml with MCP endpoints + JWT
+#   4. Publish exec.started event to Redis
+#   5. Run zeroclaw agent -m "<task>"
+#   6. Publish exec.completed/failed event to Redis
+#   7. Push memory changes back to fleet repo
 
 set -u
 
@@ -37,7 +43,8 @@ echo "Workspace: ${WORKSPACE_SLUG:-<fleet-wide>}"
 echo ""
 
 # ── Token exchange ─────────────────────────────────────────────────────
-# If a long-lived API token is provided, exchange it for a short-lived JWT.
+# Exchange the long-lived API token (bwt_*) for a short-lived JWT.
+# The JWT is used to authenticate MCP tool calls.
 if [ -n "${BOWRAIN_API_TOKEN:-}" ]; then
   EXCHANGE_URL="${BRAVO_MCP_ENDPOINT%/mcp/}/api/v1/auth/token/exchange"
   EXCHANGE_RESP=$(wget -qO- \
@@ -47,10 +54,14 @@ if [ -n "${BOWRAIN_API_TOKEN:-}" ]; then
   if [ -n "$EXCHANGE_RESP" ]; then
     BRAVO_AGENT_TOKEN=$(echo "$EXCHANGE_RESP" | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
     export BRAVO_AGENT_TOKEN
-    echo "Exchanged API token for session JWT"
+    echo "Exchanged API token for session JWT (1h)"
   else
-    echo "WARNING: Token exchange failed (401?), using raw API token"
-    BRAVO_AGENT_TOKEN="${BOWRAIN_API_TOKEN}"
+    echo "ERROR: Token exchange failed — agent has no MCP access"
+    echo "  URL: ${EXCHANGE_URL}"
+    echo "  Token prefix: ${BOWRAIN_API_TOKEN:0:12}..."
+    echo "  Ensure the agent was onboarded via onboard.sh (valid bwt_* token required)"
+    # Continue anyway — agent can still publish events, just can't call MCP tools.
+    BRAVO_AGENT_TOKEN=""
     export BRAVO_AGENT_TOKEN
   fi
 fi
@@ -155,7 +166,10 @@ publish_exec_event() {
   REDIS_RESULT=$(redis-cli -h "$REDIS_HOST" -p "${REDIS_PORT:-6380}" ${REDIS_CLI_ARGS} \
     ${REDIS_PASSWORD:+-a "$REDIS_PASSWORD" --no-auth-warning} \
     PUBLISH "agentic:events" "$payload" 2>&1) || true
-  echo "Redis PUBLISH ${event_type}: ${REDIS_RESULT}"
+  case "$REDIS_RESULT" in
+    *integer*) ;; # success — N subscribers received the event
+    *) echo "WARNING: Redis PUBLISH ${event_type} failed: ${REDIS_RESULT}" ;;
+  esac
 }
 
 echo ""
