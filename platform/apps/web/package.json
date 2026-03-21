@@ -17,27 +17,27 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
-    "@lexical/react": "^0.41.0",
-    "@tailwindcss/vite": "^4.2.1",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-router": "^1.166.7",
-    "lexical": "^0.41.0",
-    "posthog-js": "^1.362.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "tailwindcss": "^4.2.1",
-    "zustand": "^5.0.11"
+    "@lexical/react": "^0.42.0",
+    "@tailwindcss/vite": "^4.2.2",
+    "@tanstack/react-query": "^5.91.3",
+    "@tanstack/react-router": "^1.168.1",
+    "lexical": "^0.42.0",
+    "posthog-js": "^1.363.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/react": "^19.1.0",
-    "@types/react-dom": "^19.1.0",
-    "@vitejs/plugin-react": "^6.0.0",
-    "jsdom": "^28.1.0",
-    "typescript": "^5.8.0",
-    "vite-plus": "^0.1.11"
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "jsdom": "^29.0.1",
+    "typescript": "^5.9.3",
+    "vite-plus": "^0.1.13"
   }
 }

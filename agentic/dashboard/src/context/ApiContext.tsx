@@ -77,9 +77,10 @@ function buildAgentProfiles(members: Member[], auditLog: AuditEntry[]): AgentPro
     metaMap.set(m.userId, m);
   }
 
-  const memberIds = members.length > 0
-    ? new Set(members.map((m) => m.user_id))
-    : new Set(agentMeta.map((m) => m.userId));
+  const memberIds =
+    members.length > 0
+      ? new Set(members.map((m) => m.user_id))
+      : new Set(agentMeta.map((m) => m.userId));
 
   const profiles: AgentProfile[] = [];
   for (const userId of memberIds) {
@@ -91,14 +92,14 @@ function buildAgentProfiles(members: Member[], auditLog: AuditEntry[]): AgentPro
 
     // Sort entries by created_at descending
     const sorted = [...entries].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
     const lastActive = sorted.length > 0 ? sorted[0].created_at : null;
     const eventsToday = entries.filter(
-      (e) => now - new Date(e.created_at).getTime() < dayMs
+      (e) => now - new Date(e.created_at).getTime() < dayMs,
     ).length;
     const eventsThisWeek = entries.filter(
-      (e) => now - new Date(e.created_at).getTime() < weekMs
+      (e) => now - new Date(e.created_at).getTime() < weekMs,
     ).length;
 
     profiles.push({
@@ -218,7 +219,7 @@ export function groupAuditSessions(auditLog: AuditEntry[]): AuditSession[] {
 
   // Sort ascending by time
   const sorted = [...auditLog].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 
   const sessions: AuditSession[] = [];
