@@ -72,10 +72,7 @@ export function ProjectMemberManager({
           editingMember.user_id,
           {
             role_id: roleId,
-            languages:
-              selectedLanguages.length > 0
-                ? selectedLanguages
-                : undefined,
+            languages: selectedLanguages.length > 0 ? selectedLanguages : undefined,
           },
         );
         setMembers((prev) => prev.map((m) => (m.user_id === editingMember.user_id ? updated : m)));
@@ -163,11 +160,7 @@ export function ProjectMemberManager({
               Manage members and their roles for this project
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={handleOpenAdd}
-            data-testid="project-member-add-btn"
-          >
+          <Button size="sm" onClick={handleOpenAdd} data-testid="project-member-add-btn">
             <UserPlus className="h-4 w-4 mr-1" />
             Add Member
           </Button>
@@ -183,9 +176,7 @@ export function ProjectMemberManager({
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading members...</div>
         ) : members.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">
-            No project members
-          </div>
+          <div className="py-8 text-center text-sm text-muted-foreground">No project members</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">

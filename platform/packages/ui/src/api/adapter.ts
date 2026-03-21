@@ -134,10 +134,7 @@ export interface ApiAdapter {
   deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void>;
 
   // Project Members
-  listProjectMembers(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<ProjectMembership[]>;
+  listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]>;
   addProjectMember(
     workspaceSlug: string,
     projectId: string,
@@ -156,11 +153,7 @@ export interface ApiAdapter {
       languages?: string[];
     },
   ): Promise<ProjectMembership>;
-  removeProjectMember(
-    workspaceSlug: string,
-    projectId: string,
-    userId: string,
-  ): Promise<void>;
+  removeProjectMember(workspaceSlug: string, projectId: string, userId: string): Promise<void>;
 
   // API Tokens
   listApiTokens(workspaceSlug: string): Promise<ApiToken[]>;
@@ -596,7 +589,11 @@ export interface ApiAdapter {
   bravoUpdateConfig(workspaceSlug: string, config: Partial<BravoConfig>): Promise<BravoConfig>;
   bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }>;
   bravoGetUsage(workspaceSlug: string, from?: string, to?: string): Promise<BravoUsageSummary>;
-  bravoUpdateMode(workspaceSlug: string, conversationId: string, mode: string): Promise<{ mode: string; permissions: string[] }>;
+  bravoUpdateMode(
+    workspaceSlug: string,
+    conversationId: string,
+    mode: string,
+  ): Promise<{ mode: string; permissions: string[] }>;
   /** Send a message and stream the response via SSE. Returns an AbortController to cancel. */
   bravoSendMessageSSE(
     workspaceSlug: string,

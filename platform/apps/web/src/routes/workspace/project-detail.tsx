@@ -18,7 +18,6 @@ import {
   useStreamActions,
   ConfirmDialog,
   ProjectMemberManager,
-  useWorkspace,
 } from "@neokapi/ui";
 import type {
   StreamVisibility,

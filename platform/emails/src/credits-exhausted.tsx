@@ -57,13 +57,17 @@ export const CreditsExhaustedEmail = ({
           <Text style={paragraph}>
             {"The workspace "}
             <strong>{workspaceName}</strong>
-            {" has used all of its AI credits. AI-powered features such as machine translation and quality checks are paused until your credits reset."}
+            {
+              " has used all of its AI credits. AI-powered features such as machine translation and quality checks are paused until your credits reset."
+            }
           </Text>
 
           <Text style={paragraph}>
             {"Your credits will automatically reset on "}
             <strong>{resetDate}</strong>
-            {". If you need credits sooner, you can upgrade your plan or purchase additional credits."}
+            {
+              ". If you need credits sooner, you can upgrade your plan or purchase additional credits."
+            }
           </Text>
 
           <Section style={btnWrapper}>
@@ -80,16 +84,12 @@ export const CreditsExhaustedEmail = ({
 
           <Hr style={hr} />
 
-          <Text style={fallback}>
-            {"Upgrade: "}
-          </Text>
+          <Text style={fallback}>{"Upgrade: "}</Text>
           <Link href={upgradeURL} style={link}>
             {upgradeURL}
           </Link>
 
-          <Text style={fallback}>
-            {"Buy credits: "}
-          </Text>
+          <Text style={fallback}>{"Buy credits: "}</Text>
           <Link href={buyCreditsURL} style={link}>
             {buyCreditsURL}
           </Link>

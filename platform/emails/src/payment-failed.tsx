@@ -57,9 +57,7 @@ export const PaymentFailedEmail = ({
           <Text style={paragraph}>
             {"We were unable to process the payment of "}
             <strong>
-              {invoiceAmount}
-              {" "}
-              {currency}
+              {invoiceAmount} {currency}
             </strong>
             {" for the workspace "}
             <strong>{workspaceName}</strong>.
@@ -68,7 +66,9 @@ export const PaymentFailedEmail = ({
           <Text style={paragraph}>
             {"Your subscription is still active, but you have a "}
             <strong>{"7-day grace period"}</strong>
-            {" to update your payment method. If the payment is not resolved within this period, your subscription will be downgraded to the free plan."}
+            {
+              " to update your payment method. If the payment is not resolved within this period, your subscription will be downgraded to the free plan."
+            }
           </Text>
 
           <Section style={btnWrapper}>

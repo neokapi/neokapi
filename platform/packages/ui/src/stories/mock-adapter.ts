@@ -643,7 +643,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
       total_container_sec: 0,
       message_count: 0,
     }),
-    bravoUpdateMode: async (_ws: string, _id: string, mode: string) => ({ mode, permissions: ["view_content"] }),
+    bravoUpdateMode: async (_ws: string, _id: string, mode: string) => ({
+      mode,
+      permissions: ["view_content"],
+    }),
     bravoSendMessageSSE: () => new AbortController(),
 
     // --- Billing (AD-030) ---------------------------------------------------

@@ -42,7 +42,8 @@ export const LongAction: Story = {
   args: {
     currentMode: "ask",
     requiredMode: "bravo",
-    action: "Running automated quality checks and applying batch corrections across all project files",
+    action:
+      "Running automated quality checks and applying batch corrections across all project files",
     onSwitchMode: fn(),
     onDismiss: fn(),
   },

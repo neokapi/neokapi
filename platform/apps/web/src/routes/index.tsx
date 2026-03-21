@@ -397,10 +397,7 @@ const settingsRolesRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: "roles",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/settings-roles"),
-    "SettingsRolesRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/settings-roles"), "SettingsRolesRoute"),
 });
 
 const settingsProvidersRoute = createRoute({

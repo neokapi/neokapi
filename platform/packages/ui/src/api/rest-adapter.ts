@@ -375,31 +375,21 @@ export class RestApiAdapter implements ApiAdapter {
       position?: number;
     },
   ): Promise<RoleTemplate> {
-    return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
-  async deleteRoleTemplate(
-    workspaceSlug: string,
-    roleId: string,
-  ): Promise<void> {
-    await this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`,
-      { method: "DELETE" },
-    );
+  async deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`, {
+      method: "DELETE",
+    });
   }
 
   // ── Project Members ─────────────────────────────────────────────────
 
-  async listProjectMembers(
-    workspaceSlug: string,
-    projectId: string,
-  ): Promise<ProjectMembership[]> {
+  async listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]> {
     return this.fetchJSON(
       `/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members`,
     );
@@ -1691,11 +1681,18 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
   }
 
-  async bravoUpdateMode(workspaceSlug: string, conversationId: string, mode: string): Promise<{ mode: string; permissions: string[] }> {
-    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/mode`, {
-      method: "PATCH",
-      body: JSON.stringify({ mode }),
-    });
+  async bravoUpdateMode(
+    workspaceSlug: string,
+    conversationId: string,
+    mode: string,
+  ): Promise<{ mode: string; permissions: string[] }> {
+    return this.fetchJSON(
+      `${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/mode`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ mode }),
+      },
+    );
   }
 
   bravoSendMessageSSE(

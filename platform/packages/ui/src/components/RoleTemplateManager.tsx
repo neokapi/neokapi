@@ -149,11 +149,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
               Manage permission bundles for project members
             </p>
           </div>
-          <Button
-            size="sm"
-            onClick={handleCreate}
-            data-testid="role-create-btn"
-          >
+          <Button size="sm" onClick={handleCreate} data-testid="role-create-btn">
             <Plus className="h-3.5 w-3.5 mr-1" />
             Create Role
           </Button>
@@ -210,8 +206,7 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
                     </td>
                     <td className="px-4 py-2.5">
                       <Badge variant="secondary" className="text-xs">
-                        {role.permission_names.length}{" "}
-                        permission
+                        {role.permission_names.length} permission
                         {role.permission_names.length !== 1 ? "s" : ""}
                       </Badge>
                     </td>
