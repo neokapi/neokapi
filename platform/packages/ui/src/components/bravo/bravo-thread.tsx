@@ -13,6 +13,7 @@ import {
   ComposerPrimitive,
   ActionBarPrimitive,
   BranchPickerPrimitive,
+  useMessage,
   useMessagePartText,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
@@ -163,17 +164,20 @@ function AssistantTextPart() {
 
 /** Display token usage from message metadata if available. */
 function MessageTokenUsage() {
-  // Access custom metadata through the message context.
+  const message = useMessage((m) => m.message);
+  const custom = (message?.metadata as Record<string, unknown>)?.custom as
+    | { input_tokens?: number; output_tokens?: number }
+    | undefined;
+
+  if (!custom?.input_tokens && !custom?.output_tokens) return null;
+
+  const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+
   return (
-    <MessagePrimitive.If assistant>
-      <MessagePrimitive.Root className="contents">
-        {/* Token usage is available via metadata.custom — rendered by the
-            parent component when metadata is present. For now we skip this
-            since assistant-ui doesn't expose metadata directly in primitives.
-            The data is preserved in the converted message and can be accessed
-            via useMessage() if needed. */}
-      </MessagePrimitive.Root>
-    </MessagePrimitive.If>
+    <div className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground">
+      {custom.input_tokens != null && <span>{fmt(custom.input_tokens)} in</span>}
+      {custom.output_tokens != null && <span>{fmt(custom.output_tokens)} out</span>}
+    </div>
   );
 }
 

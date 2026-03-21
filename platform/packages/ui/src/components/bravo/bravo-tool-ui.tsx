@@ -51,6 +51,7 @@ export function BravoToolCallRenderer({
   result,
   isError,
   status,
+  addResult,
 }: {
   toolName: string;
   toolCallId?: string;
@@ -58,6 +59,7 @@ export function BravoToolCallRenderer({
   result?: unknown;
   isError?: boolean;
   status?: { type: string } | string;
+  addResult?: (result: unknown) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -115,7 +117,7 @@ export function BravoToolCallRenderer({
         </div>
       )}
 
-      {needsApproval && (
+      {needsApproval && addResult && (
         <div className="border-t px-3 py-2">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">
@@ -126,19 +128,14 @@ export function BravoToolCallRenderer({
             <Button
               size="sm"
               variant="default"
-              onClick={() => {
-                // Use assistant-ui's addToolResult to approve.
-                // This is wired through to onAddToolResult in the adapter.
-              }}
+              onClick={() => addResult("approved")}
             >
               Approve
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => {
-                // Deny wired through onAddToolResult.
-              }}
+              onClick={() => addResult("denied")}
             >
               Deny
             </Button>
