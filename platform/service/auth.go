@@ -110,6 +110,9 @@ func (s *AuthService) CreateWorkspaceWithOwner(ctx context.Context, w *platauth.
 	if w.Name == "" {
 		return fmt.Errorf("workspace name is required")
 	}
+	if w.Slug == "" {
+		return fmt.Errorf("workspace slug is required")
+	}
 	if ownerID == "" {
 		return fmt.Errorf("owner ID is required")
 	}

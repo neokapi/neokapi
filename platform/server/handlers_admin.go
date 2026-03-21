@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 
@@ -119,6 +120,14 @@ func (s *Server) HandleAdminUpdatePlan(c echo.Context) error {
 
 	if err := s.BillingStore.UpsertSubscription(ctx, sub); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Sync the plan to the workspace record.
+	if s.AuthStore != nil {
+		syncer := &planSyncAdapter{authStore: s.AuthStore}
+		if err := syncer.SyncWorkspacePlan(ctx, wsID, req.Plan, ""); err != nil {
+			log.Printf("admin: failed to sync plan for workspace %s: %v", wsID, err)
+		}
 	}
 
 	// Record billing event.
