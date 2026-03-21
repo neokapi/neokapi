@@ -46,3 +46,19 @@ jobs:
     uses: ./.github/workflows/_build-persona-agent-image.yml
     with:
       image-tag: ${{ needs.image-tag.outputs.value }}
+
+  trigger-deploy:
+    name: Trigger Deploy
+    needs: [image-tag, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
+    steps:
+      - name: Deploy persona agents
+        run: |
+          gh workflow run deploy-persona-agent.yml \
+            --repo neokapi/bowrain-infra \
+            -f environment="$ENVIRONMENT" \
+            -f imageTag="$IMAGE_TAG"

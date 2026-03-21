@@ -10,10 +10,11 @@ max_tool_iterations = 50
 # Enable parallel tool calls for efficiency (e.g. multiple tm_search calls).
 parallel_tools = true
 
-# Enable MCP and eagerly load tool schemas so the LLM sees all tools immediately.
+# Enable MCP with deferred loading — only tool names are sent to the LLM
+# initially. Full schemas are fetched on-demand via tool_search, saving tokens.
 [mcp]
 enabled = true
-deferred_loading = false
+deferred_loading = true
 
 # Bowrain MCP — content management tools (all agents).
 # The JWT is obtained by exchanging the agent's API token (bwt_*) at startup.
@@ -26,3 +27,23 @@ tool_timeout_secs = 120
 
 # Agentic Testing MCP — fleet management tools (coordinator only).
 ${AGENTIC_MCP_BLOCK}
+
+# ── Tool filter groups ──────────────────────────────────────────────────
+# Only surface relevant tools based on the agent's role. Translators don't
+# need reviewer tools and vice versa. The agent's task message triggers
+# keyword matching to include the right group.
+
+[[tool_filter_groups]]
+name = "translation"
+include = ["bowrain__list_blocks", "bowrain__get_block", "bowrain__translate_block", "bowrain__submit_translation", "bowrain__check_vocabulary", "bowrain__term_search", "bowrain__run_flow", "bowrain__list_projects"]
+keywords = ["translate", "translation", "blocks", "localize", "French", "German", "Japanese"]
+
+[[tool_filter_groups]]
+name = "review"
+include = ["bowrain__list_blocks", "bowrain__get_block", "bowrain__check_vocabulary", "bowrain__term_search", "bowrain__run_flow", "bowrain__list_projects", "bowrain__list_translations", "bowrain__review_translation"]
+keywords = ["review", "quality", "consistency", "terminology", "QA"]
+
+[[tool_filter_groups]]
+name = "coordination"
+include = ["agentic__list_agent_executions", "agentic__get_fleet_summary", "agentic__list_workspaces", "agentic__get_workspace"]
+keywords = ["fleet", "status", "coordinator", "observations", "suggestions", "review fleet"]
