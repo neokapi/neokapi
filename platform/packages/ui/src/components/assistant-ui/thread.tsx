@@ -1,23 +1,20 @@
-/**
- * @bravo assistant thread — built on the assistant-ui shadcn Thread component.
- *
- * Customizes the generated Thread (components/assistant-ui/thread.tsx) for the
- * bravo sidebar: narrower width, cold-start overlay, token usage display, and
- * the bravo-specific tool UI.
- */
-
-import { type FC } from "react";
+import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "./attachment";
+import { MarkdownText } from "./markdown-text";
+import { ToolFallback } from "./tool-fallback";
+import { TooltipIconButton } from "./tooltip-icon-button";
+import { Button } from "../ui/button";
+import { cn } from "../../lib/utils";
 import {
-  ActionBarPrimitive,
   ActionBarMorePrimitive,
+  ActionBarPrimitive,
   AuiIf,
   BranchPickerPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
+  SuggestionPrimitive,
   ThreadPrimitive,
   useAuiState,
-  useMessage,
 } from "@assistant-ui/react";
 import {
   ArrowDownIcon,
@@ -32,27 +29,14 @@ import {
   RefreshCwIcon,
   SquareIcon,
 } from "lucide-react";
-import { MarkdownText } from "../assistant-ui/markdown-text";
-import { ToolFallback } from "../assistant-ui/tool-fallback";
-import { TooltipIconButton } from "../assistant-ui/tooltip-icon-button";
-import {
-  ComposerAddAttachment,
-  ComposerAttachments,
-  UserMessageAttachments,
-} from "../assistant-ui/attachment";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
-import { BravoColdStart } from "./BravoColdStart";
+import type { FC } from "react";
 
-// ---------------------------------------------------------------------------
-// Thread (top-level) — adapted for the bravo sidebar
-// ---------------------------------------------------------------------------
-
-export const BravoAssistantThread: FC<{ coldStart?: boolean }> = ({ coldStart }) => {
+export const Thread: FC = () => {
   return (
     <ThreadPrimitive.Root
-      className="aui-root aui-thread-root @container flex flex-col flex-1 min-h-0 bg-background"
+      className="aui-root aui-thread-root @container flex h-full flex-col bg-background"
       style={{
+        ["--thread-max-width" as string]: "44rem",
         ["--composer-radius" as string]: "24px",
         ["--composer-padding" as string]: "10px",
       }}
@@ -61,44 +45,30 @@ export const BravoAssistantThread: FC<{ coldStart?: boolean }> = ({ coldStart })
         turnAnchor="top"
         className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
       >
-        {coldStart ? (
-          <BravoColdStart />
-        ) : (
-          <>
-            <AuiIf condition={(s) => s.thread.isEmpty}>
-              <BravoThreadWelcome />
-            </AuiIf>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
+          <ThreadWelcome />
+        </AuiIf>
 
-            <ThreadPrimitive.Messages>{() => <BravoThreadMessage />}</ThreadPrimitive.Messages>
-          </>
-        )}
+        <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
 
-        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mt-auto flex w-full flex-col gap-4 overflow-visible rounded-t-(--composer-radius) bg-background pb-4">
-          <BravoScrollToBottom />
-          <BravoComposer />
+        <ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) bg-background pb-4 md:pb-6">
+          <ThreadScrollToBottom />
+          <Composer />
         </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
 };
 
-// ---------------------------------------------------------------------------
-// Thread message router
-// ---------------------------------------------------------------------------
-
-const BravoThreadMessage: FC = () => {
+const ThreadMessage: FC = () => {
   const role = useAuiState((s) => s.message.role);
   const isEditing = useAuiState((s) => s.message.composer.isEditing);
-  if (isEditing) return <BravoEditComposer />;
-  if (role === "user") return <BravoUserMessage />;
-  return <BravoAssistantMessage />;
+  if (isEditing) return <EditComposer />;
+  if (role === "user") return <UserMessage />;
+  return <AssistantMessage />;
 };
 
-// ---------------------------------------------------------------------------
-// Scroll to bottom
-// ---------------------------------------------------------------------------
-
-const BravoScrollToBottom: FC = () => {
+const ThreadScrollToBottom: FC = () => {
   return (
     <ThreadPrimitive.ScrollToBottom asChild>
       <TooltipIconButton
@@ -112,30 +82,49 @@ const BravoScrollToBottom: FC = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Welcome / empty state
-// ---------------------------------------------------------------------------
-
-function BravoThreadWelcome() {
+const ThreadWelcome: FC = () => {
   return (
-    <div className="aui-thread-welcome-root mx-auto my-auto flex w-full grow flex-col items-center justify-center">
-      <div className="flex flex-col items-center gap-1 px-4 text-center">
-        <h1 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-lg duration-200">
-          Chat with @bravo
-        </h1>
-        <p className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-sm delay-75 duration-200">
-          Your AI localization assistant
-        </p>
+    <div className="aui-thread-welcome-root mx-auto my-auto flex w-full max-w-(--thread-max-width) grow flex-col">
+      <div className="aui-thread-welcome-center flex w-full grow flex-col items-center justify-center">
+        <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-4">
+          <h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both font-semibold text-2xl duration-200">
+            Hello there!
+          </h1>
+          <p className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground text-xl delay-75 duration-200">
+            How can I help you today?
+          </p>
+        </div>
       </div>
+      <ThreadSuggestions />
     </div>
   );
-}
+};
 
-// ---------------------------------------------------------------------------
-// Composer
-// ---------------------------------------------------------------------------
+const ThreadSuggestions: FC = () => {
+  return (
+    <div className="aui-thread-welcome-suggestions grid w-full @md:grid-cols-2 gap-2 pb-4">
+      <ThreadPrimitive.Suggestions>{() => <ThreadSuggestionItem />}</ThreadPrimitive.Suggestions>
+    </div>
+  );
+};
 
-const BravoComposer: FC = () => {
+const ThreadSuggestionItem: FC = () => {
+  return (
+    <div className="aui-thread-welcome-suggestion-display fade-in slide-in-from-bottom-2 @md:nth-[n+3]:block nth-[n+3]:hidden animate-in fill-mode-both duration-200">
+      <SuggestionPrimitive.Trigger send asChild>
+        <Button
+          variant="ghost"
+          className="aui-thread-welcome-suggestion h-auto w-full @md:flex-col flex-wrap items-start justify-start gap-1 rounded-3xl border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-muted"
+        >
+          <SuggestionPrimitive.Title className="aui-thread-welcome-suggestion-text-1 font-medium" />
+          <SuggestionPrimitive.Description className="aui-thread-welcome-suggestion-text-2 text-muted-foreground empty:hidden" />
+        </Button>
+      </SuggestionPrimitive.Trigger>
+    </div>
+  );
+};
+
+const Composer: FC = () => {
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone asChild>
@@ -145,20 +134,20 @@ const BravoComposer: FC = () => {
         >
           <ComposerAttachments />
           <ComposerPrimitive.Input
-            placeholder="Message @bravo..."
+            placeholder="Send a message..."
             className="aui-composer-input max-h-32 min-h-10 w-full resize-none bg-transparent px-1.75 py-1 text-sm outline-none placeholder:text-muted-foreground/80"
             rows={1}
             autoFocus
             aria-label="Message input"
           />
-          <BravoComposerAction />
+          <ComposerAction />
         </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 };
 
-const BravoComposerAction: FC = () => {
+const ComposerAction: FC = () => {
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
@@ -194,17 +183,23 @@ const BravoComposerAction: FC = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Assistant message
-// ---------------------------------------------------------------------------
+const MessageError: FC = () => {
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
+        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
+  );
+};
 
-const BravoAssistantMessage: FC = () => {
+const AssistantMessage: FC = () => {
   return (
     <MessagePrimitive.Root
-      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full animate-in py-3 duration-150"
+      className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
       data-role="assistant"
     >
-      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground text-sm leading-relaxed">
+      <div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
         <MessagePrimitive.Parts>
           {({ part }) => {
             if (part.type === "text") return <MarkdownText />;
@@ -219,19 +214,7 @@ const BravoAssistantMessage: FC = () => {
         <BranchPicker />
         <AssistantActionBar />
       </div>
-
-      <MessageTokenUsage />
     </MessagePrimitive.Root>
-  );
-};
-
-const MessageError: FC = () => {
-  return (
-    <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-      </ErrorPrimitive.Root>
-    </MessagePrimitive.Error>
   );
 };
 
@@ -240,7 +223,7 @@ const AssistantActionBar: FC = () => {
     <ActionBarPrimitive.Root
       hideWhenRunning
       autohide="not-last"
-      className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground"
+      className="aui-assistant-action-bar-root col-start-3 row-start-2 -ml-1 flex gap-1 text-muted-foreground"
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
@@ -280,20 +263,16 @@ const AssistantActionBar: FC = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// User message
-// ---------------------------------------------------------------------------
-
-const BravoUserMessage: FC = () => {
+const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
-      className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
+      className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
       data-role="user"
     >
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground text-sm">
+        <div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
           <MessagePrimitive.Parts />
         </div>
         <div className="aui-user-action-bar-wrapper absolute top-1/2 left-0 -translate-x-full -translate-y-1/2 pr-2">
@@ -322,13 +301,9 @@ const UserActionBar: FC = () => {
   );
 };
 
-// ---------------------------------------------------------------------------
-// Edit composer
-// ---------------------------------------------------------------------------
-
-const BravoEditComposer: FC = () => {
+const EditComposer: FC = () => {
   return (
-    <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full flex-col px-2 py-3">
+    <MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
       <ComposerPrimitive.Root className="aui-edit-composer-root ml-auto flex w-full max-w-[85%] flex-col rounded-2xl bg-muted">
         <ComposerPrimitive.Input
           className="aui-edit-composer-input min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
@@ -348,10 +323,6 @@ const BravoEditComposer: FC = () => {
     </MessagePrimitive.Root>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Branch picker (shared)
-// ---------------------------------------------------------------------------
 
 const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
   return (
@@ -379,25 +350,3 @@ const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest
     </BranchPickerPrimitive.Root>
   );
 };
-
-// ---------------------------------------------------------------------------
-// Token usage (bravo-specific)
-// ---------------------------------------------------------------------------
-
-function MessageTokenUsage() {
-  const metadata = useMessage((m) => m.metadata);
-  const custom = (metadata as Record<string, unknown>)?.custom as
-    | { input_tokens?: number; output_tokens?: number }
-    | undefined;
-
-  if (!custom?.input_tokens && !custom?.output_tokens) return null;
-
-  const fmt = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
-
-  return (
-    <div className="flex items-center gap-2 px-3 text-[10px] text-muted-foreground">
-      {custom.input_tokens != null && <span>{fmt(custom.input_tokens)} in</span>}
-      {custom.output_tokens != null && <span>{fmt(custom.output_tokens)} out</span>}
-    </div>
-  );
-}
