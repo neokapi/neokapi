@@ -8,7 +8,7 @@ import { Card } from "./ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
 import { Alert, AlertDescription } from "./ui/alert";
-import { KeyRound, Trash2, Copy, Clock } from "./icons";
+import { KeyRound, Trash2, Copy, Clock, Shield } from "./icons";
 
 interface ApiTokenManagerProps {
   workspace: Workspace;
@@ -45,6 +45,50 @@ const PRESETS: { value: ExpiryPreset; days: number | null; label: string }[] = [
   { value: "never", days: null, label: "No expiration" },
 ];
 
+type ScopeAction = "read" | "translate" | "review" | "manage";
+
+const SCOPE_ACTIONS: { value: ScopeAction; label: string; description: string }[] = [
+  { value: "read", label: "Read", description: "View content only" },
+  { value: "translate", label: "Translate", description: "View and translate content" },
+  { value: "review", label: "Review", description: "View, translate, and review" },
+  { value: "manage", label: "Manage", description: "All except project & member management" },
+];
+
+/** Parse a scopes JSON string into a human-readable label. */
+function formatScopes(scopesJSON: string): string {
+  try {
+    const scopes: string[] = JSON.parse(scopesJSON);
+    if (scopes.length === 0) return "None";
+    if (scopes.includes("*")) return "Full access";
+    return scopes
+      .map((s) => {
+        if (s.startsWith("project:")) {
+          const parts = s.split(":");
+          const action = parts[2] || "?";
+          const langs = parts[3];
+          return `${action}${langs ? ` (${langs})` : ""} [project]`;
+        }
+        const parts = s.split(":");
+        const action = parts[0];
+        const langs = parts[1];
+        return `${action}${langs ? `: ${langs}` : ""}`;
+      })
+      .join(", ");
+  } catch {
+    return "Unknown";
+  }
+}
+
+/** Check if scopes represent full access. */
+function isFullAccessScopes(scopesJSON: string): boolean {
+  try {
+    const scopes: string[] = JSON.parse(scopesJSON);
+    return scopes.includes("*");
+  } catch {
+    return false;
+  }
+}
+
 export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const api = useApi();
   const [tokens, setTokens] = useState<ApiToken[]>([]);
@@ -58,6 +102,11 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
   const [createdToken, setCreatedToken] = useState<CreateApiTokenResponse | null>(null);
   const [copied, setCopied] = useState(false);
   const [deleteTokenId, setDeleteTokenId] = useState<string | null>(null);
+
+  // Scope selection state
+  const [scopeMode, setScopeMode] = useState<"full" | "custom">("full");
+  const [selectedAction, setSelectedAction] = useState<ScopeAction>("translate");
+  const [scopeLanguages, setScopeLanguages] = useState("");
 
   const loadTokens = useCallback(async () => {
     try {
@@ -86,6 +135,17 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     return parseInt(expiryPreset, 10);
   };
 
+  /** Build scopes array from selection state. */
+  const getScopes = (): string[] | undefined => {
+    if (scopeMode === "full") return undefined; // defaults to ["*"]
+    const langs = scopeLanguages
+      .split(",")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const scope = langs.length > 0 ? `${selectedAction}:${langs.join(",")}` : selectedAction;
+    return [scope];
+  };
+
   /** Display label for the currently selected expiry. */
   const getExpiryLabel = (): string => {
     if (expiryPreset === "never") return "No expiration";
@@ -105,7 +165,8 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
     setError("");
     try {
       const days = getExpireDays();
-      const resp = await api.createApiToken(workspace.slug, name.trim(), days);
+      const scopes = getScopes();
+      const resp = await api.createApiToken(workspace.slug, name.trim(), days, scopes);
       setCreatedToken(resp);
       setTokens((prev) => [
         {
@@ -151,6 +212,9 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
       setName("");
       setExpiryPreset("30");
       setCustomDate(addDays(30));
+      setScopeMode("full");
+      setSelectedAction("translate");
+      setScopeLanguages("");
       setError("");
       setCreatedToken(null);
       setCopied(false);
@@ -223,6 +287,9 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                     Prefix
                   </th>
                   <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
+                    Scopes
+                  </th>
+                  <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
                     Last Used
                   </th>
                   <th className="px-4 py-2.5 text-left text-sm font-medium text-muted-foreground">
@@ -234,6 +301,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
               <tbody data-testid="token-list">
                 {tokens.map((t) => {
                   const expired = isExpired(t);
+                  const fullAccess = isFullAccessScopes(t.scopes);
                   return (
                     <tr
                       key={t.id}
@@ -242,6 +310,19 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       <td className="px-4 py-2.5 text-sm font-medium">{t.name}</td>
                       <td className="px-4 py-2.5 text-sm font-mono text-muted-foreground">
                         {t.token_prefix}...
+                      </td>
+                      <td className="px-4 py-2.5 text-sm text-muted-foreground">
+                        <span
+                          className="inline-flex items-center gap-1.5"
+                          title={formatScopes(t.scopes)}
+                        >
+                          <Shield className="h-3 w-3" />
+                          {fullAccess ? (
+                            "Full access"
+                          ) : (
+                            <span className="truncate max-w-[180px]">{formatScopes(t.scopes)}</span>
+                          )}
+                        </span>
                       </td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">
                         {t.last_used_at ? new Date(t.last_used_at).toLocaleDateString() : "Never"}
@@ -367,6 +448,80 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                   />
                 </div>
               )}
+
+              {/* Scope selection */}
+              <div>
+                <Label className="text-muted-foreground">Permissions</Label>
+                <div className="mt-2 flex flex-col gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scope-mode"
+                      checked={scopeMode === "full"}
+                      onChange={() => setScopeMode("full")}
+                      className="accent-primary"
+                      data-testid="scope-full-radio"
+                    />
+                    <span className="text-sm">Full access</span>
+                    <span className="text-xs text-muted-foreground">— unrestricted API access</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="scope-mode"
+                      checked={scopeMode === "custom"}
+                      onChange={() => setScopeMode("custom")}
+                      className="accent-primary"
+                      data-testid="scope-custom-radio"
+                    />
+                    <span className="text-sm">Restricted</span>
+                    <span className="text-xs text-muted-foreground">
+                      — limit to specific actions
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {scopeMode === "custom" && (
+                <div className="flex flex-col gap-3 pl-6 border-l-2 border-border">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Action</Label>
+                    <div className="mt-1.5 flex flex-col gap-1.5">
+                      {SCOPE_ACTIONS.map((a) => (
+                        <label key={a.value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="scope-action"
+                            checked={selectedAction === a.value}
+                            onChange={() => setSelectedAction(a.value)}
+                            className="accent-primary"
+                            data-testid={`scope-action-${a.value}`}
+                          />
+                          <span className="text-sm font-medium">{a.label}</span>
+                          <span className="text-xs text-muted-foreground">— {a.description}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {(selectedAction === "translate" || selectedAction === "review") && (
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Languages (optional)</Label>
+                      <Input
+                        value={scopeLanguages}
+                        onChange={(e) => setScopeLanguages(e.target.value)}
+                        placeholder="e.g. fr, de, ja (leave empty for all)"
+                        className="mt-1 text-sm"
+                        data-testid="scope-languages-input"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Comma-separated BCP-47 tags. Empty means all languages.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>

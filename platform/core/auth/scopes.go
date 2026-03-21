@@ -142,6 +142,24 @@ func parseLanguages(s string) []string {
 	return langs
 }
 
+// ValidateScopes validates a JSON array of scope strings. Returns an error if
+// the JSON is malformed or any individual scope string is invalid.
+func ValidateScopes(scopesJSON string) error {
+	var scopes []string
+	if err := json.Unmarshal([]byte(scopesJSON), &scopes); err != nil {
+		return fmt.Errorf("invalid scopes JSON: %w", err)
+	}
+	if len(scopes) == 0 {
+		return fmt.Errorf("empty scopes array")
+	}
+	for _, s := range scopes {
+		if _, err := ParseScope(s); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // ParseScopes parses a JSON array of scope strings (from api_tokens.scopes column)
 // and returns the combined resolved scopes.
 func ParseScopes(scopesJSON string) (*ResolvedScopes, error) {

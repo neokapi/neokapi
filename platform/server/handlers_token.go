@@ -1,16 +1,19 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
 // CreateTokenRequest is the request body for creating an API token.
 type CreateTokenRequest struct {
-	Name       string `json:"name"`
-	ExpireDays int    `json:"expire_days,omitempty"` // 0 = no expiration
+	Name       string   `json:"name"`
+	ExpireDays int      `json:"expire_days,omitempty"` // 0 = no expiration
+	Scopes     []string `json:"scopes,omitempty"`      // e.g. ["*"], ["read"], ["translate:fr,de"]
 }
 
 // CreateTokenResponse is returned after creating a token. The plaintext
@@ -42,6 +45,19 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	userID, _ := c.Get("user_id").(string)
 	workspaceID, _ := c.Get("workspace_id").(string)
 
+	// Build scopes JSON. Default to ["*"] if no scopes provided.
+	scopesJSON := `["*"]`
+	if len(req.Scopes) > 0 {
+		b, err := json.Marshal(req.Scopes)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid scopes"})
+		}
+		scopesJSON = string(b)
+		if err := platauth.ValidateScopes(scopesJSON); err != nil {
+			return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid scopes: " + err.Error()})
+		}
+	}
+
 	var expiresAt *time.Time
 	if req.ExpireDays > 0 {
 		t := time.Now().Add(time.Duration(req.ExpireDays) * 24 * time.Hour)
@@ -49,7 +65,7 @@ func (s *Server) HandleCreateToken(c echo.Context) error {
 	}
 
 	ctx := c.Request().Context()
-	token, plaintext, err := s.Services.Auth.CreateAPIToken(ctx, userID, workspaceID, req.Name, expiresAt)
+	token, plaintext, err := s.Services.Auth.CreateAPIToken(ctx, userID, workspaceID, req.Name, scopesJSON, expiresAt)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

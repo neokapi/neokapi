@@ -11,6 +11,7 @@ import { WorkspaceProvider } from "../context/WorkspaceContext";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
 import { BravoProvider } from "../context/BravoContext";
 import type { BlockInfo, Workspace } from "../types/api";
+import type { ApiAdapter } from "../api/adapter";
 import { createMockAdapter } from "./mock-adapter";
 
 const mockWorkspace: Workspace = {
@@ -27,8 +28,12 @@ const mockWorkspace: Workspace = {
  * Creates a decorator that wraps stories with ApiProvider + WorkspaceProvider
  * + BreadcrumbProvider. Pass custom blocks to seed the mock adapter.
  */
-export function createProvidersDecorator(blocks?: BlockInfo[]): Decorator {
-  const adapter = createMockAdapter(blocks);
+export function createProvidersDecorator(
+  blocks?: BlockInfo[],
+  overrides?: Partial<ApiAdapter>,
+): Decorator {
+  const base = createMockAdapter(blocks);
+  const adapter = overrides ? { ...base, ...overrides } : base;
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
