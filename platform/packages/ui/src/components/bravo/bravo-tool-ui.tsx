@@ -125,18 +125,10 @@ export function BravoToolCallRenderer({
             </span>
           </div>
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => addResult("approved")}
-            >
+            <Button size="sm" variant="default" onClick={() => addResult("approved")}>
               Approve
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => addResult("denied")}
-            >
+            <Button size="sm" variant="outline" onClick={() => addResult("denied")}>
               Deny
             </Button>
           </div>

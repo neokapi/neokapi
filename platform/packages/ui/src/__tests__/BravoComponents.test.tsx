@@ -114,4 +114,3 @@ describe("BravoConversationList", () => {
     expect(onDelete).toHaveBeenCalledWith(conv1);
   });
 });
-
