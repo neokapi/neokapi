@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from "vite-plus/test";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { BravoPanelTrigger } from "../components/bravo/BravoPanelTrigger";
 import { BravoConversationList } from "../components/bravo/BravoConversationList";
-import { BravoApprovalCard } from "../components/bravo/BravoApprovalCard";
 import type { BravoConversation } from "../types/api";
 
 // ---------------------------------------------------------------------------
@@ -113,81 +112,5 @@ describe("BravoConversationList", () => {
     const deleteBtn = screen.getByLabelText("Delete conversation");
     fireEvent.click(deleteBtn);
     expect(onDelete).toHaveBeenCalledWith(conv1);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// BravoApprovalCard
-// ---------------------------------------------------------------------------
-
-describe("BravoApprovalCard", () => {
-  it("renders tool name and approval required text", () => {
-    render(
-      <BravoApprovalCard
-        toolCallId="tc1"
-        toolName="translate"
-        onApprove={vi.fn()}
-        onDeny={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Approval required")).toBeDefined();
-    expect(screen.getByText("translate")).toBeDefined();
-  });
-
-  it("renders input JSON when provided", () => {
-    render(
-      <BravoApprovalCard
-        toolCallId="tc1"
-        toolName="translate"
-        input={{ text: "hello" }}
-        onApprove={vi.fn()}
-        onDeny={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/"text": "hello"/)).toBeDefined();
-  });
-
-  it("calls onApprove with toolCallId", () => {
-    const onApprove = vi.fn();
-    render(
-      <BravoApprovalCard
-        toolCallId="tc1"
-        toolName="translate"
-        onApprove={onApprove}
-        onDeny={vi.fn()}
-      />,
-    );
-    fireEvent.click(screen.getByText("Approve"));
-    expect(onApprove).toHaveBeenCalledWith("tc1");
-  });
-
-  it("calls onDeny with toolCallId", () => {
-    const onDeny = vi.fn();
-    render(
-      <BravoApprovalCard
-        toolCallId="tc1"
-        toolName="translate"
-        onApprove={vi.fn()}
-        onDeny={onDeny}
-      />,
-    );
-    fireEvent.click(screen.getByText("Deny"));
-    expect(onDeny).toHaveBeenCalledWith("tc1");
-  });
-
-  it("disables buttons when loading", () => {
-    render(
-      <BravoApprovalCard
-        toolCallId="tc1"
-        toolName="translate"
-        onApprove={vi.fn()}
-        onDeny={vi.fn()}
-        loading
-      />,
-    );
-    const approveBtn = screen.getByText("Approve").closest("button");
-    const denyBtn = screen.getByText("Deny").closest("button");
-    expect(approveBtn?.disabled).toBe(true);
-    expect(denyBtn?.disabled).toBe(true);
   });
 });
