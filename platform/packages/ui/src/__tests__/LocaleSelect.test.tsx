@@ -318,7 +318,9 @@ describe("MultiLocaleSelect", () => {
     });
 
     await user.click(screen.getByTestId("tgt-chips"));
-    await user.type(screen.getByTestId("tgt-search"), "Jap");
+    const searchInput = screen.getByTestId("tgt-search");
+    await user.clear(searchInput);
+    await user.type(searchInput, "Jap");
 
     expect(screen.getByTestId("tgt-option-ja")).toBeInTheDocument();
     expect(screen.queryByTestId("tgt-option-en")).not.toBeInTheDocument();

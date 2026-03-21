@@ -1,15 +1,15 @@
-import { useMemo } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
-import { useFilter } from '@/context/FilterContext';
-import { useApi } from '@/context/ApiContext';
-import { agentMeta } from '@/data/agent-meta';
+import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { useFilter } from "@/context/FilterContext";
+import { useApi } from "@/context/ApiContext";
+import { agentMeta } from "@/data/agent-meta";
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -19,33 +19,33 @@ function dateLabel(iso: string): string {
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
   });
 }
 
 function getDisplayName(actor: string): string {
   const meta = agentMeta.find((m) => m.userId === actor);
-  return meta?.displayName ?? (actor || 'System');
+  return meta?.displayName ?? (actor || "System");
 }
 
 function formatEventDescription(eventType: string, data: string): string {
   try {
     const parsed = JSON.parse(data);
     switch (eventType) {
-      case 'block.target.updated':
-      case 'block.updated':
-        return `Updated block ${parsed.block_id ?? ''}`;
-      case 'stream.created':
-        return `Created stream ${parsed.stream ?? ''}${parsed.parent ? ` in ${parsed.parent}` : ''}`;
-      case 'connector.push.completed':
-        return `Push completed: ${parsed.items ?? 0} items (push ${parsed.push_id ?? ''})`;
-      case 'item.created':
-        return `Created item ${parsed.item_name ?? ''} (${parsed.format ?? ''})`;
+      case "block.target.updated":
+      case "block.updated":
+        return `Updated block ${parsed.block_id ?? ""}`;
+      case "stream.created":
+        return `Created stream ${parsed.stream ?? ""}${parsed.parent ? ` in ${parsed.parent}` : ""}`;
+      case "connector.push.completed":
+        return `Push completed: ${parsed.items ?? 0} items (push ${parsed.push_id ?? ""})`;
+      case "item.created":
+        return `Created item ${parsed.item_name ?? ""} (${parsed.format ?? ""})`;
       default:
         return eventType;
     }
@@ -61,15 +61,16 @@ export default function ActivityTab() {
   const entries = useMemo(() => {
     // Sort audit log descending by time
     let items = [...api.auditLog].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
     );
     if (agent) items = items.filter((e) => e.actor === agent);
     if (search) {
       const q = search.toLowerCase();
-      items = items.filter((e) =>
-        e.event_type.toLowerCase().includes(q) ||
-        e.data.toLowerCase().includes(q) ||
-        getDisplayName(e.actor).toLowerCase().includes(q)
+      items = items.filter(
+        (e) =>
+          e.event_type.toLowerCase().includes(q) ||
+          e.data.toLowerCase().includes(q) ||
+          getDisplayName(e.actor).toLowerCase().includes(q),
       );
     }
     return items;
@@ -78,7 +79,7 @@ export default function ActivityTab() {
   // Group by date
   const grouped = useMemo(() => {
     const groups: { label: string; entries: typeof entries }[] = [];
-    let currentLabel = '';
+    let currentLabel = "";
     for (const entry of entries) {
       const label = dateLabel(entry.created_at);
       if (label !== currentLabel) {
@@ -91,11 +92,7 @@ export default function ActivityTab() {
   }, [entries]);
 
   if (api.loading) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        Loading activity...
-      </p>
-    );
+    return <p className="py-8 text-center text-sm text-muted-foreground">Loading activity...</p>;
   }
 
   return (
@@ -104,7 +101,7 @@ export default function ActivityTab() {
         <p className="text-sm text-muted-foreground">
           {api.connected
             ? `${entries.length} audit log entries from the Bowrain API`
-            : 'Not connected to Bowrain API'}
+            : "Not connected to Bowrain API"}
         </p>
         <Button
           variant="ghost"
@@ -124,9 +121,7 @@ export default function ActivityTab() {
       </div>
 
       {grouped.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          No activity found.
-        </p>
+        <p className="py-8 text-center text-sm text-muted-foreground">No activity found.</p>
       ) : (
         grouped.map((group) => (
           <div key={group.label}>

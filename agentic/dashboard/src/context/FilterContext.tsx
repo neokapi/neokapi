@@ -1,13 +1,6 @@
-import {
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  type ReactNode,
-} from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { useApi } from '@/context/ApiContext';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useApi } from "@/context/ApiContext";
 
 export interface FilterToken {
   key: string;
@@ -33,7 +26,7 @@ export const FilterContext = createContext<FilterContextType>({
   addToken: () => {},
   removeToken: () => {},
   clearTokens: () => {},
-  search: '',
+  search: "",
   setSearch: () => {},
   workspace: null,
   agent: null,
@@ -45,8 +38,8 @@ export function useFilter() {
 }
 
 function tokensToPath(tokens: FilterToken[]): string {
-  const wsToken = tokens.find((t) => t.key === 'workspace');
-  const agentToken = tokens.find((t) => t.key === 'agent');
+  const wsToken = tokens.find((t) => t.key === "workspace");
+  const agentToken = tokens.find((t) => t.key === "agent");
 
   if (wsToken && agentToken) {
     return `/workspace/${wsToken.value}/agent/${agentToken.value}`;
@@ -54,7 +47,7 @@ function tokensToPath(tokens: FilterToken[]): string {
   if (wsToken) {
     return `/workspace/${wsToken.value}`;
   }
-  return '/';
+  return "/";
 }
 
 function deriveValue(tokens: FilterToken[], key: string): string | null {
@@ -68,7 +61,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const api = useApi();
   const [tokens, setTokens] = useState<FilterToken[]>([]);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const [initialized, setInitialized] = useState(false);
 
   // Initialize tokens from URL on first load
@@ -81,28 +74,28 @@ export function FilterProvider({ children }: { children: ReactNode }) {
     if (slug) {
       // Try API workspaces first, then use slug as label fallback
       const ws = api.workspaces.find((w) => w.slug === slug);
-      initial.push({ key: 'workspace', value: slug, label: ws?.name ?? slug });
+      initial.push({ key: "workspace", value: slug, label: ws?.name ?? slug });
     }
     if (agentId) {
       const ag = api.agents.find((a) => a.id === agentId);
-      initial.push({ key: 'agent', value: agentId, label: ag?.displayName ?? agentId });
+      initial.push({ key: "agent", value: agentId, label: ag?.displayName ?? agentId });
     }
 
     // Parse query params for status, time, tool
     const searchParams = new URLSearchParams(location.search);
-    const statusParam = searchParams.get('status');
+    const statusParam = searchParams.get("status");
     if (statusParam) {
-      initial.push({ key: 'status', value: statusParam, label: statusParam });
+      initial.push({ key: "status", value: statusParam, label: statusParam });
     }
-    const timeParam = searchParams.get('time');
+    const timeParam = searchParams.get("time");
     if (timeParam) {
-      initial.push({ key: 'time', value: timeParam, label: timeParam });
+      initial.push({ key: "time", value: timeParam, label: timeParam });
     }
-    const toolParam = searchParams.get('tool');
+    const toolParam = searchParams.get("tool");
     if (toolParam) {
-      initial.push({ key: 'tool', value: toolParam, label: toolParam });
+      initial.push({ key: "tool", value: toolParam, label: toolParam });
     }
-    const q = searchParams.get('q');
+    const q = searchParams.get("q");
     if (q) {
       setSearch(q);
     }
@@ -119,17 +112,17 @@ export function FilterProvider({ children }: { children: ReactNode }) {
       const qs = new URLSearchParams();
 
       for (const t of newTokens) {
-        if (t.key === 'status' || t.key === 'time' || t.key === 'tool') {
+        if (t.key === "status" || t.key === "time" || t.key === "tool") {
           qs.set(t.key, t.value);
         }
       }
       const s = newSearch ?? search;
-      if (s) qs.set('q', s);
+      if (s) qs.set("q", s);
 
       const query = qs.toString();
       navigate(query ? `${path}?${query}` : path, { replace: true });
     },
-    [navigate, search]
+    [navigate, search],
   );
 
   const addToken = useCallback(
@@ -142,7 +135,7 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [syncUrl]
+    [syncUrl],
   );
 
   const removeToken = useCallback(
@@ -153,27 +146,24 @@ export function FilterProvider({ children }: { children: ReactNode }) {
         return next;
       });
     },
-    [syncUrl]
+    [syncUrl],
   );
 
   const clearTokens = useCallback(() => {
     setTokens([]);
-    setSearch('');
-    navigate('/', { replace: true });
+    setSearch("");
+    navigate("/", { replace: true });
   }, [navigate]);
 
-  const setSearchWithSync = useCallback(
-    (s: string) => {
-      setSearch(s);
-      // Don't navigate on every keystroke -- just update state
-    },
-    []
-  );
+  const setSearchWithSync = useCallback((s: string) => {
+    setSearch(s);
+    // Don't navigate on every keystroke -- just update state
+  }, []);
 
   // Derived values for backward compat
-  const workspace = deriveValue(tokens, 'workspace');
-  const agent = deriveValue(tokens, 'agent');
-  const status = deriveValue(tokens, 'status');
+  const workspace = deriveValue(tokens, "workspace");
+  const agent = deriveValue(tokens, "agent");
+  const status = deriveValue(tokens, "status");
 
   return (
     <FilterContext.Provider

@@ -1,7 +1,9 @@
-import path from "path"
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
+import path from "path";
+import { defineConfig } from "vite-plus";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+
+const __dirname = import.meta.dirname;
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -12,10 +14,21 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8080',
+      "/api": {
+        target: "http://localhost:8080",
         changeOrigin: true,
       },
     },
   },
-})
+  lint: {
+    ignorePatterns: ["dist/**"],
+    options: {
+      typeAware: true,
+      typeCheck: false,
+    },
+  },
+  fmt: {
+    singleQuote: false,
+    ignorePatterns: ["dist/**"],
+  },
+});

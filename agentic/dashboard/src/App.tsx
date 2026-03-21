@@ -1,15 +1,15 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Header from './components/layout/Header';
-import FilterBar from './components/FilterBar';
-import StatsRow from './components/StatsRow';
-import AgentCard from './components/AgentCard';
-import ContentTabs from './components/ContentTabs';
-import SessionHeatmap from './components/SessionHeatmap';
-import BowrainContext from './components/BowrainContext';
-import { Separator } from './components/ui/separator';
-import { FilterProvider, useFilter } from './context/FilterContext';
-import { ThemeProvider } from './context/ThemeContext';
-import { ApiProvider, useApi } from './context/ApiContext';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Header from "./components/layout/Header";
+import FilterBar from "./components/FilterBar";
+import StatsRow from "./components/StatsRow";
+import AgentCard from "./components/AgentCard";
+import ContentTabs from "./components/ContentTabs";
+import SessionHeatmap from "./components/SessionHeatmap";
+import BowrainContext from "./components/BowrainContext";
+import { Separator } from "./components/ui/separator";
+import { FilterProvider, useFilter } from "./context/FilterContext";
+import { ThemeProvider } from "./context/ThemeContext";
+import { ApiProvider, useApi } from "./context/ApiContext";
 
 function DashboardContent() {
   const { agent } = useFilter();
@@ -44,13 +44,9 @@ function DashboardContent() {
       <section className="px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl">
           {api.loading ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              Loading agents...
-            </p>
+            <p className="py-4 text-center text-sm text-muted-foreground">Loading agents...</p>
           ) : filteredAgents.length === 0 ? (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              No agents found.
-            </p>
+            <p className="py-4 text-center text-sm text-muted-foreground">No agents found.</p>
           ) : (
             <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
               {filteredAgents.map((a) => (
@@ -88,7 +84,7 @@ function DashboardContent() {
       <footer className="border-t px-4 py-8 sm:px-6">
         <div className="mx-auto max-w-7xl text-center">
           <p className="font-mono text-xs text-muted-foreground">
-            Bowrain Agentic Simulation Dashboard &mdash; Powered by{' '}
+            Bowrain Agentic Simulation Dashboard &mdash; Powered by{" "}
             <a
               href="https://github.com/neokapi/neokapi"
               target="_blank"
@@ -116,14 +112,14 @@ function App() {
   return (
     <ThemeProvider>
       <ApiProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/workspace/:slug" element={<DashboardPage />} />
-          <Route path="/workspace/:slug/agent/:agentId" element={<DashboardPage />} />
-          <Route path="/workspace/:slug/session/:sessionId" element={<DashboardPage />} />
-        </Routes>
-      </BrowserRouter>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/workspace/:slug" element={<DashboardPage />} />
+            <Route path="/workspace/:slug/agent/:agentId" element={<DashboardPage />} />
+            <Route path="/workspace/:slug/session/:sessionId" element={<DashboardPage />} />
+          </Routes>
+        </BrowserRouter>
       </ApiProvider>
     </ThemeProvider>
   );
