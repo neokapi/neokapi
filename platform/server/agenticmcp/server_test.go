@@ -189,6 +189,7 @@ func TestServerListTools(t *testing.T) {
 		"get_workspace_status",
 		"list_workspaces",
 		"list_agent_executions",
+		"list_agent_events",
 		"walk_release",
 		"onboard_project",
 		"file_feedback_issue",
@@ -197,7 +198,7 @@ func TestServerListTools(t *testing.T) {
 	for _, name := range expected {
 		assert.Contains(t, toolNames, name)
 	}
-	assert.Len(t, result.Tools, 8, "expected exactly 8 tools")
+	assert.Len(t, result.Tools, 9, "expected exactly 9 tools")
 }
 
 // ── Handler-level tests (direct, no transport) ───────────────────────────

@@ -11,10 +11,12 @@ import (
 const agenticEventsChannel = "agentic:events"
 
 // ExecutionSubscriber subscribes to Redis pub/sub and persists agentic events
-// to the PostgresExecutionStore.
+// to the PostgresExecutionStore. When an EventHub is set, events are also
+// broadcast to connected WebSocket clients.
 type ExecutionSubscriber struct {
 	client *redis.Client
 	store  *PostgresExecutionStore
+	hub    *EventHub
 	cancel context.CancelFunc
 }
 
@@ -34,6 +36,11 @@ func NewExecutionSubscriber(redisURL, redisPassword string, store *PostgresExecu
 		client: client,
 		store:  store,
 	}, nil
+}
+
+// SetEventHub sets an optional event hub for real-time WebSocket relay.
+func (s *ExecutionSubscriber) SetEventHub(hub *EventHub) {
+	s.hub = hub
 }
 
 // Start begins subscribing to the agentic events channel in a goroutine.
@@ -82,5 +89,10 @@ func (s *ExecutionSubscriber) handleMessage(ctx context.Context, payload string)
 	// Upsert execution lifecycle (only for exec.started/completed/failed).
 	if err := s.store.UpsertExecution(ctx, &ev); err != nil {
 		log.Printf("agentic subscriber: upsert execution: %v", err)
+	}
+
+	// Broadcast to connected WebSocket clients.
+	if s.hub != nil {
+		s.hub.Broadcast(ev)
 	}
 }

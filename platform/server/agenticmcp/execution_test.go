@@ -68,6 +68,64 @@ func TestIntFromData(t *testing.T) {
 	}
 }
 
+func TestEventHub_BroadcastAll(t *testing.T) {
+	hub := NewEventHub()
+
+	c1 := &EventClient{C: make(chan AgenticEvent, 8)}
+	c2 := &EventClient{C: make(chan AgenticEvent, 8)}
+	hub.Subscribe(c1)
+	hub.Subscribe(c2)
+
+	ev := AgenticEvent{Type: EventExecStarted, Workspace: "ws1", Agent: "a1"}
+	hub.Broadcast(ev)
+
+	assert.Equal(t, 2, hub.ClientCount())
+	assert.Equal(t, ev, <-c1.C)
+	assert.Equal(t, ev, <-c2.C)
+
+	hub.Unsubscribe(c1)
+	assert.Equal(t, 1, hub.ClientCount())
+
+	hub.Broadcast(AgenticEvent{Type: EventExecCompleted, Workspace: "ws1"})
+	assert.Len(t, c2.C, 1)
+}
+
+func TestEventHub_WorkspaceFilter(t *testing.T) {
+	hub := NewEventHub()
+
+	all := &EventClient{C: make(chan AgenticEvent, 8)}
+	ws1Only := &EventClient{C: make(chan AgenticEvent, 8), WorkspaceSlug: "ws1"}
+	hub.Subscribe(all)
+	hub.Subscribe(ws1Only)
+
+	hub.Broadcast(AgenticEvent{Type: EventExecStarted, Workspace: "ws1"})
+	hub.Broadcast(AgenticEvent{Type: EventExecStarted, Workspace: "ws2"})
+
+	// all client gets both events.
+	assert.Len(t, all.C, 2)
+	// ws1Only client gets only the ws1 event.
+	assert.Len(t, ws1Only.C, 1)
+	ev := <-ws1Only.C
+	assert.Equal(t, "ws1", ev.Workspace)
+
+	hub.Unsubscribe(all)
+	hub.Unsubscribe(ws1Only)
+}
+
+func TestEventHub_DropSlowClient(t *testing.T) {
+	hub := NewEventHub()
+
+	// Buffer of 1 — second event should be dropped.
+	slow := &EventClient{C: make(chan AgenticEvent, 1)}
+	hub.Subscribe(slow)
+
+	hub.Broadcast(AgenticEvent{Type: EventExecStarted, Workspace: "ws1"})
+	hub.Broadcast(AgenticEvent{Type: EventExecCompleted, Workspace: "ws1"})
+
+	assert.Len(t, slow.C, 1) // only first event fits
+	hub.Unsubscribe(slow)
+}
+
 func TestExecutionSubscriberHandleMessage(t *testing.T) {
 	// This tests the JSON parsing logic of handleMessage without a real Redis or PostgreSQL.
 	// We verify that a valid JSON event can be unmarshalled correctly.
