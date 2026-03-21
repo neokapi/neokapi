@@ -15,7 +15,7 @@ FROM debian:bookworm-slim
 # Install runtime dependencies: git (fleet repo), envsubst (config templating),
 # redis-tools (execution event publishing via redis-cli).
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git gettext-base redis-tools ca-certificates \
+    git gettext-base redis-tools ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy zeroclaw binary from official image.

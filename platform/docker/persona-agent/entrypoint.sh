@@ -47,9 +47,8 @@ echo ""
 # The JWT is used to authenticate MCP tool calls.
 if [ -n "${BOWRAIN_API_TOKEN:-}" ]; then
   EXCHANGE_URL="${BRAVO_MCP_ENDPOINT%/mcp/}/api/v1/auth/token/exchange"
-  EXCHANGE_RESP=$(wget -qO- \
-    --header="Authorization: Bearer ${BOWRAIN_API_TOKEN}" \
-    --post-data="" \
+  EXCHANGE_RESP=$(curl -sf -X POST \
+    -H "Authorization: Bearer ${BOWRAIN_API_TOKEN}" \
     "${EXCHANGE_URL}" 2>/dev/null || true)
   if [ -n "$EXCHANGE_RESP" ]; then
     BRAVO_AGENT_TOKEN=$(echo "$EXCHANGE_RESP" | sed 's/.*"access_token":"\([^"]*\)".*/\1/')
@@ -58,7 +57,7 @@ if [ -n "${BOWRAIN_API_TOKEN:-}" ]; then
   else
     echo "ERROR: Token exchange failed — agent has no MCP access"
     echo "  URL: ${EXCHANGE_URL}"
-    echo "  Token prefix: ${BOWRAIN_API_TOKEN:0:12}..."
+    echo "  Token prefix: $(printf '%.12s' "$BOWRAIN_API_TOKEN")..."
     echo "  Ensure the agent was onboarded via onboard.sh (valid bwt_* token required)"
     # Continue anyway — agent can still publish events, just can't call MCP tools.
     BRAVO_AGENT_TOKEN=""
