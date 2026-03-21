@@ -596,6 +596,7 @@ export interface ApiAdapter {
   bravoUpdateConfig(workspaceSlug: string, config: Partial<BravoConfig>): Promise<BravoConfig>;
   bravoListTools(workspaceSlug: string): Promise<{ tools: BravoToolInfo[] }>;
   bravoGetUsage(workspaceSlug: string, from?: string, to?: string): Promise<BravoUsageSummary>;
+  bravoUpdateMode(workspaceSlug: string, conversationId: string, mode: string): Promise<{ mode: string; permissions: string[] }>;
   /** Send a message and stream the response via SSE. Returns an AbortController to cancel. */
   bravoSendMessageSSE(
     workspaceSlug: string,

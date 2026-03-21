@@ -384,3 +384,159 @@ func TestRequireLanguagePermission(t *testing.T) {
 		assert.Nil(t, err)
 	})
 }
+
+func TestScopeRestrictionMiddleware(t *testing.T) {
+	mw := ScopeRestrictionMiddleware()
+
+	t.Run("no api token skips", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+
+		called := false
+		handler := mw(func(c echo.Context) error {
+			called = true
+			return nil
+		})
+		_ = handler(c)
+		assert.True(t, called)
+		assert.Equal(t, platauth.PermAll, c.Get("project_permissions"))
+	})
+
+	t.Run("full access scope passes through", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+		c.Set("api_token_scopes", `["*"]`)
+
+		called := false
+		handler := mw(func(c echo.Context) error {
+			called = true
+			return nil
+		})
+		_ = handler(c)
+		assert.True(t, called)
+		assert.Equal(t, platauth.PermAll, c.Get("project_permissions"))
+	})
+
+	t.Run("read scope restricts to view_content", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+		c.Set("api_token_scopes", `["read"]`)
+
+		handler := mw(func(c echo.Context) error { return nil })
+		_ = handler(c)
+		assert.Equal(t, platauth.PermViewContent, c.Get("project_permissions"))
+	})
+
+	t.Run("translate scope with languages restricts", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+		c.Set("api_token_scopes", `["translate:fr,de"]`)
+
+		handler := mw(func(c echo.Context) error { return nil })
+		_ = handler(c)
+
+		perms := c.Get("project_permissions").(platauth.Permission)
+		assert.True(t, perms.Has(platauth.PermViewContent))
+		assert.True(t, perms.Has(platauth.PermTranslate))
+		assert.False(t, perms.Has(platauth.PermManageFiles))
+
+		langs := c.Get("project_languages").([]string)
+		assert.ElementsMatch(t, []string{"fr", "de"}, langs)
+	})
+}
+
+func TestSessionGrantMiddleware(t *testing.T) {
+	store := NewMemorySessionStore()
+
+	t.Run("no session ID skips", func(t *testing.T) {
+		mw := SessionGrantMiddleware(store)
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+
+		called := false
+		handler := mw(func(c echo.Context) error {
+			called = true
+			return nil
+		})
+		_ = handler(c)
+		assert.True(t, called)
+		assert.Equal(t, platauth.PermAll, c.Get("project_permissions"))
+	})
+
+	t.Run("ask mode restricts to view_content", func(t *testing.T) {
+		grant := CreateSessionGrantForMode("conv-1", "user-1", platauth.AgentModeAsk, platauth.PermAll, nil)
+		require.NoError(t, SetSessionGrant(t.Context(), store, grant))
+
+		mw := SessionGrantMiddleware(store)
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+		c.Set("bravo_session_id", "conv-1")
+
+		handler := mw(func(c echo.Context) error { return nil })
+		_ = handler(c)
+
+		perms := c.Get("project_permissions").(platauth.Permission)
+		assert.Equal(t, platauth.PermViewContent, perms)
+		assert.Equal(t, "ask", c.Get("bravo_mode"))
+	})
+
+	t.Run("coworker mode preserves all permissions", func(t *testing.T) {
+		grant := CreateSessionGrantForMode("conv-2", "user-1", platauth.AgentModeCoworker, platauth.PermAll, nil)
+		require.NoError(t, SetSessionGrant(t.Context(), store, grant))
+
+		mw := SessionGrantMiddleware(store)
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+		c.Set("bravo_session_id", "conv-2")
+
+		handler := mw(func(c echo.Context) error { return nil })
+		_ = handler(c)
+
+		perms := c.Get("project_permissions").(platauth.Permission)
+		assert.Equal(t, platauth.PermAll, perms)
+	})
+
+	t.Run("voice mode restricts to view+brand+review", func(t *testing.T) {
+		grant := CreateSessionGrantForMode("conv-3", "user-1", platauth.AgentModeVoice, platauth.PermAll, nil)
+		require.NoError(t, SetSessionGrant(t.Context(), store, grant))
+
+		mw := SessionGrantMiddleware(store)
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermAll)
+		c.Set("bravo_session_id", "conv-3")
+
+		handler := mw(func(c echo.Context) error { return nil })
+		_ = handler(c)
+
+		perms := c.Get("project_permissions").(platauth.Permission)
+		assert.True(t, perms.Has(platauth.PermViewContent))
+		assert.True(t, perms.Has(platauth.PermManageBrand))
+		assert.True(t, perms.Has(platauth.PermReview))
+		assert.False(t, perms.Has(platauth.PermTranslate))
+		assert.False(t, perms.Has(platauth.PermManageFiles))
+	})
+}

@@ -424,6 +424,7 @@ export {
   useBravoAssistantThreadList,
 } from "./context/BravoContext";
 export { useBravoApi } from "./hooks/useBravoApi";
+export { BravoStepUpCard } from "./components/bravo/BravoStepUpCard";
 
 // Billing
 export {

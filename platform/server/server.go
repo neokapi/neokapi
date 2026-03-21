@@ -767,6 +767,12 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	if s.AuthStore != nil {
 		g.Use(ProjectAccessMiddleware(s.AuthStore))
 	}
+	// Narrow permissions based on API token scopes (Layer 2).
+	g.Use(ScopeRestrictionMiddleware())
+	// Narrow permissions based on session grants for @bravo/MCP (Layer 3).
+	if s.SessionStore != nil {
+		g.Use(SessionGrantMiddleware(s.SessionStore))
+	}
 
 	// Workspace-scoped project routes
 	g.GET("/projects", s.HandleListWorkspaceProjects)

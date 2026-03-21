@@ -839,7 +839,8 @@ export type BravoSSEEventType =
   | "tool_call_end"
   | "needs_approval"
   | "message_end"
-  | "error";
+  | "error"
+  | "step_up";
 
 /** SSE event data: message_start */
 export interface BravoSSEMessageStart {
@@ -888,6 +889,14 @@ export interface BravoSSEError {
   error: string;
 }
 
+/** SSE event data: step_up (mode restriction) */
+export interface BravoSSEStepUp {
+  current_mode: string;
+  required_mode: string;
+  action: string;
+  permissions: string[];
+}
+
 /** Union of all SSE event data types */
 export type BravoSSEEventData =
   | BravoSSEMessageStart
@@ -896,7 +905,8 @@ export type BravoSSEEventData =
   | BravoSSEToolCallEnd
   | BravoSSENeedsApproval
   | BravoSSEMessageEnd
-  | BravoSSEError;
+  | BravoSSEError
+  | BravoSSEStepUp;
 
 /** Callback handler for SSE events from @bravo. */
 export interface BravoSSEHandler {
@@ -907,6 +917,7 @@ export interface BravoSSEHandler {
   onNeedsApproval?: (data: BravoSSENeedsApproval) => void;
   onMessageEnd?: (data: BravoSSEMessageEnd) => void;
   onError?: (data: BravoSSEError) => void;
+  onStepUp?: (data: BravoSSEStepUp) => void;
 }
 
 // ---------------------------------------------------------------------------

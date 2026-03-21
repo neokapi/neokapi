@@ -123,6 +123,7 @@ func handleAPIToken(c echo.Context, next echo.HandlerFunc, token string, authSto
 	c.Set("email", user.Email)
 	c.Set("name", user.Name)
 	c.Set("api_token_id", apiToken.ID)
+	c.Set("api_token_scopes", apiToken.Scopes)
 	// Propagate actor into the request context for event attribution.
 	ctx = platev.WithActor(ctx, user.ID, user.Name)
 	c.SetRequest(c.Request().WithContext(ctx))
@@ -311,4 +312,98 @@ func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permiss
 		}
 	}
 	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "no access to language: " + locale})
+}
+
+// ScopeRestrictionMiddleware narrows project_permissions based on API token scopes.
+// Only applies when the request is authenticated via an API token (api_token_id on context).
+// Parses the token's scopes and intersects them with the already-resolved project permissions.
+func ScopeRestrictionMiddleware() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			scopesJSON, _ := c.Get("api_token_scopes").(string)
+			if scopesJSON == "" {
+				return next(c) // not an API token request or no scopes set
+			}
+
+			perms, ok := c.Get("project_permissions").(platauth.Permission)
+			if !ok {
+				return next(c) // no project permissions to restrict
+			}
+
+			resolved, err := platauth.ParseScopes(scopesJSON)
+			if err != nil || resolved.IsFullAccess {
+				return next(c) // "*" scope or parse error — no restriction
+			}
+
+			// Intersect permissions.
+			c.Set("project_permissions", perms&resolved.Permissions)
+
+			// Intersect languages if scopes restrict them.
+			if len(resolved.Languages) > 0 {
+				existing, _ := c.Get("project_languages").([]string)
+				if len(existing) == 0 {
+					c.Set("project_languages", resolved.Languages)
+				} else {
+					c.Set("project_languages", intersectStrings(existing, resolved.Languages))
+				}
+			}
+
+			return next(c)
+		}
+	}
+}
+
+// SessionGrantMiddleware narrows project_permissions based on an active session grant
+// (used by @bravo conversations and MCP tool sessions). Only applies when
+// bravo_session_id is present on the echo context.
+func SessionGrantMiddleware(stateStore SessionStateStore) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			sessionID, _ := c.Get("bravo_session_id").(string)
+			if sessionID == "" {
+				return next(c)
+			}
+
+			grant, err := GetSessionGrant(c.Request().Context(), stateStore, sessionID)
+			if err != nil || grant == nil {
+				return next(c) // no grant found — no restriction
+			}
+
+			// Intersect permissions with grant ceiling.
+			perms, ok := c.Get("project_permissions").(platauth.Permission)
+			if ok {
+				c.Set("project_permissions", perms&grant.Permissions)
+			}
+
+			// Intersect languages.
+			if len(grant.Languages) > 0 {
+				existing, _ := c.Get("project_languages").([]string)
+				if len(existing) == 0 {
+					c.Set("project_languages", grant.Languages)
+				} else {
+					c.Set("project_languages", intersectStrings(existing, grant.Languages))
+				}
+			}
+
+			// Set mode on context for downstream use.
+			c.Set("bravo_mode", string(grant.Mode))
+
+			return next(c)
+		}
+	}
+}
+
+// intersectStrings returns elements present in both slices.
+func intersectStrings(a, b []string) []string {
+	set := make(map[string]bool, len(b))
+	for _, s := range b {
+		set[s] = true
+	}
+	var result []string
+	for _, s := range a {
+		if set[s] {
+			result = append(result, s)
+		}
+	}
+	return result
 }

@@ -67,6 +67,7 @@ import type {
   BravoSSENeedsApproval,
   BravoSSEMessageEnd,
   BravoSSEError,
+  BravoSSEStepUp,
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
@@ -1690,6 +1691,13 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/usage${qs ? `?${qs}` : ""}`);
   }
 
+  async bravoUpdateMode(workspaceSlug: string, conversationId: string, mode: string): Promise<{ mode: string; permissions: string[] }> {
+    return this.fetchJSON(`${this.bravoEp(workspaceSlug)}/conversations/${encodeURIComponent(conversationId)}/mode`, {
+      method: "PATCH",
+      body: JSON.stringify({ mode }),
+    });
+  }
+
   bravoSendMessageSSE(
     workspaceSlug: string,
     conversationId: string,
@@ -1757,6 +1765,9 @@ export class RestApiAdapter implements ApiAdapter {
                     break;
                   case "message_end":
                     handler.onMessageEnd?.(data as BravoSSEMessageEnd);
+                    break;
+                  case "step_up":
+                    handler.onStepUp?.(data as BravoSSEStepUp);
                     break;
                   case "error":
                     handler.onError?.(data as BravoSSEError);

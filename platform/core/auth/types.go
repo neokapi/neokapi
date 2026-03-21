@@ -145,3 +145,45 @@ type Invite struct {
 	ExpiresAt   time.Time `json:"expires_at"`
 	CreatedAt   time.Time `json:"created_at"`
 }
+
+// AgentMode defines @bravo's interaction mode.
+type AgentMode string
+
+const (
+	AgentModeAsk      AgentMode = "ask"      // read-only, advisory
+	AgentModeCoworker AgentMode = "coworker" // full tool access
+	AgentModeVoice    AgentMode = "voice"    // brand voice scoped
+)
+
+// ValidAgentModes is the set of valid AgentMode values.
+var ValidAgentModes = map[AgentMode]bool{
+	AgentModeAsk:      true,
+	AgentModeCoworker: true,
+	AgentModeVoice:    true,
+}
+
+// ModePermissionCeiling returns the maximum permissions allowed for a given agent mode.
+func ModePermissionCeiling(mode AgentMode) Permission {
+	switch mode {
+	case AgentModeAsk:
+		return PermViewContent
+	case AgentModeCoworker:
+		return PermAll
+	case AgentModeVoice:
+		return PermViewContent | PermManageBrand | PermReview
+	default:
+		return PermViewContent // safe default
+	}
+}
+
+// SessionGrant represents a just-in-time, ephemeral permission scope for
+// an @bravo conversation or MCP tool session.
+type SessionGrant struct {
+	SessionID   string     `json:"session_id"`   // conversation ID or MCP session ID
+	UserID      string     `json:"user_id"`      // who granted
+	Permissions Permission `json:"permissions"`   // bitmask subset of user's permissions
+	Languages   []string   `json:"languages"`    // language constraint (empty = all)
+	ProjectIDs  []string   `json:"project_ids"`  // project constraint (empty = all)
+	Mode        AgentMode  `json:"mode"`         // current interaction mode
+	ExpiresAt   time.Time  `json:"expires_at"`   // auto-expire
+}
