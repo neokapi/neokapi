@@ -136,7 +136,7 @@ export const RichMarkdown: Story = {
 
 export const ColdStart: Story = {
   render: () => (
-    <MockRuntimeWrapper>
+    <MockRuntimeWrapper messages={[sampleAuiUserMessage]}>
       {(runtime) => (
         <BravoSidebar
           open

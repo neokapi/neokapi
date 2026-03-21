@@ -19,9 +19,11 @@ import {
 function ThreadWithRuntime({
   messages = [],
   isRunning = false,
+  coldStart = false,
 }: {
   messages?: ThreadMessageLike[];
   isRunning?: boolean;
+  coldStart?: boolean;
 }) {
   const runtime = useExternalStoreRuntime({
     messages,
@@ -34,7 +36,7 @@ function ThreadWithRuntime({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <div className="h-[500px] w-[400px] border rounded-lg overflow-hidden flex flex-col bg-background text-foreground">
-        <BravoAssistantThread />
+        <BravoAssistantThread coldStart={coldStart} />
       </div>
     </AssistantRuntimeProvider>
   );
@@ -73,4 +75,8 @@ export const RichMarkdown: Story = {
 
 export const Empty: Story = {
   render: () => <ThreadWithRuntime />,
+};
+
+export const ColdStart: Story = {
+  render: () => <ThreadWithRuntime messages={[sampleAuiUserMessage]} coldStart />,
 };
