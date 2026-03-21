@@ -5,6 +5,7 @@
 #   AGENT_NAME          — agent identifier (e.g., "coordinator", "sophie-translator")
 #   AGENT_ROLE          — persona role (e.g., "coordinator", "translator")
 #   AGENT_TASK_MESSAGE  — task message for this session
+#   AGENT_LOCALE        — target locale for this agent (e.g., "fr-FR")
 #   WORKSPACE_SLUG      — target workspace (empty for coordinator)
 #   FLEET_REPO          — git clone URL for the fleet state repo
 #   FLEET_REPO_TOKEN    — PAT for fleet repo access (optional if SSH)
@@ -140,17 +141,40 @@ echo ""
 echo "=== Starting ZeroClaw Agent ==="
 
 # Publish exec.started event.
-publish_exec_event "exec.started" ",\"data\":{\"task\":\"${AGENT_TASK_MESSAGE:-}\"}"
+LOCALE="${AGENT_LOCALE:-}"
+publish_exec_event "exec.started" ",\"data\":{\"task\":\"${AGENT_TASK_MESSAGE:-}\",\"locale\":\"${LOCALE}\"}"
 
 # ── Run agent ─────────────────────────────────────────────────────────
-zeroclaw agent -m "${AGENT_TASK_MESSAGE:-Run your standard routine}" 2>&1
-EXIT_CODE=$?
+START_EPOCH=$(date +%s)
+AGENT_LOG="/tmp/agent-output.log"
 
-# Publish exec.completed or exec.failed event.
+# Run agent, capturing output to a log file. We avoid piping through tee
+# because $? in plain sh reflects the last pipe stage, not the agent.
+set +e
+zeroclaw agent -m "${AGENT_TASK_MESSAGE:-Run your standard routine}" >"$AGENT_LOG" 2>&1
+EXIT_CODE=$?
+set -e
+cat "$AGENT_LOG"
+
+END_EPOCH=$(date +%s)
+DURATION_SEC=$((END_EPOCH - START_EPOCH))
+
+# ── Extract token usage from agent output ─────────────────────────────
+# ZeroClaw prints a usage summary line like: "Tokens used: 12345" or
+# "Total tokens: 12345". We extract the last number after the keyword.
+TOKENS_USED=0
+if [ -f "$AGENT_LOG" ]; then
+  TOKENS_LINE=$(grep -i 'tokens.*used\|total.*tokens' "$AGENT_LOG" | tail -1 || true)
+  if [ -n "$TOKENS_LINE" ]; then
+    TOKENS_USED=$(echo "$TOKENS_LINE" | grep -oE '[0-9]+' | tail -1 || echo 0)
+  fi
+fi
+
+# Publish exec.completed or exec.failed event with duration and tokens.
 if [ "$EXIT_CODE" -eq 0 ]; then
-  publish_exec_event "exec.completed" ",\"data\":{\"summary\":\"Agent session completed successfully\"}"
+  publish_exec_event "exec.completed" ",\"data\":{\"summary\":\"Agent session completed successfully\",\"duration_sec\":${DURATION_SEC},\"tokens_used\":${TOKENS_USED}}"
 else
-  publish_exec_event "exec.failed" ",\"data\":{\"error\":\"Agent exited with code ${EXIT_CODE}\"}"
+  publish_exec_event "exec.failed" ",\"data\":{\"error\":\"Agent exited with code ${EXIT_CODE}\",\"duration_sec\":${DURATION_SEC},\"tokens_used\":${TOKENS_USED}}"
 fi
 
 # ── Push memory changes back ──────────────────────────────────────────

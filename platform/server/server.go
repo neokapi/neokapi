@@ -369,13 +369,18 @@ func NewServer(cfg ServerConfig) *Server {
 			if err != nil {
 				log.Printf("WARNING: failed to init agentic execution store: %v", err)
 			} else {
-				agOpts = append(agOpts, agenticmcp.WithExecutionStore(execStore))
+				eventHub := agenticmcp.NewEventHub()
+				agOpts = append(agOpts,
+					agenticmcp.WithExecutionStore(execStore),
+					agenticmcp.WithEventHub(eventHub),
+				)
 				execSub, err := agenticmcp.NewExecutionSubscriber(cfg.RedisURL, cfg.RedisPassword, execStore)
 				if err != nil {
 					log.Printf("WARNING: failed to init agentic execution subscriber: %v", err)
 				} else {
+					execSub.SetEventHub(eventHub)
 					execSub.Start(context.Background())
-					log.Printf("Agentic execution subscriber active (Redis → PostgreSQL)")
+					log.Printf("Agentic execution subscriber active (Redis → PostgreSQL + WebSocket)")
 				}
 			}
 		}
@@ -715,8 +720,16 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		s.mcpServer.RegisterRoutes(e)
 	}
 
-	// Agentic Testing MCP server (fleet management tools for coordinator).
+	// Agentic Testing dashboard REST + WebSocket endpoints.
 	if s.agenticMCP != nil {
+		agGroup := v1.Group("/agentic")
+		agGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+		agGroup.GET("/executions", s.HandleListAgenticExecutions)
+		agGroup.GET("/executions/:id/events", s.HandleGetAgenticExecutionEvents)
+		agGroup.GET("/events", s.HandleListAgenticEvents)
+		agGroup.GET("/events/ws", s.HandleAgenticEventsWebSocket)
+
+		// Agentic Testing MCP server (fleet management tools for coordinator).
 		s.agenticMCP.RegisterRoutes(e)
 	}
 

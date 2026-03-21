@@ -77,6 +77,7 @@ type Server struct {
 	contentStore store.ContentStore
 	fleetRepo    FleetRepo
 	execStore    *PostgresExecutionStore
+	eventHub     *EventHub
 	walker       ReleaseWalker
 	issues       IssueTracker
 	server       *mcp.Server
@@ -107,6 +108,11 @@ func WithExecutionStore(es *PostgresExecutionStore) Option {
 	return func(s *Server) { s.execStore = es }
 }
 
+// WithEventHub adds real-time event broadcasting for dashboard WebSocket.
+func WithEventHub(hub *EventHub) Option {
+	return func(s *Server) { s.eventHub = hub }
+}
+
 // WithReleaseWalker adds release walkthrough capability.
 func WithReleaseWalker(w ReleaseWalker) Option {
 	return func(s *Server) { s.walker = w }
@@ -132,7 +138,7 @@ func NewServer(cfg Config, opts ...Option) (*Server, error) {
 		opt(as)
 	}
 
-	// Register all 8 fleet management tools.
+	// Register all 9 fleet management tools.
 	as.registerFleetTools()
 	as.registerExecutionTools()
 	as.registerReleaseTools()
@@ -173,6 +179,12 @@ func keycloakTokenVerifier(jwtSecret string) auth.TokenVerifier {
 		}, nil
 	}
 }
+
+// EventHub returns the event hub for dashboard WebSocket relay, or nil.
+func (s *Server) EventHub() *EventHub { return s.eventHub }
+
+// ExecStore returns the execution store, or nil.
+func (s *Server) ExecStore() *PostgresExecutionStore { return s.execStore }
 
 // RegisterRoutes mounts the agentic MCP handler on the Echo server.
 func (s *Server) RegisterRoutes(e *echo.Echo) {
