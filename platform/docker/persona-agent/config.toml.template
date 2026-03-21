@@ -1,13 +1,11 @@
-# ZeroClaw configuration for agentic testing agents.
+# ZeroClaw configuration for persona agents (agentic testing fleet).
 # Rendered at runtime by entrypoint.sh (envsubst).
 #
-# Model/provider config is handled by ZEROCLAW_* env vars.
-
-# Allow all tool calls without interactive confirmation (headless agent mode).
-[permissions]
-allow = ["*"]
+# Model/provider config comes from ZEROCLAW_* env vars.
+# Tool auto-approval is handled by piping `yes A` to stdin in headless mode.
 
 # Bowrain MCP — content management tools (all agents).
+# The JWT is obtained by exchanging the agent's API token (bwt_*) at startup.
 [[mcp.servers]]
 name = "bowrain"
 transport = "http"
@@ -16,5 +14,4 @@ headers = { Authorization = "Bearer ${BRAVO_AGENT_TOKEN}" }
 tool_timeout_secs = 120
 
 # Agentic Testing MCP — fleet management tools (coordinator only).
-# Empty endpoint = server block is skipped by ZeroClaw.
 ${AGENTIC_MCP_BLOCK}

@@ -1,30 +1,51 @@
 #!/bin/sh
-# Onboard a workspace for agentic testing.
+# Onboard persona agents for a Bowrain workspace.
 #
-# This script provisions Keycloak users, creates the Bowrain workspace,
-# and generates API tokens for each agent. Run from a machine with
-# access to both the Keycloak admin API and the Bowrain API.
+# Per AD-032, persona agents are full users with workspace membership and
+# API tokens (bwt_*). They authenticate identically to human users and
+# receive project-level permissions via role templates and language scopes.
+#
+# This script:
+#   1. Creates Keycloak users for each agent (no password — token-only auth)
+#   2. Ensures the Bowrain workspace exists
+#   3. Creates API tokens for each agent (stored in Key Vault)
+#
+# Project membership with role templates and language scopes should be
+# configured via the Bowrain UI after onboarding (or via API once PR #117
+# adds the project members endpoint).
 #
 # Usage:
-#   BOWRAIN_URL=https://api.dev.bowrain.cloud \
+#   BOWRAIN_URL=https://ca-bowrain-dev-api.example.com \
 #   KC_URL=https://auth.dev.bowrain.cloud \
 #   KC_ADMIN_PASS=<password> \
 #   ADMIN_TOKEN=<bowrain-admin-jwt> \
-#   ./onboard.sh <workspace-slug> <plan.yaml>
+#   KEY_VAULT=kv-bowrain-dev \
+#   ./onboard.sh <workspace-slug>
 #
-# Outputs a .env file with agent tokens to stdout.
+# Agents are defined in the AGENTS variable below. Edit to add/remove.
 
 set -eu
 
-SLUG="${1:?Usage: onboard.sh <workspace-slug> <plan.yaml>}"
-PLAN="${2:?Usage: onboard.sh <workspace-slug> <plan.yaml>}"
+SLUG="${1:?Usage: onboard.sh <workspace-slug>}"
 
 BOWRAIN_URL="${BOWRAIN_URL:?Set BOWRAIN_URL}"
 KC_URL="${KC_URL:?Set KC_URL}"
 KC_ADMIN_PASS="${KC_ADMIN_PASS:?Set KC_ADMIN_PASS}"
 ADMIN_TOKEN="${ADMIN_TOKEN:?Set ADMIN_TOKEN (Bowrain admin JWT)}"
+KEY_VAULT="${KEY_VAULT:-}"
 
 KC_REALM="bowrain"
+
+# ── Agent roster ─────────────────────────────────────────────────────
+# Format: name:First:Last:role
+# Role is informational here — actual permissions come from project membership.
+AGENTS="
+coordinator:Fleet:Coordinator:coordinator
+maria:Maria:Dubois:translator
+katrin:Katrin:Weber:translator
+yuki:Yuki:Tanaka:translator
+alex:Alex:Chen:reviewer
+"
 
 # ── Keycloak admin token ──────────────────────────────────────────────
 kc_token() {
@@ -92,8 +113,8 @@ create_kc_user() {
     | sed 's/.*"id":"\([^"]*\)".*/\1/'
 }
 
-# ── Create Bowrain workspace ──────────────────────────────────────────
-create_workspace() {
+# ── Create Bowrain workspace (idempotent) ─────────────────────────────
+ensure_workspace() {
   local name="$1"
   local slug="$2"
 
@@ -107,13 +128,8 @@ create_workspace() {
 
   if [ "$status" = "201" ] || [ "$status" = "200" ]; then
     echo "  Created workspace: ${slug}" >&2
-    echo "$body" | sed 's/.*"id":"\([^"]*\)".*/\1/'
   elif [ "$status" = "409" ]; then
     echo "  Workspace ${slug} already exists" >&2
-    # Fetch existing.
-    curl -sf "${BOWRAIN_URL}/api/v1/workspaces/${slug}" \
-      -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-      | sed 's/.*"id":"\([^"]*\)".*/\1/'
   else
     echo "  ERROR creating workspace: status=${status}" >&2
     echo "$body" >&2
@@ -126,7 +142,7 @@ create_agent_token() {
   local ws_slug="$1"
   local agent_name="$2"
 
-  resp=$(curl -sf "${BOWRAIN_URL}/api/v1/workspaces/${ws_slug}/tokens" \
+  resp=$(curl -sf "${BOWRAIN_URL}/api/v1/ws/${ws_slug}/tokens" \
     -H "Authorization: Bearer ${ADMIN_TOKEN}" \
     -H "Content-Type: application/json" \
     -d "{\"name\": \"agent-${agent_name}\"}")
@@ -136,7 +152,7 @@ create_agent_token() {
 
 # ── Main ──────────────────────────────────────────────────────────────
 
-echo "=== Onboarding workspace: ${SLUG} ===" >&2
+echo "=== Onboarding persona agents for: ${SLUG} ===" >&2
 
 # Get Keycloak admin token.
 echo "Authenticating with Keycloak..." >&2
@@ -146,27 +162,9 @@ if [ -z "$KC_TOK" ]; then
   exit 1
 fi
 
-# Read agent team from plan.yaml (requires yq or simple grep).
-# Expected format in plan.yaml:
-#   agent_team:
-#     developer: alex-developer
-#     translator_fr-FR: sophie-translator
-#     qa: thomas-qa
-#     pm: mei-pm
-
+# Create Keycloak users.
 echo "" >&2
-echo "Creating Keycloak users for agents..." >&2
-
-# Define agent personas and their display names.
-# Format: persona_name:First:Last
-AGENTS="
-coordinator:Fleet:Coordinator
-alex-developer:Alex:Chen
-sophie-translator:Sophie:Martin
-thomas-qa:Thomas:Mueller
-mei-pm:Mei:Tanaka
-maria-brand:Maria:Santos
-"
+echo "Creating Keycloak users..." >&2
 
 for agent_line in $AGENTS; do
   name=$(echo "$agent_line" | cut -d: -f1)
@@ -176,13 +174,13 @@ for agent_line in $AGENTS; do
   create_kc_user "$email" "$first" "$last" "$KC_TOK"
 done
 
-# Create workspace.
+# Ensure workspace exists.
 echo "" >&2
-echo "Creating Bowrain workspace..." >&2
+echo "Ensuring workspace..." >&2
 WS_NAME=$(echo "$SLUG" | sed 's/-l10n$//' | sed 's/-/ /g')
-WS_ID=$(create_workspace "$WS_NAME" "$SLUG")
+ensure_workspace "$WS_NAME" "$SLUG"
 
-# Generate API tokens for each agent.
+# Generate API tokens.
 echo "" >&2
 echo "Generating API tokens..." >&2
 echo "# Agent tokens for workspace: ${SLUG}"
@@ -191,12 +189,28 @@ echo "# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 for agent_line in $AGENTS; do
   name=$(echo "$agent_line" | cut -d: -f1)
   token=$(create_agent_token "$SLUG" "$name")
-  varname=$(echo "$name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-  echo "${varname}_TOKEN=${token}"
   echo "  Token for ${name}: ${token:0:12}..." >&2
+
+  # Store in Key Vault if configured.
+  if [ -n "$KEY_VAULT" ]; then
+    az keyvault secret set \
+      --vault-name "$KEY_VAULT" \
+      --name "agent-token-${name}" \
+      --value "$token" \
+      --output none 2>&1
+    echo "  Stored in Key Vault: agent-token-${name}" >&2
+  else
+    varname=$(echo "$name" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+    echo "${varname}_TOKEN=${token}"
+  fi
 done
 
 echo "" >&2
 echo "=== Onboarding complete ===" >&2
-echo "Workspace ID: ${WS_ID}" >&2
-echo "Save the token output to a .env file for agent deployment." >&2
+echo "" >&2
+echo "Next steps:" >&2
+echo "  1. Add agents as project members in the Bowrain UI:" >&2
+echo "     - Translators: 'translator' role template + language scope" >&2
+echo "     - Reviewer: 'reviewer' role template" >&2
+echo "     - Coordinator: 'project-admin' role template" >&2
+echo "  2. Restart agent containers to pick up the new tokens" >&2
