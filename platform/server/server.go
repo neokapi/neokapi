@@ -749,10 +749,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		s.mcpServer.RegisterRoutes(e)
 	}
 
-	// Agentic Testing dashboard REST + WebSocket endpoints.
+	// Agentic Testing dashboard REST + WebSocket endpoints (public, no auth).
+	// The dashboard at agents.dev.bowrain.cloud is a public read-only view.
 	if s.agenticMCP != nil {
 		agGroup := v1.Group("/agentic")
-		agGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		agGroup.GET("/agents", s.HandleListAgenticAgents)
 		agGroup.GET("/executions", s.HandleListAgenticExecutions)
 		agGroup.GET("/executions/:id/events", s.HandleGetAgenticExecutionEvents)

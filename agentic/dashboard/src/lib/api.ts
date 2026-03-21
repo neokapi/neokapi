@@ -6,15 +6,12 @@
  */
 
 const API_BASE = import.meta.env.VITE_BOWRAIN_API_URL || "";
-const API_TOKEN = import.meta.env.VITE_BOWRAIN_TOKEN || "";
 
 async function apiFetch<T>(path: string, fallback: T): Promise<T> {
   try {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (API_TOKEN) {
-      headers["Authorization"] = `Bearer ${API_TOKEN}`;
-    }
-    const resp = await fetch(`${API_BASE}${path}`, { headers });
+    const resp = await fetch(`${API_BASE}${path}`, {
+      headers: { "Content-Type": "application/json" },
+    });
     if (!resp.ok) return fallback;
     return (await resp.json()) as T;
   } catch {
