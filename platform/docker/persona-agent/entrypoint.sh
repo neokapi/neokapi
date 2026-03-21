@@ -138,6 +138,10 @@ export AGENTIC_MCP_BLOCK
 
 envsubst < /agentic/config.toml.template > "$AGENT_DIR/config.toml"
 echo "Config rendered to $AGENT_DIR/config.toml"
+echo ""
+echo "=== Rendered config.toml ==="
+cat "$AGENT_DIR/config.toml" | grep -v 'Bearer' | head -20
+echo "=== (end config) ==="
 
 # Debug: verify MCP connectivity before starting agent.
 echo ""
