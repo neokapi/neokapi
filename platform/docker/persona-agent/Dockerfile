@@ -9,12 +9,14 @@
 # ── Stage 1: grab zeroclaw binary from official image ─────────────────
 FROM ghcr.io/zeroclaw-labs/zeroclaw:latest AS zeroclaw
 
-# ── Stage 2: Alpine with shell + tools + zeroclaw ─────────────────────
-FROM alpine:3.21
+# ── Stage 2: Debian slim with shell + tools + zeroclaw ──────────────────
+FROM debian:bookworm-slim
 
 # Install runtime dependencies: git (fleet repo), envsubst (config templating),
-# redis (execution event publishing via redis-cli).
-RUN apk add --no-cache git gettext redis gcompat libgcc
+# redis-tools (execution event publishing via redis-cli).
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git gettext-base redis-tools ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy zeroclaw binary from official image.
 COPY --from=zeroclaw /usr/local/bin/zeroclaw /usr/local/bin/zeroclaw
