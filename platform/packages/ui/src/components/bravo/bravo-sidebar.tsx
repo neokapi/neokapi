@@ -13,6 +13,8 @@ import { BravoAssistantThread } from "./bravo-thread";
 import { BravoConversationList, type BravoConversationListProps } from "./BravoConversationList";
 import { BravoModeSelector, type BravoMode } from "./BravoModeSelector";
 import { BravoColdStart } from "./BravoColdStart";
+import { BravoStepUpCard } from "./BravoStepUpCard";
+import type { BravoSSEStepUp } from "../../types/api";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +45,12 @@ export interface BravoSidebarProps {
   onModeChange?: (mode: BravoMode) => void;
   /** Composer placeholder override based on mode. */
   placeholder?: string;
+  /** Active step-up prompt (null = no prompt). */
+  stepUp?: BravoSSEStepUp | null;
+  /** Handle mode switch from step-up card. */
+  onStepUpSwitch?: (mode: string) => void;
+  /** Dismiss step-up card. */
+  onStepUpDismiss?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +69,9 @@ export const BravoSidebar: FC<BravoSidebarProps> = ({
   coldStarting,
   mode = "ask",
   onModeChange,
+  stepUp,
+  onStepUpSwitch,
+  onStepUpDismiss,
 }) => {
   return (
     <>
@@ -167,6 +178,17 @@ export const BravoSidebar: FC<BravoSidebarProps> = ({
             <div className="flex-1 flex flex-col min-h-0">
               {coldStarting ? <BravoColdStart /> : <BravoAssistantThread />}
             </div>
+            {stepUp && onStepUpSwitch && onStepUpDismiss && (
+              <div className="px-4 pb-2">
+                <BravoStepUpCard
+                  currentMode={stepUp.current_mode}
+                  requiredMode={stepUp.required_mode}
+                  action={stepUp.action}
+                  onSwitchMode={onStepUpSwitch}
+                  onDismiss={onStepUpDismiss}
+                />
+              </div>
+            )}
           </AssistantRuntimeProvider>
         )}
       </aside>

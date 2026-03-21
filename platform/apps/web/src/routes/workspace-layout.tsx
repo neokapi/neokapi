@@ -154,6 +154,9 @@ function ConnectedBravoPanel() {
       coldStarting={state.coldStarting}
       mode={state.mode}
       onModeChange={actions.setMode}
+      stepUp={state.stepUp}
+      onStepUpSwitch={actions.handleModeSwitch}
+      onStepUpDismiss={actions.dismissStepUp}
     />
   );
 }
