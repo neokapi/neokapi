@@ -171,7 +171,11 @@ AGENT_LOG="/tmp/agent-output.log"
 # Run agent, capturing output to a log file. We avoid piping through tee
 # because $? in plain sh reflects the last pipe stage, not the agent.
 set +e
-zeroclaw agent --auto-approve -m "${AGENT_TASK_MESSAGE:-Run your standard routine}" >"$AGENT_LOG" 2>&1
+# ZEROCLAW_TRUST_TOOLS skips interactive permission prompts for MCP tool calls.
+# CI=true signals non-interactive mode to common CLI frameworks.
+export ZEROCLAW_TRUST_TOOLS=true
+export CI=true
+zeroclaw agent -m "${AGENT_TASK_MESSAGE:-Run your standard routine}" >"$AGENT_LOG" 2>&1
 EXIT_CODE=$?
 set -e
 cat "$AGENT_LOG"
