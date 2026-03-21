@@ -140,9 +140,15 @@ func main() {
 		cfg.AgentModelAPIKey = v
 	}
 
-	// Agentic event forwarding.
+	// Agentic testing.
 	if v := os.Getenv("BOWRAIN_AGENTIC_EVENTS"); v == "true" || v == "1" {
 		cfg.AgenticEvents = true
+	}
+	if v := os.Getenv("BOWRAIN_FLEET_REPO_URL"); v != "" {
+		cfg.FleetRepoURL = v
+	}
+	if v := os.Getenv("BOWRAIN_FLEET_REPO_TOKEN"); v != "" {
+		cfg.FleetRepoToken = v
 	}
 
 	// Billing (AD-030).
