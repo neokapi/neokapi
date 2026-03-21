@@ -88,9 +88,9 @@ var billingMigrations = []storage.Migration{
 		Version:     2,
 		Description: "allow empty stripe_customer_id for non-Stripe subscriptions (trials, admin overrides)",
 		SQL: `
+			ALTER TABLE subscriptions DROP CONSTRAINT IF EXISTS subscriptions_stripe_customer_id_key;
 			ALTER TABLE subscriptions ALTER COLUMN stripe_customer_id DROP NOT NULL;
 			ALTER TABLE subscriptions ALTER COLUMN stripe_customer_id SET DEFAULT '';
-			DROP INDEX IF EXISTS subscriptions_stripe_customer_id_key;
 			CREATE UNIQUE INDEX subscriptions_stripe_customer_id_key
 				ON subscriptions (stripe_customer_id)
 				WHERE stripe_customer_id IS NOT NULL AND stripe_customer_id != '';
