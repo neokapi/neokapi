@@ -2,16 +2,22 @@ package agenticmcp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
+
+// emptyObjectSchema is a JSON Schema for tools that take no parameters.
+// Azure OpenAI requires "properties" to be present even when empty.
+var emptyObjectSchema = json.RawMessage(`{"type":"object","properties":{}}`)
 
 // registerFleetTools registers fleet overview and workspace tools.
 func (s *Server) registerFleetTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "get_fleet_summary",
 		Description: "Get aggregated status across all testing workspaces: untranslated block counts, last agent sessions, active sessions, daily budget usage. Primary decision-making input for coordination cycles.",
+		InputSchema: emptyObjectSchema,
 	}, s.handleGetFleetSummary)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -22,6 +28,7 @@ func (s *Server) registerFleetTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "list_workspaces",
 		Description: "List all testing workspaces registered in the fleet repo with basic metadata: slug, phase, project name, upstream repo, target languages, operating mode.",
+		InputSchema: emptyObjectSchema,
 	}, s.handleListWorkspaces)
 }
 
