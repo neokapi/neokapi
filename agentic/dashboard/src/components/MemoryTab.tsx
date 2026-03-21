@@ -1,5 +1,5 @@
-import { Badge } from '@/components/ui/badge';
-import { useApi } from '@/context/ApiContext';
+import { Badge } from "@/components/ui/badge";
+import { useApi } from "@/context/ApiContext";
 
 export default function MemoryTab() {
   const api = useApi();
@@ -13,13 +13,11 @@ export default function MemoryTab() {
       </p>
 
       <div className="rounded-lg border px-6 py-12 text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          Memory not connected
-        </p>
+        <p className="text-sm font-medium text-muted-foreground">Memory not connected</p>
         <p className="mt-1 text-xs text-muted-foreground/60">
           {api.connected
-            ? 'Agent memory tracking is not yet wired to the dashboard.'
-            : 'Connect to the Bowrain API to see agent memory updates.'}
+            ? "Agent memory tracking is not yet wired to the dashboard."
+            : "Connect to the Bowrain API to see agent memory updates."}
         </p>
         <div className="mt-3 flex justify-center gap-2">
           <Badge variant="outline" className="text-[10px]">

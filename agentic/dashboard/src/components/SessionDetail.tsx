@@ -4,8 +4,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -13,9 +13,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import type { AuditSession } from '@/context/ApiContext';
-import { agentMeta } from '@/data/agent-meta';
+} from "@/components/ui/table";
+import type { AuditSession } from "@/context/ApiContext";
+import { agentMeta } from "@/data/agent-meta";
 
 interface SessionDetailProps {
   session: AuditSession;
@@ -23,18 +23,18 @@ interface SessionDetailProps {
 }
 
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
+  return new Date(iso).toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
   });
 }
 
@@ -58,23 +58,27 @@ function parseDataPreview(data: string): string {
 
 export default function SessionDetail({ session, onClose }: SessionDetailProps) {
   const meta = agentMeta.find((m) => m.userId === session.actor);
-  const displayName = meta?.displayName ?? (session.actor || 'Unknown');
-  const role = meta?.role ?? '';
+  const displayName = meta?.displayName ?? (session.actor || "Unknown");
+  const role = meta?.role ?? "";
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{displayName}</DialogTitle>
           <DialogDescription>
-            {role ? `${role} -- ` : ''}Audit session with {session.eventCount} event{session.eventCount !== 1 ? 's' : ''}
+            {role ? `${role} -- ` : ""}Audit session with {session.eventCount} event
+            {session.eventCount !== 1 ? "s" : ""}
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="default">
-            {session.eventCount} events
-          </Badge>
+          <Badge variant="default">{session.eventCount} events</Badge>
           <span className="font-mono text-xs text-muted-foreground">
             {formatDate(session.startTime)}
           </span>
@@ -87,9 +91,7 @@ export default function SessionDetail({ session, onClose }: SessionDetailProps) 
         </div>
 
         <div>
-          <h4 className="mb-2 text-sm font-semibold">
-            Events ({session.eventCount})
-          </h4>
+          <h4 className="mb-2 text-sm font-semibold">Events ({session.eventCount})</h4>
           <div className="max-h-[300px] overflow-y-auto rounded-md border">
             <Table>
               <TableHeader>

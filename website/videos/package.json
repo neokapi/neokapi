@@ -10,19 +10,19 @@
     "publish": "tsx publish.ts"
   },
   "dependencies": {
-    "@remotion/bundler": "^4.0.0",
-    "@remotion/cli": "^4.0.0",
-    "@remotion/media-utils": "^4.0.0",
-    "@remotion/renderer": "^4.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "remotion": "^4.0.0",
-    "yaml": "^2.7.0",
-    "zod": "^3.24.0"
+    "@remotion/bundler": "^4.0.438",
+    "@remotion/cli": "^4.0.438",
+    "@remotion/media-utils": "^4.0.438",
+    "@remotion/renderer": "^4.0.438",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "remotion": "^4.0.438",
+    "yaml": "^2.8.3",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "@types/react": "^19.2.14",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }

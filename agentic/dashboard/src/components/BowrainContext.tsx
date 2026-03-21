@@ -1,23 +1,19 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
-import { useApi } from '@/context/ApiContext';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { useApi } from "@/context/ApiContext";
 
 export default function BowrainContext() {
   const api = useApi();
 
   const ws = api.workspaces[0];
-  const wsName = ws?.name ?? 'No workspace';
-  const wsSlug = ws?.slug ?? '';
-  const bowrainUrl = wsSlug
-    ? `https://dev.bowrain.cloud/${wsSlug}`
-    : 'https://dev.bowrain.cloud';
+  const wsName = ws?.name ?? "No workspace";
+  const wsSlug = ws?.slug ?? "";
+  const bowrainUrl = wsSlug ? `https://dev.bowrain.cloud/${wsSlug}` : "https://dev.bowrain.cloud";
 
   const progressData = api.progress;
 
-  const lastActivity = api.auditLog.length > 0
-    ? formatTimeAgo(api.auditLog[0].created_at)
-    : '--';
+  const lastActivity = api.auditLog.length > 0 ? formatTimeAgo(api.auditLog[0].created_at) : "--";
 
   return (
     <Card className="flex h-full flex-col">
@@ -25,10 +21,16 @@ export default function BowrainContext() {
         <CardTitle className="text-sm">
           Bowrain Context
           {api.connected && (
-            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-green-500" title="Connected to Bowrain API" />
+            <span
+              className="ml-2 inline-block h-2 w-2 rounded-full bg-green-500"
+              title="Connected to Bowrain API"
+            />
           )}
           {!api.connected && !api.loading && (
-            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-yellow-500" title="Not connected" />
+            <span
+              className="ml-2 inline-block h-2 w-2 rounded-full bg-yellow-500"
+              title="Not connected"
+            />
           )}
         </CardTitle>
       </CardHeader>
@@ -60,7 +62,7 @@ export default function BowrainContext() {
           </div>
         ) : (
           <p className="text-xs text-muted-foreground/60">
-            {api.loading ? 'Loading...' : 'No translation data available'}
+            {api.loading ? "Loading..." : "No translation data available"}
           </p>
         )}
 
@@ -73,13 +75,7 @@ export default function BowrainContext() {
           variant="outline"
           size="sm"
           className="w-full gap-1.5"
-          render={
-            <a
-              href={bowrainUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          }
+          render={<a href={bowrainUrl} target="_blank" rel="noopener noreferrer" />}
         >
           Open in Bowrain
           <ExternalLink className="h-3.5 w-3.5" />
@@ -92,7 +88,7 @@ export default function BowrainContext() {
 function formatTimeAgo(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return 'just now';
+  if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;

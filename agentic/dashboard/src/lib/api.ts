@@ -95,10 +95,7 @@ export async function fetchBlocks(
   const params = new URLSearchParams();
   if (opts.locale) params.set("locale", opts.locale);
   params.set("limit", String(opts.limit ?? 1000));
-  return apiFetch(
-    `/api/v1/workspaces/${wsSlug}/projects/${projectId}/sync/blocks?${params}`,
-    [],
-  );
+  return apiFetch(`/api/v1/workspaces/${wsSlug}/projects/${projectId}/sync/blocks?${params}`, []);
 }
 
 export interface TranslationProgress {

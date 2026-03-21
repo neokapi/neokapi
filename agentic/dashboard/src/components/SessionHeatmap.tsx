@@ -1,16 +1,16 @@
-import { useMemo, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useApi } from '@/context/ApiContext';
+import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useApi } from "@/context/ApiContext";
 
-const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const dayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function getHeatClasses(count: number, maxCount: number): string {
-  if (count === 0) return 'bg-muted opacity-30';
+  if (count === 0) return "bg-muted opacity-30";
   const intensity = count / maxCount;
-  if (intensity < 0.25) return 'bg-chart-5/40';
-  if (intensity < 0.5) return 'bg-chart-4/60';
-  if (intensity < 0.75) return 'bg-chart-1/70';
-  return 'bg-chart-1';
+  if (intensity < 0.25) return "bg-chart-5/40";
+  if (intensity < 0.5) return "bg-chart-4/60";
+  if (intensity < 0.75) return "bg-chart-1/70";
+  return "bg-chart-1";
 }
 
 export default function SessionHeatmap() {
@@ -41,9 +41,7 @@ export default function SessionHeatmap() {
     for (let w = numWeeks - 1; w >= 0; w--) {
       const weekStart = new Date(now);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1 - w * 7);
-      weekLabels.push(
-        weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      );
+      weekLabels.push(weekStart.toLocaleDateString("en-US", { month: "short", day: "numeric" }));
 
       for (let d = 0; d < 7; d++) {
         const cellDate = new Date(weekStart);
@@ -64,9 +62,7 @@ export default function SessionHeatmap() {
         <CardTitle className="text-sm">
           Event Activity
           {api.connected && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">
-              (from audit log)
-            </span>
+            <span className="ml-2 text-xs font-normal text-muted-foreground">(from audit log)</span>
           )}
         </CardTitle>
       </CardHeader>
@@ -102,9 +98,7 @@ export default function SessionHeatmap() {
             {dayLabels.map((_, dayIdx) => (
               <div key={dayIdx} className="mb-1 flex gap-1">
                 {Array.from({ length: weeks.length }).map((_, weekIdx) => {
-                  const cell = grid.find(
-                    (c) => c.week === weekIdx && c.day === dayIdx
-                  );
+                  const cell = grid.find((c) => c.week === weekIdx && c.day === dayIdx);
                   const count = cell?.count ?? 0;
                   return (
                     <div
@@ -136,12 +130,12 @@ export default function SessionHeatmap() {
               style={{
                 left: hoveredCell.x,
                 top: hoveredCell.y - 40,
-                transform: 'translateX(-50%)',
+                transform: "translateX(-50%)",
               }}
             >
               <div className="font-mono text-[10px]">
                 {hoveredCell.date}: {hoveredCell.count} event
-                {hoveredCell.count !== 1 ? 's' : ''}
+                {hoveredCell.count !== 1 ? "s" : ""}
               </div>
             </div>
           )}

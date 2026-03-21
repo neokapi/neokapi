@@ -80,7 +80,13 @@ const VideoSchema = z.object({
 
 export const ScriptSchema = z.object({
   video: VideoSchema,
-  branding: BrandingSchema.default({}),
+  branding: BrandingSchema.default(() => ({
+    logo: "logo.png",
+    primaryColor: "#6366f1",
+    backgroundColor: "#09090b",
+    fontFamily: "Inter, system-ui, sans-serif",
+    cornerRadius: 12,
+  })),
   scenes: z.array(SceneSchema).min(1),
 });
 

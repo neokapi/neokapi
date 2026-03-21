@@ -1,51 +1,51 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, X, ExternalLink, Filter, Clock, AlertTriangle, Zap, Activity } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
-import { useFilter, type FilterToken } from '@/context/FilterContext';
-import { useApi } from '@/context/ApiContext';
+import { useState, useRef, useEffect, useMemo } from "react";
+import { Search, X, ExternalLink, Filter, Clock, AlertTriangle, Zap, Activity } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Separator } from "@/components/ui/separator";
+import { useFilter, type FilterToken } from "@/context/FilterContext";
+import { useApi } from "@/context/ApiContext";
 
 // -- Filter definitions --
 
 const filterKeys = [
-  { key: 'workspace', description: 'Filter by workspace', icon: '{}' },
-  { key: 'agent', description: 'Filter by agent name', icon: '@' },
-  { key: 'status', description: 'succeeded, failed, running', icon: '!' },
-  { key: 'time', description: 'today, yesterday, this-week, 7d, 14d, 30d', icon: '#' },
-  { key: 'tool', description: 'event type filter', icon: '>' },
+  { key: "workspace", description: "Filter by workspace", icon: "{}" },
+  { key: "agent", description: "Filter by agent name", icon: "@" },
+  { key: "status", description: "succeeded, failed, running", icon: "!" },
+  { key: "time", description: "today, yesterday, this-week, 7d, 14d, 30d", icon: "#" },
+  { key: "tool", description: "event type filter", icon: ">" },
 ] as const;
 
 const presets: { id: string; label: string; icon: React.ReactNode; tokens: FilterToken[] }[] = [
   {
-    id: 'today',
+    id: "today",
     label: "Today's activity",
     icon: <Clock className="h-3.5 w-3.5" />,
-    tokens: [{ key: 'time', value: 'today', label: 'today' }],
+    tokens: [{ key: "time", value: "today", label: "today" }],
   },
   {
-    id: 'this-week',
-    label: 'This week',
+    id: "this-week",
+    label: "This week",
     icon: <Activity className="h-3.5 w-3.5" />,
-    tokens: [{ key: 'time', value: 'this-week', label: 'this-week' }],
+    tokens: [{ key: "time", value: "this-week", label: "this-week" }],
   },
   {
-    id: 'failed',
-    label: 'Failed jobs',
+    id: "failed",
+    label: "Failed jobs",
     icon: <AlertTriangle className="h-3.5 w-3.5" />,
-    tokens: [{ key: 'status', value: 'failed', label: 'failed' }],
+    tokens: [{ key: "status", value: "failed", label: "failed" }],
   },
   {
-    id: 'active',
-    label: 'Active sessions',
+    id: "active",
+    label: "Active sessions",
     icon: <Zap className="h-3.5 w-3.5" />,
-    tokens: [{ key: 'status', value: 'running', label: 'running' }],
+    tokens: [{ key: "status", value: "running", label: "running" }],
   },
 ];
 
-const statusValues = ['succeeded', 'failed', 'running'];
-const timeValues = ['today', 'yesterday', 'this-week', 'this-month', '7d', '14d', '30d'];
+const statusValues = ["succeeded", "failed", "running"];
+const timeValues = ["today", "yesterday", "this-week", "this-month", "7d", "14d", "30d"];
 
 export default function FilterBar() {
   const { tokens, addToken, removeToken, clearTokens, search, setSearch } = useFilter();
@@ -53,7 +53,7 @@ export default function FilterBar() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [hintDropdownOpen, setHintDropdownOpen] = useState(false);
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,10 +68,10 @@ export default function FilterBar() {
   }, [api.auditLog]);
 
   // Derive bowrain URL from workspace token
-  const wsToken = tokens.find((t) => t.key === 'workspace');
+  const wsToken = tokens.find((t) => t.key === "workspace");
   const bowrainUrl = wsToken
     ? `https://dev.bowrain.cloud/${wsToken.value}`
-    : 'https://dev.bowrain.cloud';
+    : "https://dev.bowrain.cloud";
 
   // Close hint dropdown on outside click
   useEffect(() => {
@@ -81,22 +81,22 @@ export default function FilterBar() {
         setActiveKey(null);
       }
     }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
   // Get autocomplete values for the active key
   function getValuesForKey(key: string): { value: string; label: string }[] {
     switch (key) {
-      case 'workspace':
+      case "workspace":
         return api.workspaces.map((w) => ({ value: w.slug, label: w.name }));
-      case 'agent':
+      case "agent":
         return api.agents.map((a) => ({ value: a.id, label: a.displayName }));
-      case 'status':
+      case "status":
         return statusValues.map((v) => ({ value: v, label: v }));
-      case 'time':
+      case "time":
         return timeValues.map((v) => ({ value: v, label: v }));
-      case 'tool':
+      case "tool":
         return eventTypeValues.map((v) => ({ value: v, label: v }));
       default:
         return [];
@@ -107,7 +107,7 @@ export default function FilterBar() {
     setInputValue(val);
 
     // Check if typing a filter key like "workspace:"
-    const colonIndex = val.indexOf(':');
+    const colonIndex = val.indexOf(":");
     if (colonIndex > 0) {
       const key = val.slice(0, colonIndex).trim();
       const rest = val.slice(colonIndex + 1).trim();
@@ -118,11 +118,13 @@ export default function FilterBar() {
           // Check if there's an exact match to add as token
           const values = getValuesForKey(key);
           const exact = values.find(
-            (v) => v.value.toLowerCase() === rest.toLowerCase() || v.label.toLowerCase() === rest.toLowerCase()
+            (v) =>
+              v.value.toLowerCase() === rest.toLowerCase() ||
+              v.label.toLowerCase() === rest.toLowerCase(),
           );
           if (exact) {
             addToken({ key, value: exact.value, label: exact.label });
-            setInputValue('');
+            setInputValue("");
             setActiveKey(null);
             setHintDropdownOpen(false);
             return;
@@ -139,10 +141,10 @@ export default function FilterBar() {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Backspace' && inputValue === '' && tokens.length > 0) {
+    if (e.key === "Backspace" && inputValue === "" && tokens.length > 0) {
       removeToken(tokens.length - 1);
     }
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       setHintDropdownOpen(false);
       setActiveKey(null);
       inputRef.current?.blur();
@@ -151,7 +153,7 @@ export default function FilterBar() {
 
   function handleFocus() {
     setInputFocused(true);
-    if (inputValue === '' && !activeKey) {
+    if (inputValue === "" && !activeKey) {
       setHintDropdownOpen(true);
     }
   }
@@ -175,7 +177,7 @@ export default function FilterBar() {
 
   function selectValue(key: string, value: string, label: string) {
     addToken({ key, value, label });
-    setInputValue('');
+    setInputValue("");
     setActiveKey(null);
     setHintDropdownOpen(false);
     inputRef.current?.focus();
@@ -192,9 +194,12 @@ export default function FilterBar() {
   // Values filtered by current input
   const autocompleteValues = activeKey
     ? getValuesForKey(activeKey).filter((v) => {
-        const query = inputValue.includes(':')
-          ? inputValue.slice(inputValue.indexOf(':') + 1).trim().toLowerCase()
-          : '';
+        const query = inputValue.includes(":")
+          ? inputValue
+              .slice(inputValue.indexOf(":") + 1)
+              .trim()
+              .toLowerCase()
+          : "";
         if (!query) return true;
         return v.value.toLowerCase().includes(query) || v.label.toLowerCase().includes(query);
       })
@@ -232,7 +237,9 @@ export default function FilterBar() {
             <Separator />
             {/* Filter keys */}
             <div className="p-2">
-              <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">Available filters</p>
+              <p className="px-2 pb-1.5 text-xs font-medium text-muted-foreground">
+                Available filters
+              </p>
               {filterKeys.map((fk) => (
                 <button
                   key={fk.key}
@@ -242,9 +249,13 @@ export default function FilterBar() {
                   }}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-transparent border-none cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors text-left"
                 >
-                  <span className="w-5 text-center font-mono text-xs text-muted-foreground">{fk.icon}</span>
+                  <span className="w-5 text-center font-mono text-xs text-muted-foreground">
+                    {fk.icon}
+                  </span>
                   <span className="font-medium">{fk.key}</span>
-                  <span className="ml-auto text-xs text-muted-foreground truncate max-w-[120px]">{fk.description}</span>
+                  <span className="ml-auto text-xs text-muted-foreground truncate max-w-[120px]">
+                    {fk.description}
+                  </span>
                 </button>
               ))}
             </div>
@@ -255,7 +266,7 @@ export default function FilterBar() {
         <div className="relative flex-1 min-w-[200px]">
           <div
             className={`flex flex-wrap items-center gap-1 rounded-lg border bg-transparent px-2 py-1 min-h-[32px] transition-colors ${
-              inputFocused ? 'border-ring ring-1 ring-ring/50' : 'border-input'
+              inputFocused ? "border-ring ring-1 ring-ring/50" : "border-input"
             }`}
           >
             <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -289,7 +300,9 @@ export default function FilterBar() {
               onKeyDown={handleKeyDown}
               onFocus={handleFocus}
               onBlur={handleBlur}
-              placeholder={tokens.length > 0 ? 'Add filter...' : 'Filter by workspace, agent, status...'}
+              placeholder={
+                tokens.length > 0 ? "Add filter..." : "Filter by workspace, agent, status..."
+              }
               className="flex-1 min-w-[120px] h-6 bg-transparent text-sm outline-none placeholder:text-muted-foreground border-none"
             />
 
@@ -297,7 +310,7 @@ export default function FilterBar() {
               <button
                 onClick={() => {
                   clearTokens();
-                  setInputValue('');
+                  setInputValue("");
                   setActiveKey(null);
                 }}
                 className="p-0.5 bg-transparent border-none cursor-pointer text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -321,7 +334,9 @@ export default function FilterBar() {
                       onClick={() => selectFilterKey(fk.key)}
                       className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm bg-transparent border-none cursor-pointer hover:bg-accent hover:text-accent-foreground transition-colors text-left"
                     >
-                      <span className="w-5 text-center font-mono text-xs text-muted-foreground">{fk.icon}</span>
+                      <span className="w-5 text-center font-mono text-xs text-muted-foreground">
+                        {fk.icon}
+                      </span>
                       <span className="font-mono font-medium">{fk.key}:</span>
                       <span className="text-xs text-muted-foreground">{fk.description}</span>
                     </button>
@@ -358,13 +373,7 @@ export default function FilterBar() {
         <Button
           variant="ghost"
           size="sm"
-          render={
-            <a
-              href={bowrainUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            />
-          }
+          render={<a href={bowrainUrl} target="_blank" rel="noopener noreferrer" />}
           className="ml-auto gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
         >
           View in Bowrain

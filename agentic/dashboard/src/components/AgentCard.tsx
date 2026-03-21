@@ -1,7 +1,7 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useFilter } from '@/context/FilterContext';
-import { useApi, type AgentProfile } from '@/context/ApiContext';
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useFilter } from "@/context/FilterContext";
+import { useApi, type AgentProfile } from "@/context/ApiContext";
 
 interface AgentCardProps {
   agent: AgentProfile;
@@ -10,7 +10,7 @@ interface AgentCardProps {
 function formatRelativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const diffMins = Math.floor(diffMs / 60_000);
-  if (diffMins < 1) return 'just now';
+  if (diffMins < 1) return "just now";
   if (diffMins < 60) return `${diffMins}m ago`;
   const diffHours = Math.floor(diffMins / 60);
   if (diffHours < 24) return `${diffHours}h ago`;
@@ -27,9 +27,9 @@ export default function AgentCard({ agent }: AgentCardProps) {
     // Add workspace token first if available, then agent
     if (api.workspaces.length > 0) {
       const ws = api.workspaces[0];
-      addToken({ key: 'workspace', value: ws.slug, label: ws.name });
+      addToken({ key: "workspace", value: ws.slug, label: ws.name });
     }
-    addToken({ key: 'agent', value: agent.id, label: agent.displayName });
+    addToken({ key: "agent", value: agent.id, label: agent.displayName });
   }
 
   return (
@@ -60,7 +60,7 @@ export default function AgentCard({ agent }: AgentCardProps) {
         <div className="flex items-center gap-1.5 text-xs">
           <span
             className={`inline-block h-2 w-2 rounded-full ${
-              isIdle ? 'bg-muted-foreground/40' : 'bg-green-500'
+              isIdle ? "bg-muted-foreground/40" : "bg-green-500"
             }`}
           />
           {isIdle ? (
@@ -74,7 +74,7 @@ export default function AgentCard({ agent }: AgentCardProps) {
 
         {/* Events today */}
         <div className="text-[11px] text-muted-foreground/70">
-          {agent.eventsToday} event{agent.eventsToday !== 1 ? 's' : ''} today
+          {agent.eventsToday} event{agent.eventsToday !== 1 ? "s" : ""} today
         </div>
       </CardContent>
     </Card>
