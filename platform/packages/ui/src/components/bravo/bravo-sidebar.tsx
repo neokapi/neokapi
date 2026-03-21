@@ -12,7 +12,6 @@ import { cn } from "../../lib/utils";
 import { BravoAssistantThread } from "./bravo-thread";
 import { BravoConversationList, type BravoConversationListProps } from "./BravoConversationList";
 import { BravoModeSelector, type BravoMode } from "./BravoModeSelector";
-import { BravoColdStart } from "./BravoColdStart";
 import { BravoStepUpCard } from "./BravoStepUpCard";
 import type { BravoSSEStepUp } from "../../types/api";
 
@@ -176,7 +175,7 @@ export const BravoSidebar: FC<BravoSidebarProps> = ({
         ) : (
           <AssistantRuntimeProvider runtime={runtime}>
             <div className="flex-1 flex flex-col min-h-0">
-              {coldStarting ? <BravoColdStart /> : <BravoAssistantThread />}
+              <BravoAssistantThread coldStart={coldStarting} />
             </div>
             {stepUp && onStepUpSwitch && onStepUpDismiss && (
               <div className="px-4 pb-2">

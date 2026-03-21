@@ -2,6 +2,7 @@ import type { Preview, ReactRenderer } from "@storybook/react-vite";
 import { withThemeByClassName } from "@storybook/addon-themes";
 import React from "react";
 import "../src/styles/globals.css";
+import { TooltipProvider } from "../src/components/ui/tooltip";
 
 /**
  * Wraps each story in a div with bg-background / text-foreground so
@@ -10,9 +11,11 @@ import "../src/styles/globals.css";
  */
 function ThemeDecorator(Story: React.ComponentType) {
   return (
-    <div className="bg-background text-foreground" style={{ minHeight: "100%" }}>
-      <Story />
-    </div>
+    <TooltipProvider>
+      <div className="bg-background text-foreground" style={{ minHeight: "100%" }}>
+        <Story />
+      </div>
+    </TooltipProvider>
   );
 }
 
