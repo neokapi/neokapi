@@ -173,3 +173,214 @@ func TestAuthMiddleware_APIToken(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 	})
 }
+
+func TestProjectAccessMiddleware(t *testing.T) {
+	store, err := auth.NewSQLiteAuthStore(":memory:")
+	require.NoError(t, err)
+	defer store.Close()
+
+	ctx := t.Context()
+
+	// Create user, workspace, seed role templates.
+	user := &platauth.User{Email: "proj@example.com", Name: "Proj User"}
+	require.NoError(t, store.CreateUser(ctx, user))
+
+	ws := &platauth.Workspace{Name: "Test WS", Slug: "test-ws"}
+	require.NoError(t, store.CreateWorkspace(ctx, ws))
+	require.NoError(t, store.SeedDefaultRoleTemplates(ctx, ws.ID))
+
+	// Find the "translator" role template (has PermViewContent | PermTranslate).
+	templates, err := store.ListRoleTemplates(ctx, ws.ID)
+	require.NoError(t, err)
+	var translatorRoleID string
+	for _, rt := range templates {
+		if rt.Name == "translator" {
+			translatorRoleID = rt.ID
+			break
+		}
+	}
+	require.NotEmpty(t, translatorRoleID, "translator role template not found")
+
+	// Add user as project member with translator role and language scope.
+	projectID := "proj-1"
+	pm := &platauth.ProjectMembership{
+		ProjectID:   projectID,
+		UserID:      user.ID,
+		RoleID:      translatorRoleID,
+		WorkspaceID: ws.ID,
+		Languages:   []string{"fr", "de"},
+	}
+	require.NoError(t, store.AddProjectMember(ctx, pm))
+
+	mw := ProjectAccessMiddleware(store)
+
+	t.Run("member with explicit project role", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/projects/"+projectID, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("id")
+		c.SetParamValues(projectID)
+		c.Set("user_id", user.ID)
+		c.Set("workspace_role", platauth.RoleMember)
+
+		var perms platauth.Permission
+		var langs []string
+		handler := mw(func(c echo.Context) error {
+			perms = c.Get("project_permissions").(platauth.Permission)
+			langs = c.Get("project_languages").([]string)
+			return c.NoContent(http.StatusOK)
+		})
+		err := handler(c)
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		// Translator template: PermViewContent | PermTranslate
+		assert.True(t, perms.Has(platauth.PermViewContent))
+		assert.True(t, perms.Has(platauth.PermTranslate))
+		assert.False(t, perms.Has(platauth.PermManageProject))
+		assert.Equal(t, []string{"fr", "de"}, langs)
+	})
+
+	t.Run("workspace owner gets implicit full access", func(t *testing.T) {
+		e := echo.New()
+		otherProjectID := "proj-no-membership"
+		req := httptest.NewRequest(http.MethodGet, "/projects/"+otherProjectID, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("id")
+		c.SetParamValues(otherProjectID)
+		c.Set("user_id", user.ID)
+		c.Set("workspace_role", platauth.RoleOwner)
+
+		var perms platauth.Permission
+		handler := mw(func(c echo.Context) error {
+			perms = c.Get("project_permissions").(platauth.Permission)
+			return c.NoContent(http.StatusOK)
+		})
+		err := handler(c)
+		assert.NoError(t, err)
+		assert.Equal(t, platauth.PermAll, perms)
+	})
+
+	t.Run("no project membership falls back to workspace role", func(t *testing.T) {
+		e := echo.New()
+		otherProjectID := "proj-no-membership-2"
+		req := httptest.NewRequest(http.MethodGet, "/projects/"+otherProjectID, nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.SetParamNames("id")
+		c.SetParamValues(otherProjectID)
+		c.Set("user_id", user.ID)
+		c.Set("workspace_role", platauth.RoleMember)
+
+		var perms platauth.Permission
+		handler := mw(func(c echo.Context) error {
+			perms = c.Get("project_permissions").(platauth.Permission)
+			return c.NoContent(http.StatusOK)
+		})
+		err := handler(c)
+		assert.NoError(t, err)
+		// Member fallback: PermViewContent | PermTranslate | PermManageFiles | PermRunFlows
+		expected := platauth.DefaultPermissionsForRole(platauth.RoleMember)
+		assert.Equal(t, expected.Permissions, perms)
+	})
+
+	t.Run("no project ID skips middleware", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/other", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("user_id", user.ID)
+
+		called := false
+		handler := mw(func(c echo.Context) error {
+			called = true
+			// project_permissions should not be set.
+			assert.Nil(t, c.Get("project_permissions"))
+			return c.NoContent(http.StatusOK)
+		})
+		err := handler(c)
+		assert.NoError(t, err)
+		assert.True(t, called)
+	})
+}
+
+func TestRequirePermission(t *testing.T) {
+	s := &Server{}
+
+	t.Run("has permission", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermViewContent|platauth.PermTranslate)
+
+		err := s.requirePermission(c, platauth.PermTranslate)
+		assert.Nil(t, err)
+	})
+
+	t.Run("missing permission", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermViewContent)
+
+		err := s.requirePermission(c, platauth.PermManageProject)
+		assert.NoError(t, err) // echo writes to response, returns nil
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("no permissions on context skips check", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		// When project_permissions is not set (legacy routes without
+		// ProjectAccessMiddleware), the check is skipped.
+		err := s.requirePermission(c, platauth.PermViewContent)
+		assert.Nil(t, err)
+	})
+}
+
+func TestRequireLanguagePermission(t *testing.T) {
+	s := &Server{}
+
+	t.Run("allowed language", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermViewContent|platauth.PermTranslate)
+		c.Set("project_languages", []string{"fr", "de"})
+
+		err := s.requireLanguagePermission(c, platauth.PermTranslate, "fr")
+		assert.Nil(t, err)
+	})
+
+	t.Run("disallowed language", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermViewContent|platauth.PermTranslate)
+		c.Set("project_languages", []string{"fr", "de"})
+
+		err := s.requireLanguagePermission(c, platauth.PermTranslate, "ja")
+		assert.NoError(t, err)
+		assert.Equal(t, http.StatusForbidden, rec.Code)
+	})
+
+	t.Run("empty languages allows all", func(t *testing.T) {
+		e := echo.New()
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+		c.Set("project_permissions", platauth.PermViewContent|platauth.PermTranslate)
+		c.Set("project_languages", []string{})
+
+		err := s.requireLanguagePermission(c, platauth.PermTranslate, "ja")
+		assert.Nil(t, err)
+	})
+}

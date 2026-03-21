@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -82,6 +83,10 @@ func (s *Server) HandleListCollections(c echo.Context) error {
 
 // HandleCreateCollection creates a new collection in a project.
 func (s *Server) HandleCreateCollection(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -136,6 +141,10 @@ func (s *Server) HandleGetCollection(c echo.Context) error {
 
 // HandleUpdateCollection updates an existing collection.
 func (s *Server) HandleUpdateCollection(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -177,6 +186,10 @@ func (s *Server) HandleUpdateCollection(c echo.Context) error {
 
 // HandleDeleteCollection deletes a collection, reassigning its items to the default.
 func (s *Server) HandleDeleteCollection(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -194,6 +207,10 @@ func (s *Server) HandleDeleteCollection(c echo.Context) error {
 // HandleUploadToCollection uploads files to a specific collection.
 // Only allowed for "uploaded" collections.
 func (s *Server) HandleUploadToCollection(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}

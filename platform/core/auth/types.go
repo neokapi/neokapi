@@ -88,6 +88,50 @@ type APIToken struct {
 	CreatedAt   time.Time  `json:"created_at"`
 }
 
+// RoleTemplate defines a named permission bundle within a workspace.
+// Workspace admins can create, rename, and customize role templates.
+type RoleTemplate struct {
+	ID          string     `json:"id"`
+	WorkspaceID string     `json:"workspace_id"`
+	Name        string     `json:"name"`
+	DisplayName string     `json:"display_name"`
+	Description string     `json:"description"`
+	Permissions Permission `json:"permissions"`
+	IsBuiltin   bool       `json:"is_builtin"`
+	Position    int        `json:"position"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// ProjectMembership ties a user to a project with a role template and optional language scope.
+type ProjectMembership struct {
+	ProjectID   string    `json:"project_id"`
+	UserID      string    `json:"user_id"`
+	RoleID      string    `json:"role_id"`
+	WorkspaceID string    `json:"workspace_id"`
+	Languages   []string  `json:"languages"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+// ResolvedPermission is the effective permissions for a user in a project context.
+type ResolvedPermission struct {
+	Permissions Permission `json:"permissions"`
+	Languages   []string   `json:"languages"` // empty = all languages
+}
+
+// DefaultPermissionsForRole returns the fallback project permissions when no explicit
+// project membership exists, based on the user's workspace role.
+func DefaultPermissionsForRole(wsRole Role) *ResolvedPermission {
+	switch wsRole {
+	case RoleOwner, RoleAdmin:
+		return &ResolvedPermission{Permissions: PermAll}
+	case RoleMember:
+		return &ResolvedPermission{Permissions: PermViewContent | PermTranslate | PermManageFiles | PermRunFlows}
+	default:
+		return &ResolvedPermission{Permissions: PermViewContent}
+	}
+}
+
 // Invite represents a workspace invitation.
 type Invite struct {
 	ID          string    `json:"id"`

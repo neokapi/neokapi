@@ -119,6 +119,11 @@ func (s *AuthService) CreateWorkspaceWithOwner(ctx context.Context, w *platauth.
 	if err := s.store.AddMember(ctx, w.ID, ownerID, platauth.RoleOwner); err != nil {
 		return fmt.Errorf("add owner: %w", err)
 	}
+	// Seed default role templates for the new workspace.
+	if err := s.store.SeedDefaultRoleTemplates(ctx, w.ID); err != nil {
+		// Log but don't fail — workspace and owner were created successfully.
+		return nil
+	}
 	return nil
 }
 

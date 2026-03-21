@@ -109,4 +109,36 @@ var authMigrationsPg = []storage.Migration{
 			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
 		`,
 	},
+	{
+		Version:     5,
+		Description: "create role_templates and project_members tables",
+		SQL: `
+			CREATE TABLE role_templates (
+				id           TEXT NOT NULL,
+				workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+				name         TEXT NOT NULL,
+				display_name TEXT NOT NULL DEFAULT '',
+				description  TEXT NOT NULL DEFAULT '',
+				permissions  BIGINT NOT NULL DEFAULT 0,
+				is_builtin   BOOLEAN NOT NULL DEFAULT FALSE,
+				position     INTEGER NOT NULL DEFAULT 0,
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (workspace_id, id),
+				UNIQUE (workspace_id, name)
+			);
+
+			CREATE TABLE project_members (
+				project_id   TEXT NOT NULL,
+				user_id      TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+				role_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				languages    TEXT NOT NULL DEFAULT '[]',
+				created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (project_id, user_id)
+			);
+			CREATE INDEX idx_project_members_user ON project_members(user_id, workspace_id);
+			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
+		`,
+	},
 }

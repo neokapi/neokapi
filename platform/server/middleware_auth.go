@@ -243,3 +243,72 @@ func (s *Server) requireRole(c echo.Context, allowed ...platauth.Role) error {
 	}
 	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient permissions"})
 }
+
+// ProjectAccessMiddleware resolves project-level permissions for the authenticated user.
+// It checks the project_members table for an explicit membership and falls back to
+// default permissions based on the user's workspace role.
+func ProjectAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			// Extract project ID from either :pid or :id parameter.
+			projectID := c.Param("pid")
+			if projectID == "" {
+				projectID = c.Param("id")
+			}
+			if projectID == "" {
+				return next(c) // no project context, skip
+			}
+
+			userID, _ := c.Get("user_id").(string)
+			if userID == "" {
+				return next(c) // not authenticated, let auth middleware handle it
+			}
+
+			ctx := c.Request().Context()
+			resolved, err := authStore.ResolveProjectPermissions(ctx, projectID, userID)
+			if err != nil {
+				// No explicit project membership — fall back to workspace role defaults.
+				wsRole, _ := c.Get("workspace_role").(platauth.Role)
+				resolved = platauth.DefaultPermissionsForRole(wsRole)
+			}
+
+			c.Set("project_permissions", resolved.Permissions)
+			c.Set("project_languages", resolved.Languages)
+			return next(c)
+		}
+	}
+}
+
+// requirePermission verifies that the user has the required permission in the
+// current project context. Returns an echo error response on failure, nil on success.
+func (s *Server) requirePermission(c echo.Context, perm platauth.Permission) error {
+	perms, ok := c.Get("project_permissions").(platauth.Permission)
+	if !ok {
+		// No project permissions on context — the request came through a route
+		// without ProjectAccessMiddleware (e.g., legacy sync routes with
+		// ClaimOrAuthMiddleware). Skip the check; those routes have their own auth.
+		return nil
+	}
+	if !perms.Has(perm) {
+		return c.JSON(http.StatusForbidden, ErrorResponse{Error: "insufficient project permissions"})
+	}
+	return nil
+}
+
+// requireLanguagePermission verifies both the permission and language access.
+// Use for language-scoped operations like translation and review.
+func (s *Server) requireLanguagePermission(c echo.Context, perm platauth.Permission, locale string) error {
+	if err := s.requirePermission(c, perm); err != nil {
+		return err
+	}
+	languages, _ := c.Get("project_languages").([]string)
+	if len(languages) == 0 {
+		return nil // all languages allowed
+	}
+	for _, l := range languages {
+		if l == locale {
+			return nil
+		}
+	}
+	return c.JSON(http.StatusForbidden, ErrorResponse{Error: "no access to language: " + locale})
+}

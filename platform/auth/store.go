@@ -57,6 +57,22 @@ type AuthStore interface {
 	RevokeRefreshToken(ctx context.Context, tokenID string) error
 	RevokeUserRefreshTokens(ctx context.Context, userID string) error
 
+	// Role templates
+	CreateRoleTemplate(ctx context.Context, rt *platauth.RoleTemplate) error
+	GetRoleTemplate(ctx context.Context, workspaceID, roleID string) (*platauth.RoleTemplate, error)
+	ListRoleTemplates(ctx context.Context, workspaceID string) ([]*platauth.RoleTemplate, error)
+	UpdateRoleTemplate(ctx context.Context, rt *platauth.RoleTemplate) error
+	DeleteRoleTemplate(ctx context.Context, workspaceID, roleID string) error
+	SeedDefaultRoleTemplates(ctx context.Context, workspaceID string) error
+
+	// Project membership
+	AddProjectMember(ctx context.Context, pm *platauth.ProjectMembership) error
+	GetProjectMembership(ctx context.Context, projectID, userID string) (*platauth.ProjectMembership, error)
+	ListProjectMembers(ctx context.Context, projectID string) ([]*platauth.ProjectMembership, error)
+	UpdateProjectMember(ctx context.Context, pm *platauth.ProjectMembership) error
+	RemoveProjectMember(ctx context.Context, projectID, userID string) error
+	ResolveProjectPermissions(ctx context.Context, projectID, userID string) (*platauth.ResolvedPermission, error)
+
 	// Lifecycle
 	Close() error
 }

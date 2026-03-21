@@ -13,8 +13,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/analytics"
+	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/connector"
 	"github.com/neokapi/neokapi/bowrain/credentials"
@@ -667,6 +667,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.GET("/invites", s.HandleListInvites)
 		wsSpecific.DELETE("/invites/:id", s.HandleDeleteInvite)
 
+		// Role template routes (workspace-scoped, admin/owner only for mutations).
+		wsSpecific.GET("/roles", s.HandleListRoleTemplates)
+		wsSpecific.POST("/roles", s.HandleCreateRoleTemplate)
+		wsSpecific.PUT("/roles/:rid", s.HandleUpdateRoleTemplate)
+		wsSpecific.DELETE("/roles/:rid", s.HandleDeleteRoleTemplate)
+
 		// API token routes (workspace-scoped, requires Pro+ plan).
 		tokenGroup := wsSpecific.Group("/tokens")
 		tokenGroup.Use(billing.PlanGuard(billing.FeatureAPIAccess))
@@ -756,6 +762,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 // (editor projects, file management, block editing, translation, TM, terms, providers)
 // on the given route group.
 func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
+	// Apply project-level permission resolution for routes with :pid or :id params.
+	// The middleware is a no-op when no project ID is present (workspace-scoped routes).
+	if s.AuthStore != nil {
+		g.Use(ProjectAccessMiddleware(s.AuthStore))
+	}
+
 	// Workspace-scoped project routes
 	g.GET("/projects", s.HandleListWorkspaceProjects)
 	g.POST("/projects", s.HandleCreateWorkspaceProject)
@@ -800,6 +812,12 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
 	g.POST("/editor/projects/:pid/restore", s.HandleRestoreProject)
 	g.DELETE("/editor/projects/:pid/permanent", s.HandlePermanentlyDeleteProject)
+
+	// Project member management
+	g.GET("/editor/projects/:pid/members", s.HandleListProjectMembers)
+	g.POST("/editor/projects/:pid/members", s.HandleAddProjectMember)
+	g.PUT("/editor/projects/:pid/members/:uid", s.HandleUpdateProjectMember)
+	g.DELETE("/editor/projects/:pid/members/:uid", s.HandleRemoveProjectMember)
 
 	// Archived projects (recycle bin)
 	g.GET("/archived/projects", s.HandleListArchivedProjects)

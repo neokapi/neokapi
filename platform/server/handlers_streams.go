@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -28,6 +29,10 @@ func (s *Server) HandleListStreams(c echo.Context) error {
 // HandleCreateStream creates a new stream in a project.
 // POST /api/v1/projects/:id/streams
 func (s *Server) HandleCreateStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -103,6 +108,10 @@ func (s *Server) HandleGetStream(c echo.Context) error {
 // HandleUpdateStream updates a stream's metadata.
 // PATCH /api/v1/projects/:id/streams/:stream
 func (s *Server) HandleUpdateStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -141,6 +150,10 @@ func (s *Server) HandleUpdateStream(c echo.Context) error {
 // HandleArchiveStream archives (soft-deletes) a stream.
 // DELETE /api/v1/projects/:id/streams/:stream
 func (s *Server) HandleArchiveStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
@@ -169,6 +182,10 @@ func (s *Server) HandleArchiveStream(c echo.Context) error {
 // HandleMergeStream merges a stream into its parent.
 // POST /api/v1/projects/:id/streams/:stream/merge
 func (s *Server) HandleMergeStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}

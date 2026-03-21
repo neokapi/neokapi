@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/platform/store"
 )
@@ -26,6 +27,10 @@ type FileQAResultResponse struct {
 // HandleQACheckBlock runs QA checks on a single block.
 // POST /editor/projects/:pid/blocks/:bid/qa-check?locale=xx
 func (s *Server) HandleQACheckBlock(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
@@ -49,6 +54,10 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 // HandleQACheckFile runs QA checks on all blocks in a file.
 // POST /editor/projects/:pid/file-qa-check/*?locale=xx
 func (s *Server) HandleQACheckFile(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermViewContent); err != nil {
+		return err
+	}
+
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
