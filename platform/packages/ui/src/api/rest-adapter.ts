@@ -452,10 +452,15 @@ export class RestApiAdapter implements ApiAdapter {
     workspaceSlug: string,
     name: string,
     expireDays: number,
+    scopes?: string[],
   ): Promise<CreateApiTokenResponse> {
+    const body: Record<string, unknown> = { name, expire_days: expireDays };
+    if (scopes && scopes.length > 0) {
+      body.scopes = scopes;
+    }
     return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens`, {
       method: "POST",
-      body: JSON.stringify({ name, expire_days: expireDays }),
+      body: JSON.stringify(body),
     });
   }
 

@@ -236,7 +236,8 @@ func (s *AuthService) CreateInvite(ctx context.Context, workspaceID, createdBy s
 
 // CreateAPIToken generates a new API token for the given user and workspace.
 // Returns the APIToken (with ID populated) and the plaintext token (shown once).
-func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, name string, expiresAt *time.Time) (*platauth.APIToken, string, error) {
+// scopesJSON is a JSON array of scope strings (e.g. `["*"]`, `["translate:fr,de"]`).
+func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, name, scopesJSON string, expiresAt *time.Time) (*platauth.APIToken, string, error) {
 	if userID == "" {
 		return nil, "", fmt.Errorf("user ID is required")
 	}
@@ -260,7 +261,7 @@ func (s *AuthService) CreateAPIToken(ctx context.Context, userID, workspaceID, n
 		WorkspaceID: workspaceID,
 		Name:        name,
 		TokenPrefix: plaintext[:8], // "bwt_" + first 4 hex chars
-		Scopes:      `["*"]`,
+		Scopes:      scopesJSON,
 		ExpiresAt:   expiresAt,
 	}
 
