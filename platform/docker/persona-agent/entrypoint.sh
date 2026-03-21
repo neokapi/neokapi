@@ -138,42 +138,6 @@ export AGENTIC_MCP_BLOCK
 
 envsubst < /agentic/config.toml.template > "$AGENT_DIR/config.toml"
 echo "Config rendered to $AGENT_DIR/config.toml"
-echo ""
-echo "=== Rendered config.toml ==="
-sed 's/Bearer [^ "]*/Bearer <REDACTED>/g' "$AGENT_DIR/config.toml"
-echo "=== (end config) ==="
-
-# Debug: verify MCP connectivity before starting agent.
-echo ""
-echo "=== MCP Connectivity Check ==="
-if [ -n "${BRAVO_AGENT_TOKEN:-}" ]; then
-  MCP_RESP=$(curl -sf -X POST \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer ${BRAVO_AGENT_TOKEN}" \
-    -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"persona-agent","version":"1.0"}}}' \
-    "${BRAVO_MCP_ENDPOINT}" 2>&1 || true)
-  if echo "$MCP_RESP" | grep -q '"bowrain"'; then
-    echo "Bowrain MCP: OK"
-  else
-    echo "Bowrain MCP: FAILED"
-    echo "  Response: $(printf '%.200s' "$MCP_RESP")"
-  fi
-  if [ -n "${AGENTIC_MCP_ENDPOINT:-}" ]; then
-    AG_RESP=$(curl -sf -X POST \
-      -H "Content-Type: application/json" \
-      -H "Authorization: Bearer ${BRAVO_AGENT_TOKEN}" \
-      -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"persona-agent","version":"1.0"}}}' \
-      "${AGENTIC_MCP_ENDPOINT}" 2>&1 || true)
-    if echo "$AG_RESP" | grep -q '"bowrain-agentic"'; then
-      echo "Agentic MCP: OK"
-    else
-      echo "Agentic MCP: FAILED"
-      echo "  Response: $(printf '%.200s' "$AG_RESP")"
-    fi
-  fi
-else
-  echo "SKIP: No BRAVO_AGENT_TOKEN set"
-fi
 
 # ── Execution event publishing ────────────────────────────────────────
 EXEC_ID="exec_$(date +%s%3N)"
