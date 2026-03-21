@@ -73,6 +73,12 @@ func (s *Server) HandleCreateWorkspace(c echo.Context) error {
 	}
 	billing.SetupTrial(ctx, s.BillingStore, w.ID, planSyncer)
 
+	// Re-read workspace to reflect synced plan in the response.
+	if updated, err := s.AuthStore.GetWorkspace(ctx, w.ID); err == nil {
+		w = updated
+	}
+	w.Role = platauth.RoleOwner
+
 	return c.JSON(http.StatusCreated, w)
 }
 

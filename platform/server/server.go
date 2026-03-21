@@ -699,12 +699,20 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	e.POST("/api/webhooks/stripe", s.HandleStripeWebhook)
 
 	// Admin routes (admin realm auth) (AD-030).
-	if s.AdminVerifier != nil {
-		accessVerifier := s.AdminAccessVerifier
-		if accessVerifier == nil {
-			accessVerifier = s.AdminVerifier // fallback
+	// When no admin OIDC verifier is configured (dev/test), fall back to
+	// JWT auth so admin routes remain accessible for operational tasks.
+	if s.AdminVerifier != nil || s.Config.JWTSecret != "" {
+		var adminMiddleware echo.MiddlewareFunc
+		if s.AdminVerifier != nil {
+			accessVerifier := s.AdminAccessVerifier
+			if accessVerifier == nil {
+				accessVerifier = s.AdminVerifier
+			}
+			adminMiddleware = billing.AdminGuard(s.AdminVerifier, accessVerifier)
+		} else {
+			adminMiddleware = AuthMiddleware(s.Config.JWTSecret, s.AuthStore)
 		}
-		adminGroup := e.Group("/api/admin", billing.AdminGuard(s.AdminVerifier, accessVerifier))
+		adminGroup := e.Group("/api/admin", adminMiddleware)
 		adminGroup.GET("/workspaces", s.HandleAdminListWorkspaces)
 		adminGroup.GET("/workspaces/:id", s.HandleAdminGetWorkspace)
 		adminGroup.PUT("/workspaces/:id/plan", s.HandleAdminUpdatePlan)
