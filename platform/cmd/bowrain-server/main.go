@@ -24,6 +24,17 @@ func main() {
 			workspace := os.Getenv("BOWRAIN_SERVICE_WORKSPACE")
 			seedServiceToken(dbURL, dbAuth, azureClientID, workspace)
 			return
+		case "seed-project":
+			seedProject(seedProjectConfig{
+				DatabaseURL:     os.Getenv("BOWRAIN_DATABASE_URL"),
+				DatabaseAuth:    os.Getenv("BOWRAIN_DATABASE_AUTH"),
+				AzureClientID:   os.Getenv("AZURE_CLIENT_ID"),
+				WorkspaceSlug:   os.Getenv("BOWRAIN_SERVICE_WORKSPACE"),
+				ProjectName:     os.Getenv("BOWRAIN_PROJECT_NAME"),
+				SourceLanguage:  os.Getenv("BOWRAIN_SOURCE_LANGUAGE"),
+				TargetLanguages: os.Getenv("BOWRAIN_TARGET_LANGUAGES"),
+			})
+			return
 		}
 	}
 

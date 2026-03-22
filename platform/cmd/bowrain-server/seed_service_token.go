@@ -72,13 +72,13 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		log.Fatalf("seed-service-token: workspace %q not found: %v", workspaceSlug, err)
 	}
 
-	// 3. Ensure membership (viewer role — read-only).
+	// 3. Ensure membership (member role — can create projects and push content).
 	_, err = store.GetMembership(ctx, ws.ID, user.ID)
 	if err != nil {
-		if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleViewer); err != nil {
+		if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
 			log.Fatalf("seed-service-token: add member: %v", err)
 		}
-		log.Printf("Added service user to workspace %s as viewer", workspaceSlug)
+		log.Printf("Added service user to workspace %s as member", workspaceSlug)
 	} else {
 		log.Printf("Service user already a member of workspace %s", workspaceSlug)
 	}
@@ -108,7 +108,7 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		WorkspaceID: ws.ID,
 		Name:        serviceTokenName,
 		TokenPrefix: plaintext[:8],
-		Scopes:      `["read"]`,
+		Scopes:      `["*"]`,
 	}
 	if err := store.CreateAPIToken(ctx, apiToken, tokenHash); err != nil {
 		log.Fatalf("seed-service-token: create token: %v", err)
