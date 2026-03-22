@@ -64,13 +64,11 @@ func (c *BowrainClient) ListWorkspaces(ctx context.Context) ([]Workspace, error)
 	if err != nil {
 		return nil, err
 	}
-	var resp struct {
-		Workspaces []Workspace `json:"workspaces"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
+	var workspaces []Workspace
+	if err := json.Unmarshal(data, &workspaces); err != nil {
 		return nil, fmt.Errorf("decode workspaces: %w", err)
 	}
-	return resp.Workspaces, nil
+	return workspaces, nil
 }
 
 // Project is a bowrain project summary.
@@ -87,13 +85,11 @@ func (c *BowrainClient) ListProjects(ctx context.Context, wsSlug string) ([]Proj
 	if err != nil {
 		return nil, err
 	}
-	var resp struct {
-		Projects []Project `json:"projects"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
+	var projects []Project
+	if err := json.Unmarshal(data, &projects); err != nil {
 		return nil, fmt.Errorf("decode projects: %w", err)
 	}
-	return resp.Projects, nil
+	return projects, nil
 }
 
 // Member is a bowrain workspace member.
@@ -110,13 +106,11 @@ func (c *BowrainClient) ListMembers(ctx context.Context, wsSlug string) ([]Membe
 	if err != nil {
 		return nil, err
 	}
-	var resp struct {
-		Members []Member `json:"members"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
+	var members []Member
+	if err := json.Unmarshal(data, &members); err != nil {
 		return nil, fmt.Errorf("decode members: %w", err)
 	}
-	return resp.Members, nil
+	return members, nil
 }
 
 // AuditEntry is a bowrain audit log entry.
@@ -138,13 +132,11 @@ func (c *BowrainClient) ListAuditLog(ctx context.Context, wsSlug string, limit i
 	if err != nil {
 		return nil, err
 	}
-	var resp struct {
-		Entries []AuditEntry `json:"entries"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
+	var entries []AuditEntry
+	if err := json.Unmarshal(data, &entries); err != nil {
 		return nil, fmt.Errorf("decode audit log: %w", err)
 	}
-	return resp.Entries, nil
+	return entries, nil
 }
 
 // Block is a bowrain translation block.
@@ -178,11 +170,9 @@ func (c *BowrainClient) ListBlocks(ctx context.Context, wsSlug, projectID string
 	if err != nil {
 		return nil, err
 	}
-	var resp struct {
-		Blocks []Block `json:"blocks"`
-	}
-	if err := json.Unmarshal(data, &resp); err != nil {
+	var blocks []Block
+	if err := json.Unmarshal(data, &blocks); err != nil {
 		return nil, fmt.Errorf("decode blocks: %w", err)
 	}
-	return resp.Blocks, nil
+	return blocks, nil
 }
