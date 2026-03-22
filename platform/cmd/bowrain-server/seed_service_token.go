@@ -72,15 +72,22 @@ func seedServiceToken(dbURL, dbAuth, azureClientID, workspaceSlug string) {
 		log.Fatalf("seed-service-token: workspace %q not found: %v", workspaceSlug, err)
 	}
 
-	// 3. Ensure membership (member role — can create projects and push content).
-	_, err = store.GetMembership(ctx, ws.ID, user.ID)
-	if err != nil {
+	// 3. Ensure membership with member role (remove + re-add to fix stale viewer role).
+	if m, err := store.GetMembership(ctx, ws.ID, user.ID); err == nil {
+		if m.Role != platauth.RoleMember {
+			_ = store.RemoveMember(ctx, ws.ID, user.ID)
+			if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
+				log.Fatalf("seed-service-token: upgrade member: %v", err)
+			}
+			log.Printf("Upgraded service user to member in workspace %s", workspaceSlug)
+		} else {
+			log.Printf("Service user already a member of workspace %s", workspaceSlug)
+		}
+	} else {
 		if err := store.AddMember(ctx, ws.ID, user.ID, platauth.RoleMember); err != nil {
 			log.Fatalf("seed-service-token: add member: %v", err)
 		}
 		log.Printf("Added service user to workspace %s as member", workspaceSlug)
-	} else {
-		log.Printf("Service user already a member of workspace %s", workspaceSlug)
 	}
 
 	// 4. Delete any existing token for this service account (rotate).
