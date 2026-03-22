@@ -14,6 +14,19 @@ import (
 )
 
 func main() {
+	// Handle subcommands before flag parsing.
+	if len(os.Args) > 1 && os.Args[0] != "-" {
+		switch os.Args[1] {
+		case "seed-service-token":
+			dbURL := os.Getenv("BOWRAIN_DATABASE_URL")
+			dbAuth := os.Getenv("BOWRAIN_DATABASE_AUTH")
+			azureClientID := os.Getenv("AZURE_CLIENT_ID")
+			workspace := os.Getenv("BOWRAIN_SERVICE_WORKSPACE")
+			seedServiceToken(dbURL, dbAuth, azureClientID, workspace)
+			return
+		}
+	}
+
 	cfg := server.DefaultServerConfig()
 
 	flag.IntVar(&cfg.Port, "port", cfg.Port, "HTTP port to listen on")
