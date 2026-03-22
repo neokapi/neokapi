@@ -1,0 +1,89 @@
+name: Storybook Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'platform/packages/ui/**'
+      - 'platform/emails/src/**/*.stories.*'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: storybook-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Build Storybook
+        env:
+          STORYBOOK_BASE_PATH: /pr-${{ github.event.pull_request.number }}/
+        working-directory: platform/packages/ui
+        run: npx storybook build -o storybook-static
+
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: platform/packages/ui/storybook-static
+          destination_dir: pr-${{ github.event.pull_request.number }}
+          keep_files: true
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = context.payload.pull_request.number;
+            const {owner, repo} = context.repo;
+            const url = `https://${owner}.github.io/pr-${prNumber}/`;
+            const body = `**Storybook preview** deployed to: ${url}`;
+
+            const {data: comments} = await github.rest.issues.listComments({
+              owner, repo, issue_number: prNumber,
+            });
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' &&
+              c.body.includes('Storybook preview')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner, repo, comment_id: existing.id, body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: prNumber, body,
+              });
+            }
+
+  cleanup-preview:
+    name: Cleanup Preview
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+
+      - name: Remove preview directory
+        run: |
+          PR_DIR="pr-${{ github.event.pull_request.number }}"
+          if [ -d "$PR_DIR" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git rm -rf "$PR_DIR"
+            git commit -m "Remove Storybook preview for PR #${{ github.event.pull_request.number }}"
+            git push
+          else
+            echo "No preview directory found for PR #${{ github.event.pull_request.number }}"
+          fi
