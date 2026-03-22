@@ -51,6 +51,10 @@ import type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  ConceptHierarchyNode,
+  GraphNode,
+  GraphEdge,
+  GraphPath,
 } from "@neokapi/ui";
 import type {
   TranslationDashboardStats,
@@ -420,6 +424,20 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async exportTermsJSON(_ws: string, name: string): Promise<string> {
     return Backend.ExportTermsJSON("", name) as Promise<string>;
+  }
+
+  // --- Concept Graph ---
+  async getConceptHierarchy(): Promise<ConceptHierarchyNode[]> {
+    return [];
+  }
+  async getGraphNeighbors(): Promise<GraphNode[]> {
+    return [];
+  }
+  async getGraphEdges(): Promise<GraphEdge[]> {
+    return [];
+  }
+  async getGraphShortestPath(): Promise<GraphPath> {
+    return { nodes: [], edges: [] };
   }
 
   // --- Providers ---

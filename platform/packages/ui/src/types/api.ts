@@ -522,6 +522,94 @@ export interface TermEnforceResult {
 }
 
 // ---------------------------------------------------------------------------
+// Concept graph types
+// ---------------------------------------------------------------------------
+
+/** A node in the concept graph */
+export interface GraphNode {
+  id: string;
+  label: string;
+  properties: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A directed edge between two graph nodes */
+export interface GraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+  properties: Record<string, string>;
+  validity?: {
+    valid_from?: string;
+    valid_to?: string;
+    tags?: Record<string, string>;
+  };
+  created_at: string;
+  updated_at: string;
+}
+
+/** A path in the graph (sequence of nodes and edges) */
+export interface GraphPath {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
+/** Concept hierarchy node (from /graph/concepts) */
+export interface ConceptHierarchyNode {
+  id: string;
+  label: string;
+  properties: Record<string, string>;
+  children: number;
+  parents: number;
+}
+
+/** Request to create a graph edge (relation between concepts) */
+export interface CreateGraphEdgeRequest {
+  source: string;
+  target: string;
+  label: string;
+  properties?: Record<string, string>;
+}
+
+/** Well-known edge labels aligned with W3C SKOS */
+export const GRAPH_LABELS = {
+  BROADER: "BROADER",
+  NARROWER: "NARROWER",
+  RELATED: "RELATED",
+  PART_OF: "PART_OF",
+  HAS_PART: "HAS_PART",
+  HAS_TERM: "HAS_TERM",
+  USE_INSTEAD: "USE_INSTEAD",
+  REPLACED_BY: "REPLACED_BY",
+  EXACT_MATCH: "EXACT_MATCH",
+  CLOSE_MATCH: "CLOSE_MATCH",
+  FORBIDDEN: "FORBIDDEN",
+  PREFERRED: "PREFERRED",
+  COMPETITOR: "COMPETITOR",
+} as const;
+
+export type GraphLabel = (typeof GRAPH_LABELS)[keyof typeof GRAPH_LABELS];
+
+/** Human-readable labels for edge types */
+export const GRAPH_LABEL_DISPLAY: Record<string, string> = {
+  BROADER: "Broader",
+  NARROWER: "Narrower",
+  RELATED: "Related",
+  PART_OF: "Part of",
+  HAS_PART: "Has part",
+  HAS_TERM: "Has term",
+  USE_INSTEAD: "Use instead",
+  REPLACED_BY: "Replaced by",
+  EXACT_MATCH: "Exact match",
+  CLOSE_MATCH: "Close match",
+  FORBIDDEN: "Forbidden",
+  PREFERRED: "Preferred",
+  COMPETITOR: "Competitor",
+};
+
+// ---------------------------------------------------------------------------
 // Block note types
 // ---------------------------------------------------------------------------
 

@@ -99,6 +99,11 @@ export {
 } from "./components/ui/chart";
 export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
+export { ConceptExplorer } from "./components/terms/ConceptExplorer";
+export { ConceptGraph } from "./components/terms/ConceptGraph";
+export { ConceptDetailPanel } from "./components/terms/ConceptDetailPanel";
+export { ConceptNode } from "./components/terms/ConceptNode";
+export type { ConceptNodeData } from "./components/terms/ConceptNode";
 export { InviteManager } from "./components/InviteManager";
 export { ApiTokenManager } from "./components/ApiTokenManager";
 export { RoleTemplateManager } from "./components/RoleTemplateManager";
@@ -231,6 +236,8 @@ export { useProjectApi } from "./hooks/useProjectApi";
 export { useEditorApi } from "./hooks/useEditorApi";
 export { useTMApi } from "./hooks/useTMApi";
 export { useTermsApi } from "./hooks/useTermsApi";
+export { useGraphApi } from "./hooks/useGraphApi";
+export { GRAPH_LABELS, GRAPH_LABEL_DISPLAY } from "./types/api";
 export { useProviderConfigs, useProviderApi } from "./hooks/useProviderApi";
 export { useLocales } from "./hooks/useLocales";
 export { useFormats } from "./hooks/useFormats";
@@ -270,6 +277,12 @@ export type {
   UpdateConceptRequest,
   BlockTermMatch,
   TermEnforceResult,
+  GraphNode,
+  GraphEdge,
+  GraphPath,
+  ConceptHierarchyNode,
+  CreateGraphEdgeRequest,
+  GraphLabel,
   BlockNote,
   BlockHistoryEntry,
   QAIssue,

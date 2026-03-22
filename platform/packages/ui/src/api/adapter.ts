@@ -64,6 +64,10 @@ import type {
   CreditLedgerEntry,
   RoleTemplate,
   ProjectMembership,
+  ConceptHierarchyNode,
+  GraphNode,
+  GraphEdge,
+  GraphPath,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -412,6 +416,25 @@ export interface ApiAdapter {
   ): Promise<number>;
   importTermsJSON(workspaceSlug: string, jsonContent: string): Promise<number>;
   exportTermsJSON(workspaceSlug: string, name: string): Promise<string>;
+
+  // Concept Graph
+  getConceptHierarchy(workspaceSlug: string): Promise<ConceptHierarchyNode[]>;
+  getGraphNeighbors(
+    workspaceSlug: string,
+    nodeId: string,
+    direction?: "outgoing" | "incoming" | "both",
+    label?: string,
+  ): Promise<GraphNode[]>;
+  getGraphEdges(
+    workspaceSlug: string,
+    nodeId: string,
+    direction?: "outgoing" | "incoming" | "both",
+  ): Promise<GraphEdge[]>;
+  getGraphShortestPath(
+    workspaceSlug: string,
+    fromId: string,
+    toId: string,
+  ): Promise<GraphPath>;
 
   // Providers
   listProviderConfigs(workspaceSlug: string): Promise<ProviderConfig[]>;

@@ -393,6 +393,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     importTermsJSON: async () => 0,
     exportTermsJSON: async () => "{}",
 
+    // --- Concept Graph ---------------------------------------------------
+    getConceptHierarchy: async () => [],
+    getGraphNeighbors: async () => [],
+    getGraphEdges: async () => [],
+    getGraphShortestPath: async () => ({ nodes: [], edges: [] }),
+
     // --- Automations -----------------------------------------------------
     listAutomationRules: async (): Promise<AutomationRule[]> => [..._automationRules],
     createAutomationRule: async (

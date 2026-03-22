@@ -73,6 +73,10 @@ import type {
   CreditLedgerEntry,
   RoleTemplate,
   ProjectMembership,
+  ConceptHierarchyNode,
+  GraphNode,
+  GraphEdge,
+  GraphPath,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1165,6 +1169,54 @@ export class RestApiAdapter implements ApiAdapter {
   async exportTermsJSON(workspaceSlug: string, name: string): Promise<string> {
     return this.fetchJSON(
       `${this.termsEp(workspaceSlug)}/export/json?name=${encodeURIComponent(name)}`,
+    );
+  }
+
+  // ── Concept Graph ───────────────────────────────────────────────────────
+
+  private graphEp(ws: string) {
+    return `/api/v1/workspaces/${ws}/graph`;
+  }
+
+  async getConceptHierarchy(workspaceSlug: string): Promise<ConceptHierarchyNode[]> {
+    return this.fetchJSON(`${this.graphEp(workspaceSlug)}/concepts`);
+  }
+
+  async getGraphNeighbors(
+    workspaceSlug: string,
+    nodeId: string,
+    direction?: "outgoing" | "incoming" | "both",
+    label?: string,
+  ): Promise<GraphNode[]> {
+    const params = new URLSearchParams();
+    if (direction) params.set("direction", direction);
+    if (label) params.set("label", label);
+    const qs = params.toString();
+    return this.fetchJSON(
+      `${this.graphEp(workspaceSlug)}/nodes/${nodeId}/neighbors${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async getGraphEdges(
+    workspaceSlug: string,
+    nodeId: string,
+    direction?: "outgoing" | "incoming" | "both",
+  ): Promise<GraphEdge[]> {
+    const params = new URLSearchParams();
+    if (direction) params.set("direction", direction);
+    const qs = params.toString();
+    return this.fetchJSON(
+      `${this.graphEp(workspaceSlug)}/nodes/${nodeId}/edges${qs ? `?${qs}` : ""}`,
+    );
+  }
+
+  async getGraphShortestPath(
+    workspaceSlug: string,
+    fromId: string,
+    toId: string,
+  ): Promise<GraphPath> {
+    return this.fetchJSON(
+      `${this.graphEp(workspaceSlug)}/shortest-path?from=${encodeURIComponent(fromId)}&to=${encodeURIComponent(toId)}`,
     );
   }
 

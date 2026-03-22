@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { TermExplorer, useWorkspace, useApi, Card } from "@neokapi/ui";
+import { ConceptExplorer, useWorkspace, useApi, Card } from "@neokapi/ui";
 import { projectsQueryOptions } from "../../queries";
 
 export function TermbaseRoute() {
@@ -13,7 +13,7 @@ export function TermbaseRoute() {
 
   useEffect(() => {
     if (activeWorkspace) {
-      document.title = `Terminology — ${activeWorkspace.name} — Bowrain`;
+      document.title = `Concepts — ${activeWorkspace.name} — Bowrain`;
     }
   }, [activeWorkspace]);
 
@@ -51,8 +51,8 @@ export function TermbaseRoute() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl p-4 md:p-6">
-      <TermExplorer
+    <div className="h-[calc(100vh-var(--topbar-height,56px))] p-4 md:p-6">
+      <ConceptExplorer
         sourceLocale={sourceLocale}
         targetLocales={targetLocales}
         projects={projects}
