@@ -8,7 +8,6 @@ on:
       - 'platform/emails/src/**/*.stories.*'
 
 permissions:
-  contents: write
   pull-requests: write
 
 concurrency:
@@ -26,14 +25,16 @@ jobs:
 
       - name: Build Storybook
         env:
-          STORYBOOK_BASE_PATH: /pr-${{ github.event.pull_request.number }}/
+          STORYBOOK_BASE_PATH: /previews/pr-${{ github.event.pull_request.number }}/
         working-directory: platform/packages/ui
         run: npx storybook build -o storybook-static
 
-      - name: Deploy to gh-pages
+      - name: Deploy to preview repo
         uses: peaceiris/actions-gh-pages@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          deploy_key: ${{ secrets.PREVIEW_DEPLOY_KEY }}
+          external_repository: neokapi/previews
+          publish_branch: gh-pages
           publish_dir: platform/packages/ui/storybook-static
           destination_dir: pr-${{ github.event.pull_request.number }}
           keep_files: true
@@ -44,7 +45,7 @@ jobs:
           script: |
             const prNumber = context.payload.pull_request.number;
             const {owner, repo} = context.repo;
-            const url = `https://${owner}.github.io/pr-${prNumber}/`;
+            const url = `https://${owner}.github.io/previews/pr-${prNumber}/`;
             const body = `**Storybook preview** deployed to: ${url}`;
 
             const {data: comments} = await github.rest.issues.listComments({
@@ -71,19 +72,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: gh-pages
-          fetch-depth: 1
 
-      - name: Remove preview directory
+      - name: Remove preview from preview repo
+        env:
+          GH_TOKEN: ${{ secrets.PREVIEW_GITHUB_TOKEN }}
         run: |
-          PR_DIR="pr-${{ github.event.pull_request.number }}"
-          if [ -d "$PR_DIR" ]; then
+          PR_NUM="${{ github.event.pull_request.number }}"
+          TMPDIR=$(mktemp -d)
+
+          git clone --depth 1 --branch gh-pages \
+            "https://x-access-token:${GH_TOKEN}@github.com/neokapi/previews.git" \
+            "$TMPDIR"
+
+          cd "$TMPDIR"
+          if [ -d "pr-${PR_NUM}" ]; then
+            git rm -rf "pr-${PR_NUM}"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git rm -rf "$PR_DIR"
-            git commit -m "Remove Storybook preview for PR #${{ github.event.pull_request.number }}"
+            git commit -m "Remove Storybook preview for PR #${PR_NUM}"
             git push
           else
-            echo "No preview directory found for PR #${{ github.event.pull_request.number }}"
+            echo "No preview directory found for PR #${PR_NUM}"
           fi

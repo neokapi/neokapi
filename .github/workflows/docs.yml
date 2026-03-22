@@ -12,14 +12,16 @@ on:
       - 'platform/emails/**'
 
 permissions:
-  contents: write
+  contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -73,27 +75,16 @@ jobs:
         run: npx storybook build -o ../../../website/build/storybook
         working-directory: platform/packages/ui
 
-      # Preserve active PR preview directories from gh-pages
-      - name: Checkout gh-pages for PR previews
-        uses: actions/checkout@v6
+      - uses: actions/upload-pages-artifact@v4
         with:
-          ref: gh-pages
-          path: gh-pages-current
-        continue-on-error: true
+          path: website/build
 
-      - name: Preserve PR previews
-        run: |
-          if [ -d gh-pages-current ]; then
-            for dir in gh-pages-current/pr-*/; do
-              if [ -d "$dir" ]; then
-                cp -r "$dir" website/build/
-                echo "Preserved $(basename "$dir")"
-              fi
-            done
-          fi
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: website/build
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
