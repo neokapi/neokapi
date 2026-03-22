@@ -27,7 +27,7 @@ func handleWorkspaces(c *agentictesting.BowrainClient) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		writeJSON(w, map[string]any{"workspaces": workspaces})
+		writeJSON(w, workspaces)
 	}
 }
 
@@ -38,7 +38,7 @@ func handleProjects(c *agentictesting.BowrainClient) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		writeJSON(w, map[string]any{"projects": projects})
+		writeJSON(w, projects)
 	}
 }
 
@@ -49,7 +49,7 @@ func handleMembers(c *agentictesting.BowrainClient) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		writeJSON(w, map[string]any{"members": members})
+		writeJSON(w, members)
 	}
 }
 
@@ -64,7 +64,7 @@ func handleAuditLog(c *agentictesting.BowrainClient) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		writeJSON(w, map[string]any{"entries": entries})
+		writeJSON(w, entries)
 	}
 }
 
@@ -80,6 +80,6 @@ func handleBlocks(c *agentictesting.BowrainClient) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadGateway)
 			return
 		}
-		writeJSON(w, map[string]any{"blocks": blocks})
+		writeJSON(w, blocks)
 	}
 }
