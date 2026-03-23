@@ -40,6 +40,14 @@ func (m *mockFleetRepo) CommitFile(_ context.Context, path, content, message str
 	return "abc1234", nil
 }
 
+func (m *mockFleetRepo) ListMemoryLog(_ context.Context, _ int) ([]MemoryLogEntry, error) {
+	return nil, nil
+}
+
+func (m *mockFleetRepo) ReadAgentFile(_ context.Context, _, _, _ string) (string, error) {
+	return "", nil
+}
+
 type mockWalker struct {
 	calls []struct{ Workspace, Project, Tag string }
 }
