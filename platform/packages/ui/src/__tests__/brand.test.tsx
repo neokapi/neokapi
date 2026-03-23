@@ -8,12 +8,7 @@ import { BrandFindingsList } from "../brand/BrandFindingsList";
 import { BrandProfileCard } from "../brand/BrandProfileCard";
 import { BrandProfileList } from "../brand/BrandProfileList";
 import { BreadcrumbProvider } from "../context/BreadcrumbContext";
-import type {
-  DimensionScore,
-  VoiceExample,
-  BrandVoiceFinding,
-  VoiceProfile,
-} from "../brand/types";
+import type { DimensionScore, VoiceExample, BrandVoiceFinding, VoiceProfile } from "../brand/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -202,9 +197,7 @@ describe("BrandFindingsList", () => {
   });
 
   it("shows suggestion when present", () => {
-    const findings = [
-      makeFinding({ message: "Too wordy", suggestion: "Use shorter sentences" }),
-    ];
+    const findings = [makeFinding({ message: "Too wordy", suggestion: "Use shorter sentences" })];
     render(<BrandFindingsList findings={findings} />);
     expect(screen.getByText("Suggestion: Use shorter sentences")).toBeInTheDocument();
   });
@@ -250,9 +243,7 @@ describe("BrandProfileCard", () => {
     const handleClick = vi.fn();
     const handleDelete = vi.fn();
     const profile = makeProfile();
-    render(
-      <BrandProfileCard profile={profile} onClick={handleClick} onDelete={handleDelete} />,
-    );
+    render(<BrandProfileCard profile={profile} onClick={handleClick} onDelete={handleDelete} />);
     // The delete button contains a Trash2 icon; find the button by role
     const deleteButton = screen.getByRole("button");
     await user.click(deleteButton);
@@ -301,7 +292,9 @@ describe("BrandProfileList", () => {
   it("shows empty state when no profiles", () => {
     renderList([]);
     expect(
-      screen.getByText("No brand voice profiles yet. Create one to define your brand's writing style."),
+      screen.getByText(
+        "No brand voice profiles yet. Create one to define your brand's writing style.",
+      ),
     ).toBeInTheDocument();
   });
 

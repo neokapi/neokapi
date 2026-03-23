@@ -123,19 +123,13 @@ describe("SubscriptionBadge", () => {
 // ---------------------------------------------------------------------------
 describe("UpgradePrompt", () => {
   it("shows feature name and plan requirement", () => {
-    render(
-      <UpgradePrompt feature="Git connectors" minimumPlan="pro" currentPlan="free" />,
-    );
+    render(<UpgradePrompt feature="Git connectors" minimumPlan="pro" currentPlan="free" />);
     expect(screen.getByText("Git connectors requires a Pro plan")).toBeInTheDocument();
-    expect(
-      screen.getByText(/You are currently on the Free plan/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/You are currently on the Free plan/)).toBeInTheDocument();
   });
 
   it("lists plan highlights", () => {
-    render(
-      <UpgradePrompt feature="SSO" minimumPlan="team" currentPlan="free" />,
-    );
+    render(<UpgradePrompt feature="SSO" minimumPlan="team" currentPlan="free" />);
     expect(screen.getByText("2M weekly credits")).toBeInTheDocument();
     expect(screen.getByText("Unlimited seats")).toBeInTheDocument();
     expect(screen.getByText("@bravo code execution")).toBeInTheDocument();
@@ -158,9 +152,7 @@ describe("UpgradePrompt", () => {
   });
 
   it("shows no highlights for free plan", () => {
-    render(
-      <UpgradePrompt feature="Nothing" minimumPlan="free" currentPlan="free" />,
-    );
+    render(<UpgradePrompt feature="Nothing" minimumPlan="free" currentPlan="free" />);
     // Free plan has no highlights, so no list items should appear
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
@@ -251,9 +243,7 @@ describe("CreditLedger", () => {
   });
 
   it("shows reference ID truncated to 8 chars", () => {
-    const entries = [
-      makeEntry({ id: "e1", referenceId: "abcdefghijklmnop" }),
-    ];
+    const entries = [makeEntry({ id: "e1", referenceId: "abcdefghijklmnop" })];
     render(<CreditLedger entries={entries} />);
     expect(screen.getByText("abcdefgh")).toBeInTheDocument();
   });
@@ -336,13 +326,7 @@ describe("PlanCard", () => {
 
   it("renders feature list", () => {
     render(
-      <PlanCard
-        plan="pro"
-        name="Pro"
-        price="$49"
-        credits="500K"
-        features={defaultFeatures}
-      />,
+      <PlanCard plan="pro" name="Pro" price="$49" credits="500K" features={defaultFeatures} />,
     );
     expect(screen.getByText("API access")).toBeInTheDocument();
     expect(screen.getByText("SSO")).toBeInTheDocument();
@@ -364,13 +348,7 @@ describe("PlanCard", () => {
 
   it("does not show Recommended badge when recommended=false", () => {
     render(
-      <PlanCard
-        plan="pro"
-        name="Pro"
-        price="$49"
-        credits="500K"
-        features={defaultFeatures}
-      />,
+      <PlanCard plan="pro" name="Pro" price="$49" credits="500K" features={defaultFeatures} />,
     );
     expect(screen.queryByText("Recommended")).not.toBeInTheDocument();
   });
@@ -393,13 +371,7 @@ describe("PlanCard", () => {
 
   it("button shows default 'Select' label when not current", () => {
     render(
-      <PlanCard
-        plan="pro"
-        name="Pro"
-        price="$49"
-        credits="500K"
-        features={defaultFeatures}
-      />,
+      <PlanCard plan="pro" name="Pro" price="$49" credits="500K" features={defaultFeatures} />,
     );
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
   });

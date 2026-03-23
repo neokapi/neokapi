@@ -170,36 +170,47 @@ export async function fetchAgents(): Promise<AgentProfile[]> {
   return resp.agents ?? [];
 }
 
-export async function fetchExecutions(opts: {
-  workspace?: string;
-  agent?: string;
-  limit?: number;
-} = {}): Promise<Execution[]> {
+export async function fetchExecutions(
+  opts: {
+    workspace?: string;
+    agent?: string;
+    limit?: number;
+  } = {},
+): Promise<Execution[]> {
   const params = new URLSearchParams();
   if (opts.workspace) params.set("workspace", opts.workspace);
   if (opts.agent) params.set("agent", opts.agent);
   params.set("limit", String(opts.limit ?? 100));
-  const resp = await apiFetch<{ executions: Execution[] }>(`/api/v1/agentic/executions?${params}`, { executions: [] });
+  const resp = await apiFetch<{ executions: Execution[] }>(`/api/v1/agentic/executions?${params}`, {
+    executions: [],
+  });
   return resp.executions ?? [];
 }
 
-export async function fetchAgenticEvents(opts: {
-  execution_id?: string;
-  workspace?: string;
-  event_type?: string;
-  limit?: number;
-} = {}): Promise<AgenticEvent[]> {
+export async function fetchAgenticEvents(
+  opts: {
+    execution_id?: string;
+    workspace?: string;
+    event_type?: string;
+    limit?: number;
+  } = {},
+): Promise<AgenticEvent[]> {
   const params = new URLSearchParams();
   if (opts.execution_id) params.set("execution_id", opts.execution_id);
   if (opts.workspace) params.set("workspace", opts.workspace);
   if (opts.event_type) params.set("event_type", opts.event_type);
   params.set("limit", String(opts.limit ?? 100));
-  const resp = await apiFetch<{ events: AgenticEvent[] }>(`/api/v1/agentic/events?${params}`, { events: [] });
+  const resp = await apiFetch<{ events: AgenticEvent[] }>(`/api/v1/agentic/events?${params}`, {
+    events: [],
+  });
   return resp.events ?? [];
 }
 
 export async function fetchGitHubIssues(state = "all", limit = 20): Promise<GitHubIssue[]> {
-  const resp = await apiFetch<{ issues: GitHubIssue[] }>(`/api/v1/agentic/issues?state=${state}&limit=${limit}`, { issues: [] });
+  const resp = await apiFetch<{ issues: GitHubIssue[] }>(
+    `/api/v1/agentic/issues?state=${state}&limit=${limit}`,
+    { issues: [] },
+  );
   return resp.issues ?? [];
 }
 
@@ -214,7 +225,10 @@ export interface MemoryLogEntry {
 }
 
 export async function fetchMemoryLog(limit = 50): Promise<MemoryLogEntry[]> {
-  const resp = await apiFetch<{ entries: MemoryLogEntry[] }>(`/api/v1/agentic/memory?limit=${limit}`, { entries: [] });
+  const resp = await apiFetch<{ entries: MemoryLogEntry[] }>(
+    `/api/v1/agentic/memory?limit=${limit}`,
+    { entries: [] },
+  );
   return resp.entries ?? [];
 }
 

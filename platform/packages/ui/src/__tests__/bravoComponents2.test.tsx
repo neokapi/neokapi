@@ -20,9 +20,7 @@ describe("BravoColdStart", () => {
 
   it("renders the timing description about 15-30 seconds", () => {
     render(<BravoColdStart />);
-    expect(
-      screen.getByText(/15-30 seconds/),
-    ).toBeDefined();
+    expect(screen.getByText(/15-30 seconds/)).toBeDefined();
   });
 });
 

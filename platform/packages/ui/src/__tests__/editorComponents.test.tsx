@@ -71,7 +71,15 @@ describe("HighlightedSource", () => {
   it("highlights term matches with title tooltip", async () => {
     const { container } = await renderComponent({
       text: "Say hello friend",
-      termMatches: [termMatch({ source_term: "hello", target_terms: ["hola"], start: 4, end: 9, status: "preferred" })],
+      termMatches: [
+        termMatch({
+          source_term: "hello",
+          target_terms: ["hola"],
+          start: 4,
+          end: 9,
+          status: "preferred",
+        }),
+      ],
     });
     const highlighted = container.querySelector(".underline.decoration-dotted");
     expect(highlighted).not.toBeNull();
@@ -98,7 +106,9 @@ describe("HighlightedSource", () => {
 
 describe("FormattedSourceDisplay", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/FormattedSourceDisplay").FormattedSourceDisplay>[0],
+    props: Parameters<
+      typeof import("../components/editor/FormattedSourceDisplay").FormattedSourceDisplay
+    >[0],
   ) {
     const { FormattedSourceDisplay } = await import("../components/editor/FormattedSourceDisplay");
     return render(<FormattedSourceDisplay {...props} />);
@@ -311,9 +321,7 @@ describe("TagPalette", () => {
   });
 
   it("dims used spans and blocks non-cloneable ones", async () => {
-    const spans: SpanInfo[] = [
-      span("placeholder", "code:variable", "{name}"),
-    ];
+    const spans: SpanInfo[] = [span("placeholder", "code:variable", "{name}")];
     const { container } = await renderComponent({
       sourceSpans: spans,
       onInsert: vi.fn(),
@@ -349,9 +357,7 @@ describe("ProblemsPanel", () => {
     const issues: FileQAResult[] = [
       {
         blockId: "block-1",
-        issues: [
-          { type: "missing_tag", severity: "error", message: "Missing bold tag" },
-        ],
+        issues: [{ type: "missing_tag", severity: "error", message: "Missing bold tag" }],
       },
     ];
     await renderComponent({
@@ -367,9 +373,7 @@ describe("ProblemsPanel", () => {
     const issues: FileQAResult[] = [
       {
         blockId: "block-1",
-        issues: [
-          { type: "extra_tag", severity: "warning", message: "Extra italic tag" },
-        ],
+        issues: [{ type: "extra_tag", severity: "warning", message: "Extra italic tag" }],
       },
     ];
     await renderComponent({
@@ -448,7 +452,9 @@ describe("ProblemsPanel", () => {
 
 describe("FormatVocabularyBadge", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/FormatVocabularyBadge").FormatVocabularyBadge>[0],
+    props: Parameters<
+      typeof import("../components/editor/FormatVocabularyBadge").FormatVocabularyBadge
+    >[0],
   ) {
     const { FormatVocabularyBadge } = await import("../components/editor/FormatVocabularyBadge");
     return render(<FormatVocabularyBadge {...props} />);
@@ -706,17 +712,13 @@ describe("TermSidebar", () => {
   });
 
   it("shows 'No target term defined' for matches without target terms", async () => {
-    const matches: BlockTermMatch[] = [
-      termMatch({ source_term: "orphan", target_terms: [] }),
-    ];
+    const matches: BlockTermMatch[] = [termMatch({ source_term: "orphan", target_terms: [] })];
     await renderComponent({ termMatches: matches, onInsertTerm: vi.fn() });
     expect(screen.getByText("No target term defined")).toBeInTheDocument();
   });
 
   it("shows domain badge when present", async () => {
-    const matches: BlockTermMatch[] = [
-      termMatch({ source_term: "term", domain: "legal" }),
-    ];
+    const matches: BlockTermMatch[] = [termMatch({ source_term: "term", domain: "legal" })];
     await renderComponent({ termMatches: matches, onInsertTerm: vi.fn() });
     expect(screen.getByText("legal")).toBeInTheDocument();
   });
@@ -728,7 +730,9 @@ describe("TermSidebar", () => {
 
 describe("VocabularyExplorer", () => {
   async function renderComponent(
-    props: Parameters<typeof import("../components/editor/VocabularyExplorer").VocabularyExplorer>[0] = {},
+    props: Parameters<
+      typeof import("../components/editor/VocabularyExplorer").VocabularyExplorer
+    >[0] = {},
   ) {
     const { VocabularyExplorer } = await import("../components/editor/VocabularyExplorer");
     return render(<VocabularyExplorer {...props} />);

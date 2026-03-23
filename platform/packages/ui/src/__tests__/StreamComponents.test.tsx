@@ -239,14 +239,7 @@ describe("StreamEditDialog", () => {
   });
 
   it("renders with existing stream data", () => {
-    render(
-      <StreamEditDialog
-        stream={stream}
-        onSubmit={() => {}}
-        onClose={() => {}}
-        open={true}
-      />,
-    );
+    render(<StreamEditDialog stream={stream} onSubmit={() => {}} onClose={() => {}} open={true} />);
     expect(screen.getByText(/Edit Stream/)).toBeInTheDocument();
     expect(screen.getByText(/feature\/edit-me/)).toBeInTheDocument();
     const descInput = screen.getByPlaceholderText("What is this stream for?");
@@ -256,14 +249,7 @@ describe("StreamEditDialog", () => {
   it("calls onSubmit on save", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
-    render(
-      <StreamEditDialog
-        stream={stream}
-        onSubmit={onSubmit}
-        onClose={() => {}}
-        open={true}
-      />,
-    );
+    render(<StreamEditDialog stream={stream} onSubmit={onSubmit} onClose={() => {}} open={true} />);
 
     const descInput = screen.getByPlaceholderText("What is this stream for?");
     await user.clear(descInput);
