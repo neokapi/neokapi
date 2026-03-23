@@ -158,9 +158,7 @@ describe("NotificationCenter", () => {
       makeNotification({ id: "n1", title: "First notification" }),
       makeNotification({ id: "n2", title: "Second notification" }),
     ];
-    render(
-      <NotificationCenter {...baseProps} notifications={notifications} unreadCount={2} />,
-    );
+    render(<NotificationCenter {...baseProps} notifications={notifications} unreadCount={2} />);
     await userEvent.click(screen.getByTitle("Notifications"));
     expect(screen.getByText("First notification")).toBeInTheDocument();
     expect(screen.getByText("Second notification")).toBeInTheDocument();
@@ -547,9 +545,7 @@ describe("TaskIndicator", () => {
     const onComplete = vi.fn();
     const onTaskClick = vi.fn();
     const tasks = [makeTask({ id: "t1", title: "Review", status: "open" })];
-    render(
-      <TaskIndicator tasks={tasks} onCompleteTask={onComplete} onTaskClick={onTaskClick} />,
-    );
+    render(<TaskIndicator tasks={tasks} onCompleteTask={onComplete} onTaskClick={onTaskClick} />);
     await userEvent.click(screen.getByTitle("My tasks"));
     await userEvent.click(screen.getByText("Done"));
     expect(onComplete).toHaveBeenCalledWith("t1");
@@ -628,11 +624,7 @@ describe("WorkspaceSwitcher", () => {
     render(
       <TooltipProvider>
         <SidebarProvider>
-          <WorkspaceSwitcher
-            workspaces={[ws]}
-            activeWorkspace={ws}
-            onSelectWorkspace={() => {}}
-          />
+          <WorkspaceSwitcher workspaces={[ws]} activeWorkspace={ws} onSelectWorkspace={() => {}} />
         </SidebarProvider>
       </TooltipProvider>,
     );
@@ -644,11 +636,7 @@ describe("WorkspaceSwitcher", () => {
     render(
       <TooltipProvider>
         <SidebarProvider>
-          <WorkspaceSwitcher
-            workspaces={[]}
-            activeWorkspace={null}
-            onSelectWorkspace={() => {}}
-          />
+          <WorkspaceSwitcher workspaces={[]} activeWorkspace={null} onSelectWorkspace={() => {}} />
         </SidebarProvider>
       </TooltipProvider>,
     );

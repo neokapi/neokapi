@@ -88,9 +88,7 @@ export default function AgentCard({ agent }: AgentCardProps) {
           {/* Name + Role */}
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-sm font-semibold truncate">
-                {agent.agent}
-              </div>
+              <div className="text-sm font-semibold truncate">{agent.agent}</div>
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
               <button
@@ -108,13 +106,9 @@ export default function AgentCard({ agent }: AgentCardProps) {
 
           {/* Sessions stats */}
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="font-mono tabular-nums">
-              {agent.total_sessions} sessions
-            </span>
+            <span className="font-mono tabular-nums">{agent.total_sessions} sessions</span>
             <span>&middot;</span>
-            <span className="font-mono tabular-nums">
-              {successRate}% success
-            </span>
+            <span className="font-mono tabular-nums">{successRate}% success</span>
           </div>
 
           {/* Tokens used */}
@@ -158,15 +152,11 @@ export default function AgentCard({ agent }: AgentCardProps) {
           </DialogHeader>
           <ScrollArea className="max-h-[70vh]">
             {loading ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                Loading persona...
-              </p>
+              <p className="text-sm text-muted-foreground py-8 text-center">Loading persona...</p>
             ) : soul ? (
               <Markdown
                 components={{
-                  h1: ({ children }) => (
-                    <h1 className="mb-3 text-lg font-bold">{children}</h1>
-                  ),
+                  h1: ({ children }) => <h1 className="mb-3 text-lg font-bold">{children}</h1>,
                   h2: ({ children }) => (
                     <h2 className="mt-4 mb-2 text-sm font-semibold">{children}</h2>
                   ),
@@ -177,17 +167,23 @@ export default function AgentCard({ agent }: AgentCardProps) {
                     <p className="mb-2 text-sm leading-relaxed text-foreground/80">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-foreground/80">{children}</ul>
+                    <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-foreground/80">
+                      {children}
+                    </ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-foreground/80">{children}</ol>
+                    <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-foreground/80">
+                      {children}
+                    </ol>
                   ),
                   li: ({ children }) => <li>{children}</li>,
                   strong: ({ children }) => (
                     <strong className="font-semibold text-foreground">{children}</strong>
                   ),
                   code: ({ children }) => (
-                    <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">{children}</code>
+                    <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">
+                      {children}
+                    </code>
                   ),
                 }}
               >

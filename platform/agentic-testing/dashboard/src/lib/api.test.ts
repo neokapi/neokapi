@@ -19,10 +19,7 @@ function mockFetch(body: unknown, ok = true) {
 }
 
 function mockFetchError() {
-  return vi.stubGlobal(
-    "fetch",
-    vi.fn().mockRejectedValue(new Error("network error")),
-  );
+  return vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
 }
 
 beforeEach(() => {
@@ -41,10 +38,7 @@ describe("fetchTranslationProgress", () => {
       { id: "3", source: "Bye", targets: undefined },
     ]);
 
-    const progress = await fetchTranslationProgress("ws", "proj", [
-      "fr-FR",
-      "de-DE",
-    ]);
+    const progress = await fetchTranslationProgress("ws", "proj", ["fr-FR", "de-DE"]);
 
     expect(progress).toEqual([
       { locale: "fr-FR", translated: 1, total: 3 },
@@ -55,9 +49,7 @@ describe("fetchTranslationProgress", () => {
   it("handles empty block array", async () => {
     mockFetch([]);
 
-    const progress = await fetchTranslationProgress("ws", "proj", [
-      "fr-FR",
-    ]);
+    const progress = await fetchTranslationProgress("ws", "proj", ["fr-FR"]);
 
     expect(progress).toEqual([{ locale: "fr-FR", translated: 0, total: 0 }]);
   });
@@ -69,11 +61,7 @@ describe("fetchTranslationProgress", () => {
       { id: "3", source: "C", targets: { "de-DE": "C" } },
     ]);
 
-    const progress = await fetchTranslationProgress("ws", "proj", [
-      "fr-FR",
-      "de-DE",
-      "ja-JP",
-    ]);
+    const progress = await fetchTranslationProgress("ws", "proj", ["fr-FR", "de-DE", "ja-JP"]);
 
     expect(progress).toEqual([
       { locale: "fr-FR", translated: 2, total: 3 },
@@ -85,9 +73,7 @@ describe("fetchTranslationProgress", () => {
   it("returns fallback when API fails", async () => {
     mockFetchError();
 
-    const progress = await fetchTranslationProgress("ws", "proj", [
-      "fr-FR",
-    ]);
+    const progress = await fetchTranslationProgress("ws", "proj", ["fr-FR"]);
 
     expect(progress).toEqual([{ locale: "fr-FR", translated: 0, total: 0 }]);
   });
@@ -154,9 +140,7 @@ describe("API successful responses", () => {
   });
 
   it("fetchBlocks returns blocks with targets", async () => {
-    mockFetch([
-      { id: "b1", source: "Hello", targets: { "fr-FR": "Bonjour" } },
-    ]);
+    mockFetch([{ id: "b1", source: "Hello", targets: { "fr-FR": "Bonjour" } }]);
     const blocks = await fetchBlocks("ws", "proj");
     expect(blocks[0].targets["fr-FR"]).toBe("Bonjour");
   });
