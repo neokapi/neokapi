@@ -69,7 +69,7 @@ export default function MemoryTab() {
                 </span>
               </div>
               <p className="mt-1 text-xs">{entry.message}</p>
-              {entry.files.length > 0 && (
+              {entry.files && entry.files.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {entry.files.map((f) => (
                     <span

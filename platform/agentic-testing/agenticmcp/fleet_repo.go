@@ -176,7 +176,7 @@ type MemoryLogEntry struct {
 	Agent     string   `json:"agent"`
 	Message   string   `json:"message"`
 	Timestamp string   `json:"timestamp"`
-	Files     []string `json:"files"`
+	Files     []string `json:"files,omitempty"`
 }
 
 // ListMemoryLog returns recent git commits that touched agent memory paths.
