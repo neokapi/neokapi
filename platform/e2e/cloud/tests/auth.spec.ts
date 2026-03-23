@@ -12,6 +12,7 @@ test.describe("Authentication", () => {
     await expect(authenticatedPage.getByTestId("nav-translate")).toBeVisible({ timeout: 15_000 });
   });
 
+  // eslint-disable-next-line no-unused-vars
   test("passkey login works for existing user", async ({ browser, auth, kcAdmin }) => {
     // Create a new browser context with a fresh virtual authenticator.
     // We need to re-register the passkey since virtual authenticators don't persist

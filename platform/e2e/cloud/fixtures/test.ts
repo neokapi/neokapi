@@ -66,6 +66,7 @@ export interface TestFixtures {
 }
 
 export const test = base.extend<TestFixtures, WorkerFixtures>({
+  // eslint-disable-next-line no-empty-pattern
   kcAdmin: async ({}, use) => {
     const admin = new KeycloakAdmin({
       baseUrl: KEYCLOAK_ADMIN_URL,
@@ -74,6 +75,7 @@ export const test = base.extend<TestFixtures, WorkerFixtures>({
     await use(admin);
   },
 
+  // eslint-disable-next-line no-empty-pattern
   readiness: async ({}, use) => {
     const info = await waitForReady(BOWRAIN_URL);
     await use(info);

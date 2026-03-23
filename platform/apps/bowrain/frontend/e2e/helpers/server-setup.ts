@@ -39,7 +39,7 @@ export async function setupServerApp(page: Page): Promise<SeedResult> {
     // In server mode, Wails bindings are called via Call.ByID.
     // SelectWorkspace is available after auto-connect.
     try {
-      const runtime = await import("@wailsio/runtime");
+      const _runtime = await import("@wailsio/runtime");
       // The SelectWorkspace binding ID must match the generated bindings.
       // Call it by name through the app module.
       const Backend =

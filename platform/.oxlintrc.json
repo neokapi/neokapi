@@ -1,0 +1,5 @@
+{
+  "ignorePatterns": [
+    "apps/bowrain/frontend/bindings/**"
+  ]
+}
