@@ -2,10 +2,39 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useEditorApi } from "../../hooks/useEditorApi";
 import type { BlockInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
+import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Expand a block's source coded text + spans into pseudo-translated display HTML. */
+function pseudoBlockToHTML(block: BlockInfo): string {
+  const spans = block.source_spans ?? [];
+  if (!block.has_spans || !block.source_coded || spans.length === 0) {
+    const pseudo = pseudoTranslate(block.source);
+    return pseudo.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  const pseudoCoded = pseudoTranslateCoded(block.source_coded);
+  let result = "";
+  let spanIdx = 0;
+  for (const ch of pseudoCoded) {
+    const code = ch.codePointAt(0) ?? 0;
+    if (code === 0xe001 || code === 0xe002 || code === 0xe003) {
+      const span = spans[spanIdx++];
+      if (span) result += span.data;
+    } else if (ch === "&") {
+      result += "&amp;";
+    } else if (ch === "<") {
+      result += "&lt;";
+    } else if (ch === ">") {
+      result += "&gt;";
+    } else {
+      result += ch;
+    }
+  }
+  return result;
+}
 
 /** Expand a block's source coded text + spans into display HTML. */
 function sourceBlockToHTML(block: BlockInfo): string {
@@ -74,8 +103,9 @@ export function DocumentPreview({
   // Determine effective mode: controlled via prop, or internal toggle
   const isControlled = previewContentMode !== undefined;
   const showTarget = isControlled
-    ? previewContentMode === "target" || previewContentMode === "pseudo"
+    ? previewContentMode === "target"
     : internalMode === "target";
+  const showPseudo = isControlled && previewContentMode === "pseudo";
 
   // Use refs for callback props to avoid re-running effects when they change
   const onBlockSelectRef = useRef(onBlockSelect);
@@ -159,15 +189,22 @@ export function DocumentPreview({
     }
   }, [selectedBlockId, spacerHeight, iframeReady, inlineMode]);
 
-  // Push target/source content into the iframe when showTarget or blocks change.
+  // Push target/source/pseudo content into the iframe when mode or blocks change.
   // Source content is sent as HTML (with spans expanded) so inline markup like
-  // <code> is preserved. Target content is sent as plain text.
+  // <code> is preserved. Pseudo mode renders source text through the accent map
+  // client-side. Target content is sent as plain text.
   useEffect(() => {
     const cw = iframeRef.current?.contentWindow;
     if (!cw || !iframeReady) return;
 
     for (const block of blocks) {
-      if (showTarget && block.targets[targetLocale]) {
+      if (showPseudo) {
+        // Pseudo view: accent-map the source text on the fly
+        cw.postMessage(
+          { type: "kat-update-block", blockId: block.id, html: pseudoBlockToHTML(block) },
+          "*",
+        );
+      } else if (showTarget && block.targets[targetLocale]) {
         cw.postMessage(
           { type: "kat-update-block", blockId: block.id, text: block.targets[targetLocale] },
           "*",
@@ -179,12 +216,12 @@ export function DocumentPreview({
         );
       }
     }
-  }, [showTarget, blocks, targetLocale, iframeReady]);
+  }, [showTarget, showPseudo, blocks, targetLocale, iframeReady]);
 
-  // Use renderBlockHTML for richer block content when available
+  // Use renderBlockHTML for richer block content when available (target mode only)
   useEffect(() => {
     const cw = iframeRef.current?.contentWindow;
-    if (!cw || !iframeReady || !showTarget || !renderBlockHTML) return;
+    if (!cw || !iframeReady || !showTarget || showPseudo || !renderBlockHTML) return;
 
     let cancelled = false;
     for (const block of blocks) {
@@ -203,7 +240,7 @@ export function DocumentPreview({
     return () => {
       cancelled = true;
     };
-  }, [showTarget, blocks, targetLocale, iframeReady, renderBlockHTML, projectId]);
+  }, [showTarget, showPseudo, blocks, targetLocale, iframeReady, renderBlockHTML, projectId]);
 
   if (loading) {
     return (
