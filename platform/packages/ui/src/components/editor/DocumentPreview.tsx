@@ -102,9 +102,7 @@ export function DocumentPreview({
 
   // Determine effective mode: controlled via prop, or internal toggle
   const isControlled = previewContentMode !== undefined;
-  const showTarget = isControlled
-    ? previewContentMode === "target"
-    : internalMode === "target";
+  const showTarget = isControlled ? previewContentMode === "target" : internalMode === "target";
   const showPseudo = isControlled && previewContentMode === "pseudo";
 
   // Use refs for callback props to avoid re-running effects when they change
