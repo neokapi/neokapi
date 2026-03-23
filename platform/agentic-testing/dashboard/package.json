@@ -9,7 +9,9 @@
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
-    "preview": "vp preview"
+    "preview": "vp preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@base-ui/react": "^1.3.0",
@@ -33,6 +35,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "~5.9.3",
-    "vite-plus": "^0.1.13"
+    "vite-plus": "^0.1.13",
+    "vitest": "^4.1.1"
   }
 }

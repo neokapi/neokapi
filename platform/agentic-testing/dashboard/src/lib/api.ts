@@ -158,7 +158,7 @@ export async function fetchTranslationProgress(
 
   return targetLanguages.map((locale) => ({
     locale,
-    translated: blocks.filter((b) => locale in b.targets).length,
+    translated: blocks.filter((b) => b.targets && locale in b.targets).length,
     total,
   }));
 }
