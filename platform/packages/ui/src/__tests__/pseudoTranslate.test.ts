@@ -8,7 +8,7 @@ const PLACEHOLDER = "\uE003";
 
 describe("pseudoTranslate", () => {
   it("wraps text in brackets and accents ASCII letters", () => {
-    expect(pseudoTranslate("Hello")).toBe("[H\u00e9ll\u00f6]");
+    expect(pseudoTranslate("Hello")).toBe("[\u0124\u00e9\u013c\u013c\u00f6]");
   });
 
   it("wraps with brackets for empty string", () => {
@@ -24,7 +24,7 @@ describe("pseudoTranslate", () => {
   });
 
   it("preserves digits, punctuation, and whitespace", () => {
-    expect(pseudoTranslate("Hi 123!")).toBe("[H\u00ee 123!]");
+    expect(pseudoTranslate("Hi 123!")).toBe("[\u0124\u00ee 123!]");
   });
 
   it("handles a full sentence", () => {
@@ -58,7 +58,7 @@ describe("pseudoTranslateCoded", () => {
 
   it("handles text with no markers like pseudoTranslate but with brackets", () => {
     const result = pseudoTranslateCoded("Hello");
-    expect(result).toBe("[H\u00e9ll\u00f6]");
+    expect(result).toBe("[\u0124\u00e9\u013c\u013c\u00f6]");
   });
 
   it("handles empty string", () => {
