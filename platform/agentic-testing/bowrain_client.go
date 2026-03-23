@@ -73,10 +73,15 @@ func (c *BowrainClient) ListWorkspaces(ctx context.Context) ([]Workspace, error)
 
 // Project is a bowrain project summary.
 type Project struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	SourceLanguage string `json:"source_language"`
-	Status         string `json:"status,omitempty"`
+	ID                    string   `json:"id"`
+	Name                  string   `json:"name"`
+	DefaultSourceLanguage string   `json:"default_source_language"`
+	TargetLanguages       []string `json:"target_languages"`
+	TargetLanguageMode    string   `json:"target_language_mode,omitempty"`
+	WorkspaceID           string   `json:"workspace_id,omitempty"`
+	Archived              bool     `json:"archived,omitempty"`
+	CreatedAt             string   `json:"created_at,omitempty"`
+	UpdatedAt             string   `json:"updated_at,omitempty"`
 }
 
 // ListProjects returns projects in a workspace.
@@ -94,10 +99,10 @@ func (c *BowrainClient) ListProjects(ctx context.Context, wsSlug string) ([]Proj
 
 // Member is a bowrain workspace member.
 type Member struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
-	Name   string `json:"name"`
-	Role   string `json:"role"`
+	UserID      string `json:"user_id"`
+	WorkspaceID string `json:"workspace_id,omitempty"`
+	Role        string `json:"role"`
+	JoinedAt    string `json:"joined_at,omitempty"`
 }
 
 // ListMembers returns members of a workspace.
@@ -115,11 +120,13 @@ func (c *BowrainClient) ListMembers(ctx context.Context, wsSlug string) ([]Membe
 
 // AuditEntry is a bowrain audit log entry.
 type AuditEntry struct {
-	ID        string         `json:"id"`
-	Action    string         `json:"action"`
-	Actor     string         `json:"actor"`
-	Timestamp string         `json:"timestamp"`
-	Details   map[string]any `json:"details,omitempty"`
+	ID        int64  `json:"id"`
+	ProjectID string `json:"project_id,omitempty"`
+	EventType string `json:"event_type"`
+	Actor     string `json:"actor"`
+	Source    string `json:"source,omitempty"`
+	Data      string `json:"data,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 // ListAuditLog returns recent audit log entries for a workspace.
