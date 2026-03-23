@@ -208,6 +208,15 @@ func (c *BowrainClient) doRefresh(ctx context.Context) error {
 // SyncPushRequest is the request body for pushing blocks.
 type SyncPushRequest struct {
 	Blocks []BlockInput `json:"blocks"`
+	Items  []ItemMeta   `json:"items,omitempty"`
+}
+
+// ItemMeta carries per-item editor metadata generated during push.
+type ItemMeta struct {
+	Name        string `json:"name"`                  // item name (relative file path)
+	Format      string `json:"format"`                // detected format
+	BlockIndex  string `json:"block_index,omitempty"`  // JSON-serialized BlockIndex
+	PreviewHTML string `json:"preview_html,omitempty"` // pre-rendered editor preview HTML
 }
 
 // BlockInput represents a block in the API.
@@ -266,6 +275,38 @@ type BlockContent struct {
 // Push sends blocks to the server.
 func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPushResponse, error) {
 	body, err := json.Marshal(SyncPushRequest{Blocks: blocks})
+	if err != nil {
+		return nil, fmt.Errorf("marshal push request: %w", err)
+	}
+
+	u := c.streamPrefix() + "/sync/push"
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return nil, fmt.Errorf("push request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("push failed (HTTP %d): %s", resp.StatusCode, string(respBody))
+	}
+
+	var result SyncPushResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode push response: %w", err)
+	}
+	return &result, nil
+}
+
+// PushWithMeta sends blocks and optional per-item metadata to the server.
+func (c *BowrainClient) PushWithMeta(ctx context.Context, blocks []BlockInput, items []ItemMeta) (*SyncPushResponse, error) {
+	body, err := json.Marshal(SyncPushRequest{Blocks: blocks, Items: items})
 	if err != nil {
 		return nil, fmt.Errorf("marshal push request: %w", err)
 	}

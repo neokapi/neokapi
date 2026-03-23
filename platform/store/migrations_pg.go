@@ -515,4 +515,12 @@ var storeMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_block_asset_refs_asset ON block_asset_refs(project_id, asset_id);
 		`,
 	},
+	{
+		Version:     14,
+		Description: "replace source_bytes with preview_html in items",
+		SQL: `
+			ALTER TABLE items DROP COLUMN IF EXISTS source_bytes;
+			ALTER TABLE items ADD COLUMN IF NOT EXISTS preview_html TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

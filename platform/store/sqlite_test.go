@@ -279,11 +279,10 @@ func TestItemCRUD(t *testing.T) {
 
 	t.Run("store and get", func(t *testing.T) {
 		item := &platstore.Item{
-			Name:        "messages.json",
-			Format:      "json",
-			ItemType:    "file",
-			SourceBytes: []byte(`{"hello":"world"}`),
-			Properties:  map[string]string{"encoding": "UTF-8"},
+			Name:       "messages.json",
+			Format:     "json",
+			ItemType:   "file",
+			Properties: map[string]string{"encoding": "UTF-8"},
 		}
 		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
 
@@ -292,24 +291,22 @@ func TestItemCRUD(t *testing.T) {
 		assert.Equal(t, "messages.json", got.Name)
 		assert.Equal(t, "json", got.Format)
 		assert.Equal(t, "file", got.ItemType)
-		assert.Equal(t, []byte(`{"hello":"world"}`), got.SourceBytes)
 		assert.Equal(t, "UTF-8", got.Properties["encoding"])
 		assert.NotZero(t, got.CreatedAt)
 	})
 
 	t.Run("upsert", func(t *testing.T) {
 		item := &platstore.Item{
-			Name:        "messages.json",
-			Format:      "json",
-			ItemType:    "file",
-			SourceBytes: []byte(`{"hello":"updated"}`),
-			Properties:  map[string]string{},
+			Name:     "messages.json",
+			Format:   "json",
+			ItemType: "file",
+			Properties: map[string]string{},
 		}
 		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
 
 		got, err := s.GetItem(ctx, p.ID, "", "messages.json")
 		require.NoError(t, err)
-		assert.Equal(t, []byte(`{"hello":"updated"}`), got.SourceBytes)
+		assert.Equal(t, "messages.json", got.Name)
 	})
 
 	t.Run("list", func(t *testing.T) {
@@ -341,6 +338,57 @@ func TestItemCRUD(t *testing.T) {
 	t.Run("get nonexistent", func(t *testing.T) {
 		_, err := s.GetItem(ctx, p.ID, "", "nonexistent.txt")
 		assert.Error(t, err)
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Item PreviewHTML persistence
+// ---------------------------------------------------------------------------
+
+func TestItemPreviewHTML(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+	p := createTestProject(t, s)
+
+	t.Run("store and retrieve PreviewHTML", func(t *testing.T) {
+		item := &platstore.Item{
+			Name:        "page.html",
+			Format:      "html",
+			ItemType:    "file",
+			PreviewHTML: "<html><body><p>Hello world</p></body></html>",
+		}
+		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
+
+		got, err := s.GetItem(ctx, p.ID, "", "page.html")
+		require.NoError(t, err)
+		assert.Equal(t, "<html><body><p>Hello world</p></body></html>", got.PreviewHTML)
+	})
+
+	t.Run("upsert preserves PreviewHTML", func(t *testing.T) {
+		item := &platstore.Item{
+			Name:        "page.html",
+			Format:      "html",
+			ItemType:    "file",
+			PreviewHTML: "<html><body><p>Updated preview</p></body></html>",
+		}
+		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
+
+		got, err := s.GetItem(ctx, p.ID, "", "page.html")
+		require.NoError(t, err)
+		assert.Equal(t, "<html><body><p>Updated preview</p></body></html>", got.PreviewHTML)
+	})
+
+	t.Run("empty PreviewHTML", func(t *testing.T) {
+		item := &platstore.Item{
+			Name:     "plain.txt",
+			Format:   "plaintext",
+			ItemType: "file",
+		}
+		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
+
+		got, err := s.GetItem(ctx, p.ID, "", "plain.txt")
+		require.NoError(t, err)
+		assert.Empty(t, got.PreviewHTML)
 	})
 }
 

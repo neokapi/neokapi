@@ -2,6 +2,7 @@ package editor
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -189,7 +190,7 @@ func TestUpdateTarget(t *testing.T) {
 
 func TestHTMLPreview(t *testing.T) {
 	parts := makeHTMLParts()
-	preview := BuildPreview(parts, nil, "html", "en")
+	preview := BuildHTMLPreview(parts)
 
 	assert.Contains(t, preview, `<kat-block id="tu1">Hello world</kat-block>`)
 	assert.Contains(t, preview, `<kat-block id="tu2">Welcome</kat-block>`)
@@ -228,7 +229,7 @@ func TestHTMLPreviewWithSpans(t *testing.T) {
 		{Type: model.PartBlock, Resource: block},
 	}
 
-	preview := BuildPreview(parts, nil, "html", "en")
+	preview := BuildHTMLPreview(parts)
 	assert.Contains(t, preview, `<kat-block id="tu1">Hello <b>world</b></kat-block>`)
 }
 
@@ -253,7 +254,7 @@ func TestMarkdownPreview(t *testing.T) {
 		}},
 	}
 
-	preview := BuildPreview(parts, nil, "markdown", "en")
+	preview := BuildMarkdownPreview(parts)
 	assert.Contains(t, preview, `<h1><kat-block id="tu1">My Title</kat-block></h1>`)
 	assert.Contains(t, preview, `<p><kat-block id="tu2">Some text</kat-block></p>`)
 }
@@ -270,7 +271,7 @@ func TestGenericPreview(t *testing.T) {
 		}},
 	}
 
-	preview := BuildPreview(parts, nil, "json", "en")
+	preview := buildGenericPreview(parts)
 	assert.Contains(t, preview, `<kat-block id="tu1">Hello &lt;world&gt;</kat-block>`)
 	assert.Contains(t, preview, "monospace")
 }
@@ -353,4 +354,69 @@ func TestReadWriteBlockIndex(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "tu1", index2.Blocks[0].ID)
 	assert.Equal(t, "Bonjour", index2.Blocks[0].Targets["fr"])
+}
+
+func TestBuildPreviewFromBlockIndex(t *testing.T) {
+	// Create a BlockIndex manually
+	index := &BlockIndex{
+		Version:        "1.0",
+		SourceLanguage: "en",
+		OriginalFormat: "json",
+		OriginalItem:   "messages.json",
+		Blocks: []Block{
+			{ID: "tu1", Source: "Hello world", SourceHTML: "Hello world"},
+			{ID: "tu2", Source: "Goodbye", SourceHTML: "Goodbye"},
+		},
+		DocumentOrder: []string{"block:tu1", "block:tu2"},
+	}
+
+	indexJSON, _ := json.Marshal(index)
+	preview := BuildPreviewFromBlockIndex(string(indexJSON))
+
+	assert.Contains(t, preview, `<kat-block id="tu1">Hello world</kat-block>`)
+	assert.Contains(t, preview, `<kat-block id="tu2">Goodbye</kat-block>`)
+	assert.Contains(t, preview, "kat-block-click") // boilerplate JS
+}
+
+func TestBuildPreviewFromBlockIndex_WithSkeleton(t *testing.T) {
+	index := &BlockIndex{
+		Version: "1.0",
+		Blocks: []Block{
+			{
+				ID: "tu1", Source: "Hello", SourceHTML: "Hello",
+				Skeleton: &SkeletonData{
+					Strategy: "fragment",
+					Parts: []SkeletonPartData{
+						{Type: "text", Text: "<p>"},
+						{Type: "ref", ResourceID: "tu1"},
+						{Type: "text", Text: "</p>"},
+					},
+				},
+			},
+		},
+		DocumentOrder: []string{"block:tu1"},
+	}
+
+	indexJSON, _ := json.Marshal(index)
+	preview := BuildPreviewFromBlockIndex(string(indexJSON))
+
+	assert.Contains(t, preview, "<p>")
+	assert.Contains(t, preview, `<kat-block id="tu1">Hello</kat-block>`)
+	assert.Contains(t, preview, "</p>")
+}
+
+func TestBuildPreviewFromBlockIndex_Empty(t *testing.T) {
+	preview := BuildPreviewFromBlockIndex("")
+	assert.Empty(t, preview)
+}
+
+func TestBuildPreviewFromBlockIndex_NoDocumentOrder(t *testing.T) {
+	index := &BlockIndex{
+		Blocks: []Block{
+			{ID: "tu1", Source: "Hello", SourceHTML: "Hello"},
+		},
+	}
+	indexJSON, _ := json.Marshal(index)
+	preview := BuildPreviewFromBlockIndex(string(indexJSON))
+	assert.Contains(t, preview, `<kat-block id="tu1">Hello</kat-block>`)
 }

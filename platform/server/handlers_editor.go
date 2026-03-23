@@ -94,7 +94,7 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 						Name:   item.Name,
 						Format: item.Format,
 						Type:   item.ItemType,
-						Size:   int64(len(item.SourceBytes)),
+						Size:   0,
 					})
 				}
 			}

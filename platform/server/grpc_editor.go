@@ -742,7 +742,7 @@ func (g *EditorGRPCServer) buildEditorProjectInfo(ctx context.Context, proj *sto
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,
-			Size:       int64(len(item.SourceBytes)),
+			Size:       0,
 			BlockCount: int32(len(blocks)),
 			WordCount:  int32(wordCount),
 		})

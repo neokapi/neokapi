@@ -33,6 +33,11 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
+	itemMetaMap := make(map[string]apiclient.ItemMeta, len(req.Items))
+	for _, im := range req.Items {
+		itemMetaMap[im.Name] = im
+	}
+
 	if len(req.Blocks) > store.MaxBlocksPerRequest {
 		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{
 			Error: fmt.Sprintf("batch size %d exceeds limit %d", len(req.Blocks), store.MaxBlocksPerRequest),
@@ -115,6 +120,13 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 					Name:     itemName,
 					Format:   detectFormatFromName(itemName),
 					ItemType: "file",
+				}
+				if meta, ok := itemMetaMap[itemName]; ok {
+					item.BlockIndex = meta.BlockIndex
+					item.PreviewHTML = meta.PreviewHTML
+					if meta.Format != "" {
+						item.Format = meta.Format
+					}
 				}
 				if collName, ok := itemCollections[itemName]; ok {
 					item.CollectionID = collectionCache[collName]

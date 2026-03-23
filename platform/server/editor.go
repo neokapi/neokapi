@@ -3,10 +3,8 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -480,49 +478,25 @@ func editorAddFiles(ctx context.Context, cs store.ContentStore, formatReg *regis
 			Reader:       io.NopCloser(bytes.NewReader(data)),
 		}
 
-		if err := reader.Open(ctx, doc); err != nil {
-			return nil, fmt.Errorf("parse %q: %w", itemName, err)
+		result, err := editor.ParseItem(ctx, reader, doc, string(proj.DefaultSourceLanguage), fmtName, itemName)
+		if err != nil {
+			return nil, err
 		}
 
-		var parts []*model.Part
-		for result := range reader.Read(ctx) {
-			if result.Error != nil {
-				reader.Close()
-				return nil, fmt.Errorf("read %q: %w", itemName, result.Error)
-			}
-			parts = append(parts, result.Part)
-		}
-		reader.Close()
-
-		// Build block index.
-		blockIndex := editor.BuildBlockIndex(parts, string(proj.DefaultSourceLanguage), fmtName, itemName)
-		blockIndexJSON, _ := json.Marshal(blockIndex)
-
-		// Store item with source bytes.
 		item := &store.Item{
 			Name:        itemName,
 			Format:      fmtName,
 			ItemType:    "file",
-			SourceBytes: data,
-			BlockIndex:  string(blockIndexJSON),
+			BlockIndex:  result.BlockIndexJSON,
+			PreviewHTML: result.PreviewHTML,
 			Properties:  map[string]string{},
 		}
 		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
-		// Extract blocks and store them.
-		var blocks []*model.Block
-		for _, pt := range parts {
-			if pt.Type != model.PartBlock {
-				continue
-			}
-			if block, ok := pt.Resource.(*model.Block); ok {
-				blocks = append(blocks, block)
-			}
-		}
-		if len(blocks) > 0 {
-			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
+		if len(result.Blocks) > 0 {
+			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, result.Blocks); err != nil {
 				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
 			}
 		}
@@ -557,47 +531,26 @@ func editorAddFilesToCollection(ctx context.Context, cs store.ContentStore, form
 			Reader:       io.NopCloser(bytes.NewReader(data)),
 		}
 
-		if err := reader.Open(ctx, doc); err != nil {
-			return nil, fmt.Errorf("parse %q: %w", itemName, err)
+		result, err := editor.ParseItem(ctx, reader, doc, string(proj.DefaultSourceLanguage), fmtName, itemName)
+		if err != nil {
+			return nil, err
 		}
-
-		var parts []*model.Part
-		for result := range reader.Read(ctx) {
-			if result.Error != nil {
-				reader.Close()
-				return nil, fmt.Errorf("read %q: %w", itemName, result.Error)
-			}
-			parts = append(parts, result.Part)
-		}
-		reader.Close()
-
-		blockIndex := editor.BuildBlockIndex(parts, string(proj.DefaultSourceLanguage), fmtName, itemName)
-		blockIndexJSON, _ := json.Marshal(blockIndex)
 
 		item := &store.Item{
 			Name:         itemName,
 			Format:       fmtName,
 			ItemType:     "file",
 			CollectionID: collectionID,
-			SourceBytes:  data,
-			BlockIndex:   string(blockIndexJSON),
+			BlockIndex:   result.BlockIndexJSON,
+			PreviewHTML:  result.PreviewHTML,
 			Properties:   map[string]string{},
 		}
 		if err := cs.StoreItem(ctx, projectID, stream, item); err != nil {
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
-		var blocks []*model.Block
-		for _, pt := range parts {
-			if pt.Type != model.PartBlock {
-				continue
-			}
-			if block, ok := pt.Resource.(*model.Block); ok {
-				blocks = append(blocks, block)
-			}
-		}
-		if len(blocks) > 0 {
-			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
+		if len(result.Blocks) > 0 {
+			if err := cs.StoreBlocksForItem(ctx, projectID, stream, itemName, result.Blocks); err != nil {
 				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
 			}
 		}
@@ -854,120 +807,11 @@ func editorGetWordCount(ctx context.Context, cs store.ContentStore, projectID, s
 	return result, nil
 }
 
-// editorExportTranslatedFile exports a translated file using source bytes + updated blocks.
-func editorExportTranslatedFile(ctx context.Context, cs store.ContentStore, formatReg *registry.FormatRegistry, projectID, stream, itemName, targetLocale, dataDir string) (string, error) {
-	proj, err := cs.GetProject(ctx, projectID)
-	if err != nil {
-		return "", err
-	}
-
-	item, err := cs.GetItem(ctx, projectID, stream, itemName)
-	if err != nil {
-		return "", fmt.Errorf("get item: %w", err)
-	}
-
-	if len(item.SourceBytes) == 0 {
-		return "", fmt.Errorf("item %q has no source bytes for export", itemName)
-	}
-
-	// Re-parse source bytes to get the Part stream.
-	reader, err := formatReg.NewReader(item.Format)
-	if err != nil {
-		return "", fmt.Errorf("no reader for %q: %w", item.Format, err)
-	}
-
-	doc := &model.RawDocument{
-		URI:          itemName,
-		SourceLocale: proj.DefaultSourceLanguage,
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		reader.Close()
-		return "", fmt.Errorf("parse source: %w", err)
-	}
-
-	var parts []*model.Part
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			reader.Close()
-			return "", fmt.Errorf("read source: %w", result.Error)
-		}
-		parts = append(parts, result.Part)
-	}
-	reader.Close()
-
-	// Load updated blocks from ContentStore and inject targets into parts.
-	storedBlocks, err := cs.GetBlocks(ctx, store.BlockQuery{
-		ProjectID: projectID,
-		Stream:    stream,
-		ItemName:  itemName,
-	})
-	if err != nil {
-		return "", fmt.Errorf("get blocks: %w", err)
-	}
-
-	// Build blockMap keyed by source_id (the format reader's ID) for target injection.
-	blockMap := make(map[string]*model.Block, len(storedBlocks))
-	for _, sb := range storedBlocks {
-		key := sb.SourceID
-		if key == "" {
-			key = sb.Block.ID
-		}
-		blockMap[key] = sb.Block
-	}
-
-	// Inject stored targets into the parsed parts.
-	for _, pt := range parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-		if stored, ok := blockMap[block.ID]; ok {
-			block.Targets = stored.Targets
-		}
-	}
-
-	// Write output.
-	ext := strings.TrimPrefix(strings.ToLower(filepath.Ext(itemName)), ".")
-	baseName := itemName
-	if ext != "" {
-		baseName = itemName[:len(itemName)-len(ext)-1]
-	}
-	outputName := fmt.Sprintf("%s_%s.%s", baseName, targetLocale, ext)
-
-	dir := dataDir
-	if dir == "" {
-		dir = os.TempDir()
-	}
-	outputPath := filepath.Join(dir, outputName)
-
-	writer, err := formatReg.NewWriter(item.Format)
-	if err != nil {
-		return "", fmt.Errorf("no writer for %q: %w", item.Format, err)
-	}
-
-	if err := writer.SetOutput(outputPath); err != nil {
-		return "", fmt.Errorf("set output: %w", err)
-	}
-	writer.SetLocale(model.LocaleID(targetLocale))
-
-	ch := make(chan *model.Part, len(parts))
-	for _, pt := range parts {
-		ch <- pt
-	}
-	close(ch)
-
-	if err := writer.Write(ctx, ch); err != nil {
-		return "", fmt.Errorf("write: %w", err)
-	}
-	writer.Close()
-
-	return outputPath, nil
+// editorExportTranslatedFile is no longer supported server-side.
+// Source bytes are no longer stored in the Item model. Use the CLI
+// ('bowrain pull') for translated file export.
+func editorExportTranslatedFile(_ context.Context, _ store.ContentStore, _ *registry.FormatRegistry, _, _, itemName, _, _ string) (string, error) {
+	return "", fmt.Errorf("server-side export not available for %q: use 'bowrain pull' for translated file export", itemName)
 }
 
 // editorLookupTMForBlock looks up TM matches for a specific block.
@@ -1162,7 +1006,7 @@ func editorBuildProjectInfo(ctx context.Context, cs store.ContentStore, proj *st
 			Format:       item.Format,
 			Type:         item.ItemType,
 			CollectionID: item.CollectionID,
-			Size:         int64(len(item.SourceBytes)),
+			Size:         0,
 			BlockCount:   len(blocks),
 			WordCount:    wordCount,
 		})

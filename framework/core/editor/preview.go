@@ -1,27 +1,23 @@
 package editor
 
 import (
+	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // BuildPreview generates a preview HTML string for the given parts.
-// The format determines which preview builder is used:
-//   - "html" — skeleton-based HTML preview with <kat-block> markers
-//   - "markdown" — Markdown→HTML rendered preview
-//   - other — generic fallback
-func BuildPreview(parts []*model.Part, sourceBytes []byte, format string, locale model.LocaleID) string {
-	switch format {
-	case "html", "htm", "xhtml":
-		return buildHTMLPreview(parts, sourceBytes)
-	case "markdown":
-		return buildMarkdownPreview(parts, sourceBytes)
-	default:
-		return buildGenericPreview(parts)
+// If the reader implements format.PreviewBuilder, delegates to it;
+// otherwise uses the generic fallback.
+func BuildPreview(parts []*model.Part, reader format.DataFormatReader) string {
+	if pb, ok := reader.(format.PreviewBuilder); ok {
+		return pb.BuildPreview(parts)
 	}
+	return buildGenericPreview(parts)
 }
 
-// previewBoilerplateStart returns the standard HTML preamble for preview documents.
-func previewBoilerplateStart() string {
+// PreviewBoilerplateStart returns the standard HTML preamble for preview documents.
+// Exported for use by format reader PreviewBuilder implementations.
+func PreviewBoilerplateStart() string {
 	return `<!DOCTYPE html>
 <html>
 <head>
@@ -45,13 +41,20 @@ func previewBoilerplateStart() string {
 `
 }
 
-// previewBoilerplateEnd returns the standard HTML closing for preview documents.
-// Note: The kat-update-block handler uses textContent for safety when possible,
-// but uses innerHTML for the preview HTML rendered by the trusted server-side
-// BuildPreview function. The iframe is sandboxed (sandbox="allow-scripts") with
-// no access to the parent origin's cookies or storage.
-func previewBoilerplateEnd() string {
-	return `
+// PreviewBoilerplateEnd returns the standard HTML closing for preview documents.
+// Exported for use by format reader PreviewBuilder implementations.
+//
+// Security: The kat-update-block handler uses textContent by default. It uses
+// innerHTML only for trusted, server-generated preview HTML (the reader's
+// BuildPreview output). The iframe is sandboxed (sandbox="allow-scripts")
+// with no access to the parent origin's cookies or storage.
+func PreviewBoilerplateEnd() string {
+	return previewScript
+}
+
+// previewScript is the standard JavaScript for preview iframe communication.
+// Kept as a package-level constant to avoid repeating inline.
+const previewScript = `
 <script>
   document.querySelectorAll('kat-block').forEach(el => {
     const w = el.closest('p,div,li,h1,h2,h3,h4,h5,h6,td,th,blockquote') || el.parentElement;
@@ -64,7 +67,6 @@ func previewBoilerplateEnd() string {
     if (b) window.parent.postMessage({ type: 'kat-block-click', blockId: b.id }, '*');
   });
 
-  // Report content height to parent
   function reportContentHeight() {
     window.parent.postMessage({ type: 'kat-content-height', height: document.body.scrollHeight }, '*');
   }
@@ -84,7 +86,12 @@ func previewBoilerplateEnd() string {
     }
     if (e.data?.type === 'kat-update-block') {
       const el = document.getElementById(e.data.blockId);
-      if (el) { if (e.data.html) el.innerHTML = e.data.html; else el.textContent = e.data.text || ''; }
+      if (el) {
+        // textContent is used for plain text updates. Server-generated preview
+        // HTML is trusted and rendered via innerHTML in the sandboxed iframe.
+        if (e.data.html) el.innerHTML = e.data.html;
+        else el.textContent = e.data.text || '';
+      }
     }
     if (e.data?.type === 'kat-insert-spacer') {
       var old = document.getElementById('kat-editor-spacer');
@@ -135,4 +142,3 @@ func previewBoilerplateEnd() string {
 </script>
 </body>
 </html>`
-}

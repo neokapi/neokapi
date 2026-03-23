@@ -1,63 +1,34 @@
 package backend
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 
 	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/model"
 )
 
 // RenderDocumentPreview returns pre-rendered HTML for an item.
+// Uses stored PreviewHTML if available, falling back to generating
+// a preview from the stored BlockIndex.
 func (a *App) RenderDocumentPreview(projectID, itemName, targetLocale string) (string, error) {
 	ctx := context.Background()
-	proj, err := a.store.GetProject(ctx, projectID)
-	if err != nil {
-		return "", err
-	}
 
 	item, err := a.store.GetItem(ctx, projectID, "main", itemName)
 	if err != nil {
 		return "", fmt.Errorf("item %q not found in project", itemName)
 	}
 
-	if len(item.SourceBytes) == 0 {
-		return "", nil
+	if item.PreviewHTML != "" {
+		return item.PreviewHTML, nil
 	}
 
-	// Re-parse source bytes to generate preview
-	reader, err := a.formatReg.NewReader(item.Format)
-	if err != nil {
-		return "", fmt.Errorf("no reader for %q: %w", item.Format, err)
+	if item.BlockIndex != "" {
+		return editor.BuildPreviewFromBlockIndex(item.BlockIndex), nil
 	}
 
-	doc := &model.RawDocument{
-		URI:          itemName,
-		SourceLocale: proj.DefaultSourceLanguage,
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		reader.Close()
-		return "", fmt.Errorf("parse source: %w", err)
-	}
-
-	var parts []*model.Part
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			reader.Close()
-			return "", fmt.Errorf("read source: %w", result.Error)
-		}
-		parts = append(parts, result.Part)
-	}
-	reader.Close()
-
-	preview := editor.BuildPreview(parts, item.SourceBytes, item.Format, proj.DefaultSourceLanguage)
-	return preview, nil
+	return "", nil
 }
 
 // RenderBlockHTML returns the rendered HTML for a single block.

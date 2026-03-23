@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bmatcuk/doublestar/v4"
+	"github.com/neokapi/neokapi/core/editor"
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
@@ -29,6 +30,12 @@ type BowrainSourceConnector struct {
 	cache     *SyncCache
 	stream    string // resolved stream name
 	maxBatch  int    // Max blocks per push request
+}
+
+// itemBlock associates a block with its source item name.
+type itemBlock struct {
+	itemName string
+	block    *model.Block
 }
 
 // NewSourceConnector creates a SourceConnector for the given project.
@@ -251,10 +258,6 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 	_, _ = mediaHashMap, mediaMap // used below after block push
 
 	// Diff against cache to find changed blocks, keeping item association.
-	type itemBlock struct {
-		itemName string
-		block    *model.Block
-	}
 	var changed []itemBlock
 	for itemName, blocks := range blockMap {
 		fileHashes := hashMap[itemName]
@@ -307,6 +310,9 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 	// Build a map of item → collection for efficient lookup.
 	itemCollections := c.resolveItemCollections()
 
+	// Generate per-item editor metadata (BlockIndex + PreviewHTML) for changed items.
+	itemMeta := c.buildItemMeta(ctx, changed)
+
 	// Push in batches of maxBatch.
 	chunkCount := 0
 	totalStored := 0
@@ -329,7 +335,13 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 			}
 		}
 
-		resp, err := c.client.Push(ctx, inputs)
+		// Include item metadata in the first batch only.
+		var meta []apiclient.ItemMeta
+		if chunkCount == 0 {
+			meta = itemMeta
+		}
+
+		resp, err := c.client.PushWithMeta(ctx, inputs, meta)
 		if err != nil {
 			return nil, fmt.Errorf("push batch %d: %w", chunkCount+1, err)
 		}
@@ -732,6 +744,62 @@ func (c *BowrainSourceConnector) detectFormat(absPath string) string {
 		return ""
 	}
 	return name
+}
+
+// buildItemMeta generates editor metadata (BlockIndex + PreviewHTML) for each
+// unique item that has changed blocks. It re-parses the source files using
+// editor.ParseItem to build the full Part stream needed for metadata generation.
+func (c *BowrainSourceConnector) buildItemMeta(ctx context.Context, changed []itemBlock) []apiclient.ItemMeta {
+	// Collect unique item names that have changes.
+	seen := map[string]bool{}
+	var itemNames []string
+	for _, ib := range changed {
+		if ib.itemName != "" && !seen[ib.itemName] {
+			seen[ib.itemName] = true
+			itemNames = append(itemNames, ib.itemName)
+		}
+	}
+
+	sourceLocale := string(c.project.Config.SourceLocale())
+	var meta []apiclient.ItemMeta
+
+	for _, itemName := range itemNames {
+		absPath := c.project.ResolvePath(filepath.Join(c.project.Root, itemName))
+		formatName := c.detectFormat(absPath)
+		if formatName == "" {
+			continue
+		}
+
+		reader, err := c.formatReg.NewReader(formatName)
+		if err != nil {
+			continue
+		}
+
+		f, err := os.Open(absPath)
+		if err != nil {
+			continue
+		}
+
+		doc := &model.RawDocument{
+			URI:      absPath,
+			FormatID: formatName,
+			Reader:   f,
+		}
+
+		result, err := editor.ParseItem(ctx, reader, doc, sourceLocale, formatName, itemName)
+		if err != nil {
+			continue
+		}
+
+		meta = append(meta, apiclient.ItemMeta{
+			Name:        itemName,
+			Format:      formatName,
+			BlockIndex:  result.BlockIndexJSON,
+			PreviewHTML: result.PreviewHTML,
+		})
+	}
+
+	return meta
 }
 
 // readBlocks reads a file and extracts blocks using the format reader.
