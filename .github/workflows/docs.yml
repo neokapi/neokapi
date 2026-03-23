@@ -8,8 +8,6 @@ on:
       - 'website/**'
       - 'docs/**'
       - 'platform/docs/**'
-      - 'platform/packages/ui/**'
-      - 'platform/emails/**'
 
 permissions:
   contents: read
@@ -29,9 +27,7 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: |
-            website/package-lock.json
-            platform/package-lock.json
+          cache-dependency-path: website/package-lock.json
 
       - name: Fetch documentation assets from release
         env:
@@ -65,15 +61,6 @@ jobs:
         working-directory: website
       - run: npm run build
         working-directory: website
-
-      # Build Storybook and merge into the site at /storybook
-      - run: npm ci
-        working-directory: platform
-      - name: Build Storybook
-        env:
-          STORYBOOK_BASE_PATH: /storybook/
-        run: npx storybook build -o ../../../website/build/storybook
-        working-directory: platform/packages/ui
 
       - uses: actions/upload-pages-artifact@v4
         with:
