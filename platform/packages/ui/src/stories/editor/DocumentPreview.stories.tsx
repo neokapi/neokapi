@@ -54,6 +54,14 @@ export const TargetMode: Story = {
   },
 };
 
+/** Pseudo mode — source text rendered with accent mapping, no server action needed */
+export const PseudoMode: Story = {
+  args: {
+    previewContentMode: "pseudo",
+    selectedBlockId: "blk-1",
+  },
+};
+
 /** Inline mode with spacer height — used inside VisualEditorLayout */
 export const InlineMode: Story = {
   args: {
