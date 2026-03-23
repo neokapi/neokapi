@@ -1,8 +1,14 @@
-name: Storybook PR Preview
+name: Storybook
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
+    paths:
+      - "platform/packages/ui/**"
+      - "platform/emails/src/**/*.stories.*"
+      - ".github/workflows/storybook-preview.yml"
+  push:
+    branches: [main]
     paths:
       - "platform/packages/ui/**"
       - "platform/emails/src/**/*.stories.*"
@@ -16,8 +22,51 @@ env:
   PR_NUMBER: ${{ github.event.pull_request.number }}
 
 jobs:
+  # Publish production Storybook on push to main.
+  publish:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Build Storybook
+        working-directory: platform/packages/ui
+        env:
+          STORYBOOK_BASE_PATH: /bowrain/storybook/
+        run: npx storybook build -o storybook-static
+
+      - name: Deploy to GitHub Pages
+        env:
+          SSH_DEPLOY_KEY: ${{ secrets.PAGES_DEPLOY_KEY }}
+        run: |
+          DEPLOY_DIR="bowrain/storybook"
+
+          mkdir -p ~/.ssh
+          echo "$SSH_DEPLOY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no"
+
+          git clone --depth 1 git@github.com:neokapi/neokapi.github.io.git /tmp/pages
+
+          # Remove existing storybook root but preserve pr-* subdirectories.
+          find "/tmp/pages/${DEPLOY_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
+          mkdir -p "/tmp/pages/${DEPLOY_DIR}"
+          cp -r platform/packages/ui/storybook-static/* "/tmp/pages/${DEPLOY_DIR}/"
+
+          cd /tmp/pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet && echo "No changes to deploy" && exit 0
+          git commit -m "Deploy Storybook from main (${GITHUB_SHA::8})"
+          git push origin main
+
+  # Deploy per-PR Storybook preview.
   deploy:
-    if: github.event.action != 'closed'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
