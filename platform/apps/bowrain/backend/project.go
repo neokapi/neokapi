@@ -3,7 +3,6 @@ package backend
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -217,7 +216,7 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 			return nil, fmt.Errorf("read %q: %w", filePath, err)
 		}
 
-		// Parse with format reader
+		// Parse with format reader using editor.ParseItem.
 		reader, err := a.formatReg.NewReader(fmtName)
 		if err != nil {
 			continue
@@ -230,50 +229,27 @@ func (a *App) AddItems(projectID string, filePaths []string) (*ProjectInfo, erro
 			Reader:       io.NopCloser(bytes.NewReader(data)),
 		}
 
-		if err := reader.Open(ctx, doc); err != nil {
-			reader.Close()
+		result, err := editor.ParseItem(ctx, reader, doc, string(proj.DefaultSourceLanguage), fmtName, itemName)
+		if err != nil {
 			return nil, fmt.Errorf("parse %q: %w", filePath, err)
 		}
 
-		var parts []*model.Part
-		for result := range reader.Read(ctx) {
-			if result.Error != nil {
-				reader.Close()
-				return nil, fmt.Errorf("read %q: %w", filePath, result.Error)
-			}
-			parts = append(parts, result.Part)
-		}
-		reader.Close()
-
-		// Build block index.
-		blockIndex := editor.BuildBlockIndex(parts, string(proj.DefaultSourceLanguage), fmtName, itemName)
-		blockIndexJSON, _ := json.Marshal(blockIndex)
-
-		// Store item with source bytes.
+		// Store item with block index and preview HTML.
 		item := &store.Item{
 			Name:        itemName,
 			Format:      fmtName,
 			ItemType:    "file",
-			SourceBytes: data,
-			BlockIndex:  string(blockIndexJSON),
+			BlockIndex:  result.BlockIndexJSON,
+			PreviewHTML: result.PreviewHTML,
 			Properties:  map[string]string{},
 		}
 		if err := a.store.StoreItem(ctx, projectID, "main", item); err != nil {
 			return nil, fmt.Errorf("store item %q: %w", itemName, err)
 		}
 
-		// Extract blocks and store them.
-		var blocks []*model.Block
-		for _, pt := range parts {
-			if pt.Type != model.PartBlock {
-				continue
-			}
-			if block, ok := pt.Resource.(*model.Block); ok {
-				blocks = append(blocks, block)
-			}
-		}
-		if len(blocks) > 0 {
-			if err := a.store.StoreBlocksForItem(ctx, projectID, "main", itemName, blocks); err != nil {
+		// Store extracted blocks.
+		if len(result.Blocks) > 0 {
+			if err := a.store.StoreBlocksForItem(ctx, projectID, "main", itemName, result.Blocks); err != nil {
 				return nil, fmt.Errorf("store blocks for %q: %w", itemName, err)
 			}
 		}
@@ -328,7 +304,7 @@ func (a *App) ListProjectFiles(projectID string) ([]ProjectItem, error) {
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,
-			Size:       int64(len(item.SourceBytes)),
+			Size:       0,
 			BlockCount: len(blocks),
 			WordCount:  wordCount,
 		})
@@ -384,7 +360,7 @@ func buildProjectInfo(ctx context.Context, cs store.ContentStore, proj *store.Pr
 			Name:       item.Name,
 			Format:     item.Format,
 			Type:       item.ItemType,
-			Size:       int64(len(item.SourceBytes)),
+			Size:       0,
 			BlockCount: len(blocks),
 			WordCount:  wordCount,
 		})

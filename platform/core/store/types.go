@@ -39,8 +39,8 @@ type Item struct {
 	Format       string            `json:"format"`
 	ItemType     string            `json:"item_type"`
 	CollectionID string            `json:"collection_id,omitempty"`
-	SourceBytes  []byte            `json:"source_bytes,omitempty"`
 	BlockIndex   string            `json:"block_index"`
+	PreviewHTML  string            `json:"preview_html,omitempty"`
 	Properties   map[string]string `json:"properties,omitempty"`
 	CreatedAt    time.Time         `json:"created_at"`
 	UpdatedAt    time.Time         `json:"updated_at"`

@@ -10,7 +10,9 @@ import (
 // buildHTMLPreview generates an HTML preview with <kat-block> markers.
 // Uses skeleton data to reconstruct the document structure, wrapping each
 // block's content in a <kat-block id="..."> element.
-func buildHTMLPreview(parts []*model.Part, sourceBytes []byte) string {
+// BuildHTMLPreview generates an HTML preview with <kat-block> markers.
+// Exported for use by the HTML format reader's PreviewBuilder implementation.
+func BuildHTMLPreview(parts []*model.Part) string {
 	var body strings.Builder
 
 	for _, part := range parts {
@@ -20,7 +22,7 @@ func buildHTMLPreview(parts []*model.Part, sourceBytes []byte) string {
 			if !ok {
 				continue
 			}
-			writeHTMLBlockPreview(&body, block)
+			WriteHTMLBlockPreview(&body, block)
 
 		case model.PartData:
 			data, ok := part.Resource.(*model.Data)
@@ -31,14 +33,15 @@ func buildHTMLPreview(parts []*model.Part, sourceBytes []byte) string {
 		}
 	}
 
-	return previewBoilerplateStart() + body.String() + previewBoilerplateEnd()
+	return PreviewBoilerplateStart() + body.String() + PreviewBoilerplateEnd()
 }
 
-// writeHTMLBlockPreview writes a single block's preview HTML.
+// WriteHTMLBlockPreview writes a single block's preview HTML.
 // If the block has a fragment-based skeleton, the skeleton structure is preserved
 // with the block content wrapped in <kat-block>.
-func writeHTMLBlockPreview(buf *strings.Builder, block *model.Block) {
-	content := renderBlockContentHTML(block)
+// Exported for use by format reader PreviewBuilder implementations.
+func WriteHTMLBlockPreview(buf *strings.Builder, block *model.Block) {
+	content := RenderBlockContentHTML(block)
 
 	if block.Skeleton != nil && block.Skeleton.Strategy == model.SkeletonFragmentBased {
 		for _, sp := range block.Skeleton.Parts {
@@ -62,23 +65,25 @@ func writeHTMLDataPreview(buf *strings.Builder, data *model.Data) {
 	// Data parts are non-translatable structure; skip in preview
 }
 
-// renderBlockContentHTML renders a block's source content as HTML,
+// RenderBlockContentHTML renders a block's source content as HTML,
 // expanding inline span markers to their original markup.
-func renderBlockContentHTML(block *model.Block) string {
+// Exported for use by format reader PreviewBuilder implementations.
+func RenderBlockContentHTML(block *model.Block) string {
 	if len(block.Source) == 0 {
 		return ""
 	}
 
 	var buf strings.Builder
 	for _, seg := range block.Source {
-		renderFragmentToHTML(&buf, seg.Content)
+		RenderFragmentToHTML(&buf, seg.Content)
 	}
 	return buf.String()
 }
 
-// renderFragmentToHTML renders a Fragment to HTML, replacing Unicode markers
+// RenderFragmentToHTML renders a Fragment to HTML, replacing Unicode markers
 // with their corresponding span markup.
-func renderFragmentToHTML(buf *strings.Builder, frag *model.Fragment) {
+// Exported for use by format reader PreviewBuilder implementations.
+func RenderFragmentToHTML(buf *strings.Builder, frag *model.Fragment) {
 	if frag == nil {
 		return
 	}

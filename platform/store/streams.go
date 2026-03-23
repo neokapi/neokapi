@@ -54,8 +54,8 @@ func (s *SQLiteStore) CreateStream(ctx context.Context, st *platstore.Stream) er
 	// Copy items from the parent stream into the new stream.
 	parentStream := defaultStream(st.Parent)
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
-		 SELECT lower(hex(randomblob(4))), project_id, ?, name, format, item_type, source_bytes, block_index, properties, collection_id, ?, ?
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
+		 SELECT lower(hex(randomblob(4))), project_id, ?, name, format, item_type, block_index, preview_html, properties, collection_id, ?, ?
 		 FROM items WHERE project_id = ? AND stream = ?`,
 		st.Name, now.Format(time.RFC3339), now.Format(time.RFC3339),
 		st.ProjectID, parentStream)

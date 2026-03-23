@@ -377,15 +377,15 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(project_id, stream, name) DO UPDATE SET
 			format=excluded.format, item_type=excluded.item_type,
-			source_bytes=excluded.source_bytes, block_index=excluded.block_index,
+			block_index=excluded.block_index, preview_html=excluded.preview_html,
 			properties=excluded.properties, collection_id=CASE WHEN excluded.collection_id='' THEN items.collection_id ELSE excluded.collection_id END,
 			updated_at=excluded.updated_at`,
-		item.ID, projectID, stream, item.Name, item.Format, item.ItemType, item.SourceBytes,
-		item.BlockIndex, string(propsJSON), item.CollectionID,
+		item.ID, projectID, stream, item.Name, item.Format, item.ItemType,
+		item.BlockIndex, item.PreviewHTML, string(propsJSON), item.CollectionID,
 		now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("store item %q: %w", item.Name, err)
@@ -396,7 +396,7 @@ func (s *SQLiteStore) StoreItem(ctx context.Context, projectID, stream string, i
 func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? AND name=?`, projectID, stream, itemName)
 	return scanItem(row)
 }
@@ -404,7 +404,7 @@ func (s *SQLiteStore) GetItem(ctx context.Context, projectID, stream, itemName s
 func (s *SQLiteStore) ListItems(ctx context.Context, projectID, stream string) ([]*platstore.Item, error) {
 	stream = defaultStream(stream)
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? ORDER BY name`, projectID, stream)
 	if err != nil {
 		return nil, fmt.Errorf("list items: %w", err)
@@ -452,7 +452,7 @@ func (s *SQLiteStore) DeleteItem(ctx context.Context, projectID, stream, itemNam
 func (s *SQLiteStore) GetItemByID(ctx context.Context, projectID, stream, itemID string) (*platstore.Item, error) {
 	stream = defaultStream(stream)
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, project_id, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at
+		`SELECT id, project_id, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at
 		 FROM items WHERE project_id=? AND stream=? AND id=?`, projectID, stream, itemID)
 	return scanItem(row)
 }
@@ -461,7 +461,7 @@ func scanItem(row scanner) (*platstore.Item, error) {
 	var item platstore.Item
 	var propsJSON, createdStr, updatedStr string
 	err := row.Scan(&item.ID, &item.ProjectID, &item.Name, &item.Format, &item.ItemType,
-		&item.SourceBytes, &item.BlockIndex, &propsJSON, &item.CollectionID, &createdStr, &updatedStr)
+		&item.BlockIndex, &item.PreviewHTML, &propsJSON, &item.CollectionID, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan item: %w", err)
 	}

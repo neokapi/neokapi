@@ -603,4 +603,33 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_block_asset_refs_asset ON block_asset_refs(project_id, asset_id);
 		`,
 	},
+	{
+		Version:     26,
+		Description: "replace source_bytes with preview_html in items",
+		SQL: `
+			CREATE TABLE items_new (
+				id           TEXT NOT NULL DEFAULT '',
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				stream       TEXT NOT NULL DEFAULT 'main',
+				name         TEXT NOT NULL,
+				format       TEXT NOT NULL DEFAULT '',
+				item_type    TEXT NOT NULL DEFAULT 'file',
+				block_index  TEXT NOT NULL DEFAULT '{}',
+				preview_html TEXT NOT NULL DEFAULT '',
+				properties   TEXT NOT NULL DEFAULT '{}',
+				collection_id TEXT NOT NULL DEFAULT '',
+				created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (project_id, stream, name)
+			);
+			INSERT INTO items_new (id, project_id, stream, name, format, item_type, block_index, properties, collection_id, created_at, updated_at)
+				SELECT id, project_id, stream, name, format, item_type, block_index, properties, collection_id, created_at, updated_at FROM items;
+			DROP TABLE items;
+			ALTER TABLE items_new RENAME TO items;
+			CREATE INDEX idx_items_project ON items(project_id);
+			CREATE INDEX idx_items_project_stream ON items(project_id, stream);
+			CREATE UNIQUE INDEX idx_items_id ON items(project_id, stream, id);
+			CREATE INDEX idx_items_collection ON items(project_id, collection_id);
+		`,
+	},
 }

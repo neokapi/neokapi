@@ -9,7 +9,9 @@ import (
 
 // buildMarkdownPreview generates an HTML preview for Markdown content.
 // It converts the Part stream into styled HTML with <kat-block> markers.
-func buildMarkdownPreview(parts []*model.Part, sourceBytes []byte) string {
+// BuildMarkdownPreview generates an HTML preview for Markdown content.
+// Exported for use by the Markdown format reader's PreviewBuilder implementation.
+func BuildMarkdownPreview(parts []*model.Part) string {
 	var body strings.Builder
 
 	for _, part := range parts {
@@ -19,22 +21,23 @@ func buildMarkdownPreview(parts []*model.Part, sourceBytes []byte) string {
 			if !ok {
 				continue
 			}
-			writeMarkdownBlockPreview(&body, block)
+			WriteMarkdownBlockPreview(&body, block)
 
 		case model.PartData:
 			data, ok := part.Resource.(*model.Data)
 			if !ok {
 				continue
 			}
-			writeMarkdownDataPreview(&body, data)
+			WriteMarkdownDataPreview(&body, data)
 		}
 	}
 
-	return previewBoilerplateStart() + body.String() + previewBoilerplateEnd()
+	return PreviewBoilerplateStart() + body.String() + PreviewBoilerplateEnd()
 }
 
-// writeMarkdownBlockPreview renders a Markdown block as HTML with <kat-block>.
-func writeMarkdownBlockPreview(buf *strings.Builder, block *model.Block) {
+// WriteMarkdownBlockPreview renders a Markdown block as HTML with <kat-block>.
+// Exported for use by the Markdown format reader's PreviewBuilder implementation.
+func WriteMarkdownBlockPreview(buf *strings.Builder, block *model.Block) {
 	text := block.SourceText()
 	blockType := block.Type
 	level := block.Properties["level"]
@@ -64,8 +67,9 @@ func writeMarkdownBlockPreview(buf *strings.Builder, block *model.Block) {
 	}
 }
 
-// writeMarkdownDataPreview renders non-translatable Markdown data (code blocks, etc.).
-func writeMarkdownDataPreview(buf *strings.Builder, data *model.Data) {
+// WriteMarkdownDataPreview renders non-translatable Markdown data (code blocks, etc.).
+// Exported for use by the Markdown format reader's PreviewBuilder implementation.
+func WriteMarkdownDataPreview(buf *strings.Builder, data *model.Data) {
 	dataType := data.Name
 	content := data.Properties["content"]
 

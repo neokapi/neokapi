@@ -2,7 +2,6 @@ package backend
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -194,23 +193,10 @@ func TestGetWordCount_FileNotFound(t *testing.T) {
 func TestExportTranslatedFile(t *testing.T) {
 	app, info, itemName := setupProjectWithFile(t)
 
-	// Pseudo-translate first
-	_, err := app.PseudoTranslateItem(info.ID, itemName, "fr")
-	require.NoError(t, err)
-
-	outputPath, err := app.ExportTranslatedItem(info.ID, itemName, "fr")
-	require.NoError(t, err)
-	assert.Contains(t, outputPath, "_fr")
-	assert.Contains(t, outputPath, ".txt")
-
-	// Verify file was created
-	_, err = os.Stat(outputPath)
-	require.NoError(t, err)
-
-	// Read and verify content
-	content, err := os.ReadFile(outputPath)
-	require.NoError(t, err)
-	assert.NotEmpty(t, content)
+	// Server-side export is no longer supported (source bytes removed).
+	_, err := app.ExportTranslatedItem(info.ID, itemName, "fr")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "server-side export not available")
 }
 
 func TestExportTranslatedFile_FileNotFound(t *testing.T) {

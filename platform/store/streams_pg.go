@@ -44,8 +44,8 @@ func (s *PostgresStore) CreateStream(ctx context.Context, st *platstore.Stream) 
 	// Copy items from the parent stream into the new stream.
 	parentStream := defaultStream(st.Parent)
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO items (id, project_id, stream, name, format, item_type, source_bytes, block_index, properties, collection_id, created_at, updated_at)
-		 SELECT substr(md5(random()::text), 1, 8), project_id, $1, name, format, item_type, source_bytes, block_index, properties, collection_id, $2, $2
+		`INSERT INTO items (id, project_id, stream, name, format, item_type, block_index, preview_html, properties, collection_id, created_at, updated_at)
+		 SELECT substr(md5(random()::text), 1, 8), project_id, $1, name, format, item_type, block_index, preview_html, properties, collection_id, $2, $2
 		 FROM items WHERE project_id = $3 AND stream = $4`,
 		st.Name, now, st.ProjectID, parentStream)
 	if err != nil {

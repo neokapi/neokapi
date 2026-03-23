@@ -144,6 +144,37 @@ func TestSyncPull_Pagination(t *testing.T) {
 	assert.False(t, resp2.HasMore)
 }
 
+func TestSyncPush_WithItemMeta(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	authHeader := "Bearer " + token
+	pid := createProject(t, srv, token)
+
+	// Push blocks with item metadata (BlockIndex, PreviewHTML, Format override).
+	body := `{
+		"blocks":[{"id":"tu1","text":"Hello","item_name":"messages.json"}],
+		"items":[{"name":"messages.json","format":"json","block_index":"{\"blocks\":[]}","preview_html":"<html>preview</html>"}]
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	var resp apiclient.SyncPushResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, 1, resp.Stored)
+
+	// Verify the item has the metadata from the push request.
+	ctx := req.Context()
+	item, err := srv.ContentStore.GetItem(ctx, pid, "main", "messages.json")
+	require.NoError(t, err)
+	assert.Equal(t, "{\"blocks\":[]}", item.BlockIndex, "BlockIndex should be populated from ItemMeta")
+	assert.Equal(t, "<html>preview</html>", item.PreviewHTML, "PreviewHTML should be populated from ItemMeta")
+	assert.Equal(t, "json", item.Format, "Format should be overridden from ItemMeta")
+}
+
 func TestSyncGetBlocks(t *testing.T) {
 	srv, token := newTestServer(t)
 	e := srv.GetEcho()

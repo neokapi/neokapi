@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -524,119 +522,11 @@ func (a *App) GetWordCount(projectID, itemName string) (*WordCountResult, error)
 	return result, nil
 }
 
-// ExportTranslatedItem writes the translated item to disk and returns the output path.
-func (a *App) ExportTranslatedItem(projectID, itemName, targetLocale string) (string, error) {
-	ctx := context.Background()
-	proj, err := a.store.GetProject(ctx, projectID)
-	if err != nil {
-		return "", err
-	}
-
-	item, err := a.store.GetItem(ctx, projectID, "main", itemName)
-	if err != nil {
-		return "", fmt.Errorf("get item: %w", err)
-	}
-
-	if len(item.SourceBytes) == 0 {
-		return "", fmt.Errorf("item %q has no source bytes for export", itemName)
-	}
-
-	// Re-parse source bytes to get the Part stream.
-	reader, err := a.formatReg.NewReader(item.Format)
-	if err != nil {
-		return "", fmt.Errorf("no reader for %q: %w", item.Format, err)
-	}
-
-	doc := &model.RawDocument{
-		URI:          itemName,
-		SourceLocale: proj.DefaultSourceLanguage,
-		Encoding:     "UTF-8",
-		Reader:       io.NopCloser(bytes.NewReader(item.SourceBytes)),
-	}
-
-	if err := reader.Open(ctx, doc); err != nil {
-		reader.Close()
-		return "", fmt.Errorf("parse source: %w", err)
-	}
-
-	var parts []*model.Part
-	for result := range reader.Read(ctx) {
-		if result.Error != nil {
-			reader.Close()
-			return "", fmt.Errorf("read source: %w", result.Error)
-		}
-		parts = append(parts, result.Part)
-	}
-	reader.Close()
-
-	// Load updated blocks from ContentStore and inject targets into parts.
-	storedBlocks, err := a.store.GetBlocks(ctx, store.BlockQuery{
-		ProjectID: projectID,
-		Stream:    "main",
-		ItemName:  itemName,
-	})
-	if err != nil {
-		return "", fmt.Errorf("get blocks: %w", err)
-	}
-
-	// Build blockMap keyed by source_id (the format reader's ID) for target injection.
-	blockMap := make(map[string]*model.Block, len(storedBlocks))
-	for _, sb := range storedBlocks {
-		key := sb.SourceID
-		if key == "" {
-			key = sb.Block.ID
-		}
-		blockMap[key] = sb.Block
-	}
-
-	// Inject stored targets into the parsed parts.
-	for _, pt := range parts {
-		if pt.Type != model.PartBlock {
-			continue
-		}
-		block, ok := pt.Resource.(*model.Block)
-		if !ok {
-			continue
-		}
-		if stored, ok := blockMap[block.ID]; ok {
-			block.Targets = stored.Targets
-		}
-	}
-
-	// Write output.
-	ext := fileExtension(itemName)
-	baseName := itemName
-	if ext != "" {
-		baseName = itemName[:len(itemName)-len(ext)-1]
-	}
-	outputPath := fmt.Sprintf("%s_%s.%s", baseName, targetLocale, ext)
-
-	// Put output in temp dir.
-	dir := filepath.Join(defaultStorePath(), "..")
-	outputPath = filepath.Join(dir, outputPath)
-
-	writer, err := a.formatReg.NewWriter(item.Format)
-	if err != nil {
-		return "", fmt.Errorf("no writer for %q: %w", item.Format, err)
-	}
-
-	if err := writer.SetOutput(outputPath); err != nil {
-		return "", fmt.Errorf("set output: %w", err)
-	}
-	writer.SetLocale(model.LocaleID(targetLocale))
-
-	ch := make(chan *model.Part, len(parts))
-	for _, pt := range parts {
-		ch <- pt
-	}
-	close(ch)
-
-	if err := writer.Write(ctx, ch); err != nil {
-		return "", fmt.Errorf("write: %w", err)
-	}
-	writer.Close()
-
-	return outputPath, nil
+// ExportTranslatedItem is no longer supported in the desktop app.
+// Source bytes are no longer stored in the Item model. Use the CLI
+// ('bowrain pull') for translated file export.
+func (a *App) ExportTranslatedItem(_, itemName, _ string) (string, error) {
+	return "", fmt.Errorf("server-side export not available for %q: use 'bowrain pull' for translated file export", itemName)
 }
 
 // OpenFileInOS opens a file using the OS default application.
