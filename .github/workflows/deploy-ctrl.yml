@@ -1,0 +1,65 @@
+name: Deploy Ctrl
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches: [main]
+    paths:
+      - 'platform/apps/ctrl/**'
+      - 'platform/packages/ui/**'
+      - 'platform/docker/bowrain-ctrl/**'
+
+permissions:
+  packages: write
+  contents: read
+
+jobs:
+  image-tag:
+    name: Compute Image Tag
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.tag.outputs.value }}
+    steps:
+      - name: Compute image tag
+        id: tag
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_ENV: ${{ github.event.inputs.environment }}
+          GH_SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "value=${GH_SHA}-${INPUT_ENV}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    name: Build Ctrl Image
+    needs: image-tag
+    uses: ./.github/workflows/_build-ctrl-image.yml
+    with:
+      image-tag: ${{ needs.image-tag.outputs.value }}
+
+  trigger-deploy:
+    name: Trigger Deploy
+    needs: [image-tag, build]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+      IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
+    steps:
+      - name: Deploy ctrl
+        run: |
+          gh workflow run deploy-ctrl.yml \
+            --repo neokapi/bowrain-infra \
+            -f environment="$ENVIRONMENT" \
+            -f imageTag="$IMAGE_TAG"
