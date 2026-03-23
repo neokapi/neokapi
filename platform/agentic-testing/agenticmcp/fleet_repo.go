@@ -268,7 +268,14 @@ func extractAgent(files []string) string {
 	return "unknown"
 }
 
-// ReadAgentFile reads a file from an agent's directory.
+// AgentFileInfo contains file content and git metadata.
+type AgentFileInfo struct {
+	Content    string `json:"content"`
+	LastAuthor string `json:"last_author,omitempty"`
+	LastDate   string `json:"last_date,omitempty"`
+}
+
+// ReadAgentFile reads a file from an agent's directory with git metadata.
 func (r *GitFleetRepo) ReadAgentFile(ctx context.Context, workspace, agent, filename string) (string, error) {
 	dir, err := r.ensureClone(ctx)
 	if err != nil {
@@ -280,6 +287,35 @@ func (r *GitFleetRepo) ReadAgentFile(ctx context.Context, workspace, agent, file
 		return "", fmt.Errorf("read agent file: %w", err)
 	}
 	return string(data), nil
+}
+
+// ReadAgentFileInfo reads a file with last-modified metadata from git log.
+func (r *GitFleetRepo) ReadAgentFileInfo(ctx context.Context, workspace, agent, filename string) (*AgentFileInfo, error) {
+	dir, err := r.ensureClone(ctx)
+	if err != nil {
+		return nil, err
+	}
+	relPath := filepath.Join("workspaces", workspace, "agents", agent, filename)
+	fullPath := filepath.Join(dir, relPath)
+	data, err := os.ReadFile(fullPath)
+	if err != nil {
+		return nil, fmt.Errorf("read agent file: %w", err)
+	}
+
+	info := &AgentFileInfo{Content: string(data)}
+
+	// Get last commit info for this file.
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "log", "-1", "--format=%an|%aI", "--", relPath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		parts := strings.SplitN(strings.TrimSpace(string(out)), "|", 2)
+		if len(parts) == 2 {
+			info.LastAuthor = parts[0]
+			info.LastDate = parts[1]
+		}
+	}
+
+	return info, nil
 }
 
 // readPlan parses a plan.yaml file.

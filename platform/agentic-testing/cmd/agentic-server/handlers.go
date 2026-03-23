@@ -238,8 +238,14 @@ func handleMemoryLog(s *agenticmcp.Server) http.HandlerFunc {
 
 // --- Agent SOUL.md (cached) ---
 
+type agentSoulEntry struct {
+	Soul       string
+	LastAuthor string
+	LastDate   string
+}
+
 type soulCache struct {
-	souls     map[string]string // agent -> SOUL.md content
+	souls     map[string]agentSoulEntry
 	fetchedAt time.Time
 }
 
@@ -256,8 +262,13 @@ func handleAgentSoul(s *agenticmcp.Server) http.HandlerFunc {
 
 		// Cache for 10 minutes.
 		if time.Since(agentSoulCache.fetchedAt) < 10*time.Minute && agentSoulCache.souls != nil {
-			if soul, ok := agentSoulCache.souls[agent]; ok {
-				writeJSON(w, map[string]string{"agent": agent, "soul": soul})
+			if entry, ok := agentSoulCache.souls[agent]; ok {
+				writeJSON(w, map[string]string{
+					"agent":       agent,
+					"soul":        entry.Soul,
+					"last_author": entry.LastAuthor,
+					"last_date":   entry.LastDate,
+				})
 				return
 			}
 		}
@@ -270,7 +281,7 @@ func handleAgentSoul(s *agenticmcp.Server) http.HandlerFunc {
 		}
 
 		// Populate full cache.
-		souls := map[string]string{}
+		souls := map[string]agentSoulEntry{}
 		for _, ws := range workspaces {
 			plan, err := repo.GetWorkspacePlan(r.Context(), ws.Slug)
 			if err != nil {
@@ -280,21 +291,38 @@ func handleAgentSoul(s *agenticmcp.Server) http.HandlerFunc {
 				if _, seen := souls[agentName]; seen {
 					continue
 				}
-				content, err := repo.ReadAgentFile(r.Context(), ws.Slug, agentName, "SOUL.md")
-				if err != nil {
-					continue
+				if gitRepo, ok := repo.(*agenticmcp.GitFleetRepo); ok {
+					info, err := gitRepo.ReadAgentFileInfo(r.Context(), ws.Slug, agentName, "SOUL.md")
+					if err != nil {
+						continue
+					}
+					souls[agentName] = agentSoulEntry{
+						Soul:       info.Content,
+						LastAuthor: info.LastAuthor,
+						LastDate:   info.LastDate,
+					}
+				} else {
+					content, err := repo.ReadAgentFile(r.Context(), ws.Slug, agentName, "SOUL.md")
+					if err != nil {
+						continue
+					}
+					souls[agentName] = agentSoulEntry{Soul: content}
 				}
-				souls[agentName] = content
 			}
 		}
 		agentSoulCache = soulCache{souls: souls, fetchedAt: time.Now()}
 
-		soul, ok := souls[agent]
+		entry, ok := souls[agent]
 		if !ok {
 			http.Error(w, "agent not found", http.StatusNotFound)
 			return
 		}
-		writeJSON(w, map[string]string{"agent": agent, "soul": soul})
+		writeJSON(w, map[string]string{
+			"agent":       agent,
+			"soul":        entry.Soul,
+			"last_author": entry.LastAuthor,
+			"last_date":   entry.LastDate,
+		})
 	}
 }
 

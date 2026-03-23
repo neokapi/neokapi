@@ -218,7 +218,18 @@ export async function fetchMemoryLog(limit = 50): Promise<MemoryLogEntry[]> {
   return resp.entries ?? [];
 }
 
-export async function fetchAgentSoul(agent: string): Promise<string> {
-  const resp = await apiFetch<{ soul: string }>(`/api/v1/agentic/agents/${agent}/soul`, { soul: "" });
-  return resp.soul ?? "";
+export interface AgentSoulResponse {
+  agent: string;
+  soul: string;
+  last_author: string;
+  last_date: string;
+}
+
+export async function fetchAgentSoul(agent: string): Promise<AgentSoulResponse> {
+  return apiFetch(`/api/v1/agentic/agents/${agent}/soul`, {
+    agent,
+    soul: "",
+    last_author: "",
+    last_date: "",
+  });
 }
