@@ -277,6 +277,18 @@ export const TargetPreview: Story = {
   },
 };
 
+/** Static snapshot: pseudo preview — source text with accent mapping */
+export const PseudoPreview: Story = {
+  args: {
+    previewContentMode: "pseudo",
+  },
+};
+
+/** Interactive pseudo mode — click blocks, switch modes, see accented source */
+export const PseudoMode: Story = {
+  render: () => <InteractiveLayout previewContentMode="pseudo" />,
+};
+
 // ---------------------------------------------------------------------------
 // Navigation — interactive story for testing keyboard navigation
 // ---------------------------------------------------------------------------
