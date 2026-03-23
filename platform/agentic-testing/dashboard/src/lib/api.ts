@@ -202,3 +202,23 @@ export async function fetchGitHubIssues(state = "all", limit = 20): Promise<GitH
   const resp = await apiFetch<{ issues: GitHubIssue[] }>(`/api/v1/agentic/issues?state=${state}&limit=${limit}`, { issues: [] });
   return resp.issues ?? [];
 }
+
+// --- Memory & Agent Persona ---
+
+export interface MemoryLogEntry {
+  sha: string;
+  agent: string;
+  message: string;
+  timestamp: string;
+  files: string[];
+}
+
+export async function fetchMemoryLog(limit = 50): Promise<MemoryLogEntry[]> {
+  const resp = await apiFetch<{ entries: MemoryLogEntry[] }>(`/api/v1/agentic/memory?limit=${limit}`, { entries: [] });
+  return resp.entries ?? [];
+}
+
+export async function fetchAgentSoul(agent: string): Promise<string> {
+  const resp = await apiFetch<{ soul: string }>(`/api/v1/agentic/agents/${agent}/soul`, { soul: "" });
+  return resp.soul ?? "";
+}

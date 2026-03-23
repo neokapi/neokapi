@@ -24,6 +24,12 @@ type FleetRepo interface {
 
 	// CommitFile writes a file to the fleet repo and commits it.
 	CommitFile(ctx context.Context, path, content, message string) (string, error)
+
+	// ListMemoryLog returns recent git commits that touched agent memory files.
+	ListMemoryLog(ctx context.Context, limit int) ([]MemoryLogEntry, error)
+
+	// ReadAgentFile reads a file from an agent's directory in the fleet repo.
+	ReadAgentFile(ctx context.Context, workspace, agent, filename string) (string, error)
 }
 
 // ExecutionFilter controls which executions to return.
@@ -177,6 +183,9 @@ func (s *Server) EventHub() *EventHub { return s.eventHub }
 
 // ExecStore returns the execution store, or nil.
 func (s *Server) ExecStore() *PostgresExecutionStore { return s.execStore }
+
+// FleetRepo returns the fleet repo, or nil.
+func (s *Server) FleetRepo() FleetRepo { return s.fleetRepo }
 
 // IssueTracker returns the GitHub issue tracker, or nil.
 func (s *Server) IssueTracker() *GitHubIssueTracker {
