@@ -61,7 +61,7 @@ async function switchToGrid(page: Page) {
 let token: string;
 let wsSlug: string;
 /** Story context from the shared seeder (populated with brand, tasks, etc.). */
-let storyCtx: StoryContext | null = null;
+let _storyCtx: StoryContext | null = null;
 
 const themes = ["dark", "light"] as const;
 
@@ -78,10 +78,10 @@ test.describe("Web App Recordings", () => {
     // Run the shared seeder for story-feature recordings.
     try {
       const api = new BowrainAPI(BASE_URL, token);
-      storyCtx = await fullSeed(api);
+      _storyCtx = await fullSeed(api);
     } catch (err) {
       console.log(`[recordings] Shared seeder failed (story recordings will be skipped): ${err}`);
-      storyCtx = null;
+      _storyCtx = null;
     }
   });
 
