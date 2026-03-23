@@ -176,6 +176,7 @@ function TopBarStreamSelector({
     <StreamSelector
       streams={streams}
       activeStream={streams.find((s: StreamInfo) => s.name === sidebarContext.activeStream) ?? null}
+      defaultStream={sidebarContext.project.default_stream}
       onStreamChange={(s: StreamInfo) => onStreamChange(s.name)}
       onCreateStream={actions.onCreateStream}
       onEditStream={actions.onEditStream}

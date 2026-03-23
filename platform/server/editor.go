@@ -126,6 +126,7 @@ type ProjectInfoResponse struct {
 	DefaultSourceLanguage string                `json:"default_source_language"`
 	TargetLanguages       []string              `json:"target_languages"`
 	TargetLanguageMode    string                `json:"target_language_mode"`
+	DefaultStream         string                `json:"default_stream,omitempty"`
 	Items                 []ProjectItemResponse `json:"items"`
 	Collections           []CollectionResponse  `json:"collections,omitempty"`
 	Streams               []store.Stream        `json:"streams,omitempty"`
@@ -409,6 +410,21 @@ func streamParam(c echo.Context) string {
 	}
 	if s := c.QueryParam("stream"); s != "" {
 		return s
+	}
+	return "main"
+}
+
+// streamParamWithProject extracts the active stream from the request,
+// falling back to the project's configured default stream before "main".
+func streamParamWithProject(c echo.Context, p *store.Project) string {
+	if s := c.Param("stream"); s != "" {
+		return s
+	}
+	if s := c.QueryParam("stream"); s != "" {
+		return s
+	}
+	if p != nil && p.DefaultStream != "" {
+		return p.DefaultStream
 	}
 	return "main"
 }
@@ -965,6 +981,7 @@ func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {
 		DefaultSourceLanguage: string(p.DefaultSourceLanguage),
 		TargetLanguages:       locales,
 		TargetLanguageMode:    mode,
+		DefaultStream:         p.DefaultStream,
 		Items:                 []ProjectItemResponse{},
 		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
 		ModifiedAt:            p.UpdatedAt.Format(time.RFC3339),

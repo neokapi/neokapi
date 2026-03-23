@@ -44,3 +44,44 @@ export const OnFeatureBranch: Story = {
     onDeleteStream: fn(),
   },
 };
+
+/** Default stream is "main" (typical case). */
+export const DefaultStreamMain: Story = {
+  args: {
+    streams: sampleStreams,
+    activeStream: mainStream,
+    defaultStream: "main",
+    onStreamChange: fn(),
+    onCreateStream: fn(),
+  },
+};
+
+/** Default stream is a non-main stream (e.g., first push was to "feature/translations"). */
+export const DefaultStreamNonMain: Story = {
+  args: {
+    streams: sampleStreams,
+    activeStream: featureStream,
+    defaultStream: "feature/translations",
+    onStreamChange: fn(),
+    onCreateStream: fn(),
+    onEditStream: fn(),
+    onMergeStream: fn(),
+    onDiffStream: fn(),
+    onDeleteStream: fn(),
+  },
+};
+
+/** Active stream differs from the default — both badges visible. */
+export const ActiveDiffersFromDefault: Story = {
+  args: {
+    streams: sampleStreams,
+    activeStream: featureStream,
+    defaultStream: "main",
+    onStreamChange: fn(),
+    onCreateStream: fn(),
+    onEditStream: fn(),
+    onMergeStream: fn(),
+    onDiffStream: fn(),
+    onDeleteStream: fn(),
+  },
+};

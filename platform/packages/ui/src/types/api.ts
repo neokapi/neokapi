@@ -173,6 +173,7 @@ export interface ProjectInfo {
   default_source_language: string;
   target_languages: string[];
   target_language_mode?: string;
+  default_stream?: string;
   workspace_id?: string;
   path?: string;
   items?: ProjectItem[];

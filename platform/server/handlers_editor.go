@@ -58,7 +58,7 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParam(c))
+	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
@@ -86,7 +86,8 @@ func (s *Server) HandleListEditorProjects(c echo.Context) error {
 		if p.WorkspaceID == wsID {
 			info := projectToInfoResponse(p)
 			// Populate items so the dashboard can show file counts.
-			items, err := s.ContentStore.ListItems(ctx, p.ID, streamParam(c))
+			stream := streamParamWithProject(c, p)
+			items, err := s.ContentStore.ListItems(ctx, p.ID, stream)
 			if err == nil {
 				for _, item := range items {
 					info.Items = append(info.Items, ProjectItemResponse{
@@ -128,6 +129,7 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	var req struct {
 		Name            string   `json:"name"`
 		TargetLanguages []string `json:"target_languages"`
+		DefaultStream   *string  `json:"default_stream,omitempty"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -143,12 +145,15 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		}
 		proj.TargetLanguages = locales
 	}
+	if req.DefaultStream != nil {
+		proj.DefaultStream = *req.DefaultStream
+	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParam(c))
+	info, err := editorBuildProjectInfo(ctx, s.ContentStore, proj, streamParamWithProject(c, proj))
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}

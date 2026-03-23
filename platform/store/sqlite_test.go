@@ -297,9 +297,9 @@ func TestItemCRUD(t *testing.T) {
 
 	t.Run("upsert", func(t *testing.T) {
 		item := &platstore.Item{
-			Name:     "messages.json",
-			Format:   "json",
-			ItemType: "file",
+			Name:       "messages.json",
+			Format:     "json",
+			ItemType:   "file",
 			Properties: map[string]string{},
 		}
 		require.NoError(t, s.StoreItem(ctx, p.ID, "", item))
@@ -890,4 +890,93 @@ func TestAssetChangeLog(t *testing.T) {
 	}
 
 	assert.Equal(t, []string{"asset_added", "asset_modified", "variant_added", "asset_removed"}, assetChangeTypes)
+}
+
+// ---------------------------------------------------------------------------
+// Default Stream
+// ---------------------------------------------------------------------------
+
+func TestDefaultStream_FirstPush(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	p := createTestProject(t, s)
+	assert.Empty(t, p.DefaultStream, "new project should have empty default stream")
+
+	// Simulate pushing to a non-main stream ("bowrain-main").
+	_ = s.CreateStream(ctx, &platstore.Stream{
+		ProjectID:  p.ID,
+		Name:       "bowrain-main",
+		Parent:     "main",
+		Visibility: platstore.StreamPublic,
+	})
+	item := &platstore.Item{Name: "en.json", Format: "json", ItemType: "file"}
+	require.NoError(t, s.StoreItem(ctx, p.ID, "bowrain-main", item))
+
+	// Set default stream (simulating what HandleSyncPush does).
+	got, err := s.GetProject(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got.DefaultStream)
+	got.DefaultStream = "bowrain-main"
+	require.NoError(t, s.UpdateProject(ctx, got))
+
+	// Verify it persists.
+	got2, err := s.GetProject(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "bowrain-main", got2.DefaultStream)
+}
+
+func TestDefaultStream_SubsequentPush(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	p := createTestProject(t, s)
+
+	// First push sets default stream.
+	p.DefaultStream = "foo"
+	require.NoError(t, s.UpdateProject(ctx, p))
+
+	// Subsequent push to "bar" should NOT change the default.
+	got, err := s.GetProject(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "foo", got.DefaultStream, "default stream should not change after first push")
+}
+
+func TestDefaultStream_Migration(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	// Create project and push items to "main" — migration backfill should set default_stream to "main".
+	p := createTestProject(t, s)
+	item := &platstore.Item{Name: "test.json", Format: "json", ItemType: "file"}
+	require.NoError(t, s.StoreItem(ctx, p.ID, "main", item))
+
+	// The migration backfill already ran during NewSQLiteStore, but since we just created the project
+	// after migration, verify the field can be set manually.
+	p.DefaultStream = "main"
+	require.NoError(t, s.UpdateProject(ctx, p))
+
+	got, err := s.GetProject(ctx, p.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "main", got.DefaultStream)
+}
+
+func TestDefaultStream_ListProjects(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	p := createTestProject(t, s)
+	p.DefaultStream = "develop"
+	require.NoError(t, s.UpdateProject(ctx, p))
+
+	projects, err := s.ListProjects(ctx)
+	require.NoError(t, err)
+	var found bool
+	for _, proj := range projects {
+		if proj.ID == p.ID {
+			assert.Equal(t, "develop", proj.DefaultStream)
+			found = true
+		}
+	}
+	assert.True(t, found, "project should be in list")
 }

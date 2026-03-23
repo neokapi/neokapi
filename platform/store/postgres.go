@@ -67,9 +67,9 @@ func (s *PostgresStore) CreateProject(ctx context.Context, p *platstore.Project)
 		p.TargetLanguageMode = "defined"
 	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, properties, workspace_id, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, string(propsJSON),
+		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, properties, workspace_id, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, string(propsJSON),
 		p.WorkspaceID, now, now)
 	if err != nil {
 		return fmt.Errorf("insert project: %w", err)
@@ -79,14 +79,14 @@ func (s *PostgresStore) CreateProject(ctx context.Context, p *platstore.Project)
 
 func (s *PostgresStore) GetProject(ctx context.Context, id string) (*platstore.Project, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, properties, workspace_id, archived, archived_at, created_at, updated_at
+		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, properties, workspace_id, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE id = $1`, id)
 	return scanProjectPg(row)
 }
 
 func (s *PostgresStore) ListProjects(ctx context.Context) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, properties, workspace_id, archived, archived_at, created_at, updated_at
+		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, properties, workspace_id, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE archived=FALSE ORDER BY name`)
 	if err != nil {
 		return nil, fmt.Errorf("list projects: %w", err)
@@ -116,9 +116,9 @@ func (s *PostgresStore) UpdateProject(ctx context.Context, p *platstore.Project)
 		p.TargetLanguageMode = "defined"
 	}
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE projects SET name=$1, default_source_language=$2, target_languages=$3, target_language_mode=$4, properties=$5, workspace_id=$6, updated_at=$7
-		 WHERE id=$8`,
-		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, string(propsJSON),
+		`UPDATE projects SET name=$1, default_source_language=$2, target_languages=$3, target_language_mode=$4, default_stream=$5, properties=$6, workspace_id=$7, updated_at=$8
+		 WHERE id=$9`,
+		p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, string(propsJSON),
 		p.WorkspaceID, p.UpdatedAt, p.ID)
 	if err != nil {
 		return fmt.Errorf("update project: %w", err)
@@ -172,7 +172,7 @@ func (s *PostgresStore) RestoreProject(ctx context.Context, id string) error {
 
 func (s *PostgresStore) ListArchivedProjects(ctx context.Context, workspaceID string) ([]*platstore.Project, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, default_source_language, target_languages, target_language_mode, properties, workspace_id, archived, archived_at, created_at, updated_at
+		`SELECT id, name, default_source_language, target_languages, target_language_mode, default_stream, properties, workspace_id, archived, archived_at, created_at, updated_at
 		 FROM projects WHERE workspace_id=$1 AND archived=TRUE ORDER BY archived_at DESC`, workspaceID)
 	if err != nil {
 		return nil, fmt.Errorf("list archived projects: %w", err)
@@ -876,7 +876,7 @@ func (s *PostgresStore) Diff(ctx context.Context, fromVersionID, toVersionID str
 func scanProjectPg(row scanner) (*platstore.Project, error) {
 	var p platstore.Project
 	var srcLocale, targetLocales, propsJSON string
-	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &p.TargetLanguageMode, &propsJSON, &p.WorkspaceID,
+	err := row.Scan(&p.ID, &p.Name, &srcLocale, &targetLocales, &p.TargetLanguageMode, &p.DefaultStream, &propsJSON, &p.WorkspaceID,
 		&p.Archived, &p.ArchivedAt, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan project: %w", err)

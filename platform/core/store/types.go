@@ -23,6 +23,7 @@ type Project struct {
 	DefaultSourceLanguage model.LocaleID    `json:"default_source_language"`
 	TargetLanguages       []model.LocaleID  `json:"target_languages"`
 	TargetLanguageMode    string            `json:"target_language_mode"`
+	DefaultStream         string            `json:"default_stream,omitempty"`
 	Properties            map[string]string `json:"properties,omitempty"`
 	WorkspaceID           string            `json:"workspace_id,omitempty"`
 	Archived              bool              `json:"archived"`

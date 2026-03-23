@@ -137,6 +137,15 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		totalStored += len(blocks)
 	}
 
+	// Auto-set the project's default stream on first push.
+	if totalStored > 0 && s.ContentStore != nil {
+		proj, projErr := s.ContentStore.GetProject(ctx, projectID)
+		if projErr == nil && proj.DefaultStream == "" {
+			proj.DefaultStream = stream
+			_ = s.ContentStore.UpdateProject(ctx, proj)
+		}
+	}
+
 	cursor, err := s.Services.Project.LatestCursor(ctx, projectID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -173,10 +182,10 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 	}
 
 	s.trackEvent(userID, "sync_push", map[string]any{
-		"project_id":  projectID,
-		"blocks":      totalStored,
-		"items":       len(itemGroups),
-		"stream":      stream,
+		"project_id": projectID,
+		"blocks":     totalStored,
+		"items":      len(itemGroups),
+		"stream":     stream,
 	})
 
 	return c.JSON(http.StatusOK, apiclient.SyncPushResponse{

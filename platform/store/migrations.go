@@ -632,4 +632,25 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_items_collection ON items(project_id, collection_id);
 		`,
 	},
+	{
+		Version:     27,
+		Description: "add default_stream column to projects",
+		SQL: `
+			ALTER TABLE projects ADD COLUMN default_stream TEXT NOT NULL DEFAULT '';
+
+			-- Backfill: set default_stream for projects that have items on 'main'.
+			UPDATE projects SET default_stream = 'main'
+			WHERE id IN (SELECT DISTINCT project_id FROM items WHERE stream = 'main');
+
+			-- For projects with no 'main' items but items on exactly one stream,
+			-- set that stream as default.
+			UPDATE projects SET default_stream = (
+				SELECT stream FROM items WHERE items.project_id = projects.id
+				GROUP BY stream
+				ORDER BY COUNT(*) DESC LIMIT 1
+			)
+			WHERE default_stream = ''
+			  AND id IN (SELECT DISTINCT project_id FROM items);
+		`,
+	},
 }
