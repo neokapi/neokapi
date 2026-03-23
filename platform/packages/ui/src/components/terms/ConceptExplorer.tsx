@@ -3,7 +3,13 @@ import { useTermsApi } from "../../hooks/useTermsApi";
 import { useGraphApi } from "../../hooks/useGraphApi";
 import { useLocales } from "../../hooks/useLocales";
 import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
-import type { ConceptInfo, TermInfo, ConceptHierarchyNode, GraphEdge, GraphNode } from "../../types/api";
+import type {
+  ConceptInfo,
+  TermInfo,
+  ConceptHierarchyNode,
+  GraphEdge,
+  GraphNode,
+} from "../../types/api";
 import type { FilterToken, FilterField, FilterPreset } from "../FilterBar";
 import { FilterBar } from "../FilterBar";
 import { Button } from "../ui/button";
@@ -87,7 +93,7 @@ export function ConceptExplorer({
   // Form state
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingConcept, setEditingConcept] = useState<ConceptInfo | null>(null);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [_deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [newProjectScoped, setNewProjectScoped] = useState(false);
@@ -316,7 +322,16 @@ export function ConceptExplorer({
     } catch (e) {
       console.error("Failed to update concept:", e);
     }
-  }, [updateConcept, editingConcept, selectedConcept, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [
+    updateConcept,
+    editingConcept,
+    selectedConcept,
+    fetchConcepts,
+    query,
+    sourceLocaleFilter,
+    targetLocaleFilter,
+    page,
+  ]);
 
   const handleDelete = useCallback(
     async (conceptId: string) => {
@@ -329,7 +344,15 @@ export function ConceptExplorer({
         console.error("Failed to delete concept:", e);
       }
     },
-    [deleteConcept, selectedConcept, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page],
+    [
+      deleteConcept,
+      selectedConcept,
+      fetchConcepts,
+      query,
+      sourceLocaleFilter,
+      targetLocaleFilter,
+      page,
+    ],
   );
 
   const handleImportCSV = useCallback(async () => {
@@ -349,7 +372,16 @@ export function ConceptExplorer({
       }
     };
     input.click();
-  }, [importTermsCSV, sourceLocale, targetLocales, fetchConcepts, query, sourceLocaleFilter, targetLocaleFilter, page]);
+  }, [
+    importTermsCSV,
+    sourceLocale,
+    targetLocales,
+    fetchConcepts,
+    query,
+    sourceLocaleFilter,
+    targetLocaleFilter,
+    page,
+  ]);
 
   const handleImportJSON = useCallback(async () => {
     const input = document.createElement("input");
@@ -450,7 +482,10 @@ export function ConceptExplorer({
           <div className="flex items-center justify-between p-6 pb-0">
             <div>
               <h2 className="text-xl font-semibold">Concepts</h2>
-              <p className="text-[13px] text-muted-foreground mt-1" data-testid="concept-count-badge">
+              <p
+                className="text-[13px] text-muted-foreground mt-1"
+                data-testid="concept-count-badge"
+              >
                 {totalCount} {totalCount === 1 ? "concept" : "concepts"}
               </p>
             </div>
@@ -644,8 +679,8 @@ export function ConceptExplorer({
               {totalPages > 1 && (
                 <div className="flex items-center justify-between mt-6 pt-6 border-t border-border">
                   <span className="text-sm text-muted-foreground">
-                    Showing {page * PAGE_SIZE + 1} to{" "}
-                    {Math.min((page + 1) * PAGE_SIZE, totalCount)} of {totalCount}
+                    Showing {page * PAGE_SIZE + 1} to {Math.min((page + 1) * PAGE_SIZE, totalCount)}{" "}
+                    of {totalCount}
                   </span>
                   <div className="flex items-center gap-2">
                     <Button
@@ -821,10 +856,7 @@ export function ConceptExplorer({
             <Button variant="outline" onClick={() => handleAddDialogChange(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleAdd}
-              disabled={newTerms.every((t) => !t.text.trim())}
-            >
+            <Button onClick={handleAdd} disabled={newTerms.every((t) => !t.text.trim())}>
               Save
             </Button>
           </DialogFooter>

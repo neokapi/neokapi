@@ -3,7 +3,6 @@ import type { ConceptInfo, GraphEdge, GraphNode } from "../../types/api";
 import { GRAPH_LABEL_DISPLAY } from "../../types/api";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
 import { X, Clock, Pencil, Trash2, Link, ArrowRight, ArrowLeft } from "../icons";
 import { cn } from "../../lib/utils";
@@ -120,7 +119,10 @@ export function ConceptDetailPanel({
               {concept.domain}
             </span>
           )}
-          <h3 className="text-lg font-semibold leading-tight mt-0.5 truncate" title={preferred?.text}>
+          <h3
+            className="text-lg font-semibold leading-tight mt-0.5 truncate"
+            title={preferred?.text}
+          >
             {preferred?.text ?? "Untitled"}
           </h3>
           <div className="flex items-center gap-2 mt-1">
@@ -227,7 +229,10 @@ export function ConceptDetailPanel({
                     className="w-3.5 h-3.5 flex-shrink-0"
                     style={{ color: EDGE_COLORS[edge.label] }}
                   />
-                  <span className="text-[11px] font-medium flex-shrink-0" style={{ color: EDGE_COLORS[edge.label] }}>
+                  <span
+                    className="text-[11px] font-medium flex-shrink-0"
+                    style={{ color: EDGE_COLORS[edge.label] }}
+                  >
                     {GRAPH_LABEL_DISPLAY[edge.label] ?? edge.label}
                   </span>
                   <span className="text-sm truncate group-hover:text-primary transition-colors">
@@ -246,7 +251,10 @@ export function ConceptDetailPanel({
                     className="w-3.5 h-3.5 flex-shrink-0"
                     style={{ color: EDGE_COLORS[edge.label] }}
                   />
-                  <span className="text-[11px] font-medium flex-shrink-0" style={{ color: EDGE_COLORS[edge.label] }}>
+                  <span
+                    className="text-[11px] font-medium flex-shrink-0"
+                    style={{ color: EDGE_COLORS[edge.label] }}
+                  >
                     {GRAPH_LABEL_DISPLAY[edge.label] ?? edge.label}
                   </span>
                   <span className="text-sm truncate group-hover:text-primary transition-colors">

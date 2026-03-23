@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { useCallback, useMemo, useEffect, useRef } from "react";
 import {
   ReactFlow,
   Controls,
@@ -17,8 +17,6 @@ import { ConceptNode } from "./ConceptNode";
 import type { ConceptNodeData } from "./ConceptNode";
 import type { ConceptInfo, ConceptHierarchyNode, GraphEdge } from "../../types/api";
 import { GRAPH_LABEL_DISPLAY } from "../../types/api";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
 
 /** Edge-label coloring by relationship type */
 const EDGE_COLORS: Record<string, string> = {
@@ -77,8 +75,7 @@ function layoutNodes(
   return sorted.map((concept, i) => {
     const hier = hierMap.get(concept.id);
     const locales = new Set(concept.terms.map((t) => t.locale));
-    const preferred =
-      concept.terms.find((t) => t.status === "preferred") ?? concept.terms[0];
+    const preferred = concept.terms.find((t) => t.status === "preferred") ?? concept.terms[0];
 
     let x: number, y: number;
     if (i === 0 && concept.id === selectedId) {
@@ -152,10 +149,7 @@ export function ConceptGraph({
     () => layoutNodes(concepts, hierarchy, selectedId),
     [concepts, hierarchy, selectedId],
   );
-  const initialEdges = useMemo(
-    () => buildEdges(graphEdges, conceptIds),
-    [graphEdges, conceptIds],
-  );
+  const initialEdges = useMemo(() => buildEdges(graphEdges, conceptIds), [graphEdges, conceptIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -182,10 +176,7 @@ export function ConceptGraph({
     );
   }, [selectedId, setNodes]);
 
-  const conceptMap = useMemo(
-    () => new Map(concepts.map((c) => [c.id, c])),
-    [concepts],
-  );
+  const conceptMap = useMemo(() => new Map(concepts.map((c) => [c.id, c])), [concepts]);
 
   const onNodeClick: NodeMouseHandler = useCallback(
     (_event, node) => {
