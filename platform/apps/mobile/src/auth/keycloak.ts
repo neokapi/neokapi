@@ -6,7 +6,6 @@
  */
 import * as AuthSession from "expo-auth-session";
 import * as SecureStore from "expo-secure-store";
-import * as Linking from "expo-linking";
 
 const TOKEN_KEY = "bowrain_access_token";
 const REFRESH_TOKEN_KEY = "bowrain_refresh_token";

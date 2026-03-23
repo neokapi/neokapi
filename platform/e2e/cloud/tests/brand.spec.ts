@@ -29,6 +29,7 @@ test.describe("Brand Voice Profiles", () => {
     }
   });
 
+  // eslint-disable-next-line no-unused-vars
   test("create brand profile from starter pack", async ({ api }) => {
     if (!brandAvailable) {
       test.skip(true, "Brand profiles feature not available on this server");
