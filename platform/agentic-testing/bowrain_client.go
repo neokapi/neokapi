@@ -148,10 +148,11 @@ func (c *BowrainClient) ListAuditLog(ctx context.Context, wsSlug string, limit i
 
 // Block is a bowrain translation block.
 type Block struct {
-	ID     string `json:"id"`
-	Source string `json:"source"`
-	Target string `json:"target,omitempty"`
-	Status string `json:"status,omitempty"`
+	ID       string            `json:"id"`
+	Name     string            `json:"name,omitempty"`
+	ItemName string            `json:"item_name,omitempty"`
+	Source   string            `json:"source"`
+	Targets  map[string]string `json:"targets,omitempty"`
 }
 
 // BlockListOptions controls block listing.
