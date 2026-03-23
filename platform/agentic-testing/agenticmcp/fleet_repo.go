@@ -170,6 +170,118 @@ func (r *GitFleetRepo) CommitFile(ctx context.Context, path, content, message st
 	return strings.TrimSpace(string(out)), nil
 }
 
+// MemoryLogEntry represents a git commit that touched agent memory files.
+type MemoryLogEntry struct {
+	SHA       string   `json:"sha"`
+	Agent     string   `json:"agent"`
+	Message   string   `json:"message"`
+	Timestamp string   `json:"timestamp"`
+	Files     []string `json:"files"`
+}
+
+// ListMemoryLog returns recent git commits that touched agent memory paths.
+func (r *GitFleetRepo) ListMemoryLog(ctx context.Context, limit int) ([]MemoryLogEntry, error) {
+	dir, err := r.ensureClone(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if limit <= 0 {
+		limit = 50
+	}
+
+	// git log with custom format: SHA|author|timestamp|message
+	// Filter to commits touching workspaces/*/agents/*/memory/
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "log",
+		fmt.Sprintf("--max-count=%d", limit),
+		"--format=%H|%an|%aI|%s",
+		"--name-only",
+		"--diff-filter=ACMR",
+		"--", "workspaces/*/agents/*/memory/*")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		// No commits matching the path is not an error.
+		if len(out) == 0 {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("git log: %s: %w", string(out), err)
+	}
+
+	return parseMemoryLog(string(out)), nil
+}
+
+// parseMemoryLog parses the git log output into MemoryLogEntry structs.
+func parseMemoryLog(output string) []MemoryLogEntry {
+	var entries []MemoryLogEntry
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	if len(lines) == 0 || (len(lines) == 1 && lines[0] == "") {
+		return nil
+	}
+
+	var current *MemoryLogEntry
+	for _, line := range lines {
+		if line == "" {
+			if current != nil {
+				current.Agent = extractAgent(current.Files)
+				entries = append(entries, *current)
+				current = nil
+			}
+			continue
+		}
+
+		parts := strings.SplitN(line, "|", 4)
+		if len(parts) == 4 {
+			// Header line: SHA|author|timestamp|message
+			if current != nil {
+				current.Agent = extractAgent(current.Files)
+				entries = append(entries, *current)
+			}
+			current = &MemoryLogEntry{
+				SHA:       parts[0][:8],
+				Agent:     parts[1],
+				Timestamp: parts[2],
+				Message:   parts[3],
+			}
+		} else if current != nil && strings.Contains(line, "/memory/") {
+			// File path line
+			current.Files = append(current.Files, line)
+		}
+	}
+	if current != nil {
+		current.Agent = extractAgent(current.Files)
+		entries = append(entries, *current)
+	}
+	return entries
+}
+
+// extractAgent extracts the agent name from memory file paths like
+// workspaces/excalidraw-l10n/agents/alex/memory/foo.md
+func extractAgent(files []string) string {
+	for _, f := range files {
+		parts := strings.Split(f, "/")
+		for i, p := range parts {
+			if p == "agents" && i+1 < len(parts) {
+				return parts[i+1]
+			}
+		}
+	}
+	return "unknown"
+}
+
+// ReadAgentFile reads a file from an agent's directory.
+func (r *GitFleetRepo) ReadAgentFile(ctx context.Context, workspace, agent, filename string) (string, error) {
+	dir, err := r.ensureClone(ctx)
+	if err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "workspaces", workspace, "agents", agent, filename)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read agent file: %w", err)
+	}
+	return string(data), nil
+}
+
 // readPlan parses a plan.yaml file.
 func (r *GitFleetRepo) readPlan(path string) (*WorkspacePlan, error) {
 	data, err := os.ReadFile(path)
