@@ -162,9 +162,37 @@ export default function AgentCard({ agent }: AgentCardProps) {
                 Loading persona...
               </p>
             ) : soul ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <Markdown>{soul}</Markdown>
-              </div>
+              <Markdown
+                components={{
+                  h1: ({ children }) => (
+                    <h1 className="mb-3 text-lg font-bold">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="mt-4 mb-2 text-sm font-semibold">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="mt-3 mb-1 text-sm font-medium">{children}</h3>
+                  ),
+                  p: ({ children }) => (
+                    <p className="mb-2 text-sm leading-relaxed text-foreground/80">{children}</p>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="mb-2 ml-4 list-disc space-y-1 text-sm text-foreground/80">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="mb-2 ml-4 list-decimal space-y-1 text-sm text-foreground/80">{children}</ol>
+                  ),
+                  li: ({ children }) => <li>{children}</li>,
+                  strong: ({ children }) => (
+                    <strong className="font-semibold text-foreground">{children}</strong>
+                  ),
+                  code: ({ children }) => (
+                    <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">{children}</code>
+                  ),
+                }}
+              >
+                {soul}
+              </Markdown>
             ) : (
               <p className="text-sm text-muted-foreground py-8 text-center">
                 No persona file found for this agent.
