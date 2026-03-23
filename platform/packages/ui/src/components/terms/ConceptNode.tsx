@@ -39,7 +39,10 @@ export function ConceptNodeComponent({ data }: NodeProps) {
         )}
 
         {/* Preferred term — the concept's main label */}
-        <div className="text-sm font-semibold mt-0.5 leading-tight truncate" title={d.preferredTerm}>
+        <div
+          className="text-sm font-semibold mt-0.5 leading-tight truncate"
+          title={d.preferredTerm}
+        >
           {d.preferredTerm}
         </div>
 
@@ -70,7 +73,11 @@ export function ConceptNodeComponent({ data }: NodeProps) {
         </div>
       </div>
 
-      <Handle type="source" position={Position.Bottom} className="!w-2 !h-2 !bg-muted-foreground/40" />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!w-2 !h-2 !bg-muted-foreground/40"
+      />
     </div>
   );
 }

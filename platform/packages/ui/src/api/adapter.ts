@@ -430,11 +430,7 @@ export interface ApiAdapter {
     nodeId: string,
     direction?: "outgoing" | "incoming" | "both",
   ): Promise<GraphEdge[]>;
-  getGraphShortestPath(
-    workspaceSlug: string,
-    fromId: string,
-    toId: string,
-  ): Promise<GraphPath>;
+  getGraphShortestPath(workspaceSlug: string, fromId: string, toId: string): Promise<GraphPath>;
 
   // Providers
   listProviderConfigs(workspaceSlug: string): Promise<ProviderConfig[]>;

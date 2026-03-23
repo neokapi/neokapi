@@ -23,10 +23,8 @@ export function useGraphApi() {
   );
 
   const getGraphEdges = useCallback(
-    async (
-      nodeId: string,
-      direction?: "outgoing" | "incoming" | "both",
-    ): Promise<GraphEdge[]> => api.getGraphEdges(ws, nodeId, direction),
+    async (nodeId: string, direction?: "outgoing" | "incoming" | "both"): Promise<GraphEdge[]> =>
+      api.getGraphEdges(ws, nodeId, direction),
     [api, ws],
   );
 
