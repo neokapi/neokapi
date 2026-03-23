@@ -22,6 +22,7 @@ import {
 export interface StreamSelectorProps {
   streams: StreamInfo[];
   activeStream: StreamInfo | null;
+  defaultStream?: string;
   onStreamChange: (stream: StreamInfo) => void;
   onCreateStream?: () => void;
   onEditStream?: (stream: StreamInfo) => void;
@@ -78,6 +79,7 @@ function groupStreams(
 export function StreamSelector({
   streams,
   activeStream,
+  defaultStream,
   onStreamChange,
   onCreateStream,
   onEditStream,
@@ -164,9 +166,13 @@ export function StreamSelector({
                   className={`inline-block h-2 w-2 rounded-full shrink-0 ${visibilityColor[stream.visibility]}`}
                 />
                 <span className="flex-1 truncate text-sm">{stream.name}</span>
-                {stream.name === activeStream?.name && (
-                  <span className="text-[10px] text-muted-foreground">current</span>
+                {stream.name === (defaultStream || "main") && (
+                  <span className="text-[10px] text-muted-foreground">default</span>
                 )}
+                {stream.name === activeStream?.name &&
+                  stream.name !== (defaultStream || "main") && (
+                    <span className="text-[10px] text-muted-foreground">current</span>
+                  )}
               </DropdownMenuItem>
             ))}
           </div>

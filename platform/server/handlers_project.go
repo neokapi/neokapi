@@ -17,6 +17,7 @@ type ProjectRequest struct {
 	Name                  string   `json:"name"`
 	DefaultSourceLanguage string   `json:"default_source_language"`
 	TargetLanguages       []string `json:"target_languages"`
+	DefaultStream         *string  `json:"default_stream,omitempty"`
 	Workspace             string   `json:"workspace,omitempty"`
 }
 
@@ -173,7 +174,11 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		Name:                  req.Name,
 		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
 		TargetLanguages:       locales,
+		DefaultStream:         existing.DefaultStream,
 		WorkspaceID:           workspaceID,
+	}
+	if req.DefaultStream != nil {
+		p.DefaultStream = *req.DefaultStream
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

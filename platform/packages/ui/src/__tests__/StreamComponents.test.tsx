@@ -371,6 +371,60 @@ describe("StreamSelector", () => {
     });
   });
 
+  it("shows 'default' badge on the default stream", async () => {
+    const user = userEvent.setup();
+    render(
+      <StreamSelector
+        streams={[mainStream, devStream]}
+        activeStream={devStream}
+        defaultStream="dev"
+        onStreamChange={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByText("dev"));
+
+    await waitFor(() => {
+      expect(screen.getByText("default")).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'default' badge on main when no defaultStream prop", async () => {
+    const user = userEvent.setup();
+    render(
+      <StreamSelector
+        streams={[mainStream, devStream]}
+        activeStream={devStream}
+        onStreamChange={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByText("dev"));
+
+    await waitFor(() => {
+      expect(screen.getByText("default")).toBeInTheDocument();
+    });
+  });
+
+  it("does not show 'current' badge when active stream is the default", async () => {
+    const user = userEvent.setup();
+    render(
+      <StreamSelector
+        streams={[mainStream, devStream]}
+        activeStream={devStream}
+        defaultStream="dev"
+        onStreamChange={() => {}}
+      />,
+    );
+
+    await user.click(screen.getByText("dev"));
+
+    await waitFor(() => {
+      expect(screen.getByText("default")).toBeInTheDocument();
+      expect(screen.queryByText("current")).not.toBeInTheDocument();
+    });
+  });
+
   it("shows 'Create stream' option when onCreateStream is provided", async () => {
     const user = userEvent.setup();
     render(
