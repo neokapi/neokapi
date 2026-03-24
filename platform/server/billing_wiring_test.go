@@ -77,6 +77,10 @@ func (m *mockAuthStoreForBilling) GetUser(_ context.Context, userID string) (*pl
 	return u, nil
 }
 
+func (m *mockAuthStoreForBilling) ListUsers(_ context.Context, _, _ int) ([]*platauth.User, error) {
+	return nil, nil
+}
+
 // ---------------------------------------------------------------------------
 // planSyncAdapter tests
 // ---------------------------------------------------------------------------

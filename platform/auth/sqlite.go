@@ -257,6 +257,26 @@ func (s *SQLiteAuthStore) GetUserByOIDCSub(ctx context.Context, sub string) (*pl
 	return scanUser(row)
 }
 
+func (s *SQLiteAuthStore) ListUsers(ctx context.Context, limit, offset int) ([]*platauth.User, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("list users: %w", err)
+	}
+	defer rows.Close()
+
+	var users []*platauth.User
+	for rows.Next() {
+		u, err := scanUser(rows)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 func (s *SQLiteAuthStore) UpdateUser(ctx context.Context, u *platauth.User) error {
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE users SET email=?, name=?, avatar_url=?, oidc_sub=? WHERE id=?`,
