@@ -91,6 +91,38 @@ When the workspace is `private` but the requester has a valid JWT and workspace
 membership, the dashboard is still accessible — this lets workspace members
 preview the dashboard before making it public or unlisted.
 
+### Contributor identities
+
+Pulse shows **public contributor identities** — real names, avatars, and
+activity counts — the same way GitHub shows contributor graphs. This is the
+expected behavior for open-source community dashboards where recognition
+motivates contributions.
+
+Individual contributors can opt out via their profile settings (a
+`pulse_visible` boolean on the user profile, default `true`). When opted out,
+their contributions still count toward aggregate stats but their name/avatar is
+replaced with "Anonymous Contributor" on leaderboards and activity feeds.
+
+### Terminology explorer scope
+
+The terminology explorer's data sources are **configurable per workspace**. A
+new `PulseTermSources` field on the workspace controls which concept sources
+are exposed:
+
+```go
+type PulseTermSources struct {
+    Terminology     bool `json:"terminology"`      // standard glossary terms
+    BrandVocabulary bool `json:"brand_vocabulary"`  // product names, taglines, do/don't
+}
+```
+
+Default: `terminology = true`, `brand_vocabulary = false`. This lets
+open-source projects share their glossary without exposing proprietary brand
+voice rules, while projects that want to publish brand guidelines can opt in.
+
+The workspace settings UI shows checkboxes for each source under the Pulse
+configuration section.
+
 ### URL-first filtering
 
 All filter state lives in the URL. Every view's filters are encoded as query
