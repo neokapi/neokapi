@@ -93,9 +93,9 @@ func TestPermissionString(t *testing.T) {
 
 func TestParsePermission(t *testing.T) {
 	tests := []struct {
-		name string
+		name  string
 		input string
-		want Permission
+		want  Permission
 	}{
 		{"view_content", "view_content", PermViewContent},
 		{"translate", "translate", PermTranslate},

@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
-	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/core/tools"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 )
 

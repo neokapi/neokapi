@@ -103,8 +103,8 @@ type MessageUsage struct {
 type StepUpData struct {
 	CurrentMode  string   `json:"current_mode"`
 	RequiredMode string   `json:"required_mode"`
-	Action       string   `json:"action"`       // human-readable description of blocked action
-	Permissions  []string `json:"permissions"`   // permission names needed
+	Action       string   `json:"action"`      // human-readable description of blocked action
+	Permissions  []string `json:"permissions"` // permission names needed
 }
 
 // ErrorData is emitted when an error occurs during processing.

@@ -179,11 +179,11 @@ func ModePermissionCeiling(mode AgentMode) Permission {
 // SessionGrant represents a just-in-time, ephemeral permission scope for
 // an @bravo conversation or MCP tool session.
 type SessionGrant struct {
-	SessionID   string     `json:"session_id"`   // conversation ID or MCP session ID
-	UserID      string     `json:"user_id"`      // who granted
-	Permissions Permission `json:"permissions"`   // bitmask subset of user's permissions
-	Languages   []string   `json:"languages"`    // language constraint (empty = all)
-	ProjectIDs  []string   `json:"project_ids"`  // project constraint (empty = all)
-	Mode        AgentMode  `json:"mode"`         // current interaction mode
-	ExpiresAt   time.Time  `json:"expires_at"`   // auto-expire
+	SessionID   string     `json:"session_id"`  // conversation ID or MCP session ID
+	UserID      string     `json:"user_id"`     // who granted
+	Permissions Permission `json:"permissions"` // bitmask subset of user's permissions
+	Languages   []string   `json:"languages"`   // language constraint (empty = all)
+	ProjectIDs  []string   `json:"project_ids"` // project constraint (empty = all)
+	Mode        AgentMode  `json:"mode"`        // current interaction mode
+	ExpiresAt   time.Time  `json:"expires_at"`  // auto-expire
 }

@@ -22,11 +22,11 @@ type AgentEnqueuer interface {
 type AgentService struct {
 	store        platagent.AgentStore
 	eventBus     platev.EventBus
-	pool         *AgentPool           // manages ZeroClaw containers (nil when using queue mode)
-	tokenStore   *AgentTokenStore     // scoped agent tokens for MCP delegation
-	queue        AgentEnqueuer        // Service Bus queue for bravo-jobs (nil = direct/mock mode)
-	pubsub       *AgentPubSub         // Redis pub/sub for SSE relay (nil = direct/mock mode)
-	billingHooks *billing.UsageHooks  // billing credit deduction (nil = disabled)
+	pool         *AgentPool          // manages ZeroClaw containers (nil when using queue mode)
+	tokenStore   *AgentTokenStore    // scoped agent tokens for MCP delegation
+	queue        AgentEnqueuer       // Service Bus queue for bravo-jobs (nil = direct/mock mode)
+	pubsub       *AgentPubSub        // Redis pub/sub for SSE relay (nil = direct/mock mode)
+	billingHooks *billing.UsageHooks // billing credit deduction (nil = disabled)
 }
 
 // NewAgentService creates the agent service.

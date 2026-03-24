@@ -7,7 +7,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-
 // registerFleetTools registers fleet overview and workspace tools.
 func (s *Server) registerFleetTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -40,14 +39,14 @@ type fleetSummaryOutput struct {
 }
 
 type workspaceSummary struct {
-	Slug               string            `json:"slug"`
-	ProjectCount       int               `json:"project_count"`
-	PendingPushes      int               `json:"pending_pushes"`
-	UntranslatedBlocks map[string]int    `json:"untranslated_blocks"`
-	LastAgentSession   *sessionSummary   `json:"last_agent_session,omitempty"`
-	ActiveSessions     []sessionSummary  `json:"active_sessions"`
-	Health             string            `json:"health"`
-	Mode               string            `json:"mode"`
+	Slug               string           `json:"slug"`
+	ProjectCount       int              `json:"project_count"`
+	PendingPushes      int              `json:"pending_pushes"`
+	UntranslatedBlocks map[string]int   `json:"untranslated_blocks"`
+	LastAgentSession   *sessionSummary  `json:"last_agent_session,omitempty"`
+	ActiveSessions     []sessionSummary `json:"active_sessions"`
+	Health             string           `json:"health"`
+	Mode               string           `json:"mode"`
 }
 
 type sessionSummary struct {
@@ -60,11 +59,11 @@ type sessionSummary struct {
 }
 
 type globalStats struct {
-	TotalWorkspaces  int     `json:"total_workspaces"`
-	ActiveSessions   int     `json:"active_sessions"`
-	SessionsToday    int     `json:"sessions_today"`
-	DailyBudget      int     `json:"daily_budget"`
-	AISpendTodayUSD  float64 `json:"ai_spend_today_usd"`
+	TotalWorkspaces int     `json:"total_workspaces"`
+	ActiveSessions  int     `json:"active_sessions"`
+	SessionsToday   int     `json:"sessions_today"`
+	DailyBudget     int     `json:"daily_budget"`
+	AISpendTodayUSD float64 `json:"ai_spend_today_usd"`
 }
 
 func (s *Server) handleGetFleetSummary(ctx context.Context, req *mcp.CallToolRequest, input getFleetSummaryInput) (*mcp.CallToolResult, fleetSummaryOutput, error) {
@@ -141,19 +140,19 @@ type getWorkspaceStatusInput struct {
 }
 
 type workspaceStatusOutput struct {
-	Slug           string           `json:"slug"`
-	Projects       []projectStatus  `json:"projects"`
-	RecentActivity []activityEntry  `json:"recent_activity"`
-	AgentHistory   []agentHistory   `json:"agent_history"`
+	Slug           string          `json:"slug"`
+	Projects       []projectStatus `json:"projects"`
+	RecentActivity []activityEntry `json:"recent_activity"`
+	AgentHistory   []agentHistory  `json:"agent_history"`
 }
 
 type projectStatus struct {
-	ID              string            `json:"id"`
-	Name            string            `json:"name"`
-	SourceLanguage  string            `json:"source_language"`
-	TargetLanguages []string          `json:"target_languages"`
-	BlockStats      blockStats        `json:"block_stats"`
-	LastPush        string            `json:"last_push,omitempty"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	SourceLanguage  string     `json:"source_language"`
+	TargetLanguages []string   `json:"target_languages"`
+	BlockStats      blockStats `json:"block_stats"`
+	LastPush        string     `json:"last_push,omitempty"`
 }
 
 type blockStats struct {
