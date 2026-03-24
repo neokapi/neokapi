@@ -141,15 +141,26 @@ func (rc *reportCollector) compareParts(format, file, pair string, textsA, texts
 
 	const minLen = 10 // skip trivial blocks (IDs, short labels)
 
+	// Strip non-alphanumeric characters for fuzzy matching fallback.
+	// This handles segmentation artifacts where inline code removal leaves
+	// punctuation patterns (", , .") that don't appear in the other side.
+	alphaA := stripNonAlpha(concatA)
+	alphaB := stripNonAlpha(concatB)
+
 	var missingInB, missingInA []string
 	for _, t := range textsA {
 		if len(t) >= minLen && !strings.Contains(concatB, t) {
-			missingInB = append(missingInB, t)
+			// Fallback: check alphanumeric-only match
+			if !strings.Contains(alphaB, stripNonAlpha(t)) {
+				missingInB = append(missingInB, t)
+			}
 		}
 	}
 	for _, t := range textsB {
 		if len(t) >= minLen && !strings.Contains(concatA, t) {
-			missingInA = append(missingInA, t)
+			if !strings.Contains(alphaA, stripNonAlpha(t)) {
+				missingInA = append(missingInA, t)
+			}
 		}
 	}
 
@@ -609,6 +620,17 @@ func isText(data []byte) bool {
 func sha256sum(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
+}
+
+// stripNonAlpha removes non-alphanumeric characters for fuzzy text matching.
+func stripNonAlpha(s string) string {
+	var buf strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
 }
 
 // writeSideBySideDiff renders a side-by-side diff table with character-level
