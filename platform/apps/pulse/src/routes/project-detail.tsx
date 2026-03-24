@@ -24,7 +24,7 @@ export function ProjectDetailPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to={`/${workspace}`} className="rounded p-1 hover:bg-muted">
+        <Link to="/$workspace" params={{ workspace }} className="rounded p-1 hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1">
