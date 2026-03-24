@@ -24,6 +24,7 @@ type Project struct {
 	TargetLanguages       []model.LocaleID  `json:"target_languages"`
 	TargetLanguageMode    string            `json:"target_language_mode"`
 	DefaultStream         string            `json:"default_stream,omitempty"`
+	DashboardVisibility   string            `json:"dashboard_visibility"`
 	Properties            map[string]string `json:"properties,omitempty"`
 	WorkspaceID           string            `json:"workspace_id,omitempty"`
 	Archived              bool              `json:"archived"`
@@ -260,6 +261,127 @@ type AssetVariant struct {
 // ---------------------------------------------------------------------------
 // Block Statistics (lightweight projection for dashboard queries)
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Pulse Dashboard Types (public activity dashboard — AD-033)
+// ---------------------------------------------------------------------------
+
+// PulseOverview is the top-level response for a workspace's public dashboard.
+type PulseOverview struct {
+	Workspace      PulseWorkspaceInfo  `json:"workspace"`
+	Projects       []PulseProjectSummary `json:"projects"`
+	TopLanguages   []PulseLanguageRank `json:"top_languages"`
+	TopContribs    []PulseContributor  `json:"top_contributors"`
+	RisingStars    []PulseRisingStar   `json:"rising_stars"`
+	RecentActivity []PulseActivity     `json:"recent_activity"`
+	Stats          PulseGlobalStats    `json:"stats"`
+}
+
+// PulseWorkspaceInfo is the public-facing workspace info for Pulse.
+type PulseWorkspaceInfo struct {
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+	LogoURL     string `json:"logo_url"`
+}
+
+// PulseGlobalStats holds aggregate statistics for a workspace.
+type PulseGlobalStats struct {
+	TotalProjects     int     `json:"total_projects"`
+	TotalLanguages    int     `json:"total_languages"`
+	TotalContributors int     `json:"total_contributors"`
+	TotalWords        int     `json:"total_words"`
+	TranslatedWords   int     `json:"translated_words"`
+	OverallPercent    float64 `json:"overall_percent"`
+}
+
+// PulseProjectSummary is a compact project summary for the overview grid.
+type PulseProjectSummary struct {
+	ID              string                   `json:"id"`
+	Name            string                   `json:"name"`
+	SourceLanguage  string                   `json:"source_language"`
+	TargetLanguages []string                 `json:"target_languages"`
+	TotalWords      int                      `json:"total_words"`
+	TranslatedWords int                      `json:"translated_words"`
+	Percentage      float64                  `json:"percentage"`
+	Locales         []LocaleTranslationStats `json:"locales"`
+}
+
+// PulseLanguageRank ranks a language by translation progress.
+type PulseLanguageRank struct {
+	Locale          string  `json:"locale"`
+	TranslatedWords int     `json:"translated_words"`
+	TotalWords      int     `json:"total_words"`
+	Percentage      float64 `json:"percentage"`
+	Contributors    int     `json:"contributors"`
+	RecentActivity  int     `json:"recent_activity"`
+}
+
+// PulseContributor represents a contributor on the leaderboard.
+type PulseContributor struct {
+	Name         string   `json:"name"`
+	AvatarURL    string   `json:"avatar_url,omitempty"`
+	Translations int      `json:"translations"`
+	Reviews      int      `json:"reviews"`
+	Languages    []string `json:"languages"`
+}
+
+// PulseRisingStar highlights a fast-growing contributor, language, or project.
+type PulseRisingStar struct {
+	Name     string  `json:"name"`
+	Type     string  `json:"type"` // "user", "language", "project"
+	Growth   float64 `json:"growth"`
+	Current  int     `json:"current"`
+	Previous int     `json:"previous"`
+}
+
+// PulseActivity is a single activity entry for the public feed.
+type PulseActivity struct {
+	ID        string    `json:"id"`
+	Type      string    `json:"type"`
+	Actor     string    `json:"actor"`
+	AvatarURL string    `json:"avatar_url,omitempty"`
+	Project   string    `json:"project"`
+	Locale    string    `json:"locale,omitempty"`
+	Summary   string    `json:"summary"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// PulseProjectDetail is the detailed response for a single project.
+type PulseProjectDetail struct {
+	Project PulseProjectSummary      `json:"project"`
+	Locales []LocaleTranslationStats `json:"locales"`
+	Items   []ItemTranslationStats   `json:"items"`
+}
+
+// PulseLocaleDetail is the detailed response for a single locale within a project.
+type PulseLocaleDetail struct {
+	Locale string               `json:"locale"`
+	Stats  LocaleTranslationStats `json:"stats"`
+	Items  []ItemTranslationStats `json:"items"`
+}
+
+// PulseTermEntry is a terminology entry for the public explorer.
+type PulseTermEntry struct {
+	ID          string            `json:"id"`
+	Term        string            `json:"term"`
+	Definition  string            `json:"definition"`
+	Domain      string            `json:"domain,omitempty"`
+	Locale      string            `json:"locale"`
+	Translations map[string]string `json:"translations,omitempty"`
+}
+
+// PulseLeaderboard is the response for the leaderboard page.
+type PulseLeaderboard struct {
+	Contributors []PulseContributor  `json:"contributors"`
+	Languages    []PulseLanguageRank `json:"languages"`
+}
+
+// PulseHeatmapDay is a single day's activity count for the contribution heatmap.
+type PulseHeatmapDay struct {
+	Date  string `json:"date"`  // "2026-01-15"
+	Count int    `json:"count"`
+}
 
 // BlockStatRow is a lightweight projection of a block for dashboard aggregation.
 // It avoids full deserialization of source segments, target segments, properties,

@@ -5,6 +5,7 @@
     "emails",
     "apps/web",
     "apps/ctrl",
+    "apps/pulse",
     "apps/bowrain/frontend"
   ],
   "devDependencies": {

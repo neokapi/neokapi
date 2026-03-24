@@ -456,3 +456,18 @@ export type {
   CodeFinderRulesValue,
   FilterParamsValue,
 } from "./components/filter";
+
+// Pulse public dashboard components (AD-033)
+export {
+  CompletionRing,
+  RisingStarBadge,
+  PulseHeader,
+  LanguageProgressGrid,
+  ContributorBoard,
+  PulseProjectCard,
+  TrendAreaChart,
+  TermExplorerPublic,
+  PulseFilterBar,
+  PulseOverview,
+  ActivityHeatmap,
+} from "./components/pulse";
