@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { PulseOverview } from "../../components/pulse";
-import { mockStats, mockProjects, mockLanguages, mockHeatmapDays } from "./pulse-fixtures";
+import { mockStats, mockProjects, mockLanguages } from "./pulse-fixtures";
 
 const meta: Meta<typeof PulseOverview> = {
   title: "Pulse/PulseOverview",
@@ -15,20 +15,12 @@ export const Default: Story = {
     stats: mockStats,
     projects: mockProjects,
     languages: mockLanguages,
-    heatmap: mockHeatmapDays,
   },
 };
 
 export const Empty: Story = {
   args: {
-    stats: {
-      total_projects: 0,
-      total_languages: 0,
-      total_contributors: 0,
-      total_words: 0,
-      translated_words: 0,
-      overall_percent: 0,
-    },
+    stats: { total_projects: 0, total_languages: 0, total_contributors: 0, total_words: 0, translated_words: 0, overall_percent: 0 },
     projects: [],
     languages: [],
   },

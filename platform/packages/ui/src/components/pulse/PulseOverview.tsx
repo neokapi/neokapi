@@ -1,4 +1,3 @@
-import { ActivityHeatmap } from "./ActivityHeatmap";
 import { LanguageProgressGrid } from "./LanguageProgressGrid";
 import { PulseProjectCard } from "./PulseProjectCard";
 
@@ -26,17 +25,10 @@ interface PulseOverviewProps {
     total_words: number;
     percentage: number;
   }[];
-  heatmap?: { date: string; count: number }[];
   onProjectClick?: (id: string) => void;
 }
 
-export function PulseOverview({
-  stats,
-  projects,
-  languages,
-  heatmap,
-  onProjectClick,
-}: PulseOverviewProps) {
+export function PulseOverview({ stats, projects, languages, onProjectClick }: PulseOverviewProps) {
   return (
     <div className="space-y-8">
       {/* Stats Cards */}
@@ -49,16 +41,6 @@ export function PulseOverview({
           value={`${stats.translated_words.toLocaleString()} / ${stats.total_words.toLocaleString()}`}
         />
       </div>
-
-      {/* Activity Heatmap */}
-      {heatmap && (
-        <section>
-          <h2 className="mb-4 text-lg font-semibold">Activity</h2>
-          <div className="rounded-lg border bg-card p-4">
-            <ActivityHeatmap days={heatmap} />
-          </div>
-        </section>
-      )}
 
       {/* Projects Grid */}
       <section>

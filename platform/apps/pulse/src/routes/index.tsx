@@ -1,4 +1,8 @@
-import { createRootRouteWithContext, createRoute, createRouter } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  createRoute,
+  createRouter,
+} from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { RootLayout } from "./root-layout";
 import { WorkspaceOverviewPage } from "./workspace-overview";

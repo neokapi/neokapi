@@ -1,13 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchOverview,
-  fetchProjects,
-  fetchProjectDetail,
-  fetchActivity,
-  fetchActivityHeatmap,
-  fetchLeaderboard,
-  fetchTerms,
-} from "../api";
+import { fetchOverview, fetchProjects, fetchProjectDetail, fetchActivity, fetchLeaderboard, fetchTerms } from "../api";
 
 export function usePulseOverview(workspace: string) {
   return useQuery({
@@ -31,14 +23,6 @@ export function usePulseProjectDetail(workspace: string, pid: string) {
     queryFn: () => fetchProjectDetail(workspace, pid),
     staleTime: 2 * 60_000,
     enabled: !!pid,
-  });
-}
-
-export function usePulseActivityHeatmap(workspace: string) {
-  return useQuery({
-    queryKey: ["pulse", workspace, "activity", "heatmap"],
-    queryFn: () => fetchActivityHeatmap(workspace),
-    staleTime: 5 * 60_000,
   });
 }
 

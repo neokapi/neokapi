@@ -1,10 +1,11 @@
-import { useParams, useSearch } from "@tanstack/react-router";
+import { useParams, useSearch, useNavigate } from "@tanstack/react-router";
 import { TermExplorerPublic } from "@neokapi/ui/components/pulse";
 import { usePulseTerms } from "../hooks/use-pulse";
 
 export function TerminologyPage() {
   const { workspace } = useParams({ strict: false }) as { workspace: string };
   const search = useSearch({ strict: false }) as { q?: string };
+  const navigate = useNavigate();
 
   const params = new URLSearchParams();
   if (search.q) params.set("q", search.q);

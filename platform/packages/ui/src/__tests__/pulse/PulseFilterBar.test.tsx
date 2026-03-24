@@ -6,10 +6,7 @@ describe("PulseFilterBar", () => {
   it("renders filter tokens", () => {
     render(
       <PulseFilterBar
-        filters={[
-          { key: "language", value: "fr-FR" },
-          { key: "project", value: "web-app" },
-        ]}
+        filters={[{ key: "language", value: "fr-FR" }, { key: "project", value: "web-app" }]}
         onRemove={() => {}}
         onClear={() => {}}
       />,

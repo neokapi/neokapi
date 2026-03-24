@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/labstack/echo/v4"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -209,36 +208,6 @@ func (s *Server) HandlePulseActivity(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{
 		"activities": activities,
 	})
-}
-
-// ---------------------------------------------------------------------------
-// Activity Heatmap
-// ---------------------------------------------------------------------------
-
-// HandlePulseActivityHeatmap returns daily activity counts for the contribution heatmap.
-// GET /api/v1/pulse/:workspace/activity/heatmap
-func (s *Server) HandlePulseActivityHeatmap(c echo.Context) error {
-	ws := pulseWorkspace(c)
-	if ws == nil {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
-	}
-
-	days := make([]store.PulseHeatmapDay, 0)
-
-	if s.ActivityStore != nil {
-		since := time.Now().UTC().AddDate(-1, 0, 0)
-		counts, err := s.ActivityStore.DailyCounts(c.Request().Context(), ws.ID, since)
-		if err == nil {
-			for _, dc := range counts {
-				days = append(days, store.PulseHeatmapDay{Date: dc.Date, Count: dc.Count})
-			}
-		}
-	}
-
-	cacheKey := pulseCacheKey(ws.ID, "heatmap", "")
-	s.pulseCache.Set(cacheKey, "heatmap", map[string]any{"days": days})
-	setCDNCacheHeaders(c, 120)
-	return c.JSON(http.StatusOK, map[string]any{"days": days})
 }
 
 // ---------------------------------------------------------------------------

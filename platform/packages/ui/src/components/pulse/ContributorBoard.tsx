@@ -14,9 +14,7 @@ interface ContributorBoardProps {
 export function ContributorBoard({ contributors, className }: ContributorBoardProps) {
   if (contributors.length === 0) {
     return (
-      <div
-        className={`rounded-lg border bg-card p-8 text-center text-muted-foreground ${className ?? ""}`}
-      >
+      <div className={`rounded-lg border bg-card p-8 text-center text-muted-foreground ${className ?? ""}`}>
         No contributors yet.
       </div>
     );
@@ -45,9 +43,7 @@ export function ContributorBoard({ contributors, className }: ContributorBoardPr
           {c.languages.length > 0 && (
             <div className="flex gap-1">
               {c.languages.slice(0, 3).map((l) => (
-                <span key={l} className="rounded bg-muted px-1.5 py-0.5 text-xs">
-                  {l}
-                </span>
+                <span key={l} className="rounded bg-muted px-1.5 py-0.5 text-xs">{l}</span>
               ))}
             </div>
           )}

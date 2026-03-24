@@ -5,18 +5,12 @@ interface CompletionRingProps {
   className?: string;
 }
 
-export function CompletionRing({
-  percentage,
-  size = 64,
-  strokeWidth = 6,
-  className,
-}: CompletionRingProps) {
+export function CompletionRing({ percentage, size = 64, strokeWidth = 6, className }: CompletionRingProps) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
-  const color =
-    percentage >= 100 ? "text-green-500" : percentage >= 50 ? "text-blue-500" : "text-amber-500";
+  const color = percentage >= 100 ? "text-green-500" : percentage >= 50 ? "text-blue-500" : "text-amber-500";
 
   return (
     <div className={`relative inline-flex items-center justify-center ${className ?? ""}`}>

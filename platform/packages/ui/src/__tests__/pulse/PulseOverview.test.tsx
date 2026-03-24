@@ -5,14 +5,18 @@ import { mockStats, mockProjects, mockLanguages } from "../../stories/pulse/puls
 
 describe("PulseOverview", () => {
   it("renders stat cards", () => {
-    render(<PulseOverview stats={mockStats} projects={mockProjects} languages={mockLanguages} />);
-    expect(screen.getAllByText("Projects").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Languages").length).toBeGreaterThan(0);
+    render(
+      <PulseOverview stats={mockStats} projects={mockProjects} languages={mockLanguages} />,
+    );
+    expect(screen.getByText("Projects")).toBeTruthy();
+    expect(screen.getByText("Languages")).toBeTruthy();
     expect(screen.getByText("Overall Progress")).toBeTruthy();
   });
 
   it("renders project cards", () => {
-    render(<PulseOverview stats={mockStats} projects={mockProjects} languages={mockLanguages} />);
+    render(
+      <PulseOverview stats={mockStats} projects={mockProjects} languages={mockLanguages} />,
+    );
     expect(screen.getByText("Web Application")).toBeTruthy();
     expect(screen.getByText("Mobile App")).toBeTruthy();
     expect(screen.getByText("Documentation")).toBeTruthy();
@@ -20,7 +24,9 @@ describe("PulseOverview", () => {
 
   it("renders empty state when no projects", () => {
     const emptyStats = { ...mockStats, total_projects: 0 };
-    render(<PulseOverview stats={emptyStats} projects={[]} languages={[]} />);
+    render(
+      <PulseOverview stats={emptyStats} projects={[]} languages={[]} />,
+    );
     expect(screen.getByText("No public projects yet.")).toBeTruthy();
   });
 });

@@ -7,8 +7,8 @@ interface PulseHeaderProps {
 }
 
 export function PulseHeader({ workspaceName, logoUrl }: PulseHeaderProps) {
-  const [dark, setDark] = useState(
-    () => typeof window !== "undefined" && document.documentElement.classList.contains("dark"),
+  const [dark, setDark] = useState(() =>
+    typeof window !== "undefined" && document.documentElement.classList.contains("dark")
   );
 
   useEffect(() => {

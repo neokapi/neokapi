@@ -29,19 +29,12 @@ export function LocaleDetailPage() {
     );
   }
 
-  const detail = data as {
-    locale: string;
-    stats: { translated_words: number; total_words: number; percentage: number };
-  };
+  const detail = data as { locale: string; stats: { translated_words: number; total_words: number; percentage: number } };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link
-          to="/$workspace/projects/$pid"
-          params={{ workspace, pid }}
-          className="rounded p-1 hover:bg-muted"
-        >
+        <Link to={`/${workspace}/projects/${pid}`} className="rounded p-1 hover:bg-muted">
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1">
@@ -53,9 +46,7 @@ export function LocaleDetailPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm text-muted-foreground">Words Translated</div>
-          <div className="mt-1 text-2xl font-bold">
-            {detail.stats.translated_words.toLocaleString()}
-          </div>
+          <div className="mt-1 text-2xl font-bold">{detail.stats.translated_words.toLocaleString()}</div>
         </div>
         <div className="rounded-lg border bg-card p-4">
           <div className="text-sm text-muted-foreground">Total Words</div>
