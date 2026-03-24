@@ -1,11 +1,10 @@
-import { useParams, useSearch, useNavigate } from "@tanstack/react-router";
+import { useParams, useSearch } from "@tanstack/react-router";
 import { ContributorBoard, LanguageProgressGrid } from "@neokapi/ui/components/pulse";
 import { usePulseLeaderboard } from "../hooks/use-pulse";
 
 export function LeaderboardPage() {
   const { workspace } = useParams({ strict: false }) as { workspace: string };
   const search = useSearch({ strict: false }) as { tab?: string; time?: string };
-  const navigate = useNavigate();
   const tab = search.tab ?? "languages";
 
   const { data, isLoading } = usePulseLeaderboard(workspace);
@@ -19,15 +18,12 @@ export function LeaderboardPage() {
       <h1 className="text-xl font-bold">Leaderboard</h1>
 
       <div className="flex gap-2 border-b">
-        <TabButton
-          active={tab === "languages"}
-          onClick={() => navigate({ search: { ...search, tab: "languages" }, replace: true })}
-        >
+        <TabButton active={tab === "languages"} href={`/${workspace}/leaderboard?tab=languages`}>
           Languages
         </TabButton>
         <TabButton
           active={tab === "contributors"}
-          onClick={() => navigate({ search: { ...search, tab: "contributors" }, replace: true })}
+          href={`/${workspace}/leaderboard?tab=contributors`}
         >
           Contributors
         </TabButton>
@@ -44,22 +40,30 @@ export function LeaderboardPage() {
         />
       )}
 
-      {tab === "contributors" && data && (
-        <ContributorBoard contributors={data.contributors} />
-      )}
+      {tab === "contributors" && data && <ContributorBoard contributors={data.contributors} />}
     </div>
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton({
+  active,
+  href,
+  children,
+}: {
+  active: boolean;
+  href: string;
+  children: React.ReactNode;
+}) {
   return (
-    <button
-      onClick={onClick}
+    <a
+      href={href}
       className={`border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-        active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
       }`}
     >
       {children}
-    </button>
+    </a>
   );
 }

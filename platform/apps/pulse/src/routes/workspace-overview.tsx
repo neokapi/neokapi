@@ -29,7 +29,12 @@ export function WorkspaceOverviewPage() {
       stats={data.stats}
       projects={data.projects}
       languages={data.top_languages}
-      onProjectClick={(id) => navigate({ to: `/${workspace}/projects/${id}` })}
+      onProjectClick={(id: string) =>
+        navigate({
+          to: "/$workspace/projects/$pid",
+          params: { workspace, pid: id },
+        })
+      }
     />
   );
 }
