@@ -23,6 +23,7 @@ type mockAuthStore struct {
 	users      map[string]*platauth.User
 	emails     map[string]*platauth.User
 	workspaces map[string][]*platauth.Workspace
+	allUsers   []*platauth.User
 }
 
 func newMockAuthStore() *mockAuthStore {
@@ -52,6 +53,17 @@ func (m *mockAuthStore) ListWorkspaces(_ context.Context, userID string) ([]*pla
 		return ws, nil
 	}
 	return nil, nil
+}
+
+func (m *mockAuthStore) ListUsers(_ context.Context, limit, offset int) ([]*platauth.User, error) {
+	if offset >= len(m.allUsers) {
+		return nil, nil
+	}
+	end := offset + limit
+	if end > len(m.allUsers) {
+		end = len(m.allUsers)
+	}
+	return m.allUsers[offset:end], nil
 }
 
 func (m *mockAuthStore) Close() error { return nil }
@@ -167,8 +179,106 @@ func TestHandleAdminGetWorkspace(t *testing.T) {
 
 	var resp map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, "ws-1", resp["workspace_id"])
-	assert.NotNil(t, resp["subscription"])
+	assert.Equal(t, "ws-1", resp["id"])
+	assert.Equal(t, "pro", resp["plan"])
+	assert.Equal(t, "active", resp["status"])
+	assert.NotNil(t, resp["members"])
+	assert.NotNil(t, resp["recent_activity"])
+}
+
+func TestHandleAdminGetWorkspace_WithAuthStore(t *testing.T) {
+	billingStore := &mockBillingStore{
+		sub: &billing.Subscription{
+			WorkspaceID: "ws-1",
+			Plan:        billing.PlanPro,
+			Status:      "active",
+			SeatCount:   3,
+		},
+		alloc: &billing.CreditAllocation{
+			CreditsTotal: 10000,
+			CreditsUsed:  2500,
+		},
+	}
+	authStore := newMockAuthStoreForBilling()
+	authStore.workspaces["ws-1"] = &platauth.Workspace{
+		ID:   "ws-1",
+		Name: "Acme Corp",
+		Slug: "acme",
+	}
+	authStore.members["ws-1"] = []*platauth.Membership{
+		{UserID: "u-1", WorkspaceID: "ws-1", Role: platauth.RoleOwner, JoinedAt: time.Now()},
+		{UserID: "u-2", WorkspaceID: "ws-1", Role: platauth.RoleMember, JoinedAt: time.Now()},
+	}
+	authStore.users["u-1"] = &platauth.User{ID: "u-1", Email: "owner@acme.com", Name: "Owner"}
+	authStore.users["u-2"] = &platauth.User{ID: "u-2", Email: "member@acme.com", Name: "Member"}
+
+	s := &Server{BillingStore: billingStore, AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("ws-1")
+
+	err := s.HandleAdminGetWorkspace(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, "Acme Corp", resp["name"])
+	assert.Equal(t, "acme", resp["slug"])
+	assert.Equal(t, "owner@acme.com", resp["owner_email"])
+	assert.Equal(t, float64(2), resp["member_count"])
+	assert.Equal(t, float64(2500), resp["credits_used"])
+	assert.Equal(t, float64(10000), resp["credits_total"])
+	assert.Equal(t, 25.0, resp["credit_usage_percent"])
+
+	members := resp["members"].([]any)
+	assert.Len(t, members, 2)
+	firstMember := members[0].(map[string]any)
+	assert.Equal(t, "owner@acme.com", firstMember["email"])
+}
+
+func TestHandleAdminGetLedger(t *testing.T) {
+	store := &mockBillingStore{
+		ledger: []billing.LedgerEntry{
+			{ID: 1, WorkspaceID: "ws-1", Amount: 1000, BalanceAfter: 9000, Operation: "grant"},
+			{ID: 2, WorkspaceID: "ws-1", Amount: -500, BalanceAfter: 8500, Operation: "ai_translation"},
+		},
+	}
+	s := newBillingTestServer(store)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1/ledger", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("ws-1")
+
+	err := s.HandleAdminGetLedger(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var entries []billing.LedgerEntry
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &entries))
+	assert.Len(t, entries, 2)
+	assert.Equal(t, int64(1000), entries[0].Amount)
+}
+
+func TestHandleAdminGetLedger_NilStore(t *testing.T) {
+	s := &Server{}
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/workspaces/ws-1/ledger", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.SetParamNames("id")
+	c.SetParamValues("ws-1")
+
+	err := s.HandleAdminGetLedger(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
 
 func TestHandleAdminUpdatePlan_InvalidPlan(t *testing.T) {
@@ -501,7 +611,31 @@ func TestHandleAdminListUsers_NilAuthStore(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
 }
 
-func TestHandleAdminListUsers_EmptyQuery(t *testing.T) {
+func TestHandleAdminListUsers_EmptyQuery_ReturnsAllUsers(t *testing.T) {
+	authStore := newMockAuthStore()
+	authStore.allUsers = []*platauth.User{
+		{ID: "u-1", Email: "alice@acme.com", Name: "Alice"},
+		{ID: "u-2", Email: "bob@acme.com", Name: "Bob"},
+	}
+	s := &Server{AuthStore: authStore}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/users", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := s.HandleAdminListUsers(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Equal(t, float64(2), resp["total"])
+	users := resp["users"].([]any)
+	assert.Len(t, users, 2)
+}
+
+func TestHandleAdminListUsers_EmptyQuery_NoUsers(t *testing.T) {
 	authStore := newMockAuthStore()
 	s := &Server{AuthStore: authStore}
 
