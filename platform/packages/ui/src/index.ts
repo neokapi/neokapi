@@ -469,4 +469,5 @@ export {
   TermExplorerPublic,
   PulseFilterBar,
   PulseOverview,
+  ActivityHeatmap,
 } from "./components/pulse";
