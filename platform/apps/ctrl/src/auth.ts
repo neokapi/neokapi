@@ -3,8 +3,19 @@
 // Uses authorization code flow with PKCE (public client in browser).
 // ---------------------------------------------------------------------------
 
-const ISSUER_URL =
-  import.meta.env.VITE_ADMIN_OIDC_ISSUER_URL ?? "http://localhost:8180/realms/bowrain-admin";
+function resolveIssuerUrl(): string {
+  if (import.meta.env.VITE_ADMIN_OIDC_ISSUER_URL) {
+    return import.meta.env.VITE_ADMIN_OIDC_ISSUER_URL;
+  }
+  // Derive from current hostname: ctrl[.dev].bowrain.cloud → auth[.dev].bowrain.cloud
+  const host = window.location.hostname;
+  if (host.startsWith("ctrl.")) {
+    return `https://auth.${host.slice(5)}/realms/bowrain-admin`;
+  }
+  return "http://localhost:8180/realms/bowrain-admin";
+}
+
+const ISSUER_URL = resolveIssuerUrl();
 const CLIENT_ID = import.meta.env.VITE_ADMIN_OIDC_CLIENT_ID ?? "bowrain-admin";
 const REDIRECT_URI = `${window.location.origin}/auth/callback`;
 const TOKEN_KEY = "bowrain_admin_token";
