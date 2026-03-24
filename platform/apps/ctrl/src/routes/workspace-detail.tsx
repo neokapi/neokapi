@@ -162,7 +162,7 @@ export function WorkspaceDetailRoute() {
               <h3 className="text-sm font-medium">Members</h3>
             </div>
             <div className="divide-y">
-              {workspace.members.map((member) => (
+              {(workspace.members ?? []).map((member) => (
                 <div key={member.user_id} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <p className="text-sm font-medium">{member.name}</p>
@@ -171,7 +171,7 @@ export function WorkspaceDetailRoute() {
                   <Badge variant="outline">{member.role}</Badge>
                 </div>
               ))}
-              {workspace.members.length === 0 && (
+              {(workspace.members ?? []).length === 0 && (
                 <p className="px-4 py-3 text-sm text-muted-foreground">No members</p>
               )}
             </div>
