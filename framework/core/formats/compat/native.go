@@ -201,11 +201,25 @@ func stripXMLTags(s string) string {
 	return buf.String()
 }
 
+// normalizePropertiesBlockText normalizes backslash escapes for comparison.
+// Native preserves raw escape sequences (\:, \=, \_) while the bridge
+// may unescape or double-escape them.
+func normalizePropertiesBlockText(s string) string {
+	// Normalize backslash sequences: \\ → \, \: → :, \= → =, \_ → _
+	s = strings.ReplaceAll(s, `\\`, `\`)
+	s = strings.ReplaceAll(s, `\:`, `:`)
+	s = strings.ReplaceAll(s, `\=`, `=`)
+	s = strings.ReplaceAll(s, `\_`, `_`)
+	return collapseAndTrim(s)
+}
+
 func collapseAndTrim(s string) string {
 	var buf strings.Builder
 	inSpace := false
 	for _, r := range s {
-		if r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f' {
+		// Treat NBSP (\u00A0) and other Unicode spaces as regular whitespace
+		// for comparison. Native preserves raw bytes; bridge normalizes.
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f' || r == '\u00A0' {
 			if !inSpace && buf.Len() > 0 {
 				buf.WriteByte(' ')
 				inSpace = true

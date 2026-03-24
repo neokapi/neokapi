@@ -97,11 +97,12 @@ var formats = []formatSpec{
 		},
 	},
 	{
-		name:        "properties",
-		newReader:   func() format.DataFormatReader { return properties.NewReader() },
-		newWriter:   func() format.DataFormatWriter { return properties.NewWriter() },
-		filterClass: "net.sf.okapi.filters.properties.PropertiesFilter",
-		mimeType:    "text/x-java-properties",
+		name:          "properties",
+		newReader:     func() format.DataFormatReader { return properties.NewReader() },
+		newWriter:     func() format.DataFormatWriter { return properties.NewWriter() },
+		filterClass:   "net.sf.okapi.filters.properties.PropertiesFilter",
+		mimeType:      "text/x-java-properties",
+		normalizeText: normalizePropertiesBlockText,
 		files: []testFile{
 			{"Test01", "okapi/filters/properties/src/test/resources/Test01.properties", "Test01.properties"},
 		},
