@@ -43,14 +43,15 @@ func TestMain(m *testing.M) {
 
 // formatSpec describes a format for cross-implementation testing.
 type formatSpec struct {
-	name        string
-	newReader   func() format.DataFormatReader
-	newWriter   func() format.DataFormatWriter
-	filterClass string // Java Okapi filter class for bridge
-	mimeType    string
-	files       []testFile
-	compareZIP  bool                // use ZIP entry comparison instead of byte comparison
-	normalize   func([]byte) []byte // optional normalization before comparison
+	name          string
+	newReader     func() format.DataFormatReader
+	newWriter     func() format.DataFormatWriter
+	filterClass   string                // Java Okapi filter class for bridge
+	mimeType      string
+	files         []testFile
+	compareZIP    bool                  // use ZIP entry comparison instead of byte comparison
+	normalize     func([]byte) []byte   // optional normalization before byte comparison
+	normalizeText func(string) string   // optional block text normalization (default: whitespace only)
 }
 
 // testFile is a test input file path relative to the okapi-testdata root.
@@ -72,23 +73,25 @@ var formats = []formatSpec{
 		},
 	},
 	{
-		name:        "html",
-		newReader:   func() format.DataFormatReader { return html.NewReader() },
-		newWriter:   func() format.DataFormatWriter { return html.NewWriter() },
-		filterClass: "net.sf.okapi.filters.html.HtmlFilter",
-		mimeType:    "text/html",
-		normalize:   normalizeHTML,
+		name:          "html",
+		newReader:     func() format.DataFormatReader { return html.NewReader() },
+		newWriter:     func() format.DataFormatWriter { return html.NewWriter() },
+		filterClass:   "net.sf.okapi.filters.html.HtmlFilter",
+		mimeType:      "text/html",
+		normalize:     normalizeHTML,
+		normalizeText: normalizeMarkupBlockText,
 		files: []testFile{
 			{"burlington_ufo_center", "okapi/filters/html/src/test/resources/burlington_ufo_center.html", "burlington_ufo_center.html"},
 			{"W3CHTMHLTest1", "okapi/filters/html/src/test/resources/W3CHTMHLTest1.html", "W3CHTMHLTest1.html"},
 		},
 	},
 	{
-		name:        "xml",
-		newReader:   func() format.DataFormatReader { return xml.NewReader() },
-		newWriter:   func() format.DataFormatWriter { return xml.NewWriter() },
-		filterClass: "net.sf.okapi.filters.xmlstream.XmlStreamFilter",
-		mimeType:    "text/xml",
+		name:          "xml",
+		newReader:     func() format.DataFormatReader { return xml.NewReader() },
+		newWriter:     func() format.DataFormatWriter { return xml.NewWriter() },
+		filterClass:   "net.sf.okapi.filters.xmlstream.XmlStreamFilter",
+		mimeType:      "text/xml",
+		normalizeText: normalizeMarkupBlockText,
 		files: []testFile{
 			{"openoffice_input", "okapi/filters/its/src/test/resources/openoffice_input.xml", "openoffice_input.xml"},
 		},
@@ -136,12 +139,13 @@ var formats = []formatSpec{
 		},
 	},
 	{
-		name:        "openxml",
-		newReader:   func() format.DataFormatReader { return openxml.NewReader() },
-		newWriter:   func() format.DataFormatWriter { return openxml.NewWriter() },
-		filterClass: "net.sf.okapi.filters.openxml.OpenXMLFilter",
-		mimeType:    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		compareZIP:  true,
+		name:          "openxml",
+		newReader:     func() format.DataFormatReader { return openxml.NewReader() },
+		newWriter:     func() format.DataFormatWriter { return openxml.NewWriter() },
+		filterClass:   "net.sf.okapi.filters.openxml.OpenXMLFilter",
+		mimeType:      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		compareZIP:    true,
+		normalizeText: normalizeMarkupBlockText,
 		files: []testFile{
 			{"big", "integration-tests/okapi/src/test/resources/openxml/docx/big.docx", "big.docx"},
 			{"958-4", "okapi/filters/openxml/src/test/resources/958-4.pptx", "958-4.pptx"},
@@ -175,11 +179,11 @@ func TestFormatCompat(t *testing.T) {
 
 					// Native roundtrip.
 					native := nativeRoundTrip(t, fmt.newReader, fmt.newWriter, input, inputPath)
-					nativeTexts := blockTexts(native.parts)
+					nativeTexts := blockTexts(native.parts, fmt.normalizeText)
 
 					// Bridge roundtrip.
 					bridgeResult := bridgetest.RoundTrip(t, registry, cfg, fmt.filterClass, input, inputPath, fmt.mimeType, nil)
-					bridgeTexts := blockTexts(bridgeResult.Parts)
+					bridgeTexts := blockTexts(bridgeResult.Parts, fmt.normalizeText)
 
 					// --- Event-level comparison (pass/fail) ---
 					match := report.compareParts(fmt.name, file.name, "native vs bridge (blocks)", nativeTexts, bridgeTexts)
@@ -209,7 +213,7 @@ func TestFormatCompat(t *testing.T) {
 
 					// Re-read tikal output with native reader for event comparison.
 					tikalParts := extractParts(t, fmt.newReader, tikalOut, inputPath)
-					tikalTexts := blockTexts(tikalParts)
+					tikalTexts := blockTexts(tikalParts, fmt.normalizeText)
 
 					// --- Event-level comparison (pass/fail) ---
 					match = report.compareParts(fmt.name, file.name, "native vs tikal (blocks)", nativeTexts, tikalTexts)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/model"
+
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/html"
 )
@@ -108,9 +109,18 @@ func extractParts(t *testing.T, newReader func() format.DataFormatReader, conten
 }
 
 // blockTexts extracts translatable block texts from parts, normalized for
-// cross-implementation comparison. Whitespace is collapsed to single spaces
-// and trimmed; empty blocks are skipped. HTML entities are decoded.
-func blockTexts(parts []*model.Part) []string {
+// cross-implementation comparison. If normalizeText is nil, the default
+// normalizer (whitespace collapse + trim) is used. For markup formats
+// (HTML, XML), pass normalizeMarkupBlockText to also decode entities.
+//
+// blockTexts extracts translatable block texts from parts for comparison.
+// Uses renderSourceText so that inline span data (placeholders, codes) is
+// included — SourceText() strips span markers, losing content like %s
+// format codes that the bridge represents as Span placeholders.
+func blockTexts(parts []*model.Part, normalizeText func(string) string) []string {
+	if normalizeText == nil {
+		normalizeText = normalizeBlockTextDefault
+	}
 	var texts []string
 	for _, p := range parts {
 		if p.Type != model.PartBlock {
@@ -120,13 +130,35 @@ func blockTexts(parts []*model.Part) []string {
 		if !ok || !b.Translatable {
 			continue
 		}
-		text := normalizeBlockText(b.SourceText())
+		text := normalizeText(renderSourceText(b))
 		if text == "" {
 			continue
 		}
 		texts = append(texts, text)
 	}
 	return texts
+}
+
+// renderSourceText renders a block's source including span data.
+func renderSourceText(b *model.Block) string {
+	var buf strings.Builder
+	for _, seg := range b.Source {
+		frag := seg.Content
+		if !frag.HasSpans() {
+			buf.WriteString(frag.CodedText)
+			continue
+		}
+		spanIdx := 0
+		for _, r := range frag.CodedText {
+			if (r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder) && spanIdx < len(frag.Spans) {
+				buf.WriteString(frag.Spans[spanIdx].Data)
+				spanIdx++
+			} else {
+				buf.WriteRune(r)
+			}
+		}
+	}
+	return buf.String()
 }
 
 // blockTextSet builds a concatenated string of all block texts for substring
@@ -138,13 +170,38 @@ func blockTextSet(texts []string) string {
 	return strings.Join(texts, " ")
 }
 
-// normalizeBlockText normalizes a block's text for cross-implementation
-// comparison: decode HTML entities, collapse whitespace, trim.
-func normalizeBlockText(s string) string {
-	// Decode HTML entities (&lt; → <, &copy; → ©, etc.)
-	s = html.UnescapeString(s)
+// normalizeBlockTextDefault collapses whitespace and trims. Used for formats
+// where block text does not contain markup entities (JSON, YAML, Properties, PO, etc.).
+func normalizeBlockTextDefault(s string) string {
+	return collapseAndTrim(s)
+}
 
-	// Collapse whitespace and trim.
+// normalizeMarkupBlockText strips XML/HTML tags, decodes entities, then
+// collapses whitespace. Used for HTML, XML, and OpenXML formats where
+// rendered span data contains markup tags and entity encoding differs.
+func normalizeMarkupBlockText(s string) string {
+	s = stripXMLTags(s)
+	s = html.UnescapeString(s)
+	return collapseAndTrim(s)
+}
+
+// stripXMLTags removes XML/HTML tags from a string, keeping text content.
+func stripXMLTags(s string) string {
+	var buf strings.Builder
+	inTag := false
+	for _, r := range s {
+		if r == '<' {
+			inTag = true
+		} else if r == '>' && inTag {
+			inTag = false
+		} else if !inTag {
+			buf.WriteRune(r)
+		}
+	}
+	return buf.String()
+}
+
+func collapseAndTrim(s string) string {
 	var buf strings.Builder
 	inSpace := false
 	for _, r := range s {
