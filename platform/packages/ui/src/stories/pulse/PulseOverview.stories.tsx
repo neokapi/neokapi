@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { PulseOverview } from "../../components/pulse";
-import { mockStats, mockProjects, mockLanguages } from "./pulse-fixtures";
+import { mockStats, mockProjects, mockLanguages, mockHeatmapDays } from "./pulse-fixtures";
 
 const meta: Meta<typeof PulseOverview> = {
   title: "Pulse/PulseOverview",
@@ -15,6 +15,7 @@ export const Default: Story = {
     stats: mockStats,
     projects: mockProjects,
     languages: mockLanguages,
+    heatmap: mockHeatmapDays,
   },
 };
 
