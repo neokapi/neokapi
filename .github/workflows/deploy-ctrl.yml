@@ -15,51 +15,39 @@ on:
     paths:
       - 'platform/apps/ctrl/**'
       - 'platform/packages/ui/**'
-      - 'platform/docker/bowrain-ctrl/**'
-
-permissions:
-  packages: write
-  contents: read
 
 jobs:
-  image-tag:
-    name: Compute Image Tag
-    runs-on: ubuntu-latest
-    outputs:
-      value: ${{ steps.tag.outputs.value }}
-    steps:
-      - name: Compute image tag
-        id: tag
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          INPUT_ENV: ${{ github.event.inputs.environment }}
-          GH_SHA: ${{ github.sha }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            echo "value=${GH_SHA}-${INPUT_ENV}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GH_SHA}" >> "$GITHUB_OUTPUT"
-          fi
-
   build:
-    name: Build Ctrl Image
-    needs: image-tag
-    uses: ./.github/workflows/_build-ctrl-image.yml
-    with:
-      image-tag: ${{ needs.image-tag.outputs.value }}
+    name: Build Ctrl Assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Build ctrl app
+        working-directory: platform/apps/ctrl
+        run: npm run build
+
+      - name: Upload ctrl artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctrl-dist
+          path: platform/apps/ctrl/dist
+          retention-days: 7
 
   trigger-deploy:
     name: Trigger Deploy
-    needs: [image-tag, build]
+    needs: build
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
       ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
-      IMAGE_TAG: ${{ needs.image-tag.outputs.value }}
     steps:
-      - name: Deploy ctrl
+      - name: Deploy ctrl web assets
+        env:
+          RUN_ID: ${{ github.run_id }}
         run: |
-          gh workflow run deploy-ctrl.yml \
+          gh workflow run deploy-ctrl-web.yml \
             --repo neokapi/bowrain-infra \
             -f environment="$ENVIRONMENT" \
-            -f imageTag="$IMAGE_TAG"
+            -f runId="$RUN_ID"
