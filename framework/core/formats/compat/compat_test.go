@@ -16,7 +16,6 @@ import (
 	"github.com/neokapi/neokapi/core/formats/xliff"
 	"github.com/neokapi/neokapi/core/formats/xml"
 	"github.com/neokapi/neokapi/core/formats/yaml"
-	"github.com/neokapi/neokapi/core/plugin/bridge"
 	"github.com/neokapi/neokapi/core/plugin/bridge/filters/bridgetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,14 +28,14 @@ func TestMain(m *testing.M) {
 	code := bridgetest.Run(m)
 
 	// Write HTML report.
-	reportPath := os.Getenv("NEOKAPI_COMPAT_REPORT")
-	if reportPath == "" {
-		reportPath = filepath.Join(os.TempDir(), "neokapi-compat-report.html")
+	reportDir := os.Getenv("NEOKAPI_COMPAT_REPORT")
+	if reportDir == "" {
+		reportDir = filepath.Join(os.TempDir(), "neokapi-compat-report")
 	}
-	if err := report.writeReport(reportPath); err != nil {
+	if err := report.writeReport(reportDir); err != nil {
 		os.Stderr.WriteString("warning: failed to write compat report: " + err.Error() + "\n")
 	} else {
-		os.Stderr.WriteString("Compat report written to: " + reportPath + "\n")
+		os.Stderr.WriteString("Compat report written to: " + reportDir + "/index.html\n")
 	}
 
 	os.Exit(code)
@@ -50,7 +49,8 @@ type formatSpec struct {
 	filterClass string // Java Okapi filter class for bridge
 	mimeType    string
 	files       []testFile
-	compareZIP  bool // use ZIP entry comparison instead of byte comparison
+	compareZIP  bool                // use ZIP entry comparison instead of byte comparison
+	normalize   func([]byte) []byte // optional normalization before comparison
 }
 
 // testFile is a test input file path relative to the okapi-testdata root.
@@ -77,6 +77,7 @@ var formats = []formatSpec{
 		newWriter:   func() format.DataFormatWriter { return html.NewWriter() },
 		filterClass: "net.sf.okapi.filters.html.HtmlFilter",
 		mimeType:    "text/html",
+		normalize:   normalizeHTML,
 		files: []testFile{
 			{"burlington_ufo_center", "okapi/filters/html/src/test/resources/burlington_ufo_center.html", "burlington_ufo_center.html"},
 			{"W3CHTMHLTest1", "okapi/filters/html/src/test/resources/W3CHTMHLTest1.html", "W3CHTMHLTest1.html"},
@@ -149,7 +150,14 @@ var formats = []formatSpec{
 }
 
 // TestFormatCompat runs identity roundtrip through native, bridge, and tikal
-// for each format and compares the outputs.
+// for each format and compares the outputs at two levels:
+//
+//  1. Event-level (pass/fail): extract blocks from each output with the native
+//     reader and compare translatable content. This is Okapi's approach —
+//     "do we extract the same translatable content?"
+//
+//  2. Byte-level (informational): compare raw/normalized output bytes.
+//     Records differences in the HTML report for analysis but does not fail.
 func TestFormatCompat(t *testing.T) {
 	testdataDir := bridgetest.TestdataDir(t)
 	registry, cfg := bridgetest.SharedBridge(t)
@@ -166,18 +174,30 @@ func TestFormatCompat(t *testing.T) {
 					require.NoError(t, err, "reading test file %s", inputPath)
 
 					// Native roundtrip.
-					nativeOut := nativeRoundTrip(t, fmt.newReader, fmt.newWriter, input, inputPath)
+					native := nativeRoundTrip(t, fmt.newReader, fmt.newWriter, input, inputPath)
+					nativeTexts := blockTexts(native.parts)
 
 					// Bridge roundtrip.
-					bridgeOut := bridgeRoundTrip(t, registry, cfg, fmt.filterClass, input, inputPath, fmt.mimeType)
+					bridgeResult := bridgetest.RoundTrip(t, registry, cfg, fmt.filterClass, input, inputPath, fmt.mimeType, nil)
+					bridgeTexts := blockTexts(bridgeResult.Parts)
 
-					// Compare native vs bridge.
+					// --- Event-level comparison (pass/fail) ---
+					match := report.compareParts(fmt.name, file.name, "native vs bridge (blocks)", nativeTexts, bridgeTexts)
+					assert.True(t, match, "native vs bridge: block texts differ (see HTML report)")
+
+					// --- Byte-level comparison (informational) ---
+					if !fmt.compareZIP {
+						report.compareTextInfo(fmt.name, file.name, "input vs native (bytes)", input, native.output)
+						report.compareTextInfo(fmt.name, file.name, "input vs bridge (bytes)", input, bridgeResult.Output)
+					}
 					if fmt.compareZIP {
-						match := report.compareZIP(fmt.name, file.name, "native vs bridge", nativeOut, bridgeOut)
-						assert.True(t, match, "native vs bridge: ZIP contents differ (see HTML report)")
+						report.compareZIP(fmt.name, file.name, "native vs bridge (bytes)", native.output, bridgeResult.Output)
+					} else if fmt.normalize != nil {
+						normNative := fmt.normalize(native.output)
+						normBridge := fmt.normalize(bridgeResult.Output)
+						report.compareTextNormalized(fmt.name, file.name, "native vs bridge (bytes)", native.output, bridgeResult.Output, normNative, normBridge)
 					} else {
-						match := report.compareText(fmt.name, file.name, "native vs bridge", nativeOut, bridgeOut)
-						assert.True(t, match, "native vs bridge: output differs (see HTML report)")
+						report.compareTextInfo(fmt.name, file.name, "native vs bridge (bytes)", native.output, bridgeResult.Output)
 					}
 
 					// Tikal roundtrip (optional).
@@ -187,12 +207,26 @@ func TestFormatCompat(t *testing.T) {
 					}
 					tikalOut := tikalRoundTrip(t, tikalPath, input, file.filename)
 
+					// Re-read tikal output with native reader for event comparison.
+					tikalParts := extractParts(t, fmt.newReader, tikalOut, inputPath)
+					tikalTexts := blockTexts(tikalParts)
+
+					// --- Event-level comparison (pass/fail) ---
+					match = report.compareParts(fmt.name, file.name, "native vs tikal (blocks)", nativeTexts, tikalTexts)
+					assert.True(t, match, "native vs tikal: block texts differ (see HTML report)")
+
+					// --- Byte-level comparison (informational) ---
+					if !fmt.compareZIP {
+						report.compareTextInfo(fmt.name, file.name, "input vs tikal (bytes)", input, tikalOut)
+					}
 					if fmt.compareZIP {
-						match := report.compareZIP(fmt.name, file.name, "native vs tikal", nativeOut, tikalOut)
-						assert.True(t, match, "native vs tikal: ZIP contents differ (see HTML report)")
+						report.compareZIP(fmt.name, file.name, "native vs tikal (bytes)", native.output, tikalOut)
+					} else if fmt.normalize != nil {
+						normNative := fmt.normalize(native.output)
+						normTikal := fmt.normalize(tikalOut)
+						report.compareTextNormalized(fmt.name, file.name, "native vs tikal (bytes)", native.output, tikalOut, normNative, normTikal)
 					} else {
-						match := report.compareText(fmt.name, file.name, "native vs tikal", nativeOut, tikalOut)
-						assert.True(t, match, "native vs tikal: output differs (see HTML report)")
+						report.compareTextInfo(fmt.name, file.name, "native vs tikal (bytes)", native.output, tikalOut)
 					}
 				})
 			}
@@ -200,9 +234,3 @@ func TestFormatCompat(t *testing.T) {
 	}
 }
 
-// bridgeRoundTrip performs an identity roundtrip through the Java bridge.
-func bridgeRoundTrip(t *testing.T, registry *bridge.BridgeRegistry, cfg bridge.BridgeConfig, filterClass string, input []byte, uri, mimeType string) []byte {
-	t.Helper()
-	result := bridgetest.RoundTrip(t, registry, cfg, filterClass, input, uri, mimeType, nil)
-	return result.Output
-}

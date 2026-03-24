@@ -24,6 +24,7 @@ neokapi-plugin-*
 # Okapi filter test data (fetched from GitHub release)
 okapi-testdata/
 okapi-surefire/
+compat-report/
 
 # Frontend
 node_modules/

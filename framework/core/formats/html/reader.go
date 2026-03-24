@@ -566,6 +566,38 @@ func trimCodedText(s string) string {
 	return string(runes[start:end])
 }
 
+// extractLeadingWhitespace returns the leading whitespace from coded text
+// (stopping at the first non-whitespace character or span marker).
+func extractLeadingWhitespace(s string) string {
+	for i, r := range s {
+		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
+			return s[:i]
+		}
+		if !isHTMLWhitespace(r) {
+			return s[:i]
+		}
+	}
+	return s
+}
+
+// extractTrailingWhitespace returns the trailing whitespace from coded text
+// (stopping at the last non-whitespace character or span marker).
+func extractTrailingWhitespace(s string) string {
+	runes := []rune(s)
+	end := len(runes)
+	for end > 0 {
+		r := runes[end-1]
+		if r == model.MarkerOpening || r == model.MarkerClosing || r == model.MarkerPlaceholder {
+			break
+		}
+		if !isHTMLWhitespace(r) {
+			break
+		}
+		end--
+	}
+	return string(runes[end:])
+}
+
 func (r *Reader) renderOpenTag(n *html.Node) string {
 	var buf strings.Builder
 	buf.WriteString("<")
