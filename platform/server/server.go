@@ -663,6 +663,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.PUT("/workspaces/:id/feature-overrides", s.HandleAdminSetFeatureOverrides)
 		adminGroup.GET("/workspaces/:id/notes", s.HandleAdminGetNotes)
 		adminGroup.POST("/workspaces/:id/notes", s.HandleAdminAddNote)
+		adminGroup.GET("/workspaces/:id/ledger", s.HandleAdminGetLedger)
 		adminGroup.GET("/users", s.HandleAdminListUsers)
 		adminGroup.GET("/users/:id", s.HandleAdminGetUser)
 		adminGroup.GET("/metrics", s.HandleAdminGetMetrics)
