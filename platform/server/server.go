@@ -142,6 +142,9 @@ type Server struct {
 	// dashboardCache caches translation dashboard stats per project/stream.
 	dashboardCache sync.Map // map[string]*dashboardCacheEntry
 
+	// pulseCache caches Pulse public dashboard responses with TTL-based expiry.
+	pulseCache *pulseCache
+
 	// AgentStore persists @bravo agent conversations, messages, and config (AD-028).
 	// Nil when agent system is not configured.
 	AgentStore platagent.AgentStore
@@ -195,6 +198,7 @@ func NewServer(cfg ServerConfig) *Server {
 		wsStores:        newWorkspaceStores(),
 		collabHub:       newCollabHub(),
 		notificationHub: newNotificationHub(),
+		pulseCache:      newPulseCache(),
 	}
 
 	// Initialize session state store (Redis or in-memory).
@@ -495,6 +499,21 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// Public badge endpoint (shields.io-compatible, CDN-cacheable).
 	v1.GET("/badges/projects/:id", s.HandleProjectBadge)
 
+	// Pulse public activity dashboard (AD-033).
+	// No auth required — access gated by workspace/project dashboard_visibility.
+	if s.AuthStore != nil {
+		pulseGroup := v1.Group("/pulse/:workspace")
+		pulseGroup.Use(PulseAccessMiddleware(s.Config.JWTSecret, s.AuthStore))
+		pulseGroup.GET("", s.HandlePulseOverview)
+		pulseGroup.GET("/projects", s.HandlePulseProjects)
+		pulseGroup.GET("/projects/:pid", s.HandlePulseProjectDetail)
+		pulseGroup.GET("/projects/:pid/lang/:locale", s.HandlePulseLocaleDetail)
+		pulseGroup.GET("/activity", s.HandlePulseActivity)
+		pulseGroup.GET("/leaderboard", s.HandlePulseLeaderboard)
+		pulseGroup.GET("/terms", s.HandlePulseTerms)
+		pulseGroup.GET("/terms/:cid", s.HandlePulseTermDetail)
+	}
+
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
 	if s.Config.JWTSecret != "" {
 		// Anonymous project creation (no auth required).
@@ -681,19 +700,34 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 	// A single handler serves static files first and falls back to index.html
 	// for SPA client-side routing. Using two separate handlers (e.Static + e.GET)
 	// would conflict because Echo overwrites the first GET /* with the second.
-	if s.Config.WebUIDir != "" {
+	if s.Config.WebUIDir != "" || s.Config.PulseUIDir != "" {
 		e.GET("/*", func(c echo.Context) error {
-			reqPath := c.Param("*")
-			if reqPath == "" {
-				reqPath = "index.html"
+			// Host-based routing: serve Pulse SPA for pulse.* subdomain.
+			host := c.Request().Host
+			if s.Config.PulseUIDir != "" && strings.HasPrefix(host, "pulse.") {
+				return serveSPAFile(c, s.Config.PulseUIDir)
 			}
-			filePath := filepath.Join(s.Config.WebUIDir, filepath.Clean(reqPath))
-			if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
-				return c.File(filePath)
+			// Default: serve main web UI.
+			if s.Config.WebUIDir != "" {
+				return serveSPAFile(c, s.Config.WebUIDir)
 			}
-			return c.File(filepath.Join(s.Config.WebUIDir, "index.html"))
+			return c.String(http.StatusNotFound, "not found")
 		})
 	}
+}
+
+// serveSPAFile serves a static file from the given directory, falling back to index.html
+// for SPA client-side routing.
+func serveSPAFile(c echo.Context, dir string) error {
+	reqPath := c.Param("*")
+	if reqPath == "" {
+		reqPath = "index.html"
+	}
+	filePath := filepath.Join(dir, filepath.Clean(reqPath))
+	if info, err := os.Stat(filePath); err == nil && !info.IsDir() {
+		return c.File(filePath)
+	}
+	return c.File(filepath.Join(dir, "index.html"))
 }
 
 // registerWorkspaceContentRoutes registers all workspace-scoped content routes

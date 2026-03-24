@@ -141,4 +141,12 @@ var authMigrationsPg = []storage.Migration{
 			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
 		`,
 	},
+	{
+		Version:     6,
+		Description: "add dashboard_visibility and pulse_term_sources to workspaces",
+		SQL: `
+			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS dashboard_visibility TEXT NOT NULL DEFAULT 'private';
+			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS pulse_term_sources TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}';
+		`,
+	},
 }
