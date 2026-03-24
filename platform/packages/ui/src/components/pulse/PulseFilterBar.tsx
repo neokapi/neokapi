@@ -13,14 +13,26 @@ interface PulseFilterBarProps {
   onPreset?: (filters: PulseFilter[]) => void;
 }
 
-export function PulseFilterBar({ filters, onRemove, onClear, presets, onPreset }: PulseFilterBarProps) {
+export function PulseFilterBar({
+  filters,
+  onRemove,
+  onClear,
+  presets,
+  onPreset,
+}: PulseFilterBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       {filters.map((f) => (
-        <span key={f.key} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-sm">
+        <span
+          key={f.key}
+          className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-sm"
+        >
           <span className="text-muted-foreground">{f.key}:</span>
           <span className="font-medium">{f.value}</span>
-          <button onClick={() => onRemove(f.key)} className="ml-1 rounded-full p-0.5 hover:bg-muted">
+          <button
+            onClick={() => onRemove(f.key)}
+            className="ml-1 rounded-full p-0.5 hover:bg-muted"
+          >
             <X className="h-3 w-3" />
           </button>
         </span>
