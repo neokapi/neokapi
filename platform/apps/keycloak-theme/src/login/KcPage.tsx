@@ -18,6 +18,7 @@ const LoginIdpLinkEmail = lazy(() => import("./pages/LoginIdpLinkEmail"));
 const LoginPasskeysConditionalAuthenticate = lazy(
   () => import("./pages/LoginPasskeysConditionalAuthenticate"),
 );
+const LoginOtp = lazy(() => import("./pages/LoginOtp"));
 const WebauthnAuthenticate = lazy(() => import("./pages/WebauthnAuthenticate"));
 const WebauthnRegister = lazy(() => import("./pages/WebauthnRegister"));
 const WebauthnError = lazy(() => import("./pages/WebauthnError"));
@@ -51,6 +52,8 @@ export default function KcPage(props: { kcContext: KcContext }) {
               return <LoginIdpLinkConfirm kcContext={kcContext} i18n={i18n} />;
             case "login-idp-link-email.ftl":
               return <LoginIdpLinkEmail kcContext={kcContext} i18n={i18n} />;
+            case "login-otp.ftl":
+              return <LoginOtp kcContext={kcContext} i18n={i18n} />;
             case "login-passkeys-conditional-authenticate.ftl":
               return <LoginPasskeysConditionalAuthenticate kcContext={kcContext} i18n={i18n} />;
             case "webauthn-authenticate.ftl":
