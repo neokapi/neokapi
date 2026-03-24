@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -127,21 +128,21 @@ func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Wor
 
 func (s *PostgresAuthStore) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
 		 FROM workspaces WHERE id = $1`, id)
 	return scanWorkspacePg(row)
 }
 
 func (s *PostgresAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
 		 FROM workspaces WHERE slug = $1`, slug)
 	return scanWorkspacePg(row)
 }
 
 func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.created_at, w.updated_at, wm.role
+		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.dashboard_visibility, w.pulse_term_sources, w.created_at, w.updated_at, wm.role
 		 FROM workspaces w
 		 JOIN workspace_members wm ON w.id = wm.workspace_id
 		 WHERE wm.user_id = $1
@@ -164,9 +165,11 @@ func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) (
 
 func (s *PostgresAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	w.UpdatedAt = time.Now().UTC()
+	termSrcJSON, _ := json.Marshal(w.PulseTermSources)
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE workspaces SET name=$1, slug=$2, description=$3, logo_url=$4, plan=$5, stripe_customer_id=$6, updated_at=$7 WHERE id=$8`,
-		w.Name, w.Slug, w.Description, w.LogoURL, w.Plan, w.StripeCustomerID, w.UpdatedAt, w.ID)
+		`UPDATE workspaces SET name=$1, slug=$2, description=$3, logo_url=$4, plan=$5, stripe_customer_id=$6, dashboard_visibility=$7, pulse_term_sources=$8, updated_at=$9 WHERE id=$10`,
+		w.Name, w.Slug, w.Description, w.LogoURL, w.Plan, w.StripeCustomerID,
+		string(w.DashboardVisibility), string(termSrcJSON), w.UpdatedAt, w.ID)
 	if err != nil {
 		return fmt.Errorf("update workspace: %w", err)
 	}
@@ -739,11 +742,17 @@ func scanWorkspacePg(row scanner) (*platauth.Workspace, error) {
 	var w platauth.Workspace
 	var wsType string
 	var stripeCustomerID *string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &w.CreatedAt, &w.UpdatedAt)
+	var dashVis, termSrc string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &termSrc, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace: %w", err)
 	}
 	w.Type = platauth.WorkspaceType(wsType)
+	w.DashboardVisibility = platauth.DashboardVisibility(dashVis)
+	if w.DashboardVisibility == "" {
+		w.DashboardVisibility = platauth.DashboardPrivate
+	}
+	parsePulseTermSources(termSrc, &w.PulseTermSources)
 	if stripeCustomerID != nil {
 		w.StripeCustomerID = *stripeCustomerID
 	}
@@ -754,11 +763,17 @@ func scanWorkspaceWithRolePg(row scanner) (*platauth.Workspace, error) {
 	var w platauth.Workspace
 	var wsType, role string
 	var stripeCustomerID *string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &w.CreatedAt, &w.UpdatedAt, &role)
+	var dashVis, termSrc string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &termSrc, &w.CreatedAt, &w.UpdatedAt, &role)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace with role: %w", err)
 	}
 	w.Type = platauth.WorkspaceType(wsType)
+	w.DashboardVisibility = platauth.DashboardVisibility(dashVis)
+	if w.DashboardVisibility == "" {
+		w.DashboardVisibility = platauth.DashboardPrivate
+	}
+	parsePulseTermSources(termSrc, &w.PulseTermSources)
 	w.Role = platauth.Role(role)
 	if stripeCustomerID != nil {
 		w.StripeCustomerID = *stripeCustomerID

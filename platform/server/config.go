@@ -58,6 +58,10 @@ type ServerConfig struct {
 	// In production, the web UI is served by a separate container (bowrain-web).
 	WebUIDir string
 
+	// PulseUIDir is the path to built Pulse dashboard static files (development only).
+	// When set, requests to the pulse subdomain are served from this directory.
+	PulseUIDir string
+
 	// Blob storage (AD-029)
 	BlobBackend            string // "azure", "local" (default: "local")
 	AzureStorageAccountURL string // Azure Blob Storage account URL

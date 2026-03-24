@@ -653,4 +653,11 @@ var storeMigrations = []storage.Migration{
 			  AND id IN (SELECT DISTINCT project_id FROM items);
 		`,
 	},
+	{
+		Version:     28,
+		Description: "add dashboard_visibility to projects",
+		SQL: `
+			ALTER TABLE projects ADD COLUMN dashboard_visibility TEXT NOT NULL DEFAULT 'private';
+		`,
+	},
 }

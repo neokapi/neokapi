@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -184,6 +185,14 @@ var authMigrations = []storage.Migration{
 			CREATE INDEX idx_project_members_role ON project_members(workspace_id, role_id);
 		`,
 	},
+	{
+		Version:     13,
+		Description: "add dashboard_visibility and pulse_term_sources to workspaces",
+		SQL: `
+			ALTER TABLE workspaces ADD COLUMN dashboard_visibility TEXT NOT NULL DEFAULT 'private';
+			ALTER TABLE workspaces ADD COLUMN pulse_term_sources TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}';
+		`,
+	},
 }
 
 // SQLiteAuthStore implements AuthStore using SQLite.
@@ -305,21 +314,21 @@ func (s *SQLiteAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Works
 
 func (s *SQLiteAuthStore) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
 		 FROM workspaces WHERE id = ?`, id)
 	return scanWorkspace(row)
 }
 
 func (s *SQLiteAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
 		 FROM workspaces WHERE slug = ?`, slug)
 	return scanWorkspace(row)
 }
 
 func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.created_at, w.updated_at, wm.role
+		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.dashboard_visibility, w.pulse_term_sources, w.created_at, w.updated_at, wm.role
 		 FROM workspaces w
 		 JOIN workspace_members wm ON w.id = wm.workspace_id
 		 WHERE wm.user_id = ?
@@ -342,9 +351,11 @@ func (s *SQLiteAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]
 
 func (s *SQLiteAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error {
 	w.UpdatedAt = time.Now().UTC()
+	termSrcJSON, _ := json.Marshal(w.PulseTermSources)
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE workspaces SET name=?, slug=?, description=?, logo_url=?, plan=?, stripe_customer_id=?, updated_at=? WHERE id=?`,
+		`UPDATE workspaces SET name=?, slug=?, description=?, logo_url=?, plan=?, stripe_customer_id=?, dashboard_visibility=?, pulse_term_sources=?, updated_at=? WHERE id=?`,
 		w.Name, w.Slug, w.Description, w.LogoURL, w.Plan, w.StripeCustomerID,
+		string(w.DashboardVisibility), string(termSrcJSON),
 		w.UpdatedAt.Format(time.RFC3339), w.ID)
 	if err != nil {
 		return fmt.Errorf("update workspace: %w", err)
@@ -468,11 +479,17 @@ func scanWorkspace(row scanner) (*platauth.Workspace, error) {
 	var w platauth.Workspace
 	var wsType, createdStr, updatedStr string
 	var stripeCustomerID *string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &createdStr, &updatedStr)
+	var dashVis, termSrc string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &termSrc, &createdStr, &updatedStr)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace: %w", err)
 	}
 	w.Type = platauth.WorkspaceType(wsType)
+	w.DashboardVisibility = platauth.DashboardVisibility(dashVis)
+	if w.DashboardVisibility == "" {
+		w.DashboardVisibility = platauth.DashboardPrivate
+	}
+	parsePulseTermSources(termSrc, &w.PulseTermSources)
 	w.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	w.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
 	if stripeCustomerID != nil {
@@ -486,11 +503,17 @@ func scanWorkspaceWithRole(row scanner) (*platauth.Workspace, error) {
 	var w platauth.Workspace
 	var wsType, createdStr, updatedStr, role string
 	var stripeCustomerID *string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &createdStr, &updatedStr, &role)
+	var dashVis, termSrc string
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &termSrc, &createdStr, &updatedStr, &role)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace with role: %w", err)
 	}
 	w.Type = platauth.WorkspaceType(wsType)
+	w.DashboardVisibility = platauth.DashboardVisibility(dashVis)
+	if w.DashboardVisibility == "" {
+		w.DashboardVisibility = platauth.DashboardPrivate
+	}
+	parsePulseTermSources(termSrc, &w.PulseTermSources)
 	w.Role = platauth.Role(role)
 	w.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
 	w.UpdatedAt, _ = time.Parse(time.RFC3339, updatedStr)
@@ -498,6 +521,15 @@ func scanWorkspaceWithRole(row scanner) (*platauth.Workspace, error) {
 		w.StripeCustomerID = *stripeCustomerID
 	}
 	return &w, nil
+}
+
+// parsePulseTermSources unmarshals JSON into PulseTermSources with defaults.
+func parsePulseTermSources(raw string, dst *platauth.PulseTermSources) {
+	dst.Terminology = true
+	dst.BrandVocabulary = false
+	if raw != "" {
+		_ = json.Unmarshal([]byte(raw), dst)
+	}
 }
 
 func scanMembership(row scanner) (*platauth.Membership, error) {

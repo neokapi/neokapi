@@ -35,6 +35,7 @@ COVER_DIR   := $(ROOT_DIR)/coverage
 FRONTEND_DIR := apps/bowrain/frontend
 WEB_DIR      := apps/web
 CTRL_DIR     := apps/ctrl
+PULSE_DIR    := apps/pulse
 KC_THEME_DIR := apps/keycloak-theme
 EMAILS_DIR   := emails
 CERT_DIR     := docker/traefik/certs
@@ -57,6 +58,7 @@ DOCKER_KEYCLOAK_IMAGE := ghcr.io/neokapi/bowrain-keycloak
         frontend-deps frontend-dev frontend-build frontend-check build-ui \
         web-deps web-build web-check \
         ctrl-deps ctrl-dev ctrl-build ctrl-check \
+        pulse-deps pulse-dev pulse-build pulse-check \
         email-deps email-build keycloak-theme keycloak-check \
         frontend-check-all \
         docker-server docker-web docker-keycloak docker-all \
@@ -175,6 +177,21 @@ ctrl-build: ui-build ctrl-deps ## Build control plane for production
 ctrl-check: ctrl-deps ## Lint, format-check, and typecheck control plane
 	cd $(CTRL_DIR) && $(NPM) run check
 
+# ── Pulse Dashboard (pulse.bowrain.cloud) ─────────────────────────────────
+
+pulse-deps: ## Install Pulse dashboard dependencies
+	cd $(PULSE_DIR) && $(NPM) install
+
+pulse-dev: pulse-deps ## Start Pulse dev server (port 3200)
+	@printf '\033]0;Pulse UI\007'
+	cd $(PULSE_DIR) && $(NPM) run dev
+
+pulse-build: ui-build pulse-deps ## Build Pulse dashboard for production
+	cd $(PULSE_DIR) && $(NPM) run build
+
+pulse-check: pulse-deps ## Lint, format-check, and typecheck Pulse dashboard
+	cd $(PULSE_DIR) && $(NPM) run check
+
 # ── Email Templates (React Email -> HTML) ────────────────────────────────────
 
 email-deps: ## Install React Email template dependencies
@@ -193,7 +210,7 @@ keycloak-check: ## Lint, format-check, and typecheck Keycloak theme
 
 # ── Frontend Checks (all) ────────────────────────────────────────────────
 
-frontend-check-all: ui-check web-check ctrl-check frontend-check keycloak-check ## Run checks across all frontend projects
+frontend-check-all: ui-check web-check ctrl-check pulse-check frontend-check keycloak-check ## Run checks across all frontend projects
 
 # ── Docker ──────────────────────────────────────────────────────────────────
 

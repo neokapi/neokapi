@@ -12,10 +12,12 @@ import (
 
 // WorkspaceRequest is the request body for creating/updating a workspace.
 type WorkspaceRequest struct {
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description,omitempty"`
-	LogoURL     string `json:"logo_url,omitempty"`
+	Name                string                     `json:"name"`
+	Slug                string                     `json:"slug"`
+	Description         string                     `json:"description,omitempty"`
+	LogoURL             string                     `json:"logo_url,omitempty"`
+	DashboardVisibility string                     `json:"dashboard_visibility,omitempty"`
+	PulseTermSources    *platauth.PulseTermSources `json:"pulse_term_sources,omitempty"`
 }
 
 // MemberRequest is the request body for adding a member to a workspace.
@@ -139,6 +141,14 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	w.Slug = req.Slug
 	w.Description = req.Description
 	w.LogoURL = req.LogoURL
+	if req.DashboardVisibility != "" {
+		if platauth.ValidDashboardVisibility[platauth.DashboardVisibility(req.DashboardVisibility)] {
+			w.DashboardVisibility = platauth.DashboardVisibility(req.DashboardVisibility)
+		}
+	}
+	if req.PulseTermSources != nil {
+		w.PulseTermSources = *req.PulseTermSources
+	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
