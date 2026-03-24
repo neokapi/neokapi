@@ -9,7 +9,10 @@ interface TrendAreaChartProps {
 export function TrendAreaChart({ data, height = 200, className }: TrendAreaChartProps) {
   if (data.length === 0) {
     return (
-      <div className={`flex items-center justify-center rounded-lg border bg-card text-muted-foreground ${className ?? ""}`} style={{ height }}>
+      <div
+        className={`flex items-center justify-center rounded-lg border bg-card text-muted-foreground ${className ?? ""}`}
+        style={{ height }}
+      >
         No activity data yet.
       </div>
     );
