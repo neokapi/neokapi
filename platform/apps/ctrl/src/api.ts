@@ -16,7 +16,19 @@ import type {
   LedgerEntry,
 } from "./types";
 
-const BASE_URL = "/api/admin";
+function resolveApiBaseUrl(): string {
+  if (import.meta.env.VITE_ADMIN_API_URL) {
+    return import.meta.env.VITE_ADMIN_API_URL;
+  }
+  // Derive from hostname: ctrl[.dev].bowrain.cloud → [dev.]bowrain.cloud/api/admin
+  const host = window.location.hostname;
+  if (host.startsWith("ctrl.")) {
+    return `https://${host.slice(5)}/api/admin`;
+  }
+  return "/api/admin";
+}
+
+const BASE_URL = resolveApiBaseUrl();
 
 async function getValidToken(): Promise<string> {
   let token = getToken();
