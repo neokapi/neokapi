@@ -125,3 +125,32 @@ export const mockActivityData = [
   { date: "Mar 20", value: 42 },
   { date: "Mar 24", value: 38 },
 ];
+
+// Generate realistic heatmap data for the past year.
+function generateHeatmapData(): { date: string; count: number }[] {
+  const days: { date: string; count: number }[] = [];
+  const now = new Date();
+  const start = new Date(now);
+  start.setFullYear(start.getFullYear() - 1);
+
+  const current = new Date(start);
+  while (current <= now) {
+    const dayOfWeek = current.getDay();
+    const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
+    // Simulate realistic activity: more on weekdays, occasional spikes.
+    const base = isWeekday ? 3 : 1;
+    const spike = Math.random() > 0.9 ? Math.floor(Math.random() * 15) : 0;
+    const count = Math.floor(Math.random() * base) + spike;
+
+    if (count > 0) {
+      days.push({
+        date: current.toISOString().slice(0, 10),
+        count,
+      });
+    }
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+}
+
+export const mockHeatmapDays = generateHeatmapData();

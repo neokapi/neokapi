@@ -221,6 +221,45 @@ func (s *ActivityStore) List(ctx context.Context, q ActivityQuery) (*ActivityRes
 	return result, nil
 }
 
+// DailyCounts returns activity counts per day for a workspace since the given time.
+func (s *ActivityStore) DailyCounts(ctx context.Context, workspaceID string, since time.Time) ([]DailyCount, error) {
+	var dateFn string
+	switch s.dialect {
+	case DialectPostgres:
+		dateFn = "DATE(created_at)"
+	default:
+		dateFn = "DATE(created_at)"
+	}
+
+	query := fmt.Sprintf(
+		`SELECT %s AS day, COUNT(*) AS cnt FROM activities
+		 WHERE workspace_id = ? AND created_at > ?
+		 GROUP BY day ORDER BY day`, dateFn)
+
+	rows, err := s.db.QueryContext(ctx, s.q(query),
+		workspaceID, since.UTC().Format(time.RFC3339))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var counts []DailyCount
+	for rows.Next() {
+		var dc DailyCount
+		if err := rows.Scan(&dc.Date, &dc.Count); err != nil {
+			return nil, err
+		}
+		counts = append(counts, dc)
+	}
+	return counts, rows.Err()
+}
+
+// DailyCount is a date + count pair returned by DailyCounts.
+type DailyCount struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
 func scanActivity(row scanner) (*Activity, error) {
 	var a Activity
 	var typ, dataJSON, createdAt string

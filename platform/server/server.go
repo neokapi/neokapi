@@ -508,6 +508,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		pulseGroup.GET("/projects", s.HandlePulseProjects)
 		pulseGroup.GET("/projects/:pid", s.HandlePulseProjectDetail)
 		pulseGroup.GET("/projects/:pid/lang/:locale", s.HandlePulseLocaleDetail)
+		pulseGroup.GET("/activity/heatmap", s.HandlePulseActivityHeatmap)
 		pulseGroup.GET("/activity", s.HandlePulseActivity)
 		pulseGroup.GET("/leaderboard", s.HandlePulseLeaderboard)
 		pulseGroup.GET("/terms", s.HandlePulseTerms)
