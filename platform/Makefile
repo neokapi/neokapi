@@ -10,6 +10,10 @@ export CGO_CFLAGS := -mmacosx-version-min=10.15
 export CGO_LDFLAGS := -mmacosx-version-min=10.15
 endif
 
+# Node 22 requires --experimental-strip-types to load .ts config files
+# (vite.config.ts) via native ESM in tools like vite-plus (vp check/lint).
+export NODE_OPTIONS := --experimental-strip-types
+
 # ── Shared Variables (inherit from root or compute standalone) ────────────────
 
 ROOT_DIR    ?= $(shell cd .. && pwd)
