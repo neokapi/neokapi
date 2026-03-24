@@ -155,11 +155,11 @@ func parseTargetLanguages(csv string) []model.LocaleID {
 }
 
 type seedProjectConfig struct {
-	DatabaseURL    string
-	DatabaseAuth   string
-	AzureClientID  string
-	WorkspaceSlug  string
-	ProjectName    string
-	SourceLanguage string
+	DatabaseURL     string
+	DatabaseAuth    string
+	AzureClientID   string
+	WorkspaceSlug   string
+	ProjectName     string
+	SourceLanguage  string
 	TargetLanguages string
 }

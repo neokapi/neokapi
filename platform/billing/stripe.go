@@ -43,8 +43,8 @@ func (c *StripeClient) CreateCustomer(_ context.Context, workspaceID, email, nam
 
 // CheckoutOptions configures optional checkout behavior.
 type CheckoutOptions struct {
-	Metadata      map[string]string
-	TrialDays     int64 // 0 = no trial
+	Metadata  map[string]string
+	TrialDays int64 // 0 = no trial
 }
 
 // CreateCheckoutSession creates a Stripe Checkout session for subscribing to a plan.

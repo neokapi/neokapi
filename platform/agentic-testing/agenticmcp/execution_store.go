@@ -251,14 +251,14 @@ func (s *PostgresExecutionStore) ListEvents(ctx context.Context, filter EventFil
 
 // AgentSummary is a derived agent profile from execution history.
 type AgentSummary struct {
-	Agent             string `json:"agent"`
-	Role              string `json:"role"`
-	TotalSessions     int    `json:"total_sessions"`
-	SuccessfulCount   int    `json:"successful_count"`
-	FailedCount       int    `json:"failed_count"`
-	LastSessionAt     string `json:"last_session_at"`
-	LastStatus        string `json:"last_status"`
-	TotalTokensUsed   int    `json:"total_tokens_used"`
+	Agent           string `json:"agent"`
+	Role            string `json:"role"`
+	TotalSessions   int    `json:"total_sessions"`
+	SuccessfulCount int    `json:"successful_count"`
+	FailedCount     int    `json:"failed_count"`
+	LastSessionAt   string `json:"last_session_at"`
+	LastStatus      string `json:"last_status"`
+	TotalTokensUsed int    `json:"total_tokens_used"`
 }
 
 // ListAgents returns distinct agents with aggregated stats from execution history.

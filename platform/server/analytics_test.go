@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func TestTrackEvent_NilClient(t *testing.T) {
 	s := &Server{} // PostHogClient is nil
 	// Should not panic.

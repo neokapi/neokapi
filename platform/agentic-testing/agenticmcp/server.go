@@ -42,18 +42,18 @@ type ExecutionFilter struct {
 
 // Execution represents a single agent session record.
 type Execution struct {
-	ID           string `json:"id"`
-	Workspace    string `json:"workspace"`
-	Agent        string `json:"agent"`
-	Role         string `json:"role"`
-	StartedAt    string `json:"started_at"`
-	CompletedAt  string `json:"completed_at,omitempty"`
-	Status       string `json:"status"` // completed | failed | running
-	Task         string `json:"task"`
-	Locale       string `json:"locale,omitempty"`
-	Summary      string `json:"result_summary,omitempty"`
-	TokensUsed   int    `json:"ai_tokens_used,omitempty"`
-	Error        string `json:"error,omitempty"`
+	ID          string `json:"id"`
+	Workspace   string `json:"workspace"`
+	Agent       string `json:"agent"`
+	Role        string `json:"role"`
+	StartedAt   string `json:"started_at"`
+	CompletedAt string `json:"completed_at,omitempty"`
+	Status      string `json:"status"` // completed | failed | running
+	Task        string `json:"task"`
+	Locale      string `json:"locale,omitempty"`
+	Summary     string `json:"result_summary,omitempty"`
+	TokensUsed  int    `json:"ai_tokens_used,omitempty"`
+	Error       string `json:"error,omitempty"`
 }
 
 // ReleaseWalker advances projects through their release history.

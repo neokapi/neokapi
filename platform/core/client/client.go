@@ -213,8 +213,8 @@ type SyncPushRequest struct {
 
 // ItemMeta carries per-item editor metadata generated during push.
 type ItemMeta struct {
-	Name        string `json:"name"`                  // item name (relative file path)
-	Format      string `json:"format"`                // detected format
+	Name        string `json:"name"`                   // item name (relative file path)
+	Format      string `json:"format"`                 // detected format
 	BlockIndex  string `json:"block_index,omitempty"`  // JSON-serialized BlockIndex
 	PreviewHTML string `json:"preview_html,omitempty"` // pre-rendered editor preview HTML
 }

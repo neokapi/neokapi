@@ -129,16 +129,16 @@ func main() {
 }
 
 type config struct {
-	Port             int
-	DatabaseURL      string
-	DatabaseAuth     string
-	RedisURL         string
-	RedisPassword    string
-	JWTSecret        string
-	FleetRepoURL     string
-	FleetRepoToken   string
-	GitHubIssuesRepo string
+	Port              int
+	DatabaseURL       string
+	DatabaseAuth      string
+	RedisURL          string
+	RedisPassword     string
+	JWTSecret         string
+	FleetRepoURL      string
+	FleetRepoToken    string
+	GitHubIssuesRepo  string
 	GitHubIssuesToken string
-	BowrainAPIURL    string
-	BowrainAPIToken  string
+	BowrainAPIURL     string
+	BowrainAPIToken   string
 }
