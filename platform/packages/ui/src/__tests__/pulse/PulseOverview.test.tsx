@@ -6,8 +6,8 @@ import { mockStats, mockProjects, mockLanguages } from "../../stories/pulse/puls
 describe("PulseOverview", () => {
   it("renders stat cards", () => {
     render(<PulseOverview stats={mockStats} projects={mockProjects} languages={mockLanguages} />);
-    expect(screen.getByText("Projects")).toBeTruthy();
-    expect(screen.getByText("Languages")).toBeTruthy();
+    expect(screen.getAllByText("Projects").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Languages").length).toBeGreaterThan(0);
     expect(screen.getByText("Overall Progress")).toBeTruthy();
   });
 
