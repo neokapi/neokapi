@@ -27,8 +27,8 @@ export const Empty: Story = {
     onRemove: (key: string) => console.log("remove", key),
     onClear: () => console.log("clear"),
     presets: [
-      { key: "language", value: "fr-FR" },
-      { key: "language", value: "de-DE" },
+      { label: "This week", filters: [{ key: "time", value: "this-week" }] },
+      { label: "Needs help", filters: [{ key: "progress", value: "<50" }] },
     ],
   },
 };
