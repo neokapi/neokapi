@@ -377,6 +377,12 @@ type PulseLeaderboard struct {
 	Languages    []PulseLanguageRank `json:"languages"`
 }
 
+// PulseHeatmapDay is a single day's activity count for the contribution heatmap.
+type PulseHeatmapDay struct {
+	Date  string `json:"date"`  // "2026-01-15"
+	Count int    `json:"count"`
+}
+
 // BlockStatRow is a lightweight projection of a block for dashboard aggregation.
 // It avoids full deserialization of source segments, target segments, properties,
 // and annotations — only the fields needed for word/block counting are included.

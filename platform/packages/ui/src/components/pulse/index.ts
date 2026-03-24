@@ -1,3 +1,4 @@
+export { ActivityHeatmap } from "./ActivityHeatmap";
 export { CompletionRing } from "./CompletionRing";
 export { RisingStarBadge } from "./RisingStarBadge";
 export { PulseHeader } from "./PulseHeader";

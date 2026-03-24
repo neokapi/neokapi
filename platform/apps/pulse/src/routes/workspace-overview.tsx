@@ -1,11 +1,12 @@
 import { useParams, useNavigate } from "@tanstack/react-router";
 import { PulseOverview } from "@neokapi/ui/components/pulse";
-import { usePulseOverview } from "../hooks/use-pulse";
+import { usePulseOverview, usePulseActivityHeatmap } from "../hooks/use-pulse";
 
 export function WorkspaceOverviewPage() {
   const { workspace } = useParams({ strict: false }) as { workspace: string };
   const navigate = useNavigate();
   const { data, isLoading, error } = usePulseOverview(workspace);
+  const { data: heatmapData } = usePulseActivityHeatmap(workspace);
 
   if (isLoading) {
     return <LoadingSkeleton />;
@@ -29,6 +30,7 @@ export function WorkspaceOverviewPage() {
       stats={data.stats}
       projects={data.projects}
       languages={data.top_languages}
+      heatmap={heatmapData?.days}
       onProjectClick={(id: string) =>
         navigate({
           to: "/$workspace/projects/$pid",
