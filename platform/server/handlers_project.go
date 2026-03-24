@@ -18,6 +18,7 @@ type ProjectRequest struct {
 	DefaultSourceLanguage string   `json:"default_source_language"`
 	TargetLanguages       []string `json:"target_languages"`
 	DefaultStream         *string  `json:"default_stream,omitempty"`
+	DashboardVisibility   string   `json:"dashboard_visibility,omitempty"`
 	Workspace             string   `json:"workspace,omitempty"`
 }
 
@@ -179,6 +180,11 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 	}
 	if req.DefaultStream != nil {
 		p.DefaultStream = *req.DefaultStream
+	}
+	if req.DashboardVisibility != "" {
+		p.DashboardVisibility = req.DashboardVisibility
+	} else {
+		p.DashboardVisibility = existing.DashboardVisibility
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})

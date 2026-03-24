@@ -123,6 +123,10 @@ bench: bench-generate bench-run-all ## Run all benchmarks + copy results to webs
 frontend-check-all: ## Run lint, format, and typecheck across all frontend projects
 	$(MAKE) -C platform frontend-check-all
 
+# Forward pulse targets
+pulse-build pulse-dev pulse-check:
+	$(MAKE) -C platform $@
+
 # ── Documentation Assets ────────────────────────────────────────────────────
 
 screenshots recordings bowrain-cli-recordings:
