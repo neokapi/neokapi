@@ -86,7 +86,9 @@ export function ProjectDetailRoute() {
 
   const handleTogglePulseVisibility = useCallback(async () => {
     const newVis = project.dashboard_visibility === "public" ? "private" : "public";
-    await adapter.updateProject(ws, project.id, { dashboard_visibility: newVis });
+    await adapter.updateProject(ws, project.id, {
+      dashboard_visibility: newVis,
+    });
     invalidateProject();
   }, [ws, adapter, project.id, project.dashboard_visibility, invalidateProject]);
 

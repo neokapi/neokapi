@@ -156,35 +156,31 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	locales := make([]model.LocaleID, len(req.TargetLanguages))
-	for i, l := range req.TargetLanguages {
-		locales[i] = model.LocaleID(l)
+	// Start from the existing project and apply only non-empty request fields.
+	p := existing
+	if req.Name != "" {
+		p.Name = req.Name
 	}
-
-	workspaceID := existing.WorkspaceID // preserve existing workspace association
-	if req.Workspace != "" && s.AuthStore != nil {
-		// Allow setting/changing workspace via slug.
-		ws, err := s.AuthStore.GetWorkspaceBySlug(ctx, req.Workspace)
-		if err == nil {
-			workspaceID = ws.ID
+	if req.DefaultSourceLanguage != "" {
+		p.DefaultSourceLanguage = model.LocaleID(req.DefaultSourceLanguage)
+	}
+	if len(req.TargetLanguages) > 0 {
+		locales := make([]model.LocaleID, len(req.TargetLanguages))
+		for i, l := range req.TargetLanguages {
+			locales[i] = model.LocaleID(l)
 		}
-	}
-
-	p := &store.Project{
-		ID:                    projectID,
-		Name:                  req.Name,
-		DefaultSourceLanguage: model.LocaleID(req.DefaultSourceLanguage),
-		TargetLanguages:       locales,
-		DefaultStream:         existing.DefaultStream,
-		WorkspaceID:           workspaceID,
+		p.TargetLanguages = locales
 	}
 	if req.DefaultStream != nil {
 		p.DefaultStream = *req.DefaultStream
 	}
 	if req.DashboardVisibility != "" {
 		p.DashboardVisibility = req.DashboardVisibility
-	} else {
-		p.DashboardVisibility = existing.DashboardVisibility
+	}
+	if req.Workspace != "" && s.AuthStore != nil {
+		if ws, wsErr := s.AuthStore.GetWorkspaceBySlug(ctx, req.Workspace); wsErr == nil {
+			p.WorkspaceID = ws.ID
+		}
 	}
 	if err := s.Services.Project.UpdateProject(ctx, p); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
@@ -197,7 +193,7 @@ func (s *Server) HandleUpdateProject(c echo.Context) error {
 			oldLocales[l] = true
 		}
 		var newLocales []string
-		for _, l := range locales {
+		for _, l := range p.TargetLanguages {
 			if !oldLocales[l] {
 				newLocales = append(newLocales, string(l))
 			}

@@ -1,4 +1,5 @@
 export {
+  Activity,
   Globe,
   BookOpen,
   Brain,

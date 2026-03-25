@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 import { OpenInDesktop } from "./OpenInDesktop";
+import { Switch } from "./ui/switch";
 import { CollectionTabs } from "./CollectionTabs";
 import {
   ArrowLeft,
@@ -32,8 +33,7 @@ import {
   Plug,
   Upload,
   MoreHorizontal,
-  Eye,
-  EyeOff,
+  Activity,
   Pencil,
   Trash2,
   Users,
@@ -237,7 +237,7 @@ export function ProjectView({
                 Translation Memory
               </Button>
             )}
-            {(onEditProject || onArchiveProject || onManageMembers || onTogglePulseVisibility) && (
+            {(onEditProject || onArchiveProject || onManageMembers) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer bg-transparent border-none">
@@ -261,25 +261,9 @@ export function ProjectView({
                       <Pencil className="w-3.5 h-3.5" /> Edit project
                     </DropdownMenuItem>
                   )}
-                  {onTogglePulseVisibility && (
-                    <DropdownMenuItem
-                      onClick={onTogglePulseVisibility}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      {project.dashboard_visibility === "public" ? (
-                        <>
-                          <EyeOff className="w-3.5 h-3.5" /> Hide from Pulse
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="w-3.5 h-3.5" /> Show on Pulse
-                        </>
-                      )}
-                    </DropdownMenuItem>
-                  )}
                   {onArchiveProject && (
                     <>
-                      {(onEditProject || onTogglePulseVisibility) && <DropdownMenuSeparator />}
+                      {onEditProject && <DropdownMenuSeparator />}
                       <DropdownMenuItem
                         onClick={onArchiveProject}
                         className="flex items-center gap-2 text-sm text-destructive"
@@ -315,6 +299,25 @@ export function ProjectView({
           </div>
         </div>
       </Card>
+
+      {onTogglePulseVisibility && (
+        <div className="flex items-center justify-between rounded-lg border border-border/50 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">Show on Pulse</p>
+              <p className="text-xs text-muted-foreground">
+                Make this project visible on the public dashboard
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={project.dashboard_visibility === "public"}
+            onCheckedChange={onTogglePulseVisibility}
+            aria-label="Toggle Pulse visibility"
+          />
+        </div>
+      )}
 
       {/* Content card with collection tabs */}
       <Card className={isMobile ? "p-4" : "p-6"}>
