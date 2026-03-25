@@ -283,7 +283,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async updateWorkspace(slug: string, data: Partial<Workspace>): Promise<Workspace> {
     return this.fetchJSON(`/api/v1/workspaces/${slug}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     });
   }
@@ -602,7 +602,7 @@ export class RestApiAdapter implements ApiAdapter {
     data: { name?: string; target_languages?: string[]; dashboard_visibility?: string },
   ): Promise<ProjectInfo> {
     return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
-      method: "PUT",
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });

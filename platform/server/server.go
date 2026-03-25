@@ -559,6 +559,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		jwtProtected.GET("/projects", s.HandleListProjects)
 		jwtProtected.GET("/projects/:id", s.HandleGetProject)
 		jwtProtected.PUT("/projects/:id", s.HandleUpdateProject)
+		jwtProtected.PATCH("/projects/:id", s.HandleUpdateProject)
 		jwtProtected.DELETE("/projects/:id", s.HandleDeleteProject)
 		jwtProtected.POST("/projects/:id/blocks", s.HandleStoreBlocks)
 		jwtProtected.GET("/projects/:id/blocks", s.HandleGetBlocks)
@@ -622,6 +623,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		}
 		wsSpecific.GET("", s.HandleGetWorkspace)
 		wsSpecific.PUT("", s.HandleUpdateWorkspace)
+		wsSpecific.PATCH("", s.HandleUpdateWorkspace)
 		wsSpecific.DELETE("", s.HandleDeleteWorkspace)
 		wsSpecific.GET("/members", s.HandleListMembers)
 		wsSpecific.POST("/members", s.HandleAddMember)
