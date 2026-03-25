@@ -186,3 +186,24 @@ export async function fetchTerms(
   if (!res.ok) throw new Error(`Failed to fetch terms: ${res.status}`);
   return res.json();
 }
+
+export interface PulseWorkspaceSummary {
+  name: string;
+  slug: string;
+  description: string;
+  logo_url?: string;
+  projects: number;
+  languages: number;
+  percentage: number;
+}
+
+export interface PulseFrontPage {
+  workspaces: PulseWorkspaceSummary[];
+  stats: PulseGlobalStats;
+}
+
+export async function fetchFrontPage(): Promise<PulseFrontPage> {
+  const res = await fetch(BASE);
+  if (!res.ok) throw new Error(`Failed to fetch front page: ${res.status}`);
+  return res.json();
+}

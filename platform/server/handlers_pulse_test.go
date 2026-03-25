@@ -498,6 +498,69 @@ func TestHandlePulseActivityHeatmap(t *testing.T) {
 	assert.NotNil(t, resp.Days)
 }
 
+func TestHandlePulseFrontPage(t *testing.T) {
+	srv := newPulseTestServer(t)
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/pulse", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := srv.HandlePulseFrontPage(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Workspaces []any                `json:"workspaces"`
+		Stats      store.PulseGlobalStats `json:"stats"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.NotNil(t, resp.Workspaces)
+}
+
+func TestHandlePulseFrontPage_WithPublicWorkspace(t *testing.T) {
+	srv := newPulseTestServer(t)
+	ctx := context.Background()
+
+	// Create a public workspace.
+	ws := &platauth.Workspace{
+		Name:                "Public WS",
+		Slug:                "public-ws",
+		DashboardVisibility: platauth.DashboardPublic,
+	}
+	require.NoError(t, srv.AuthStore.CreateWorkspace(ctx, ws))
+
+	// Create a public project in it.
+	require.NoError(t, srv.ContentStore.CreateProject(ctx, &store.Project{
+		ID:                  "p-1",
+		Name:                "My Project",
+		WorkspaceID:         ws.ID,
+		DashboardVisibility: "public",
+	}))
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/pulse", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := srv.HandlePulseFrontPage(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp struct {
+		Workspaces []struct {
+			Slug     string `json:"slug"`
+			Projects int    `json:"projects"`
+		} `json:"workspaces"`
+		Stats store.PulseGlobalStats `json:"stats"`
+	}
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	require.Len(t, resp.Workspaces, 1)
+	assert.Equal(t, "public-ws", resp.Workspaces[0].Slug)
+	assert.Equal(t, 1, resp.Workspaces[0].Projects)
+	assert.Equal(t, 1, resp.Stats.TotalProjects)
+}
+
 // ---------------------------------------------------------------------------
 // Mock auth store
 // ---------------------------------------------------------------------------
