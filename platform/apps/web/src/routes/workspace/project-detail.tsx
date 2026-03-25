@@ -86,11 +86,16 @@ export function ProjectDetailRoute() {
 
   const handleTogglePulseVisibility = useCallback(async () => {
     const newVis = project.dashboard_visibility === "public" ? "private" : "public";
+    // Optimistically update the cache so the switch toggles immediately.
+    queryClient.setQueryData(
+      ["project", ws, project.id, activeStream],
+      (old: typeof project | undefined) => (old ? { ...old, dashboard_visibility: newVis } : old),
+    );
     await adapter.updateProject(ws, project.id, {
       dashboard_visibility: newVis,
     });
     invalidateProject();
-  }, [ws, adapter, project.id, project.dashboard_visibility, invalidateProject]);
+  }, [ws, adapter, project.id, project.dashboard_visibility, queryClient, invalidateProject]);
 
   const [showArchiveProject, setShowArchiveProject] = useState(false);
   const confirmArchiveProject = useCallback(async () => {
