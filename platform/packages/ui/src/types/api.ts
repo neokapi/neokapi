@@ -179,6 +179,7 @@ export interface ProjectInfo {
   target_languages: string[];
   target_language_mode?: string;
   default_stream?: string;
+  dashboard_visibility?: string;
   workspace_id?: string;
   path?: string;
   items?: ProjectItem[];

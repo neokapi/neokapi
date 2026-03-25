@@ -84,6 +84,12 @@ export function ProjectDetailRoute() {
     [ws, adapter, project.id, invalidateProject],
   );
 
+  const handleTogglePulseVisibility = useCallback(async () => {
+    const newVis = project.dashboard_visibility === "public" ? "private" : "public";
+    await adapter.updateProject(ws, project.id, { dashboard_visibility: newVis });
+    invalidateProject();
+  }, [ws, adapter, project.id, project.dashboard_visibility, invalidateProject]);
+
   const [showArchiveProject, setShowArchiveProject] = useState(false);
   const confirmArchiveProject = useCallback(async () => {
     await adapter.deleteProject(ws, project.id);
@@ -271,6 +277,7 @@ export function ProjectDetailRoute() {
         onManageMembers={() => setShowMembers(true)}
         onEditProject={() => setShowEditProject(true)}
         onArchiveProject={() => setShowArchiveProject(true)}
+        onTogglePulseVisibility={handleTogglePulseVisibility}
         // Collection callbacks
         onCreateCollection={() => {
           setEditingCollection(undefined);

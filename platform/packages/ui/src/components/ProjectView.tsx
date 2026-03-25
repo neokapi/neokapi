@@ -32,6 +32,8 @@ import {
   Plug,
   Upload,
   MoreHorizontal,
+  Eye,
+  EyeOff,
   Pencil,
   Trash2,
   Users,
@@ -66,6 +68,8 @@ export interface ProjectViewProps {
   onManageMembers?: () => void;
   /** Navigate to the translation dashboard for this project. */
   onOpenDashboard?: () => void;
+  /** Toggle project visibility on the Pulse public dashboard. */
+  onTogglePulseVisibility?: () => void;
 }
 
 export function ProjectView({
@@ -90,6 +94,7 @@ export function ProjectView({
   onDeleteStream: _onDeleteStream,
   onManageMembers,
   onOpenDashboard,
+  onTogglePulseVisibility,
 }: ProjectViewProps) {
   const { getDisplayName } = useLocales();
   const isMobile = useIsMobile();
@@ -232,7 +237,7 @@ export function ProjectView({
                 Translation Memory
               </Button>
             )}
-            {(onEditProject || onArchiveProject || onManageMembers) && (
+            {(onEditProject || onArchiveProject || onManageMembers || onTogglePulseVisibility) && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors cursor-pointer bg-transparent border-none">
@@ -256,9 +261,25 @@ export function ProjectView({
                       <Pencil className="w-3.5 h-3.5" /> Edit project
                     </DropdownMenuItem>
                   )}
+                  {onTogglePulseVisibility && (
+                    <DropdownMenuItem
+                      onClick={onTogglePulseVisibility}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      {project.dashboard_visibility === "public" ? (
+                        <>
+                          <EyeOff className="w-3.5 h-3.5" /> Hide from Pulse
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5" /> Show on Pulse
+                        </>
+                      )}
+                    </DropdownMenuItem>
+                  )}
                   {onArchiveProject && (
                     <>
-                      {onEditProject && <DropdownMenuSeparator />}
+                      {(onEditProject || onTogglePulseVisibility) && <DropdownMenuSeparator />}
                       <DropdownMenuItem
                         onClick={onArchiveProject}
                         className="flex items-center gap-2 text-sm text-destructive"
