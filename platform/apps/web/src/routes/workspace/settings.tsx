@@ -79,9 +79,7 @@ export function SettingsIndexRoute() {
         <Card>
           <CardHeader>
             <CardTitle>Pulse Dashboard</CardTitle>
-            <CardDescription>
-              Share your localization progress with the community
-            </CardDescription>
+            <CardDescription>Share your localization progress with the community</CardDescription>
           </CardHeader>
           <CardContent>
             <PulseSettings

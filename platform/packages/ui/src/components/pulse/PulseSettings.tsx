@@ -89,9 +89,7 @@ export function PulseSettings({
             >
               <div
                 className={`mt-0.5 rounded-md p-1.5 ${
-                  selected
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
+                  selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                 }`}
               >
                 <Icon className="h-4 w-4" />
