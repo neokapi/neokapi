@@ -501,6 +501,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// Pulse public activity dashboard (AD-033).
 	// No auth required — access gated by workspace/project dashboard_visibility.
+	v1.GET("/pulse", s.HandlePulseFrontPage)
 	if s.AuthStore != nil {
 		pulseGroup := v1.Group("/pulse/:workspace")
 		pulseGroup.Use(PulseAccessMiddleware(s.Config.JWTSecret, s.AuthStore))

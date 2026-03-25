@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, createRoute, createRouter } from "@tanstack/react-router";
 import type { QueryClient } from "@tanstack/react-query";
 import { RootLayout } from "./root-layout";
+import { FrontPage } from "./front-page";
 import { WorkspaceOverviewPage } from "./workspace-overview";
 import { ProjectDetailPage } from "./project-detail";
 import { LocaleDetailPage } from "./locale-detail";
@@ -72,7 +73,14 @@ const terminologyRoute = createRoute({
   }),
 });
 
+const frontPageRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/",
+  component: FrontPage,
+});
+
 const routeTree = rootRoute.addChildren([
+  frontPageRoute,
   workspaceRoute,
   projectDetailRoute,
   localeDetailRoute,

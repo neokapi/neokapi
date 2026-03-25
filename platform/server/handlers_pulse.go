@@ -14,6 +14,94 @@ import (
 )
 
 // ---------------------------------------------------------------------------
+// Front Page (no workspace)
+// ---------------------------------------------------------------------------
+
+// HandlePulseFrontPage returns public workspaces with summary stats for the
+// Pulse landing page.
+// GET /api/v1/pulse
+func (s *Server) HandlePulseFrontPage(c echo.Context) error {
+	if s.AuthStore == nil {
+		return c.JSON(http.StatusOK, map[string]any{
+			"workspaces": []any{},
+			"stats":      store.PulseGlobalStats{},
+		})
+	}
+
+	cacheKey := pulseCacheKey("_front", "front", "")
+	if cached, ok := s.pulseCache.Get(cacheKey); ok {
+		return c.JSON(http.StatusOK, cached)
+	}
+
+	ctx := c.Request().Context()
+	workspaces, err := s.AuthStore.ListPublicWorkspaces(ctx)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list workspaces"})
+	}
+
+	type workspaceSummary struct {
+		Name        string  `json:"name"`
+		Slug        string  `json:"slug"`
+		Description string  `json:"description"`
+		LogoURL     string  `json:"logo_url,omitempty"`
+		Projects    int     `json:"projects"`
+		Languages   int     `json:"languages"`
+		Percentage  float64 `json:"percentage"`
+	}
+
+	summaries := make([]workspaceSummary, 0, len(workspaces))
+	var totalProjects, totalLanguages int
+
+	for _, ws := range workspaces {
+		projects, err := s.pulseVisibleProjects(ctx, ws.ID)
+		if err != nil {
+			continue
+		}
+
+		langSet := make(map[string]bool)
+		totalWords, translatedWords := 0, 0
+		for _, p := range projects {
+			summary := s.buildProjectSummary(ctx, p)
+			totalWords += summary.TotalWords
+			translatedWords += summary.TranslatedWords
+			for _, loc := range summary.Locales {
+				langSet[loc.Locale] = true
+			}
+		}
+
+		pct := 0.0
+		if totalWords > 0 {
+			pct = float64(translatedWords) * 100 / float64(totalWords)
+		}
+
+		summaries = append(summaries, workspaceSummary{
+			Name:        ws.Name,
+			Slug:        ws.Slug,
+			Description: ws.Description,
+			LogoURL:     ws.LogoURL,
+			Projects:    len(projects),
+			Languages:   len(langSet),
+			Percentage:  pct,
+		})
+
+		totalProjects += len(projects)
+		totalLanguages += len(langSet)
+	}
+
+	resp := map[string]any{
+		"workspaces": summaries,
+		"stats": store.PulseGlobalStats{
+			TotalProjects:  totalProjects,
+			TotalLanguages: totalLanguages,
+		},
+	}
+
+	s.pulseCache.Set(cacheKey, "overview", resp)
+	setCDNCacheHeaders(c, 120)
+	return c.JSON(http.StatusOK, resp)
+}
+
+// ---------------------------------------------------------------------------
 // Workspace Overview
 // ---------------------------------------------------------------------------
 
