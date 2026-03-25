@@ -139,8 +139,7 @@ URL structure:
 ```
 
 The frontend `PulseFilterContext` reads initial state from
-`useLocation().search` on mount and calls `navigate({ search: ... },
-{ replace: true })` on every filter change. The FilterBar component renders
+`useLocation().search` on mount and calls `navigate({ search: ... }, { replace: true })` on every filter change. The FilterBar component renders
 active filters as removable badges (tokens) and provides:
 
 - **Filter keys**: `project`, `language`, `contributor`, `time`, `type`, `q`
