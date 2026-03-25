@@ -7,6 +7,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	platauth "github.com/neokapi/neokapi/platform/auth"
+	"github.com/neokapi/neokapi/platform/store"
 )
 
 // PulseAccessMiddleware resolves the workspace by slug from the :workspace
@@ -53,9 +54,30 @@ func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 
 // PulseProjectAccessMiddleware checks the project's own dashboard_visibility.
 // Must run after PulseAccessMiddleware so "pulse_workspace" is on the context.
-func PulseProjectAccessMiddleware() echo.MiddlewareFunc {
+// Returns 404 for private projects (prevents enumeration).
+func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
+			pid := c.Param("pid")
+			if pid == "" {
+				return next(c)
+			}
+
+			ws := pulseWorkspace(c)
+			if ws == nil {
+				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
+			}
+
+			ctx := c.Request().Context()
+			p, err := cs.GetProject(ctx, pid)
+			if err != nil || p.WorkspaceID != ws.ID {
+				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
+			}
+			if p.DashboardVisibility == "private" || p.DashboardVisibility == "" {
+				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
+			}
+
+			c.Set("pulse_project", p)
 			return next(c)
 		}
 	}
