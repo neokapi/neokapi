@@ -66,10 +66,13 @@ func (s *PostgresStore) CreateProject(ctx context.Context, p *platstore.Project)
 	if p.TargetLanguageMode == "" {
 		p.TargetLanguageMode = "defined"
 	}
+	if p.DashboardVisibility == "" {
+		p.DashboardVisibility = "private"
+	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, properties, workspace_id, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, string(propsJSON),
+		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
 		p.WorkspaceID, now, now)
 	if err != nil {
 		return fmt.Errorf("insert project: %w", err)

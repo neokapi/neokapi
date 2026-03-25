@@ -72,10 +72,13 @@ func (s *SQLiteStore) CreateProject(ctx context.Context, p *platstore.Project) e
 	if p.TargetLanguageMode == "" {
 		p.TargetLanguageMode = "defined"
 	}
+	if p.DashboardVisibility == "" {
+		p.DashboardVisibility = "private"
+	}
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, properties, workspace_id, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, string(propsJSON),
+		`INSERT INTO projects (id, name, default_source_language, target_languages, target_language_mode, default_stream, dashboard_visibility, properties, workspace_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.ID, p.Name, string(p.DefaultSourceLanguage), locales, p.TargetLanguageMode, p.DefaultStream, p.DashboardVisibility, string(propsJSON),
 		p.WorkspaceID, now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert project: %w", err)

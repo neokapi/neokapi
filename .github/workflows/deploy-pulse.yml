@@ -1,0 +1,53 @@
+name: Deploy Pulse
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+  push:
+    branches: [main]
+    paths:
+      - 'platform/apps/pulse/**'
+      - 'platform/packages/ui/**'
+
+jobs:
+  build:
+    name: Build Pulse Assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup-node-ui
+
+      - name: Build pulse app
+        working-directory: platform/apps/pulse
+        run: npm run build
+
+      - name: Upload pulse artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: pulse-dist
+          path: platform/apps/pulse/dist
+          retention-days: 7
+
+  trigger-deploy:
+    name: Trigger Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.NEOKAPI_GITHUB_TOKEN }}
+      ENVIRONMENT: ${{ github.event.inputs.environment || 'dev' }}
+    steps:
+      - name: Deploy pulse web assets
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh workflow run deploy-pulse-web.yml \
+            --repo neokapi/bowrain-infra \
+            -f environment="$ENVIRONMENT" \
+            -f runId="$RUN_ID"
