@@ -83,16 +83,11 @@ func (s *Server) HandlePulseProjectDetail(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
 
-	pid := c.Param("pid")
+	p := pulseProject(c)
+	if p == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
+	}
 	ctx := c.Request().Context()
-
-	p, err := s.ContentStore.GetProject(ctx, pid)
-	if err != nil || p.WorkspaceID != ws.ID {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
-	}
-	if p.DashboardVisibility == "private" {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
-	}
 
 	summary := s.buildProjectSummary(ctx, p)
 	detail := store.PulseProjectDetail{
@@ -117,17 +112,12 @@ func (s *Server) HandlePulseLocaleDetail(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
 
-	pid := c.Param("pid")
+	p := pulseProject(c)
+	if p == nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
+	}
 	locale := c.Param("locale")
 	ctx := c.Request().Context()
-
-	p, err := s.ContentStore.GetProject(ctx, pid)
-	if err != nil || p.WorkspaceID != ws.ID {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
-	}
-	if p.DashboardVisibility == "private" {
-		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
-	}
 
 	stats, err := editorGetDashboardStats(ctx, s.ContentStore, p, "")
 	if err != nil {
@@ -346,6 +336,12 @@ func (s *Server) HandlePulseTermDetail(c echo.Context) error {
 func pulseWorkspace(c echo.Context) *platauth.Workspace {
 	ws, _ := c.Get("pulse_workspace").(*platauth.Workspace)
 	return ws
+}
+
+// pulseProject extracts the project from the echo context (set by PulseProjectAccessMiddleware).
+func pulseProject(c echo.Context) *store.Project {
+	p, _ := c.Get("pulse_project").(*store.Project)
+	return p
 }
 
 // pulseVisibleProjects returns projects in the workspace that are public or unlisted.

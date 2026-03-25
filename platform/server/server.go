@@ -506,13 +506,16 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		pulseGroup.Use(PulseAccessMiddleware(s.Config.JWTSecret, s.AuthStore))
 		pulseGroup.GET("", s.HandlePulseOverview)
 		pulseGroup.GET("/projects", s.HandlePulseProjects)
-		pulseGroup.GET("/projects/:pid", s.HandlePulseProjectDetail)
-		pulseGroup.GET("/projects/:pid/lang/:locale", s.HandlePulseLocaleDetail)
 		pulseGroup.GET("/activity/heatmap", s.HandlePulseActivityHeatmap)
 		pulseGroup.GET("/activity", s.HandlePulseActivity)
 		pulseGroup.GET("/leaderboard", s.HandlePulseLeaderboard)
 		pulseGroup.GET("/terms", s.HandlePulseTerms)
 		pulseGroup.GET("/terms/:cid", s.HandlePulseTermDetail)
+
+		// Project-scoped routes also enforce project-level visibility.
+		pulseProjectGroup := pulseGroup.Group("", PulseProjectAccessMiddleware(s.ContentStore))
+		pulseProjectGroup.GET("/projects/:pid", s.HandlePulseProjectDetail)
+		pulseProjectGroup.GET("/projects/:pid/lang/:locale", s.HandlePulseLocaleDetail)
 	}
 
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
