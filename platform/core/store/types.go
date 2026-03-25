@@ -383,7 +383,6 @@ type PulseHeatmapDay struct {
 	Count int    `json:"count"`
 }
 
-
 // BlockStatRow is a lightweight projection of a block for dashboard aggregation.
 // It avoids full deserialization of source segments, target segments, properties,
 // and annotations — only the fields needed for word/block counting are included.
