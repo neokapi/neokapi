@@ -1,18 +1,27 @@
-import { Moon, Sun } from "lucide-react";
+import { Activity, Moon, Sun } from "lucide-react";
 import { useState, useEffect } from "react";
+
+const STORAGE_KEY = "neokapi-theme";
 
 interface PulseHeaderProps {
   workspaceName: string;
   logoUrl?: string;
 }
 
+function readTheme(): boolean {
+  if (typeof window === "undefined") return false;
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (stored === "dark") return true;
+  if (stored === "light") return false;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
 export function PulseHeader({ workspaceName, logoUrl }: PulseHeaderProps) {
-  const [dark, setDark] = useState(
-    () => typeof window !== "undefined" && document.documentElement.classList.contains("dark"),
-  );
+  const [dark, setDark] = useState(readTheme);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
+    localStorage.setItem(STORAGE_KEY, dark ? "dark" : "light");
   }, [dark]);
 
   return (
@@ -28,7 +37,10 @@ export function PulseHeader({ workspaceName, logoUrl }: PulseHeaderProps) {
           )}
           <div className="flex items-center gap-2">
             <span className="font-semibold">{workspaceName}</span>
-            <span className="text-xs text-muted-foreground">Pulse</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+              <Activity className="h-3 w-3" />
+              Pulse
+            </span>
           </div>
         </div>
         <button

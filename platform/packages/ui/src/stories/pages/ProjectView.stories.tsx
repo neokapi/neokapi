@@ -30,6 +30,10 @@ export const Default: Story = {
     onRemoveFile: fn(),
     onOpenTM: fn(),
     onOpenTerms: fn(),
+    onEditProject: fn(),
+    onArchiveProject: fn(),
+    onManageMembers: fn(),
+    onTogglePulseVisibility: fn(),
     onCreateCollection: fn(),
     onEditCollection: fn(),
     onDeleteCollection: fn(),
@@ -38,6 +42,13 @@ export const Default: Story = {
     onMergeStream: fn(),
     onDiffStream: fn(),
     onDeleteStream: fn(),
+  },
+};
+
+export const PublicOnPulse: Story = {
+  args: {
+    ...Default.args,
+    project: { ...sampleProject, dashboard_visibility: "public" },
   },
 };
 

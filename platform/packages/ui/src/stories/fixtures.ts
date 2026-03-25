@@ -445,6 +445,7 @@ export const sampleProject: ProjectInfo = {
   name: "Demo App",
   default_source_language: "en-US",
   target_languages: ["fr-FR", "de-DE", "ja-JP"],
+  dashboard_visibility: "private",
   workspace_id: "ws-1",
   items: [
     {

@@ -15,7 +15,9 @@ export default meta;
 type Story = StoryObj<typeof PulseSettings>;
 
 export const Private: Story = { args: { visibility: "private" } };
-export const Unlisted: Story = { args: { visibility: "unlisted" } };
+export const Unlisted: Story = {
+  args: { visibility: "unlisted", accessKey: "a1b2c3d4e5f67890a1b2c3d4e5f67890" },
+};
 export const Public: Story = { args: { visibility: "public" } };
 
 export const CustomPulseUrl: Story = {
