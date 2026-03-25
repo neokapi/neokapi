@@ -134,11 +134,15 @@ func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Wor
 	if w.Plan == "" {
 		w.Plan = "free"
 	}
+	if w.DashboardVisibility == "" {
+		w.DashboardVisibility = platauth.DashboardPrivate
+	}
+	termSrcJSON, _ := json.Marshal(w.PulseTermSources)
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO workspaces (id, name, slug, description, logo_url, type, plan, stripe_customer_id, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		`INSERT INTO workspaces (id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		w.ID, w.Name, w.Slug, w.Description, w.LogoURL, string(w.Type),
-		w.Plan, w.StripeCustomerID,
+		w.Plan, w.StripeCustomerID, string(w.DashboardVisibility), string(termSrcJSON),
 		w.CreatedAt, w.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert workspace: %w", err)
@@ -175,6 +179,28 @@ func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) (
 	result := make([]*platauth.Workspace, 0)
 	for rows.Next() {
 		w, err := scanWorkspaceWithRolePg(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, w)
+	}
+	return result, rows.Err()
+}
+
+func (s *PostgresAuthStore) ListPublicWorkspaces(ctx context.Context) ([]*platauth.Workspace, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
+		 FROM workspaces
+		 WHERE dashboard_visibility = 'public'
+		 ORDER BY name`)
+	if err != nil {
+		return nil, fmt.Errorf("list public workspaces: %w", err)
+	}
+	defer rows.Close()
+
+	result := make([]*platauth.Workspace, 0)
+	for rows.Next() {
+		w, err := scanWorkspacePg(rows)
 		if err != nil {
 			return nil, err
 		}

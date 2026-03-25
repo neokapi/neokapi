@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import {
+  fetchFrontPage,
   fetchOverview,
   fetchProjects,
   fetchProjectDetail,
@@ -9,11 +10,20 @@ import {
   fetchTerms,
 } from "../api";
 
-export function usePulseOverview(workspace: string) {
+export function usePulseFrontPage() {
+  return useQuery({
+    queryKey: ["pulse", "front"],
+    queryFn: fetchFrontPage,
+    staleTime: 2 * 60_000,
+  });
+}
+
+export function usePulseOverview(workspace: string, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ["pulse", workspace, "overview"],
     queryFn: () => fetchOverview(workspace),
     staleTime: 5 * 60_000,
+    enabled: opts?.enabled ?? true,
   });
 }
 
