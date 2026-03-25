@@ -149,4 +149,11 @@ var authMigrationsPg = []storage.Migration{
 			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS pulse_term_sources TEXT NOT NULL DEFAULT '{"terminology":true,"brand_vocabulary":false}';
 		`,
 	},
+	{
+		Version:     7,
+		Description: "add pulse_access_key to workspaces for unlisted dashboard access",
+		SQL: `
+			ALTER TABLE workspaces ADD COLUMN IF NOT EXISTS pulse_access_key TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

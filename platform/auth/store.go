@@ -21,6 +21,7 @@ type AuthStore interface {
 	CreateWorkspace(ctx context.Context, w *platauth.Workspace) error
 	GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error)
 	GetWorkspaceBySlug(ctx context.Context, slug string) (*platauth.Workspace, error)
+	GetWorkspaceByAccessKey(ctx context.Context, key string) (*platauth.Workspace, error)
 	ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error)
 	ListPublicWorkspaces(ctx context.Context) ([]*platauth.Workspace, error)
 	UpdateWorkspace(ctx context.Context, w *platauth.Workspace) error

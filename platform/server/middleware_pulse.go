@@ -19,13 +19,17 @@ import (
 func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			slug := c.Param("workspace")
-			if slug == "" {
+			param := c.Param("workspace")
+			if param == "" {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 			}
 
 			ctx := c.Request().Context()
-			ws, err := authStore.GetWorkspaceBySlug(ctx, slug)
+			// Try slug first, then fall back to access key (for unlisted dashboards).
+			ws, err := authStore.GetWorkspaceBySlug(ctx, param)
+			if err != nil {
+				ws, err = authStore.GetWorkspaceByAccessKey(ctx, param)
+			}
 			if err != nil {
 				return c.JSON(http.StatusNotFound, ErrorResponse{Error: "not found"})
 			}
