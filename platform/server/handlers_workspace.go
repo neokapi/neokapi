@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -151,14 +153,27 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 	}
 	if req.DashboardVisibility != "" {
 		if platauth.ValidDashboardVisibility[platauth.DashboardVisibility(req.DashboardVisibility)] {
-			w.DashboardVisibility = platauth.DashboardVisibility(req.DashboardVisibility)
+			newVis := platauth.DashboardVisibility(req.DashboardVisibility)
+			w.DashboardVisibility = newVis
+			// Auto-generate an access key when switching to unlisted (if none exists).
+			if newVis == platauth.DashboardUnlisted && w.PulseAccessKey == "" {
+				b := make([]byte, 16)
+				_, _ = rand.Read(b)
+				w.PulseAccessKey = hex.EncodeToString(b)
+			}
 		}
 	}
 	if req.PulseTermSources != nil {
 		w.PulseTermSources = *req.PulseTermSources
 	}
 	if err := s.AuthStore.UpdateWorkspace(c.Request().Context(), w); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "update workspace: " + err.Error()})
+	}
+	// Enrich with the calling user's role so the frontend stays consistent.
+	if userID, ok := c.Get("user_id").(string); ok && userID != "" {
+		if m, mErr := s.AuthStore.GetMembership(c.Request().Context(), w.ID, userID); mErr == nil {
+			w.Role = m.Role
+		}
 	}
 	return c.JSON(http.StatusOK, w)
 }

@@ -139,10 +139,10 @@ func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Wor
 	}
 	termSrcJSON, _ := json.Marshal(w.PulseTermSources)
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO workspaces (id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		`INSERT INTO workspaces (id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, created_at, updated_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 		w.ID, w.Name, w.Slug, w.Description, w.LogoURL, string(w.Type),
-		w.Plan, w.StripeCustomerID, string(w.DashboardVisibility), string(termSrcJSON),
+		w.Plan, w.StripeCustomerID, string(w.DashboardVisibility), w.PulseAccessKey, string(termSrcJSON),
 		w.CreatedAt, w.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("insert workspace: %w", err)
@@ -152,21 +152,28 @@ func (s *PostgresAuthStore) CreateWorkspace(ctx context.Context, w *platauth.Wor
 
 func (s *PostgresAuthStore) GetWorkspace(ctx context.Context, id string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, created_at, updated_at
 		 FROM workspaces WHERE id = $1`, id)
 	return scanWorkspacePg(row)
 }
 
 func (s *PostgresAuthStore) GetWorkspaceBySlug(ctx context.Context, slug string) (*platauth.Workspace, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, created_at, updated_at
 		 FROM workspaces WHERE slug = $1`, slug)
+	return scanWorkspacePg(row)
+}
+
+func (s *PostgresAuthStore) GetWorkspaceByAccessKey(ctx context.Context, key string) (*platauth.Workspace, error) {
+	row := s.db.QueryRowContext(ctx,
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, created_at, updated_at
+		 FROM workspaces WHERE pulse_access_key = $1 AND pulse_access_key != ''`, key)
 	return scanWorkspacePg(row)
 }
 
 func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) ([]*platauth.Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.dashboard_visibility, w.pulse_term_sources, w.created_at, w.updated_at, wm.role
+		`SELECT w.id, w.name, w.slug, w.description, w.logo_url, w.type, w.plan, w.stripe_customer_id, w.dashboard_visibility, w.pulse_access_key, w.pulse_term_sources, w.created_at, w.updated_at, wm.role
 		 FROM workspaces w
 		 JOIN workspace_members wm ON w.id = wm.workspace_id
 		 WHERE wm.user_id = $1
@@ -189,7 +196,7 @@ func (s *PostgresAuthStore) ListWorkspaces(ctx context.Context, userID string) (
 
 func (s *PostgresAuthStore) ListPublicWorkspaces(ctx context.Context) ([]*platauth.Workspace, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_term_sources, created_at, updated_at
+		`SELECT id, name, slug, description, logo_url, type, plan, stripe_customer_id, dashboard_visibility, pulse_access_key, pulse_term_sources, created_at, updated_at
 		 FROM workspaces
 		 WHERE dashboard_visibility = 'public'
 		 ORDER BY name`)
@@ -213,9 +220,9 @@ func (s *PostgresAuthStore) UpdateWorkspace(ctx context.Context, w *platauth.Wor
 	w.UpdatedAt = time.Now().UTC()
 	termSrcJSON, _ := json.Marshal(w.PulseTermSources)
 	res, err := s.db.ExecContext(ctx,
-		`UPDATE workspaces SET name=$1, slug=$2, description=$3, logo_url=$4, plan=$5, stripe_customer_id=$6, dashboard_visibility=$7, pulse_term_sources=$8, updated_at=$9 WHERE id=$10`,
+		`UPDATE workspaces SET name=$1, slug=$2, description=$3, logo_url=$4, plan=$5, stripe_customer_id=$6, dashboard_visibility=$7, pulse_access_key=$8, pulse_term_sources=$9, updated_at=$10 WHERE id=$11`,
 		w.Name, w.Slug, w.Description, w.LogoURL, w.Plan, w.StripeCustomerID,
-		string(w.DashboardVisibility), string(termSrcJSON), w.UpdatedAt, w.ID)
+		string(w.DashboardVisibility), w.PulseAccessKey, string(termSrcJSON), w.UpdatedAt, w.ID)
 	if err != nil {
 		return fmt.Errorf("update workspace: %w", err)
 	}
@@ -789,7 +796,7 @@ func scanWorkspacePg(row scanner) (*platauth.Workspace, error) {
 	var wsType string
 	var stripeCustomerID *string
 	var dashVis, termSrc string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &termSrc, &w.CreatedAt, &w.UpdatedAt)
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &w.PulseAccessKey, &termSrc, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace: %w", err)
 	}
@@ -810,7 +817,7 @@ func scanWorkspaceWithRolePg(row scanner) (*platauth.Workspace, error) {
 	var wsType, role string
 	var stripeCustomerID *string
 	var dashVis, termSrc string
-	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &termSrc, &w.CreatedAt, &w.UpdatedAt, &role)
+	err := row.Scan(&w.ID, &w.Name, &w.Slug, &w.Description, &w.LogoURL, &wsType, &w.Plan, &stripeCustomerID, &dashVis, &w.PulseAccessKey, &termSrc, &w.CreatedAt, &w.UpdatedAt, &role)
 	if err != nil {
 		return nil, fmt.Errorf("scan workspace with role: %w", err)
 	}

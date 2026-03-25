@@ -19,6 +19,7 @@ export interface Workspace {
   type: "personal" | "team";
   languages?: string[];
   dashboard_visibility?: DashboardVisibility;
+  pulse_access_key?: string;
   role: string; // current user's role in the workspace
 }
 

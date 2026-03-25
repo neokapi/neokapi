@@ -5,6 +5,7 @@ import type { DashboardVisibility } from "../../types/api";
 export interface PulseSettingsProps {
   workspaceSlug: string;
   visibility: DashboardVisibility;
+  accessKey?: string;
   pulseBaseUrl?: string;
   onVisibilityChange: (visibility: DashboardVisibility) => Promise<void>;
 }
@@ -38,26 +39,27 @@ const options: {
 export function PulseSettings({
   workspaceSlug,
   visibility,
+  accessKey,
   pulseBaseUrl,
   onVisibilityChange,
 }: PulseSettingsProps) {
-  const [current, setCurrent] = useState<DashboardVisibility>(visibility);
   const [saving, setSaving] = useState(false);
 
   async function handleSelect(value: DashboardVisibility) {
-    if (value === current || saving) return;
+    if (value === visibility || saving) return;
     setSaving(true);
     try {
       await onVisibilityChange(value);
-      setCurrent(value);
     } finally {
       setSaving(false);
     }
   }
 
-  const dashboardUrl = pulseBaseUrl
-    ? `${pulseBaseUrl}/${workspaceSlug}`
-    : `https://pulse.bowrain.cloud/${workspaceSlug}`;
+  const current = visibility;
+
+  const base = pulseBaseUrl ?? derivePulseBaseUrl();
+  const urlPath = current === "unlisted" && accessKey ? accessKey : workspaceSlug;
+  const dashboardUrl = `${base}/${urlPath}`;
 
   const isAccessible = current !== "private";
 
@@ -140,4 +142,14 @@ export function PulseSettings({
       )}
     </div>
   );
+}
+
+/** Derive the Pulse base URL from the current page's hostname. */
+function derivePulseBaseUrl(): string {
+  if (typeof window === "undefined") return "https://pulse.bowrain.cloud";
+  const host = window.location.hostname;
+  if (host === "localhost" || host === "127.0.0.1") return "http://localhost:3200";
+  // dev.bowrain.cloud → pulse.dev.bowrain.cloud
+  // bowrain.cloud → pulse.bowrain.cloud
+  return `https://pulse.${host}`;
 }

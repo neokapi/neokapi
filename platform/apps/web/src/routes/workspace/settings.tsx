@@ -85,6 +85,7 @@ export function SettingsIndexRoute() {
             <PulseSettings
               workspaceSlug={activeWorkspace.slug}
               visibility={activeWorkspace.dashboard_visibility ?? "private"}
+              accessKey={activeWorkspace.pulse_access_key}
               onVisibilityChange={handleVisibilityChange}
             />
           </CardContent>
