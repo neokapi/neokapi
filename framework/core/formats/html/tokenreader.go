@@ -53,6 +53,32 @@ func (s *tokenReaderState) run(content []byte, ctx context.Context, ch chan<- mo
 	s.processTokenStream(tokenizer, ctx, ch)
 }
 
+// knownContainerElements are block-level elements that structurally always
+// contain other block-level children (Okapi GROUP elements). These are
+// classified as containers unconditionally, without forward scanning, to
+// avoid misclassification when the tokenizer buffer has been exhausted by
+// a preceding large element (#151).
+var knownContainerElements = map[atom.Atom]bool{
+	atom.Table: true, atom.Tbody: true, atom.Thead: true,
+	atom.Tfoot: true, atom.Tr: true, atom.Colgroup: true,
+	atom.Ul: true, atom.Ol: true, atom.Dl: true,
+	atom.Select: true, atom.Optgroup: true, atom.Menu: true,
+	atom.Details: true, atom.Fieldset: true,
+}
+
+// knownLeafElements are block-level elements that structurally cannot contain
+// other block-level children and should always be treated as leaf blocks.
+// Elements like <li>, <td>, <dd>, <blockquote> are NOT here because they
+// can legitimately contain block children (e.g. <li> containing <ul>).
+var knownLeafElements = map[atom.Atom]bool{
+	atom.P: true, atom.Pre: true,
+	atom.H1: true, atom.H2: true, atom.H3: true,
+	atom.H4: true, atom.H5: true, atom.H6: true,
+	atom.Dt: true,
+	atom.Title: true, atom.Caption: true, atom.Figcaption: true,
+	atom.Address: true,
+}
+
 // elementInfo tracks element nesting during tokenizer processing.
 type elementInfo struct {
 	tag          string
@@ -106,15 +132,13 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 			text := string(raw)
 			if !translateNo && hasNonWhitespace(text) {
 				// Bare text node outside a block context — emit as text block.
+				// In skeleton mode, preserve raw text for byte-exact roundtrip.
+				// The block's PreserveWhitespace flag tells downstream tools
+				// whether to normalize for translation.
 				blockID := s.nextBlockID()
 				_ = s.store.WriteRef(blockID)
 
-				displayText := text
-				if !s.cfg.PreserveWhitespace {
-					displayText = collapseWhitespace(displayText)
-					displayText = strings.TrimFunc(displayText, isHTMLWhitespace)
-				}
-				block := model.NewBlock(blockID, displayText)
+				block := model.NewBlock(blockID, text)
 				s.reader.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 			} else {
 				_ = s.store.WriteText(raw)
@@ -205,9 +229,18 @@ func (s *tokenReaderState) processTokenStream(tokenizer *html.Tokenizer, ctx con
 					continue
 				}
 
-				// Forward scan to classify: leaf block or container.
-				remaining := tokenizer.Buffered()
-				hasBlockKids := s.forwardScanForBlockChildren(remaining, tag)
+				// Classify: leaf block or container.
+				// Known containers/leaves skip the forward scan entirely (#151).
+				var hasBlockKids bool
+				if knownContainerElements[a] {
+					hasBlockKids = true
+				} else if !knownLeafElements[a] {
+					// Ambiguous element (e.g. <div>): use forward scan.
+					// If buffer is exhausted, forwardScan defaults to container
+					// (safe: avoids losing structural tags).
+					remaining := tokenizer.Buffered()
+					hasBlockKids = s.forwardScanForBlockChildren(remaining, tag)
+				}
 				info.hasBlockKids = hasBlockKids
 
 				if hasBlockKids {
@@ -285,8 +318,9 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 	blockID := s.nextBlockID()
 
 	// Start tag already written to skeleton by extractTokenAttrs.
-	// Write block content ref.
-	_ = s.store.WriteRef(blockID)
+	// NOTE: we defer the skeleton ref write until after content collection
+	// so that trimmed leading/trailing whitespace can be written to the
+	// skeleton (preserving byte-exact roundtrip).
 
 	// Collect tokens until matching close tag.
 	frag := &model.Fragment{}
@@ -445,11 +479,16 @@ func (s *tokenReaderState) processLeafBlock(tokenizer *html.Tokenizer, tag strin
 		}
 	}
 
-	// Apply whitespace normalization.
-	if !preserveWS {
-		frag.CodedText = collapseWhitespaceCodedText(frag.CodedText)
-		frag.CodedText = trimCodedText(frag.CodedText)
-	}
+	// In skeleton mode, skip whitespace normalization entirely.
+	// The skeleton ref will be filled from the fragment's raw text,
+	// preserving original whitespace for byte-exact roundtrip.
+	// The block's PreserveWhitespace flag tells downstream tools whether
+	// they need to normalize the text for translation.
+	//
+	// NOTE: collapseWhitespaceCodedText / trimCodedText are applied in
+	// the DOM-based reader path (reader.go) which does not use skeleton.
+
+	_ = s.store.WriteRef(blockID)
 
 	// Emit block if it has content.
 	hasID := getTokenAttr(attrs, "id") != ""
@@ -651,9 +690,14 @@ func findOpeningSpanID(frag *model.Fragment, semType string) string {
 // forwardScanForBlockChildren scans remaining buffered content to check if the
 // current element has block-level children. Returns true if any direct child
 // is a block-level start tag.
+//
+// When the buffer is exhausted before finding the closing tag (ErrorToken),
+// we default to true (container). This is the safe choice: treating a leaf
+// as a container emits its text as bare text blocks (still translatable),
+// while treating a container as a leaf loses structural tags entirely (#151).
 func (s *tokenReaderState) forwardScanForBlockChildren(remaining []byte, parentTag string) bool {
 	if len(remaining) == 0 {
-		return false
+		return true // buffer exhausted — assume container to avoid losing structure
 	}
 	scanner := html.NewTokenizer(bytes.NewReader(remaining))
 	scanner.SetMaxBuf(0)
@@ -662,7 +706,7 @@ func (s *tokenReaderState) forwardScanForBlockChildren(remaining []byte, parentT
 	for {
 		tt := scanner.Next()
 		if tt == html.ErrorToken {
-			return false
+			return true // buffer exhausted — assume container
 		}
 
 		switch tt {

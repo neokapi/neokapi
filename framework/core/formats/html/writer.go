@@ -1,10 +1,12 @@
 package html
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -48,8 +50,9 @@ func (w *Writer) SetOriginalContent(content []byte) {
 
 // Write consumes Parts from a channel and writes reconstructed HTML.
 func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
-	// Collect all blocks keyed by ID.
+	// Collect all blocks keyed by ID and capture source locale.
 	blocks := make(map[string]*model.Block)
+	var sourceLocale model.LocaleID
 	for {
 		select {
 		case <-ctx.Done():
@@ -58,34 +61,61 @@ func (w *Writer) Write(ctx context.Context, parts <-chan *model.Part) error {
 			if !ok {
 				goto done
 			}
-			if part.Type == model.PartBlock {
+			switch part.Type {
+			case model.PartBlock:
 				if b, ok := part.Resource.(*model.Block); ok {
 					blocks[b.ID] = b
+				}
+			case model.PartLayerStart:
+				if l, ok := part.Resource.(*model.Layer); ok && !l.Locale.IsEmpty() {
+					sourceLocale = l.Locale
 				}
 			}
 		}
 	}
 done:
 
+	// If a target locale is set and differs from source, buffer output
+	// so we can rewrite lang/xml:lang attributes to the target locale.
+	needsLangRewrite := !w.Locale.IsEmpty() && !sourceLocale.IsEmpty() && w.Locale != sourceLocale
+	var langBuf bytes.Buffer
+	origOutput := w.Output
+	if needsLangRewrite {
+		w.Output = &langBuf
+	}
+
 	// Mode 1: Skeleton store (optimal, byte-exact).
+	var writeErr error
 	if w.skeletonStore != nil {
 		if err := w.skeletonStore.Flush(); err != nil {
 			return fmt.Errorf("html writer: flush skeleton: %w", err)
 		}
-		return w.writeFromSkeleton(w.skeletonStore, blocks)
+		writeErr = w.writeFromSkeleton(w.skeletonStore, blocks)
+	} else if content, err := w.loadOriginalContent(); err != nil {
+		return err
+	} else if content != nil {
+		// Mode 2: Re-parse original content.
+		writeErr = w.writeReparse(content, blocks)
+	} else {
+		// Mode 3: Block-only output (minimal fallback).
+		writeErr = w.writeFallback(blocks)
 	}
 
-	// Mode 2: Re-parse original content.
-	content, err := w.loadOriginalContent()
-	if err != nil {
+	if writeErr != nil {
+		if needsLangRewrite {
+			w.Output = origOutput
+		}
+		return writeErr
+	}
+
+	// Post-process: rewrite lang attributes from source to target locale.
+	if needsLangRewrite {
+		w.Output = origOutput
+		result := rewriteLangAttrs(langBuf.Bytes(), sourceLocale, w.Locale)
+		_, err := w.Output.Write(result)
 		return err
 	}
-	if content != nil {
-		return w.writeReparse(content, blocks)
-	}
-
-	// Mode 3: Block-only output (minimal fallback).
-	return w.writeFallback(blocks)
+	return nil
 }
 
 // loadOriginalContent returns original content bytes, or nil if unavailable.
@@ -352,4 +382,24 @@ func collectPlainTextRecur(n *html.Node, buf *strings.Builder) {
 			collectPlainTextRecur(child, buf)
 		}
 	}
+}
+
+// rewriteLangAttrs replaces lang/xml:lang attribute values that match the
+// source locale with the target locale. This mirrors Okapi's behavior: when
+// producing a translated document, the language declaration should reflect
+// the output language.
+func rewriteLangAttrs(data []byte, srcLocale, tgtLocale model.LocaleID) []byte {
+	src := string(srcLocale)
+	tgt := string(tgtLocale)
+
+	// Build a regex that matches lang="<srcLocale>" or xml:lang="<srcLocale>"
+	// with either double or single quotes, case-insensitive on the attribute name.
+	// The locale value is matched case-insensitively too.
+	pattern := `(?i)((?:xml:)?lang\s*=\s*)(["'])` + regexp.QuoteMeta(src) + `(["'])`
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return data
+	}
+
+	return re.ReplaceAll(data, []byte(`${1}${2}`+tgt+`${3}`))
 }

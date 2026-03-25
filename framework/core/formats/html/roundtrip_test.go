@@ -418,6 +418,21 @@ func TestSkeletonRoundtrip_ByteExact(t *testing.T) {
 		{"script_style", `<html><head><style>body{color:red}</style></head><body><script>var x=1;</script><p>Text</p></body></html>`},
 		{"comments", `<html><body><!-- nav --><p>Content</p><!-- footer --></body></html>`},
 		{"meta", `<html><head><meta charset="utf-8"><meta name="description" content="A test page"></head><body><p>Body</p></body></html>`},
+		// Regression: preserve lang/xml:lang attributes unchanged (#147).
+		{"lang_preserved", `<html lang="en"><body><p>Hello</p></body></html>`},
+		{"xml_lang_preserved", `<html xml:lang="en"><body><p>Hello</p></body></html>`},
+		// Regression: preserve charset declarations unchanged (#147).
+		{"charset_iso8859", `<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"></head><body><p>Text</p></body></html>`},
+		// Regression: preserve whitespace in attribute values unchanged (#147).
+		{"attr_double_space", `<html><head><meta name="keywords" content="UFO,  Burlington"></head><body><p>Text</p></body></html>`},
+		// Regression: preserve leading/trailing whitespace around block text.
+		{"block_ws_newlines", "<html><body><p>\n  Hello world\n</p></body></html>"},
+		{"block_ws_indented", "<html><body><li>\n    Item text\n  </li></body></html>"},
+		// Regression: known container elements roundtrip correctly (#151).
+		{"table_nested", `<html><body><table><tbody><tr><td>Cell</td></tr></tbody></table></body></html>`},
+		{"ul_nested", `<html><body><ul><li>One</li><li>Two</li></ul></body></html>`},
+		{"dl_nested", `<html><body><dl><dt>Term</dt><dd>Definition</dd></dl></body></html>`},
+		{"select_nested", `<html><body><select><option>A</option><option>B</option></select></body></html>`},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -522,6 +537,110 @@ func TestSkeletonRoundtrip_TranslatableAttributes(t *testing.T) {
 	assert.Contains(t, output, `title="Hinweis"`)
 	assert.Contains(t, output, "Texte")
 	assert.Contains(t, output, `alt="Foto"`)
+}
+
+// --- Lang Attribute Rewriting Tests (#147) ---
+
+func TestSkeletonRoundtrip_LangRewrittenToTargetLocale(t *testing.T) {
+	input := `<html lang="en"><body><p>Hello world</p></body></html>`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := htmlfmt.NewReader()
+	writer := htmlfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	for _, p := range parts {
+		if p.Type == model.PartBlock {
+			b := p.Resource.(*model.Block)
+			if b.SourceText() == "Hello world" {
+				b.Targets[locale] = []*model.Segment{
+					{ID: "s1", Content: model.NewFragment("Bonjour le monde")},
+				}
+			}
+		}
+	}
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, "Bonjour le monde", "should contain translated text")
+	assert.Contains(t, output, `lang="fr"`, "lang should be rewritten to target locale")
+	assert.NotContains(t, output, `lang="en"`, "source locale should be replaced")
+}
+
+func TestSkeletonRoundtrip_LangPreservedWithoutTargetLocale(t *testing.T) {
+	// Without a target locale, lang attributes should be preserved as-is.
+	input := `<html lang="en"><body><p>Hello</p></body></html>`
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "skeleton roundtrip without target locale should be byte-exact")
+}
+
+func TestSkeletonRoundtrip_LangUnrelatedLocalePreserved(t *testing.T) {
+	// lang="de" should NOT be rewritten when source is "en" and target is "fr".
+	input := `<html lang="en"><body><p lang="de">German</p><p>English</p></body></html>`
+	ctx := context.Background()
+	locale := model.LocaleID("fr")
+
+	reader := htmlfmt.NewReader()
+	writer := htmlfmt.NewWriter()
+
+	store, err := format.NewSkeletonStore()
+	require.NoError(t, err)
+	defer store.Close()
+	reader.SetSkeletonStore(store)
+	writer.SetSkeletonStore(store)
+
+	err = reader.Open(ctx, testutil.RawDocFromString(input, model.LocaleEnglish))
+	require.NoError(t, err)
+	parts := testutil.CollectParts(t, reader.Read(ctx))
+	reader.Close()
+
+	var buf bytes.Buffer
+	writer.SetLocale(locale)
+	err = writer.SetOutputWriter(&buf)
+	require.NoError(t, err)
+
+	ch := testutil.PartsToChannel(parts)
+	err = writer.Write(ctx, ch)
+	require.NoError(t, err)
+	writer.Close()
+
+	output := buf.String()
+	assert.Contains(t, output, `lang="fr"`, "source locale 'en' should be rewritten to 'fr'")
+	assert.Contains(t, output, `lang="de"`, "unrelated locale 'de' should be preserved")
+}
+
+// --- Buffer Exhaustion Regression Test (#151) ---
+
+func TestSkeletonRoundtrip_LargeElementBeforeContainer(t *testing.T) {
+	// Regression test for #151: a large <td> exhausts the tokenizer buffer,
+	// causing the subsequent <table> to be misclassified as a leaf block.
+	// The fix: known container elements (table, ul, etc.) skip forward scan.
+	largeContent := strings.Repeat("x", 32*1024) // 32KB to exhaust tokenizer buffer
+	input := `<html><body><table><tr><td>` + largeContent + `</td></tr></table>` +
+		`<div><table><tbody><tr><td>After</td></tr></tbody></table></div></body></html>`
+
+	output := roundtripWithSkeleton(t, input)
+	assert.Equal(t, input, output, "skeleton roundtrip should be byte-exact after large element")
 }
 
 // --- Output Completeness Test ---
