@@ -295,6 +295,7 @@ export type {
   EntityInfo,
   NotificationInfo,
   StreamInfo,
+  DashboardVisibility,
   StreamVisibility,
   BlockChangeInfo,
   StreamDiffResult,
@@ -469,5 +470,7 @@ export {
   TermExplorerPublic,
   PulseFilterBar,
   PulseOverview,
+  PulseSettings,
   ActivityHeatmap,
 } from "./components/pulse";
+export type { PulseSettingsProps } from "./components/pulse";

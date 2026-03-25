@@ -6,6 +6,9 @@ export interface User {
   avatar_url: string;
 }
 
+/** Controls public access to the Pulse activity dashboard */
+export type DashboardVisibility = "private" | "unlisted" | "public";
+
 /** Workspace — top-level organizational unit */
 export interface Workspace {
   id: string;
@@ -15,6 +18,7 @@ export interface Workspace {
   logo_url: string;
   type: "personal" | "team";
   languages?: string[];
+  dashboard_visibility?: DashboardVisibility;
   role: string; // current user's role in the workspace
 }
 

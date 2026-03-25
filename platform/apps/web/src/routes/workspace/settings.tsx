@@ -1,11 +1,14 @@
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import {
   useWorkspace,
+  useApi,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
+  PulseSettings,
+  type DashboardVisibility,
 } from "@neokapi/ui";
 
 function SettingsField({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -22,13 +25,25 @@ function SettingsField({ label, value, mono }: { label: string; value: string; m
 }
 
 export function SettingsIndexRoute() {
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, setActiveWorkspace } = useWorkspace();
+  const adapter = useApi();
 
   useEffect(() => {
     if (activeWorkspace) {
       document.title = `Settings — ${activeWorkspace.name} — Bowrain`;
     }
   }, [activeWorkspace]);
+
+  const handleVisibilityChange = useCallback(
+    async (visibility: DashboardVisibility) => {
+      if (!activeWorkspace) return;
+      const updated = await adapter.updateWorkspace(activeWorkspace.slug, {
+        dashboard_visibility: visibility,
+      });
+      setActiveWorkspace(updated);
+    },
+    [activeWorkspace, adapter, setActiveWorkspace],
+  );
 
   if (!activeWorkspace) {
     return (
@@ -38,8 +53,10 @@ export function SettingsIndexRoute() {
     );
   }
 
+  const isAdmin = activeWorkspace.role === "owner" || activeWorkspace.role === "admin";
+
   return (
-    <div className="mx-auto w-full max-w-3xl py-4">
+    <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
       <Card>
         <CardHeader>
           <CardTitle>General</CardTitle>
@@ -57,6 +74,24 @@ export function SettingsIndexRoute() {
           </div>
         </CardContent>
       </Card>
+
+      {isAdmin && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Pulse Dashboard</CardTitle>
+            <CardDescription>
+              Share your localization progress with the community
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PulseSettings
+              workspaceSlug={activeWorkspace.slug}
+              visibility={activeWorkspace.dashboard_visibility ?? "private"}
+              onVisibilityChange={handleVisibilityChange}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
