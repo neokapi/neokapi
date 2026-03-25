@@ -129,6 +129,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: Framework Tests
           path: junit-framework.xml
@@ -177,6 +178,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: Platform Tests
           path: junit-platform.xml
@@ -218,6 +220,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: CLI Tests
           path: junit-cli.xml
@@ -259,6 +262,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: Kapi Tests
           path: junit-kapi.xml
@@ -300,6 +304,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: Bowrain CLI Tests
           path: junit-bowrain-cli.xml
@@ -344,6 +349,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: Bowrain Tests
           path: junit-bowrain.xml

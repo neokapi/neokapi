@@ -84,6 +84,7 @@ jobs:
       - name: Report test results
         uses: dorny/test-reporter@v3
         if: always()
+        continue-on-error: true
         with:
           name: Bridge Filter Tests
           path: junit-bridge.xml
