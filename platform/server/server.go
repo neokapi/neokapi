@@ -794,6 +794,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/editor/projects", s.HandleListEditorProjects)
 	g.GET("/editor/projects/:pid", s.HandleGetEditorProject)
 	g.PUT("/editor/projects/:pid", s.HandleUpdateEditorProject)
+	g.PATCH("/editor/projects/:pid", s.HandleUpdateEditorProject)
 	g.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
 	g.POST("/editor/projects/:pid/restore", s.HandleRestoreProject)
 	g.DELETE("/editor/projects/:pid/permanent", s.HandlePermanentlyDeleteProject)
