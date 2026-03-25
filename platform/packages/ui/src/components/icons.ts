@@ -25,6 +25,8 @@ export {
   X,
   Check,
   AlertTriangle,
+  Eye,
+  EyeOff,
   Info,
   Search,
   Shuffle,
