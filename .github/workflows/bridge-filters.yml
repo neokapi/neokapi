@@ -82,7 +82,7 @@ jobs:
         run: go-junit-report -in test-results-bridge.json -out junit-bridge.xml
 
       - name: Report test results
-        uses: dorny/test-reporter@v2
+        uses: dorny/test-reporter@v3
         if: always()
         with:
           name: Bridge Filter Tests
