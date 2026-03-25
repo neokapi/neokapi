@@ -6,11 +6,7 @@ import { PulseSettings } from "../../components/pulse";
 describe("PulseSettings", () => {
   it("renders all three visibility options", () => {
     render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="private"
-        onVisibilityChange={vi.fn()}
-      />,
+      <PulseSettings workspaceSlug="acme" visibility="private" onVisibilityChange={vi.fn()} />,
     );
     expect(screen.getByText("Private")).toBeTruthy();
     expect(screen.getByText("Unlisted")).toBeTruthy();
@@ -19,11 +15,7 @@ describe("PulseSettings", () => {
 
   it("marks the current visibility as selected", () => {
     render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="unlisted"
-        onVisibilityChange={vi.fn()}
-      />,
+      <PulseSettings workspaceSlug="acme" visibility="unlisted" onVisibilityChange={vi.fn()} />,
     );
     const radios = screen.getAllByRole("radio");
     expect(radios[0]).toHaveAttribute("aria-checked", "false"); // private
@@ -35,11 +27,7 @@ describe("PulseSettings", () => {
     const user = userEvent.setup();
     const handler = vi.fn(async () => {});
     render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="private"
-        onVisibilityChange={handler}
-      />,
+      <PulseSettings workspaceSlug="acme" visibility="private" onVisibilityChange={handler} />,
     );
     await user.click(screen.getByText("Public"));
     expect(handler).toHaveBeenCalledWith("public");
@@ -49,11 +37,7 @@ describe("PulseSettings", () => {
     const user = userEvent.setup();
     const handler = vi.fn(async () => {});
     render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="private"
-        onVisibilityChange={handler}
-      />,
+      <PulseSettings workspaceSlug="acme" visibility="private" onVisibilityChange={handler} />,
     );
     await user.click(screen.getByText("Private"));
     expect(handler).not.toHaveBeenCalled();
@@ -61,35 +45,21 @@ describe("PulseSettings", () => {
 
   it("hides dashboard URL when visibility is private", () => {
     render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="private"
-        onVisibilityChange={vi.fn()}
-      />,
+      <PulseSettings workspaceSlug="acme" visibility="private" onVisibilityChange={vi.fn()} />,
     );
     expect(screen.queryByText("Dashboard URL")).toBeNull();
   });
 
   it("shows dashboard URL when visibility is unlisted", () => {
     render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="unlisted"
-        onVisibilityChange={vi.fn()}
-      />,
+      <PulseSettings workspaceSlug="acme" visibility="unlisted" onVisibilityChange={vi.fn()} />,
     );
     expect(screen.getByText("Dashboard URL")).toBeTruthy();
     expect(screen.getByText("https://pulse.bowrain.cloud/acme")).toBeTruthy();
   });
 
   it("shows dashboard URL when visibility is public", () => {
-    render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="public"
-        onVisibilityChange={vi.fn()}
-      />,
-    );
+    render(<PulseSettings workspaceSlug="acme" visibility="public" onVisibilityChange={vi.fn()} />);
     expect(screen.getByText("https://pulse.bowrain.cloud/acme")).toBeTruthy();
   });
 
@@ -106,13 +76,7 @@ describe("PulseSettings", () => {
   });
 
   it("has an external link to the dashboard when accessible", () => {
-    render(
-      <PulseSettings
-        workspaceSlug="acme"
-        visibility="public"
-        onVisibilityChange={vi.fn()}
-      />,
-    );
+    render(<PulseSettings workspaceSlug="acme" visibility="public" onVisibilityChange={vi.fn()} />);
     const link = screen.getByLabelText("Open Pulse dashboard");
     expect(link).toBeTruthy();
     expect(link.getAttribute("href")).toBe("https://pulse.bowrain.cloud/acme");
