@@ -127,9 +127,10 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	}
 
 	var req struct {
-		Name            string   `json:"name"`
-		TargetLanguages []string `json:"target_languages"`
-		DefaultStream   *string  `json:"default_stream,omitempty"`
+		Name                string   `json:"name"`
+		TargetLanguages     []string `json:"target_languages"`
+		DefaultStream       *string  `json:"default_stream,omitempty"`
+		DashboardVisibility string   `json:"dashboard_visibility,omitempty"`
 	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -147,6 +148,9 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 	}
 	if req.DefaultStream != nil {
 		proj.DefaultStream = *req.DefaultStream
+	}
+	if req.DashboardVisibility != "" {
+		proj.DashboardVisibility = req.DashboardVisibility
 	}
 
 	if err := s.ContentStore.UpdateProject(ctx, proj); err != nil {
