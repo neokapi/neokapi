@@ -137,10 +137,18 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
 
-	w.Name = req.Name
-	w.Slug = req.Slug
-	w.Description = req.Description
-	w.LogoURL = req.LogoURL
+	if req.Name != "" {
+		w.Name = req.Name
+	}
+	if req.Slug != "" {
+		w.Slug = req.Slug
+	}
+	if req.Description != "" {
+		w.Description = req.Description
+	}
+	if req.LogoURL != "" {
+		w.LogoURL = req.LogoURL
+	}
 	if req.DashboardVisibility != "" {
 		if platauth.ValidDashboardVisibility[platauth.DashboardVisibility(req.DashboardVisibility)] {
 			w.DashboardVisibility = platauth.DashboardVisibility(req.DashboardVisibility)
