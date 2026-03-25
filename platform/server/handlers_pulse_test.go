@@ -578,6 +578,13 @@ func (m *mockPulseAuth) GetWorkspaceBySlug(_ context.Context, slug string) (*pla
 	return nil, assert.AnError
 }
 
+func (m *mockPulseAuth) GetWorkspaceByAccessKey(_ context.Context, key string) (*platauth.Workspace, error) {
+	if m.workspace != nil && m.workspace.PulseAccessKey != "" && m.workspace.PulseAccessKey == key {
+		return m.workspace, nil
+	}
+	return nil, assert.AnError
+}
+
 func (m *mockPulseAuth) GetMembership(_ context.Context, workspaceID, userID string) (*platauth.Membership, error) {
 	if m.membership != nil {
 		return m.membership, nil
