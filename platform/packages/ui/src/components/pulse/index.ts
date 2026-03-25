@@ -9,3 +9,5 @@ export { TrendAreaChart } from "./TrendAreaChart";
 export { TermExplorerPublic } from "./TermExplorerPublic";
 export { PulseFilterBar } from "./PulseFilterBar";
 export { PulseOverview } from "./PulseOverview";
+export { PulseSettings } from "./PulseSettings";
+export type { PulseSettingsProps } from "./PulseSettings";
