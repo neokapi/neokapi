@@ -11,7 +11,7 @@ import (
 func (s *Server) registerReleaseTools() {
 	mcp.AddTool(s.server, &mcp.Tool{
 		Name:        "walk_release",
-		Description: "Advance a project to the next release tag in its accelerated walkthrough. If tag is omitted, advances to the next unprocessed tag. Returns the tag applied and block change counts.",
+		Description: "Advance a workspace to the next release tag. Only workspace_slug is required — project_id and tag are auto-resolved from plan.yaml if omitted. Returns the tag applied and block counts.",
 	}, s.handleWalkRelease)
 
 	mcp.AddTool(s.server, &mcp.Tool{
@@ -24,7 +24,7 @@ func (s *Server) registerReleaseTools() {
 
 type walkReleaseInput struct {
 	WorkspaceSlug string `json:"workspace_slug" jsonschema:"target workspace slug"`
-	ProjectID     string `json:"project_id" jsonschema:"project ID within the workspace"`
+	ProjectID     string `json:"project_id,omitempty" jsonschema:"project ID (optional — auto-resolved from plan.yaml if omitted)"`
 	Tag           string `json:"tag,omitempty" jsonschema:"specific tag to advance to; omit for next unprocessed"`
 }
 
