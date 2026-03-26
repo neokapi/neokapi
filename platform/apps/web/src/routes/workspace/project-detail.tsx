@@ -84,19 +84,6 @@ export function ProjectDetailRoute() {
     [ws, adapter, project.id, invalidateProject],
   );
 
-  const handleTogglePulseVisibility = useCallback(async () => {
-    const newVis = project.dashboard_visibility === "public" ? "private" : "public";
-    // Optimistically update the cache so the switch toggles immediately.
-    queryClient.setQueryData(
-      ["project", ws, project.id, activeStream],
-      (old: typeof project | undefined) => (old ? { ...old, dashboard_visibility: newVis } : old),
-    );
-    await adapter.updateProject(ws, project.id, {
-      dashboard_visibility: newVis,
-    });
-    invalidateProject();
-  }, [ws, adapter, project.id, project.dashboard_visibility, queryClient, invalidateProject]);
-
   const [showArchiveProject, setShowArchiveProject] = useState(false);
   const confirmArchiveProject = useCallback(async () => {
     await adapter.deleteProject(ws, project.id);
@@ -284,7 +271,16 @@ export function ProjectDetailRoute() {
         onManageMembers={() => setShowMembers(true)}
         onEditProject={() => setShowEditProject(true)}
         onArchiveProject={() => setShowArchiveProject(true)}
-        onTogglePulseVisibility={handleTogglePulseVisibility}
+        onOpenSettings={() =>
+          navigate({
+            to: "/$workspace/p/$projectId/s/$stream/settings",
+            params: {
+              workspace: workspace ?? ws,
+              projectId: project.id,
+              stream: activeStream,
+            },
+          })
+        }
         // Collection callbacks
         onCreateCollection={() => {
           setEditingCollection(undefined);
