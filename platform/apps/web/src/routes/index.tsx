@@ -360,6 +360,16 @@ const tasksRoute = createRoute({
   component: lazyRouteComponent(() => import("./workspace/tasks"), "TasksRoute"),
 });
 
+const userSettingsRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "user-settings",
+  pendingComponent: SettingsSkeleton,
+  component: lazyRouteComponent(
+    () => import("./workspace/user-settings"),
+    "UserSettingsRoute",
+  ),
+});
+
 const settingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "settings",
@@ -477,6 +487,7 @@ const routeTree = rootRoute.addChildren([
     auditlogRoute,
     activitiesRoute,
     tasksRoute,
+    userSettingsRoute,
     binRoute,
     settingsRoute.addChildren([
       settingsIndexRoute,

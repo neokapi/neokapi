@@ -73,6 +73,7 @@ import type {
   CreditLedgerEntry,
   RoleTemplate,
   ProjectMembership,
+  DigestSettingsDTO,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -1299,6 +1300,24 @@ export class RestApiAdapter implements ApiAdapter {
     await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/${id}`, {
       method: "DELETE",
     });
+  }
+
+  // ── Digest Settings ──────────────────────────────────────────────────────
+
+  async getDigestSettings(workspaceSlug: string): Promise<DigestSettingsDTO> {
+    return this.fetchJSON<DigestSettingsDTO>(
+      `/api/v1/workspaces/${workspaceSlug}/notifications/digest-settings`,
+    );
+  }
+
+  async updateDigestSettings(
+    workspaceSlug: string,
+    settings: DigestSettingsDTO,
+  ): Promise<DigestSettingsDTO> {
+    return this.fetchJSON<DigestSettingsDTO>(
+      `/api/v1/workspaces/${workspaceSlug}/notifications/digest-settings`,
+      { method: "PUT", body: JSON.stringify(settings) },
+    );
   }
 
   // ── Entity Annotations ──────────────────────────────────────────────────

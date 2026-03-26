@@ -64,6 +64,7 @@ import type {
   CreditLedgerEntry,
   RoleTemplate,
   ProjectMembership,
+  DigestSettingsDTO,
 } from "../types/api";
 import type {
   VoiceProfile,
@@ -453,6 +454,10 @@ export interface ApiAdapter {
   markNotificationRead(workspaceSlug: string, id: string): Promise<void>;
   markAllNotificationsRead(workspaceSlug: string): Promise<void>;
   deleteNotification(workspaceSlug: string, id: string): Promise<void>;
+
+  // Digest settings
+  getDigestSettings(workspaceSlug: string): Promise<DigestSettingsDTO>;
+  updateDigestSettings(workspaceSlug: string, settings: DigestSettingsDTO): Promise<DigestSettingsDTO>;
 
   // Entity annotations
   createEntity(

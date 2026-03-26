@@ -330,6 +330,11 @@ func NewServer(cfg ServerConfig) *Server {
 		if s.Mailer != nil && s.AuthStore != nil {
 			s.NotificationDispatcher.SetMailer(event.NewMailerAdapter(s.Mailer, s.AuthStore))
 		}
+
+		// Wire quiet hours enforcement for push/email suppression.
+		if s.DigestStore != nil {
+			s.NotificationDispatcher.SetDigestStore(s.DigestStore)
+		}
 	}
 
 	// Wire up digest workers (AD-027).

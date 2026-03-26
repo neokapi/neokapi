@@ -26,13 +26,14 @@ type DigestEmailer interface {
 // NotificationDispatcher bridges events to user-targeted notifications
 // with preference-aware routing.
 type NotificationDispatcher struct {
-	bus       platev.EventBus
-	store     *bstore.NotificationStore
-	prefStore *bstore.PreferenceStore
-	sender    NotificationSender
-	targetFn  NotificationTarget
-	mailer    DigestEmailer
-	sub       *platev.Subscription
+	bus         platev.EventBus
+	store       *bstore.NotificationStore
+	prefStore   *bstore.PreferenceStore
+	digestStore *bstore.DigestStore
+	sender      NotificationSender
+	targetFn    NotificationTarget
+	mailer      DigestEmailer
+	sub         *platev.Subscription
 }
 
 // NewNotificationDispatcher creates a dispatcher that listens to events and creates notifications.
@@ -64,6 +65,23 @@ func (d *NotificationDispatcher) Close() {
 // SetMailer sets the mailer for immediate email delivery of high-priority notifications.
 func (d *NotificationDispatcher) SetMailer(m DigestEmailer) {
 	d.mailer = m
+}
+
+// SetDigestStore sets the digest store for quiet hours lookups.
+func (d *NotificationDispatcher) SetDigestStore(ds *bstore.DigestStore) {
+	d.digestStore = ds
+}
+
+// isQuietHours checks whether the given user is currently in their quiet hours.
+func (d *NotificationDispatcher) isQuietHours(ctx context.Context, userID, workspaceSlug string) bool {
+	if d.digestStore == nil || workspaceSlug == "" {
+		return false
+	}
+	ds, err := d.digestStore.GetSettings(ctx, userID, workspaceSlug)
+	if err != nil {
+		return false
+	}
+	return d.digestStore.IsInQuietHours(ds, time.Now().UTC())
 }
 
 func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
@@ -107,8 +125,12 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 			continue
 		}
 
+		// During quiet hours, suppress push and email for non-urgent notifications.
+		// High-priority notifications always deliver immediately.
+		quiet := notification.Priority != "high" && d.isQuietHours(ctx, userID, ev.Data["workspace_slug"])
+
 		// Send real-time via WebSocket.
-		if d.sender != nil {
+		if d.sender != nil && !quiet {
 			d.sender.NotifyUser(userID, &notification)
 		}
 

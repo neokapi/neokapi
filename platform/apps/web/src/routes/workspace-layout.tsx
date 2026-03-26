@@ -78,6 +78,7 @@ function parseProjectParams(pathname: string, workspaceSlug: string) {
 function ConnectedTopBar({
   user,
   onSignOut,
+  onSettings,
   workspaceSlug,
   leftSlot,
   beforeAvatarSlot,
@@ -86,6 +87,7 @@ function ConnectedTopBar({
 }: {
   user: User | null;
   onSignOut?: () => void;
+  onSettings?: () => void;
   workspaceSlug: string;
   leftSlot?: React.ReactNode;
   beforeAvatarSlot?: React.ReactNode;
@@ -101,6 +103,7 @@ function ConnectedTopBar({
     <TopBar
       user={user}
       onSignOut={onSignOut}
+      onSettings={onSettings}
       leftSlot={leftSlot}
       beforeAvatarSlot={beforeAvatarSlot}
       activities={activitiesData?.activities}
@@ -537,6 +540,7 @@ export function WorkspaceLayout() {
                 <ConnectedTopBar
                   user={user}
                   onSignOut={serverMode === "server" ? handleSignOut : undefined}
+                  onSettings={serverMode === "server" ? () => void navigate({ to: "/$workspace/user-settings", params: { workspace: ws } }) : undefined}
                   workspaceSlug={ws}
                   onViewAllActivities={() =>
                     void navigate({ to: "/$workspace/activities", params: { workspace: ws } })

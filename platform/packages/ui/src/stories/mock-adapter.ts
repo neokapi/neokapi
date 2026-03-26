@@ -480,6 +480,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     markAllNotificationsRead: noop,
     deleteNotification: noop,
 
+    // --- Digest Settings ---------------------------------------------------
+    getDigestSettings: async () => ({ frequency: "daily" as const, quiet_start: "", quiet_end: "", timezone: "UTC" }),
+    updateDigestSettings: async (_ws, settings) => settings,
+
     // --- Entities ---------------------------------------------------------
     createEntity: async (_ws, _pid, _item, _bid, entity) => ({
       key: `entity-${Date.now()}`,
