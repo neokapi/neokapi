@@ -71,9 +71,11 @@ type TaskQuery struct {
 	WorkspaceID string
 	ProjectID   string
 	AssigneeID  string
-	Status      string // empty = all
-	Type        string // empty = all
-	Priority    string // empty = all
+	Status      string     // empty = all; use Statuses for multi-status filter
+	Statuses    []string   // if set, matches any of these statuses (overrides Status)
+	Type        string     // empty = all
+	Priority    string     // empty = all
+	DueBefore   *time.Time // if set, only tasks with due_at <= this time
 	Limit       int
 	Cursor      string // created_at cursor
 }
@@ -180,7 +182,14 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 		where = append(where, "assignee_id = ?")
 		args = append(args, q.AssigneeID)
 	}
-	if q.Status != "" {
+	if len(q.Statuses) > 0 {
+		placeholders := make([]string, len(q.Statuses))
+		for i, s := range q.Statuses {
+			placeholders[i] = "?"
+			args = append(args, s)
+		}
+		where = append(where, "status IN ("+strings.Join(placeholders, ",")+")")
+	} else if q.Status != "" {
 		where = append(where, "status = ?")
 		args = append(args, q.Status)
 	}
@@ -191,6 +200,10 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 	if q.Priority != "" {
 		where = append(where, "priority = ?")
 		args = append(args, q.Priority)
+	}
+	if q.DueBefore != nil {
+		where = append(where, "due_at IS NOT NULL AND due_at <= ?")
+		args = append(args, q.DueBefore.UTC().Format(time.RFC3339))
 	}
 	if q.Cursor != "" {
 		where = append(where, "created_at < ?")

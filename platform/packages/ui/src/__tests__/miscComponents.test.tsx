@@ -460,7 +460,7 @@ function makeActivity(overrides: Partial<ActivityInfo> = {}): ActivityInfo {
     actor_id: "u1",
     actor_name: "Alice",
     type: "extraction.completed",
-    summary: "extracted 50 strings",
+    summary: "extracted 50 blocks",
     created_at: new Date().toISOString(),
     ...overrides,
   };

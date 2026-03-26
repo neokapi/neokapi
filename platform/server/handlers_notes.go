@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -47,6 +48,27 @@ func (s *Server) HandleAddBlockNote(c echo.Context) error {
 
 	if err := s.ContentStore.AddBlockNote(c.Request().Context(), pid, "main", bid, note); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Dispatch mention notifications.
+	if s.NotificationDispatcher != nil && s.AuthStore != nil {
+		usernames := parseMentions(note.Text)
+		for _, username := range usernames {
+			user, err := s.AuthStore.GetUserByEmail(c.Request().Context(), username)
+			if err == nil && user != nil {
+				actorID, _ := c.Get("user_id").(string)
+				actorName, _ := c.Get("name").(string)
+				s.NotificationDispatcher.DispatchMention(
+					c.Request().Context(),
+					user.ID,
+					actorID,
+					actorName,
+					note.Text,
+					pid,
+					"",
+				)
+			}
+		}
 	}
 
 	return c.JSON(http.StatusCreated, blockNoteToResponse(note))
@@ -98,6 +120,21 @@ func blockNoteToResponse(n model.BlockNote) BlockNoteResponse {
 		Text:      n.Text,
 		CreatedAt: n.CreatedAt.Format(time.RFC3339),
 	}
+}
+
+// parseMentions extracts @username mentions from text.
+func parseMentions(text string) []string {
+	re := regexp.MustCompile(`@(\w+)`)
+	matches := re.FindAllStringSubmatch(text, -1)
+	seen := make(map[string]bool)
+	var usernames []string
+	for _, m := range matches {
+		if len(m) > 1 && !seen[m[1]] {
+			seen[m[1]] = true
+			usernames = append(usernames, m[1])
+		}
+	}
+	return usernames
 }
 
 // extractAuthor pulls the user name from the auth context if available.

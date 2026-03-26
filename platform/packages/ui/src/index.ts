@@ -70,6 +70,8 @@ export * from "./components/icons";
 export { WorkspaceRail } from "./components/WorkspaceRail";
 export { WorkspaceIcon } from "./components/WorkspaceIcon";
 export { AccountMenu } from "./components/AccountMenu";
+export { NotificationSettings } from "./components/NotificationSettings";
+export type { DigestSettings } from "./components/NotificationSettings";
 export { TopBar } from "./components/TopBar";
 export type { TopBarProps } from "./components/TopBar";
 export { AppSidebar } from "./components/AppSidebar";
@@ -318,6 +320,7 @@ export type {
   TaskPriority,
   CreateTaskRequest,
   NotificationPreference,
+  DigestSettingsDTO,
   BravoConversation,
   BravoMessage,
   BravoToolCall as BravoToolCallInfo,

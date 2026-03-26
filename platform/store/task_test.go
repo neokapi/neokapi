@@ -49,19 +49,19 @@ func TestTaskStore_CRUD(t *testing.T) {
 			WorkspaceID: "ws-1",
 			ProjectID:   "proj-1",
 			Type:        TaskReview,
-			Title:       "Review strings",
+			Title:       "Review blocks",
 			CreatedBy:   "user-1",
 		}
 		require.NoError(t, store.Create(ctx, task))
 
-		task.Title = "Review all strings"
+		task.Title = "Review all blocks"
 		task.Priority = TaskPriorityUrgent
 		err := store.Update(ctx, task)
 		require.NoError(t, err)
 
 		got, err := store.Get(ctx, task.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "Review all strings", got.Title)
+		assert.Equal(t, "Review all blocks", got.Title)
 		assert.Equal(t, TaskPriorityUrgent, got.Priority)
 	})
 
@@ -216,4 +216,80 @@ func TestTaskStore_DueAt(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, got.DueAt)
 	assert.WithinDuration(t, due, *got.DueAt, time.Second)
+}
+
+func TestTaskStore_DueBeforeFilter(t *testing.T) {
+	store := newTestTaskStore(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC()
+	dueIn12h := now.Add(12 * time.Hour)
+	dueIn48h := now.Add(48 * time.Hour)
+
+	// Task due in 12h (within 24h horizon).
+	t1 := &Task{
+		WorkspaceID: "ws-1",
+		ProjectID:   "proj-1",
+		Type:        TaskTranslate,
+		Title:       "Due soon",
+		CreatedBy:   "user-1",
+		AssigneeID:  "user-2",
+		DueAt:       &dueIn12h,
+	}
+	require.NoError(t, store.Create(ctx, t1))
+
+	// Task due in 48h (outside 24h horizon).
+	t2 := &Task{
+		WorkspaceID: "ws-1",
+		ProjectID:   "proj-1",
+		Type:        TaskTranslate,
+		Title:       "Due later",
+		CreatedBy:   "user-1",
+		AssigneeID:  "user-2",
+		DueAt:       &dueIn48h,
+	}
+	require.NoError(t, store.Create(ctx, t2))
+
+	// Task with no due date.
+	t3 := &Task{
+		WorkspaceID: "ws-1",
+		ProjectID:   "proj-1",
+		Type:        TaskTranslate,
+		Title:       "No deadline",
+		CreatedBy:   "user-1",
+		AssigneeID:  "user-2",
+	}
+	require.NoError(t, store.Create(ctx, t3))
+
+	horizon := now.Add(24 * time.Hour)
+	result, err := store.List(ctx, TaskQuery{
+		DueBefore: &horizon,
+	})
+	require.NoError(t, err)
+	assert.Len(t, result.Tasks, 1)
+	assert.Equal(t, "Due soon", result.Tasks[0].Title)
+}
+
+func TestTaskStore_DueBeforeFilter_IncludesExactMatch(t *testing.T) {
+	store := newTestTaskStore(t)
+	ctx := context.Background()
+
+	due := time.Now().UTC().Add(24 * time.Hour)
+	task := &Task{
+		WorkspaceID: "ws-1",
+		ProjectID:   "proj-1",
+		Type:        TaskTranslate,
+		Title:       "Exact deadline",
+		CreatedBy:   "user-1",
+		DueAt:       &due,
+	}
+	require.NoError(t, store.Create(ctx, task))
+
+	// Query with DueBefore exactly at the task's due time.
+	result, err := store.List(ctx, TaskQuery{
+		DueBefore: &due,
+	})
+	require.NoError(t, err)
+	assert.Len(t, result.Tasks, 1)
+	assert.Equal(t, "Exact deadline", result.Tasks[0].Title)
 }

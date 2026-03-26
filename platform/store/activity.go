@@ -60,6 +60,9 @@ const (
 
 	// Versions
 	ActivityVersionCreated ActivityType = "version.created"
+
+	// Progress
+	ActivityProgressMilestone ActivityType = "progress.milestone"
 )
 
 // Activity is an immutable record of something that happened.

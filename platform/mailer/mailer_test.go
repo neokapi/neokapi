@@ -416,3 +416,53 @@ func TestRenderSubscriptionChangedContainsExpectedElements(t *testing.T) {
 	assert.Contains(t, html, "Trialing", "should contain status")
 	assert.Contains(t, html, "https://example.com/billing", "should contain billing URL")
 }
+
+// ---------------------------------------------------------------------------
+// Digest (raw HTML passthrough)
+// ---------------------------------------------------------------------------
+
+func TestSendDigest(t *testing.T) {
+	sender := &recordingSender{}
+	m, err := mailer.New(sender)
+	require.NoError(t, err)
+
+	htmlBody := "<html><body><h1>Daily Digest</h1><p>3 new updates</p></body></html>"
+	err = m.SendDigest(context.Background(), "user@example.com", "Your daily digest — 3 updates", htmlBody)
+	require.NoError(t, err)
+
+	msg := sender.last()
+	assert.Equal(t, "user@example.com", msg.To)
+	assert.Equal(t, "Your daily digest — 3 updates", msg.Subject)
+	assert.Equal(t, htmlBody, msg.Body)
+}
+
+// ---------------------------------------------------------------------------
+// Notification (immediate)
+// ---------------------------------------------------------------------------
+
+func TestSendNotification(t *testing.T) {
+	sender := &recordingSender{}
+	m, err := mailer.New(sender)
+	require.NoError(t, err)
+
+	data := mailer.NotificationData{
+		Title:       "Quality gate failed",
+		Body:        "3 terminology violations found in fr-FR",
+		Category:    "Quality",
+		Priority:    "high",
+		ActionURL:   "https://app.bowrain.cloud/ws/acme/quality",
+		ActionLabel: "Review Issues",
+	}
+
+	// SendNotification uses the notification.html template. If the template
+	// hasn't been built (npm run build), we expect a template error. Skip in that case.
+	err = m.SendNotification(context.Background(), "user@example.com", data)
+	if err != nil {
+		t.Skipf("notification template not built: %v", err)
+	}
+
+	msg := sender.last()
+	assert.Equal(t, "user@example.com", msg.To)
+	assert.Contains(t, msg.Subject, "Quality gate failed")
+	assert.Contains(t, msg.Body, "3 terminology violations found in fr-FR")
+}

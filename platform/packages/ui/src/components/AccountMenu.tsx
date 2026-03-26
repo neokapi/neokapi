@@ -146,7 +146,16 @@ export function AccountMenu({
           {user.email}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onSignOut}>Sign out</DropdownMenuItem>
+        {onSettings && (
+          <DropdownMenuItem onClick={onSettings} className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            <span>Settings</span>
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onClick={onSignOut} className="flex items-center gap-2">
+          <LogOut className="w-4 h-4" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

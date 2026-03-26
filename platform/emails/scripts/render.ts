@@ -20,6 +20,8 @@ import CreditsWarningEmail from "../src/credits-warning.js";
 import CreditsExhaustedEmail from "../src/credits-exhausted.js";
 import PaymentFailedEmail from "../src/payment-failed.js";
 import SubscriptionChangedEmail from "../src/subscription-changed.js";
+import NotificationEmail from "../src/notification.js";
+import DigestEmail from "../src/digest.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +95,44 @@ async function buildTemplates(): Promise<void> {
   );
   writeFileSync(resolve(outDir, "subscription-changed.html"), subscriptionChangedHtml, "utf-8");
   console.log("✓  Rendered subscription-changed.html");
+
+  // ── Notification immediate email ───────────────────────────────────────────
+  const notificationHtml = await render(
+    NotificationEmail({
+      title: "{{.Title}}",
+      body: "{{.Body}}",
+      category: "{{.Category}}",
+      priority: "{{.Priority}}",
+      actionURL: "{{.ActionURL}}",
+      actionLabel: "{{.ActionLabel}}",
+    }),
+    { pretty: false },
+  );
+  writeFileSync(resolve(outDir, "notification.html"), notificationHtml, "utf-8");
+  console.log("✓  Rendered notification.html");
+
+  // ── Digest email (daily/weekly) ─────────────────────────────────────────────
+  // The digest template uses Go range/if blocks for dynamic content.
+  // We render a single-item placeholder; the Go mailer replaces the body
+  // section with range-generated HTML at send time.
+  const digestHtml = await render(
+    DigestEmail({
+      frequency: "{{.Frequency}}",
+      totalUpdates: "{{.TotalUpdates}}",
+      groups: [
+        {
+          category: "placeholder",
+          label: "{{.GroupLabel}}",
+          items: [{ title: "{{.ItemTitle}}", body: "{{.ItemBody}}" }],
+        },
+      ],
+      settingsURL: "{{.SettingsURL}}",
+      dashboardURL: "{{.DashboardURL}}",
+    }),
+    { pretty: false },
+  );
+  writeFileSync(resolve(outDir, "digest.html"), digestHtml, "utf-8");
+  console.log("✓  Rendered digest.html");
 
   console.log(`\nAll templates written to ${outDir}`);
 }
