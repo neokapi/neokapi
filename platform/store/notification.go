@@ -38,6 +38,24 @@ const (
 
 	// System notifications
 	NotificationQuotaWarning NotificationType = "quota.warning"
+
+	// Content availability
+	NotificationContentAvailable NotificationType = "content.available"
+
+	// Progress milestones
+	NotificationProgressMilestone NotificationType = "progress.milestone"
+
+	// Stream operations
+	NotificationStreamMerged NotificationType = "stream.merged"
+
+	// Release readiness
+	NotificationVersionReady NotificationType = "version.ready"
+
+	// Team changes
+	NotificationMemberJoined NotificationType = "member.joined"
+
+	// Deadline awareness
+	NotificationDeadlineApproaching NotificationType = "deadline.approaching"
 )
 
 // Notification is a user-targeted notification.
@@ -159,6 +177,43 @@ func (s *NotificationStore) MarkAllRead(ctx context.Context, userID string) erro
 	_, err := s.db.ExecContext(ctx, s.q(
 		`UPDATE notifications SET read = 1 WHERE user_id = ? AND read = 0`), userID)
 	return err
+}
+
+// MarkReadByGroupKey marks all notifications with the given group key as read.
+func (s *NotificationStore) MarkReadByGroupKey(ctx context.Context, groupKey string) error {
+	if groupKey == "" {
+		return nil
+	}
+	_, err := s.db.ExecContext(ctx, s.q(
+		`UPDATE notifications SET read = 1 WHERE group_key = ? AND read = 0`),
+		groupKey)
+	return err
+}
+
+// ListUnreadSince returns unread notifications for a user created after the given time.
+func (s *NotificationStore) ListUnreadSince(ctx context.Context, userID string, since time.Time) ([]Notification, error) {
+	query := `SELECT id, user_id, type, title, body, project_id, link_url, read, created_at, category, group_key, actor_id, actor_name, task_id, priority
+		 FROM notifications WHERE user_id = ? AND read = 0 AND created_at > ? ORDER BY created_at DESC`
+	rows, err := s.db.QueryContext(ctx, s.q(query), userID, since.UTC().Format(time.RFC3339))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notifications []Notification
+	for rows.Next() {
+		var n Notification
+		var typ, createdAt string
+		var readInt int
+		if err := rows.Scan(&n.ID, &n.UserID, &typ, &n.Title, &n.Body, &n.ProjectID, &n.LinkURL, &readInt, &createdAt, &n.Category, &n.GroupKey, &n.ActorID, &n.ActorName, &n.TaskID, &n.Priority); err != nil {
+			return nil, err
+		}
+		n.Type = NotificationType(typ)
+		n.Read = readInt != 0
+		n.CreatedAt, _ = parseTime(createdAt)
+		notifications = append(notifications, n)
+	}
+	return notifications, rows.Err()
 }
 
 // Delete removes a notification.

@@ -1,6 +1,6 @@
 import type { User, NotificationInfo, ActivityInfo, TaskInfo } from "../types/api";
 import { useTheme, type Theme } from "../context/ThemeContext";
-import { Sun, Moon, Monitor, WifiOff, LogOut } from "./icons";
+import { Sun, Moon, Monitor, WifiOff, LogOut, Settings } from "./icons";
 import { NotificationCenter } from "./NotificationCenter";
 import { ActivityIndicator, TaskIndicator } from "./ActivityTaskIndicators";
 import { Button } from "./ui/button";
@@ -18,6 +18,7 @@ type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 export interface TopBarProps {
   user: User | null;
   onSignOut?: () => void;
+  onSettings?: () => void;
   connectionState?: ConnectionState;
   pendingChanges?: number;
   notifications?: NotificationInfo[];
@@ -77,6 +78,7 @@ function UserAvatar({ user, size = 28 }: { user: User; size?: number }) {
 export function TopBar({
   user,
   onSignOut,
+  onSettings,
   connectionState,
   pendingChanges,
   notifications,
@@ -174,6 +176,12 @@ export function TopBar({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {onSettings && (
+              <DropdownMenuItem onClick={onSettings}>
+                <Settings />
+                Settings
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={onSignOut}>
               <LogOut />
               Sign out

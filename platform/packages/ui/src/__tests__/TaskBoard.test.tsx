@@ -38,11 +38,11 @@ describe("TaskBoard", () => {
   it("renders task cards in list view", () => {
     const tasks = [
       makeTask({ id: "t1", title: "Translate homepage" }),
-      makeTask({ id: "t2", title: "Review strings", type: "review" }),
+      makeTask({ id: "t2", title: "Review blocks", type: "review" }),
     ];
     render(<TaskBoard tasks={tasks} />);
     expect(screen.getByText("Translate homepage")).toBeInTheDocument();
-    expect(screen.getByText("Review strings")).toBeInTheDocument();
+    expect(screen.getByText("Review blocks")).toBeInTheDocument();
   });
 
   it("shows priority badge", () => {

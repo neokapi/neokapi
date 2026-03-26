@@ -52,6 +52,29 @@ describe("AccountMenu", () => {
     expect(screen.getByText("bob@example.com")).toBeInTheDocument();
   });
 
+  it("shows Settings item in default variant when onSettings provided", async () => {
+    const user = userEvent.setup();
+    const handleSettings = vi.fn();
+    render(<AccountMenu user={alice} onSignOut={() => {}} onSettings={handleSettings} />);
+
+    await user.click(screen.getByRole("button"));
+    const settings = await screen.findByText("Settings");
+    await user.click(settings);
+
+    expect(handleSettings).toHaveBeenCalledOnce();
+  });
+
+  it("hides Settings item in default variant when onSettings not provided", async () => {
+    const user = userEvent.setup();
+    render(<AccountMenu user={alice} onSignOut={() => {}} />);
+
+    await user.click(screen.getByRole("button"));
+    await waitFor(() => {
+      expect(screen.getByText("Sign out")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Settings")).not.toBeInTheDocument();
+  });
+
   it("hides avatar letter when avatar_url is set", () => {
     const withAvatar: User = {
       id: "3",

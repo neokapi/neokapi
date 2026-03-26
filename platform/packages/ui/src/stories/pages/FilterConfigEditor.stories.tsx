@@ -92,7 +92,7 @@ const jsonFilterSchema: FilterSchema = {
       id: "inlineCodes",
       label: "Inline Code Detection",
       description:
-        "Regex rules that identify inline markup within extracted strings. Matched patterns become coded-text spans (opening, closing, or placeholder) that translators can reorder but not edit.",
+        "Regex rules that identify inline markup within extracted blocks. Matched patterns become coded-text spans (opening, closing, or placeholder) that translators can reorder but not edit.",
       fields: ["useCodeFinder", "codeFinderRules"],
     },
   ],
@@ -118,7 +118,7 @@ const jsonFilterSchema: FilterSchema = {
     codeFinderRules: {
       type: "object",
       description:
-        "Regex patterns that identify inline markup within translatable strings. Each rule defines a pattern; matched text becomes an inline code (span) in the editor.",
+        "Regex patterns that identify inline markup within translatable blocks. Each rule defines a pattern; matched text becomes an inline code (span) in the editor.",
       "x-widget": "codeFinderRules",
       "x-okapiFormat": "inlineCodeFinder",
       "x-presets": {

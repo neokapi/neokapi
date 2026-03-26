@@ -733,6 +733,14 @@ export interface NotificationPreference {
   };
 }
 
+/** Digest email settings for a user in a workspace. */
+export interface DigestSettingsDTO {
+  frequency: "daily" | "weekly" | "off";
+  quiet_start: string;
+  quiet_end: string;
+  timezone: string;
+}
+
 // ---------------------------------------------------------------------------
 // Flow types
 // ---------------------------------------------------------------------------

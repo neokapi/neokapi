@@ -551,4 +551,27 @@ var storeMigrationsPg = []storage.Migration{
 			ALTER TABLE projects ADD COLUMN IF NOT EXISTS dashboard_visibility TEXT NOT NULL DEFAULT 'private';
 		`,
 	},
+	{
+		Version:     17,
+		Description: "create digest settings and state tables",
+		SQL: `
+			CREATE TABLE digest_settings (
+				user_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				frequency    TEXT NOT NULL DEFAULT 'daily',
+				quiet_start  TEXT NOT NULL DEFAULT '',
+				quiet_end    TEXT NOT NULL DEFAULT '',
+				timezone     TEXT NOT NULL DEFAULT 'UTC',
+				PRIMARY KEY (user_id, workspace_id)
+			);
+
+			CREATE TABLE digest_state (
+				user_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				frequency    TEXT NOT NULL DEFAULT 'daily',
+				last_sent_at TIMESTAMPTZ NOT NULL,
+				PRIMARY KEY (user_id, workspace_id, frequency)
+			);
+		`,
+	},
 }

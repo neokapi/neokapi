@@ -151,7 +151,7 @@ func TestHandleGetTask(t *testing.T) {
 		WorkspaceID: "demo",
 		ProjectID:   "proj-1",
 		Type:        bstore.TaskReview,
-		Title:       "Review strings",
+		Title:       "Review blocks",
 		CreatedBy:   "user-1",
 	}
 	require.NoError(t, srv.TaskStore.Create(ctx, task))
@@ -169,7 +169,7 @@ func TestHandleGetTask(t *testing.T) {
 
 	var got bstore.Task
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
-	assert.Equal(t, "Review strings", got.Title)
+	assert.Equal(t, "Review blocks", got.Title)
 }
 
 func TestHandleCompleteTask(t *testing.T) {
