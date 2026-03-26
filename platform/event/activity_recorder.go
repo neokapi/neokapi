@@ -117,6 +117,22 @@ func (r *ActivityRecorder) mapEventToActivity(ev platev.Event) *bstore.Activity 
 		a.EntityID = ev.Data["stream"]
 		a.Summary = "deleted stream " + ev.Data["stream"]
 
+	case platev.EventStreamLocked:
+		a.Type = bstore.ActivityStreamLocked
+		a.EntityType = "stream"
+		a.EntityID = ev.Data["stream"]
+		a.Summary = "locked stream " + ev.Data["stream"]
+	case platev.EventStreamUnlocked:
+		a.Type = bstore.ActivityStreamUnlocked
+		a.EntityType = "stream"
+		a.EntityID = ev.Data["stream"]
+		a.Summary = "unlocked stream " + ev.Data["stream"]
+	case platev.EventStreamTagged:
+		a.Type = bstore.ActivityStreamTagged
+		a.EntityType = "stream"
+		a.EntityID = ev.Data["stream"]
+		a.Summary = "tagged stream " + ev.Data["stream"] + " as " + ev.Data["tag"]
+
 	// Flows
 	case platev.EventFlowCompleted:
 		a.Type = bstore.ActivityFlowCompleted

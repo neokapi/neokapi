@@ -92,6 +92,9 @@ export interface StreamInfo {
   parent: string;
   base_cursor: number;
   archived: boolean;
+  locked?: boolean;
+  locked_by?: string;
+  locked_at?: string;
   visibility: StreamVisibility;
   description: string;
   created_at: string;
@@ -128,6 +131,29 @@ export interface CreateStreamRequest {
   parent?: string;
   visibility?: StreamVisibility;
   description?: string;
+}
+
+/** Stream tag kind */
+export type StreamTagKind = "merge" | "release" | "milestone" | "custom";
+
+/** Stream tag — immutable marker pinned to a point in a stream's change log */
+export interface StreamTag {
+  id: string;
+  project_id: string;
+  stream: string;
+  name: string;
+  kind: StreamTagKind;
+  cursor: number;
+  metadata?: Record<string, string>;
+  created_by: string;
+  created_at: string;
+}
+
+/** Create stream tag request */
+export interface CreateStreamTagRequest {
+  name: string;
+  kind?: StreamTagKind;
+  metadata?: Record<string, string>;
 }
 
 /** Collection kind */

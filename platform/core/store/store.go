@@ -31,6 +31,17 @@ type ContentStore interface {
 	MergeStream(ctx context.Context, projectID, streamName string, opts MergeOptions) (*MergeResult, error)
 	DiffStream(ctx context.Context, projectID, streamName string) (*StreamDiff, error)
 
+	// Stream lock
+	LockStream(ctx context.Context, projectID, streamName, userID string) error
+	UnlockStream(ctx context.Context, projectID, streamName string) error
+
+	// Stream tags
+	CreateStreamTag(ctx context.Context, tag *StreamTag) error
+	ListStreamTags(ctx context.Context, projectID, stream string) ([]*StreamTag, error)
+	GetStreamTag(ctx context.Context, projectID, stream, tagName string) (*StreamTag, error)
+	DeleteStreamTag(ctx context.Context, projectID, stream, tagName string) error
+	ListProjectTags(ctx context.Context, projectID string, kind StreamTagKind) ([]*StreamTag, error)
+
 	// Stream membership (for shared visibility)
 	AddStreamMember(ctx context.Context, projectID, streamName, userID string) error
 	RemoveStreamMember(ctx context.Context, projectID, streamName, userID string) error

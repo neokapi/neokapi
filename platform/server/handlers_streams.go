@@ -225,3 +225,200 @@ func (s *Server) HandleDiffStream(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, diff)
 }
+
+// HandleLockStream locks a stream to prevent further content changes.
+// POST /api/v1/projects/:id/streams/:stream/lock
+func (s *Server) HandleLockStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+
+	userID := ""
+	if claims, ok := c.Get("user_claims").(map[string]interface{}); ok {
+		if sub, ok := claims["sub"].(string); ok {
+			userID = sub
+		}
+	}
+
+	if err := s.ContentStore.LockStream(c.Request().Context(), projectID, streamName, userID); err != nil {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
+
+	st, err := s.ContentStore.GetStream(c.Request().Context(), projectID, streamName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, st)
+}
+
+// HandleUnlockStream unlocks a previously locked stream.
+// POST /api/v1/projects/:id/streams/:stream/unlock
+func (s *Server) HandleUnlockStream(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+
+	if err := s.ContentStore.UnlockStream(c.Request().Context(), projectID, streamName); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	st, err := s.ContentStore.GetStream(c.Request().Context(), projectID, streamName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	return c.JSON(http.StatusOK, st)
+}
+
+// HandleListStreamTags returns all tags for a stream.
+// GET /api/v1/projects/:id/streams/:stream/tags
+func (s *Server) HandleListStreamTags(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+
+	tags, err := s.ContentStore.ListStreamTags(c.Request().Context(), projectID, streamName)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	if tags == nil {
+		tags = []*store.StreamTag{}
+	}
+
+	return c.JSON(http.StatusOK, tags)
+}
+
+// HandleCreateStreamTag creates a new tag on a stream.
+// POST /api/v1/projects/:id/streams/:stream/tags
+func (s *Server) HandleCreateStreamTag(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+
+	var req struct {
+		Name     string            `json:"name"`
+		Kind     string            `json:"kind"`
+		Metadata map[string]string `json:"metadata"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.Name == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tag name is required"})
+	}
+
+	kind := store.TagKindCustom
+	if req.Kind != "" {
+		kind = store.StreamTagKind(req.Kind)
+	}
+
+	createdBy := ""
+	if claims, ok := c.Get("user_claims").(map[string]interface{}); ok {
+		if sub, ok := claims["sub"].(string); ok {
+			createdBy = sub
+		}
+	}
+
+	cursor, _ := s.ContentStore.LatestCursor(c.Request().Context(), projectID, streamName)
+
+	tag := &store.StreamTag{
+		ProjectID: projectID,
+		Stream:    streamName,
+		Name:      req.Name,
+		Kind:      kind,
+		Cursor:    cursor,
+		Metadata:  req.Metadata,
+		CreatedBy: createdBy,
+	}
+
+	if err := s.ContentStore.CreateStreamTag(c.Request().Context(), tag); err != nil {
+		return c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusCreated, tag)
+}
+
+// HandleGetStreamTag returns a single tag.
+// GET /api/v1/projects/:id/streams/:stream/tags/:tag
+func (s *Server) HandleGetStreamTag(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+	tagName := c.Param("tag")
+
+	tag, err := s.ContentStore.GetStreamTag(c.Request().Context(), projectID, streamName, tagName)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, tag)
+}
+
+// HandleDeleteStreamTag removes a tag.
+// DELETE /api/v1/projects/:id/streams/:stream/tags/:tag
+func (s *Server) HandleDeleteStreamTag(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
+		return err
+	}
+
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	streamName := c.Param("stream")
+	tagName := c.Param("tag")
+
+	if err := s.ContentStore.DeleteStreamTag(c.Request().Context(), projectID, streamName, tagName); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+// HandleListProjectTags returns all tags across all streams in a project.
+// GET /api/v1/projects/:id/tags
+func (s *Server) HandleListProjectTags(c echo.Context) error {
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	}
+
+	projectID := c.Param("id")
+	kind := store.StreamTagKind(c.QueryParam("kind"))
+
+	tags, err := s.ContentStore.ListProjectTags(c.Request().Context(), projectID, kind)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+	if tags == nil {
+		tags = []*store.StreamTag{}
+	}
+
+	return c.JSON(http.StatusOK, tags)
+}

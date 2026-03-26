@@ -1048,6 +1048,15 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/projects/:id/streams/:stream/restore", s.HandleRestoreStream)
 	g.POST("/projects/:id/streams/:stream/merge", s.HandleMergeStream)
 	g.GET("/projects/:id/streams/:stream/diff", s.HandleDiffStream)
+	g.POST("/projects/:id/streams/:stream/lock", s.HandleLockStream)
+	g.POST("/projects/:id/streams/:stream/unlock", s.HandleUnlockStream)
+
+	// Stream tags
+	g.GET("/projects/:id/streams/:stream/tags", s.HandleListStreamTags)
+	g.POST("/projects/:id/streams/:stream/tags", s.HandleCreateStreamTag)
+	g.GET("/projects/:id/streams/:stream/tags/:tag", s.HandleGetStreamTag)
+	g.DELETE("/projects/:id/streams/:stream/tags/:tag", s.HandleDeleteStreamTag)
+	g.GET("/projects/:id/tags", s.HandleListProjectTags)
 }
 
 // Start initializes the Echo server and starts listening.

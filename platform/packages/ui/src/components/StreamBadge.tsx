@@ -36,12 +36,13 @@ export function StreamBadge({ stream, compact }: StreamBadgeProps) {
     return (
       <span
         className="inline-flex items-center gap-1 text-xs text-muted-foreground"
-        title={`${stream.name} (${stream.visibility})`}
+        title={`${stream.name} (${stream.visibility})${stream.locked ? " — locked" : ""}`}
       >
         <span
           className={`inline-block h-1.5 w-1.5 rounded-full ${visibilityColor[stream.visibility]}`}
         />
         <span className="truncate max-w-[100px]">{stream.name}</span>
+        {stream.locked && <Lock className="h-3 w-3 text-amber-500" />}
       </span>
     );
   }
@@ -51,6 +52,7 @@ export function StreamBadge({ stream, compact }: StreamBadgeProps) {
       <span className={`inline-block h-2 w-2 rounded-full ${visibilityColor[stream.visibility]}`} />
       <VisibilityIcon visibility={stream.visibility} className="h-3 w-3 text-muted-foreground" />
       <span className="truncate max-w-[140px]">{stream.name}</span>
+      {stream.locked && <Lock className="h-3 w-3 text-amber-500" />}
     </span>
   );
 }

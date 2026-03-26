@@ -117,6 +117,10 @@ export type {
 } from "./components/ActivityTaskIndicators";
 export { StreamBadge } from "./components/StreamBadge";
 export type { StreamBadgeProps } from "./components/StreamBadge";
+export { StreamTagBadge } from "./components/StreamTagBadge";
+export type { StreamTagBadgeProps } from "./components/StreamTagBadge";
+export { StreamTagList } from "./components/StreamTagList";
+export type { StreamTagListProps } from "./components/StreamTagList";
 export { StreamSelector } from "./components/StreamSelector";
 export type { StreamSelectorProps } from "./components/StreamSelector";
 export { CollectionTabs } from "./components/CollectionTabs";
@@ -303,6 +307,9 @@ export type {
   StreamDiffResult,
   StreamMergeResult,
   CreateStreamRequest,
+  StreamTag,
+  StreamTagKind,
+  CreateStreamTagRequest,
   CollectionInfo,
   CollectionKind,
   CreateCollectionRequest,

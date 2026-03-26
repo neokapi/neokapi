@@ -43,6 +43,9 @@ import type {
   StreamDiffResult,
   StreamMergeResult,
   CreateStreamRequest,
+  StreamTag,
+  StreamTagKind,
+  CreateStreamTagRequest,
   CollectionInfo,
   CreateCollectionRequest,
   AuditEntry,
@@ -195,6 +198,34 @@ export interface ApiAdapter {
     streamName: string,
     dryRun?: boolean,
   ): Promise<StreamMergeResult>;
+  lockStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
+  unlockStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
+
+  // Stream tags
+  listStreamTags(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamTag[]>;
+  createStreamTag(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    req: CreateStreamTagRequest,
+  ): Promise<StreamTag>;
+  getStreamTag(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    tagName: string,
+  ): Promise<StreamTag>;
+  deleteStreamTag(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    tagName: string,
+  ): Promise<void>;
+  listProjectTags(
+    workspaceSlug: string,
+    projectId: string,
+    kind?: StreamTagKind,
+  ): Promise<StreamTag[]>;
 
   // Projects (workspace-scoped)
   listProjects(workspaceSlug: string): Promise<ProjectInfo[]>;

@@ -70,4 +70,7 @@ export {
   Languages,
   CreditCard,
   Shield,
+  Tag,
+  Flag,
+  Unlock,
 } from "lucide-react";
