@@ -71,7 +71,8 @@ type TaskQuery struct {
 	WorkspaceID string
 	ProjectID   string
 	AssigneeID  string
-	Status      string     // empty = all
+	Status      string     // empty = all; use Statuses for multi-status filter
+	Statuses    []string   // if set, matches any of these statuses (overrides Status)
 	Type        string     // empty = all
 	Priority    string     // empty = all
 	DueBefore   *time.Time // if set, only tasks with due_at <= this time
@@ -181,7 +182,14 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 		where = append(where, "assignee_id = ?")
 		args = append(args, q.AssigneeID)
 	}
-	if q.Status != "" {
+	if len(q.Statuses) > 0 {
+		placeholders := make([]string, len(q.Statuses))
+		for i, s := range q.Statuses {
+			placeholders[i] = "?"
+			args = append(args, s)
+		}
+		where = append(where, "status IN ("+strings.Join(placeholders, ",")+")")
+	} else if q.Status != "" {
 		where = append(where, "status = ?")
 		args = append(args, q.Status)
 	}

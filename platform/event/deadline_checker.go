@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"log"
+	"sync"
 	"time"
 
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -16,6 +17,11 @@ type DeadlineChecker struct {
 	interval   time.Duration
 	stop       chan struct{}
 	done       chan struct{}
+
+	// notified tracks task IDs that have already been notified this cycle.
+	// Reset when a task is no longer in the due-soon window.
+	mu       sync.Mutex
+	notified map[string]bool
 }
 
 // NewDeadlineChecker creates a checker that runs at the given interval.
@@ -30,6 +36,7 @@ func NewDeadlineChecker(
 		interval:   interval,
 		stop:       make(chan struct{}),
 		done:       make(chan struct{}),
+		notified:   make(map[string]bool),
 	}
 }
 
@@ -67,7 +74,7 @@ func (dc *DeadlineChecker) check() {
 	// Find open/in-progress tasks due within the next 24 hours.
 	horizon := time.Now().UTC().Add(24 * time.Hour)
 	result, err := dc.taskStore.List(ctx, bstore.TaskQuery{
-		Status:    string(bstore.TaskStatusOpen),
+		Statuses:  []string{string(bstore.TaskStatusOpen), string(bstore.TaskStatusInProgress)},
 		DueBefore: &horizon,
 		Limit:     200,
 	})
@@ -76,23 +83,36 @@ func (dc *DeadlineChecker) check() {
 		return
 	}
 
-	// Also check in-progress tasks.
-	inProgress, err := dc.taskStore.List(ctx, bstore.TaskQuery{
-		Status:    string(bstore.TaskStatusInProgress),
-		DueBefore: &horizon,
-		Limit:     200,
-	})
-	if err != nil {
-		log.Printf("WARNING: deadline checker failed to list in-progress tasks: %v", err)
-	} else {
-		result.Tasks = append(result.Tasks, inProgress.Tasks...)
-	}
-
+	// Build set of current due task IDs for pruning stale entries.
+	currentDue := make(map[string]bool, len(result.Tasks))
 	for i := range result.Tasks {
 		task := &result.Tasks[i]
 		if task.AssigneeID == "" || task.DueAt == nil {
 			continue
 		}
+		currentDue[task.ID] = true
+
+		dc.mu.Lock()
+		alreadyNotified := dc.notified[task.ID]
+		dc.mu.Unlock()
+
+		if alreadyNotified {
+			continue
+		}
+
 		dc.dispatcher.DispatchDeadlineApproaching(ctx, task)
+
+		dc.mu.Lock()
+		dc.notified[task.ID] = true
+		dc.mu.Unlock()
 	}
+
+	// Prune tasks no longer in the due-soon window (completed, deleted, or past due).
+	dc.mu.Lock()
+	for id := range dc.notified {
+		if !currentDue[id] {
+			delete(dc.notified, id)
+		}
+	}
+	dc.mu.Unlock()
 }

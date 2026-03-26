@@ -9,6 +9,13 @@ import (
 	bauth "github.com/neokapi/neokapi/bowrain/auth"
 )
 
+// categoryActionLabels maps notification categories to email CTA button labels.
+var categoryActionLabels = map[string]string{
+	string(bstore.CategoryTask):       "Open Task",
+	string(bstore.CategoryQuality):    "Review Issues",
+	string(bstore.CategoryAutomation): "View Flow",
+}
+
 // MailerAdapter implements DigestEmailer by sending immediate emails
 // via the Mailer for high-priority notifications.
 type MailerAdapter struct {
@@ -33,12 +40,8 @@ func (a *MailerAdapter) SendImmediate(ctx context.Context, userID string, notifi
 	}
 
 	actionLabel := "View Details"
-	if notification.Category == string(bstore.CategoryTask) {
-		actionLabel = "Open Task"
-	} else if notification.Category == string(bstore.CategoryQuality) {
-		actionLabel = "Review Issues"
-	} else if notification.Category == string(bstore.CategoryAutomation) {
-		actionLabel = "View Flow"
+	if label, ok := categoryActionLabels[notification.Category]; ok {
+		actionLabel = label
 	}
 
 	return a.mailer.SendNotification(ctx, u.Email, mailer.NotificationData{

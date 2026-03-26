@@ -292,3 +292,34 @@ func (d *NotificationDispatcher) DispatchTaskNotification(ctx context.Context, t
 		d.sender.NotifyUser(task.AssigneeID, n)
 	}
 }
+
+// DispatchToProject creates notifications for all target users of a project.
+// This is the public API for components (like ProgressTracker) that need to
+// send project-scoped notifications without accessing dispatcher internals.
+func (d *NotificationDispatcher) DispatchToProject(ctx context.Context, projectID, excludeActorID string, prototype bstore.Notification) {
+	if d.store == nil {
+		return
+	}
+
+	var userIDs []string
+	if d.targetFn != nil && projectID != "" {
+		var err error
+		userIDs, err = d.targetFn(ctx, projectID, excludeActorID)
+		if err != nil {
+			log.Printf("WARNING: failed to resolve targets for project %s: %v", projectID, err)
+			return
+		}
+	}
+
+	for _, userID := range userIDs {
+		n := prototype
+		n.UserID = userID
+		if err := d.store.Create(ctx, &n); err != nil {
+			log.Printf("WARNING: failed to create notification for user %s: %v", userID, err)
+			continue
+		}
+		if d.sender != nil {
+			d.sender.NotifyUser(userID, &n)
+		}
+	}
+}

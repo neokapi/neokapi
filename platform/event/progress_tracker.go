@@ -15,6 +15,10 @@ import (
 // milestones are the percentage thresholds that trigger notifications.
 var milestones = []int{25, 50, 75, 100}
 
+// maxSeenEntries caps the in-memory milestone dedup map. When exceeded, the
+// map is reset — a few duplicate notifications are acceptable vs unbounded growth.
+const maxSeenEntries = 10_000
+
 // ProgressTracker subscribes to batch events (push, flow completion) and
 // checks whether any locale has crossed a milestone percentage (25/50/75/100%).
 // When a milestone is crossed, it dispatches a progress.milestone notification.
@@ -25,7 +29,7 @@ type ProgressTracker struct {
 	sub          *platev.Subscription
 
 	// seen tracks which milestones have already been notified to avoid duplicates.
-	// Key: "projectID:locale:milestone"
+	// Key: "projectID:locale:milestone". Capped at maxSeenEntries.
 	mu   sync.Mutex
 	seen map[string]bool
 }
@@ -120,6 +124,9 @@ func (pt *ProgressTracker) checkProject(ctx context.Context, ev platev.Event) {
 				pt.mu.Lock()
 				alreadySeen := pt.seen[key]
 				if !alreadySeen {
+					if len(pt.seen) >= maxSeenEntries {
+						pt.seen = make(map[string]bool)
+					}
 					pt.seen[key] = true
 				}
 				pt.mu.Unlock()
@@ -135,40 +142,16 @@ func (pt *ProgressTracker) checkProject(ctx context.Context, ev platev.Event) {
 }
 
 func (pt *ProgressTracker) dispatchMilestone(ctx context.Context, proj *store.Project, locale string, milestone int, ev platev.Event) {
-	if pt.dispatcher == nil || pt.dispatcher.store == nil {
+	if pt.dispatcher == nil {
 		return
 	}
 
-	title := fmt.Sprintf("%s reached %d%%", locale, milestone)
-	body := fmt.Sprintf("Translation for %s in project %s has reached %d%% completion.", locale, proj.Name, milestone)
-
-	// Determine target users via the dispatcher's targetFn.
-	var userIDs []string
-	if pt.dispatcher.targetFn != nil && proj.ID != "" {
-		var err error
-		userIDs, err = pt.dispatcher.targetFn(ctx, proj.ID, ev.Actor)
-		if err != nil {
-			log.Printf("WARNING: progress tracker failed to resolve targets for %s: %v", proj.ID, err)
-			return
-		}
-	}
-
-	for _, userID := range userIDs {
-		n := &bstore.Notification{
-			UserID:    userID,
-			Type:      bstore.NotificationProgressMilestone,
-			Title:     title,
-			Body:      body,
-			ProjectID: proj.ID,
-			Category:  string(bstore.CategoryProject),
-			Priority:  "normal",
-		}
-		if err := pt.dispatcher.store.Create(ctx, n); err != nil {
-			log.Printf("WARNING: progress tracker failed to create milestone notification: %v", err)
-			continue
-		}
-		if pt.dispatcher.sender != nil {
-			pt.dispatcher.sender.NotifyUser(userID, n)
-		}
-	}
+	pt.dispatcher.DispatchToProject(ctx, proj.ID, ev.Actor, bstore.Notification{
+		Type:      bstore.NotificationProgressMilestone,
+		Title:     fmt.Sprintf("%s reached %d%%", locale, milestone),
+		Body:      fmt.Sprintf("Translation for %s in project %s has reached %d%% completion.", locale, proj.Name, milestone),
+		ProjectID: proj.ID,
+		Category:  string(bstore.CategoryProject),
+		Priority:  "normal",
+	})
 }

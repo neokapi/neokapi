@@ -11,6 +11,16 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
+import {
+  main,
+  header,
+  logoText,
+  tagline,
+  btn,
+  hr as hrBase,
+  footer as footerBase,
+  footerText,
+} from "./theme";
 
 /** A single notification item within a digest category group. */
 interface DigestItem {
@@ -67,7 +77,7 @@ export const DigestEmail = ({
         {" updates"}
       </Preview>
       <Body style={main}>
-        <Container style={container}>
+        <Container style={digestContainer}>
           {/* ── Header ─────────────────────────────────── */}
           <Section style={header}>
             <Text style={logoText}>Bowrain</Text>
@@ -111,9 +121,9 @@ export const DigestEmail = ({
               </Section>
             ))}
 
-            <Hr style={hr} />
+            <Hr style={hrBase} />
 
-            <Section style={btnWrapper}>
+            <Section style={btnWrapperCenter}>
               <Button href={dashboardURL} style={btn}>
                 Open Dashboard
               </Button>
@@ -121,7 +131,7 @@ export const DigestEmail = ({
           </Section>
 
           {/* ── Footer ─────────────────────────────────── */}
-          <Section style={footer}>
+          <Section style={footerBase}>
             <Text style={footerText}>
               {"You can change your digest frequency in "}
               <a href={settingsURL} style={footerLink}>
@@ -139,38 +149,12 @@ export const DigestEmail = ({
 
 export default DigestEmail;
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// ── Local styles (digest-specific) ───────────────────────────────────────────
 
-const main: React.CSSProperties = {
-  backgroundColor: "#f1f5f9",
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-};
-
-const container: React.CSSProperties = {
+const digestContainer: React.CSSProperties = {
   maxWidth: "600px",
   margin: "40px auto",
   padding: "0",
-};
-
-const header: React.CSSProperties = {
-  backgroundColor: "#0f172a",
-  borderRadius: "12px 12px 0 0",
-  padding: "28px 32px 24px",
-};
-
-const logoText: React.CSSProperties = {
-  color: "#f8fafc",
-  fontSize: "22px",
-  fontWeight: "700",
-  margin: "0 0 2px",
-  letterSpacing: "-0.3px",
-};
-
-const tagline: React.CSSProperties = {
-  color: "#94a3b8",
-  fontSize: "13px",
-  margin: "0",
 };
 
 const titleBar: React.CSSProperties = {
@@ -233,41 +217,9 @@ const itemBody: React.CSSProperties = {
   color: "#64748b",
 };
 
-const hr: React.CSSProperties = {
-  borderColor: "#e2e8f0",
-  borderTopWidth: "1px",
-  margin: "24px 0 20px",
-};
-
-const btnWrapper: React.CSSProperties = {
+const btnWrapperCenter: React.CSSProperties = {
   textAlign: "center" as const,
   margin: "0",
-};
-
-const btn: React.CSSProperties = {
-  backgroundColor: "#2563eb",
-  borderRadius: "8px",
-  color: "#ffffff",
-  display: "inline-block",
-  fontSize: "15px",
-  fontWeight: "600",
-  padding: "14px 28px",
-  textDecoration: "none",
-  lineHeight: "1",
-};
-
-const footer: React.CSSProperties = {
-  backgroundColor: "#f8fafc",
-  borderRadius: "0 0 12px 12px",
-  borderTop: "1px solid #e2e8f0",
-  padding: "20px 32px",
-};
-
-const footerText: React.CSSProperties = {
-  color: "#94a3b8",
-  fontSize: "12px",
-  lineHeight: "1.5",
-  margin: "0 0 4px",
 };
 
 const footerLink: React.CSSProperties = {
