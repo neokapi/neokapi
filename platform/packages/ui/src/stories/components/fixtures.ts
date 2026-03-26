@@ -434,6 +434,43 @@ export const sampleNotifications: NotificationInfo[] = [
     read: true,
     created_at: new Date(Date.now() - 24 * 3600000).toISOString(),
   },
+  {
+    id: "notif-4",
+    user_id: "user-1",
+    type: "content.available",
+    title: "New content available",
+    body: "3 items pushed with 47 blocks ready for translation in fr-FR",
+    read: false,
+    created_at: new Date(Date.now() - 30 * 60000).toISOString(),
+  },
+  {
+    id: "notif-5",
+    user_id: "user-1",
+    type: "progress.milestone",
+    title: "Progress milestone reached",
+    body: "fr-FR reached 75% translated for landing.html",
+    read: false,
+    created_at: new Date(Date.now() - 4 * 3600000).toISOString(),
+  },
+  {
+    id: "notif-6",
+    user_id: "user-1",
+    type: "deadline.approaching",
+    title: "Deadline approaching",
+    body: 'Task "Review fr-FR translations" is due in 24 hours',
+    read: false,
+    priority: "high",
+    created_at: new Date(Date.now() - 15 * 60000).toISOString(),
+  },
+  {
+    id: "notif-7",
+    user_id: "user-1",
+    type: "mention",
+    title: "Alice mentioned you",
+    body: "Hey @user-1 can you check the terminology in block 42?",
+    read: false,
+    created_at: new Date(Date.now() - 45 * 60000).toISOString(),
+  },
 ];
 
 // ---------------------------------------------------------------------------
