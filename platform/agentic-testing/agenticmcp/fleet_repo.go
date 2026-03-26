@@ -96,9 +96,9 @@ func (r *GitFleetRepo) ListWorkspaces(ctx context.Context) ([]WorkspaceMeta, err
 		workspaces = append(workspaces, WorkspaceMeta{
 			Slug:            slug,
 			Phase:           status.Phase,
-			ProjectName:     plan.ProjectName,
-			UpstreamRepo:    plan.UpstreamRepo,
-			TargetLanguages: plan.TargetLanguages,
+			ProjectName:     plan.GetProjectName(),
+			UpstreamRepo:    plan.GetUpstreamRepo(),
+			TargetLanguages: plan.GetTargetLanguages(),
 			Mode:            plan.Mode,
 			ProjectCount:    1,
 			Health:          "healthy",
