@@ -94,14 +94,15 @@ func (r *GitFleetRepo) ListWorkspaces(ctx context.Context) ([]WorkspaceMeta, err
 		status := r.readStatus(filepath.Join(wsDir, slug, "status.yaml"))
 
 		workspaces = append(workspaces, WorkspaceMeta{
-			Slug:            slug,
-			Phase:           status.Phase,
-			ProjectName:     plan.GetProjectName(),
-			UpstreamRepo:    plan.GetUpstreamRepo(),
-			TargetLanguages: plan.GetTargetLanguages(),
-			Mode:            plan.Mode,
-			ProjectCount:    1,
-			Health:          "healthy",
+			Slug:               slug,
+			Phase:              status.Phase,
+			ProjectName:        plan.GetProjectName(),
+			UpstreamRepo:       plan.GetUpstreamRepo(),
+			TargetLanguages:    plan.GetTargetLanguages(),
+			Mode:               plan.Mode,
+			ProjectCount:       1,
+			UntranslatedBlocks: map[string]int{}, // Empty, not nil — avoids MCP schema validation errors.
+			Health:             "healthy",
 		})
 	}
 	return workspaces, nil
