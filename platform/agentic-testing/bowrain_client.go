@@ -2,6 +2,7 @@
 package agentictesting
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -48,6 +49,73 @@ func (c *BowrainClient) get(ctx context.Context, path string, query url.Values) 
 		return nil, fmt.Errorf("bowrain API %s: %d %s", path, resp.StatusCode, string(body))
 	}
 	return body, nil
+}
+
+func (c *BowrainClient) post(ctx context.Context, path string, body any) ([]byte, error) {
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(body); err != nil {
+		return nil, fmt.Errorf("encode body: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseURL+path, &buf)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("bowrain API POST %s: %d %s", path, resp.StatusCode, string(data))
+	}
+	return data, nil
+}
+
+// PushBlock is a source block for the sync/push API.
+type PushBlock struct {
+	ID       string `json:"id"`
+	Text     string `json:"text"`
+	Name     string `json:"name"`
+	ItemName string `json:"item_name"`
+}
+
+// PushBlocks pushes source blocks to a project via the sync/push API.
+func (c *BowrainClient) PushBlocks(ctx context.Context, wsSlug, projectID string, blocks []PushBlock) error {
+	body := struct {
+		Blocks []PushBlock `json:"blocks"`
+	}{Blocks: blocks}
+	_, err := c.post(ctx, fmt.Sprintf("/api/v1/workspaces/%s/projects/%s/sync/push", wsSlug, projectID), body)
+	return err
+}
+
+// CreateStream creates a named stream (release tag) for a project.
+func (c *BowrainClient) CreateStream(ctx context.Context, wsSlug, projectID, name, description string) error {
+	body := struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}{Name: name, Description: description}
+	_, err := c.post(ctx, fmt.Sprintf("/api/v1/workspaces/%s/projects/%s/streams", wsSlug, projectID), body)
+	return err
+}
+
+// FindProjectByName returns the first project matching name in a workspace.
+func (c *BowrainClient) FindProjectByName(ctx context.Context, wsSlug, name string) (*Project, error) {
+	projects, err := c.ListProjects(ctx, wsSlug)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range projects {
+		if p.Name == name {
+			return &p, nil
+		}
+	}
+	return nil, fmt.Errorf("project %q not found in workspace %q", name, wsSlug)
 }
 
 // Workspace is a bowrain workspace summary.

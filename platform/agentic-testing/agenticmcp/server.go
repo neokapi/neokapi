@@ -22,6 +22,9 @@ type FleetRepo interface {
 	// GetWorkspacePlan reads and parses a workspace's plan.yaml.
 	GetWorkspacePlan(ctx context.Context, slug string) (*WorkspacePlan, error)
 
+	// GetWorkspaceStatus reads and parses a workspace's status.yaml.
+	GetWorkspaceStatus(ctx context.Context, slug string) (*WorkspaceStatus, error)
+
 	// CommitFile writes a file to the fleet repo and commits it.
 	CommitFile(ctx context.Context, path, content, message string) (string, error)
 

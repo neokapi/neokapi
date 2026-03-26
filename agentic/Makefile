@@ -7,7 +7,7 @@
 #   make onboard  W=excalidraw          # Full onboard: users + workspace + content
 #   make users    W=excalidraw          # Create Keycloak users only
 #   make workspace W=excalidraw         # Create Bowrain workspace + project + members
-#   make content  W=excalidraw          # Walk releases into the workspace
+#   make content  W=excalidraw          # Info: release walking is now server-side
 #   make status   W=excalidraw          # Show workspace status
 #   make deploy                         # Deploy persona-agent image via CI
 #
@@ -47,7 +47,7 @@ help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-onboard: validate users workspace content ## Full onboard: users + workspace + content
+onboard: validate users workspace ## Full onboard: users + workspace (content via fleet repo)
 	@echo ""
 	@echo "=== Onboard complete for $(W) ==="
 
@@ -74,12 +74,13 @@ workspace: validate ## Create Bowrain workspace + project + add agent members
 	JWT_SECRET="$(JWT_SECRET)" \
 		$(SCRIPTS)/setup-workspace-api.sh "$(WS_DIR)"
 
-content: validate ## Walk upstream releases into the workspace
-	$(require_workspace)
-	BOWRAIN_URL="$(BOWRAIN_URL)" \
-	JWT_SECRET="$(JWT_SECRET)" \
-	WORKSPACE="$$(grep '^slug:' $(WS_YAML) | sed 's/^slug: *//')" \
-		$(SCRIPTS)/walk-releases.sh
+content: ## Walk upstream releases (server-side via agentic-server)
+	@echo "Release walking is now server-side. The agentic-server reads"
+	@echo "plan.yaml from neokapi/agentic-fleet and walks releases via"
+	@echo "the walk_release MCP tool. Push plan.yaml + status.yaml to"
+	@echo "the fleet repo to control release progression."
+	@echo ""
+	@echo "See: https://github.com/neokapi/agentic-fleet"
 
 status: ## Show workspace status (blocks, coverage, agents)
 	$(require_workspace)

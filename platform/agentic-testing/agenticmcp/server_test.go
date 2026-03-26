@@ -44,6 +44,10 @@ func (m *mockFleetRepo) ListMemoryLog(_ context.Context, _ int) ([]MemoryLogEntr
 	return nil, nil
 }
 
+func (m *mockFleetRepo) GetWorkspaceStatus(_ context.Context, slug string) (*WorkspaceStatus, error) {
+	return &WorkspaceStatus{Phase: "active", CurrentRelease: "v0.14.0"}, nil
+}
+
 func (m *mockFleetRepo) ReadAgentFile(_ context.Context, _, _, _ string) (string, error) {
 	return "", nil
 }
