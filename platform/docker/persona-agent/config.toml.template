@@ -2,13 +2,27 @@
 # Rendered at runtime by entrypoint.sh (envsubst).
 #
 # Model/provider config comes from ZEROCLAW_* env vars.
-# Tool auto-approval is handled by piping `yes A` to stdin in headless mode.
 
 [agent]
 # Allow enough tool calls for a meaningful translation/review session.
 max_tool_iterations = 50
 # Enable parallel tool calls for efficiency (e.g. multiple tm_search calls).
 parallel_tools = true
+
+[security]
+# Auto-approve all MCP tools — agents run headless, no human in the loop.
+auto_approve = [
+  "bowrain__list_projects", "bowrain__list_blocks", "bowrain__get_block",
+  "bowrain__update_block", "bowrain__translate_block", "bowrain__submit_translation",
+  "bowrain__list_translations", "bowrain__review_translation",
+  "bowrain__check_vocabulary", "bowrain__term_search", "bowrain__tm_search",
+  "bowrain__run_flow", "bowrain__list_streams",
+  "agentic__list_workspaces", "agentic__get_fleet_summary",
+  "agentic__get_workspace_status", "agentic__list_agent_executions",
+  "agentic__walk_release", "agentic__file_feedback_issue",
+  "agentic__commit_memory", "agentic__onboard_project",
+  "tool_search"
+]
 
 # Enable MCP with deferred loading — only tool names are sent to the LLM
 # initially. Full schemas are fetched on-demand via tool_search, saving tokens.
@@ -35,7 +49,7 @@ ${AGENTIC_MCP_BLOCK}
 
 [[tool_filter_groups]]
 name = "translation"
-include = ["bowrain__list_blocks", "bowrain__get_block", "bowrain__translate_block", "bowrain__submit_translation", "bowrain__check_vocabulary", "bowrain__term_search", "bowrain__run_flow", "bowrain__list_projects"]
+include = ["bowrain__list_projects", "bowrain__list_blocks", "bowrain__get_block", "bowrain__update_block", "bowrain__translate_block", "bowrain__submit_translation", "bowrain__check_vocabulary", "bowrain__term_search", "bowrain__tm_search", "bowrain__run_flow"]
 keywords = ["translate", "translation", "blocks", "localize", "French", "German", "Japanese"]
 
 [[tool_filter_groups]]
@@ -45,5 +59,5 @@ keywords = ["review", "quality", "consistency", "terminology", "QA"]
 
 [[tool_filter_groups]]
 name = "coordination"
-include = ["agentic__list_agent_executions", "agentic__get_fleet_summary", "agentic__list_workspaces", "agentic__get_workspace"]
+include = ["agentic__list_workspaces", "agentic__get_fleet_summary", "agentic__get_workspace_status", "agentic__list_agent_executions", "agentic__walk_release", "agentic__file_feedback_issue", "agentic__commit_memory", "bowrain__list_projects", "bowrain__list_blocks"]
 keywords = ["fleet", "status", "coordinator", "observations", "suggestions", "review fleet"]
