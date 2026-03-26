@@ -79,6 +79,7 @@ export const mainStream: StreamInfo = {
   parent: "",
   base_cursor: 0,
   archived: false,
+  locked: false,
   visibility: "public",
   description: "Primary content stream",
   created_at: "2026-01-01T10:00:00Z",
@@ -90,6 +91,7 @@ export const featureStream: StreamInfo = {
   parent: "main",
   base_cursor: 5,
   archived: false,
+  locked: false,
   visibility: "private",
   description: "Q1 translations",
   created_at: "2026-03-01T10:00:00Z",
@@ -101,6 +103,7 @@ export const sharedStream: StreamInfo = {
   parent: "main",
   base_cursor: 3,
   archived: false,
+  locked: false,
   visibility: "shared",
   description: "Review branch",
   created_at: "2026-02-15T10:00:00Z",
@@ -108,11 +111,26 @@ export const sharedStream: StreamInfo = {
   shared_with: ["user-1"],
 };
 
+export const lockedStream: StreamInfo = {
+  name: "release/v2.0",
+  parent: "main",
+  base_cursor: 10,
+  archived: false,
+  locked: true,
+  locked_by: "user-1",
+  locked_at: "2026-03-15T14:00:00Z",
+  visibility: "public",
+  description: "Release v2.0 — locked for deployment",
+  created_at: "2026-03-10T10:00:00Z",
+  created_by: "user-1",
+};
+
 export const archivedStream: StreamInfo = {
   name: "old/release-1",
   parent: "main",
   base_cursor: 1,
   archived: true,
+  locked: false,
   visibility: "public",
   description: "Archived release",
   created_at: "2025-12-01T10:00:00Z",
@@ -120,6 +138,67 @@ export const archivedStream: StreamInfo = {
 };
 
 export const sampleStreams: StreamInfo[] = [mainStream, featureStream, sharedStream];
+
+// ---------------------------------------------------------------------------
+// Stream Tags
+// ---------------------------------------------------------------------------
+
+import type { StreamTag } from "../../types/api";
+
+export const mergeTag: StreamTag = {
+  id: "tag-1",
+  project_id: "proj-1",
+  stream: "feature/translations",
+  name: "merged-main-20260315-140000",
+  kind: "merge",
+  cursor: 42,
+  metadata: {
+    target_stream: "main",
+    merged_blocks: "12",
+    added_blocks: "5",
+    modified_blocks: "6",
+    removed_blocks: "1",
+  },
+  created_by: "user-1",
+  created_at: "2026-03-15T14:00:00Z",
+};
+
+export const releaseTag: StreamTag = {
+  id: "tag-2",
+  project_id: "proj-1",
+  stream: "release/v2.0",
+  name: "v2.0",
+  kind: "release",
+  cursor: 50,
+  metadata: { version: "2.0.0", notes: "GA release" },
+  created_by: "user-1",
+  created_at: "2026-03-20T10:00:00Z",
+};
+
+export const milestoneTag: StreamTag = {
+  id: "tag-3",
+  project_id: "proj-1",
+  stream: "main",
+  name: "translations-complete-fr",
+  kind: "milestone",
+  cursor: 30,
+  metadata: { description: "French translations 100%" },
+  created_by: "user-2",
+  created_at: "2026-03-18T09:00:00Z",
+};
+
+export const customTag: StreamTag = {
+  id: "tag-4",
+  project_id: "proj-1",
+  stream: "main",
+  name: "qa-approved",
+  kind: "custom",
+  cursor: 35,
+  created_by: "user-1",
+  created_at: "2026-03-19T16:00:00Z",
+};
+
+export const sampleTags: StreamTag[] = [mergeTag, releaseTag, milestoneTag, customTag];
 
 // ---------------------------------------------------------------------------
 // Stream Diff & Merge

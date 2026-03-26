@@ -30,8 +30,11 @@ const (
 	ActivityMemberRemoved  ActivityType = "member.removed"
 
 	// Stream operations
-	ActivityStreamCreated ActivityType = "stream.created"
-	ActivityStreamMerged  ActivityType = "stream.merged"
+	ActivityStreamCreated  ActivityType = "stream.created"
+	ActivityStreamMerged   ActivityType = "stream.merged"
+	ActivityStreamLocked   ActivityType = "stream.locked"
+	ActivityStreamUnlocked ActivityType = "stream.unlocked"
+	ActivityStreamTagged   ActivityType = "stream.tagged"
 
 	// Automation & AI
 	ActivityFlowCompleted  ActivityType = "flow.completed"

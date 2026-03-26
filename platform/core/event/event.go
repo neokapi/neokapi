@@ -71,9 +71,12 @@ const (
 	EventQualityGateFail EventType = "quality.gate.fail"
 
 	// Stream events
-	EventStreamCreated EventType = "stream.created"
-	EventStreamMerged  EventType = "stream.merged"
-	EventStreamDeleted EventType = "stream.deleted"
+	EventStreamCreated  EventType = "stream.created"
+	EventStreamMerged   EventType = "stream.merged"
+	EventStreamDeleted  EventType = "stream.deleted"
+	EventStreamLocked   EventType = "stream.locked"
+	EventStreamUnlocked EventType = "stream.unlocked"
+	EventStreamTagged   EventType = "stream.tagged"
 
 	// Collection events
 	EventCollectionCreated EventType = "collection.created"

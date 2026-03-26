@@ -683,4 +683,29 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     30,
+		Description: "add stream tags and stream lock support",
+		SQL: `
+			CREATE TABLE stream_tags (
+				id         TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				stream     TEXT NOT NULL,
+				name       TEXT NOT NULL,
+				kind       TEXT NOT NULL DEFAULT 'custom',
+				cursor     INTEGER NOT NULL DEFAULT 0,
+				metadata   TEXT NOT NULL DEFAULT '{}',
+				created_by TEXT NOT NULL DEFAULT '',
+				created_at TEXT NOT NULL DEFAULT (datetime('now')),
+				FOREIGN KEY (project_id, stream) REFERENCES streams(project_id, name) ON DELETE CASCADE
+			);
+			CREATE UNIQUE INDEX idx_stream_tags_unique ON stream_tags(project_id, stream, name);
+			CREATE INDEX idx_stream_tags_stream ON stream_tags(project_id, stream);
+			CREATE INDEX idx_stream_tags_project_kind ON stream_tags(project_id, kind);
+
+			ALTER TABLE streams ADD COLUMN locked INTEGER NOT NULL DEFAULT 0;
+			ALTER TABLE streams ADD COLUMN locked_by TEXT NOT NULL DEFAULT '';
+			ALTER TABLE streams ADD COLUMN locked_at TEXT;
+		`,
+	},
 }

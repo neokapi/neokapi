@@ -44,6 +44,9 @@ import type {
   StreamDiffResult,
   StreamMergeResult,
   CreateStreamRequest,
+  StreamTag,
+  StreamTagKind,
+  CreateStreamTagRequest,
   CollectionInfo,
   CreateCollectionRequest,
   AuditEntry,
@@ -560,6 +563,90 @@ export class RestApiAdapter implements ApiAdapter {
       {
         method: "POST",
       },
+    );
+  }
+
+  async lockStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamInfo> {
+    return this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/lock`,
+      { method: "POST" },
+    );
+  }
+
+  async unlockStream(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamInfo> {
+    return this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/unlock`,
+      { method: "POST" },
+    );
+  }
+
+  // ── Stream Tags ────────────────────────────────────────────────────────────
+
+  async listStreamTags(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamTag[]> {
+    return this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/tags`,
+    );
+  }
+
+  async createStreamTag(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    req: CreateStreamTagRequest,
+  ): Promise<StreamTag> {
+    return this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/tags`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      },
+    );
+  }
+
+  async getStreamTag(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    tagName: string,
+  ): Promise<StreamTag> {
+    return this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/tags/${encodeURIComponent(tagName)}`,
+    );
+  }
+
+  async deleteStreamTag(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+    tagName: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/tags/${encodeURIComponent(tagName)}`,
+      { method: "DELETE" },
+    );
+  }
+
+  async listProjectTags(
+    workspaceSlug: string,
+    projectId: string,
+    kind?: StreamTagKind,
+  ): Promise<StreamTag[]> {
+    const params = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+    return this.fetchJSON(
+      `/api/v1/workspaces/${workspaceSlug}/editor/projects/${encodeURIComponent(projectId)}/tags${params}`,
     );
   }
 

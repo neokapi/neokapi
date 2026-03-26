@@ -24,6 +24,7 @@ function makeStream(overrides: Partial<StreamInfo> = {}): StreamInfo {
     parent: "main",
     base_cursor: 0,
     archived: false,
+    locked: false,
     visibility: "private",
     description: "A test stream",
     created_at: "2025-01-01T00:00:00Z",
@@ -91,6 +92,27 @@ describe("StreamBadge", () => {
     );
     const outerSpan = container.firstElementChild as HTMLElement;
     expect(outerSpan.getAttribute("title")).toBe("dev (public)");
+  });
+
+  it("shows lock indicator when stream is locked", () => {
+    const { container } = render(
+      <StreamBadge stream={makeStream({ name: "locked-one", locked: true })} />,
+    );
+    const outerSpan = container.firstElementChild as HTMLElement;
+    // Should contain a lock icon (amber color).
+    const lockIcon = outerSpan.querySelector(".text-amber-500");
+    expect(lockIcon).toBeTruthy();
+  });
+
+  it("shows locked in title when compact and locked", () => {
+    const { container } = render(
+      <StreamBadge
+        stream={makeStream({ name: "dev", visibility: "public", locked: true })}
+        compact
+      />,
+    );
+    const outerSpan = container.firstElementChild as HTMLElement;
+    expect(outerSpan.getAttribute("title")).toContain("locked");
   });
 });
 

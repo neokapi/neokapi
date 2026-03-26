@@ -2,6 +2,9 @@ package event
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/neokapi/neokapi/core/model"
 	platev "github.com/neokapi/neokapi/platform/event"
@@ -139,11 +142,38 @@ func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamN
 		return nil, err
 	}
 	if !opts.DryRun {
+		// Get the stream to find parent name for the tag.
+		stream, _ := s.inner.GetStream(ctx, projectID, streamName)
+		parentName := "main"
+		if stream != nil && stream.Parent != "" {
+			parentName = stream.Parent
+		}
+
 		s.publish(ctx, platev.Event{
 			Type:      platev.EventStreamMerged,
 			Source:    "store",
 			ProjectID: projectID,
-			Data:      map[string]string{"stream": streamName},
+			Data:      map[string]string{"stream": streamName, "parent": parentName},
+		})
+
+		// Auto-create a merge tag.
+		cursor, _ := s.inner.LatestCursor(ctx, projectID, streamName)
+		actor := platev.ActorFromContext(ctx)
+		tagName := fmt.Sprintf("merged-%s-%s", parentName, time.Now().UTC().Format("20060102-150405"))
+		_ = s.inner.CreateStreamTag(ctx, &store.StreamTag{
+			ProjectID: projectID,
+			Stream:    streamName,
+			Name:      tagName,
+			Kind:      store.TagKindMerge,
+			Cursor:    cursor,
+			Metadata: map[string]string{
+				"target_stream":   parentName,
+				"merged_blocks":   strconv.Itoa(result.MergedBlocks),
+				"added_blocks":    strconv.Itoa(result.AddedBlocks),
+				"modified_blocks": strconv.Itoa(result.ModifiedBlocks),
+				"removed_blocks":  strconv.Itoa(result.RemovedBlocks),
+			},
+			CreatedBy: actor,
 		})
 	}
 	return result, nil
@@ -151,6 +181,65 @@ func (s *EventEmittingStore) MergeStream(ctx context.Context, projectID, streamN
 
 func (s *EventEmittingStore) DiffStream(ctx context.Context, projectID, streamName string) (*store.StreamDiff, error) {
 	return s.inner.DiffStream(ctx, projectID, streamName)
+}
+
+// --- Stream lock ---
+
+func (s *EventEmittingStore) LockStream(ctx context.Context, projectID, streamName, userID string) error {
+	if err := s.inner.LockStream(ctx, projectID, streamName, userID); err != nil {
+		return err
+	}
+	s.publish(ctx, platev.Event{
+		Type:      platev.EventStreamLocked,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"stream": streamName, "locked_by": userID},
+	})
+	return nil
+}
+
+func (s *EventEmittingStore) UnlockStream(ctx context.Context, projectID, streamName string) error {
+	if err := s.inner.UnlockStream(ctx, projectID, streamName); err != nil {
+		return err
+	}
+	s.publish(ctx, platev.Event{
+		Type:      platev.EventStreamUnlocked,
+		Source:    "store",
+		ProjectID: projectID,
+		Data:      map[string]string{"stream": streamName},
+	})
+	return nil
+}
+
+// --- Stream tags ---
+
+func (s *EventEmittingStore) CreateStreamTag(ctx context.Context, tag *store.StreamTag) error {
+	if err := s.inner.CreateStreamTag(ctx, tag); err != nil {
+		return err
+	}
+	s.publish(ctx, platev.Event{
+		Type:      platev.EventStreamTagged,
+		Source:    "store",
+		ProjectID: tag.ProjectID,
+		Data:      map[string]string{"stream": tag.Stream, "tag": tag.Name, "kind": string(tag.Kind)},
+	})
+	return nil
+}
+
+func (s *EventEmittingStore) ListStreamTags(ctx context.Context, projectID, stream string) ([]*store.StreamTag, error) {
+	return s.inner.ListStreamTags(ctx, projectID, stream)
+}
+
+func (s *EventEmittingStore) GetStreamTag(ctx context.Context, projectID, stream, tagName string) (*store.StreamTag, error) {
+	return s.inner.GetStreamTag(ctx, projectID, stream, tagName)
+}
+
+func (s *EventEmittingStore) DeleteStreamTag(ctx context.Context, projectID, stream, tagName string) error {
+	return s.inner.DeleteStreamTag(ctx, projectID, stream, tagName)
+}
+
+func (s *EventEmittingStore) ListProjectTags(ctx context.Context, projectID string, kind store.StreamTagKind) ([]*store.StreamTag, error) {
+	return s.inner.ListProjectTags(ctx, projectID, kind)
 }
 
 // --- Stream membership ---

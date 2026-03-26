@@ -3,6 +3,7 @@
 package store
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -160,12 +161,45 @@ type Stream struct {
 	Parent      string           `json:"parent"`      // parent stream name; empty for "main"
 	BaseCursor  int64            `json:"base_cursor"` // cursor in parent at branch point
 	Archived    bool             `json:"archived"`
+	Locked      bool             `json:"locked"`                // when true, no further content changes are allowed
+	LockedBy    string           `json:"locked_by,omitempty"`   // user who locked the stream
+	LockedAt    *time.Time       `json:"locked_at,omitempty"`   // when the stream was locked
 	Visibility  StreamVisibility `json:"visibility"`            // "public", "private", "shared"
 	Description string           `json:"description"`           // human-readable purpose
 	SharedWith  []string         `json:"shared_with,omitempty"` // user IDs (only for "shared" visibility)
 	CreatedAt   time.Time        `json:"created_at"`
 	CreatedBy   string           `json:"created_by"`
 }
+
+// ---------------------------------------------------------------------------
+// Stream Tags
+// ---------------------------------------------------------------------------
+
+// StreamTagKind classifies stream tags.
+type StreamTagKind string
+
+const (
+	TagKindMerge     StreamTagKind = "merge"
+	TagKindRelease   StreamTagKind = "release"
+	TagKindMilestone StreamTagKind = "milestone"
+	TagKindCustom    StreamTagKind = "custom"
+)
+
+// StreamTag is an immutable marker pinned to a point in a stream's change log.
+type StreamTag struct {
+	ID        string            `json:"id"`
+	ProjectID string            `json:"project_id"`
+	Stream    string            `json:"stream"`
+	Name      string            `json:"name"`
+	Kind      StreamTagKind     `json:"kind"`
+	Cursor    int64             `json:"cursor"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
+	CreatedBy string            `json:"created_by"`
+	CreatedAt time.Time         `json:"created_at"`
+}
+
+// ErrStreamLocked is returned when a write operation is attempted on a locked stream.
+var ErrStreamLocked = fmt.Errorf("stream is locked")
 
 // MergeOptions controls stream merge behavior.
 type MergeOptions struct {
