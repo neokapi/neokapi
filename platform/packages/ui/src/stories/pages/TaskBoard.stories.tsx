@@ -58,7 +58,7 @@ const sampleTasks: TaskInfo[] = [
     type: "fix_brand_voice",
     status: "open",
     priority: "normal",
-    title: "Align mobile strings with brand voice",
+    title: "Align mobile content with brand voice",
     assignee_id: "user-2",
     created_by: "user-1",
     created_at: ago(600),

@@ -49,19 +49,19 @@ func TestTaskStore_CRUD(t *testing.T) {
 			WorkspaceID: "ws-1",
 			ProjectID:   "proj-1",
 			Type:        TaskReview,
-			Title:       "Review strings",
+			Title:       "Review blocks",
 			CreatedBy:   "user-1",
 		}
 		require.NoError(t, store.Create(ctx, task))
 
-		task.Title = "Review all strings"
+		task.Title = "Review all blocks"
 		task.Priority = TaskPriorityUrgent
 		err := store.Update(ctx, task)
 		require.NoError(t, err)
 
 		got, err := store.Get(ctx, task.ID)
 		require.NoError(t, err)
-		assert.Equal(t, "Review all strings", got.Title)
+		assert.Equal(t, "Review all blocks", got.Title)
 		assert.Equal(t, TaskPriorityUrgent, got.Priority)
 	})
 
