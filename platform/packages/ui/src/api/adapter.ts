@@ -457,7 +457,10 @@ export interface ApiAdapter {
 
   // Digest settings
   getDigestSettings(workspaceSlug: string): Promise<DigestSettingsDTO>;
-  updateDigestSettings(workspaceSlug: string, settings: DigestSettingsDTO): Promise<DigestSettingsDTO>;
+  updateDigestSettings(
+    workspaceSlug: string,
+    settings: DigestSettingsDTO,
+  ): Promise<DigestSettingsDTO>;
 
   // Entity annotations
   createEntity(

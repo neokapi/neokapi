@@ -2,13 +2,7 @@ import * as React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Input } from "./ui/input";
 import { Bell, Clock, Globe } from "./icons";
 
@@ -81,9 +75,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             <Bell className="w-4 h-4" />
             Email digest
           </CardTitle>
-          <CardDescription>
-            Receive a summary of notifications by email.
-          </CardDescription>
+          <CardDescription>Receive a summary of notifications by email.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
@@ -115,7 +107,8 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             Quiet hours
           </CardTitle>
           <CardDescription>
-            Suppress non-urgent notifications during these hours. High-priority alerts always deliver immediately.
+            Suppress non-urgent notifications during these hours. High-priority alerts always
+            deliver immediately.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
@@ -123,11 +116,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             <Label htmlFor="quiet-toggle" className="min-w-24">
               Enabled
             </Label>
-            <Switch
-              id="quiet-toggle"
-              checked={quietEnabled}
-              onCheckedChange={toggleQuietHours}
-            />
+            <Switch id="quiet-toggle" checked={quietEnabled} onCheckedChange={toggleQuietHours} />
           </div>
 
           {quietEnabled && (
@@ -168,19 +157,14 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             <Globe className="w-4 h-4" />
             Timezone
           </CardTitle>
-          <CardDescription>
-            Used for quiet hours and digest scheduling.
-          </CardDescription>
+          <CardDescription>Used for quiet hours and digest scheduling.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-4">
             <Label htmlFor="timezone" className="min-w-24">
               Timezone
             </Label>
-            <Select
-              value={settings.timezone}
-              onValueChange={(v) => update({ timezone: v })}
-            >
+            <Select value={settings.timezone} onValueChange={(v) => update({ timezone: v })}>
               <SelectTrigger id="timezone" className="w-56">
                 <SelectValue />
               </SelectTrigger>
@@ -196,9 +180,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
         </CardContent>
       </Card>
 
-      {saving && (
-        <p className="text-xs text-muted-foreground">Saving...</p>
-      )}
+      {saving && <p className="text-xs text-muted-foreground">Saving...</p>}
     </div>
   );
 }

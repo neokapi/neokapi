@@ -540,7 +540,15 @@ export function WorkspaceLayout() {
                 <ConnectedTopBar
                   user={user}
                   onSignOut={serverMode === "server" ? handleSignOut : undefined}
-                  onSettings={serverMode === "server" ? () => void navigate({ to: "/$workspace/user-settings", params: { workspace: ws } }) : undefined}
+                  onSettings={
+                    serverMode === "server"
+                      ? () =>
+                          void navigate({
+                            to: "/$workspace/user-settings",
+                            params: { workspace: ws },
+                          })
+                      : undefined
+                  }
                   workspaceSlug={ws}
                   onViewAllActivities={() =>
                     void navigate({ to: "/$workspace/activities", params: { workspace: ws } })

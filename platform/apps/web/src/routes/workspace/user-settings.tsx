@@ -18,7 +18,9 @@ export function UserSettingsRoute() {
     void api.getDigestSettings(activeWorkspace.slug).then((ds) => {
       if (!cancelled) setSettings(ds);
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [api, activeWorkspace]);
 
   const handleChange = useCallback(

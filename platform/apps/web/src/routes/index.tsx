@@ -364,10 +364,7 @@ const userSettingsRoute = createRoute({
   getParentRoute: () => workspaceRoute,
   path: "user-settings",
   pendingComponent: SettingsSkeleton,
-  component: lazyRouteComponent(
-    () => import("./workspace/user-settings"),
-    "UserSettingsRoute",
-  ),
+  component: lazyRouteComponent(() => import("./workspace/user-settings"), "UserSettingsRoute"),
 });
 
 const settingsRoute = createRoute({

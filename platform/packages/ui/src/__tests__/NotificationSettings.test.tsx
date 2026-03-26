@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vite-plus/test";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NotificationSettings, type DigestSettings } from "../components/NotificationSettings";
 
@@ -15,7 +15,7 @@ describe("NotificationSettings", () => {
     render(<NotificationSettings settings={defaults} onChange={() => {}} />);
     expect(screen.getByText("Email digest")).toBeInTheDocument();
     expect(screen.getByText("Quiet hours")).toBeInTheDocument();
-    expect(screen.getByText("Timezone")).toBeInTheDocument();
+    expect(screen.getAllByText("Timezone")[0]).toBeInTheDocument();
   });
 
   it("shows quiet hours time inputs when enabled", () => {
