@@ -71,7 +71,10 @@ func (s *MCPServer) registerContentTools() { //nolint:funlen
 // --- Input/Output types ---
 
 type listProjectsInput struct {
-	WorkspaceID string `json:"workspace_id" jsonschema:"the workspace to list projects for"`
+	// WorkspaceID is ignored — the MCP server is already scoped to the
+	// authenticated workspace. Kept for backward compatibility but the
+	// filter is no longer applied (agents were passing wrong values).
+	WorkspaceID string `json:"workspace_id,omitempty" jsonschema:"deprecated — ignored, workspace is determined by auth token"`
 }
 type listProjectsOutput struct {
 	Projects []projectSummaryContent `json:"projects"`
@@ -88,9 +91,12 @@ func (s *MCPServer) handleListProjects(ctx context.Context, req *mcp.CallToolReq
 	if err != nil {
 		return nil, listProjectsOutput{}, fmt.Errorf("list projects: %w", err)
 	}
+	// No workspace_id filter — ContentStore is already scoped to the
+	// authenticated workspace. Agents were passing wrong values (slugs,
+	// project names) which caused zero results.
 	var result []projectSummaryContent
 	for _, p := range projects {
-		if input.WorkspaceID != "" && p.WorkspaceID != input.WorkspaceID {
+		if false { // workspace_id filter disabled
 			continue
 		}
 		langs := make([]string, len(p.TargetLanguages))
