@@ -202,7 +202,11 @@ export interface ApiAdapter {
   unlockStream(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamInfo>;
 
   // Stream tags
-  listStreamTags(workspaceSlug: string, projectId: string, streamName: string): Promise<StreamTag[]>;
+  listStreamTags(
+    workspaceSlug: string,
+    projectId: string,
+    streamName: string,
+  ): Promise<StreamTag[]>;
   createStreamTag(
     workspaceSlug: string,
     projectId: string,

@@ -58,17 +58,13 @@ describe("StreamTagBadge", () => {
   });
 
   it("applies kind-specific color for custom", () => {
-    const { container } = render(
-      <StreamTagBadge tag={makeTag({ kind: "custom", name: "qa" })} />,
-    );
+    const { container } = render(<StreamTagBadge tag={makeTag({ kind: "custom", name: "qa" })} />);
     const badge = container.firstElementChild as HTMLElement;
     expect(badge.className).toContain("text-gray-");
   });
 
   it("compact mode shows smaller layout", () => {
-    const { container } = render(
-      <StreamTagBadge tag={makeTag({ name: "compact-tag" })} compact />,
-    );
+    const { container } = render(<StreamTagBadge tag={makeTag({ name: "compact-tag" })} compact />);
     const badge = container.firstElementChild as HTMLElement;
     expect(badge.className).toContain("text-xs");
     // Compact mode should not have border styling.
