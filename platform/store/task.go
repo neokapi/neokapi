@@ -71,9 +71,10 @@ type TaskQuery struct {
 	WorkspaceID string
 	ProjectID   string
 	AssigneeID  string
-	Status      string // empty = all
-	Type        string // empty = all
-	Priority    string // empty = all
+	Status      string     // empty = all
+	Type        string     // empty = all
+	Priority    string     // empty = all
+	DueBefore   *time.Time // if set, only tasks with due_at <= this time
 	Limit       int
 	Cursor      string // created_at cursor
 }
@@ -191,6 +192,10 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 	if q.Priority != "" {
 		where = append(where, "priority = ?")
 		args = append(args, q.Priority)
+	}
+	if q.DueBefore != nil {
+		where = append(where, "due_at IS NOT NULL AND due_at <= ?")
+		args = append(args, q.DueBefore.UTC().Format(time.RFC3339))
 	}
 	if q.Cursor != "" {
 		where = append(where, "created_at < ?")

@@ -142,6 +142,12 @@ type Server struct {
 	// NotificationDispatcher routes events to user notifications. Nil when not configured.
 	NotificationDispatcher *event.NotificationDispatcher
 
+	// deadlineChecker periodically scans for tasks approaching their deadline. Nil when not configured.
+	deadlineChecker *event.DeadlineChecker
+
+	// progressTracker detects translation progress milestones. Nil when not configured.
+	progressTracker *event.ProgressTracker
+
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
 
@@ -311,25 +317,59 @@ func NewServer(cfg ServerConfig) *Server {
 
 	// Wire up notification dispatcher (AD-027).
 	if s.NotificationStore != nil {
+		// targetFn resolves which users should receive a project event notification.
+		// It queries workspace members (excluding the actor who triggered the event).
+		var targetFn event.NotificationTarget
+		if s.AuthStore != nil {
+			targetFn = s.resolveNotificationTargets
+		}
 		s.NotificationDispatcher = event.NewNotificationDispatcher(
-			s.EventBus, s.NotificationStore, s.PreferenceStore, s, nil)
+			s.EventBus, s.NotificationStore, s.PreferenceStore, s, targetFn)
+
+		// Wire immediate email delivery for high-priority notifications.
+		if s.Mailer != nil && s.AuthStore != nil {
+			s.NotificationDispatcher.SetMailer(event.NewMailerAdapter(s.Mailer, s.AuthStore))
+		}
 	}
 
 	// Wire up digest workers (AD-027).
 	if s.DigestStore != nil && s.Mailer != nil {
+		// resolveEmail converts a user ID to their email address.
+		var resolveEmail event.UserEmailResolver
+		if s.AuthStore != nil {
+			resolveEmail = func(ctx context.Context, userID string) (string, error) {
+				u, err := s.AuthStore.GetUser(ctx, userID)
+				if err != nil {
+					return "", err
+				}
+				return u.Email, nil
+			}
+		}
+
 		// Daily digest runs every hour, checking for users due for daily digest.
 		s.DailyDigestWorker = event.NewDigestWorker(
-			s.NotificationStore, s.DigestStore, s.Mailer, nil,
+			s.NotificationStore, s.DigestStore, s.Mailer, resolveEmail,
 			bstore.DigestDaily, 1*time.Hour,
 		)
 		s.DailyDigestWorker.Start()
 
 		// Weekly digest runs every 6 hours, checking for users due for weekly digest.
 		s.WeeklyDigestWorker = event.NewDigestWorker(
-			s.NotificationStore, s.DigestStore, s.Mailer, nil,
+			s.NotificationStore, s.DigestStore, s.Mailer, resolveEmail,
 			bstore.DigestWeekly, 6*time.Hour,
 		)
 		s.WeeklyDigestWorker.Start()
+	}
+
+	// Wire up deadline checker (AD-027).
+	if s.TaskStore != nil && s.NotificationDispatcher != nil {
+		s.deadlineChecker = event.NewDeadlineChecker(s.TaskStore, s.NotificationDispatcher, 1*time.Hour)
+		s.deadlineChecker.Start()
+	}
+
+	// Wire up progress milestone tracker (AD-027).
+	if s.ContentStore != nil && s.NotificationDispatcher != nil {
+		s.progressTracker = event.NewProgressTracker(s.ContentStore, s.NotificationDispatcher, s.EventBus)
 	}
 
 	// Wire up graph sync if graph store is available.
@@ -1053,6 +1093,23 @@ func (s *Server) GetEcho() *echo.Echo {
 		s.SetupRoutes(s.Echo)
 	}
 	return s.Echo
+}
+
+// resolveNotificationTargets returns user IDs of workspace/project members
+// who should receive a notification for a project event, excluding the actor.
+func (s *Server) resolveNotificationTargets(ctx context.Context, projectID string, excludeActorID string) ([]string, error) {
+	members, err := s.AuthStore.ListProjectMembers(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	userIDs := make([]string, 0, len(members))
+	for _, m := range members {
+		if m.UserID != excludeActorID {
+			userIDs = append(userIDs, m.UserID)
+		}
+	}
+	return userIDs, nil
 }
 
 // requestBaseURL returns the base URL (scheme + host) for the current request,

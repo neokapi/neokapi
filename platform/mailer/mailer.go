@@ -262,6 +262,49 @@ func (m *Mailer) renderSubscriptionChanged(data SubscriptionChangedData) (string
 	return m.execute("subscription-changed.html", td)
 }
 
+// NotificationData holds the dynamic values for an immediate notification email.
+type NotificationData struct {
+	// Title is the notification headline.
+	Title string
+	// Body is the notification detail text.
+	Body string
+	// Category is the notification category label (e.g. "Quality", "Task").
+	Category string
+	// Priority is "high" or "normal".
+	Priority string
+	// ActionURL is the URL for the CTA button.
+	ActionURL string
+	// ActionLabel is the text for the CTA button.
+	ActionLabel string
+}
+
+// SendNotification renders and sends an immediate notification email.
+func (m *Mailer) SendNotification(ctx context.Context, to string, data NotificationData) error {
+	body, err := m.renderNotification(data)
+	if err != nil {
+		return err
+	}
+	subject := data.Title + " — Bowrain"
+	return m.Sender.Send(ctx, to, subject, body)
+}
+
+func (m *Mailer) renderNotification(data NotificationData) (string, error) {
+	td := map[string]string{
+		"Title":       html.EscapeString(data.Title),
+		"Body":        html.EscapeString(data.Body),
+		"Category":    html.EscapeString(data.Category),
+		"Priority":    html.EscapeString(data.Priority),
+		"ActionURL":   escapeURL(data.ActionURL),
+		"ActionLabel": html.EscapeString(data.ActionLabel),
+	}
+	return m.execute("notification.html", td)
+}
+
+// SendDigest sends a pre-rendered digest email (HTML body built by DigestWorker).
+func (m *Mailer) SendDigest(ctx context.Context, to, subject, htmlBody string) error {
+	return m.Sender.Send(ctx, to, subject, htmlBody)
+}
+
 // escapeURL encodes a URL for safe use inside an HTML attribute value.
 // It HTML-escapes & (→ &amp;) and other HTML-special characters so the
 // href="…" attribute parses correctly in all email clients.

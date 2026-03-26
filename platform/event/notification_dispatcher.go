@@ -111,6 +111,13 @@ func (d *NotificationDispatcher) handleEvent(ev platev.Event) {
 		if d.sender != nil {
 			d.sender.NotifyUser(userID, &notification)
 		}
+
+		// Send immediate email for high-priority notifications.
+		if d.mailer != nil && notification.Priority == "high" {
+			if err := d.mailer.SendImmediate(ctx, userID, &notification); err != nil {
+				log.Printf("WARNING: failed to send immediate email for user %s: %v", userID, err)
+			}
+		}
 	}
 }
 
@@ -248,6 +255,13 @@ func (d *NotificationDispatcher) DispatchDeadlineApproaching(ctx context.Context
 
 	if d.sender != nil {
 		d.sender.NotifyUser(task.AssigneeID, n)
+	}
+
+	// Deadline notifications are always high-priority — send immediate email.
+	if d.mailer != nil {
+		if err := d.mailer.SendImmediate(ctx, task.AssigneeID, n); err != nil {
+			log.Printf("WARNING: failed to send deadline email for user %s: %v", task.AssigneeID, err)
+		}
 	}
 }
 
