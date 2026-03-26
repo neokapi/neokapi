@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	agentictesting "github.com/neokapi/neokapi/bowrain/agentic-testing"
 	"github.com/neokapi/neokapi/bowrain/agentic-testing/agenticmcp"
 	"github.com/neokapi/neokapi/bowrain/storage"
 )
@@ -41,13 +42,33 @@ func main() {
 	}
 	var mcpOpts []agenticmcp.Option
 
+	var fleetRepo *agenticmcp.GitFleetRepo
 	if cfg.FleetRepoURL != "" {
-		mcpOpts = append(mcpOpts, agenticmcp.WithFleetRepo(&agenticmcp.GitFleetRepo{
+		fleetRepo = &agenticmcp.GitFleetRepo{
 			RepoURL:      cfg.FleetRepoURL,
 			Token:        cfg.FleetRepoToken,
 			CommitAuthor: "coordinator",
-		}))
+		}
+		mcpOpts = append(mcpOpts, agenticmcp.WithFleetRepo(fleetRepo))
 		log.Printf("Fleet repo configured: %s", cfg.FleetRepoURL)
+	}
+
+	// Wire release walker when fleet repo and bowrain API are both configured.
+	// The walker clones forks on demand from plan.yaml — no local ForkDir needed.
+	if fleetRepo != nil && cfg.BowrainAPIURL != "" {
+		githubToken := cfg.FleetRepoToken // Reuse fleet repo token for fork cloning.
+		bowrainClient := &agentictesting.BowrainClient{
+			BaseURL: cfg.BowrainAPIURL,
+			Token:   cfg.BowrainAPIToken,
+		}
+		walker := &agenticmcp.GitReleaseWalker{
+			Fleet:       fleetRepo,
+			Bowrain:     bowrainClient,
+			GitHubToken: githubToken,
+			CacheDir:    os.Getenv("AGENTIC_FORK_CACHE_DIR"), // Optional: persistent cache across restarts
+		}
+		mcpOpts = append(mcpOpts, agenticmcp.WithReleaseWalker(walker))
+		log.Printf("Release walker configured (forks cloned on demand)")
 	}
 
 	if cfg.GitHubIssuesRepo != "" {
@@ -139,6 +160,6 @@ type config struct {
 	FleetRepoToken    string
 	GitHubIssuesRepo  string
 	GitHubIssuesToken string
-	BowrainAPIURL     string
-	BowrainAPIToken   string
+	BowrainAPIURL   string
+	BowrainAPIToken string
 }

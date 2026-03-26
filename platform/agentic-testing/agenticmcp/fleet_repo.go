@@ -12,7 +12,7 @@ import (
 )
 
 // GitFleetRepo implements FleetRepo by cloning and operating on the
-// bowrain-testing-ctrl git repository.
+// agentic-fleet git repository.
 type GitFleetRepo struct {
 	// RepoURL is the git clone URL (HTTPS or SSH).
 	RepoURL string
@@ -331,21 +331,31 @@ func (r *GitFleetRepo) readPlan(path string) (*WorkspacePlan, error) {
 	return &plan, nil
 }
 
-// workspaceStatus is the parsed status.yaml for a workspace.
-type workspaceStatus struct {
+// WorkspaceStatus is the parsed status.yaml for a workspace.
+type WorkspaceStatus struct {
 	Phase          string `yaml:"phase"`
 	CurrentRelease string `yaml:"current_release"`
 }
 
+// GetWorkspaceStatus reads and parses a workspace's status.yaml.
+func (r *GitFleetRepo) GetWorkspaceStatus(ctx context.Context, slug string) (*WorkspaceStatus, error) {
+	dir, err := r.ensureClone(ctx)
+	if err != nil {
+		return nil, err
+	}
+	status := r.readStatus(filepath.Join(dir, "workspaces", slug, "status.yaml"))
+	return &status, nil
+}
+
 // readStatus reads status.yaml, returning defaults if missing.
-func (r *GitFleetRepo) readStatus(path string) workspaceStatus {
+func (r *GitFleetRepo) readStatus(path string) WorkspaceStatus {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return workspaceStatus{Phase: "unknown"}
+		return WorkspaceStatus{Phase: "unknown"}
 	}
-	var status workspaceStatus
+	var status WorkspaceStatus
 	if err := yaml.Unmarshal(data, &status); err != nil {
-		return workspaceStatus{Phase: "unknown"}
+		return WorkspaceStatus{Phase: "unknown"}
 	}
 	return status
 }

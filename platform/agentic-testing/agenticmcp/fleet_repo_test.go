@@ -85,10 +85,10 @@ release_strategy:
   start_tag: v1.0.0
   end_tag: latest
   pace: 2h
-content_paths:
-  - path: "locales/*.json"
-    format: json
-    estimated_blocks: 500
+content:
+  hint: "Locale files are flat JSON in a locales/ directory."
+  format: json
+  source_file_pattern: "**/locales/en.json"
 `), 0o644))
 
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o755))
@@ -105,9 +105,9 @@ content_paths:
 	assert.Equal(t, "test/project", plan.UpstreamRepo)
 	assert.Equal(t, "accelerated-then-realtime", plan.ReleaseStrategy.Mode)
 	assert.Equal(t, "v1.0.0", plan.ReleaseStrategy.StartTag)
-	require.Len(t, plan.ContentPaths, 1)
-	assert.Equal(t, "locales/*.json", plan.ContentPaths[0].Path)
-	assert.Equal(t, 500, plan.ContentPaths[0].EstimatedBlocks)
+	assert.Equal(t, "json", plan.Content.Format)
+	assert.Equal(t, "**/locales/en.json", plan.Content.SourceFilePattern)
+	assert.Contains(t, plan.Content.Hint, "Locale files")
 }
 
 func TestGitFleetRepo_GetWorkspacePlan_NotFound(t *testing.T) {
@@ -158,14 +158,14 @@ func TestGitFleetRepo_ListWorkspaces_SkipInvalidPlan(t *testing.T) {
 }
 
 func TestGitFleetRepo_RepoURL(t *testing.T) {
-	r := &GitFleetRepo{RepoURL: "https://github.com/neokapi/bowrain-testing-ctrl.git"}
-	assert.Equal(t, "https://github.com/neokapi/bowrain-testing-ctrl.git", r.repoURL())
+	r := &GitFleetRepo{RepoURL: "https://github.com/neokapi/agentic-fleet.git"}
+	assert.Equal(t, "https://github.com/neokapi/agentic-fleet.git", r.repoURL())
 
 	r.Token = "ghp_abc123"
-	assert.Equal(t, "https://x-access-token:ghp_abc123@github.com/neokapi/bowrain-testing-ctrl.git", r.repoURL())
+	assert.Equal(t, "https://x-access-token:ghp_abc123@github.com/neokapi/agentic-fleet.git", r.repoURL())
 
-	r.RepoURL = "git@github.com:neokapi/bowrain-testing-ctrl.git"
-	assert.Equal(t, "git@github.com:neokapi/bowrain-testing-ctrl.git", r.repoURL(), "SSH URLs should not be modified")
+	r.RepoURL = "git@github.com:neokapi/agentic-fleet.git"
+	assert.Equal(t, "git@github.com:neokapi/agentic-fleet.git", r.repoURL(), "SSH URLs should not be modified")
 }
 
 func TestReadStatus_Missing(t *testing.T) {
