@@ -3,6 +3,7 @@ package mcp
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -118,7 +119,7 @@ type getProjectInput struct {
 }
 
 func (s *MCPServer) handleGetProject(ctx context.Context, req *mcp.CallToolRequest, input getProjectInput) (*mcp.CallToolResult, projectSummaryContent, error) {
-	p, err := s.contentStore.GetProject(ctx, input.ProjectID)
+	p, err := s.contentStore.GetProject(ctx, s.resolveProjectID(ctx, input.ProjectID))
 	if err != nil {
 		return nil, projectSummaryContent{}, fmt.Errorf("get project: %w", err)
 	}
@@ -153,12 +154,15 @@ type blockSummary struct {
 }
 
 func (s *MCPServer) handleListBlocks(ctx context.Context, req *mcp.CallToolRequest, input listBlocksInput) (*mcp.CallToolResult, listBlocksOutput, error) {
+	// Resolve project_id if it looks like a name instead of a UUID.
+	projectID := s.resolveProjectID(ctx, input.ProjectID)
+
 	limit := input.Limit
 	if limit <= 0 {
 		limit = 100
 	}
 	q := store.BlockQuery{
-		ProjectID: input.ProjectID,
+		ProjectID: projectID,
 		Stream:    input.Stream,
 		ItemName:  input.ItemName,
 		Limit:     limit,
@@ -196,7 +200,7 @@ type getBlockOutput struct {
 }
 
 func (s *MCPServer) handleGetBlock(ctx context.Context, req *mcp.CallToolRequest, input getBlockInput) (*mcp.CallToolResult, getBlockOutput, error) {
-	b, err := s.contentStore.GetBlock(ctx, input.ProjectID, input.Stream, input.BlockID)
+	b, err := s.contentStore.GetBlock(ctx, s.resolveProjectID(ctx, input.ProjectID), input.Stream, input.BlockID)
 	if err != nil {
 		return nil, getBlockOutput{}, fmt.Errorf("get block: %w", err)
 	}
@@ -400,19 +404,20 @@ func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequ
 	if input.TargetLocale == "" {
 		return nil, updateBlockOutput{}, fmt.Errorf("target_locale is required")
 	}
+	projectID := s.resolveProjectID(ctx, input.ProjectID)
 	stream := input.Stream
 	if stream == "" {
 		stream = "main"
 	}
 
-	sb, err := s.contentStore.GetBlock(ctx, input.ProjectID, stream, input.BlockID)
+	sb, err := s.contentStore.GetBlock(ctx, projectID, stream, input.BlockID)
 	if err != nil {
 		return nil, updateBlockOutput{}, fmt.Errorf("get block: %w", err)
 	}
 
 	sb.Block.SetTargetText(model.LocaleID(input.TargetLocale), input.TargetText)
 
-	if err := s.contentStore.StoreBlocks(ctx, input.ProjectID, stream, []*model.Block{sb.Block}); err != nil {
+	if err := s.contentStore.StoreBlocks(ctx, projectID, stream, []*model.Block{sb.Block}); err != nil {
 		return nil, updateBlockOutput{}, fmt.Errorf("store block: %w", err)
 	}
 
@@ -421,4 +426,31 @@ func (s *MCPServer) handleUpdateBlock(ctx context.Context, req *mcp.CallToolRequ
 		TargetLocale: input.TargetLocale,
 		Updated:      true,
 	}, nil
+}
+
+// resolveProjectID resolves a project_id that might be a name instead of a UUID.
+// If the value contains only hex digits and dashes (UUID-like), it's returned as-is.
+// Otherwise, it's treated as a project name and looked up via ListProjects.
+func (s *MCPServer) resolveProjectID(ctx context.Context, id string) string {
+	if id == "" {
+		return id
+	}
+	// Quick check: if it looks like a UUID or internal ID, use it directly.
+	for _, c := range id {
+		if (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == '-' || c == '_' {
+			continue
+		}
+		// Contains non-hex chars — likely a name. Try to resolve.
+		projects, err := s.contentStore.ListProjects(ctx)
+		if err != nil {
+			return id // can't resolve, return as-is
+		}
+		for _, p := range projects {
+			if strings.EqualFold(p.Name, id) {
+				return p.ID
+			}
+		}
+		return id // not found, return as-is
+	}
+	return id
 }
