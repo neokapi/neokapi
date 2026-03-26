@@ -184,6 +184,9 @@ export class RestApiAdapter implements ApiAdapter {
         return retry.json();
       }
       this.onSessionExpired?.();
+      // Block forever — the page is redirecting to login. Throwing would cause
+      // React Query to flash error UI before the navigation completes.
+      return new Promise<T>(() => {});
     }
     if (!resp.ok) {
       const body = await resp.text();
@@ -232,6 +235,7 @@ export class RestApiAdapter implements ApiAdapter {
         return retry.text();
       }
       this.onSessionExpired?.();
+      return new Promise<string>(() => {});
     }
     if (!resp.ok) {
       const body = await resp.text();

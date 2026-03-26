@@ -33,7 +33,7 @@ export const Default: Story = {
     onEditProject: fn(),
     onArchiveProject: fn(),
     onManageMembers: fn(),
-    onTogglePulseVisibility: fn(),
+    onOpenSettings: fn(),
     onCreateCollection: fn(),
     onEditCollection: fn(),
     onDeleteCollection: fn(),

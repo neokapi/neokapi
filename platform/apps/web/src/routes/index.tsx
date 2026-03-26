@@ -25,6 +25,7 @@ import { AuthLayout } from "./auth-layout";
 import { WorkspaceLayout } from "./workspace-layout";
 import { ProjectDashboardRoute } from "./workspace/dashboard";
 import { ProjectDetailRoute } from "./workspace/project-detail";
+import { ProjectSettingsRoute } from "./workspace/project-settings";
 import { JoinRoute } from "./auth/join";
 import { ClaimRoute } from "./auth/claim";
 import { DeviceVerifyRoute } from "./auth/device-verify";
@@ -226,6 +227,18 @@ const projectRoute = createRoute({
   },
   pendingComponent: ProjectDetailSkeleton,
   component: ProjectDetailRoute,
+});
+
+const projectSettingsRoute = createRoute({
+  getParentRoute: () => workspaceRoute,
+  path: "p/$projectId/s/$stream/settings",
+  loader: async ({ context: { queryClient, api, activeWorkspace }, params }) => {
+    await queryClient.ensureQueryData(
+      projectQueryOptions(api, activeWorkspace.slug, params.projectId, params.stream),
+    );
+  },
+  pendingComponent: SettingsSkeleton,
+  component: ProjectSettingsRoute,
 });
 
 const translateRoute = createRoute({
@@ -470,6 +483,7 @@ const routeTree = rootRoute.addChildren([
   workspaceRoute.addChildren([
     dashboardRoute,
     projectRoute,
+    projectSettingsRoute,
     translateRoute,
     automationsRoute,
     translationDashboardRoute,
