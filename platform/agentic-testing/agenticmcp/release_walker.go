@@ -43,6 +43,19 @@ func (w *GitReleaseWalker) WalkRelease(ctx context.Context, workspaceSlug, proje
 		return nil, fmt.Errorf("read status: %w", err)
 	}
 
+	// 1b. Resolve project ID if not provided — look up by name from plan.yaml.
+	if projectID == "" {
+		projectName := plan.GetProjectName()
+		if projectName == "" {
+			return nil, fmt.Errorf("plan.yaml has no project name and no project_id was provided")
+		}
+		proj, err := w.Bowrain.FindProjectByName(ctx, workspaceSlug, projectName)
+		if err != nil {
+			return nil, fmt.Errorf("resolve project %q: %w", projectName, err)
+		}
+		projectID = proj.ID
+	}
+
 	// 2. Determine which tag to walk to.
 	if tag == "" {
 		next, err := nextTag(plan.ReleaseStrategy.Tags, status.CurrentRelease)
