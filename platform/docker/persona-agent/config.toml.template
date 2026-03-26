@@ -24,11 +24,12 @@ auto_approve = [
   "tool_search"
 ]
 
-# Enable MCP with deferred loading — only tool names are sent to the LLM
-# initially. Full schemas are fetched on-demand via tool_search, saving tokens.
+# Enable MCP with eager loading — all 27 Bowrain tool schemas loaded upfront.
+# This eliminates the tool_search roundtrip that wastes 1-2 turns per session.
+# With only ~27 tools the context cost is small (~5KB).
 [mcp]
 enabled = true
-deferred_loading = true
+deferred_loading = false
 
 # Bowrain MCP — content management tools (all agents).
 # The JWT is obtained by exchanging the agent's API token (bwt_*) at startup.
