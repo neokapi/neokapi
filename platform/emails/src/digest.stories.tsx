@@ -32,7 +32,7 @@ export const DailyDigest: Story = {
         items: [
           {
             title: "New task assigned: Review French translations",
-            body: "Alice assigned you to review 24 strings in fr-FR for the Mobile App project.",
+            body: "Alice assigned you to review 24 blocks in fr-FR for the Mobile App project.",
           },
           {
             title: "Task completed: Translate homepage",
@@ -61,7 +61,7 @@ export const DailyDigest: Story = {
           },
           {
             title: "New content available",
-            body: "12 new strings pushed to the Mobile App project for translation.",
+            body: "12 new blocks pushed to the Mobile App project for translation.",
           },
         ],
       },
@@ -119,7 +119,7 @@ export const WeeklySummary: Story = {
           },
           {
             title: "New content available",
-            body: "48 new strings pushed across 3 projects this week.",
+            body: "48 new blocks pushed across 3 projects this week.",
           },
         ],
       },
@@ -129,7 +129,7 @@ export const WeeklySummary: Story = {
         items: [
           {
             title: "Deadline approaching: Translate settings page",
-            body: "Due in 24 hours. 8 strings remaining in de-DE.",
+            body: "Due in 24 hours. 8 blocks remaining in de-DE.",
             priority: "high",
           },
           {
@@ -152,7 +152,7 @@ export const WeeklySummary: Story = {
           },
           {
             title: "Quality gate failed: Length check (de-DE)",
-            body: "12 strings exceed maximum length in de-DE for the Mobile App project.",
+            body: "12 blocks exceed maximum length in de-DE for the Mobile App project.",
             priority: "high",
           },
         ],
@@ -213,7 +213,7 @@ export const MinimalDaily: Story = {
         items: [
           {
             title: "New content available for translation",
-            body: "3 new strings added to the Landing Page project.",
+            body: "3 new blocks added to the Landing Page project.",
           },
         ],
       },
@@ -244,8 +244,8 @@ export const HighPriorityOnly: Story = {
         label: "Tasks",
         items: [
           {
-            title: "Deadline approaching: Review mobile strings",
-            body: "Due tomorrow. 42 strings awaiting review in ja-JP.",
+            title: "Deadline approaching: Review mobile content",
+            body: "Due tomorrow. 42 blocks awaiting review in ja-JP.",
             priority: "high",
           },
         ],
