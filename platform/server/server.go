@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
@@ -126,6 +127,14 @@ type Server struct {
 
 	// PreferenceStore persists notification preferences. Nil when not configured.
 	PreferenceStore *bstore.PreferenceStore
+
+	// DigestStore persists digest settings and state. Nil when not configured.
+	DigestStore *bstore.DigestStore
+
+	// DailyDigestWorker sends daily digest emails. Nil when not configured.
+	DailyDigestWorker *event.DigestWorker
+	// WeeklyDigestWorker sends weekly digest emails. Nil when not configured.
+	WeeklyDigestWorker *event.DigestWorker
 
 	// ActivityRecorder subscribes to events and records activities. Nil when not configured.
 	ActivityRecorder *event.ActivityRecorder
@@ -246,6 +255,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.ActivityStore = bstore.NewPostgresActivityStore(pgSQL)
 			s.TaskStore = bstore.NewPostgresTaskStore(pgSQL)
 			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
+			s.DigestStore = bstore.NewPostgresDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
 			s.GraphStore = pg.GraphStore
 			s.AgentStore = pg.Agent
@@ -303,6 +313,23 @@ func NewServer(cfg ServerConfig) *Server {
 	if s.NotificationStore != nil {
 		s.NotificationDispatcher = event.NewNotificationDispatcher(
 			s.EventBus, s.NotificationStore, s.PreferenceStore, s, nil)
+	}
+
+	// Wire up digest workers (AD-027).
+	if s.DigestStore != nil && s.Mailer != nil {
+		// Daily digest runs every hour, checking for users due for daily digest.
+		s.DailyDigestWorker = event.NewDigestWorker(
+			s.NotificationStore, s.DigestStore, s.Mailer, nil,
+			bstore.DigestDaily, 1*time.Hour,
+		)
+		s.DailyDigestWorker.Start()
+
+		// Weekly digest runs every 6 hours, checking for users due for weekly digest.
+		s.WeeklyDigestWorker = event.NewDigestWorker(
+			s.NotificationStore, s.DigestStore, s.Mailer, nil,
+			bstore.DigestWeekly, 6*time.Hour,
+		)
+		s.WeeklyDigestWorker.Start()
 	}
 
 	// Wire up graph sync if graph store is available.
@@ -914,6 +941,8 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/notifications/ws", s.HandleNotificationWebSocket)
 	g.GET("/notifications/preferences", s.HandleGetNotificationPreferences)
 	g.PUT("/notifications/preferences", s.HandleUpdateNotificationPreferences)
+	g.GET("/notifications/digest-settings", s.HandleGetDigestSettings)
+	g.PUT("/notifications/digest-settings", s.HandleUpdateDigestSettings)
 
 	// Activities (workspace-scoped, AD-027)
 	g.GET("/activities", s.HandleListActivities)
