@@ -737,6 +737,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
 			syncGroup.GET("/status", s.HandleSyncPushStatus)
+			// V2 sync routes (AD-038)
+			syncGroup.POST("/push/init", s.HandleSyncPushInit, legacySyncRateLimit)
+			syncGroup.POST("/push/diff", s.HandleSyncPushDiff)
+			syncGroup.POST("/push/commit", s.HandleSyncPushCommit, legacySyncRateLimit)
+			syncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
 
 			// Stream-scoped sync routes: /projects/:id/streams/:stream/sync/*
 			streamSyncGroup := v1.Group("/projects/:id/streams/:stream/sync")
@@ -746,6 +751,11 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			streamSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			streamSyncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
 			streamSyncGroup.GET("/status", s.HandleSyncPushStatus)
+			// V2 stream-scoped
+			streamSyncGroup.POST("/push/init", s.HandleSyncPushInit, legacySyncRateLimit)
+			streamSyncGroup.POST("/push/diff", s.HandleSyncPushDiff)
+			streamSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, legacySyncRateLimit)
+			streamSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
 		}
 
 		// Workspace endpoints (require auth + workspace membership)

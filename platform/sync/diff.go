@@ -136,6 +136,12 @@ func (d *DiffEngine) CompareBlocks(ctx context.Context, projectID, stream, itemN
 	return result, nil
 }
 
+// ExportItemHashes returns computed item-level hashes for a project.
+// Exported for CLI and tests.
+func (d *DiffEngine) ExportItemHashes(ctx context.Context, projectID, stream string) (map[string]string, error) {
+	return d.loadItemHashes(ctx, projectID, stream)
+}
+
 // CheckRootHash performs the fast path: if the client root hash matches the
 // server's, nothing changed and we can skip all diff computation.
 func (d *DiffEngine) CheckRootHash(ctx context.Context, projectID, stream, clientRootHash string) (bool, error) {
