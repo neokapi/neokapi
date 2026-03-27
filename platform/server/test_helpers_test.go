@@ -1,10 +1,19 @@
 package server
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
+	bowrainstorage "github.com/neokapi/neokapi/bowrain/storage"
+	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
@@ -30,13 +39,68 @@ func initTestStores(t *testing.T, srv *Server) {
 		srv.Services.Auth = service.NewAuthService(as, srv.Config.JWTSecret)
 	}
 
+	// Wire up blob store and job queue for async sync push (AD-037).
+	if bs, err := bloblocal.New(t.TempDir()); err == nil {
+		srv.BlobStore = bs
+	}
+	jobDB, _ := bowrainstorage.Open(":memory:")
+	if jobDB != nil {
+		t.Cleanup(func() { jobDB.Close() })
+		js, _ := jobs.NewSQLiteJobStore(jobDB)
+		if js != nil {
+			srv.JobStore = js
+			srv.JobQueue = jobs.NewChannelQueue(64)
+		}
+	}
+
 	// Install factory functions for in-memory TM/TB stores.
+	// Note: initTestStores also exposes DB() for SQLiteJobStore via cs.
 	srv.wsStores.tmFactory = func() sievepen.TMStore {
 		return &testTMStore{sievepen.NewInMemoryTM()}
 	}
 	srv.wsStores.tbFactory = func() termbase.TBStore {
 		return &testTermStore{termbase.NewInMemoryTermBase()}
 	}
+}
+
+// drainPushQueue processes all queued sync-push jobs immediately.
+// Call after each push to simulate the worker.
+func drainPushQueue(t *testing.T, srv *Server) {
+	t.Helper()
+	for {
+		// Non-blocking dequeue with immediate timeout.
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		jobID, ack, _, err := srv.JobQueue.Dequeue(ctx)
+		cancel()
+		if err != nil || jobID == "" {
+			break
+		}
+		deps := &jobs.WorkerDeps{
+			JobStore:     srv.JobStore,
+			ContentStore: srv.ContentStore,
+			BlobStore:    srv.BlobStore,
+			Queue:        srv.JobQueue,
+		}
+		if err := jobs.ProcessSyncPushJobForTest(context.Background(), deps, jobID); err != nil {
+			t.Logf("drainPushQueue: job %s failed: %v", jobID, err)
+		}
+		ack()
+	}
+}
+
+// pushAndDrain sends a sync push and processes the queued job immediately.
+// Returns the push response. All sync tests should use this instead of
+// sending the push directly (since push is now always async).
+func pushAndDrain(t *testing.T, srv *Server, e *echo.Echo, authHeader, url, body string) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodPost, url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusAccepted, rec.Code, "push should return 202 Accepted")
+	drainPushQueue(t, srv)
+	return rec
 }
 
 // testTMStore wraps InMemoryTM to satisfy the TMStore interface for tests.
