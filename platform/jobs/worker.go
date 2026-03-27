@@ -39,9 +39,13 @@ type WorkerDeps struct {
 	// Signature: func(stepID, level, message string, data map[string]string).
 	// Optional; nil disables run logging.
 	LogFunc func(stepID, level, message string, data map[string]string)
-	// BlobStore provides access to push payloads for async sync processing (AD-037).
+	// BlobStore provides access to push payloads for sync processing.
 	BlobStore corestorage.BlobStore
-	// EventBus publishes events after sync push processing (AD-037).
+	// Decompressor for zstd-compressed sync chunks (AD-038). Optional.
+	Decompressor interface {
+		Decompress(data []byte) ([]byte, error)
+	}
+	// EventBus publishes events after sync push processing.
 	EventBus platev.EventBus
 }
 

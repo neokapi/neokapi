@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/neokapi/neokapi/bowrain/compression"
 )
 
 // StreamHeader is the HTTP header used to communicate the active stream (legacy).
@@ -32,6 +34,8 @@ type BowrainClient struct {
 
 	refreshToken   string                             // opaque refresh token for auto-refresh
 	onTokenRefresh func(newAccess, newRefresh string) // callback after successful refresh
+
+	compressor *compression.Pool // optional zstd compressor for chunk upload
 }
 
 // NewWorkspaceBowrainClient creates a client that uses workspace-scoped routes with auth.
@@ -92,6 +96,12 @@ func (c *BowrainClient) streamPrefix() string {
 // Empty or "main" means the default stream.
 func (c *BowrainClient) SetStream(stream string) {
 	c.stream = stream
+}
+
+// EnableCompression enables zstd compression for chunk uploads.
+// Call with nil dict for default compression, or pass a trained dictionary.
+func (c *BowrainClient) EnableCompression(dict []byte) {
+	c.compressor = compression.NewPool(dict)
 }
 
 // Stream returns the current active stream name.

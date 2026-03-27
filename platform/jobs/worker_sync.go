@@ -124,7 +124,13 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			return fmt.Errorf("read chunk %d: %w", chunkRef.Index, err)
 		}
 
-		// TODO: zstd decompress when compression is enabled
+		// Attempt zstd decompression (compressed chunks start with zstd magic bytes).
+		if deps.Decompressor != nil && len(chunkData) > 4 {
+			if decompressed, err := deps.Decompressor.Decompress(chunkData); err == nil {
+				chunkData = decompressed
+			}
+			// If decompression fails, assume uncompressed data and continue.
+		}
 
 		// Deserialize protobuf SyncChunk.
 		var chunk pb.SyncChunk

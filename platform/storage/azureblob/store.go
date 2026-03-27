@@ -216,3 +216,102 @@ func isBlobNotFound(err error) bool {
 }
 
 func to[T any](v T) *T { return &v }
+
+// readSeekNopCloser wraps an io.ReadSeeker with a no-op Close.
+type readSeekNopCloser struct {
+	io.ReadSeeker
+}
+
+func (readSeekNopCloser) Close() error { return nil }
+
+// ---------------------------------------------------------------------------
+// ChunkedBlobStore implementation (AD-038)
+// ---------------------------------------------------------------------------
+
+// InitUpload prepares a chunked upload session. For Azure Block Blobs,
+// this is a no-op — blocks can be staged at any time.
+func (s *Store) InitUpload(_ context.Context, uploadKey string) (string, error) {
+	return uploadKey, nil
+}
+
+// StageChunk uploads one chunk as a Block Blob block.
+func (s *Store) StageChunk(ctx context.Context, uploadID string, chunkIndex int, data []byte) error {
+	bName := blobName(uploadID)
+	blockID := fmt.Sprintf("%08d", chunkIndex)
+	encodedID := hex.EncodeToString([]byte(blockID))
+
+	bbClient := s.client.ServiceClient().NewContainerClient(s.containerName).NewBlockBlobClient(bName)
+	_, err := bbClient.StageBlock(ctx, encodedID, readSeekNopCloser{bytes.NewReader(data)}, nil)
+	if err != nil {
+		return fmt.Errorf("stage block %d: %w", chunkIndex, err)
+	}
+	return nil
+}
+
+// CommitUpload finalizes the chunked upload by committing all staged blocks.
+func (s *Store) CommitUpload(ctx context.Context, uploadID string, totalChunks int) error {
+	bName := blobName(uploadID)
+
+	blockIDs := make([]string, totalChunks)
+	for i := 0; i < totalChunks; i++ {
+		blockID := fmt.Sprintf("%08d", i)
+		blockIDs[i] = hex.EncodeToString([]byte(blockID))
+	}
+
+	bbClient := s.client.ServiceClient().NewContainerClient(s.containerName).NewBlockBlobClient(bName)
+	_, err := bbClient.CommitBlockList(ctx, blockIDs, nil)
+	if err != nil {
+		return fmt.Errorf("commit block list: %w", err)
+	}
+	return nil
+}
+
+// AbortUpload is a no-op for Azure — uncommitted blocks expire automatically after 7 days.
+func (s *Store) AbortUpload(_ context.Context, _ string) error {
+	return nil
+}
+
+// GenerateChunkUploadURLs returns SAS URLs for direct client upload of each chunk.
+func (s *Store) GenerateChunkUploadURLs(ctx context.Context, uploadID string, chunkCount int, opts storage.SignOptions) ([]string, error) {
+	if s.serviceClient == nil {
+		return nil, storage.ErrNotSupported
+	}
+
+	expiry := opts.ExpiresIn
+	if expiry == 0 {
+		expiry = 1 * time.Hour
+	}
+
+	// Generate a user delegation key for SAS tokens.
+	now := time.Now().UTC()
+	info := service.KeyInfo{
+		Start:  to(now.Format(sas.TimeFormat)),
+		Expiry: to(now.Add(expiry).Format(sas.TimeFormat)),
+	}
+	udk, err := s.serviceClient.GetUserDelegationCredential(ctx, info, nil)
+	if err != nil {
+		return nil, fmt.Errorf("user delegation key: %w", err)
+	}
+
+	urls := make([]string, chunkCount)
+	bName := blobName(uploadID)
+
+	for i := 0; i < chunkCount; i++ {
+		sasValues := sas.BlobSignatureValues{
+			Protocol:      sas.ProtocolHTTPS,
+			StartTime:     now,
+			ExpiryTime:    now.Add(expiry),
+			Permissions:   to(sas.BlobPermissions{Write: true, Create: true}).String(),
+			ContainerName: s.containerName,
+			BlobName:      bName,
+		}
+		token, err := sasValues.SignWithUserDelegation(udk)
+		if err != nil {
+			return nil, fmt.Errorf("sign chunk %d SAS: %w", i, err)
+		}
+		urls[i] = fmt.Sprintf("%s/%s/%s?%s",
+			s.client.URL(), s.containerName, bName, token.Encode())
+	}
+
+	return urls, nil
+}
