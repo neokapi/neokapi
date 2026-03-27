@@ -1,11 +1,58 @@
 package brand
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mockBrandStore is a minimal BrandStore for testing profile resolution.
+type mockBrandStore struct {
+	profiles map[string]*VoiceProfile
+}
+
+func (m *mockBrandStore) GetProfile(_ context.Context, id string) (*VoiceProfile, error) {
+	p, ok := m.profiles[id]
+	if !ok {
+		return nil, fmt.Errorf("profile not found: %s", id)
+	}
+	return p, nil
+}
+
+func (m *mockBrandStore) CreateProfile(context.Context, *VoiceProfile) error            { return nil }
+func (m *mockBrandStore) UpdateProfile(context.Context, *VoiceProfile) error            { return nil }
+func (m *mockBrandStore) DeleteProfile(context.Context, string) error                   { return nil }
+func (m *mockBrandStore) ListProfiles(context.Context, string) ([]*VoiceProfile, error) { return nil, nil }
+func (m *mockBrandStore) ListProfileVersions(context.Context, string) ([]*ProfileVersion, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) GetProfileVersion(context.Context, string, int) (*ProfileVersion, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) GetProfileAtTag(context.Context, string, string) (*VoiceProfile, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) CreateProfileTag(context.Context, *ProfileTag) error            { return nil }
+func (m *mockBrandStore) ListProfileTags(context.Context, string) ([]*ProfileTag, error) { return nil, nil }
+func (m *mockBrandStore) DeleteProfileTag(context.Context, string, string) error         { return nil }
+func (m *mockBrandStore) StoreScore(context.Context, *StoredScore) error                 { return nil }
+func (m *mockBrandStore) GetScores(context.Context, string, string) ([]*StoredScore, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) GetScoreTrends(context.Context, string, int) ([]*ScoreTrend, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) GetScoresByStream(context.Context, string, string) ([]*StoredScore, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) StoreCorrection(context.Context, *Correction) error { return nil }
+func (m *mockBrandStore) GetSuggestedRules(context.Context, string, int) ([]*SuggestedRule, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) Close() error { return nil }
 
 func TestResolveProfile_Nil(t *testing.T) {
 	assert.Nil(t, ResolveProfile(nil, "en", "web"))
@@ -116,4 +163,134 @@ func TestResolveProfile_UnknownLocale(t *testing.T) {
 
 	require.NotNil(t, resolved)
 	assert.Equal(t, "casual", resolved.Tone.Formality) // unchanged
+}
+
+func TestResolveProfileFromContext(t *testing.T) {
+	store := &mockBrandStore{
+		profiles: map[string]*VoiceProfile{
+			"ws-default": {ID: "ws-default", Name: "Workspace Default", Tone: ToneProfile{Formality: "formal"}},
+			"proj-voice": {ID: "proj-voice", Name: "Project Voice", Tone: ToneProfile{Formality: "neutral"}},
+			"stream-exp": {ID: "stream-exp", Name: "Stream Experiment", Tone: ToneProfile{Formality: "casual"}},
+			"col-voice":  {ID: "col-voice", Name: "Collection Voice", Tone: ToneProfile{Formality: "technical"}},
+			"explicit":   {ID: "explicit", Name: "Explicit", Tone: ToneProfile{Formality: "formal"}},
+			"with-channel": {
+				ID: "with-channel", Name: "With Channel", Tone: ToneProfile{Formality: "formal"},
+				Channels: map[string]ChannelOverride{
+					"email": {Tone: &ToneProfile{Formality: "casual", Personality: []string{"friendly"}}},
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		rc            ResolveContext
+		wantName      string
+		wantFormality string
+		wantNil       bool
+	}{
+		{
+			name:    "no bindings returns nil",
+			rc:      ResolveContext{},
+			wantNil: true,
+		},
+		{
+			name:          "workspace default",
+			rc:            ResolveContext{WorkspaceProfileID: "ws-default"},
+			wantName:      "Workspace Default",
+			wantFormality: "formal",
+		},
+		{
+			name: "project overrides workspace",
+			rc: ResolveContext{
+				WorkspaceProfileID: "ws-default",
+				ProjectProperties:  map[string]string{PropertyProfileID: "proj-voice"},
+			},
+			wantName:      "Project Voice",
+			wantFormality: "neutral",
+		},
+		{
+			name: "stream overrides project",
+			rc: ResolveContext{
+				ProjectProperties: map[string]string{PropertyProfileID: "proj-voice"},
+				StreamProperties:  map[string]string{PropertyProfileID: "stream-exp"},
+			},
+			wantName:      "Stream Experiment",
+			wantFormality: "casual",
+		},
+		{
+			name: "collection overrides stream",
+			rc: ResolveContext{
+				StreamProperties: map[string]string{PropertyProfileID: "stream-exp"},
+				CollectionConfig: map[string]string{PropertyProfileID: "col-voice"},
+			},
+			wantName:      "Collection Voice",
+			wantFormality: "technical",
+		},
+		{
+			name: "explicit overrides everything",
+			rc: ResolveContext{
+				ExplicitProfileID:  "explicit",
+				WorkspaceProfileID: "ws-default",
+				ProjectProperties:  map[string]string{PropertyProfileID: "proj-voice"},
+				StreamProperties:   map[string]string{PropertyProfileID: "stream-exp"},
+				CollectionConfig:   map[string]string{PropertyProfileID: "col-voice"},
+			},
+			wantName:      "Explicit",
+			wantFormality: "formal",
+		},
+		{
+			name: "channel override applied from collection config",
+			rc: ResolveContext{
+				ProjectProperties: map[string]string{PropertyProfileID: "with-channel"},
+				CollectionConfig:  map[string]string{PropertyChannel: "email"},
+			},
+			wantName:      "With Channel",
+			wantFormality: "casual", // channel override replaces tone
+		},
+		{
+			name: "channel resolution: collection wins over project",
+			rc: ResolveContext{
+				ProjectProperties: map[string]string{
+					PropertyProfileID: "with-channel",
+					PropertyChannel:   "nonexistent",
+				},
+				CollectionConfig: map[string]string{PropertyChannel: "email"},
+			},
+			wantName:      "With Channel",
+			wantFormality: "casual",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			profile, err := ResolveProfileFromContext(context.Background(), tt.rc, store)
+			require.NoError(t, err)
+
+			if tt.wantNil {
+				assert.Nil(t, profile)
+				return
+			}
+
+			require.NotNil(t, profile)
+			assert.Equal(t, tt.wantName, profile.Name)
+			assert.Equal(t, tt.wantFormality, profile.Tone.Formality)
+		})
+	}
+}
+
+func TestStoreProfileResolver(t *testing.T) {
+	store := &mockBrandStore{
+		profiles: map[string]*VoiceProfile{
+			"test-id": {ID: "test-id", Name: "Test"},
+		},
+	}
+	resolver := &StoreProfileResolver{Store: store}
+
+	profile, err := resolver.ResolveProfile(context.Background(), ResolveContext{
+		ExplicitProfileID: "test-id",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, profile)
+	assert.Equal(t, "Test", profile.Name)
 }

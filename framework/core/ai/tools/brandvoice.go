@@ -17,6 +17,9 @@ type BrandVoiceCheckTool struct {
 	tool.BaseTool
 	provider provider.LLMProvider
 	profile  *brand.VoiceProfile
+	resolver brand.ProfileResolver  // optional: lazy profile resolution
+	rc       brand.ResolveContext    // context for resolver
+	resolved bool                   // true after first resolution attempt
 }
 
 // BrandVoiceCheckConfig holds configuration for the brand voice check tool.
@@ -37,6 +40,22 @@ func NewBrandVoiceCheckTool(p provider.LLMProvider, profile *brand.VoiceProfile)
 	t.ToolName = "brand-voice-check"
 	t.ToolDescription = "Checks text against brand voice guidelines using AI/LLM"
 	t.Cfg = &BrandVoiceCheckConfig{Profile: profile}
+	t.HandleBlockFn = t.handleBlock
+	return t
+}
+
+// NewBrandVoiceCheckToolWithResolver creates a brand voice check tool that
+// lazily resolves its profile from the organizational context hierarchy.
+// The resolver is called once on first use and the result is cached.
+func NewBrandVoiceCheckToolWithResolver(p provider.LLMProvider, resolver brand.ProfileResolver, rc brand.ResolveContext) *BrandVoiceCheckTool {
+	t := &BrandVoiceCheckTool{
+		provider: p,
+		resolver: resolver,
+		rc:       rc,
+	}
+	t.ToolName = "brand-voice-check"
+	t.ToolDescription = "Checks text against brand voice guidelines using AI/LLM"
+	t.Cfg = &BrandVoiceCheckConfig{}
 	t.HandleBlockFn = t.handleBlock
 	return t
 }
@@ -84,7 +103,20 @@ type brandVoiceLLMResult struct {
 	Findings []brandVoiceLLMFinding `json:"findings"`
 }
 
+func (t *BrandVoiceCheckTool) resolveOnce() {
+	if t.resolved || t.resolver == nil {
+		return
+	}
+	t.resolved = true
+	profile, err := t.resolver.ResolveProfile(context.Background(), t.rc)
+	if err == nil && profile != nil {
+		t.profile = profile
+	}
+}
+
 func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error) {
+	t.resolveOnce()
+
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
 		return part, nil
