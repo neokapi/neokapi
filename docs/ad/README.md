@@ -50,6 +50,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 | AD | Title | Scope |
 |----|-------|-------|
 | [011](011-automation.md) | Automation and Event System | Events, triggers, quality gates, continuous sync |
+| [034](034-translator-workflow.md) | Translator Workflow | Push completion tracking, task fan-out, source review gate, agent integration |
 
 ## Layer 6: Applications and Operations
 
