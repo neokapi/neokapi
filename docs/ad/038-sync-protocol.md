@@ -37,6 +37,7 @@ Content: what data moves (evolves independently)
   ├── SyncBlock     — translatable content with full model
   ├── SyncTerm      — terminology concepts
   ├── SyncTMEntry   — translation memory entries
+  ├── SyncMedia     — binary assets (images, audio, video)
   ├── SyncQAResult  — quality check results
   ├── SyncActivity  — automation outputs
   └── (future types added without transport changes)
@@ -77,7 +78,7 @@ Each chunk is a typed envelope that can carry any content type. The envelope is 
 // typed records. A single push can mix content types across chunks.
 message SyncChunk {
   int32 version = 1;          // envelope version (currently 1)
-  string content_type = 2;    // "blocks", "terms", "tm", "qa", "activity"
+  string content_type = 2;    // "blocks", "terms", "tm", "qa", "activity", "media"
   int32 record_count = 3;
 
   // Exactly one of these is populated (determined by content_type):
@@ -86,6 +87,7 @@ message SyncChunk {
   repeated SyncTMEntry tm_entries = 12;
   repeated SyncQAResult qa_results = 13;
   repeated SyncActivity activities = 14;
+  repeated SyncMedia media = 15;
   // Future types added here without changing the envelope or transport.
 }
 ```
@@ -160,6 +162,37 @@ message SyncTMEntry {
 }
 ```
 
+### SyncMedia — binary assets
+
+Binary assets (images, audio, video, screenshots) flow through the same chunked transport. Small assets inline their bytes; large assets are uploaded as separate blob chunks and referenced by key.
+
+```protobuf
+message SyncMedia {
+  string id = 1;
+  string item_name = 2;       // which item this asset belongs to
+  string mime_type = 3;        // "image/png", "audio/mp3"
+  string filename = 4;
+  string alt_text = 5;         // accessible alternative text
+  int64 size = 6;
+
+  // Exactly one of these:
+  bytes inline_data = 10;      // small assets (< 256KB) inlined in the chunk
+  string blob_key = 11;        // large assets: key of a separately uploaded blob chunk
+
+  // Locale variants
+  string locale = 12;          // locale this variant is for (empty = source)
+  string source_media_id = 13; // links locale variant to source asset
+
+  map<string, string> properties = 14;
+}
+```
+
+**Small assets** (icons, badges < 256KB): Serialized inline in the SyncChunk alongside blocks. No separate upload needed.
+
+**Large assets** (screenshots, videos): Client uploads the binary as a separate blob chunk (using the same SAS URL mechanism), then references the blob key in `SyncMedia.blob_key`. The worker stores the blob reference without loading the binary into memory.
+
+This follows the existing `model.Media` pattern ([AD-029](./029-media-asset-localization.md)) where `Data []byte` is for inline and `BlobKey string` is for large assets stored in `BlobStore`.
+
 ### SyncItemMeta — item metadata
 
 Declares everything about an item — no guessing:
@@ -220,6 +253,7 @@ message SyncPullResponse {
   repeated SyncTMEntry tm_entries = 12;
   repeated SyncQAResult qa_results = 13;
   repeated SyncActivity activities = 14;
+  repeated SyncMedia media = 15;   // metadata only; binary via blob URLs
 }
 ```
 
@@ -260,6 +294,8 @@ for _, chunk := range manifest.Chunks {
         storeTerms(data.Terms, manifest)
     case "tm":
         storeTMEntries(data.TMEntries, manifest)
+    case "media":
+        storeMedia(data.Media, manifest)  // refs blob keys, no binary in memory
     // future types handled here
     }
 }
