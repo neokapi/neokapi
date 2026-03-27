@@ -12,6 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockProfileResolver implements brand.ProfileResolver for testing.
+type mockProfileResolver struct {
+	profile *brand.VoiceProfile
+}
+
+func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveContext) (*brand.VoiceProfile, error) {
+	return m.profile, nil
+}
+
 func TestBrandVocabCheckForbiddenTerms(t *testing.T) {
 	profile := &brand.VoiceProfile{
 		ID: "test-profile",
@@ -213,6 +222,66 @@ func TestBrandVocabCheckCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, findings, 1)
 	assert.Equal(t, "CHEAP", findings[0].OriginalText)
+}
+
+func TestBrandVocabCheckWithResolver(t *testing.T) {
+	profile := &brand.VoiceProfile{
+		ID: "resolved-vocab",
+		Vocabulary: brand.VocabularyRules{
+			ForbiddenTerms: []brand.TermRule{
+				{Term: "cheap", Replacement: "affordable"},
+			},
+		},
+	}
+
+	resolver := &mockProfileResolver{profile: profile}
+	rc := brand.ResolveContext{ExplicitProfileID: "resolved-vocab"}
+
+	tool := tools.NewBrandVocabCheckToolWithResolver(resolver, rc, nil)
+
+	ctx := context.Background()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "This is a cheap product")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	err := tool.Process(ctx, in, out)
+	require.NoError(t, err)
+
+	result := <-out
+	resultBlock := result.Resource.(*model.Block)
+
+	ann, ok := resultBlock.Annotations["brand-voice"]
+	require.True(t, ok)
+	bva := ann.(*brand.BrandVoiceAnnotation)
+	assert.Equal(t, "resolved-vocab", bva.ProfileID)
+	assert.Len(t, bva.Findings, 1)
+}
+
+func TestBrandVocabCheckWithResolverNilProfile(t *testing.T) {
+	resolver := &mockProfileResolver{profile: nil}
+	rc := brand.ResolveContext{}
+
+	tool := tools.NewBrandVocabCheckToolWithResolver(resolver, rc, nil)
+
+	ctx := context.Background()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "This is a cheap product")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	err := tool.Process(ctx, in, out)
+	require.NoError(t, err)
+
+	result := <-out
+	resultBlock := result.Resource.(*model.Block)
+
+	// No findings — profile was nil so no vocab rules to check.
+	assert.Empty(t, resultBlock.Properties["brand-vocab-findings"])
 }
 
 func TestBrandVocabCheckAddsAnnotation(t *testing.T) {

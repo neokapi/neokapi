@@ -189,6 +189,164 @@ func TestScoreTrends(t *testing.T) {
 	assert.NotEmpty(t, trends)
 }
 
+func TestProfileVersioning(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	profile := testProfile()
+	require.NoError(t, store.CreateProfile(ctx, profile))
+	assert.Equal(t, 1, profile.Version)
+
+	// Update profile — should archive version 1.
+	profile.Name = "Professional Tech"
+	profile.Tone.Formality = "formal"
+	profile.VersionNote = "switched to formal tone"
+	require.NoError(t, store.UpdateProfile(ctx, profile))
+	assert.Equal(t, 2, profile.Version)
+
+	// Update again — should archive version 2.
+	profile.Name = "Enterprise Tech"
+	profile.VersionNote = "enterprise rebrand"
+	require.NoError(t, store.UpdateProfile(ctx, profile))
+	assert.Equal(t, 3, profile.Version)
+
+	// List versions — should have 2 archived versions (v1 and v2).
+	versions, err := store.ListProfileVersions(ctx, "p1")
+	require.NoError(t, err)
+	require.Len(t, versions, 2)
+	assert.Equal(t, 2, versions[0].Version) // DESC order
+	assert.Equal(t, 1, versions[1].Version)
+	assert.Equal(t, "enterprise rebrand", versions[0].Note)
+	assert.Equal(t, "Friendly Tech", versions[1].Snapshot.Name)
+	assert.Equal(t, "Professional Tech", versions[0].Snapshot.Name)
+
+	// Get specific version.
+	v1, err := store.GetProfileVersion(ctx, "p1", 1)
+	require.NoError(t, err)
+	assert.Equal(t, "Friendly Tech", v1.Snapshot.Name)
+	assert.Equal(t, "neutral", v1.Snapshot.Tone.Formality)
+
+	// Get nonexistent version.
+	_, err = store.GetProfileVersion(ctx, "p1", 99)
+	assert.Error(t, err)
+}
+
+func TestProfileTags(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	profile := testProfile()
+	require.NoError(t, store.CreateProfile(ctx, profile))
+
+	// Update to create a version.
+	profile.Name = "V2 Name"
+	profile.VersionNote = "v2 update"
+	require.NoError(t, store.UpdateProfile(ctx, profile))
+
+	// Tag version 1.
+	tag := &corebrand.ProfileTag{
+		ProfileID: "p1",
+		Name:      "v1-release",
+		Version:   1,
+		CreatedBy: "test-user",
+	}
+	require.NoError(t, store.CreateProfileTag(ctx, tag))
+	assert.False(t, tag.CreatedAt.IsZero())
+
+	// List tags.
+	tags, err := store.ListProfileTags(ctx, "p1")
+	require.NoError(t, err)
+	require.Len(t, tags, 1)
+	assert.Equal(t, "v1-release", tags[0].Name)
+	assert.Equal(t, 1, tags[0].Version)
+
+	// Get profile at tag.
+	atTag, err := store.GetProfileAtTag(ctx, "p1", "v1-release")
+	require.NoError(t, err)
+	assert.Equal(t, "Friendly Tech", atTag.Name)
+
+	// Get nonexistent tag.
+	_, err = store.GetProfileAtTag(ctx, "p1", "nonexistent")
+	assert.Error(t, err)
+
+	// Delete tag.
+	require.NoError(t, store.DeleteProfileTag(ctx, "p1", "v1-release"))
+	tags, err = store.ListProfileTags(ctx, "p1")
+	require.NoError(t, err)
+	assert.Len(t, tags, 0)
+
+	// Delete nonexistent tag.
+	assert.Error(t, store.DeleteProfileTag(ctx, "p1", "nonexistent"))
+}
+
+func TestGetScoresByStream(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	now := time.Now()
+	for i := 0; i < 3; i++ {
+		require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+			ID:             fmt.Sprintf("s%d", i),
+			ProjectID:      "proj1",
+			Stream:         "main",
+			BlockID:        fmt.Sprintf("b%d", i),
+			ProfileID:      "p1",
+			ProfileVersion: 1,
+			Locale:         "en-US",
+			Score:          80 + i*5,
+			CheckedAt:      now.Add(-time.Duration(i) * time.Hour),
+		}))
+	}
+
+	// Add a score on a different stream.
+	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+		ID:             "s-exp",
+		ProjectID:      "proj1",
+		Stream:         "experiment",
+		BlockID:        "b0",
+		ProfileID:      "p1",
+		ProfileVersion: 2,
+		Locale:         "en-US",
+		Score:          92,
+		CheckedAt:      now,
+	}))
+
+	// Get scores for main stream.
+	scores, err := store.GetScoresByStream(ctx, "proj1", "main")
+	require.NoError(t, err)
+	assert.Len(t, scores, 3)
+	assert.Equal(t, 1, scores[0].ProfileVersion)
+
+	// Get scores for experiment stream.
+	scores, err = store.GetScoresByStream(ctx, "proj1", "experiment")
+	require.NoError(t, err)
+	require.Len(t, scores, 1)
+	assert.Equal(t, 92, scores[0].Score)
+	assert.Equal(t, 2, scores[0].ProfileVersion)
+}
+
+func TestScoreProfileVersion(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+
+	require.NoError(t, store.StoreScore(ctx, &corebrand.StoredScore{
+		ID:             "s1",
+		ProjectID:      "proj1",
+		Stream:         "main",
+		BlockID:        "b1",
+		ProfileID:      "p1",
+		ProfileVersion: 3,
+		Locale:         "en-US",
+		Score:          88,
+		CheckedAt:      time.Now(),
+	}))
+
+	scores, err := store.GetScoresByStream(ctx, "proj1", "main")
+	require.NoError(t, err)
+	require.Len(t, scores, 1)
+	assert.Equal(t, 3, scores[0].ProfileVersion)
+}
+
 func TestCorrectionStorage(t *testing.T) {
 	ctx := context.Background()
 	store := newTestStore(t)
