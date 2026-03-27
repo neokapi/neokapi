@@ -12,7 +12,13 @@ export const mockProjects = [
     id: "p-1",
     name: "Web Application",
     source_language: "en-US",
+    source_language_display_name: "English (United States)",
     target_languages: ["fr-FR", "de-DE", "ja-JP"],
+    target_language_names: {
+      "fr-FR": "French (France)",
+      "de-DE": "German (Germany)",
+      "ja-JP": "Japanese (Japan)",
+    } as Record<string, string>,
     total_words: 20000,
     translated_words: 15000,
     percentage: 75.0,
@@ -21,7 +27,12 @@ export const mockProjects = [
     id: "p-2",
     name: "Mobile App",
     source_language: "en-US",
+    source_language_display_name: "English (United States)",
     target_languages: ["es-ES", "pt-BR"],
+    target_language_names: { "es-ES": "Spanish (Spain)", "pt-BR": "Portuguese (Brazil)" } as Record<
+      string,
+      string
+    >,
     total_words: 15000,
     translated_words: 12000,
     percentage: 80.0,
@@ -30,7 +41,12 @@ export const mockProjects = [
     id: "p-3",
     name: "Documentation",
     source_language: "en-US",
+    source_language_display_name: "English (United States)",
     target_languages: ["fr-FR", "zh-CN"],
+    target_language_names: { "fr-FR": "French (France)", "zh-CN": "Chinese (China)" } as Record<
+      string,
+      string
+    >,
     total_words: 10000,
     translated_words: 5000,
     percentage: 50.0,
@@ -40,6 +56,7 @@ export const mockProjects = [
 export const mockLanguages = [
   {
     locale: "fr-FR",
+    display_name: "French (France)",
     translated_words: 18000,
     total_words: 22000,
     percentage: 81.8,
@@ -48,6 +65,7 @@ export const mockLanguages = [
   },
   {
     locale: "de-DE",
+    display_name: "German (Germany)",
     translated_words: 8000,
     total_words: 10000,
     percentage: 80.0,
@@ -56,6 +74,7 @@ export const mockLanguages = [
   },
   {
     locale: "ja-JP",
+    display_name: "Japanese (Japan)",
     translated_words: 3000,
     total_words: 10000,
     percentage: 30.0,
@@ -64,6 +83,7 @@ export const mockLanguages = [
   },
   {
     locale: "es-ES",
+    display_name: "Spanish (Spain)",
     translated_words: 12000,
     total_words: 15000,
     percentage: 80.0,
@@ -72,6 +92,7 @@ export const mockLanguages = [
   },
   {
     locale: "pt-BR",
+    display_name: "Portuguese (Brazil)",
     translated_words: 6000,
     total_words: 8000,
     percentage: 75.0,

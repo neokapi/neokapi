@@ -302,13 +302,13 @@ type AssetVariant struct {
 
 // PulseOverview is the top-level response for a workspace's public dashboard.
 type PulseOverview struct {
-	Workspace      PulseWorkspaceInfo  `json:"workspace"`
+	Workspace      PulseWorkspaceInfo    `json:"workspace"`
 	Projects       []PulseProjectSummary `json:"projects"`
-	TopLanguages   []PulseLanguageRank `json:"top_languages"`
-	TopContribs    []PulseContributor  `json:"top_contributors"`
-	RisingStars    []PulseRisingStar   `json:"rising_stars"`
-	RecentActivity []PulseActivity     `json:"recent_activity"`
-	Stats          PulseGlobalStats    `json:"stats"`
+	TopLanguages   []PulseLanguageRank   `json:"top_languages"`
+	TopContribs    []PulseContributor    `json:"top_contributors"`
+	RisingStars    []PulseRisingStar     `json:"rising_stars"`
+	RecentActivity []PulseActivity       `json:"recent_activity"`
+	Stats          PulseGlobalStats      `json:"stats"`
 }
 
 // PulseWorkspaceInfo is the public-facing workspace info for Pulse.
@@ -331,19 +331,22 @@ type PulseGlobalStats struct {
 
 // PulseProjectSummary is a compact project summary for the overview grid.
 type PulseProjectSummary struct {
-	ID              string                   `json:"id"`
-	Name            string                   `json:"name"`
-	SourceLanguage  string                   `json:"source_language"`
-	TargetLanguages []string                 `json:"target_languages"`
-	TotalWords      int                      `json:"total_words"`
-	TranslatedWords int                      `json:"translated_words"`
-	Percentage      float64                  `json:"percentage"`
-	Locales         []LocaleTranslationStats `json:"locales"`
+	ID                        string                   `json:"id"`
+	Name                      string                   `json:"name"`
+	SourceLanguage            string                   `json:"source_language"`
+	SourceLanguageDisplayName string                   `json:"source_language_display_name,omitempty"`
+	TargetLanguages           []string                 `json:"target_languages"`
+	TargetLanguageNames       map[string]string        `json:"target_language_names,omitempty"`
+	TotalWords                int                      `json:"total_words"`
+	TranslatedWords           int                      `json:"translated_words"`
+	Percentage                float64                  `json:"percentage"`
+	Locales                   []LocaleTranslationStats `json:"locales"`
 }
 
 // PulseLanguageRank ranks a language by translation progress.
 type PulseLanguageRank struct {
 	Locale          string  `json:"locale"`
+	DisplayName     string  `json:"display_name,omitempty"`
 	TranslatedWords int     `json:"translated_words"`
 	TotalWords      int     `json:"total_words"`
 	Percentage      float64 `json:"percentage"`
@@ -390,18 +393,18 @@ type PulseProjectDetail struct {
 
 // PulseLocaleDetail is the detailed response for a single locale within a project.
 type PulseLocaleDetail struct {
-	Locale string               `json:"locale"`
+	Locale string                 `json:"locale"`
 	Stats  LocaleTranslationStats `json:"stats"`
 	Items  []ItemTranslationStats `json:"items"`
 }
 
 // PulseTermEntry is a terminology entry for the public explorer.
 type PulseTermEntry struct {
-	ID          string            `json:"id"`
-	Term        string            `json:"term"`
-	Definition  string            `json:"definition"`
-	Domain      string            `json:"domain,omitempty"`
-	Locale      string            `json:"locale"`
+	ID           string            `json:"id"`
+	Term         string            `json:"term"`
+	Definition   string            `json:"definition"`
+	Domain       string            `json:"domain,omitempty"`
+	Locale       string            `json:"locale"`
 	Translations map[string]string `json:"translations,omitempty"`
 }
 
@@ -413,7 +416,7 @@ type PulseLeaderboard struct {
 
 // PulseHeatmapDay is a single day's activity count for the contribution heatmap.
 type PulseHeatmapDay struct {
-	Date  string `json:"date"`  // "2026-01-15"
+	Date  string `json:"date"` // "2026-01-15"
 	Count int    `json:"count"`
 }
 
@@ -444,6 +447,7 @@ type TranslationDashboardStats struct {
 // LocaleTranslationStats holds translation progress for a single target locale.
 type LocaleTranslationStats struct {
 	Locale           string  `json:"locale"`
+	DisplayName      string  `json:"display_name,omitempty"`
 	TranslatedBlocks int     `json:"translated_blocks"`
 	TotalBlocks      int     `json:"total_blocks"`
 	TranslatedWords  int     `json:"translated_words"`

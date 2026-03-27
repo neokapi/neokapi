@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -63,9 +65,10 @@ func (s *Server) HandleProjectBadge(c echo.Context) error {
 func localeBadge(p *store.Project) BadgeResponse {
 	locales := make([]string, len(p.TargetLanguages))
 	for i, l := range p.TargetLanguages {
-		locales[i] = string(l)
+		locales[i] = locale.DisplayName(model.LocaleID(l))
 	}
-	msg := fmt.Sprintf("%s → %s", p.DefaultSourceLanguage, strings.Join(locales, ", "))
+	srcName := locale.DisplayName(p.DefaultSourceLanguage)
+	msg := fmt.Sprintf("%s → %s", srcName, strings.Join(locales, ", "))
 	return BadgeResponse{
 		SchemaVersion: 1,
 		Label:         "locales",
@@ -116,10 +119,10 @@ func (s *Server) progressBadge(c echo.Context, p *store.Project) BadgeResponse {
 	// Compute per-locale translation progress.
 	localeParts := []string{}
 	allComplete := true
-	for _, locale := range p.TargetLanguages {
+	for _, loc := range p.TargetLanguages {
 		translated := 0
 		for _, b := range blocks {
-			if b.Block.TargetText(locale) != "" {
+			if b.Block.TargetText(loc) != "" {
 				translated++
 			}
 		}
@@ -130,7 +133,7 @@ func (s *Server) progressBadge(c echo.Context, p *store.Project) BadgeResponse {
 		if pct < 100 {
 			allComplete = false
 		}
-		localeParts = append(localeParts, fmt.Sprintf("%s %d%%", locale, pct))
+		localeParts = append(localeParts, fmt.Sprintf("%s %d%%", locale.DisplayName(model.LocaleID(loc)), pct))
 	}
 
 	color := "yellow"

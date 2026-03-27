@@ -19,6 +19,7 @@ import (
 	sqltb "github.com/neokapi/neokapi/bowrain/termbase"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/editor"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/tool"
@@ -1545,6 +1546,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			}
 			itemLocales = append(itemLocales, store.LocaleTranslationStats{
 				Locale:           l,
+				DisplayName:      locale.DisplayName(model.LocaleID(l)),
 				TranslatedBlocks: ila.translatedBlocks,
 				TotalBlocks:      ila.totalBlocks,
 				TranslatedWords:  ila.translatedWords,
@@ -1577,6 +1579,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 		}
 		localeStats = append(localeStats, store.LocaleTranslationStats{
 			Locale:           l,
+			DisplayName:      locale.DisplayName(model.LocaleID(l)),
 			TranslatedBlocks: la.translatedBlocks,
 			TotalBlocks:      la.totalBlocks,
 			TranslatedWords:  la.translatedWords,
@@ -1597,6 +1600,7 @@ func editorGetDashboardStats(ctx context.Context, cs store.ContentStore, proj *s
 			}
 			cls = append(cls, store.LocaleTranslationStats{
 				Locale:           l,
+				DisplayName:      locale.DisplayName(model.LocaleID(l)),
 				TranslatedBlocks: cla.translatedBlocks,
 				TotalBlocks:      cla.totalBlocks,
 				TranslatedWords:  cla.translatedWords,
