@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/labstack/echo/v4"
@@ -161,13 +162,16 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 		manifest.WorkspaceSlug, _ = c.Get("workspace_slug").(string)
 	}
 
-	// Validate all chunks exist in blob storage.
-	for _, chunk := range manifest.Chunks {
-		exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
-		if err != nil || !exists {
-			return c.JSON(http.StatusBadRequest, ErrorResponse{
-				Error: fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash),
-			})
+	// Validate chunks exist. For ChunkedBlobStore (proxy uploads), chunks are
+	// in the upload session, not content-addressed storage.
+	if _, isChunked := s.BlobStore.(storage.ChunkedBlobStore); !isChunked {
+		for _, chunk := range manifest.Chunks {
+			exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
+			if err != nil || !exists {
+				return c.JSON(http.StatusBadRequest, ErrorResponse{
+					Error: fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash),
+				})
+			}
 		}
 	}
 
@@ -231,6 +235,8 @@ func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
 
 	// Store chunk via BlobStore.
 	if chunkedStore, ok := s.BlobStore.(storage.ChunkedBlobStore); ok {
+		// Ensure upload session exists (idempotent).
+		_, _ = chunkedStore.InitUpload(c.Request().Context(), uploadID)
 		if err := chunkedStore.StageChunk(c.Request().Context(), uploadID, chunkIndex, data); err != nil {
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 		}
@@ -257,21 +263,5 @@ type chunkRef struct {
 
 // readBody reads up to maxBytes from the request body.
 func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
-	r := http.MaxBytesReader(nil, c.Request().Body, maxBytes)
-	defer r.Close()
-	data := make([]byte, 0, 1024)
-	buf := make([]byte, 4096)
-	for {
-		n, err := r.Read(buf)
-		if n > 0 {
-			data = append(data, buf[:n]...)
-		}
-		if err != nil {
-			if err.Error() == "http: request body too large" {
-				return nil, err
-			}
-			break
-		}
-	}
-	return data, nil
+	return io.ReadAll(io.LimitReader(c.Request().Body, maxBytes))
 }

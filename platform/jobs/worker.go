@@ -125,9 +125,12 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return fmt.Errorf("load job: %w", err)
 	}
 
-	// Route sync-push jobs to dedicated handler (AD-037).
+	// Route sync-push jobs to dedicated handlers.
 	if job.ItemName == "__sync_push__" {
 		return processSyncPushJob(ctx, deps, job)
+	}
+	if job.ItemName == "__sync_push_v2__" {
+		return processSyncPushV2Job(ctx, deps, job)
 	}
 
 	// Check quota before starting.
