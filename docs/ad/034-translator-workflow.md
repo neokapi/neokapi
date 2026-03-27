@@ -130,7 +130,7 @@ The editor already displays AI-translated blocks in the target column — no UI 
 
 ### Persona Agent Integration
 
-Agentic testing persona agents ([agentic testing framework](../notes/bravo-agent-implementation.md)) should work through the task system like human translators. Each persona is registered as a project member with language scope and `PermTranslate`/`PermReview` role. The workflow orchestrator assigns tasks to agents the same way it assigns to human translators.
+Agentic testing persona agents should work through the task system like human translators. Each persona is registered as a project member with language scope and `PermTranslate`/`PermReview` role. The workflow orchestrator assigns tasks to agents the same way it assigns to human translators.
 
 **Agent workflow change:**
 ```
