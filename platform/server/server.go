@@ -908,6 +908,16 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/projects/:id/streams/:stream/sync/blocks", s.HandleSyncGetBlocks)
 	g.GET("/projects/:id/streams/:stream/sync/status", s.HandleSyncPushStatus)
 
+	// Sync v2 routes (AD-038 — chunked, diff-based)
+	g.POST("/projects/:id/sync/push/init", s.HandleSyncPushInit, syncRateLimit)
+	g.POST("/projects/:id/sync/push/diff", s.HandleSyncPushDiff)
+	g.POST("/projects/:id/sync/push/commit", s.HandleSyncPushCommit, syncRateLimit)
+	g.PUT("/projects/:id/sync/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+	g.POST("/projects/:id/streams/:stream/sync/push/init", s.HandleSyncPushInit, syncRateLimit)
+	g.POST("/projects/:id/streams/:stream/sync/push/diff", s.HandleSyncPushDiff)
+	g.POST("/projects/:id/streams/:stream/sync/push/commit", s.HandleSyncPushCommit, syncRateLimit)
+	g.PUT("/projects/:id/streams/:stream/sync/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+
 	// Asset management (AD-029)
 	g.POST("/projects/:id/assets/upload-url", s.HandleAssetUploadURL)
 	g.POST("/projects/:id/assets", s.HandleCreateAsset)
