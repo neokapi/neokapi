@@ -4,7 +4,7 @@ import { RecycleBinView } from "../../components/RecycleBinView";
 import { sampleArchivedProjects } from "./fixtures";
 
 const meta: Meta<typeof RecycleBinView> = {
-  title: "Misc/RecycleBinView",
+  title: "Components/RecycleBinView",
   component: RecycleBinView,
   tags: ["autodocs"],
   decorators: [

@@ -3,7 +3,7 @@ import { WordCountChart } from "../../components/WordCountChart";
 import { sampleLocaleStats } from "./fixtures";
 
 const meta: Meta<typeof WordCountChart> = {
-  title: "Misc/WordCountChart",
+  title: "Components/WordCountChart",
   component: WordCountChart,
   tags: ["autodocs"],
   decorators: [

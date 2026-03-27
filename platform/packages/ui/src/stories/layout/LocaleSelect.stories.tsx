@@ -4,7 +4,7 @@ import { LocaleSelect, MultiLocaleSelect } from "../../components/LocaleSelect";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof LocaleSelect> = {
-  title: "Layout/LocaleSelect",
+  title: "Components/LocaleSelect",
   component: LocaleSelect,
   tags: ["autodocs"],
   decorators: [
