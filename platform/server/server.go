@@ -737,7 +737,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
 			syncGroup.GET("/status", s.HandleSyncPushStatus)
 			// Sync push routes (AD-038 — chunked, diff-based)
-			syncGroup.POST("/push/init", s.HandleSyncPushInit, legacySyncRateLimit)
+			syncGroup.POST("/push/init", s.HandleSyncPushInit)
 			syncGroup.POST("/push/diff", s.HandleSyncPushDiff)
 			syncGroup.POST("/push/commit", s.HandleSyncPushCommit, legacySyncRateLimit)
 			syncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
@@ -749,8 +749,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			streamSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			streamSyncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
 			streamSyncGroup.GET("/status", s.HandleSyncPushStatus)
-			// V2 stream-scoped
-			streamSyncGroup.POST("/push/init", s.HandleSyncPushInit, legacySyncRateLimit)
+			// Stream-scoped push routes
+			streamSyncGroup.POST("/push/init", s.HandleSyncPushInit)
 			streamSyncGroup.POST("/push/diff", s.HandleSyncPushDiff)
 			streamSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, legacySyncRateLimit)
 			streamSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
@@ -915,11 +915,11 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/projects/:id/streams/:stream/sync/status", s.HandleSyncPushStatus)
 
 	// Sync push routes (AD-038 — chunked, diff-based)
-	g.POST("/projects/:id/sync/push/init", s.HandleSyncPushInit, syncRateLimit)
+	g.POST("/projects/:id/sync/push/init", s.HandleSyncPushInit)
 	g.POST("/projects/:id/sync/push/diff", s.HandleSyncPushDiff)
 	g.POST("/projects/:id/sync/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 	g.PUT("/projects/:id/sync/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
-	g.POST("/projects/:id/streams/:stream/sync/push/init", s.HandleSyncPushInit, syncRateLimit)
+	g.POST("/projects/:id/streams/:stream/sync/push/init", s.HandleSyncPushInit)
 	g.POST("/projects/:id/streams/:stream/sync/push/diff", s.HandleSyncPushDiff)
 	g.POST("/projects/:id/streams/:stream/sync/push/commit", s.HandleSyncPushCommit, syncRateLimit)
 	g.PUT("/projects/:id/streams/:stream/sync/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)

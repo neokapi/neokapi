@@ -17,19 +17,19 @@ import (
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 )
 
-// syncV2Manifest matches the JSON manifest written by HandleSyncPushCommit.
-type syncV2Manifest struct {
+// syncPushManifest matches the JSON manifest written by HandleSyncPushCommit.
+type syncPushManifest struct {
 	UploadID      string          `json:"upload_id"`
 	ProjectID     string          `json:"project_id"`
 	Stream        string          `json:"stream"`
-	Chunks        []syncV2Chunk   `json:"chunks"`
+	Chunks        []syncChunkRef  `json:"chunks"`
 	Items         json.RawMessage `json:"items"`
 	ActorID       string          `json:"actor_id"`
 	WorkspaceSlug string          `json:"workspace_slug"`
 	ConnectorID   string          `json:"connector_id"`
 }
 
-type syncV2Chunk struct {
+type syncChunkRef struct {
 	Index       int    `json:"index"`
 	ContentType string `json:"content_type"`
 	Hash        string `json:"hash"`
@@ -37,10 +37,10 @@ type syncV2Chunk struct {
 	ByteSize    int64  `json:"byte_size"`
 }
 
-// processSyncPushV2Job handles the v2 sync protocol push (AD-038).
+// processSyncPushJob handles the sync protocol push (AD-038).
 // It reads the manifest, downloads chunks, deserializes protobuf,
 // and stores content via the full model.
-func processSyncPushV2Job(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
+func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
 	manifestKey := job.Model
 	projectID := job.ProjectID
 	pushID := job.PushID
@@ -50,7 +50,7 @@ func processSyncPushV2Job(ctx context.Context, deps *WorkerDeps, job *Translatio
 		return fmt.Errorf("blob store not configured")
 	}
 
-	emitLog(deps, job.StepID, "info", "Processing v2 sync push",
+	emitLog(deps, job.StepID, "info", "Processing sync push",
 		map[string]string{"project": projectID, "push_id": pushID})
 
 	// 1. Download and parse manifest.
@@ -66,7 +66,7 @@ func processSyncPushV2Job(ctx context.Context, deps *WorkerDeps, job *Translatio
 		return fmt.Errorf("read manifest: %w", err)
 	}
 
-	var manifest syncV2Manifest
+	var manifest syncPushManifest
 	if err := json.Unmarshal(manifestData, &manifest); err != nil {
 		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "invalid manifest")
 		return fmt.Errorf("parse manifest: %w", err)
@@ -145,13 +145,13 @@ func processSyncPushV2Job(ctx context.Context, deps *WorkerDeps, job *Translatio
 			allItemNames = append(allItemNames, itemNames...)
 
 		case "terms":
-			log.Printf("sync-v2: term processing not yet implemented (chunk %d)", chunkRef.Index)
+			log.Printf("sync: term processing not yet implemented (chunk %d)", chunkRef.Index)
 
 		case "tm":
-			log.Printf("sync-v2: TM processing not yet implemented (chunk %d)", chunkRef.Index)
+			log.Printf("sync: TM processing not yet implemented (chunk %d)", chunkRef.Index)
 
 		case "media":
-			log.Printf("sync-v2: media processing not yet implemented (chunk %d)", chunkRef.Index)
+			log.Printf("sync: media processing not yet implemented (chunk %d)", chunkRef.Index)
 		}
 	}
 
@@ -172,7 +172,7 @@ func processSyncPushV2Job(ctx context.Context, deps *WorkerDeps, job *Translatio
 	if totalStored > 0 && deps.EventBus != nil {
 		deps.EventBus.Publish(platev.Event{
 			Type:      platev.EventPushCompleted,
-			Source:    "sync-worker-v2",
+			Source:    "sync-worker",
 			ProjectID: projectID,
 			Actor:     manifest.ActorID,
 			Data: map[string]string{
@@ -184,7 +184,7 @@ func processSyncPushV2Job(ctx context.Context, deps *WorkerDeps, job *Translatio
 	}
 
 	emitLog(deps, job.StepID, "info",
-		fmt.Sprintf("V2 sync push completed: %d blocks across %d items", totalStored, len(allItemNames)),
+		fmt.Sprintf("Sync push completed: %d blocks across %d items", totalStored, len(allItemNames)),
 		nil)
 
 	return nil
@@ -218,9 +218,7 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 				}
 				item.BlockIndex = meta.BlockIndexJson
 				item.PreviewHTML = meta.PreviewHtml
-				if meta.Collection != "" {
-					// Collection resolution handled by caller if needed.
-				}
+				// TODO: resolve collection name to ID if meta.Collection is set
 			}
 			_ = deps.ContentStore.StoreItem(ctx, projectID, stream, item)
 			itemNames = append(itemNames, itemName)

@@ -19,13 +19,16 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push 5 blocks (async).
-	var blocks []string
+	// Push 5 blocks.
+	var items []pushBlockItem
 	for i := 0; i < 5; i++ {
-		blocks = append(blocks, fmt.Sprintf(`{"id":"b%d","text":"text-%d","item_name":"en.json"}`, i, i))
+		items = append(items, pushBlockItem{
+			ID:       fmt.Sprintf("b%d", i),
+			Text:     fmt.Sprintf("text-%d", i),
+			ItemName: "en.json",
+		})
 	}
-	body := `{"blocks":[` + strings.Join(blocks, ",") + `]}`
-	pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push", body)
+	pushBlocks(t, srv, e, authHeader, pid, items)
 
 	// Get all blocks (default pagination).
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
@@ -67,14 +70,14 @@ func TestSyncPush_RateLimiting(t *testing.T) {
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	body := `{"blocks":[{"id":"b1","text":"hello"}]}`
+	// Rate limiting is applied to the commit endpoint (burst of 3, 10/min).
+	// Send 5 rapid commit requests — some should succeed, some should be rate-limited.
+	body := `{"upload_id":"test","project_id":"` + pid + `","stream":"main","chunks":[]}`
 
-	// The rate limiter allows burst of 3, then 10/min.
-	// Send 4 rapid requests — 3 should succeed, 4th should be rate-limited.
 	successes := 0
 	rateLimited := 0
 	for i := 0; i < 5; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/commit", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", authHeader)
 		rec := httptest.NewRecorder()
@@ -87,8 +90,8 @@ func TestSyncPush_RateLimiting(t *testing.T) {
 	}
 
 	// At least some should succeed (burst) and at least one should be rate-limited.
-	assert.Greater(t, successes, 0, "some pushes should succeed (burst)")
-	assert.Greater(t, rateLimited, 0, "some pushes should be rate-limited")
+	assert.Greater(t, successes, 0, "some commits should succeed (burst)")
+	assert.Greater(t, rateLimited, 0, "some commits should be rate-limited")
 }
 
 func TestSyncPush_BatchHashLookup(t *testing.T) {
@@ -97,13 +100,15 @@ func TestSyncPush_BatchHashLookup(t *testing.T) {
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push initial blocks (async).
-	pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push",
-		`{"blocks":[{"id":"b1","text":"original","item_name":"en.json"}]}`)
+	// Push initial blocks.
+	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
+		{ID: "b1", Text: "original", ItemName: "en.json"},
+	})
 
 	// Push updated blocks (same IDs, different text).
-	pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push",
-		`{"blocks":[{"id":"b1","text":"modified","item_name":"en.json"}]}`)
+	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
+		{ID: "b1", Text: "modified", ItemName: "en.json"},
+	})
 
 	// Verify the block was updated (not duplicated).
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)

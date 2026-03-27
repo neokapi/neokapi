@@ -1,23 +1,31 @@
 package server
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bowrainstorage "github.com/neokapi/neokapi/bowrain/storage"
 	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
+	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // initTestStores wires up in-memory SQLite stores on the server for testing.
@@ -39,7 +47,7 @@ func initTestStores(t *testing.T, srv *Server) {
 		srv.Services.Auth = service.NewAuthService(as, srv.Config.JWTSecret)
 	}
 
-	// Wire up blob store and job queue for async sync push (AD-037).
+	// Wire up blob store and job queue for async sync push.
 	if bs, err := bloblocal.New(t.TempDir()); err == nil {
 		srv.BlobStore = bs
 	}
@@ -53,16 +61,7 @@ func initTestStores(t *testing.T, srv *Server) {
 		}
 	}
 
-	// Register v1 push handler for test compatibility (removed from public routes in AD-038).
-	// Tests use pushAndDrain which hits the v1 endpoint to seed data.
-	testRL := RateLimitSyncPush(10, 3)
-	e := srv.GetEcho()
-	v1 := e.Group("/api/v1")
-	v1.POST("/projects/:id/sync/push", srv.HandleSyncPush, testRL)
-	v1.POST("/projects/:id/streams/:stream/sync/push", srv.HandleSyncPush, testRL)
-
 	// Install factory functions for in-memory TM/TB stores.
-	// Note: initTestStores also exposes DB() for SQLiteJobStore via cs.
 	srv.wsStores.tmFactory = func() sievepen.TMStore {
 		return &testTMStore{sievepen.NewInMemoryTM()}
 	}
@@ -96,18 +95,191 @@ func drainPushQueue(t *testing.T, srv *Server) {
 	}
 }
 
-// pushAndDrain sends a sync push and processes the queued job immediately.
-// Returns the push response. All sync tests should use this instead of
-// sending the push directly (since push is now always async).
-func pushAndDrain(t *testing.T, srv *Server, e *echo.Echo, authHeader, url, body string) *httptest.ResponseRecorder {
+// pushBlockItem represents a block to push in a test, associated with an item.
+type pushBlockItem struct {
+	ID       string
+	Text     string
+	ItemName string
+}
+
+// pushBlocks performs a full push flow (init → diff → chunk upload → commit → drain)
+// and returns the commit response recorder. This tests the real end-to-end push flow.
+func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID string, items []pushBlockItem) *httptest.ResponseRecorder {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodPost, url, strings.NewReader(body))
+
+	// Build blocks grouped by item.
+	blocksByItem := map[string][]*model.Block{}
+	for _, item := range items {
+		b := &model.Block{ID: item.ID, Translatable: true}
+		b.SetSourceText(item.Text)
+		blocksByItem[item.ItemName] = append(blocksByItem[item.ItemName], b)
+	}
+
+	// Compute item hashes for init.
+	itemHashes := map[string]string{}
+	blockHashesByItem := map[string]map[string]string{}
+	for itemName, blocks := range blocksByItem {
+		blockHashes := map[string]string{}
+		for _, b := range blocks {
+			identity := model.ComputeIdentity(b)
+			blockHashes[b.ID] = identity.ContentHash
+		}
+		blockHashesByItem[itemName] = blockHashes
+		itemHashes[itemName] = bowsync.ComputeItemHash(blockHashes)
+	}
+
+	basePath := "/api/v1/projects/" + projectID
+
+	// 1. Init — send item hashes.
+	initBody, _ := json.Marshal(map[string]any{
+		"project_id":  projectID,
+		"item_hashes": itemHashes,
+	})
+	req := httptest.NewRequest(http.MethodPost, basePath+"/sync/push/init", bytes.NewReader(initBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusAccepted, rec.Code, "push should return 202 Accepted")
+	require.Equal(t, http.StatusOK, rec.Code, "push init should return 200")
+
+	var initResp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &initResp))
+
+	// If unchanged, return early.
+	if initResp["status"] == "unchanged" {
+		return rec
+	}
+
+	uploadID := initResp["upload_id"].(string)
+
+	// Collect items that need uploading (changed + new).
+	var diffItems []string
+	if changed, ok := initResp["changed_items"].([]any); ok {
+		for _, v := range changed {
+			diffItems = append(diffItems, v.(string))
+		}
+	}
+	if newItems, ok := initResp["new_items"].([]any); ok {
+		for _, v := range newItems {
+			diffItems = append(diffItems, v.(string))
+		}
+	}
+
+	// 2. Diff each changed/new item.
+	allNeeded := map[string]map[string]bool{}
+	for _, itemName := range diffItems {
+		hashes := blockHashesByItem[itemName]
+		if hashes == nil {
+			continue
+		}
+		diffBody, _ := json.Marshal(map[string]any{
+			"upload_id":    uploadID,
+			"item_name":    itemName,
+			"block_hashes": hashes,
+		})
+		req = httptest.NewRequest(http.MethodPost, basePath+"/sync/push/diff", bytes.NewReader(diffBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", authHeader)
+		rec = httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code, "push diff should return 200")
+
+		var diffResp map[string]any
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &diffResp))
+		needed := map[string]bool{}
+		if neededList, ok := diffResp["needed"].([]any); ok {
+			for _, v := range neededList {
+				needed[v.(string)] = true
+			}
+		}
+		allNeeded[itemName] = needed
+	}
+
+	// 3. Upload protobuf chunks via proxy.
+	type chunkRefJSON struct {
+		Index       int    `json:"index"`
+		ContentType string `json:"content_type"`
+		Hash        string `json:"hash"`
+		RecordCount int    `json:"record_count"`
+		ByteSize    int    `json:"byte_size"`
+	}
+	var chunkRefs []chunkRefJSON
+	chunkIndex := 0
+
+	for itemName, neededIDs := range allNeeded {
+		blocks := blocksByItem[itemName]
+		var syncBlocks []*pb.SyncBlock
+		for _, b := range blocks {
+			if !neededIDs[b.ID] {
+				continue
+			}
+			syncBlocks = append(syncBlocks, bowsync.BlockToProto(b, itemName))
+		}
+		if len(syncBlocks) == 0 {
+			continue
+		}
+
+		chunk := &pb.SyncChunk{
+			ContentType: "blocks",
+			RecordCount: int32(len(syncBlocks)),
+			Blocks:      syncBlocks,
+		}
+		chunkData, err := proto.Marshal(chunk)
+		require.NoError(t, err)
+
+		req = httptest.NewRequest(http.MethodPut,
+			fmt.Sprintf("%s/sync/push/chunks/%s/%d", basePath, uploadID, chunkIndex),
+			bytes.NewReader(chunkData))
+		req.Header.Set("Content-Type", "application/octet-stream")
+		req.Header.Set("Authorization", authHeader)
+		rec = httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+		require.Equal(t, http.StatusOK, rec.Code, "chunk upload should return 200")
+
+		// Use raw SHA-256 hash (matching local blob store's content-addressing).
+		rawHash := sha256.Sum256(chunkData)
+		chunkRefs = append(chunkRefs, chunkRefJSON{
+			Index:       chunkIndex,
+			ContentType: "blocks",
+			Hash:        hex.EncodeToString(rawHash[:]),
+			RecordCount: len(syncBlocks),
+			ByteSize:    len(chunkData),
+		})
+		chunkIndex++
+	}
+
+	// 4. Commit.
+	// Build item metadata for the commit.
+	var itemMetaJSON []map[string]string
+	seenItems := map[string]bool{}
+	for _, item := range items {
+		if item.ItemName != "" && !seenItems[item.ItemName] {
+			seenItems[item.ItemName] = true
+			itemMetaJSON = append(itemMetaJSON, map[string]string{
+				"name":   item.ItemName,
+				"format": "json",
+			})
+		}
+	}
+	itemsJSON, _ := json.Marshal(itemMetaJSON)
+
+	commitBody, _ := json.Marshal(map[string]any{
+		"upload_id":  uploadID,
+		"project_id": projectID,
+		"stream":     "main",
+		"chunks":     chunkRefs,
+		"items":      json.RawMessage(itemsJSON),
+	})
+	req = httptest.NewRequest(http.MethodPost, basePath+"/sync/push/commit", bytes.NewReader(commitBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusAccepted, rec.Code, "push commit should return 202")
+
+	// 5. Drain the job queue.
 	drainPushQueue(t, srv)
+
 	return rec
 }
 

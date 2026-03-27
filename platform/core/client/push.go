@@ -56,13 +56,13 @@ type PushCommitRequest struct {
 	UploadID      string          `json:"upload_id"`
 	ProjectID     string          `json:"project_id"`
 	Stream        string          `json:"stream"`
-	Chunks        []ChunkRefV2    `json:"chunks"`
+	Chunks        []ChunkRef      `json:"chunks"`
 	Items         json.RawMessage `json:"items"`
 	ActorID       string          `json:"actor_id"`
 	WorkspaceSlug string          `json:"workspace_slug"`
 }
 
-type ChunkRefV2 struct {
+type ChunkRef struct {
 	Index       int    `json:"index"`
 	ContentType string `json:"content_type"`
 	Hash        string `json:"hash"`
@@ -70,10 +70,10 @@ type ChunkRefV2 struct {
 	ByteSize    int64  `json:"byte_size"`
 }
 
-// PushV2 performs a complete v2 push: init → diff → upload chunks → commit.
+// Push performs a complete push: init → diff → upload chunks → commit.
 // blocks is a map of item_name → blocks for that item.
 // items is the item metadata.
-func (c *BowrainClient) PushV2(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta) (*SyncPushResponse, error) {
+func (c *BowrainClient) Push(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta) (*SyncPushResponse, error) {
 	// 1. Compute Merkle hashes.
 	itemHashes := make(map[string]string)
 	blockHashesByItem := make(map[string]map[string]string)
@@ -129,7 +129,7 @@ func (c *BowrainClient) PushV2(ctx context.Context, blocksByItem map[string][]*m
 	}
 
 	// 4. Build and upload chunks (only needed blocks).
-	var chunks []ChunkRefV2
+	var chunks []ChunkRef
 	chunkIndex := 0
 
 	for itemName, neededIDs := range allNeeded {
@@ -225,7 +225,7 @@ func (c *BowrainClient) pushDiff(ctx context.Context, req PushDiffRequest) (*Pus
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
 }
 
-func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index int, contentType string, blocks []*pb.SyncBlock, transport string) (*ChunkRefV2, error) {
+func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index int, contentType string, blocks []*pb.SyncBlock, transport string) (*ChunkRef, error) {
 	chunk := &pb.SyncChunk{
 		ContentType: contentType,
 		RecordCount: int32(len(blocks)),
@@ -257,7 +257,7 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 	// Compute hash of the chunk data for the manifest.
 	hash := model.ComputeContentHash(string(data))
 
-	return &ChunkRefV2{
+	return &ChunkRef{
 		Index:       index,
 		ContentType: contentType,
 		Hash:        hash,
@@ -287,8 +287,8 @@ func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
 }
 
-// PushV2Parallel is like PushV2 but uploads chunks in parallel.
-func (c *BowrainClient) PushV2Parallel(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, concurrency int) (*SyncPushResponse, error) {
+// PushParallel is like Push but uploads chunks in parallel.
+func (c *BowrainClient) PushParallel(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, concurrency int) (*SyncPushResponse, error) {
 	if concurrency < 1 {
 		concurrency = 4
 	}
@@ -296,5 +296,5 @@ func (c *BowrainClient) PushV2Parallel(ctx context.Context, blocksByItem map[str
 	// once direct SAS upload is implemented.
 	_ = errgroup.Group{}
 	_ = sync.Mutex{}
-	return c.PushV2(ctx, blocksByItem, items)
+	return c.Push(ctx, blocksByItem, items)
 }

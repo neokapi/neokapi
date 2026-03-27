@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -11,109 +12,257 @@ import (
 	platauth "github.com/neokapi/neokapi/platform/auth"
 
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
-	corestorage "github.com/neokapi/neokapi/core/storage"
+	"github.com/neokapi/neokapi/core/storage"
 	apiclient "github.com/neokapi/neokapi/platform/client"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
-// HandleSyncPush receives source blocks from a client, writes them to blob
-// storage, and enqueues a background job for processing (AD-037).
-// Returns 202 Accepted with a push_id for status polling.
-func (s *Server) HandleSyncPush(c echo.Context) error {
+// HandleSyncPushInit handles the first step of a push: Merkle tree diff negotiation.
+// POST /sync/push/init
+func (s *Server) HandleSyncPushInit(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
 
-	if s.BlobStore == nil || s.JobStore == nil || s.JobQueue == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "async push not configured (blob store or job queue missing)"})
+	var req struct {
+		ProjectID    string            `json:"project_id"`
+		Stream       string            `json:"stream"`
+		ContentTypes []string          `json:"content_types"`
+		ItemHashes   map[string]string `json:"item_hashes"`
+		RootHash     string            `json:"root_hash"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.ProjectID == "" {
+		req.ProjectID = c.Param("id")
+	}
+	if req.Stream == "" {
+		req.Stream = c.Param("stream")
+	}
+	if req.Stream == "" {
+		req.Stream = "main"
 	}
 
-	var req apiclient.SyncPushRequest
+	if s.ContentStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "content store not configured"})
+	}
+
+	diffEngine := bowsync.NewDiffEngine(s.ContentStore, nil) // TODO: wire Redis cache
+
+	// Fast path: root hash comparison.
+	if req.RootHash != "" {
+		unchanged, err := diffEngine.CheckRootHash(c.Request().Context(), req.ProjectID, req.Stream, req.RootHash)
+		if err == nil && unchanged {
+			return c.JSON(http.StatusOK, map[string]any{
+				"upload_id": "",
+				"status":    "unchanged",
+			})
+		}
+	}
+
+	// Full diff: compare item hashes.
+	itemDiff, err := diffEngine.CompareItems(c.Request().Context(), req.ProjectID, req.Stream, req.ItemHashes)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	uploadID := id.New()
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"upload_id":            uploadID,
+		"status":               "diff_computed",
+		"changed_items":        itemDiff.ChangedItems,
+		"new_items":            itemDiff.NewItems,
+		"deleted_items":        itemDiff.DeletedItems,
+		"unchanged_item_count": itemDiff.UnchangedCount,
+	})
+}
+
+// HandleSyncPushDiff handles block-level diff negotiation for a single item.
+// POST /sync/push/diff
+func (s *Server) HandleSyncPushDiff(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
+	var req struct {
+		UploadID    string            `json:"upload_id"`
+		ItemName    string            `json:"item_name"`
+		BlockHashes map[string]string `json:"block_hashes"`
+	}
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
 
-	if len(req.Blocks) > store.MaxBlocksPerRequest {
-		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{
-			Error: fmt.Sprintf("batch size %d exceeds limit %d", len(req.Blocks), store.MaxBlocksPerRequest),
-		})
-	}
-
 	projectID := c.Param("id")
-	userID, _ := c.Get("user_id").(string)
-	pushID := id.New()
-
 	stream := c.Param("stream")
 	if stream == "" {
 		stream = "main"
 	}
 
-	return s.handleAsyncPush(c, &req, projectID, pushID, stream, userID)
-}
+	diffEngine := bowsync.NewDiffEngine(s.ContentStore, nil)
 
-// syncPushPayload wraps the push request with context needed by the worker.
-type syncPushPayload struct {
-	Request apiclient.SyncPushRequest `json:"request"`
-	UserID  string                    `json:"user_id"`
-	WsSlug  string                    `json:"ws_slug"`
-}
-
-// handleAsyncPush writes the push payload to blob storage and enqueues a job
-// for background processing (AD-037).
-func (s *Server) handleAsyncPush(c echo.Context, req *apiclient.SyncPushRequest, projectID, pushID, stream, userID string) error {
-	wsSlug := ""
-	if ws, ok := c.Get("workspace_slug").(string); ok {
-		wsSlug = ws
-	}
-	payload := syncPushPayload{
-		Request: *req,
-		UserID:  userID,
-		WsSlug:  wsSlug,
-	}
-	data, err := json.Marshal(payload)
+	blockDiff, err := diffEngine.CompareBlocks(c.Request().Context(), projectID, stream, req.ItemName, req.BlockHashes)
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to serialize push payload"})
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	ref, err := s.BlobStore.Upload(c.Request().Context(), data, corestorage.UploadOptions{
-		ContentType: "application/json",
-		Filename:    fmt.Sprintf("push-%s.json", pushID),
+	// Generate chunk upload URLs if blob store supports it.
+	var chunkURLs []string
+	transport := "proxy"
+	if chunkedStore, ok := s.BlobStore.(storage.ChunkedBlobStore); ok {
+		estimatedChunks := (len(blockDiff.Needed) / 500) + 1
+		urls, err := chunkedStore.GenerateChunkUploadURLs(c.Request().Context(), req.UploadID, estimatedChunks, storage.SignOptions{})
+		if err == nil && len(urls) > 0 {
+			chunkURLs = urls
+			transport = "direct"
+		}
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"needed":     blockDiff.Needed,
+		"deleted":    blockDiff.Deleted,
+		"conflicts":  blockDiff.Conflicts,
+		"chunk_urls": chunkURLs,
+		"transport":  transport,
 	})
-	blobKey := ref.Key
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store push payload"})
+}
+
+// HandleSyncPushCommit finalizes a push by validating the manifest and enqueuing the worker job.
+// POST /sync/push/commit
+func (s *Server) HandleSyncPushCommit(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
 	}
 
-	// Create a sync-push translation job. The worker identifies this as a
-	// sync push by ItemName="__sync_push__". The blob key is stored in Model
-	// (unused for sync pushes). Stream is stored in TargetLocale.
-	job := &jobs.TranslationJob{
-		ID:            pushID,
-		WorkspaceSlug: func() string { ws, _ := c.Get("workspace_slug").(string); return ws }(),
-		ProjectID:     projectID,
-		ItemName:      "__sync_push__",
-		TargetLocale:  stream,
-		Model:         blobKey, // blob storage key for the push payload
-		PushID:        pushID,
-		Status:        jobs.StatusQueued,
+	var manifest struct {
+		UploadID      string          `json:"upload_id"`
+		ProjectID     string          `json:"project_id"`
+		Stream        string          `json:"stream"`
+		Chunks        []chunkRef      `json:"chunks"`
+		Items         json.RawMessage `json:"items"`
+		ActorID       string          `json:"actor_id"`
+		WorkspaceSlug string          `json:"workspace_slug"`
+		ConnectorID   string          `json:"connector_id"`
 	}
-	if err := s.JobStore.CreateJob(c.Request().Context(), job); err != nil {
-		// Clean up blob on failure.
-		_ = s.BlobStore.Delete(c.Request().Context(), blobKey)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create push job"})
+	if err := c.Bind(&manifest); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 	}
-	if err := s.JobQueue.Enqueue(c.Request().Context(), pushID); err != nil {
-		_ = s.JobStore.DeleteJob(c.Request().Context(), pushID)
-		_ = s.BlobStore.Delete(c.Request().Context(), blobKey)
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to enqueue push job"})
+	if manifest.ProjectID == "" {
+		manifest.ProjectID = c.Param("id")
+	}
+	if manifest.Stream == "" {
+		manifest.Stream = c.Param("stream")
+	}
+	if manifest.Stream == "" {
+		manifest.Stream = "main"
+	}
+	if manifest.ActorID == "" {
+		manifest.ActorID, _ = c.Get("user_id").(string)
+	}
+	if manifest.WorkspaceSlug == "" {
+		manifest.WorkspaceSlug, _ = c.Get("workspace_slug").(string)
+	}
+
+	// Validate chunks exist. For ChunkedBlobStore (proxy uploads), chunks are
+	// in the upload session, not content-addressed storage.
+	if _, isChunked := s.BlobStore.(storage.ChunkedBlobStore); !isChunked {
+		for _, chunk := range manifest.Chunks {
+			exists, err := s.BlobStore.Exists(c.Request().Context(), chunk.Hash)
+			if err != nil || !exists {
+				return c.JSON(http.StatusBadRequest, ErrorResponse{
+					Error: fmt.Sprintf("chunk %d (hash %s) not found in storage", chunk.Index, chunk.Hash),
+				})
+			}
+		}
+	}
+
+	pushID := id.New()
+
+	// Serialize manifest for the worker.
+	manifestJSON, _ := json.Marshal(manifest)
+
+	// Store manifest as a blob for the worker to read.
+	ref, err := s.BlobStore.Upload(c.Request().Context(), manifestJSON, storage.UploadOptions{
+		ContentType: "application/json",
+		Filename:    fmt.Sprintf("manifest-%s.json", pushID),
+	})
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store manifest"})
+	}
+
+	// Enqueue the push job.
+	if s.JobStore != nil && s.JobQueue != nil {
+		job := &jobs.TranslationJob{
+			ID:            pushID,
+			WorkspaceSlug: manifest.WorkspaceSlug,
+			ProjectID:     manifest.ProjectID,
+			ItemName:      "__sync_push__",
+			TargetLocale:  manifest.Stream,
+			Model:         ref.Key, // manifest blob key
+			PushID:        pushID,
+			Status:        jobs.StatusQueued,
+		}
+		if err := s.JobStore.CreateJob(c.Request().Context(), job); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create push job"})
+		}
+		if err := s.JobQueue.Enqueue(c.Request().Context(), pushID); err != nil {
+			_ = s.JobStore.DeleteJob(c.Request().Context(), pushID)
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to enqueue push job"})
+		}
 	}
 
 	return c.JSON(http.StatusAccepted, map[string]any{
 		"push_id": pushID,
 		"status":  "queued",
-		"message": "Push accepted for background processing",
 	})
+}
+
+// HandleSyncProxyChunkUpload handles chunk uploads for the proxy transport mode
+// (local dev / self-hosted without Azure Blob SAS URLs).
+// PUT /sync/push/chunks/:uploadId/:chunkIndex
+func (s *Server) HandleSyncProxyChunkUpload(c echo.Context) error {
+	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
+		return err
+	}
+
+	uploadID := c.Param("uploadId")
+	chunkIndex := 0
+	_, _ = fmt.Sscanf(c.Param("chunkIndex"), "%d", &chunkIndex)
+
+	data, err := readBody(c, 2*1024*1024) // 2MB max per chunk
+	if err != nil {
+		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{Error: "chunk too large"})
+	}
+
+	// Store chunk as a content-addressed blob. The worker later downloads each
+	// chunk by its hash (from the commit manifest), so we need the chunk to be
+	// accessible via BlobStore.Download(hash). Content-addressed Upload gives
+	// us a stable key that matches the SHA-256 the client computes.
+	if _, err := s.BlobStore.Upload(c.Request().Context(), data, storage.UploadOptions{
+		ContentType: "application/octet-stream",
+		Filename:    fmt.Sprintf("chunks/%s/%04d", uploadID, chunkIndex),
+	}); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{"ok": true})
+}
+
+type chunkRef struct {
+	Index       int    `json:"index"`
+	ContentType string `json:"content_type"`
+	Hash        string `json:"hash"`
+	RecordCount int    `json:"record_count"`
+	ByteSize    int64  `json:"byte_size"`
+}
+
+// readBody reads up to maxBytes from the request body.
+func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
+	return io.ReadAll(io.LimitReader(c.Request().Body, maxBytes))
 }
 
 // HandleSyncPull returns change log entries for a project, optionally scoped by locale.
