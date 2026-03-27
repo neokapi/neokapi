@@ -52,6 +52,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 | [011](011-automation.md) | Automation and Event System | Events, triggers, quality gates, continuous sync |
 | [034](034-translator-workflow.md) | Translator Workflow | Push completion tracking, task fan-out, source review gate, agent integration |
 | [035](035-automation-run-visibility.md) | Automation Run Visibility | GitHub Actions-style run/step/log model, real-time progress, SSE streaming |
+| [036](036-distributed-event-bus.md) | Distributed Event Bus | ASB topics (Azure), NATS JetStream (local), replaces leader election |
 
 ## Layer 6: Applications and Operations
 
