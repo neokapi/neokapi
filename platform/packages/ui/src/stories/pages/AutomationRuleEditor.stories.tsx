@@ -36,6 +36,28 @@ export const EditExistingRule: Story = {
   },
 };
 
+export const EditWorkflowRule: Story = {
+  args: {
+    open: true,
+    onOpenChange: fn(),
+    workspaceSlug: "demo",
+    projectId: "proj-demo-1",
+    rule: sampleAutomationRules[3], // create_review_tasks rule
+    onSave: fn(),
+  },
+};
+
+export const EditSourceReviewRule: Story = {
+  args: {
+    open: true,
+    onOpenChange: fn(),
+    workspaceSlug: "demo",
+    projectId: "proj-demo-1",
+    rule: sampleAutomationRules[4], // create_source_review rule
+    onSave: fn(),
+  },
+};
+
 export const SavingState: Story = {
   args: {
     open: true,

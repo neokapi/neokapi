@@ -852,6 +852,30 @@ export const sampleAutomationRules: AutomationRule[] = [
     created_at: "2026-02-01T12:00:00Z",
     updated_at: "2026-03-01T09:15:00Z",
   },
+  {
+    id: "rule-4",
+    project_id: "proj-demo-1",
+    name: "Create review tasks after automations",
+    trigger: "push.automations.completed",
+    conditions: [],
+    actions: [{ Type: "create_review_tasks", Config: { mode: "review" } }],
+    enabled: true,
+    builtin: true,
+    created_at: "2026-03-25T10:00:00Z",
+    updated_at: "2026-03-25T10:00:00Z",
+  },
+  {
+    id: "rule-5",
+    project_id: "proj-demo-1",
+    name: "Source review gate",
+    trigger: "push.automations.completed",
+    conditions: [],
+    actions: [{ Type: "create_source_review", Config: { reviewer: "user-1" } }],
+    enabled: false,
+    builtin: false,
+    created_at: "2026-03-25T10:00:00Z",
+    updated_at: "2026-03-25T10:00:00Z",
+  },
 ];
 
 export const sampleAutomationHistory: AutomationHistoryEntry[] = [

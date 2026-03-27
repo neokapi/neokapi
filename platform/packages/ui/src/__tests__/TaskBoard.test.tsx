@@ -111,6 +111,11 @@ describe("TaskBoard", () => {
     expect(screen.getByText("Overdue")).toBeInTheDocument();
   });
 
+  it("shows Source Review type label", () => {
+    render(<TaskBoard tasks={[makeTask({ type: "source_review" })]} />);
+    expect(screen.getByText("Source Review")).toBeInTheDocument();
+  });
+
   it("shows description when provided", () => {
     render(<TaskBoard tasks={[makeTask({ description: "Urgent translation" })]} />);
     expect(screen.getByText("Urgent translation")).toBeInTheDocument();

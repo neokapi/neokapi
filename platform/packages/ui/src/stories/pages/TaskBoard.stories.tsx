@@ -105,6 +105,21 @@ const sampleTasks: TaskInfo[] = [
     created_at: ago(1440),
     updated_at: ago(60),
   },
+  {
+    id: "task-8",
+    workspace_id: "ws-1",
+    project_id: "proj-1",
+    type: "source_review",
+    status: "open",
+    priority: "normal",
+    title: "Review source content before translation",
+    description: "Check placeholders, terminology, and DNT tags before fan-out to target languages.",
+    assignee_id: "user-1",
+    created_by: "system",
+    data: { push_id: "push-abc", items: "en.json" },
+    created_at: ago(30),
+    updated_at: ago(30),
+  },
 ];
 
 const meta: Meta<typeof TaskBoard> = {
