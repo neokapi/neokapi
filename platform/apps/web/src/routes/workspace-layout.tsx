@@ -85,6 +85,7 @@ function ConnectedTopBar({
   onViewAllActivities,
   onViewAllTasks,
   onTaskClick,
+  onCompleteTask,
 }: {
   user: User | null;
   onSignOut?: () => void;
@@ -95,6 +96,7 @@ function ConnectedTopBar({
   onViewAllActivities?: () => void;
   onViewAllTasks?: () => void;
   onTaskClick?: (task: import("@neokapi/ui").TaskInfo) => void;
+  onCompleteTask?: (taskId: string) => void;
 }) {
   const api = useApi();
 
@@ -113,6 +115,7 @@ function ConnectedTopBar({
       onViewAllActivities={onViewAllActivities}
       onViewAllTasks={onViewAllTasks}
       onTaskClick={onTaskClick}
+      onCompleteTask={onCompleteTask}
     />
   );
 }
@@ -197,6 +200,7 @@ export function WorkspaceLayout() {
   const navigate = useNavigate();
   const { workspace: workspaceSlug, stream } = useParams({ strict: false });
   const queryClient = useQueryClient();
+  const adapter = useApi();
 
   // Data from route beforeLoad — already fetched, no loading state needed.
   const { serverMode, user, workspaces, activeWorkspace } = useRouteContext({
@@ -560,7 +564,6 @@ export function WorkspaceLayout() {
                     void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
                   }
                   onTaskClick={(task) => {
-                    // Navigate to the project scoped to the task's stream.
                     if (task.project_id) {
                       const taskStream = task.stream || "main";
                       void navigate({
@@ -572,6 +575,11 @@ export function WorkspaceLayout() {
                         },
                       });
                     }
+                  }}
+                  onCompleteTask={async (taskId) => {
+                    await adapter.completeTask(ws, taskId);
+                    void queryClient.invalidateQueries({ queryKey: ["myTasks", ws] });
+                    void queryClient.invalidateQueries({ queryKey: ["tasks", ws] });
                   }}
                   leftSlot={
                     sidebarContext?.level === "project" &&

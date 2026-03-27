@@ -708,6 +708,7 @@ export type TaskType =
   | "fix_brand_voice"
   | "fix_terminology"
   | "connector_setup"
+  | "source_review"
   | "custom";
 
 /** Task status */

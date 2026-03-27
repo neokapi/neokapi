@@ -20,6 +20,15 @@ function typeColor(type: string): string {
       return "text-green-500";
     case "extraction.completed":
       return "text-purple-500";
+    case "task.assigned":
+    case "content.ready":
+      return "text-blue-500";
+    case "content.available":
+      return "text-teal-500";
+    case "quality.gate.failed":
+      return "text-red-500";
+    case "flow.failed":
+      return "text-red-500";
     default:
       return "text-muted-foreground";
   }

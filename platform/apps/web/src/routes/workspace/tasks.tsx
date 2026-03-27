@@ -1,8 +1,12 @@
 import { useEffect } from "react";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { TaskBoard, useWorkspace, useApi, useAuth, Card } from "@neokapi/ui";
+import type { TaskInfo } from "@neokapi/ui";
 
 export function TasksRoute() {
+  const navigate = useNavigate();
+  const { workspace } = useParams({ strict: false });
   const { activeWorkspace } = useWorkspace();
   const { user } = useAuth();
   const api = useApi();
@@ -55,6 +59,18 @@ export function TasksRoute() {
         currentUserId={user?.id}
         onCompleteTask={(id) => completeMutation.mutate(id)}
         onCancelTask={(id) => cancelMutation.mutate(id)}
+        onTaskClick={(task: TaskInfo) => {
+          if (task.project_id) {
+            void navigate({
+              to: "/$workspace/p/$projectId/s/$stream",
+              params: {
+                workspace: workspace ?? ws,
+                projectId: task.project_id,
+                stream: task.stream || "main",
+              },
+            });
+          }
+        }}
       />
     </div>
   );

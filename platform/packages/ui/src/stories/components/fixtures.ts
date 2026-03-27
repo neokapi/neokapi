@@ -554,6 +554,25 @@ export const sampleNotifications: NotificationInfo[] = [
     read: false,
     created_at: new Date(Date.now() - 45 * 60000).toISOString(),
   },
+  {
+    id: "notif-8",
+    user_id: "user-1",
+    type: "task.assigned",
+    title: "New review task: fr-FR",
+    body: "Content is ready for review in fr-FR.",
+    read: false,
+    task_id: "task-1",
+    created_at: new Date(Date.now() - 10 * 60000).toISOString(),
+  },
+  {
+    id: "notif-9",
+    user_id: "user-1",
+    type: "content.ready",
+    title: "Content ready for review",
+    body: "AI translation and extraction completed — content is ready for human review",
+    read: false,
+    created_at: new Date(Date.now() - 12 * 60000).toISOString(),
+  },
 ];
 
 // ---------------------------------------------------------------------------

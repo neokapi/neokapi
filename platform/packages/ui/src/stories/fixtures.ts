@@ -446,6 +446,7 @@ export const sampleProject: ProjectInfo = {
   default_source_language: "en-US",
   target_languages: ["fr-FR", "de-DE", "ja-JP"],
   dashboard_visibility: "private",
+  properties: { workflow_enabled: "true", workflow_mode: "review" },
   workspace_id: "ws-1",
   items: [
     {
