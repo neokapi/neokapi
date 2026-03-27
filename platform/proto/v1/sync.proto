@@ -1,0 +1,279 @@
+// sync.proto — Sync protocol messages (AD-038).
+// Defines the content layer for chunked, diff-based content sync.
+
+syntax = "proto3";
+
+package neokapi.server.v1;
+
+option go_package = "github.com/neokapi/neokapi/bowrain/proto/v1;serverv1";
+
+// ---------------------------------------------------------------------------
+// Push init — Merkle tree diff negotiation
+// ---------------------------------------------------------------------------
+
+// SyncPushInit is the first step in a push. The client sends item-level
+// hashes so the server can compute the diff.
+message SyncPushInit {
+  string project_id = 1;
+  string stream = 2;
+  repeated string content_types = 3;  // "blocks", "terms", "tm", "media"
+
+  // Merkle tree: item-level hashes (item_name → hash of block hashes).
+  map<string, string> item_hashes = 4;
+
+  // Fast path: root hash of all item hashes. If server matches, nothing changed.
+  string root_hash = 5;
+
+  // Collection-level hashes for non-block content.
+  string terms_hash = 6;
+  string tm_hash = 7;
+}
+
+message SyncPushInitResponse {
+  string upload_id = 1;
+  string status = 2;  // "unchanged", "diff_required", "full_upload"
+
+  // Items that need block-level diff.
+  repeated string changed_items = 3;
+
+  // Items on server that client didn't include (upstream deletions).
+  repeated string deleted_items = 4;
+
+  // New items the client has that server doesn't.
+  repeated string new_items = 5;
+
+  // Whether terms/TM need re-syncing.
+  bool terms_changed = 6;
+  bool tm_changed = 7;
+
+  int32 unchanged_item_count = 8;
+}
+
+// ---------------------------------------------------------------------------
+// Push diff — block-level negotiation per changed item
+// ---------------------------------------------------------------------------
+
+message SyncItemDiff {
+  string upload_id = 1;
+  string item_name = 2;
+  map<string, string> block_hashes = 3;  // block_id → content_hash
+}
+
+message SyncItemDiffResponse {
+  // Blocks to upload (new or changed on client).
+  repeated string needed = 1;
+
+  // Blocks the server has that client doesn't (upstream deletions within item).
+  repeated string deleted = 2;
+
+  // Blocks changed by another client since the requesting client last synced.
+  repeated string conflicts = 3;
+
+  // Pre-signed URLs for uploading needed blocks as chunks.
+  repeated string chunk_urls = 4;
+
+  // Transport mode: "direct" (SAS URLs) or "proxy" (upload through API).
+  string transport = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Push commit — manifest describing what was uploaded
+// ---------------------------------------------------------------------------
+
+message SyncManifest {
+  string upload_id = 1;
+  string project_id = 2;
+  string stream = 3;
+
+  // Chunks uploaded to blob storage.
+  repeated ChunkRef chunks = 4;
+
+  // Item metadata.
+  repeated SyncItemMeta items = 5;
+
+  // Context.
+  string actor_id = 6;
+  string workspace_slug = 7;
+  string connector_id = 8;
+  map<string, string> context = 9;
+}
+
+message ChunkRef {
+  int32 index = 1;
+  string content_type = 2;  // "blocks", "terms", "tm", "media"
+  string hash = 3;          // SHA-256 of compressed bytes
+  int32 record_count = 4;
+  int64 byte_size = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Chunk envelope — typed batch of records
+// ---------------------------------------------------------------------------
+
+// SyncChunk is the unit of transfer. Each chunk contains a batch of
+// typed records. A single push can mix content types across chunks.
+message SyncChunk {
+  string content_type = 1;
+  int32 record_count = 2;
+
+  // Exactly one of these is populated (determined by content_type).
+  repeated SyncBlock blocks = 10;
+  repeated SyncTerm terms = 11;
+  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMedia media = 13;
+  // Future: repeated SyncQAResult qa_results = 14;
+  // Future: repeated SyncActivity activities = 15;
+}
+
+// ---------------------------------------------------------------------------
+// Content types
+// ---------------------------------------------------------------------------
+
+// SyncBlock carries the full Block model through the sync boundary.
+message SyncBlock {
+  string id = 1;
+  string item_name = 2;
+  string name = 3;
+  string type = 4;
+  string mime_type = 5;
+  bool translatable = 6;
+
+  // Source content.
+  repeated SyncSegment source = 7;
+  string source_text = 8;  // plain text convenience
+
+  // Translations per locale.
+  map<string, SyncSegmentList> targets = 9;
+
+  // Metadata.
+  map<string, string> properties = 10;
+  bytes annotations_json = 11;
+
+  // Structure.
+  bytes skeleton_json = 12;
+  bool preserve_whitespace = 13;
+  bytes display_hint_json = 14;
+  bytes content_ref_json = 15;
+
+  // Extensible connector data.
+  map<string, string> connector_data = 16;
+
+  // Conflict detection: hash the client last saw. Server rejects if
+  // current hash differs (another client changed it).
+  string expected_hash = 17;
+
+  // Content hash for diff computation.
+  string content_hash = 18;
+}
+
+message SyncSegment {
+  string id = 1;
+  string text = 2;           // plain text
+  string coded_text = 3;     // text with PUA markers for inline spans
+  repeated SyncSpan spans = 4;
+  map<string, string> properties = 5;
+}
+
+message SyncSegmentList {
+  repeated SyncSegment segments = 1;
+}
+
+message SyncSpan {
+  string id = 1;
+  string type = 2;           // semantic type from vocabulary
+  string sub_type = 3;       // format-specific refinement
+  string span_type = 4;      // "opening", "closing", "placeholder"
+  string data = 5;           // original markup
+}
+
+// SyncTerm carries a terminology concept with translations.
+message SyncTerm {
+  string concept_id = 1;
+  string source_term = 2;
+  string source_locale = 3;
+  repeated SyncTermTranslation translations = 4;
+  string definition = 5;
+  string domain = 6;
+  map<string, string> properties = 7;
+  string status = 8;  // "approved", "pending", "deprecated"
+  string content_hash = 9;
+}
+
+message SyncTermTranslation {
+  string locale = 1;
+  string term = 2;
+  string status = 3;
+}
+
+// SyncTMEntry carries a translation memory entry.
+message SyncTMEntry {
+  string id = 1;
+  string source_locale = 2;
+  string target_locale = 3;
+  string source_text = 4;
+  string target_text = 5;
+  string origin = 6;       // "human", "mt", "ai"
+  double score = 7;
+  map<string, string> properties = 8;
+  string content_hash = 9;
+}
+
+// SyncMedia carries a binary asset reference or inline data.
+message SyncMedia {
+  string id = 1;
+  string item_name = 2;
+  string mime_type = 3;
+  string filename = 4;
+  string alt_text = 5;
+  int64 size = 6;
+
+  // Exactly one of these:
+  bytes inline_data = 10;   // small assets (< 256KB)
+  string blob_key = 11;     // large assets: separately uploaded blob
+
+  // Locale variants.
+  string locale = 12;
+  string source_media_id = 13;
+
+  map<string, string> properties = 14;
+  string content_hash = 15;  // SHA-256 of binary content
+}
+
+// ---------------------------------------------------------------------------
+// Item metadata
+// ---------------------------------------------------------------------------
+
+message SyncItemMeta {
+  string name = 1;
+  string format = 2;            // "json", "xliff2", "markdown" — declared, not guessed
+  string encoding = 3;          // "utf-8"
+  string collection = 4;
+  string block_index_json = 5;
+  string preview_html = 6;
+  string source_language = 7;
+  map<string, string> connector_data = 8;
+}
+
+// ---------------------------------------------------------------------------
+// Pull
+// ---------------------------------------------------------------------------
+
+message SyncPullRequest {
+  string project_id = 1;
+  string stream = 2;
+  int64 cursor = 3;
+  int32 limit = 4;
+  repeated string content_types = 5;  // filter by type (empty = all)
+  repeated string locales = 6;        // filter by locale (empty = all)
+}
+
+message SyncPullResponse {
+  int64 cursor = 1;
+  bool has_more = 2;
+
+  // Mixed content types in a single response.
+  repeated SyncBlock blocks = 10;
+  repeated SyncTerm terms = 11;
+  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncMedia media = 13;
+}
