@@ -235,8 +235,9 @@ describe("FileProgressTable", () => {
     render(<FileProgressTable itemStats={items} locales={["fr-FR", "de-DE"]} />);
     expect(screen.getByText("strings.json")).toBeInTheDocument();
     expect(screen.getByText("errors.json")).toBeInTheDocument();
-    expect(screen.getByText("fr-FR")).toBeInTheDocument();
-    expect(screen.getByText("de-DE")).toBeInTheDocument();
+    // LanguageLabel renders display names with variant="short" and hideCode
+    expect(screen.getByText("French")).toBeInTheDocument();
+    expect(screen.getByText("German")).toBeInTheDocument();
   });
 
   it("renders format and word count", () => {
