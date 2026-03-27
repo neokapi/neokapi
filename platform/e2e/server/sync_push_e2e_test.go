@@ -134,7 +134,11 @@ func TestSyncPushE2E(t *testing.T) {
 		"items": json.RawMessage(itemsJSON),
 	})
 	resp = apiRequest(t, http.MethodPost, basePath+"/sync/push/commit", token, string(commitBody))
-	require.Equal(t, http.StatusAccepted, resp.StatusCode)
+	if resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		t.Fatalf("push commit returned %d: %s", resp.StatusCode, string(body))
+	}
 	commitResp := readJSON(t, resp)
 	pushID := commitResp["push_id"].(string)
 	t.Logf("Push committed: push_id=%s", pushID)

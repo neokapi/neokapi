@@ -50,6 +50,13 @@ var pgJobMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id) WHERE push_id != '';
 		`,
 	},
+	{
+		Version:     4,
+		Description: "add step_id column for automation run tracking (AD-035)",
+		SQL: `
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }
 
 // PgJobStore implements JobStore using PostgreSQL.
