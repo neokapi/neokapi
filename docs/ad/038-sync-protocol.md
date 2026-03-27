@@ -43,18 +43,84 @@ Content: what data moves (evolves independently)
   └── (future types added without transport changes)
 ```
 
+### Content-addressed diff sync
+
+The protocol transfers only what changed since the last sync. This is the critical efficiency mechanism — a 10,000-block project where 5 blocks changed transfers only those 5 blocks.
+
+**How it works:**
+
+Every record has a content hash computed from its meaningful fields:
+- **Blocks**: hash of source text + properties + annotations (already exists as `content_hash` via `model.ComputeIdentity`)
+- **Terms**: hash of source term + translations + status
+- **TM entries**: hash of source + target + locale
+- **Media**: SHA-256 of binary content (already content-addressed in BlobStore)
+
+The client maintains a local **hash manifest** — a map of `record_id → content_hash` for everything it has synced. On push, the client sends this manifest to the server. The server compares against its stored hashes and responds with the set of IDs that need uploading (new or changed). The client uploads only the diff.
+
+```
+Push (diff-based):
+  1. Client computes content_hash for each local record
+  2. Client → API: POST /sync/push/init
+     Request: SyncPushInit {
+       project_id, stream,
+       hashes: { "block-id-1": "abc123", "block-id-2": "def456", ... },
+       content_types: ["blocks", "terms"]
+     }
+  3. Server compares client hashes against stored hashes
+     Response: SyncPushInitResponse {
+       upload_id,
+       needed: ["block-id-3", "block-id-7"],   // changed or new
+       deleted: ["block-id-99"],                 // server has, client doesn't
+       chunk_urls: [SAS URLs],                   // for uploading the diff
+       unchanged_count: 9995                     // for progress reporting
+     }
+  4. Client uploads ONLY the needed records as chunks
+  5. Client → API: POST /sync/push/commit
+     Response: 202 { push_id }
+
+Pull (cursor-based — already diff by design):
+  1. Client → API: GET /sync/pull?cursor=X&limit=1000
+     Response: only changes since cursor (already works this way)
+```
+
+**First sync** (no local hashes): Client sends all hashes; server responds with all IDs as "needed." Full upload, same as today but with the rich contract.
+
+**Subsequent syncs**: Client sends hashes; server says "only these 5 changed." Dramatic reduction in transfer.
+
+**Deletion detection**: If the client's hash manifest includes IDs the client no longer has locally, the `deleted` response tells the client what was removed upstream. The server can also detect client-side deletions by comparing the manifest against its stored set.
+
+### Hash manifest optimization
+
+For large projects (100K+ blocks), sending the full hash manifest on every push is itself expensive. Two optimizations:
+
+**1. Manifest hash**: Client computes a single hash of the sorted hash manifest. If server's manifest hash matches, no diff needed — nothing changed.
+
+```
+POST /sync/push/init
+  { manifest_hash: "sha256-of-sorted-hashes" }
+
+Response (fast path):
+  { status: "unchanged" }  // no upload needed
+```
+
+**2. Incremental manifest**: Client only sends hashes for records modified since the last sync cursor. The server fills in the rest from its stored state.
+
+```
+POST /sync/push/init
+  { cursor: 12345, changed_hashes: { "block-3": "new-hash", "block-7": "new-hash" } }
+```
+
 ### Transport layer
 
 The API server is a **control plane only** — it generates upload URLs and enqueues jobs. All data flows directly between client and blob storage.
 
 ```
 Push:
-  1. Client → API: POST /sync/push/init
-     Request: { project_id, stream, estimated_chunks, content_types }
-     Response: { upload_id, chunk_urls: [SAS URLs] }
+  1. Client → API: POST /sync/push/init (with hash manifest)
+     ← { upload_id, needed: [...], chunk_urls: [SAS URLs] }
 
-  2. Client → Blob Storage (parallel, direct):
-     PUT chunk_urls[0] ← zstd-compressed SyncChunk
+  2. Client → Blob Storage (parallel, direct, only needed records):
+     PUT chunk_urls[0] ← zstd-compressed SyncChunk (diff only)
      PUT chunk_urls[1] ← zstd-compressed SyncChunk
      ...
 
@@ -66,7 +132,7 @@ Push:
 
 Pull:
   1. Client → API: GET /sync/pull?cursor=X&limit=1000
-     Response: zstd-compressed SyncPullResponse (streamed)
+     Response: zstd-compressed SyncPullResponse (changes since cursor)
 ```
 
 ### Content layer: SyncChunk envelope
@@ -210,6 +276,49 @@ message SyncItemMeta {
 }
 ```
 
+### SyncPushInit — diff negotiation
+
+The init request carries content hashes so the server can compute the diff:
+
+```protobuf
+message SyncPushInit {
+  string project_id = 1;
+  string stream = 2;
+  repeated string content_types = 3;  // what types the client wants to push
+
+  // Hash manifest: record_id → content_hash.
+  // Server compares against stored hashes to determine the diff.
+  map<string, string> hashes = 4;
+
+  // Optimization: if manifest_hash matches server's, skip diff computation.
+  string manifest_hash = 5;  // SHA-256 of sorted(hashes)
+
+  // Incremental mode: only hashes changed since this cursor.
+  // Server fills in unchanged hashes from its state.
+  int64 cursor = 6;
+}
+
+message SyncPushInitResponse {
+  string upload_id = 1;
+
+  // Records the client must upload (new or changed).
+  repeated string needed = 2;
+
+  // Records the server has that the client didn't include (deletions).
+  repeated string deleted = 3;
+
+  // Pre-signed URLs for chunk uploads (one per estimated chunk).
+  repeated string chunk_urls = 4;
+
+  // Stats for progress reporting.
+  int32 unchanged_count = 5;
+  int32 needed_count = 6;
+
+  // Fast path: if manifest_hash matched, status="unchanged" and no upload needed.
+  string status = 7;  // "diff_computed", "unchanged"
+}
+```
+
 ### SyncManifest — commit request
 
 Describes the complete push with all context:
@@ -307,35 +416,47 @@ publishEventPushCompleted(manifest)
 ### Phase 1: Protobuf contract
 - Define all message types in `platform/proto/v1/sync.proto`
 - Generate Go code
-- Block ↔ SyncBlock converters
+- Block ↔ SyncBlock converters with content_hash computation
 - Term ↔ SyncTerm converters
+- Media ↔ SyncMedia converters
 
-### Phase 2: Chunked upload infrastructure
+### Phase 2: Diff engine
+- Server-side hash comparison: load stored hashes, compute diff against client manifest
+- Manifest hash fast path (single hash comparison, no per-record diff)
+- Incremental manifest mode (cursor-based, only changed hashes)
+- Deletion detection (set difference between client and server manifests)
+
+### Phase 3: Chunked upload infrastructure
 - Extend `BlobStore` with `StageChunk`/`CommitUpload`
 - Azure implementation (Block Blob StageBlock + CommitBlockList)
 - Local filesystem implementation
 - SAS URL generation for chunk upload
 
-### Phase 3: Push endpoints + worker
-- `POST /sync/push/init` — validate, generate upload URLs
+### Phase 4: Push endpoints + worker
+- `POST /sync/push/init` — diff negotiation, generate upload URLs for needed records only
 - `POST /sync/push/commit` — validate manifest, enqueue worker
 - Worker: download chunks, decompress, route by type, store
 - Remove old sync push handler and v1 endpoints
 
-### Phase 4: zstd compression
-- Train dictionary
+### Phase 5: zstd compression
+- Train dictionary on representative payloads
 - `core/compression/` package
 - Apply to chunk serialization + pull responses
 
-### Phase 5: Client + CLI
-- `BowrainClient`: `PushInit`, `UploadChunks`, `PushCommit`
-- bowrain CLI: chunked push with parallel upload, progress bar
+### Phase 6: Client + CLI
+- `BowrainClient`: `PushInit` (with hash manifest), `UploadChunks`, `PushCommit`
+- bowrain CLI: local hash manifest storage (`.bowrain/.sync-hashes`)
+- bowrain CLI: chunked parallel push with progress bar, diff stats
 - bowrain CLI: `bowrain push --terms` to include terminology
 
-### Phase 6: Pull
-- Rich pull with full SyncBlock + SyncTerm model
+### Phase 7: Pull
+- Rich pull with full SyncBlock + SyncTerm + SyncMedia model
 - zstd-compressed responses
-- Cursor pagination
+- Cursor pagination (already diff by design)
+
+### Phase 8: Remove v1
+- Delete old sync endpoints, types, detectFormat
+- Clean dev DB reset
 
 ### Phase 7: Remove v1
 - Delete old `HandleSyncPush`, `HandleSyncPull`, `HandleSyncGetBlocks`
@@ -353,14 +474,19 @@ publishEventPushCompleted(manifest)
 
 - **Single content type per push**: Forces separate pushes for blocks vs. terms. Mixed-type chunks are more ergonomic for connectors that produce blocks + terminology together.
 
+- **Full dataset push without diff**: Requires sending all hashes on every push. For 100K+ blocks this manifest itself is ~3MB. The manifest hash fast path and incremental mode mitigate this.
+
 ## Consequences
 
+- **Diff-based sync**: Only changed records transfer — a 5-block change in a 10,000-block project uploads 5 blocks, not 10,000
+- **Content-addressed**: Identical content is never re-transferred or re-stored
 - API server is a thin control plane — never touches content bytes
 - Sync protocol is extensible: new content types without transport changes
 - Full Block model survives the sync boundary — no data loss
-- Terminology and TM sync through the same protocol as blocks
+- Terminology, TM, and binary assets sync through the same protocol as blocks
 - No heuristic detection — clients declare everything explicitly
 - 80-90% compression reduces transfer and storage costs
 - Parallel, resumable uploads — resilient to network issues
 - Worker processes chunks independently — bounded memory per chunk
 - Clean break from v1 — no backward compatibility debt
+- Manifest hash fast path: unchanged projects skip diff entirely (single hash comparison)
