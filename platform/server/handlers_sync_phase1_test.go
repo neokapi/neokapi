@@ -19,23 +19,18 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push 5 blocks.
+	// Push 5 blocks (async).
 	var blocks []string
 	for i := 0; i < 5; i++ {
 		blocks = append(blocks, fmt.Sprintf(`{"id":"b%d","text":"text-%d","item_name":"en.json"}`, i, i))
 	}
 	body := `{"blocks":[` + strings.Join(blocks, ",") + `]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
+	pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push", body)
 
 	// Get all blocks (default pagination).
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
 	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
+	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 	var allBlocks []apiclient.BlockContent
@@ -84,7 +79,7 @@ func TestSyncPush_RateLimiting(t *testing.T) {
 		req.Header.Set("Authorization", authHeader)
 		rec := httptest.NewRecorder()
 		e.ServeHTTP(rec, req)
-		if rec.Code == http.StatusOK {
+		if rec.Code == http.StatusAccepted {
 			successes++
 		} else if rec.Code == http.StatusTooManyRequests {
 			rateLimited++
@@ -96,52 +91,24 @@ func TestSyncPush_RateLimiting(t *testing.T) {
 	assert.Greater(t, rateLimited, 0, "some pushes should be rate-limited")
 }
 
-func TestSyncPush_AsyncAccepted(t *testing.T) {
-	srv, token := newTestServer(t)
-	e := srv.GetEcho()
-	authHeader := "Bearer " + token
-	pid := createProject(t, srv, token)
-
-	// Without blob store configured, async falls back to sync.
-	body := `{"blocks":[{"id":"b1","text":"hello"}]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push?async=true", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-
-	// Falls back to sync when BlobStore is nil.
-	assert.Equal(t, http.StatusOK, rec.Code, "without blob store, async falls back to sync")
-}
-
 func TestSyncPush_BatchHashLookup(t *testing.T) {
 	srv, token := newTestServer(t)
 	e := srv.GetEcho()
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push initial blocks.
-	body := `{"blocks":[{"id":"b1","text":"original","item_name":"en.json"}]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
+	// Push initial blocks (async).
+	pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push",
+		`{"blocks":[{"id":"b1","text":"original","item_name":"en.json"}]}`)
 
 	// Push updated blocks (same IDs, different text).
-	body = `{"blocks":[{"id":"b1","text":"modified","item_name":"en.json"}]}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
+	pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push",
+		`{"blocks":[{"id":"b1","text":"modified","item_name":"en.json"}]}`)
 
 	// Verify the block was updated (not duplicated).
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
 	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
+	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
