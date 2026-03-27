@@ -4,7 +4,7 @@ import { NotificationCenter } from "../../components/NotificationCenter";
 import { sampleNotifications } from "./fixtures";
 
 const meta: Meta<typeof NotificationCenter> = {
-  title: "Notifications/NotificationCenter",
+  title: "Components/NotificationCenter",
   component: NotificationCenter,
   tags: ["autodocs"],
   decorators: [

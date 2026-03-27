@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { NotificationSettings } from "../../components/NotificationSettings";
 
 const meta: Meta<typeof NotificationSettings> = {
-  title: "Notifications/NotificationSettings",
+  title: "Components/NotificationSettings",
   component: NotificationSettings,
   tags: ["autodocs"],
   decorators: [
