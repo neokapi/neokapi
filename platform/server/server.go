@@ -895,13 +895,14 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/projects", s.HandleCreateWorkspaceProject)
 
 	// Sync routes (workspace-scoped, used by bowrain CLI with workspace config)
-	g.POST("/projects/:id/sync/push", s.HandleSyncPush)
+	syncRateLimit := RateLimitSyncPush(10, 3) // 10 pushes/min, burst of 3
+	g.POST("/projects/:id/sync/push", s.HandleSyncPush, syncRateLimit)
 	g.GET("/projects/:id/sync/pull", s.HandleSyncPull)
 	g.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
 	g.GET("/projects/:id/sync/status", s.HandleSyncPushStatus)
 
 	// Stream-scoped sync routes (workspace-scoped)
-	g.POST("/projects/:id/streams/:stream/sync/push", s.HandleSyncPush)
+	g.POST("/projects/:id/streams/:stream/sync/push", s.HandleSyncPush, syncRateLimit)
 	g.GET("/projects/:id/streams/:stream/sync/pull", s.HandleSyncPull)
 	g.GET("/projects/:id/streams/:stream/sync/blocks", s.HandleSyncGetBlocks)
 	g.GET("/projects/:id/streams/:stream/sync/status", s.HandleSyncPushStatus)

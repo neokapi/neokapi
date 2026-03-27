@@ -11,7 +11,7 @@ import (
 
 const (
 	// MaxBlocksPerRequest limits the number of blocks in a single sync push request.
-	MaxBlocksPerRequest = 1000
+	MaxBlocksPerRequest = 10000
 
 	// DefaultBlockLimit is the default limit for block queries.
 	DefaultBlockLimit = 10000

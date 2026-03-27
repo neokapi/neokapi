@@ -509,12 +509,36 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 	}
 	defer stmt.Close()
 
-	hashStmt, err := tx.PrepareContext(ctx,
-		`SELECT content_hash, targets_json FROM blocks WHERE project_id = $1 AND id = $2`)
-	if err != nil {
-		return fmt.Errorf("prepare hash lookup: %w", err)
+	// Batch-load existing block hashes (replaces per-block SELECT).
+	type existingBlock struct {
+		contentHash string
+		targetsJSON string
 	}
-	defer hashStmt.Close()
+	existingBlocks := map[string]existingBlock{}
+	{
+		var hashQuery string
+		var hashArgs []any
+		if itemName != "" {
+			hashQuery = `SELECT id, content_hash, targets_json FROM blocks WHERE project_id=$1 AND item_name=$2`
+			hashArgs = []any{projectID, itemName}
+		} else {
+			hashQuery = `SELECT id, content_hash, targets_json FROM blocks WHERE project_id=$1`
+			hashArgs = []any{projectID}
+		}
+		hashRows, err := tx.QueryContext(ctx, hashQuery, hashArgs...)
+		if err != nil {
+			return fmt.Errorf("batch hash lookup: %w", err)
+		}
+		for hashRows.Next() {
+			var bid, ch, tj string
+			if err := hashRows.Scan(&bid, &ch, &tj); err != nil {
+				hashRows.Close()
+				return fmt.Errorf("scan hash: %w", err)
+			}
+			existingBlocks[bid] = existingBlock{contentHash: ch, targetsJSON: tj}
+		}
+		hashRows.Close()
+	}
 
 	now := time.Now().UTC()
 	for _, b := range blocks {
@@ -534,12 +558,11 @@ func (s *PostgresStore) storeBlocks(ctx context.Context, projectID, stream, item
 
 		identity := model.ComputeIdentity(b)
 
-		var existingHash, existingTargetsJSON string
-		hashErr := hashStmt.QueryRowContext(ctx, projectID, internalID).Scan(&existingHash, &existingTargetsJSON)
-		if hashErr != nil && hashErr != sql.ErrNoRows {
-			return fmt.Errorf("hash lookup for block %s: %w", internalID, hashErr)
-		}
-		isNew := hashErr == sql.ErrNoRows
+		existing, isExisting := existingBlocks[internalID]
+		isNew := !isExisting
+		existingHash := existing.contentHash
+		existingTargetsJSON := existing.targetsJSON
+		_ = existingHash // used in change detection below
 
 		sourceJSON, err := json.Marshal(b.Source)
 		if err != nil {
