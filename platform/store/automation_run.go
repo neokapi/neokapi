@@ -365,6 +365,65 @@ func (s *AutomationRunStore) ListLogs(ctx context.Context, stepID string, limit 
 }
 
 // ---------------------------------------------------------------------------
+// Pending pushes (cross-instance push tracking, #169)
+// ---------------------------------------------------------------------------
+
+// PendingPush records a push that needs automation tracking.
+// Written by any server instance; polled by the leader's PushCompletionTracker.
+type PendingPush struct {
+	PushID    string
+	ProjectID string
+	Items     string
+	WsSlug    string
+	Actor     string
+	CreatedAt time.Time
+}
+
+// InsertPendingPush records a push for the tracker to pick up.
+func (s *AutomationRunStore) InsertPendingPush(ctx context.Context, pp *PendingPush) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if s.dialect == DialectPostgres {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO pending_pushes (push_id, project_id, items, ws_slug, actor, created_at)
+			 VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (push_id) DO NOTHING`,
+			pp.PushID, pp.ProjectID, pp.Items, pp.WsSlug, pp.Actor, now)
+		return err
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO pending_pushes (push_id, project_id, items, ws_slug, actor, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		pp.PushID, pp.ProjectID, pp.Items, pp.WsSlug, pp.Actor, now)
+	return err
+}
+
+// ListPendingPushes returns all unprocessed pushes.
+func (s *AutomationRunStore) ListPendingPushes(ctx context.Context) ([]PendingPush, error) {
+	rows, err := s.db.QueryContext(ctx,
+		Rebind(s.dialect, `SELECT push_id, project_id, items, ws_slug, actor, created_at FROM pending_pushes ORDER BY created_at`))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []PendingPush
+	for rows.Next() {
+		var pp PendingPush
+		var createdAt string
+		if err := rows.Scan(&pp.PushID, &pp.ProjectID, &pp.Items, &pp.WsSlug, &pp.Actor, &createdAt); err != nil {
+			return nil, err
+		}
+		pp.CreatedAt, _ = parseTime(createdAt)
+		result = append(result, pp)
+	}
+	return result, rows.Err()
+}
+
+// DeletePendingPush removes a processed push.
+func (s *AutomationRunStore) DeletePendingPush(ctx context.Context, pushID string) error {
+	_, err := s.db.ExecContext(ctx, Rebind(s.dialect, `DELETE FROM pending_pushes WHERE push_id = ?`), pushID)
+	return err
+}
+
+// ---------------------------------------------------------------------------
 // Retention
 // ---------------------------------------------------------------------------
 

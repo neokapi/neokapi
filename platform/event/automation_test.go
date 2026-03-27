@@ -219,3 +219,45 @@ func TestAutomationBrandVoiceRule(t *testing.T) {
 	assert.Equal(t, platev.EventBrandVoiceGateFailed, executed[0])
 	mu.Unlock()
 }
+
+func TestAutomationEngine_IsLeaderGating(t *testing.T) {
+	bus := NewChannelEventBus()
+	defer bus.Close()
+
+	var executed []string
+	var mu sync.Mutex
+
+	engine := NewAutomationEngine(bus, func(action AutomationAction, event platev.Event) error {
+		mu.Lock()
+		executed = append(executed, action.Type)
+		mu.Unlock()
+		return nil
+	})
+	defer engine.Close()
+
+	engine.AddRule(AutomationRule{
+		Name:      "test-rule",
+		EventType: platev.EventPushCompleted,
+		Actions:   []AutomationAction{{Type: "auto_translate"}},
+	})
+
+	// Gate to follower — should NOT execute.
+	engine.IsLeader = func() bool { return false }
+
+	bus.Publish(platev.Event{Type: platev.EventPushCompleted})
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Empty(t, executed, "follower should not execute automations")
+	mu.Unlock()
+
+	// Switch to leader — should execute.
+	engine.IsLeader = func() bool { return true }
+
+	bus.Publish(platev.Event{Type: platev.EventPushCompleted})
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	assert.Len(t, executed, 1, "leader should execute automations")
+	mu.Unlock()
+}

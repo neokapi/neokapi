@@ -653,6 +653,15 @@ var storeMigrationsPg = []storage.Migration{
 				expires_at TIMESTAMPTZ NOT NULL
 			);
 
+			CREATE TABLE pending_pushes (
+				push_id    TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				items      TEXT NOT NULL DEFAULT '',
+				ws_slug    TEXT NOT NULL DEFAULT '',
+				actor      TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+
 			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
 			ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
 		`,
