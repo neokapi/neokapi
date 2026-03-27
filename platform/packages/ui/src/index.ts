@@ -109,6 +109,7 @@ export { ProjectMemberManager } from "./components/ProjectMemberManager";
 export { WorkspaceLanguageSettings } from "./components/WorkspaceLanguageSettings";
 export { AutomationsPage } from "./components/AutomationsPage";
 export { AutomationRuleEditor } from "./components/AutomationRuleEditor";
+export { AutomationRunsPage } from "./components/AutomationRunsPage";
 export { AutomationHistory } from "./components/AutomationHistory";
 export { NotificationCenter } from "./components/NotificationCenter";
 export { ActivityIndicator, TaskIndicator } from "./components/ActivityTaskIndicators";
@@ -299,6 +300,11 @@ export type {
   AutomationEvent,
   SaveAutomationRuleRequest,
   AutomationHistoryEntry,
+  AutomationRun,
+  AutomationStep,
+  AutomationLogEntry,
+  RunStatus,
+  StepStatus,
   EntityInfo,
   NotificationInfo,
   StreamInfo,

@@ -680,6 +680,56 @@ export interface AutomationHistoryEntry {
 }
 
 // ---------------------------------------------------------------------------
+// Automation Runs (AD-035)
+// ---------------------------------------------------------------------------
+
+export type RunStatus = "pending" | "running" | "completed" | "failed" | "partial";
+export type StepStatus = "pending" | "running" | "completed" | "failed" | "skipped";
+
+/** Automation run — groups all actions triggered by one event */
+export interface AutomationRun {
+  id: string;
+  project_id: string;
+  trigger_type: string;
+  trigger_id: string;
+  trigger_data: Record<string, string>;
+  status: RunStatus;
+  step_count: number;
+  done_count: number;
+  error?: string;
+  started_at: string;
+  ended_at?: string;
+}
+
+/** Automation step — a single action within a run */
+export interface AutomationStep {
+  id: string;
+  run_id: string;
+  rule_name: string;
+  action_type: string;
+  status: StepStatus;
+  config?: Record<string, string>;
+  job_ids?: string[];
+  task_ids?: string[];
+  total_jobs: number;
+  done_jobs: number;
+  error?: string;
+  started_at: string;
+  ended_at?: string;
+}
+
+/** Structured log entry for a step */
+export interface AutomationLogEntry {
+  id: string;
+  step_id: string;
+  run_id: string;
+  level: "info" | "warn" | "error";
+  message: string;
+  data?: Record<string, string>;
+  timestamp: string;
+}
+
+// ---------------------------------------------------------------------------
 // Activity & Task types (AD-027)
 // ---------------------------------------------------------------------------
 

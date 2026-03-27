@@ -448,6 +448,12 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     listAutomationEvents: async (): Promise<AutomationEvent[]> => sampleAutomationEvents,
     listAutomationHistory: async (): Promise<AutomationHistoryEntry[]> => sampleAutomationHistory,
 
+    // --- Automation Runs ------------------------------------------------
+    listAutomationRuns: async () => [],
+    getAutomationRun: async () => ({ run: {} as any, steps: [] }),
+    listStepLogs: async () => [],
+    cancelAutomationRun: async () => {},
+
     // --- Providers ------------------------------------------------------
     listProviderConfigs: async () => [
       {
