@@ -160,6 +160,9 @@ type Server struct {
 	// runHub manages SSE connections for live automation run updates. Always initialized.
 	runHub *automationRunHub
 
+	// leader provides distributed leader election for singleton components.
+	leader *bstore.LeaderElector
+
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
 
@@ -273,6 +276,8 @@ func NewServer(cfg ServerConfig) *Server {
 			s.ActivityStore = bstore.NewPostgresActivityStore(pgSQL)
 			s.TaskStore = bstore.NewPostgresTaskStore(pgSQL)
 			s.AutomationRunStore = bstore.NewAutomationRunStorePg(pgSQL)
+			s.leader = bstore.NewLeaderElector(pgSQL, bstore.DialectPostgres, "bowrain-server", 30*time.Second, 10*time.Second)
+			s.leader.Start()
 			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewPostgresDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
@@ -321,8 +326,21 @@ func NewServer(cfg ServerConfig) *Server {
 
 	// Wire up automation engine with run manager (AD-035).
 	s.runHub = newAutomationRunHub()
+
+	// Leader election for singleton components (#169).
+	// Uses the content store's DB for the leader_leases table.
+	if s.ContentStore != nil {
+		if sqliteStore, ok := s.ContentStore.(*bstore.SQLiteStore); ok {
+			s.leader = bstore.NewLeaderElector(sqliteStore.DB(), bstore.DialectSQLite, "bowrain-server", 30*time.Second, 10*time.Second)
+			s.leader.Start()
+		}
+	}
+
 	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
+	if s.leader != nil {
+		s.AutomationEngine.IsLeader = s.leader.IsLeader
+	}
 	s.registerDefaultAutomations()
 
 	// Wire up activity recorder (AD-027).
@@ -397,6 +415,9 @@ func NewServer(cfg ServerConfig) *Server {
 		s.pushCompletionTracker = event.NewPushCompletionTracker(
 			s.EventBus, s.JobStore, s.ExtractionJobStore, s.ContentStore,
 		)
+		if s.leader != nil {
+			s.pushCompletionTracker.IsLeader = s.leader.IsLeader
+		}
 	}
 
 	// Wire up step completion tracker (AD-035).
@@ -404,6 +425,9 @@ func NewServer(cfg ServerConfig) *Server {
 		s.stepCompletionTracker = event.NewStepCompletionTracker(
 			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
 		)
+		if s.leader != nil {
+			s.stepCompletionTracker.IsLeader = s.leader.IsLeader
+		}
 	}
 
 	// Wire up run retention cleaner (AD-035): delete runs older than 30 days, check daily.

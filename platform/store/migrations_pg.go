@@ -599,4 +599,62 @@ var storeMigrationsPg = []storage.Migration{
 			ALTER TABLE streams ADD COLUMN locked_at TIMESTAMPTZ;
 		`,
 	},
+	{
+		Version:     19,
+		Description: "create automation_runs, automation_steps, automation_logs, leader_leases tables (AD-035, #169)",
+		SQL: `
+			CREATE TABLE automation_runs (
+				id           TEXT PRIMARY KEY,
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				trigger_type TEXT NOT NULL,
+				trigger_id   TEXT NOT NULL DEFAULT '',
+				trigger_data JSONB NOT NULL DEFAULT '{}',
+				status       TEXT NOT NULL DEFAULT 'pending',
+				step_count   INT NOT NULL DEFAULT 0,
+				done_count   INT NOT NULL DEFAULT 0,
+				error        TEXT NOT NULL DEFAULT '',
+				started_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				ended_at     TIMESTAMPTZ
+			);
+			CREATE INDEX idx_automation_runs_project ON automation_runs(project_id, started_at DESC);
+
+			CREATE TABLE automation_steps (
+				id          TEXT PRIMARY KEY,
+				run_id      TEXT NOT NULL REFERENCES automation_runs(id) ON DELETE CASCADE,
+				rule_name   TEXT NOT NULL DEFAULT '',
+				action_type TEXT NOT NULL,
+				status      TEXT NOT NULL DEFAULT 'pending',
+				config      JSONB NOT NULL DEFAULT '{}',
+				job_ids     JSONB NOT NULL DEFAULT '[]',
+				task_ids    JSONB NOT NULL DEFAULT '[]',
+				total_jobs  INT NOT NULL DEFAULT 0,
+				done_jobs   INT NOT NULL DEFAULT 0,
+				error       TEXT NOT NULL DEFAULT '',
+				started_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				ended_at    TIMESTAMPTZ
+			);
+			CREATE INDEX idx_automation_steps_run ON automation_steps(run_id);
+
+			CREATE TABLE automation_logs (
+				id        TEXT PRIMARY KEY,
+				step_id   TEXT NOT NULL,
+				run_id    TEXT NOT NULL,
+				level     TEXT NOT NULL DEFAULT 'info',
+				message   TEXT NOT NULL,
+				data      JSONB NOT NULL DEFAULT '{}',
+				timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX idx_automation_logs_step ON automation_logs(step_id, timestamp);
+			CREATE INDEX idx_automation_logs_run ON automation_logs(run_id, timestamp);
+
+			CREATE TABLE leader_leases (
+				name       TEXT PRIMARY KEY,
+				holder_id  TEXT NOT NULL,
+				expires_at TIMESTAMPTZ NOT NULL
+			);
+
+			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
+			ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }

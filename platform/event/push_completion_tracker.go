@@ -26,6 +26,9 @@ type PushCompletionTracker struct {
 	pollInterval time.Duration
 	timeout      time.Duration
 	done         chan struct{}
+
+	// IsLeader gates polling to the leader instance only. If nil, always polls.
+	IsLeader func() bool
 }
 
 type pendingPush struct {
@@ -98,7 +101,9 @@ func (t *PushCompletionTracker) pollLoop() {
 		case <-t.done:
 			return
 		case <-ticker.C:
-			t.checkPending()
+			if t.IsLeader == nil || t.IsLeader() {
+				t.checkPending()
+			}
 		}
 	}
 }

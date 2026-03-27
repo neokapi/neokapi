@@ -85,18 +85,19 @@ func RunExtractionWorker(ctx context.Context, deps *ExtractionWorkerDeps) error 
 }
 
 func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID string) error {
-	job, err := deps.ExtractionJobStore.GetExtractionJob(ctx, jobID)
+	// Atomically claim the job (queued → processing).
+	claimed, err := deps.ExtractionJobStore.ClaimExtractionJob(ctx, jobID)
 	if err != nil {
-		return fmt.Errorf("load extraction job: %w", err)
+		return fmt.Errorf("claim extraction job: %w", err)
 	}
-
-	if job.Status != ExtractionStatusQueued {
-		log.Printf("extraction job %s has status %s, skipping", jobID, job.Status)
+	if !claimed {
+		log.Printf("extraction job %s already claimed by another worker, skipping", jobID)
 		return nil
 	}
 
-	if err := deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusProcessing, ""); err != nil {
-		return fmt.Errorf("set processing: %w", err)
+	job, err := deps.ExtractionJobStore.GetExtractionJob(ctx, jobID)
+	if err != nil {
+		return fmt.Errorf("load extraction job: %w", err)
 	}
 
 	emitExtractionLog(deps, job.StepID, "info",

@@ -97,15 +97,21 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 }
 
 func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) error {
+	// Atomically claim the job (queued → processing). If another worker
+	// already claimed it, skip without error. This prevents double-processing
+	// when multiple workers dequeue the same job ID.
+	claimed, err := deps.JobStore.ClaimJob(ctx, jobID)
+	if err != nil {
+		return fmt.Errorf("claim job: %w", err)
+	}
+	if !claimed {
+		log.Printf("job %s already claimed by another worker, skipping", jobID)
+		return nil
+	}
+
 	job, err := deps.JobStore.GetJob(ctx, jobID)
 	if err != nil {
 		return fmt.Errorf("load job: %w", err)
-	}
-
-	// Skip jobs that aren't queued (already processing, completed, or failed).
-	if job.Status != StatusQueued {
-		log.Printf("job %s has status %s, skipping", jobID, job.Status)
-		return nil
 	}
 
 	// Check quota before starting.
@@ -117,11 +123,6 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 			_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, "workspace AI quota exceeded")
 			return fmt.Errorf("workspace %s quota exceeded", job.WorkspaceSlug)
 		}
-	}
-
-	// Mark as processing.
-	if err := deps.JobStore.UpdateJobStatus(ctx, jobID, StatusProcessing, ""); err != nil {
-		return fmt.Errorf("set processing: %w", err)
 	}
 
 	emitLog(deps, job.StepID, "info",

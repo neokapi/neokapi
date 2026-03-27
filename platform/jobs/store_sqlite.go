@@ -229,6 +229,17 @@ func (s *SQLiteJobStore) UpdateJobProgress(ctx context.Context, id string, doneB
 	return nil
 }
 
+func (s *SQLiteJobStore) ClaimJob(ctx context.Context, id string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs SET status = 'processing', updated_at = datetime('now')
+		 WHERE id = ? AND status = 'queued'`, id)
+	if err != nil {
+		return false, fmt.Errorf("claim job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
 func (s *SQLiteJobStore) UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs
