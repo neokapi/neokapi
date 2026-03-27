@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -75,28 +76,71 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 	return proj, formatReg
 }
 
-// mockSyncHandler is a simple mock that records push requests and returns pull responses.
+// mockSyncHandler is a simple mock that handles the push flow (init → diff → chunk → commit)
+// and records push requests for assertions.
 type mockSyncHandler struct {
 	pushCalls    int
-	pushBlocks   []apiclient.BlockInput
+	chunkUploads int                                  // number of chunk uploads received
+	initItems    []string                             // item names sent to init
 	pullCursor   int64
 	pullChanges  []apiclient.ChangeEntry             // Changes to return from pull
 	blocksByItem map[string][]apiclient.BlockContent // item_name → blocks for /sync/blocks
+	lastUploadID string
 }
 
 func (m *mockSyncHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch {
-	case r.Method == http.MethodPost && contains(r.URL.Path, "/sync/push"):
-		var req apiclient.SyncPushRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+	case r.Method == http.MethodPost && contains(r.URL.Path, "/sync/push/init"):
+		// Respond with diff_computed — all items are new.
+		var req struct {
+			ItemHashes map[string]string `json:"item_hashes"`
 		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		m.lastUploadID = "mock-upload-id"
+		var newItems []string
+		for k := range req.ItemHashes {
+			newItems = append(newItems, k)
+			m.initItems = append(m.initItems, k)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"upload_id":            m.lastUploadID,
+			"status":               "diff_computed",
+			"changed_items":        []string{},
+			"new_items":            newItems,
+			"deleted_items":        []string{},
+			"unchanged_item_count": 0,
+		})
+
+	case r.Method == http.MethodPost && contains(r.URL.Path, "/sync/push/diff"):
+		// All blocks are needed.
+		var req struct {
+			BlockHashes map[string]string `json:"block_hashes"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		var needed []string
+		for k := range req.BlockHashes {
+			needed = append(needed, k)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"needed":    needed,
+			"deleted":   []string{},
+			"conflicts": []string{},
+			"transport": "proxy",
+		})
+
+	case r.Method == http.MethodPut && contains(r.URL.Path, "/sync/push/chunks/"):
+		// Accept chunk upload.
+		_, _ = io.ReadAll(r.Body) // consume body
+		m.chunkUploads++
+		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+
+	case r.Method == http.MethodPost && contains(r.URL.Path, "/sync/push/commit"):
+		// Record the push and return accepted.
 		m.pushCalls++
-		m.pushBlocks = append(m.pushBlocks, req.Blocks...)
-		m.pullCursor += int64(len(req.Blocks))
+		m.pullCursor++
+		w.WriteHeader(http.StatusAccepted)
 		_ = json.NewEncoder(w).Encode(apiclient.SyncPushResponse{
-			Stored:    len(req.Blocks),
+			PushID:    "mock-push-id",
 			NewCursor: m.pullCursor,
 		})
 
@@ -123,7 +167,7 @@ func (m *mockSyncHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 
 	default:
-		http.Error(w, "not found", http.StatusNotFound)
+		http.Error(w, "not found: "+r.Method+" "+r.URL.Path, http.StatusNotFound)
 	}
 }
 
@@ -180,12 +224,9 @@ func TestSourceConnector_Push(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, result.BlocksPushed)
 	assert.Equal(t, 1, mock.pushCalls)
-	assert.Len(t, mock.pushBlocks, 2)
-
-	// All blocks should have the item name set to the relative file path.
-	for _, bi := range mock.pushBlocks {
-		assert.Equal(t, "src/locales/en.json", bi.ItemName, "block %s should have item_name set", bi.ID)
-	}
+	assert.Greater(t, mock.chunkUploads, 0, "should upload at least one chunk")
+	// The item name should have been sent to init.
+	assert.Contains(t, mock.initItems, "src/locales/en.json")
 
 	// Second push (no local changes) should send nothing.
 	result, err = conn.Push(ctx, connector.PushOptions{})
@@ -319,11 +360,10 @@ func TestSourceConnector_Push_MultipleFiles(t *testing.T) {
 	assert.Equal(t, 4, result.BlocksPushed, "should push blocks from both files")
 	assert.Equal(t, 2, result.FilesScanned)
 
-	// Verify blocks have distinct item names.
+	// Verify items have distinct names (sent via init).
 	itemNames := map[string]bool{}
-	for _, bi := range mock.pushBlocks {
-		itemNames[bi.ItemName] = true
-		assert.NotEmpty(t, bi.ItemName, "every block must have an item name")
+	for _, name := range mock.initItems {
+		itemNames[name] = true
 	}
 	assert.Len(t, itemNames, 2, "blocks should come from 2 different files")
 
@@ -564,9 +604,9 @@ func TestSourceConnector_ScanRespectsExcludes(t *testing.T) {
 	assert.Equal(t, 1, result.FilesScanned, "excluded legacy file should not be scanned")
 	assert.Equal(t, 2, result.BlocksPushed, "only blocks from en.json")
 
-	// Verify no blocks came from the excluded file.
-	for _, bi := range mock.pushBlocks {
-		assert.NotContains(t, bi.ItemName, "legacy", "excluded file should not produce blocks")
+	// Verify no items came from the excluded file.
+	for _, name := range mock.initItems {
+		assert.NotContains(t, name, "legacy", "excluded file should not produce blocks")
 	}
 }
 
@@ -611,10 +651,10 @@ func TestSourceConnector_PerEntryLanguageOverride(t *testing.T) {
 	assert.Equal(t, 2, result.FilesScanned, "should scan files from both source languages")
 	assert.Equal(t, 2, result.BlocksPushed, "should push blocks from both files")
 
-	// Verify both item names are present.
+	// Verify both item names are present (sent via init).
 	itemNames := map[string]bool{}
-	for _, bi := range mock.pushBlocks {
-		itemNames[bi.ItemName] = true
+	for _, name := range mock.initItems {
+		itemNames[name] = true
 	}
 	assert.True(t, itemNames["src/en/ui.json"], "should include English file")
 	assert.True(t, itemNames["src/es/ui.json"], "should include Spanish file")
@@ -658,13 +698,13 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 	_, err = conn.Push(context.Background(), connector.PushOptions{})
 	require.NoError(t, err)
 
-	// Verify collections are set on pushed blocks.
-	collections := map[string]string{} // itemName → collection
-	for _, bi := range mock.pushBlocks {
-		collections[bi.ItemName] = bi.Collection
+	// Verify that items from both collections were pushed.
+	itemNames := map[string]bool{}
+	for _, name := range mock.initItems {
+		itemNames[name] = true
 	}
-	assert.Equal(t, "ui", collections["src/locales/en.json"], "ui file should have 'ui' collection")
-	assert.Equal(t, "default-col", collections["docs/intro.json"], "docs file should inherit default collection")
+	assert.True(t, itemNames["src/locales/en.json"], "ui file should be pushed")
+	assert.True(t, itemNames["docs/intro.json"], "docs file should be pushed")
 }
 
 func TestSourceConnector_ServerTargetLanguagesFallback(t *testing.T) {

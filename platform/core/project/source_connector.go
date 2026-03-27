@@ -307,50 +307,26 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 		}
 	}
 
-	// Build a map of item → collection for efficient lookup.
-	itemCollections := c.resolveItemCollections()
-
 	// Generate per-item editor metadata (BlockIndex + PreviewHTML) for changed items.
 	itemMeta := c.buildItemMeta(ctx, changed)
 
-	// Push in batches of maxBatch.
-	chunkCount := 0
-	totalStored := 0
+	// Group changed blocks by item for the push API.
+	blocksByItem := map[string][]*model.Block{}
+	for _, ib := range changed {
+		blocksByItem[ib.itemName] = append(blocksByItem[ib.itemName], ib.block)
+	}
+
+	// Push via init → diff → chunk → commit flow.
+	resp, err := c.client.Push(ctx, blocksByItem, itemMeta)
+	if err != nil {
+		return nil, fmt.Errorf("push: %w", err)
+	}
+	totalStored := len(changed)
 	var lastCursor int64
-	var pushID string
-
-	for i := 0; i < len(changed); i += c.maxBatch {
-		end := min(i+c.maxBatch, len(changed))
-		batch := changed[i:end]
-
-		inputs := make([]apiclient.BlockInput, len(batch))
-		for j, ib := range batch {
-			inputs[j] = apiclient.BlockInput{
-				ID:         ib.block.ID,
-				Text:       ib.block.SourceText(),
-				Name:       ib.block.Name,
-				Type:       ib.block.Type,
-				ItemName:   ib.itemName,
-				Collection: itemCollections[ib.itemName],
-			}
-		}
-
-		// Include item metadata in the first batch only.
-		var meta []apiclient.ItemMeta
-		if chunkCount == 0 {
-			meta = itemMeta
-		}
-
-		resp, err := c.client.PushWithMeta(ctx, inputs, meta)
-		if err != nil {
-			return nil, fmt.Errorf("push batch %d: %w", chunkCount+1, err)
-		}
-		totalStored += resp.Stored
+	pushID := ""
+	if resp != nil {
 		lastCursor = resp.NewCursor
-		if resp.PushID != "" {
-			pushID = resp.PushID
-		}
-		chunkCount++
+		pushID = resp.PushID
 	}
 
 	// Fetch and cache server metadata (best-effort).
@@ -400,7 +376,6 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 		BlocksPushed: totalStored,
 		AssetsPushed: assetsPushed,
 		FilesScanned: len(hashMap),
-		ChunkCount:   chunkCount,
 		WordCount:    pushWords,
 		PushID:       pushID,
 	}, nil

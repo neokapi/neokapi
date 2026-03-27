@@ -6,17 +6,12 @@ import (
 	"log"
 	"time"
 
-	"encoding/json"
-	"io"
-	"strings"
-
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
-	apiclient "github.com/neokapi/neokapi/platform/client"
 	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/neokapi/neokapi/platform/store"
 	"github.com/neokapi/neokapi/providers/ai"
@@ -125,12 +120,9 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return fmt.Errorf("load job: %w", err)
 	}
 
-	// Route sync-push jobs to dedicated handlers.
+	// Route sync-push jobs to the dedicated handler.
 	if job.ItemName == "__sync_push__" {
 		return processSyncPushJob(ctx, deps, job)
-	}
-	if job.ItemName == "__sync_push_v2__" {
-		return processSyncPushV2Job(ctx, deps, job)
 	}
 
 	// Check quota before starting.
@@ -410,216 +402,4 @@ func ProcessSyncPushJobForTest(ctx context.Context, deps *WorkerDeps, jobID stri
 		return err
 	}
 	return processSyncPushJob(ctx, deps, job)
-}
-
-// syncPushPayload wraps the push request with context needed by the worker.
-// Must match the struct in server/handlers_sync.go.
-type syncPushPayload struct {
-	Request apiclient.SyncPushRequest `json:"request"`
-	UserID  string                    `json:"user_id"`
-	WsSlug  string                    `json:"ws_slug"`
-}
-
-// processSyncPushJob handles async content ingestion (AD-037).
-// It reads the push payload from blob storage, groups blocks by item,
-// stores them, ensures items exist, and publishes EventPushCompleted.
-func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
-	blobKey := job.Model          // blob storage key stored in Model field
-	stream := job.TargetLocale    // stream stored in TargetLocale field
-	projectID := job.ProjectID
-	pushID := job.PushID
-
-	if deps.BlobStore == nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob store not configured")
-		return fmt.Errorf("blob store not configured for sync-push job")
-	}
-
-	emitLog(deps, job.StepID, "info", "Processing async push",
-		map[string]string{"project": projectID, "push_id": pushID})
-
-	// Download the push payload from blob storage.
-	reader, err := deps.BlobStore.Download(ctx, blobKey)
-	if err != nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob download failed: "+err.Error())
-		return fmt.Errorf("download push blob %s: %w", blobKey, err)
-	}
-	defer reader.Close()
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob read failed: "+err.Error())
-		return fmt.Errorf("read push blob: %w", err)
-	}
-
-	var payload syncPushPayload
-	if err := json.Unmarshal(data, &payload); err != nil {
-		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "invalid push payload: "+err.Error())
-		return fmt.Errorf("unmarshal push payload: %w", err)
-	}
-	req := payload.Request
-
-	emitLog(deps, job.StepID, "info",
-		fmt.Sprintf("Processing %d blocks for %s", len(req.Blocks), projectID),
-		map[string]string{"blocks": fmt.Sprintf("%d", len(req.Blocks))})
-
-	// Build item metadata map.
-	itemMetaMap := make(map[string]apiclient.ItemMeta, len(req.Items))
-	for _, im := range req.Items {
-		itemMetaMap[im.Name] = im
-	}
-
-	// Group blocks by item_name.
-	itemGroups := map[string][]*model.Block{}
-	itemCollections := map[string]string{}
-	for _, bi := range req.Blocks {
-		b := &model.Block{
-			ID:           bi.ID,
-			Name:         bi.Name,
-			Type:         bi.Type,
-			Translatable: true,
-		}
-		b.SetSourceText(bi.Text)
-		itemGroups[bi.ItemName] = append(itemGroups[bi.ItemName], b)
-		if bi.Collection != "" && bi.ItemName != "" {
-			itemCollections[bi.ItemName] = bi.Collection
-		}
-	}
-
-	// Auto-create non-main streams.
-	if stream != "main" {
-		if _, err := deps.ContentStore.GetStream(ctx, projectID, stream); err != nil {
-			baseCursor, _ := deps.ContentStore.LatestCursor(ctx, projectID, "main")
-			_ = deps.ContentStore.CreateStream(ctx, &store.Stream{
-				ProjectID:  projectID,
-				Name:       stream,
-				Parent:     "main",
-				BaseCursor: baseCursor,
-				Visibility: store.StreamPublic,
-			})
-		}
-	}
-
-	// Resolve collection names to IDs.
-	collectionCache := map[string]string{}
-	for _, collName := range itemCollections {
-		if _, seen := collectionCache[collName]; seen {
-			continue
-		}
-		coll, err := deps.ContentStore.GetCollectionByName(ctx, projectID, collName, stream)
-		if err != nil {
-			coll = &store.Collection{
-				ProjectID: projectID,
-				Name:      collName,
-				Kind:      store.CollectionUploaded,
-				ItemLabel: "item",
-			}
-			if createErr := deps.ContentStore.CreateCollection(ctx, coll); createErr == nil {
-				collectionCache[collName] = coll.ID
-			}
-		} else {
-			collectionCache[collName] = coll.ID
-		}
-	}
-
-	// Store blocks per item.
-	totalStored := 0
-	for itemName, blocks := range itemGroups {
-		if itemName != "" {
-			if err := deps.ContentStore.StoreBlocksForItem(ctx, projectID, stream, itemName, blocks); err != nil {
-				emitLog(deps, job.StepID, "error",
-					fmt.Sprintf("Failed to store blocks for %s: %s", itemName, err.Error()), nil)
-				_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
-				return fmt.Errorf("store blocks for %s: %w", itemName, err)
-			}
-			// Ensure item exists in ContentStore for the editor UI.
-			item := &store.Item{
-				Name:     itemName,
-				Format:   detectFormat(itemName),
-				ItemType: "file",
-			}
-			if meta, ok := itemMetaMap[itemName]; ok {
-				item.BlockIndex = meta.BlockIndex
-				item.PreviewHTML = meta.PreviewHTML
-				if meta.Format != "" {
-					item.Format = meta.Format
-				}
-			}
-			if collName, ok := itemCollections[itemName]; ok {
-				item.CollectionID = collectionCache[collName]
-			}
-			_ = deps.ContentStore.StoreItem(ctx, projectID, stream, item)
-		} else {
-			if err := deps.ContentStore.StoreBlocks(ctx, projectID, stream, blocks); err != nil {
-				_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
-				return fmt.Errorf("store blocks: %w", err)
-			}
-		}
-		totalStored += len(blocks)
-	}
-
-	// Auto-set project default stream on first push.
-	if totalStored > 0 {
-		proj, projErr := deps.ContentStore.GetProject(ctx, projectID)
-		if projErr == nil && proj.DefaultStream == "" {
-			proj.DefaultStream = stream
-			_ = deps.ContentStore.UpdateProject(ctx, proj)
-		}
-	}
-
-	// Mark completed and clean up blob.
-	_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusCompleted, "")
-	_ = deps.BlobStore.Delete(ctx, blobKey)
-
-	// Publish EventPushCompleted to trigger automations.
-	if totalStored > 0 && deps.EventBus != nil {
-		var itemNames []string
-		for name := range itemGroups {
-			if name != "" {
-				itemNames = append(itemNames, name)
-			}
-		}
-		deps.EventBus.Publish(platev.Event{
-			Type:      platev.EventPushCompleted,
-			Source:    "sync-worker",
-			ProjectID: projectID,
-			Actor:     payload.UserID,
-			Data: map[string]string{
-				"items":          strings.Join(itemNames, ","),
-				"push_id":        pushID,
-				"workspace_slug": payload.WsSlug,
-			},
-		})
-	}
-
-	emitLog(deps, job.StepID, "info",
-		fmt.Sprintf("Async push completed: %d blocks across %d items", totalStored, len(itemGroups)),
-		map[string]string{"blocks": fmt.Sprintf("%d", totalStored), "items": fmt.Sprintf("%d", len(itemGroups))})
-
-	return nil
-}
-
-// detectFormat infers a format name from a file extension.
-func detectFormat(name string) string {
-	switch {
-	case strings.HasSuffix(name, ".json"):
-		return "json"
-	case strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml"):
-		return "yaml"
-	case strings.HasSuffix(name, ".xml") || strings.HasSuffix(name, ".xliff"):
-		return "xml"
-	case strings.HasSuffix(name, ".po"):
-		return "po"
-	case strings.HasSuffix(name, ".properties"):
-		return "properties"
-	case strings.HasSuffix(name, ".html") || strings.HasSuffix(name, ".htm"):
-		return "html"
-	case strings.HasSuffix(name, ".md"):
-		return "markdown"
-	case strings.HasSuffix(name, ".csv"):
-		return "csv"
-	case strings.HasSuffix(name, ".txt"):
-		return "plaintext"
-	default:
-		return "json"
-	}
 }

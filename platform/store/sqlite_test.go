@@ -913,7 +913,7 @@ func TestDefaultStream_FirstPush(t *testing.T) {
 	item := &platstore.Item{Name: "en.json", Format: "json", ItemType: "file"}
 	require.NoError(t, s.StoreItem(ctx, p.ID, "bowrain-main", item))
 
-	// Set default stream (simulating what HandleSyncPush does).
+	// Set default stream (simulating what the sync push worker does).
 	got, err := s.GetProject(ctx, p.ID)
 	require.NoError(t, err)
 	assert.Empty(t, got.DefaultStream)

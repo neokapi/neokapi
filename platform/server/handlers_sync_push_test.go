@@ -15,16 +15,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-func TestSyncV2_PushInit_Unchanged(t *testing.T) {
+func TestSyncPush_Init_Unchanged(t *testing.T) {
 	srv, token := newTestServer(t)
 	e := srv.GetEcho()
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push some blocks via v1 first.
-	pushAndDrain(t, srv, e, authHeader,
-		"/api/v1/projects/"+pid+"/sync/push",
-		`{"blocks":[{"id":"b1","text":"Hello","item_name":"en.json"}]}`)
+	// Push some blocks first.
+	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
+		{ID: "b1", Text: "Hello", ItemName: "en.json"},
+	})
 
 	// Compute the root hash matching server state.
 	diffEngine := bowsync.NewDiffEngine(srv.ContentStore, nil)
@@ -51,16 +51,16 @@ func TestSyncV2_PushInit_Unchanged(t *testing.T) {
 	assert.Equal(t, "unchanged", resp["status"])
 }
 
-func TestSyncV2_PushInit_DiffComputed(t *testing.T) {
+func TestSyncPush_Init_DiffComputed(t *testing.T) {
 	srv, token := newTestServer(t)
 	e := srv.GetEcho()
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
 	// Push initial content.
-	pushAndDrain(t, srv, e, authHeader,
-		"/api/v1/projects/"+pid+"/sync/push",
-		`{"blocks":[{"id":"b1","text":"Hello","item_name":"en.json"}]}`)
+	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
+		{ID: "b1", Text: "Hello", ItemName: "en.json"},
+	})
 
 	// Init with a different item hash → diff computed.
 	body, _ := json.Marshal(map[string]any{
@@ -82,7 +82,7 @@ func TestSyncV2_PushInit_DiffComputed(t *testing.T) {
 	assert.Contains(t, changed, "en.json")
 }
 
-func TestSyncV2_FullPushFlow(t *testing.T) {
+func TestSyncPush_FullPushFlow(t *testing.T) {
 	srv, token := newTestServer(t)
 	e := srv.GetEcho()
 	authHeader := "Bearer " + token
