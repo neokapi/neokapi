@@ -45,12 +45,16 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 	}
 
 	// 2. Fallback: generate default preview from stored BlockIndex.
-	if item.BlockIndex != "" {
+	// Skip the empty default "{}" that StoreItem sets — it produces
+	// valid HTML boilerplate with no blocks, hiding the block-list fallback.
+	if item.BlockIndex != "" && item.BlockIndex != "{}" {
 		preview := editor.BuildPreviewFromBlockIndex(item.BlockIndex)
-		return c.HTML(http.StatusOK, preview)
+		if strings.Contains(preview, "<kat-block") {
+			return c.HTML(http.StatusOK, preview)
+		}
 	}
 
-	// 3. Last resort: build a simple block-list preview from stored blocks.
+	// 3. Last resort: build a block-list preview from stored blocks.
 	storedBlocks, err := s.ContentStore.GetBlocks(ctx, store.BlockQuery{
 		ProjectID: pid,
 		Stream:    stream,
