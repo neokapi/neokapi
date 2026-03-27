@@ -5,7 +5,7 @@ import { withProviders } from "../decorators";
 import { sampleProject } from "../fixtures";
 
 const meta: Meta<typeof ProjectView> = {
-  title: "Pages/ProjectView",
+  title: "Pages/Workspace/ProjectView",
   component: ProjectView,
   tags: ["autodocs"],
   decorators: [

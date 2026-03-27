@@ -3,7 +3,7 @@ import { FileProgressTable } from "../../components/FileProgressTable";
 import { sampleItemStats } from "./fixtures";
 
 const meta: Meta<typeof FileProgressTable> = {
-  title: "Components/FileProgressTable",
+  title: "Workspace/Collections/FileProgressTable",
   component: FileProgressTable,
   tags: ["autodocs"],
   decorators: [

@@ -66,7 +66,7 @@ function InteractiveCard(props: CardOverrides) {
 // ---------------------------------------------------------------------------
 
 const meta: Meta<typeof VisualEditorCard> = {
-  title: "Editor/VisualEditorCard",
+  title: "Editor/Visual/VisualEditorCard",
   component: VisualEditorCard,
   tags: ["autodocs"],
   decorators: [

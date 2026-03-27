@@ -128,7 +128,7 @@ const i18nSpans: SpanInfo[] = [
 // ---------------------------------------------------------------------------
 
 const meta: Meta = {
-  title: "Editor/FormatAwareEditing",
+  title: "Editor/Formatting/FormatAwareEditing",
   tags: ["autodocs"],
   parameters: {
     docs: {

@@ -4,7 +4,7 @@ import { WorkspaceIcon } from "../../components/WorkspaceIcon";
 import { sampleWorkspace, personalWorkspace } from "./fixtures";
 
 const meta: Meta<typeof WorkspaceIcon> = {
-  title: "Components/WorkspaceIcon",
+  title: "Workspace/Settings/WorkspaceIcon",
   component: WorkspaceIcon,
   tags: ["autodocs"],
   decorators: [

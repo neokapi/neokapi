@@ -4,7 +4,7 @@ import { ProblemsPanel } from "../../components/editor/ProblemsPanel";
 import { sampleFileQAResults } from "../fixtures";
 
 const meta: Meta<typeof ProblemsPanel> = {
-  title: "Editor/ProblemsPanel",
+  title: "Editor/Terminology/ProblemsPanel",
   component: ProblemsPanel,
   tags: ["autodocs"],
   args: {

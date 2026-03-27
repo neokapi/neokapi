@@ -5,7 +5,7 @@ import { SidebarProvider } from "../../components/ui/sidebar";
 import { sampleWorkspace, personalWorkspace } from "./fixtures";
 
 const meta: Meta<typeof MobileWorkspaceSwitcher> = {
-  title: "Components/MobileWorkspaceSwitcher",
+  title: "Layout/MobileWorkspaceSwitcher",
   component: MobileWorkspaceSwitcher,
   tags: ["autodocs"],
   decorators: [

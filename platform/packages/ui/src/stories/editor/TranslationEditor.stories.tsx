@@ -5,7 +5,7 @@ import { sampleProject } from "../fixtures";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof TranslationEditor> = {
-  title: "Editor/TranslationEditor",
+  title: "Editor/Core/TranslationEditor",
   component: TranslationEditor,
   tags: ["autodocs"],
   decorators: [

@@ -4,7 +4,7 @@ import { TermSidebar } from "../../components/editor/TermSidebar";
 import { sampleTermMatches, deprecatedTermMatch } from "../fixtures";
 
 const meta: Meta<typeof TermSidebar> = {
-  title: "Editor/TermSidebar",
+  title: "Editor/Terminology/TermSidebar",
   component: TermSidebar,
   tags: ["autodocs"],
   args: {

@@ -4,7 +4,7 @@ import { StreamEditDialog } from "../../components/StreamEditDialog";
 import { featureStream } from "./fixtures";
 
 const meta: Meta<typeof StreamEditDialog> = {
-  title: "Components/StreamEditDialog",
+  title: "Streams/StreamEditDialog",
   component: StreamEditDialog,
   tags: ["autodocs"],
 };

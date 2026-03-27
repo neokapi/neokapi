@@ -3,7 +3,7 @@ import { AutomationRunsPage } from "../../components/AutomationRunsPage";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof AutomationRunsPage> = {
-  title: "Pages/AutomationRunsPage",
+  title: "Pages/Automation/AutomationRunsPage",
   component: AutomationRunsPage,
   tags: ["autodocs"],
   decorators: [

@@ -4,7 +4,7 @@ import { withProviders } from "../decorators";
 import { sampleWorkspace, viewerWorkspace } from "./fixtures";
 
 const meta: Meta<typeof InviteManager> = {
-  title: "Components/InviteManager",
+  title: "Workspace/Access/InviteManager",
   component: InviteManager,
   tags: ["autodocs"],
   decorators: [

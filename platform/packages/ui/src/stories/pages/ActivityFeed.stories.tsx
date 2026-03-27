@@ -115,7 +115,7 @@ const sampleActivities: ActivityInfo[] = [
 ];
 
 const meta: Meta<typeof ActivityFeed> = {
-  title: "Pages/ActivityFeed",
+  title: "Pages/Activity/ActivityFeed",
   component: ActivityFeed,
   tags: ["autodocs"],
   decorators: [

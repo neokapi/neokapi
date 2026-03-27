@@ -4,7 +4,7 @@ import { TaskIndicator } from "../../components/ActivityTaskIndicators";
 import { sampleTasks } from "./fixtures";
 
 const meta: Meta<typeof TaskIndicator> = {
-  title: "Components/TaskIndicator",
+  title: "Pages/Activity/TaskIndicator",
   component: TaskIndicator,
   tags: ["autodocs"],
   decorators: [

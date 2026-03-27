@@ -4,7 +4,7 @@ import { withProviders } from "../decorators";
 import { sampleWorkspace, viewerWorkspace } from "./fixtures";
 
 const meta: Meta<typeof RoleTemplateManager> = {
-  title: "Components/RoleTemplateManager",
+  title: "Workspace/Access/RoleTemplateManager",
   component: RoleTemplateManager,
   tags: ["autodocs"],
   decorators: [

@@ -3,7 +3,7 @@ import { StreamBadge } from "../../components/StreamBadge";
 import { mainStream, featureStream, sharedStream, lockedStream } from "./fixtures";
 
 const meta: Meta<typeof StreamBadge> = {
-  title: "Components/StreamBadge",
+  title: "Streams/StreamBadge",
   component: StreamBadge,
   tags: ["autodocs"],
   decorators: [

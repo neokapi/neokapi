@@ -4,7 +4,7 @@ import { CreateCollectionDialog } from "../../components/CreateCollectionDialog"
 import { docsCollection } from "./fixtures";
 
 const meta: Meta<typeof CreateCollectionDialog> = {
-  title: "Components/CreateCollectionDialog",
+  title: "Workspace/Collections/CreateCollectionDialog",
   component: CreateCollectionDialog,
   tags: ["autodocs"],
 };

@@ -4,7 +4,7 @@ import { StreamSelector } from "../../components/StreamSelector";
 import { sampleStreams, mainStream, featureStream } from "./fixtures";
 
 const meta: Meta<typeof StreamSelector> = {
-  title: "Components/StreamSelector",
+  title: "Streams/StreamSelector",
   component: StreamSelector,
   tags: ["autodocs"],
   decorators: [

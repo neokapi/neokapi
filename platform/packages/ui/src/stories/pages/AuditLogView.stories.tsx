@@ -75,7 +75,7 @@ const sampleEntries: AuditEntry[] = [
 ];
 
 const meta: Meta<typeof AuditLogView> = {
-  title: "Pages/AuditLogView",
+  title: "Pages/Audit/AuditLogView",
   component: AuditLogView,
   tags: ["autodocs"],
   decorators: [

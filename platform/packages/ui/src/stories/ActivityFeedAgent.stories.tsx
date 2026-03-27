@@ -4,7 +4,7 @@ import { ActivityFeed } from "../components/ActivityFeed";
 import type { ActivityInfo } from "../types/api";
 
 const meta: Meta<typeof ActivityFeed> = {
-  title: "Activity/ActivityFeed (Agent Events)",
+  title: "Pages/Activity/ActivityFeedAgent",
   component: ActivityFeed,
   tags: ["autodocs"],
   decorators: [

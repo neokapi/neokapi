@@ -23,7 +23,7 @@ const dntEntity: EntityInfo = {
 };
 
 const meta: Meta<typeof EntityPopover> = {
-  title: "Editor/EntityPopover",
+  title: "Editor/Entities/EntityPopover",
   component: EntityPopover,
   tags: ["autodocs"],
   decorators: [
