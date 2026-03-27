@@ -1,57 +1,105 @@
 ---
-id: 038-sync-protocol-v2
+id: 038-sync-protocol
 sidebar_position: 38
-title: "AD-038: Sync Protocol v2 — Chunked, Resumable, Direct-to-Storage"
+title: "AD-038: Sync Protocol — Chunked, Resumable, Direct-to-Storage"
 ---
-# AD-038: Sync Protocol v2 — Chunked, Resumable, Direct-to-Storage
+# AD-038: Sync Protocol — Chunked, Resumable, Direct-to-Storage
 
 ## Context
 
-The sync protocol ([AD-037](./037-async-content-ingestion.md)) moved push processing from the API server to a background worker, solving the "server holds DB connections" problem. However, the data still flows through the server as a single JSON blob — the server marshals the entire payload into memory, uploads it to blob storage, and the worker downloads and unmarshals it all. This has fundamental limitations:
+The sync protocol is the primary data exchange path for Bowrain — it carries content, translations, terminology, and automation results between clients and the server. The current implementation has fundamental limitations:
 
 - **Full payload in memory** on server, worker, and client
-- **No streaming** — a 50MB push is held as `[]byte` three times
-- **No resumability** — if upload fails at 90%, start from zero
-- **No parallelism** — single-threaded upload/download
-- **No compression** — JSON is verbose for repetitive translation data
-- **Thin contract** — `BlockInput` carries only ID, text, name, type, item_name; the rich Block model (annotations, properties, display hints, content refs, skeleton) is lost in transit
-- **Heuristic format detection** — `detectFormat("en.json")` guesses "json" from the extension instead of the client declaring the actual format
+- **Single JSON blob** — no streaming, no chunking, no compression
+- **Not resumable** — failure means restart from zero
+- **Thin contract** — only block text survives the sync boundary; annotations, properties, display hints, connector data are lost
+- **Block-only** — no protocol for syncing terminology, TM entries, QA results, or automation outputs
+- **Heuristic format detection** — server guesses format from file extension
 
-The sync protocol is the primary data ingestion path for Bowrain. It must be efficient, reliable, and carry the full richness of the content model.
+The sync protocol must be the **single, extensible transport** for all project data — not just blocks. It must be efficient enough for 100K+ blocks and resilient enough for unreliable networks.
 
 ## Decision
 
-### Architecture: Chunked upload with manifest, direct-to-storage
+### Core design: Typed chunks over direct-to-storage transport
 
-The API server never touches content bytes. Clients upload compressed chunks directly to blob storage via pre-signed URLs, then submit a manifest that triggers background processing.
+The sync protocol is built on two orthogonal layers:
+
+1. **Transport layer**: Chunked, compressed, resumable, direct-to-storage upload/download
+2. **Content layer**: Typed, versioned payloads that can evolve independently of the transport
 
 ```
-Push flow:
-  1. Client → API: POST /v2/sync/push/init
-     ← { upload_id, chunk_urls: [SAS URLs], metadata_schema_version }
+Transport: how data moves
+  ├── Chunked upload via SAS URLs (parallel, resumable)
+  ├── zstd compression with trained dictionary
+  └── Manifest-based commit
 
-  2. Client → Azure Blob (parallel, direct):
-     PUT chunk_urls[0] ← zstd-compressed batch of blocks
-     PUT chunk_urls[1] ← zstd-compressed batch of blocks
+Content: what data moves (evolves independently)
+  ├── SyncBlock     — translatable content with full model
+  ├── SyncTerm      — terminology concepts
+  ├── SyncTMEntry   — translation memory entries
+  ├── SyncQAResult  — quality check results
+  ├── SyncActivity  — automation outputs
+  └── (future types added without transport changes)
+```
+
+### Transport layer
+
+The API server is a **control plane only** — it generates upload URLs and enqueues jobs. All data flows directly between client and blob storage.
+
+```
+Push:
+  1. Client → API: POST /sync/push/init
+     Request: { project_id, stream, estimated_chunks, content_types }
+     Response: { upload_id, chunk_urls: [SAS URLs] }
+
+  2. Client → Blob Storage (parallel, direct):
+     PUT chunk_urls[0] ← zstd-compressed SyncChunk
+     PUT chunk_urls[1] ← zstd-compressed SyncChunk
      ...
 
-  3. Client → API: POST /v2/sync/push/commit
-     → { upload_id, manifest }
-     ← 202 Accepted { push_id }
+  3. Client → API: POST /sync/push/commit
+     Request: SyncManifest
+     Response: 202 { push_id }
 
-  4. Worker reads chunks from blob, decompresses, validates, stores
+  4. Worker reads chunks, decompresses, routes by content type, stores
 
-Pull flow:
-  1. Client → API: GET /v2/sync/pull
-     ← zstd-compressed response with cursor pagination
+Pull:
+  1. Client → API: GET /sync/pull?cursor=X&limit=1000
+     Response: zstd-compressed SyncPullResponse (streamed)
 ```
 
-### Rich sync contract
+### Content layer: SyncChunk envelope
 
-The sync contract carries the full Block model, not a thin subset:
+Each chunk is a typed envelope that can carry any content type. The envelope is versioned so the wire format can evolve without breaking the transport:
 
 ```protobuf
-// SyncBlock is the unit of content in the sync protocol.
+// SyncChunk is the unit of transfer. Each chunk contains a batch of
+// typed records. A single push can mix content types across chunks.
+message SyncChunk {
+  int32 version = 1;          // envelope version (currently 1)
+  string content_type = 2;    // "blocks", "terms", "tm", "qa", "activity"
+  int32 record_count = 3;
+
+  // Exactly one of these is populated (determined by content_type):
+  repeated SyncBlock blocks = 10;
+  repeated SyncTerm terms = 11;
+  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncQAResult qa_results = 13;
+  repeated SyncActivity activities = 14;
+  // Future types added here without changing the envelope or transport.
+}
+```
+
+This separation means:
+- **Adding a new content type** (e.g., brand voice scores) requires adding a field to `SyncChunk` and a handler in the worker — zero transport changes
+- **Changing the block model** (e.g., adding a field to `SyncBlock`) is a protobuf-compatible evolution — old clients ignore new fields, new clients handle both
+- **The transport layer never parses content** — it moves compressed bytes
+
+### SyncBlock — full block model
+
+Carries the complete Block through the sync boundary:
+
+```protobuf
 message SyncBlock {
   string id = 1;
   string item_name = 2;
@@ -60,189 +108,223 @@ message SyncBlock {
   string mime_type = 5;
   bool translatable = 6;
 
-  // Source content
+  // Source content (structured segments with inline spans)
   repeated Segment source = 7;
-  string source_text = 8;  // convenience: plain text of source
+  string source_text = 8;       // plain text convenience
 
-  // Translations per locale
+  // Translations per locale (structured)
   map<string, SegmentList> targets = 9;
 
   // Metadata
   map<string, string> properties = 10;
-  map<string, bytes> annotations = 11;  // serialized annotations
+  bytes annotations_json = 11;  // serialized annotation map
 
   // Structure
-  Skeleton skeleton = 12;
+  bytes skeleton_json = 12;
   bool preserve_whitespace = 13;
-  DisplayHint display_hint = 14;
-  ContentRef content_ref = 15;
+  bytes display_hint_json = 14;
+  bytes content_ref_json = 15;
 
-  // Connector-specific data (extensible)
+  // Extensible
   map<string, string> connector_data = 16;
 }
 ```
 
-### Rich item metadata
-
-Items declare their format, encoding, and connector context — no heuristic detection:
+### SyncTerm — terminology
 
 ```protobuf
-message SyncItemMeta {
-  string name = 1;           // e.g., "src/locales/en.json"
-  string format = 2;         // declared format: "json", "xliff2", "markdown"
-  string encoding = 3;       // e.g., "utf-8"
-  string collection = 4;     // collection name (auto-created if missing)
-  string block_index = 5;    // serialized BlockIndex for preview
-  string preview_html = 6;   // format-aware preview HTML
-  string source_language = 7; // source locale for this item
-
-  // Connector context (extensible)
-  map<string, string> connector_data = 8;  // e.g., CMS entry ID, last sync hash
+message SyncTerm {
+  string concept_id = 1;
+  string source_term = 2;
+  string source_locale = 3;
+  repeated TermTranslation translations = 4;
+  string definition = 5;
+  string domain = 6;
+  map<string, string> properties = 7;
+  string status = 8;  // "approved", "pending", "deprecated"
 }
 ```
 
-### Push manifest
-
-The commit request describes what was uploaded and the project-level context:
+### SyncTMEntry — translation memory
 
 ```protobuf
-message SyncPushManifest {
+message SyncTMEntry {
+  string id = 1;
+  string source_locale = 2;
+  string target_locale = 3;
+  string source_text = 4;
+  string target_text = 5;
+  string origin = 6;       // "human", "mt", "ai"
+  double score = 7;
+  map<string, string> properties = 8;
+}
+```
+
+### SyncItemMeta — item metadata
+
+Declares everything about an item — no guessing:
+
+```protobuf
+message SyncItemMeta {
+  string name = 1;
+  string format = 2;           // "json", "xliff2", "markdown" — declared, not guessed
+  string encoding = 3;         // "utf-8"
+  string collection = 4;
+  string block_index_json = 5;
+  string preview_html = 6;
+  string source_language = 7;
+  map<string, string> connector_data = 8;
+}
+```
+
+### SyncManifest — commit request
+
+Describes the complete push with all context:
+
+```protobuf
+message SyncManifest {
   string upload_id = 1;
   string project_id = 2;
   string stream = 3;
 
-  // Chunks uploaded to blob storage
+  // What was uploaded
   repeated ChunkRef chunks = 4;
-
-  // Item metadata
   repeated SyncItemMeta items = 5;
 
-  // Push context
+  // Who and why
   string actor_id = 6;
   string workspace_slug = 7;
-  string connector_id = 8;     // which connector produced this push
-  map<string, string> context = 9;  // extensible push-level metadata
+  string connector_id = 8;
+  map<string, string> context = 9;  // extensible push metadata
 }
 
 message ChunkRef {
   int32 index = 1;
-  string hash = 2;        // SHA-256 of compressed chunk
-  int32 block_count = 3;
-  int64 byte_size = 4;
+  string content_type = 2;  // which content type this chunk carries
+  string hash = 3;          // SHA-256 of compressed bytes
+  int32 record_count = 4;
+  int64 byte_size = 5;
 }
 ```
 
-### Compression: zstd with dictionary
+### SyncPullResponse — rich pull
 
-Translation data is highly repetitive (same keys, property names, annotation structures). A trained zstd dictionary captures these patterns for 80-90% compression:
+```protobuf
+message SyncPullResponse {
+  int64 cursor = 1;
+  bool has_more = 2;
 
-- Dictionary trained on representative sync payloads
-- Shipped with the CLI binary (32-112KB)
-- Streaming compression — no full-payload buffering
-- `Content-Encoding: zstd` for pull responses
+  // Mixed content types in a single response
+  repeated SyncBlock blocks = 10;
+  repeated SyncTerm terms = 11;
+  repeated SyncTMEntry tm_entries = 12;
+  repeated SyncQAResult qa_results = 13;
+  repeated SyncActivity activities = 14;
+}
+```
+
+### Compression: zstd with trained dictionary
+
+- Dictionary trained on representative sync payloads (blocks + terms + TM)
+- 80-90% compression for translation data
+- Streaming: no full-payload buffering
 - Library: `github.com/klauspost/compress/zstd`
+- Dictionary shipped with CLI binary (~32-112KB)
 
 ### Chunking strategy
 
-Blocks are grouped into chunks of ~500 blocks each. Each chunk is:
-1. Serialized (protobuf or JSON with rich model)
-2. Compressed with zstd + dictionary
-3. Uploaded independently to blob storage
-
-Chunk size target: ~1MB compressed. For a typical 10,000-block push:
-- 20 chunks × ~500 blocks × ~2KB avg = 10MB raw
-- Compressed to ~1-2MB total
-- Upload in parallel (4-8 goroutines)
-- Each chunk is independently retryable
+- ~500 records per chunk (blocks, terms, or TM entries)
+- Target ~1MB compressed per chunk
+- Each chunk carries one content type (simpler routing in worker)
+- A push can have mixed-type chunks: 18 block chunks + 2 term chunks
+- Each chunk independently retryable
 
 ### Direct-to-storage upload
 
-The init endpoint generates pre-signed SAS URLs (Azure) or NATS object store keys (local). Clients upload directly to storage, bypassing the API server entirely:
+- **Azure**: SAS URLs with Write permission, 1-hour expiry
+- **Local dev**: Simple upload endpoint or local filesystem paths
+- Client uploads chunks in parallel (4-8 goroutines)
+- `BlobStore` interface extended with `StageChunk`/`CommitUpload`
 
-- **Azure production**: SAS URLs with Write permission, 1-hour expiry
-- **Local dev**: Direct POST to a simple upload endpoint (or local filesystem paths)
+### Worker processing
 
-The API server's `GenerateUploadURL` already exists in the `BlobStore` interface.
+The worker routes chunks by content type:
 
-### Resumability
-
-Each chunk is an independent upload. If chunk 3 of 20 fails:
-1. Client retries chunk 3 only
-2. Other 19 chunks are already stored
-3. Content-addressed chunks (SHA-256) make retries idempotent
-
-The manifest commit checks that all chunks exist before triggering processing.
-
-### Pull v2
-
-Pull also benefits from the rich model:
-
-```
-GET /v2/sync/pull?cursor=X&limit=1000
-Accept-Encoding: zstd
-
-Response (zstd compressed):
-{
-  "changes": [SyncBlock with full model],
-  "cursor": ...,
-  "has_more": true
+```go
+for _, chunk := range manifest.Chunks {
+    data := downloadAndDecompress(chunk)
+    switch chunk.ContentType {
+    case "blocks":
+        storeBlocks(data.Blocks, manifest)
+    case "terms":
+        storeTerms(data.Terms, manifest)
+    case "tm":
+        storeTMEntries(data.TMEntries, manifest)
+    // future types handled here
+    }
 }
+publishEventPushCompleted(manifest)
 ```
-
-### Backward compatibility
-
-v1 endpoints remain for existing clients. v2 is a new path (`/v2/sync/`). Migration is gradual — clients upgrade at their own pace.
 
 ## Implementation
 
-### Phase 1: Rich contract + protobuf
-- Define `SyncBlock`, `SyncItemMeta`, `SyncPushManifest` protobuf messages
+### Phase 1: Protobuf contract
+- Define all message types in `platform/proto/v1/sync.proto`
 - Generate Go code
-- Implement serialization/deserialization
-- Update Block ↔ SyncBlock converters
+- Block ↔ SyncBlock converters
+- Term ↔ SyncTerm converters
 
 ### Phase 2: Chunked upload infrastructure
-- Add `StageChunk` and `CommitChunks` to `BlobStore` interface
-- Azure implementation using Block Blob `StageBlock` + `CommitBlockList`
-- Local implementation using temp directory assembly
-- Pre-signed URL generation for chunk upload
+- Extend `BlobStore` with `StageChunk`/`CommitUpload`
+- Azure implementation (Block Blob StageBlock + CommitBlockList)
+- Local filesystem implementation
+- SAS URL generation for chunk upload
 
-### Phase 3: Push v2 endpoints
-- `POST /v2/sync/push/init` — validate, generate upload URLs
-- `POST /v2/sync/push/commit` — validate manifest, enqueue worker
-- Worker: read chunks, decompress, validate, store with full metadata
+### Phase 3: Push endpoints + worker
+- `POST /sync/push/init` — validate, generate upload URLs
+- `POST /sync/push/commit` — validate manifest, enqueue worker
+- Worker: download chunks, decompress, route by type, store
+- Remove old sync push handler and v1 endpoints
 
 ### Phase 4: zstd compression
-- Train dictionary on representative payloads
-- `core/compression/` package with encoder/decoder pool
-- Apply to chunk serialization and pull responses
+- Train dictionary
+- `core/compression/` package
+- Apply to chunk serialization + pull responses
 
-### Phase 5: Client v2
-- bowrain CLI: chunked push with parallel upload, resumability
-- Client library: `PushInit`, `UploadChunks`, `PushCommit`
-- Progress reporting to user
+### Phase 5: Client + CLI
+- `BowrainClient`: `PushInit`, `UploadChunks`, `PushCommit`
+- bowrain CLI: chunked push with parallel upload, progress bar
+- bowrain CLI: `bowrain push --terms` to include terminology
 
-### Phase 6: Pull v2
-- Rich pull response with full SyncBlock model
+### Phase 6: Pull
+- Rich pull with full SyncBlock + SyncTerm model
 - zstd-compressed responses
-- Cursor-based pagination (existing)
+- Cursor pagination
+
+### Phase 7: Remove v1
+- Delete old `HandleSyncPush`, `HandleSyncPull`, `HandleSyncGetBlocks`
+- Delete old `SyncPushRequest`, `BlockInput`, `SyncPushResponse`
+- Delete `detectFormat` workaround
+- Clean DB reset for dev
 
 ## Alternatives Considered
 
-- **tus protocol**: Designed for opaque byte streams, not structured data. Adds protocol complexity (HEAD offset recovery, concatenation) without matching the "batch of typed blocks" model. The resumability benefit can be achieved more simply with independent chunk uploads.
+- **tus protocol**: Opaque byte streams, not structured data. Good for media, wrong for typed localization content.
 
-- **gRPC streaming**: Excellent for real-time editor sync but lacks resumability for bulk push. Browser clients need grpc-web. Doesn't support the "upload to blob, process later" async model.
+- **gRPC streaming**: No resumability for bulk push. Doesn't support async "upload to blob, process later" model.
 
-- **Single large upload with server-side chunking**: Still requires the API server to receive and hold the full payload. Defeats the purpose of direct-to-storage.
+- **Versioned v1/v2 coexistence**: Adds maintenance burden for a protocol with zero production users. Clean replacement is simpler.
+
+- **Single content type per push**: Forces separate pushes for blocks vs. terms. Mixed-type chunks are more ergonomic for connectors that produce blocks + terminology together.
 
 ## Consequences
 
-- API server never touches content bytes — stays thin and responsive
-- Clients upload directly to blob storage in parallel — fast, resumable
-- Rich contract preserves the full Block model through the sync boundary
-- No heuristic format detection — clients declare formats explicitly
-- Connector-specific metadata flows through the sync protocol
-- zstd compression reduces transfer size by 80-90% for translation data
-- Each chunk is independently retryable — resilient to network issues
-- Protobuf serialization is compact and strongly typed
-- v1 backward compatibility maintained
+- API server is a thin control plane — never touches content bytes
+- Sync protocol is extensible: new content types without transport changes
+- Full Block model survives the sync boundary — no data loss
+- Terminology and TM sync through the same protocol as blocks
+- No heuristic detection — clients declare everything explicitly
+- 80-90% compression reduces transfer and storage costs
+- Parallel, resumable uploads — resilient to network issues
+- Worker processes chunks independently — bounded memory per chunk
+- Clean break from v1 — no backward compatibility debt
