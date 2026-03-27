@@ -16,7 +16,7 @@ import {
 } from "../fixtures";
 
 const meta: Meta<typeof FormattedSourceDisplay> = {
-  title: "Editor/FormattedSourceDisplay",
+  title: "Editor/Core/FormattedSourceDisplay",
   component: FormattedSourceDisplay,
   tags: ["autodocs"],
   decorators: [

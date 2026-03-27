@@ -4,7 +4,7 @@ import { ActivityIndicator } from "../../components/ActivityTaskIndicators";
 import { sampleActivities } from "./fixtures";
 
 const activityMeta: Meta<typeof ActivityIndicator> = {
-  title: "Components/ActivityIndicator",
+  title: "Pages/Activity/ActivityIndicator",
   component: ActivityIndicator,
   tags: ["autodocs"],
   decorators: [

@@ -4,7 +4,7 @@ import { AccountMenu } from "../../components/AccountMenu";
 import { sampleUser } from "./fixtures";
 
 const meta: Meta<typeof AccountMenu> = {
-  title: "Components/AccountMenu",
+  title: "Workspace/Access/AccountMenu",
   component: AccountMenu,
   tags: ["autodocs"],
   decorators: [

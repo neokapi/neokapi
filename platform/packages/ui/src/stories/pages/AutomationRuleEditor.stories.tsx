@@ -6,7 +6,7 @@ import { withProviders } from "../decorators";
 import { sampleAutomationRules } from "../fixtures";
 
 const meta: Meta<typeof AutomationRuleEditor> = {
-  title: "Pages/AutomationRuleEditor",
+  title: "Pages/Automation/AutomationRuleEditor",
   component: AutomationRuleEditor,
   tags: ["autodocs"],
   decorators: [withProviders],

@@ -10,7 +10,7 @@ import {
 import { Button } from "../../components/ui/button";
 
 const meta: Meta<typeof Card> = {
-  title: "UI/Card",
+  title: "Foundations/Card",
   component: Card,
   tags: ["autodocs"],
   decorators: [

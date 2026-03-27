@@ -3,7 +3,7 @@ import { StreamTagList } from "../../components/StreamTagList";
 import { sampleTags, mergeTag } from "./fixtures";
 
 const meta: Meta<typeof StreamTagList> = {
-  title: "Components/StreamTagList",
+  title: "Streams/Tags/StreamTagList",
   component: StreamTagList,
   tags: ["autodocs"],
   decorators: [

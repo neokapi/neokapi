@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { EntityMarkPopover } from "../../components/editor/EntityMarkPopover";
 
 const meta: Meta<typeof EntityMarkPopover> = {
-  title: "Editor/EntityMarkPopover",
+  title: "Editor/Entities/EntityMarkPopover",
   component: EntityMarkPopover,
   tags: ["autodocs"],
   decorators: [

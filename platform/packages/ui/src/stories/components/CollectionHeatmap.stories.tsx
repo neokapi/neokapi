@@ -3,7 +3,7 @@ import { CollectionHeatmap } from "../../components/CollectionHeatmap";
 import { sampleCollectionStats } from "./fixtures";
 
 const meta: Meta<typeof CollectionHeatmap> = {
-  title: "Components/CollectionHeatmap",
+  title: "Workspace/Collections/CollectionHeatmap",
   component: CollectionHeatmap,
   tags: ["autodocs"],
   decorators: [

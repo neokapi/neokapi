@@ -4,7 +4,7 @@ import { withProviders } from "../decorators";
 import { sampleDashboardStats, largeDashboardStats } from "../fixtures";
 
 const meta: Meta<typeof TranslationDashboard> = {
-  title: "Pages/TranslationDashboard",
+  title: "Pages/Translation/TranslationDashboard",
   component: TranslationDashboard,
   tags: ["autodocs"],
   decorators: [

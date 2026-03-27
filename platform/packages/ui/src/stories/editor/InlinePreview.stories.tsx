@@ -14,7 +14,7 @@ import {
 } from "../fixtures";
 
 const meta: Meta<typeof InlinePreview> = {
-  title: "Editor/InlinePreview",
+  title: "Editor/Formatting/InlinePreview",
   component: InlinePreview,
   tags: ["autodocs"],
   decorators: [

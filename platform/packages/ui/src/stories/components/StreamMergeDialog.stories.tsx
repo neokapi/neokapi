@@ -4,7 +4,7 @@ import { StreamMergeDialog } from "../../components/StreamMergeDialog";
 import { sampleMergeResult, emptyMergeResult } from "./fixtures";
 
 const meta: Meta<typeof StreamMergeDialog> = {
-  title: "Components/StreamMergeDialog",
+  title: "Streams/StreamMergeDialog",
   component: StreamMergeDialog,
   tags: ["autodocs"],
 };

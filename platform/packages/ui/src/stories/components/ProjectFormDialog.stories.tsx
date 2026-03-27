@@ -4,7 +4,7 @@ import { ProjectFormDialog } from "../../components/ProjectFormDialog";
 import { sampleProject } from "../fixtures";
 
 const meta: Meta<typeof ProjectFormDialog> = {
-  title: "Components/ProjectFormDialog",
+  title: "Workspace/Projects/ProjectFormDialog",
   component: ProjectFormDialog,
   tags: ["autodocs"],
 };

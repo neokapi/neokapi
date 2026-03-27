@@ -17,7 +17,7 @@ import {
 } from "../fixtures";
 
 const meta: Meta<typeof TagChipComponent> = {
-  title: "Editor/TagChipComponent",
+  title: "Editor/Tags/TagChipComponent",
   component: TagChipComponent,
   tags: ["autodocs"],
   argTypes: {

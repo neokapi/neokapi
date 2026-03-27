@@ -95,7 +95,7 @@ function Comparison({
 // ---------------------------------------------------------------------------
 
 const meta: Meta = {
-  title: "Editor/FormatInlineCodes",
+  title: "Editor/Formatting/FormatInlineCodes",
   tags: ["autodocs"],
   parameters: {
     docs: {

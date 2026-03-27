@@ -15,7 +15,7 @@ import {
 } from "../fixtures";
 
 const meta: Meta<typeof TagPalette> = {
-  title: "Editor/TagPalette",
+  title: "Editor/Tags/TagPalette",
   component: TagPalette,
   tags: ["autodocs"],
   args: {

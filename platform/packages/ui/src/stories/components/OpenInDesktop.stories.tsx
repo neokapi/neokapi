@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { OpenInDesktop } from "../../components/OpenInDesktop";
 
 const meta: Meta<typeof OpenInDesktop> = {
-  title: "Components/OpenInDesktop",
+  title: "Misc/OpenInDesktop",
   component: OpenInDesktop,
   tags: ["autodocs"],
   decorators: [

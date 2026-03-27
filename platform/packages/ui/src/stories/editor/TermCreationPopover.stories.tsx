@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { TermCreationPopover } from "../../components/editor/TermCreationPopover";
 
 const meta: Meta<typeof TermCreationPopover> = {
-  title: "Editor/TermCreationPopover",
+  title: "Editor/Terminology/TermCreationPopover",
   component: TermCreationPopover,
   tags: ["autodocs"],
   args: {

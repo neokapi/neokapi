@@ -103,7 +103,7 @@ function FilterBarWrapper({
 }
 
 const meta: Meta<typeof FilterBar> = {
-  title: "Components/FilterBar",
+  title: "Pages/Translation/FilterBar",
   component: FilterBar,
   tags: ["autodocs"],
   decorators: [

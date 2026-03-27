@@ -56,7 +56,7 @@ const withTokens = createProvidersDecorator(undefined, {
 });
 
 const meta: Meta<typeof ApiTokenManager> = {
-  title: "Components/ApiTokenManager",
+  title: "Workspace/Access/ApiTokenManager",
   component: ApiTokenManager,
   tags: ["autodocs"],
   decorators: [

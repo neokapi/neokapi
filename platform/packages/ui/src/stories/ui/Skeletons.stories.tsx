@@ -13,7 +13,7 @@ import {
 } from "../../components/skeletons";
 
 const meta: Meta = {
-  title: "UI/Skeletons",
+  title: "Foundations/Skeletons",
   tags: ["autodocs"],
   parameters: {
     layout: "fullscreen",

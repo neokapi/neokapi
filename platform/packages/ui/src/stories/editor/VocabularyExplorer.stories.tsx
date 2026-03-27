@@ -36,7 +36,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const meta: Meta = {
-  title: "Editor/VocabularyExplorer",
+  title: "Editor/Terminology/VocabularyExplorer",
   tags: ["autodocs"],
   parameters: {
     docs: {

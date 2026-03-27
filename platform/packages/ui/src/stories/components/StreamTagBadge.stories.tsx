@@ -3,7 +3,7 @@ import { StreamTagBadge } from "../../components/StreamTagBadge";
 import { mergeTag, releaseTag, milestoneTag, customTag } from "./fixtures";
 
 const meta: Meta<typeof StreamTagBadge> = {
-  title: "Components/StreamTagBadge",
+  title: "Streams/Tags/StreamTagBadge",
   component: StreamTagBadge,
   tags: ["autodocs"],
   decorators: [

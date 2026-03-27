@@ -6,7 +6,7 @@ import { sampleProject } from "../fixtures";
 import type { ProjectInfo } from "../../types/api";
 
 const meta: Meta<typeof ProjectDashboard> = {
-  title: "Pages/ProjectDashboard",
+  title: "Pages/Workspace/ProjectDashboard",
   component: ProjectDashboard,
   tags: ["autodocs"],
   decorators: [

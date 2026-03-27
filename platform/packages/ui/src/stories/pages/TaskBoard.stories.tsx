@@ -124,7 +124,7 @@ const sampleTasks: TaskInfo[] = [
 ];
 
 const meta: Meta<typeof TaskBoard> = {
-  title: "Pages/TaskBoard",
+  title: "Pages/Tasks/TaskBoard",
   component: TaskBoard,
   tags: ["autodocs"],
   decorators: [

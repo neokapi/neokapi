@@ -11,7 +11,7 @@ import {
 } from "../fixtures";
 
 const meta: Meta<typeof TargetCellEditor> = {
-  title: "Editor/TargetCellEditor",
+  title: "Editor/Core/TargetCellEditor",
   component: TargetCellEditor,
   tags: ["autodocs"],
   decorators: [

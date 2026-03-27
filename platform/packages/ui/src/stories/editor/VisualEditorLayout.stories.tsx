@@ -100,7 +100,7 @@ function InteractiveLayout(overrides: LayoutOverrides) {
 // ---------------------------------------------------------------------------
 
 const meta: Meta<typeof VisualEditorLayout> = {
-  title: "Editor/VisualEditorLayout",
+  title: "Editor/Visual/VisualEditorLayout",
   component: VisualEditorLayout,
   tags: ["autodocs"],
   decorators: [
