@@ -113,7 +113,8 @@ const sampleTasks: TaskInfo[] = [
     status: "open",
     priority: "normal",
     title: "Review source content before translation",
-    description: "Check placeholders, terminology, and DNT tags before fan-out to target languages.",
+    description:
+      "Check placeholders, terminology, and DNT tags before fan-out to target languages.",
     assignee_id: "user-1",
     created_by: "system",
     data: { push_id: "push-abc", items: "en.json" },

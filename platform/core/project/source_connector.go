@@ -1064,36 +1064,6 @@ func (c *BowrainSourceConnector) fetchMediaReplacements(ctx context.Context, ite
 	return replacements
 }
 
-// resolveItemCollections builds a map of item path → collection by matching
-// each tracked file against content entries. Falls back to Defaults.Collection.
-func (c *BowrainSourceConnector) resolveItemCollections() map[string]string {
-	result := map[string]string{}
-	defaultCollection := c.project.Config.Defaults.Collection
-
-	for _, ce := range c.project.Config.Content {
-		lang := ce.EffectiveLanguage(c.project.Config.SourceLocale())
-		pattern := resolvePathPattern(ce.Path, lang)
-
-		relPaths, err := ExpandGlob(c.project.Root, pattern, c.project.Config.Exclude...)
-		if err != nil {
-			continue
-		}
-
-		collection := ce.Collection
-		if collection == "" {
-			collection = defaultCollection
-		}
-		if collection == "" {
-			continue
-		}
-
-		for _, rp := range relPaths {
-			result[rp] = collection
-		}
-	}
-	return result
-}
-
 // fetchAndCacheMetadata fetches project metadata from the server and caches it.
 // Errors are non-fatal — metadata is best-effort.
 func (c *BowrainSourceConnector) fetchAndCacheMetadata(ctx context.Context) {
