@@ -123,11 +123,11 @@ The existing `PushCompletionTracker` continues to emit `push.automations.complet
 A `RunLogger` passed through context to workers. It buffers log entries and flushes in batches to the `automation_logs` table.
 
 Workers log at key milestones:
-- "Processing {item_name} for {locale}" (info)
-- "Translating blocks {start}-{end} of {total}" (info, per chunk)
-- "Chunk completed: {tokens} tokens" (info)
-- "Job completed: {total_blocks} blocks, {tokens_used} tokens" (info)
-- "Translation failed: {error}" (error)
+- `"Processing <item_name> for <locale>"` (info)
+- `"Translating blocks <start>-<end> of <total>"` (info, per chunk)
+- `"Chunk completed: <tokens> tokens"` (info)
+- `"Job completed: <total_blocks> blocks, <tokens_used> tokens"` (info)
+- `"Translation failed: <error>"` (error)
 
 Jobs gain a `StepID` field linking them to their parent step for log routing.
 
