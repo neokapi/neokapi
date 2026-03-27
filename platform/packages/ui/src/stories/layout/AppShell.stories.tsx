@@ -111,7 +111,7 @@ const sampleProject: ProjectInfo = {
 };
 
 const meta: Meta<typeof AppShell> = {
-  title: "Layout/AppShell",
+  title: "Components/AppShell",
   component: AppShell,
   tags: ["autodocs"],
   decorators: [

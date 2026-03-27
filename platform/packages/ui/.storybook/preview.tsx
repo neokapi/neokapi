@@ -31,12 +31,12 @@ const preview: Preview = {
       storySort: {
         order: [
           "Foundations",
+          "Components",
           "Layout",
           "Workspace",
           "Streams",
           "Editor",
           "Pages",
-          "Notifications",
           "Auth",
           "Brand",
           "Bravo",
@@ -44,7 +44,6 @@ const preview: Preview = {
           "Pulse",
           "Ctrl",
           "Emails",
-          "Misc",
         ],
       },
     },

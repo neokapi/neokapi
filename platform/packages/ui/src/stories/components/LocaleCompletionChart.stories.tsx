@@ -3,7 +3,7 @@ import { LocaleCompletionChart } from "../../components/LocaleCompletionChart";
 import { sampleLocaleStats } from "./fixtures";
 
 const meta: Meta<typeof LocaleCompletionChart> = {
-  title: "Misc/LocaleCompletionChart",
+  title: "Components/LocaleCompletionChart",
   component: LocaleCompletionChart,
   tags: ["autodocs"],
   decorators: [
