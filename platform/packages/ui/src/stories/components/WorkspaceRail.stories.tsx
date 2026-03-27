@@ -4,7 +4,7 @@ import { WorkspaceRail } from "../../components/WorkspaceRail";
 import { sampleWorkspace, personalWorkspace, sampleUser } from "./fixtures";
 
 const meta: Meta<typeof WorkspaceRail> = {
-  title: "Components/WorkspaceRail",
+  title: "Layout/WorkspaceRail",
   component: WorkspaceRail,
   tags: ["autodocs"],
   decorators: [

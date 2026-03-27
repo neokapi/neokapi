@@ -19,7 +19,7 @@ import {
 } from "../fixtures";
 
 const meta: Meta<typeof VisualEditorToolbar> = {
-  title: "Editor/VisualEditorToolbar",
+  title: "Editor/Visual/VisualEditorToolbar",
   component: VisualEditorToolbar,
   tags: ["autodocs"],
   args: {

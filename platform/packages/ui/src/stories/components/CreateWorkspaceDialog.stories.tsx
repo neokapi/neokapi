@@ -4,7 +4,7 @@ import { CreateWorkspaceDialog } from "../../components/CreateWorkspaceDialog";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof CreateWorkspaceDialog> = {
-  title: "Components/CreateWorkspaceDialog",
+  title: "Workspace/Settings/CreateWorkspaceDialog",
   component: CreateWorkspaceDialog,
   tags: ["autodocs"],
   decorators: [withProviders],

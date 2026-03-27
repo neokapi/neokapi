@@ -28,7 +28,7 @@ const P = "\uE003";
 // ---------------------------------------------------------------------------
 
 const meta: Meta = {
-  title: "Editor/ConstraintBehaviors",
+  title: "Editor/Formatting/ConstraintBehaviors",
   tags: ["autodocs"],
   parameters: {
     docs: {

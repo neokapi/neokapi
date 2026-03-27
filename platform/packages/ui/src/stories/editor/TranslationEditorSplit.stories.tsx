@@ -83,7 +83,7 @@ function MockDocumentPreview({
 }
 
 const meta: Meta<typeof TranslationEditor> = {
-  title: "Editor/TranslationEditor (Split Preview)",
+  title: "Editor/Core/TranslationEditor (Split Preview)",
   component: TranslationEditor,
   tags: ["autodocs"],
   decorators: [

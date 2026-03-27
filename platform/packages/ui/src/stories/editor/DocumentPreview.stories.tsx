@@ -5,7 +5,7 @@ import { sampleBlocks } from "../fixtures";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof DocumentPreview> = {
-  title: "Editor/DocumentPreview",
+  title: "Editor/Formatting/DocumentPreview",
   component: DocumentPreview,
   tags: ["autodocs"],
   decorators: [

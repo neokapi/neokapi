@@ -5,7 +5,7 @@ import { withProviders } from "../decorators";
 import { sampleWorkspace } from "./fixtures";
 
 const meta: Meta<typeof WorkspaceLanguageSettings> = {
-  title: "Components/WorkspaceLanguageSettings",
+  title: "Workspace/Settings/WorkspaceLanguageSettings",
   component: WorkspaceLanguageSettings,
   tags: ["autodocs"],
   decorators: [

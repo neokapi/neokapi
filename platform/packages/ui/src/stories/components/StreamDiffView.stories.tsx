@@ -3,7 +3,7 @@ import { StreamDiffView } from "../../components/StreamDiffView";
 import { sampleDiff, emptyDiff } from "./fixtures";
 
 const meta: Meta<typeof StreamDiffView> = {
-  title: "Components/StreamDiffView",
+  title: "Streams/StreamDiffView",
   component: StreamDiffView,
   tags: ["autodocs"],
   decorators: [

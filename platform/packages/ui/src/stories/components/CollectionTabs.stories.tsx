@@ -4,7 +4,7 @@ import { CollectionTabs } from "../../components/CollectionTabs";
 import { sampleCollections, defaultCollection } from "./fixtures";
 
 const meta: Meta<typeof CollectionTabs> = {
-  title: "Components/CollectionTabs",
+  title: "Workspace/Collections/CollectionTabs",
   component: CollectionTabs,
   tags: ["autodocs"],
   decorators: [

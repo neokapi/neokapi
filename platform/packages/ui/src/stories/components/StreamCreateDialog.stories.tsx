@@ -4,7 +4,7 @@ import { StreamCreateDialog } from "../../components/StreamCreateDialog";
 import { sampleStreams } from "./fixtures";
 
 const meta: Meta<typeof StreamCreateDialog> = {
-  title: "Components/StreamCreateDialog",
+  title: "Streams/StreamCreateDialog",
   component: StreamCreateDialog,
   tags: ["autodocs"],
 };

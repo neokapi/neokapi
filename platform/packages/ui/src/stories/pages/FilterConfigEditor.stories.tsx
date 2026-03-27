@@ -328,7 +328,7 @@ const xmlFilterSchema: FilterSchema = {
 };
 
 const meta: Meta<typeof FilterConfigEditor> = {
-  title: "Pages/FilterConfigEditor",
+  title: "Pages/Translation/FilterConfigEditor",
   component: FilterConfigEditor,
   tags: ["autodocs"],
   parameters: {

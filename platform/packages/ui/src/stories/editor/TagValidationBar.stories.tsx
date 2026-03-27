@@ -3,7 +3,7 @@ import { TagValidationBar } from "../../components/editor/TagValidationBar";
 import type { TagValidationResult } from "../../components/editor/tagSemantics";
 
 const meta: Meta<typeof TagValidationBar> = {
-  title: "Editor/TagValidationBar",
+  title: "Editor/Tags/TagValidationBar",
   component: TagValidationBar,
   tags: ["autodocs"],
   decorators: [

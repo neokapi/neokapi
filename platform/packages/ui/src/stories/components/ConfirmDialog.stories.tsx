@@ -3,7 +3,7 @@ import { fn } from "storybook/test";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 
 const meta: Meta<typeof ConfirmDialog> = {
-  title: "Components/ConfirmDialog",
+  title: "Misc/ConfirmDialog",
   component: ConfirmDialog,
   tags: ["autodocs"],
 };

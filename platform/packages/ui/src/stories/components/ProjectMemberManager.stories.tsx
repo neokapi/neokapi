@@ -4,7 +4,7 @@ import { withProviders } from "../decorators";
 import { sampleWorkspace, viewerWorkspace } from "./fixtures";
 
 const meta: Meta<typeof ProjectMemberManager> = {
-  title: "Components/ProjectMemberManager",
+  title: "Workspace/Projects/ProjectMemberManager",
   component: ProjectMemberManager,
   tags: ["autodocs"],
   decorators: [

@@ -4,7 +4,7 @@ import { TermExplorer } from "../../components/terms/TermExplorer";
 import { withProviders } from "../decorators";
 
 const meta: Meta<typeof TermExplorer> = {
-  title: "Pages/TermExplorer",
+  title: "Pages/Translation/TermExplorer",
   component: TermExplorer,
   tags: ["autodocs"],
   decorators: [
