@@ -26,13 +26,17 @@ type WorkerConfig struct {
 
 // WorkerDeps holds all dependencies for the translation worker.
 type WorkerDeps struct {
-	JobStore     JobStore
-	ContentStore store.ContentStore
-	CredStore    *credentials.Store
-	Queue        Queue
-	QuotaStore   QuotaStore              // optional; nil disables quota enforcement
-	Platform     *PlatformProviderConfig // optional; nil disables platform provider
-	BillingHooks *billing.UsageHooks     // optional; nil disables billing credit deduction
+	JobStore          JobStore
+	ContentStore      store.ContentStore
+	CredStore         *credentials.Store
+	Queue             Queue
+	QuotaStore        QuotaStore              // optional; nil disables quota enforcement
+	Platform          *PlatformProviderConfig // optional; nil disables platform provider
+	BillingHooks      *billing.UsageHooks     // optional; nil disables billing credit deduction
+	// LogFunc is called to emit structured automation logs (AD-035).
+	// Signature: func(stepID, level, message string, data map[string]string).
+	// Optional; nil disables run logging.
+	LogFunc func(stepID, level, message string, data map[string]string)
 }
 
 // providerRateLimits maps provider types to their default rate limits (requests/sec).
@@ -120,9 +124,16 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return fmt.Errorf("set processing: %w", err)
 	}
 
+	emitLog(deps, job.StepID, "info",
+		fmt.Sprintf("Translating %s for %s", job.ItemName, job.TargetLocale),
+		map[string]string{"item": job.ItemName, "locale": job.TargetLocale, "model": job.Model})
+
 	// Run the translation; on failure, mark as failed.
 	if err := executeTranslationWithDeps(ctx, deps, job); err != nil {
 		_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, err.Error())
+		emitLog(deps, job.StepID, "error",
+			fmt.Sprintf("Translation failed: %s", err.Error()),
+			map[string]string{"item": job.ItemName, "locale": job.TargetLocale})
 		return err
 	}
 
@@ -130,7 +141,20 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	if err := deps.JobStore.UpdateJobStatus(ctx, jobID, StatusCompleted, ""); err != nil {
 		return fmt.Errorf("set completed: %w", err)
 	}
+
+	emitLog(deps, job.StepID, "info",
+		fmt.Sprintf("Completed %s for %s — %d blocks, %d tokens",
+			job.ItemName, job.TargetLocale, job.DoneBlocks, job.TokensUsed),
+		map[string]string{"item": job.ItemName, "locale": job.TargetLocale,
+			"blocks": fmt.Sprintf("%d", job.DoneBlocks), "tokens": fmt.Sprintf("%d", job.TokensUsed)})
+
 	return nil
+}
+
+func emitLog(deps *WorkerDeps, stepID, level, message string, data map[string]string) {
+	if deps.LogFunc != nil && stepID != "" {
+		deps.LogFunc(stepID, level, message, data)
+	}
 }
 
 func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
@@ -225,6 +249,12 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, end, totalBlocks); err != nil {
 			log.Printf("warning: update progress for %s: %v", job.ID, err)
 		}
+		job.DoneBlocks = end
+		job.TotalBlocks = totalBlocks
+
+		emitLog(deps, job.StepID, "info",
+			fmt.Sprintf("Translated blocks %d-%d of %d (%d tokens)", i+1, end, totalBlocks, chunkTokens),
+			map[string]string{"done": fmt.Sprintf("%d", end), "total": fmt.Sprintf("%d", totalBlocks)})
 	}
 
 	// Update total token usage on the job.

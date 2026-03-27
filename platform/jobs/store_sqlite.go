@@ -74,6 +74,14 @@ var sqliteJobMigrations = []storage.Migration{
 			CREATE INDEX IF NOT EXISTS idx_extraction_jobs_push_id ON extraction_jobs(push_id);
 		`,
 	},
+	{
+		Version:     5,
+		Description: "add step_id column for automation run visibility (AD-035)",
+		SQL: `
+			ALTER TABLE translation_jobs ADD COLUMN step_id TEXT NOT NULL DEFAULT '';
+			ALTER TABLE extraction_jobs ADD COLUMN step_id TEXT NOT NULL DEFAULT '';
+		`,
+	},
 }
 
 // SQLiteJobStore implements JobStore using SQLite.
@@ -104,10 +112,10 @@ func (s *SQLiteJobStore) CreateJob(ctx context.Context, job *TranslationJob) err
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO translation_jobs
 			(id, workspace_slug, project_id, item_name, target_locale, provider_config_id,
-			 model, push_id, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			 model, push_id, step_id, status, progress, total_blocks, done_blocks, tokens_used, error, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.TargetLocale,
-		job.ProviderConfigID, job.Model, job.PushID, string(job.Status), job.Progress, job.TotalBlocks,
+		job.ProviderConfigID, job.Model, job.PushID, job.StepID, string(job.Status), job.Progress, job.TotalBlocks,
 		job.DoneBlocks, job.TokensUsed, job.Error, now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
 		return fmt.Errorf("insert job: %w", err)
@@ -118,7 +126,7 @@ func (s *SQLiteJobStore) CreateJob(ctx context.Context, job *TranslationJob) err
 func (s *SQLiteJobStore) GetJob(ctx context.Context, id string) (*TranslationJob, error) {
 	row := s.db.QueryRowContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
-				provider_config_id, model, push_id, status, progress, total_blocks, done_blocks,
+				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
 				tokens_used, error, created_at, updated_at
 		 FROM translation_jobs WHERE id = ?`, id)
 
@@ -126,7 +134,7 @@ func (s *SQLiteJobStore) GetJob(ctx context.Context, id string) (*TranslationJob
 	var status, createdAt, updatedAt string
 	err := row.Scan(
 		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
-		&j.ProviderConfigID, &j.Model, &j.PushID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
+		&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
 		&j.TokensUsed, &j.Error, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan job: %w", err)
@@ -143,7 +151,7 @@ func (s *SQLiteJobStore) ListJobs(ctx context.Context, workspaceSlug string, lim
 	}
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
-				provider_config_id, model, push_id, status, progress, total_blocks, done_blocks,
+				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
 				tokens_used, error, created_at, updated_at
 		 FROM translation_jobs
 		 WHERE workspace_slug = ?
@@ -160,7 +168,7 @@ func (s *SQLiteJobStore) ListJobs(ctx context.Context, workspaceSlug string, lim
 		var status, createdAt, updatedAt string
 		err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
-			&j.ProviderConfigID, &j.Model, &j.PushID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
+			&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
 			&j.TokensUsed, &j.Error, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scan job row: %w", err)
@@ -176,7 +184,7 @@ func (s *SQLiteJobStore) ListJobs(ctx context.Context, workspaceSlug string, lim
 func (s *SQLiteJobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, workspace_slug, project_id, item_name, target_locale,
-				provider_config_id, model, push_id, status, progress, total_blocks, done_blocks,
+				provider_config_id, model, push_id, step_id, status, progress, total_blocks, done_blocks,
 				tokens_used, error, created_at, updated_at
 		 FROM translation_jobs
 		 WHERE push_id = ?
@@ -192,7 +200,7 @@ func (s *SQLiteJobStore) ListJobsByPushID(ctx context.Context, pushID string) ([
 		var status, createdAt, updatedAt string
 		err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
-			&j.ProviderConfigID, &j.Model, &j.PushID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
+			&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
 			&j.TokensUsed, &j.Error, &createdAt, &updatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scan job row: %w", err)

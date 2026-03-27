@@ -33,6 +33,7 @@ type ExtractionWorkerDeps struct {
 	KnownTermsLoader   KnownTermsLoader        // optional; nil disables known term filtering
 	NERProvider        ner.Provider            // optional; nil disables NER pass
 	Platform           *PlatformProviderConfig // optional; nil disables platform provider
+	LogFunc            func(stepID, level, message string, data map[string]string) // optional (AD-035)
 }
 
 // ReviewQueueCreator creates review queue items from extraction results.
@@ -98,14 +99,25 @@ func processExtractionJob(ctx context.Context, deps *ExtractionWorkerDeps, jobID
 		return fmt.Errorf("set processing: %w", err)
 	}
 
+	emitExtractionLog(deps, job.StepID, "info",
+		fmt.Sprintf("Extracting entities from %s", job.ItemName),
+		map[string]string{"item": job.ItemName, "locale": job.Locale})
+
 	if err := executeExtraction(ctx, deps, job); err != nil {
 		_ = deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusFailed, err.Error())
+		emitExtractionLog(deps, job.StepID, "error",
+			fmt.Sprintf("Extraction failed: %s", err.Error()),
+			map[string]string{"item": job.ItemName})
 		return err
 	}
 
 	if err := deps.ExtractionJobStore.UpdateExtractionJobStatus(ctx, jobID, ExtractionStatusCompleted, ""); err != nil {
 		return fmt.Errorf("set completed: %w", err)
 	}
+
+	emitExtractionLog(deps, job.StepID, "info",
+		fmt.Sprintf("Extraction completed: %s — %d review items created", job.ItemName, job.ItemsCreated),
+		map[string]string{"item": job.ItemName, "items_created": fmt.Sprintf("%d", job.ItemsCreated)})
 	return nil
 }
 
@@ -324,4 +336,10 @@ func resolveExtractionProvider(ctx context.Context, deps *ExtractionWorkerDeps, 
 	cfg, _ := deps.CredStore.Get(providerConfigID)
 	limiter := rate.NewLimiter(providerRateLimit(cfg.ProviderType), 1)
 	return prov, limiter, nil
+}
+
+func emitExtractionLog(deps *ExtractionWorkerDeps, stepID, level, message string, data map[string]string) {
+	if deps.LogFunc != nil && stepID != "" {
+		deps.LogFunc(stepID, level, message, data)
+	}
 }
