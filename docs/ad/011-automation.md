@@ -133,10 +133,15 @@ Three automation rules are built in and enabled by default on all projects:
 | `auto-translate-on-push` | `push.completed` | Create translation jobs for each (item, locale) pair pushed |
 | `auto-extract-on-push` | `push.completed` | Run entity/term extraction on pushed content |
 | `auto-translate-new-locale` | `project.updated` | Translate all items when new target locales are added |
+| `create-review-tasks` | `push.automations.completed` | Create per-locale review tasks for translators (opt-in) |
 
 Built-in rules use the platform AI provider (Azure OpenAI with Managed
 Identity) and link jobs to the originating `push_id` for traceability.
 Projects can opt out via `auto_translate: false` in project properties.
+
+The translator workflow ([AD-034](./034-translator-workflow.md)) extends the
+automation system with push completion tracking and task fan-out — translators
+receive tasks only after all prep-work automations finish.
 
 ### Automation Rule Persistence and Visual Editor (Server-Side)
 
