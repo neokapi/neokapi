@@ -111,3 +111,60 @@ func (s *Store) Exists(_ context.Context, key string) (bool, error) {
 	}
 	return false, fmt.Errorf("stat blob: %w", err)
 }
+
+// ---------------------------------------------------------------------------
+// ChunkedBlobStore implementation (AD-038)
+// ---------------------------------------------------------------------------
+
+func (s *Store) InitUpload(_ context.Context, uploadKey string) (string, error) {
+	uploadID := uploadKey // use the key as the upload ID for simplicity
+	dir := filepath.Join(s.rootDir, "_uploads", uploadID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", fmt.Errorf("create upload dir: %w", err)
+	}
+	return uploadID, nil
+}
+
+func (s *Store) StageChunk(_ context.Context, uploadID string, chunkIndex int, data []byte) error {
+	path := filepath.Join(s.rootDir, "_uploads", uploadID, fmt.Sprintf("chunk-%04d", chunkIndex))
+	return os.WriteFile(path, data, 0o644)
+}
+
+func (s *Store) CommitUpload(ctx context.Context, uploadID string, totalChunks int) error {
+	dir := filepath.Join(s.rootDir, "_uploads", uploadID)
+
+	// Assemble chunks into final blob.
+	var assembled []byte
+	for i := 0; i < totalChunks; i++ {
+		path := filepath.Join(dir, fmt.Sprintf("chunk-%04d", i))
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("read chunk %d: %w", i, err)
+		}
+		assembled = append(assembled, data...)
+	}
+
+	// Store as a regular blob.
+	h := sha256.Sum256(assembled)
+	key := hex.EncodeToString(h[:])
+	blobPath := s.blobPath(key)
+	if err := os.MkdirAll(filepath.Dir(blobPath), 0o755); err != nil {
+		return err
+	}
+	if err := os.WriteFile(blobPath, assembled, 0o644); err != nil {
+		return err
+	}
+
+	// Clean up upload dir.
+	_ = os.RemoveAll(dir)
+	return nil
+}
+
+func (s *Store) AbortUpload(_ context.Context, uploadID string) error {
+	dir := filepath.Join(s.rootDir, "_uploads", uploadID)
+	return os.RemoveAll(dir)
+}
+
+func (s *Store) GenerateChunkUploadURLs(_ context.Context, _ string, _ int, _ storage.SignOptions) ([]string, error) {
+	return nil, storage.ErrNotSupported
+}
