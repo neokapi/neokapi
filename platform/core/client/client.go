@@ -292,7 +292,7 @@ func (c *BowrainClient) Push(ctx context.Context, blocks []BlockInput) (*SyncPus
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("push failed (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
@@ -324,7 +324,7 @@ func (c *BowrainClient) PushWithMeta(ctx context.Context, blocks []BlockInput, i
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("push failed (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}

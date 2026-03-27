@@ -6,11 +6,16 @@ import (
 	"log"
 	"time"
 
+	"encoding/json"
+	"io"
+
 	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	"github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/model"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/core/tool"
+	apiclient "github.com/neokapi/neokapi/platform/client"
 	"github.com/neokapi/neokapi/platform/store"
 	"github.com/neokapi/neokapi/providers/ai"
 	"golang.org/x/time/rate"
@@ -37,6 +42,8 @@ type WorkerDeps struct {
 	// Signature: func(stepID, level, message string, data map[string]string).
 	// Optional; nil disables run logging.
 	LogFunc func(stepID, level, message string, data map[string]string)
+	// BlobStore provides access to push payloads for async sync processing (AD-037).
+	BlobStore corestorage.BlobStore
 }
 
 // providerRateLimits maps provider types to their default rate limits (requests/sec).
@@ -112,6 +119,11 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	job, err := deps.JobStore.GetJob(ctx, jobID)
 	if err != nil {
 		return fmt.Errorf("load job: %w", err)
+	}
+
+	// Route sync-push jobs to dedicated handler (AD-037).
+	if job.ItemName == "__sync_push__" {
+		return processSyncPushJob(ctx, deps, job)
 	}
 
 	// Check quota before starting.
@@ -378,4 +390,85 @@ func sleepCtx(ctx context.Context, d time.Duration) {
 	case <-ctx.Done():
 	case <-t.C:
 	}
+}
+
+// processSyncPushJob handles async content ingestion (AD-037).
+// It reads the push payload from blob storage, groups blocks by item,
+// and stores them using the existing content store.
+func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJob) error {
+	blobKey := job.Model // blob storage key stored in Model field
+	stream := job.TargetLocale // stream stored in TargetLocale field
+
+	if deps.BlobStore == nil {
+		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob store not configured")
+		return fmt.Errorf("blob store not configured for sync-push job")
+	}
+
+	emitLog(deps, job.StepID, "info", "Processing async push",
+		map[string]string{"project": job.ProjectID, "push_id": job.PushID})
+
+	// Download the push payload from blob storage.
+	reader, err := deps.BlobStore.Download(ctx, blobKey)
+	if err != nil {
+		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob download failed: "+err.Error())
+		return fmt.Errorf("download push blob %s: %w", blobKey, err)
+	}
+	defer reader.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "blob read failed: "+err.Error())
+		return fmt.Errorf("read push blob: %w", err)
+	}
+
+	var req apiclient.SyncPushRequest
+	if err := json.Unmarshal(data, &req); err != nil {
+		_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, "invalid push payload: "+err.Error())
+		return fmt.Errorf("unmarshal push payload: %w", err)
+	}
+
+	emitLog(deps, job.StepID, "info",
+		fmt.Sprintf("Processing %d blocks for %s", len(req.Blocks), job.ProjectID),
+		map[string]string{"blocks": fmt.Sprintf("%d", len(req.Blocks))})
+
+	// Group blocks by item_name and store.
+	itemGroups := map[string][]*model.Block{}
+	for _, bi := range req.Blocks {
+		b := &model.Block{
+			ID:           bi.ID,
+			Name:         bi.Name,
+			Type:         bi.Type,
+			Translatable: true,
+		}
+		b.SetSourceText(bi.Text)
+		itemGroups[bi.ItemName] = append(itemGroups[bi.ItemName], b)
+	}
+
+	totalStored := 0
+	for itemName, blocks := range itemGroups {
+		if itemName != "" {
+			if err := deps.ContentStore.StoreBlocksForItem(ctx, job.ProjectID, stream, itemName, blocks); err != nil {
+				emitLog(deps, job.StepID, "error",
+					fmt.Sprintf("Failed to store blocks for %s: %s", itemName, err.Error()), nil)
+				_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+				return fmt.Errorf("store blocks for %s: %w", itemName, err)
+			}
+		} else {
+			if err := deps.ContentStore.StoreBlocks(ctx, job.ProjectID, stream, blocks); err != nil {
+				_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusFailed, err.Error())
+				return fmt.Errorf("store blocks: %w", err)
+			}
+		}
+		totalStored += len(blocks)
+	}
+
+	// Mark completed and clean up blob.
+	_ = deps.JobStore.UpdateJobStatus(ctx, job.ID, StatusCompleted, "")
+	_ = deps.BlobStore.Delete(ctx, blobKey)
+
+	emitLog(deps, job.StepID, "info",
+		fmt.Sprintf("Async push completed: %d blocks across %d items", totalStored, len(itemGroups)),
+		map[string]string{"blocks": fmt.Sprintf("%d", totalStored), "items": fmt.Sprintf("%d", len(itemGroups))})
+
+	return nil
 }
