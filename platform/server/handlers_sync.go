@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 	apiclient "github.com/neokapi/neokapi/platform/client"
 	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/neokapi/neokapi/platform/store"
@@ -45,6 +47,20 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		})
 	}
 
+	projectID := c.Param("id")
+	userID, _ := c.Get("user_id").(string)
+	pushID := id.New()
+
+	stream := c.Param("stream")
+	if stream == "" {
+		stream = "main"
+	}
+
+	// Async path (AD-037): write to blob and enqueue for background processing.
+	if c.QueryParam("async") == "true" && s.BlobStore != nil && s.JobQueue != nil {
+		return s.handleAsyncPush(c, &req, projectID, pushID, stream, userID)
+	}
+
 	// Group blocks by item_name for per-item storage.
 	itemGroups := map[string][]*model.Block{}
 	itemCollections := map[string]string{} // item_name → collection name
@@ -58,12 +74,7 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		}
 	}
 
-	projectID := c.Param("id")
 	ctx := c.Request().Context()
-	stream := c.Param("stream")
-	if stream == "" {
-		stream = "main"
-	}
 
 	// Auto-create non-main streams on first push.
 	if stream != "main" && s.ContentStore != nil {
@@ -104,7 +115,6 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		}
 	}
 
-	pushID := id.New()
 	totalStored := 0
 	for itemName, blocks := range itemGroups {
 		if itemName == "" {
@@ -152,7 +162,6 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	userID, _ := c.Get("user_id").(string)
 
 	// Publish push completed event if blocks were stored.
 	if totalStored > 0 && s.EventBus != nil {
@@ -205,6 +214,54 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		Stored:    totalStored,
 		NewCursor: cursor,
 		PushID:    pushID,
+	})
+}
+
+// handleAsyncPush writes the push payload to blob storage and enqueues a job
+// for background processing (AD-037).
+func (s *Server) handleAsyncPush(c echo.Context, req *apiclient.SyncPushRequest, projectID, pushID, stream, userID string) error {
+	data, err := json.Marshal(req)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to serialize push payload"})
+	}
+
+	ref, err := s.BlobStore.Upload(c.Request().Context(), data, corestorage.UploadOptions{
+		ContentType: "application/json",
+		Filename:    fmt.Sprintf("push-%s.json", pushID),
+	})
+	blobKey := ref.Key
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to store push payload"})
+	}
+
+	// Create a sync-push translation job. The worker identifies this as a
+	// sync push by ItemName="__sync_push__". The blob key is stored in Model
+	// (unused for sync pushes). Stream is stored in TargetLocale.
+	job := &jobs.TranslationJob{
+		ID:            pushID,
+		WorkspaceSlug: func() string { ws, _ := c.Get("workspace_slug").(string); return ws }(),
+		ProjectID:     projectID,
+		ItemName:      "__sync_push__",
+		TargetLocale:  stream,
+		Model:         blobKey, // blob storage key for the push payload
+		PushID:        pushID,
+		Status:        jobs.StatusQueued,
+	}
+	if err := s.JobStore.CreateJob(c.Request().Context(), job); err != nil {
+		// Clean up blob on failure.
+		_ = s.BlobStore.Delete(c.Request().Context(), blobKey)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create push job"})
+	}
+	if err := s.JobQueue.Enqueue(c.Request().Context(), pushID); err != nil {
+		_ = s.JobStore.DeleteJob(c.Request().Context(), pushID)
+		_ = s.BlobStore.Delete(c.Request().Context(), blobKey)
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to enqueue push job"})
+	}
+
+	return c.JSON(http.StatusAccepted, map[string]any{
+		"push_id": pushID,
+		"status":  "queued",
+		"message": "Push accepted for background processing",
 	})
 }
 
