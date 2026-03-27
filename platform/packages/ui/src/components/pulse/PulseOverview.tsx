@@ -77,9 +77,7 @@ export function PulseOverview({
                 key={p.id}
                 name={p.name}
                 sourceLanguage={p.source_language_display_name ?? p.source_language}
-                targetLanguages={p.target_languages.map(
-                  (t) => p.target_language_names?.[t] ?? t,
-                )}
+                targetLanguages={p.target_languages.map((t) => p.target_language_names?.[t] ?? t)}
                 totalWords={p.total_words}
                 translatedWords={p.translated_words}
                 percentage={p.percentage}

@@ -8,7 +8,13 @@ interface LocaleCardProps {
   percentage: number;
 }
 
-function LocaleCard({ locale, displayName, translatedWords, totalWords, percentage }: LocaleCardProps) {
+function LocaleCard({
+  locale,
+  displayName,
+  translatedWords,
+  totalWords,
+  percentage,
+}: LocaleCardProps) {
   return (
     <div className="flex items-center gap-4 rounded-lg border bg-card p-4">
       <CompletionRing percentage={percentage} size={56} strokeWidth={5} />

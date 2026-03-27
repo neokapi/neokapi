@@ -19,7 +19,11 @@ function completionBarColor(pct: number): string {
   return "bg-muted";
 }
 
-export function FileProgressTable({ itemStats, locales, localeDisplayNames }: FileProgressTableProps) {
+export function FileProgressTable({
+  itemStats,
+  locales,
+  localeDisplayNames,
+}: FileProgressTableProps) {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
