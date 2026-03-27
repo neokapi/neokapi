@@ -127,7 +127,7 @@ func TestCreateReviewTasks_FanOutPerLocale(t *testing.T) {
 			"items":   "en.json",
 		},
 	}
-	srv.createReviewTasks(context.Background(), action, ev)
+	srv.createReviewTasks(context.Background(), action, ev, "")
 
 	// Verify tasks were created.
 	ctx := context.Background()
@@ -167,7 +167,7 @@ func TestCreateReviewTasks_TranslateMode(t *testing.T) {
 		ProjectID: projID,
 		Data:      map[string]string{"push_id": "p1", "items": "en.json"},
 	}
-	srv.createReviewTasks(context.Background(), action, ev)
+	srv.createReviewTasks(context.Background(), action, ev, "")
 
 	res, err := srv.TaskStore.List(context.Background(), bstore.TaskQuery{
 		WorkspaceID: wsID,
@@ -198,7 +198,7 @@ func TestCreateReviewTasks_SkipsWhenWorkflowDisabled(t *testing.T) {
 		ProjectID: projID,
 		Data:      map[string]string{"push_id": "p1", "items": "en.json"},
 	}
-	srv.createReviewTasks(context.Background(), action, ev)
+	srv.createReviewTasks(context.Background(), action, ev, "")
 
 	res, err := srv.TaskStore.List(context.Background(), bstore.TaskQuery{
 		WorkspaceID: wsID,
@@ -228,7 +228,7 @@ func TestCreateSourceReviewTask(t *testing.T) {
 			"workspace_slug": "test-ws",
 		},
 	}
-	srv.createSourceReviewTask(context.Background(), action, ev)
+	srv.createSourceReviewTask(context.Background(), action, ev, "")
 
 	res, err := srv.TaskStore.List(context.Background(), bstore.TaskQuery{
 		WorkspaceID: wsID,
@@ -352,8 +352,9 @@ func TestWorkflowEndToEnd(t *testing.T) {
 	frUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
 	deUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"de-DE"})
 
-	// Wire up the automation engine with the server's action executor.
-	engine := event.NewAutomationEngine(srv.EventBus, srv.executeAutomationAction)
+	// Wire up the automation engine via RunManager (AD-035).
+	rm := event.NewAutomationRunManager(nil, srv.executeAutomationAction)
+	engine := event.NewAutomationEngine(srv.EventBus, rm.Execute)
 	defer engine.Close()
 
 	// Register the built-in rule: push.automations.completed → create_review_tasks
@@ -419,8 +420,9 @@ func TestWorkflowEndToEnd_SourceReviewGate(t *testing.T) {
 	addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
 	addProjectMember(t, srv, wsID, projID, "reviewer", []string{"de-DE"})
 
-	// Wire up the automation engine.
-	engine := event.NewAutomationEngine(srv.EventBus, srv.executeAutomationAction)
+	// Wire up the automation engine via RunManager.
+	rm := event.NewAutomationRunManager(nil, srv.executeAutomationAction)
+	engine := event.NewAutomationEngine(srv.EventBus, rm.Execute)
 	defer engine.Close()
 
 	// Rule 1: push.automations.completed → create_source_review
@@ -535,8 +537,8 @@ func TestWorkflowDeduplication(t *testing.T) {
 	}
 
 	// Create tasks twice.
-	srv.createReviewTasks(ctx, action, ev)
-	srv.createReviewTasks(ctx, action, ev)
+	srv.createReviewTasks(ctx, action, ev, "")
+	srv.createReviewTasks(ctx, action, ev, "")
 
 	res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
 		WorkspaceID: wsID,

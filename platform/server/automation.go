@@ -115,10 +115,10 @@ func (s *Server) loadStoredAutomationRules() {
 	}
 }
 
-// executeAutomationAction is the callback for the automation engine.
-func (s *Server) executeAutomationAction(action event.AutomationAction, ev platev.Event) error {
+// executeAutomationAction is the callback for the automation engine (via RunManager).
+func (s *Server) executeAutomationAction(action event.AutomationAction, ev platev.Event, stepID string) error {
 	startedAt := ev.Timestamp
-	err := s.doExecuteAction(action, ev)
+	err := s.doExecuteAction(action, ev, stepID)
 
 	// Record execution in history.
 	if s.AutomationRuleStore != nil {
@@ -142,7 +142,7 @@ func (s *Server) executeAutomationAction(action event.AutomationAction, ev plate
 	return err
 }
 
-func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event) error {
+func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event, stepID string) error {
 	switch action.Type {
 	case "auto_translate":
 		items := ev.Data["items"]
@@ -152,7 +152,7 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event)
 			return nil
 		}
 		itemNames := strings.Split(items, ",")
-		go s.triggerAutoTranslate(context.Background(), ev.ProjectID, itemNames, nil, pushID, wsSlug)
+		go s.triggerAutoTranslate(context.Background(), ev.ProjectID, itemNames, nil, pushID, wsSlug, stepID)
 
 	case "auto_extract":
 		items := ev.Data["items"]
@@ -162,7 +162,7 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event)
 			return nil
 		}
 		itemNames := strings.Split(items, ",")
-		go s.triggerAutoExtract(context.Background(), ev.ProjectID, itemNames, pushID, wsSlug)
+		go s.triggerAutoExtract(context.Background(), ev.ProjectID, itemNames, pushID, wsSlug, stepID)
 
 	case "notify":
 		s.executeNotifyAction(action, ev)
@@ -177,16 +177,16 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event)
 		go s.triggerAutoTranslateNewLocales(context.Background(), ev.ProjectID, locales, wsSlug)
 
 	case "create_review_tasks":
-		go s.createReviewTasks(context.Background(), action, ev)
+		go s.createReviewTasks(context.Background(), action, ev, stepID)
 
 	case "create_source_review":
-		go s.createSourceReviewTask(context.Background(), action, ev)
+		go s.createSourceReviewTask(context.Background(), action, ev, stepID)
 	}
 	return nil
 }
 
 // triggerAutoTranslate creates translation jobs for each (item, locale) pair.
-func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, itemNames, locales []string, pushID, wsSlug string) {
+func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, itemNames, locales []string, pushID, wsSlug, stepID string) {
 	if s.JobStore == nil || s.JobQueue == nil || s.ContentStore == nil {
 		return
 	}
@@ -221,6 +221,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 		model = proj.Properties["ai_model"]
 	}
 
+	var jobIDs []string
 	for _, itemName := range itemNames {
 		for _, locale := range locales {
 			job := &jobs.TranslationJob{
@@ -243,7 +244,17 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 			if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
 				log.Printf("auto-translate: failed to enqueue job %s: %v", job.ID, err)
 				_ = s.JobStore.DeleteJob(ctx, job.ID)
+			} else {
+				jobIDs = append(jobIDs, job.ID)
 			}
+		}
+	}
+
+	// Register spawned jobs on the automation step for visibility tracking.
+	if stepID != "" && s.AutomationRunStore != nil && len(jobIDs) > 0 {
+		_ = s.AutomationRunStore.RegisterStepJobs(ctx, stepID, jobIDs)
+		if s.stepCompletionTracker != nil {
+			s.stepCompletionTracker.TrackStep(stepID, "", false)
 		}
 	}
 }
@@ -282,7 +293,7 @@ func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Ev
 }
 
 // triggerAutoExtract creates extraction jobs for each item pushed.
-func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemNames []string, pushID, wsSlug string) {
+func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemNames []string, pushID, wsSlug, stepID string) {
 	if s.ExtractionJobStore == nil || s.ExtractionQueue == nil || s.ContentStore == nil {
 		return
 	}
@@ -308,6 +319,7 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 		wsSlug = "_anon"
 	}
 
+	var jobIDs []string
 	for _, itemName := range itemNames {
 		job := &jobs.ExtractionJob{
 			ID:            id.New(),
@@ -328,6 +340,15 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 		if err := s.ExtractionQueue.Enqueue(ctx, job.ID); err != nil {
 			log.Printf("auto-extract: failed to enqueue job %s: %v", job.ID, err)
 			_ = s.ExtractionJobStore.UpdateExtractionJobStatus(ctx, job.ID, jobs.ExtractionStatusFailed, "enqueue failed")
+		} else {
+			jobIDs = append(jobIDs, job.ID)
+		}
+	}
+
+	if stepID != "" && s.AutomationRunStore != nil && len(jobIDs) > 0 {
+		_ = s.AutomationRunStore.RegisterStepJobs(ctx, stepID, jobIDs)
+		if s.stepCompletionTracker != nil {
+			s.stepCompletionTracker.TrackStep(stepID, "", true)
 		}
 	}
 }
@@ -353,11 +374,11 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 		itemNames = append(itemNames, item.Name)
 	}
 
-	s.triggerAutoTranslate(ctx, projectID, itemNames, locales, pushID, wsSlug)
+	s.triggerAutoTranslate(ctx, projectID, itemNames, locales, pushID, wsSlug, "")
 }
 
 // createReviewTasks creates per-locale review or translate tasks for project members (AD-034).
-func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationAction, ev platev.Event) {
+func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) {
 	if s.ContentStore == nil || s.TaskStore == nil || s.AuthStore == nil {
 		return
 	}
@@ -399,6 +420,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 	// Load existing open tasks for deduplication.
 	existingLocales := s.existingOpenTaskLocales(ctx, proj.WorkspaceID, proj.ID, string(taskType))
 
+	var taskIDs []string
 	for _, locale := range proj.TargetLanguages {
 		localeStr := string(locale)
 
@@ -431,6 +453,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 				log.Printf("create-review-tasks: failed to create task for %s/%s: %v", localeStr, m.UserID, err)
 				continue
 			}
+			taskIDs = append(taskIDs, task.ID)
 			if s.NotificationDispatcher != nil {
 				s.NotificationDispatcher.DispatchTaskNotification(
 					ctx, task, bstore.NotificationTaskAssigned,
@@ -458,13 +481,20 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 					"mode":    mode,
 				},
 			}
-			_ = s.TaskStore.Create(ctx, task)
+			if err := s.TaskStore.Create(ctx, task); err == nil {
+				taskIDs = append(taskIDs, task.ID)
+			}
 		}
+	}
+
+	// Register created tasks on the automation step.
+	if stepID != "" && s.AutomationRunStore != nil && len(taskIDs) > 0 {
+		_ = s.AutomationRunStore.RegisterStepTasks(ctx, stepID, taskIDs)
 	}
 }
 
 // createSourceReviewTask creates a source review task before language fan-out (AD-034).
-func (s *Server) createSourceReviewTask(ctx context.Context, action event.AutomationAction, ev platev.Event) {
+func (s *Server) createSourceReviewTask(ctx context.Context, action event.AutomationAction, ev platev.Event, stepID string) {
 	if s.ContentStore == nil || s.TaskStore == nil {
 		return
 	}
@@ -519,6 +549,10 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 			"Source review needed",
 			"New content needs source review before translation fan-out.",
 		)
+	}
+
+	if stepID != "" && s.AutomationRunStore != nil {
+		_ = s.AutomationRunStore.RegisterStepTasks(ctx, stepID, []string{task.ID})
 	}
 }
 

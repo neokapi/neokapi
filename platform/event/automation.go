@@ -16,8 +16,9 @@ const MaxChainDepth = 5
 
 // AutomationAction defines what happens when a rule triggers.
 type AutomationAction struct {
-	Type   string            // "flow", "webhook", "notify"
-	Config map[string]string // Action-specific configuration
+	Type   string            `json:"type"`             // "flow", "webhook", "notify"
+	Config map[string]string `json:"config,omitempty"` // Action-specific configuration
+	Name   string            `json:"-"`                // Rule name (set at runtime by engine, not persisted)
 }
 
 // AutomationCondition defines when a rule should trigger.
@@ -127,6 +128,7 @@ func (e *AutomationEngine) handleEvent(event platev.Event) {
 			continue
 		}
 		for _, action := range rule.Actions {
+			action.Name = rule.Name // annotate with rule name for run tracking
 			if e.executor != nil {
 				_ = e.executor(action, event)
 			}

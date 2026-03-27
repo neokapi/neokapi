@@ -151,6 +151,12 @@ type Server struct {
 	// pushCompletionTracker monitors automation jobs per push and emits push.automations.completed. Nil when not configured.
 	pushCompletionTracker *event.PushCompletionTracker
 
+	// AutomationRunStore persists automation runs, steps, and logs (AD-035). Nil when not configured.
+	AutomationRunStore *bstore.AutomationRunStore
+
+	// stepCompletionTracker monitors async automation steps. Nil when not configured.
+	stepCompletionTracker *event.StepCompletionTracker
+
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
 
@@ -263,6 +269,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.NotificationStore = bstore.NewPostgresNotificationStore(pgSQL)
 			s.ActivityStore = bstore.NewPostgresActivityStore(pgSQL)
 			s.TaskStore = bstore.NewPostgresTaskStore(pgSQL)
+			s.AutomationRunStore = bstore.NewAutomationRunStorePg(pgSQL)
 			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewPostgresDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
@@ -309,8 +316,9 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 	}
 
-	// Wire up automation engine.
-	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, s.executeAutomationAction)
+	// Wire up automation engine with run manager (AD-035).
+	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
+	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
 	s.registerDefaultAutomations()
 
 	// Wire up activity recorder (AD-027).
@@ -384,6 +392,13 @@ func NewServer(cfg ServerConfig) *Server {
 	if s.EventBus != nil && s.JobStore != nil {
 		s.pushCompletionTracker = event.NewPushCompletionTracker(
 			s.EventBus, s.JobStore, s.ExtractionJobStore, s.ContentStore,
+		)
+	}
+
+	// Wire up step completion tracker (AD-035).
+	if s.AutomationRunStore != nil && s.JobStore != nil {
+		s.stepCompletionTracker = event.NewStepCompletionTracker(
+			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
 		)
 	}
 
@@ -978,6 +993,13 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.PATCH("/projects/:id/automations/:ruleId/toggle", s.HandleToggleAutomationRule)
 	g.GET("/projects/:id/automations/events", s.HandleListAutomationEvents)
 	g.GET("/projects/:id/automations/history", s.HandleListAutomationHistory)
+
+	// Automation runs (project-scoped, AD-035)
+	g.GET("/projects/:id/automation-runs", s.HandleListAutomationRuns)
+	g.GET("/projects/:id/automation-runs/:runId", s.HandleGetAutomationRun)
+	g.GET("/projects/:id/automation-runs/:runId/steps", s.HandleListAutomationRunSteps)
+	g.GET("/projects/:id/automation-runs/:runId/steps/:stepId/logs", s.HandleListStepLogs)
+	g.POST("/projects/:id/automation-runs/:runId/cancel", s.HandleCancelAutomationRun)
 
 	// Review queue (project-scoped, AD-022)
 	g.GET("/projects/:id/review-queue", s.HandleListReviewQueue)
