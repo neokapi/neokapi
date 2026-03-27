@@ -1,6 +1,6 @@
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import type { LocaleTranslationStats } from "../types/api";
-import { LanguageLabel } from "./LanguageLabel";
+import { LanguageLabel, localeDisplayName } from "./LanguageLabel";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ChartContainer, type ChartConfig } from "./ui/chart";
 
@@ -51,7 +51,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 export function LocaleCompletionChart({ localeStats }: LocaleCompletionChartProps) {
   const data = localeStats.map((l) => ({
-    locale: l.display_name ?? l.locale,
+    locale: l.display_name ?? localeDisplayName(l.locale, "short"),
     localeCode: l.locale,
     displayName: l.display_name,
     percentage: Math.round(l.percentage * 10) / 10,

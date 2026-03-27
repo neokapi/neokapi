@@ -1,3 +1,4 @@
+import { localeDisplayName } from "../LanguageLabel";
 import { CompletionRing } from "./CompletionRing";
 
 interface PulseProjectCardProps {
@@ -8,6 +9,8 @@ interface PulseProjectCardProps {
   translatedWords: number;
   percentage: number;
   onClick?: () => void;
+  /** Optional display-name overrides (e.g. from workspace settings). */
+  languageNames?: Record<string, string>;
 }
 
 export function PulseProjectCard({
@@ -18,7 +21,10 @@ export function PulseProjectCard({
   translatedWords,
   percentage,
   onClick,
+  languageNames,
 }: PulseProjectCardProps) {
+  const resolveName = (code: string) => languageNames?.[code] ?? localeDisplayName(code, "short");
+
   return (
     <div
       className="cursor-pointer rounded-lg border bg-card p-4 transition-colors hover:bg-muted/50"
@@ -29,9 +35,9 @@ export function PulseProjectCard({
     >
       <div className="flex items-start justify-between">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold truncate">{name}</h3>
+          <h3 className="truncate font-semibold">{name}</h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            {sourceLanguage} → {targetLanguages.join(", ")}
+            {resolveName(sourceLanguage)} → {targetLanguages.map(resolveName).join(", ")}
           </p>
         </div>
         <CompletionRing percentage={percentage} size={48} strokeWidth={4} />

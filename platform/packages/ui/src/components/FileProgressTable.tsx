@@ -105,7 +105,12 @@ export function FileProgressTable({
                     key={l}
                     className="min-w-[80px] px-1 py-2 text-center font-medium text-muted-foreground"
                   >
-                    <LanguageLabel code={l} displayName={localeDisplayNames?.[l]} hideCode />
+                    <LanguageLabel
+                      code={l}
+                      displayName={localeDisplayNames?.[l]}
+                      variant="short"
+                      hideCode
+                    />
                   </th>
                 ))}
               </tr>

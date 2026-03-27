@@ -76,8 +76,9 @@ export function PulseOverview({
               <PulseProjectCard
                 key={p.id}
                 name={p.name}
-                sourceLanguage={p.source_language_display_name ?? p.source_language}
-                targetLanguages={p.target_languages.map((t) => p.target_language_names?.[t] ?? t)}
+                sourceLanguage={p.source_language}
+                targetLanguages={p.target_languages}
+                languageNames={p.target_language_names}
                 totalWords={p.total_words}
                 translatedWords={p.translated_words}
                 percentage={p.percentage}
