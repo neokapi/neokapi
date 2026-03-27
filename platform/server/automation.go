@@ -396,8 +396,17 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 	pushID := ev.Data["push_id"]
 	items := ev.Data["items"]
 
+	// Load existing open tasks for deduplication.
+	existingLocales := s.existingOpenTaskLocales(ctx, proj.WorkspaceID, proj.ID, string(taskType))
+
 	for _, locale := range proj.TargetLanguages {
 		localeStr := string(locale)
+
+		// Skip if an open/in-progress task already exists for this locale.
+		if existingLocales[localeStr] {
+			continue
+		}
+
 		assignees := s.findMembersForLocale(ctx, members, localeStr, mode)
 
 		for _, m := range assignees {
@@ -550,6 +559,30 @@ func (s *Server) findMembersForLocale(ctx context.Context, members []*platauth.P
 		}
 
 		result = append(result, m)
+	}
+	return result
+}
+
+// existingOpenTaskLocales returns a set of locales that already have open or in-progress tasks
+// for the given project and task type. Used for deduplication.
+func (s *Server) existingOpenTaskLocales(ctx context.Context, wsID, projectID, taskType string) map[string]bool {
+	result := map[string]bool{}
+	if s.TaskStore == nil {
+		return result
+	}
+	res, err := s.TaskStore.List(ctx, bstore.TaskQuery{
+		WorkspaceID: wsID,
+		ProjectID:   projectID,
+		Type:        taskType,
+		Statuses:    []string{string(bstore.TaskStatusOpen), string(bstore.TaskStatusInProgress)},
+	})
+	if err != nil {
+		return result
+	}
+	for _, t := range res.Tasks {
+		if locale := t.Data["locale"]; locale != "" {
+			result[locale] = true
+		}
 	}
 	return result
 }

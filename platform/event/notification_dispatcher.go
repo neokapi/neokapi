@@ -189,6 +189,12 @@ func (d *NotificationDispatcher) mapEventToNotification(ev platev.Event) *bstore
 		n.Body = "New content has been pushed and is ready for translation"
 		n.Category = string(bstore.CategoryTask)
 
+	case platev.EventPushAutomationsCompleted:
+		n.Type = bstore.NotificationContentReadyForWork
+		n.Title = "Content ready for review"
+		n.Body = "AI translation and extraction completed — content is ready for human review"
+		n.Category = string(bstore.CategoryTask)
+
 	case platev.EventVersionCreated:
 		n.Type = bstore.NotificationVersionReady
 		n.Title = "New version created"
