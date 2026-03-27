@@ -206,7 +206,14 @@ func (d *DiffEngine) loadBlockHashes(ctx context.Context, projectID, stream, ite
 
 	hashes := make(map[string]string, len(blocks))
 	for _, sb := range blocks {
-		hashes[sb.Block.ID] = sb.ContentHash
+		// Use source_id as key when available — this is the stable client-facing
+		// block ID. The internal ID may differ due to source_id remapping in
+		// StoreBlocksForItem. Clients compute hashes keyed by their original IDs.
+		key := sb.SourceID
+		if key == "" {
+			key = sb.Block.ID
+		}
+		hashes[key] = sb.ContentHash
 	}
 
 	// Cache.
