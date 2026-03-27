@@ -1,11 +1,13 @@
 import { useState, useMemo } from "react";
 import type { ItemTranslationStats } from "../types/api";
+import { LanguageLabel } from "./LanguageLabel";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { cn } from "../lib/utils";
 
 interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];
   locales: string[];
+  localeDisplayNames?: Record<string, string>;
 }
 
 type SortField = "name" | "words" | "completion";
@@ -18,7 +20,11 @@ function completionBarColor(pct: number): string {
   return "bg-muted";
 }
 
-export function FileProgressTable({ itemStats, locales }: FileProgressTableProps) {
+export function FileProgressTable({
+  itemStats,
+  locales,
+  localeDisplayNames,
+}: FileProgressTableProps) {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -99,7 +105,12 @@ export function FileProgressTable({ itemStats, locales }: FileProgressTableProps
                     key={l}
                     className="min-w-[80px] px-1 py-2 text-center font-medium text-muted-foreground"
                   >
-                    {l}
+                    <LanguageLabel
+                      code={l}
+                      displayName={localeDisplayNames?.[l]}
+                      variant="short"
+                      hideCode
+                    />
                   </th>
                 ))}
               </tr>

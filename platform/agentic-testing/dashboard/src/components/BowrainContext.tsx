@@ -46,7 +46,7 @@ export default function BowrainContext() {
             {progressData.map((p) => (
               <div key={p.locale} className="space-y-1">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="font-mono text-muted-foreground">{p.locale}</span>
+                  <span className="font-mono text-muted-foreground">{localeDisplayName(p.locale)}</span>
                   <span className="font-mono tabular-nums">
                     {p.translated}/{p.total} blocks
                   </span>
@@ -83,6 +83,15 @@ export default function BowrainContext() {
       </CardContent>
     </Card>
   );
+}
+
+function localeDisplayName(code: string): string {
+  try {
+    const dn = new Intl.DisplayNames(["en"], { type: "language" });
+    return dn.of(code) ?? code;
+  } catch {
+    return code;
+  }
 }
 
 function formatTimeAgo(isoDate: string): string {

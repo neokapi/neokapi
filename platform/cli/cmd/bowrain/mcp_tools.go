@@ -8,6 +8,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/neokapi/neokapi/cli"
 	clioutput "github.com/neokapi/neokapi/cli/output"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/platform/connector"
 	"github.com/neokapi/neokapi/platform/project"
@@ -128,14 +129,19 @@ type MCPLsOutput struct {
 	Changed int          `json:"changed,omitempty"`
 }
 
+type MCPLocaleInfo struct {
+	Code        string `json:"code"`
+	DisplayName string `json:"display_name"`
+}
+
 type MCPConfigOutput struct {
-	Root            string   `json:"root"`
-	ConfigPath      string   `json:"config_path"`
-	SourceLanguage  string   `json:"source_language"`
-	TargetLanguages []string `json:"target_languages,omitempty"`
-	ServerURL       string   `json:"server_url,omitempty"`
-	ProjectID       string   `json:"project_id,omitempty"`
-	ContentCount    int      `json:"content_count"`
+	Root            string          `json:"root"`
+	ConfigPath      string          `json:"config_path"`
+	SourceLanguage  MCPLocaleInfo   `json:"source_language"`
+	TargetLanguages []MCPLocaleInfo `json:"target_languages,omitempty"`
+	ServerURL       string          `json:"server_url,omitempty"`
+	ProjectID       string          `json:"project_id,omitempty"`
+	ContentCount    int             `json:"content_count"`
 }
 
 type MCPFlowEntry struct {
@@ -353,15 +359,22 @@ func handleProjectConfig() (*mcp.CallToolResult, MCPConfigOutput, error) {
 		return nil, MCPConfigOutput{}, err
 	}
 
+	srcLang := proj.Config.Defaults.SourceLanguage
 	out := MCPConfigOutput{
-		Root:           proj.Root,
-		ConfigPath:     filepath.Join(proj.ConfigDir, "config.yaml"),
-		SourceLanguage: string(proj.Config.Defaults.SourceLanguage),
-		ContentCount:   len(proj.Config.Content),
+		Root:       proj.Root,
+		ConfigPath: filepath.Join(proj.ConfigDir, "config.yaml"),
+		SourceLanguage: MCPLocaleInfo{
+			Code:        string(srcLang),
+			DisplayName: locale.DisplayName(srcLang),
+		},
+		ContentCount: len(proj.Config.Content),
 	}
 
 	for _, l := range proj.Config.Defaults.TargetLanguages {
-		out.TargetLanguages = append(out.TargetLanguages, string(l))
+		out.TargetLanguages = append(out.TargetLanguages, MCPLocaleInfo{
+			Code:        string(l),
+			DisplayName: locale.DisplayName(l),
+		})
 	}
 
 	if proj.Config.HasServer() {

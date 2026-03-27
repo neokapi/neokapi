@@ -1,5 +1,6 @@
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import type { LocaleTranslationStats } from "../types/api";
+import { LanguageLabel, localeDisplayName } from "./LanguageLabel";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { ChartContainer, type ChartConfig } from "./ui/chart";
 
@@ -17,6 +18,8 @@ const chartConfig: ChartConfig = {
 interface TooltipPayload {
   payload?: {
     locale?: string;
+    localeCode?: string;
+    displayName?: string;
     percentage?: number;
     translated_words?: number;
     total_words?: number;
@@ -32,7 +35,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   return (
     <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
       <div className="font-medium">
-        {d.locale}: {d.percentage}% complete
+        <LanguageLabel code={d.localeCode ?? d.locale ?? ""} displayName={d.displayName} hideCode />
+        : {d.percentage}% complete
       </div>
       <div className="text-muted-foreground">
         {(d.translated_words ?? 0).toLocaleString()} / {(d.total_words ?? 0).toLocaleString()} words
@@ -47,7 +51,9 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 export function LocaleCompletionChart({ localeStats }: LocaleCompletionChartProps) {
   const data = localeStats.map((l) => ({
-    locale: l.locale,
+    locale: l.display_name ?? localeDisplayName(l.locale, "short"),
+    localeCode: l.locale,
+    displayName: l.display_name,
     percentage: Math.round(l.percentage * 10) / 10,
     translated_words: l.translated_words,
     total_words: l.total_words,
@@ -69,7 +75,7 @@ export function LocaleCompletionChart({ localeStats }: LocaleCompletionChartProp
               type="category"
               tickLine={false}
               axisLine={false}
-              width={60}
+              width={100}
               tick={{ fontSize: 11 }}
             />
             <XAxis

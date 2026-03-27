@@ -382,6 +382,7 @@ export interface WordCountResult {
 /** Per-locale translation progress */
 export interface LocaleTranslationStats {
   locale: string;
+  display_name?: string;
   translated_blocks: number;
   total_blocks: number;
   translated_words: number;

@@ -9,6 +9,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 )
@@ -356,6 +358,7 @@ func (s *Server) HandlePulseLeaderboard(c echo.Context) error {
 			} else {
 				langMap[ls.Locale] = &store.PulseLanguageRank{
 					Locale:          ls.Locale,
+					DisplayName:     locale.DisplayName(model.LocaleID(ls.Locale)),
 					TranslatedWords: ls.TranslatedWords,
 					TotalWords:      ls.TotalWords,
 				}
@@ -480,6 +483,7 @@ func (s *Server) buildPulseOverview(ctx context.Context, ws *platauth.Workspace,
 			} else {
 				langMap[loc.Locale] = &store.PulseLanguageRank{
 					Locale:          loc.Locale,
+					DisplayName:     locale.DisplayName(model.LocaleID(loc.Locale)),
 					TranslatedWords: loc.TranslatedWords,
 					TotalWords:      loc.TotalWords,
 				}
@@ -526,15 +530,20 @@ func (s *Server) buildPulseOverview(ctx context.Context, ws *platauth.Workspace,
 // buildProjectSummary builds a PulseProjectSummary from a store.Project.
 func (s *Server) buildProjectSummary(ctx context.Context, p *store.Project) store.PulseProjectSummary {
 	targets := make([]string, len(p.TargetLanguages))
+	targetNames := make(map[string]string, len(p.TargetLanguages))
 	for i, l := range p.TargetLanguages {
-		targets[i] = string(l)
+		code := string(l)
+		targets[i] = code
+		targetNames[code] = locale.DisplayName(model.LocaleID(l))
 	}
 
 	summary := store.PulseProjectSummary{
-		ID:              p.ID,
-		Name:            p.Name,
-		SourceLanguage:  string(p.DefaultSourceLanguage),
-		TargetLanguages: targets,
+		ID:                        p.ID,
+		Name:                      p.Name,
+		SourceLanguage:            string(p.DefaultSourceLanguage),
+		SourceLanguageDisplayName: locale.DisplayName(p.DefaultSourceLanguage),
+		TargetLanguages:           targets,
+		TargetLanguageNames:       targetNames,
 	}
 
 	stats, err := editorGetDashboardStats(ctx, s.ContentStore, p, "")
