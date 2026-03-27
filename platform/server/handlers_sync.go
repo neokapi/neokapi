@@ -12,33 +12,27 @@ import (
 	platauth "github.com/neokapi/neokapi/platform/auth"
 
 	"github.com/neokapi/neokapi/bowrain/jobs"
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
-	"github.com/neokapi/neokapi/core/model"
 	corestorage "github.com/neokapi/neokapi/core/storage"
 	apiclient "github.com/neokapi/neokapi/platform/client"
-	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
-// HandleSyncPush receives source blocks from a client and stores them.
+// HandleSyncPush receives source blocks from a client, writes them to blob
+// storage, and enqueues a background job for processing (AD-037).
+// Returns 202 Accepted with a push_id for status polling.
 func (s *Server) HandleSyncPush(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageFiles); err != nil {
 		return err
 	}
 
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
+	if s.BlobStore == nil || s.JobStore == nil || s.JobQueue == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "async push not configured (blob store or job queue missing)"})
 	}
 
 	var req apiclient.SyncPushRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	itemMetaMap := make(map[string]apiclient.ItemMeta, len(req.Items))
-	for _, im := range req.Items {
-		itemMetaMap[im.Name] = im
 	}
 
 	if len(req.Blocks) > store.MaxBlocksPerRequest {
@@ -56,171 +50,29 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 		stream = "main"
 	}
 
-	// Async path (AD-037): write to blob and enqueue for background processing.
-	if c.QueryParam("async") == "true" && s.BlobStore != nil && s.JobQueue != nil {
-		return s.handleAsyncPush(c, &req, projectID, pushID, stream, userID)
-	}
+	return s.handleAsyncPush(c, &req, projectID, pushID, stream, userID)
+}
 
-	// Group blocks by item_name for per-item storage.
-	itemGroups := map[string][]*model.Block{}
-	itemCollections := map[string]string{} // item_name → collection name
-	for _, bi := range req.Blocks {
-		b := model.NewBlock(bi.ID, bi.Text)
-		b.Name = bi.Name
-		b.Type = bi.Type
-		itemGroups[bi.ItemName] = append(itemGroups[bi.ItemName], b)
-		if bi.Collection != "" && bi.ItemName != "" {
-			itemCollections[bi.ItemName] = bi.Collection
-		}
-	}
-
-	ctx := c.Request().Context()
-
-	// Auto-create non-main streams on first push.
-	if stream != "main" && s.ContentStore != nil {
-		if _, err := s.ContentStore.GetStream(ctx, projectID, stream); err != nil {
-			baseCursor, _ := s.ContentStore.LatestCursor(ctx, projectID, "main")
-			_ = s.ContentStore.CreateStream(ctx, &store.Stream{
-				ProjectID:  projectID,
-				Name:       stream,
-				Parent:     "main",
-				BaseCursor: baseCursor,
-				Visibility: store.StreamPublic,
-			})
-		}
-	}
-
-	// Resolve collection names to IDs for items that specify a collection.
-	collectionCache := map[string]string{} // collection name → collection ID
-	if s.ContentStore != nil && len(itemCollections) > 0 {
-		for _, collName := range itemCollections {
-			if _, seen := collectionCache[collName]; seen {
-				continue
-			}
-			coll, err := s.ContentStore.GetCollectionByName(ctx, projectID, collName, stream)
-			if err != nil {
-				// Auto-create the collection.
-				coll = &store.Collection{
-					ProjectID: projectID,
-					Name:      collName,
-					Kind:      store.CollectionUploaded,
-					ItemLabel: "item",
-				}
-				if createErr := s.ContentStore.CreateCollection(ctx, coll); createErr == nil {
-					collectionCache[collName] = coll.ID
-				}
-			} else {
-				collectionCache[collName] = coll.ID
-			}
-		}
-	}
-
-	totalStored := 0
-	for itemName, blocks := range itemGroups {
-		if itemName == "" {
-			if err := s.Services.Project.StoreBlocks(ctx, projectID, blocks); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-			}
-		} else {
-			if err := s.Services.Project.StoreBlocksForItem(ctx, projectID, itemName, blocks); err != nil {
-				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-			}
-			// Ensure the item exists in the ContentStore so it appears in the editor UI.
-			if s.ContentStore != nil {
-				item := &store.Item{
-					Name:     itemName,
-					Format:   detectFormatFromName(itemName),
-					ItemType: "file",
-				}
-				if meta, ok := itemMetaMap[itemName]; ok {
-					item.BlockIndex = meta.BlockIndex
-					item.PreviewHTML = meta.PreviewHTML
-					if meta.Format != "" {
-						item.Format = meta.Format
-					}
-				}
-				if collName, ok := itemCollections[itemName]; ok {
-					item.CollectionID = collectionCache[collName]
-				}
-				_ = s.ContentStore.StoreItem(ctx, projectID, stream, item)
-			}
-		}
-		totalStored += len(blocks)
-	}
-
-	// Auto-set the project's default stream on first push.
-	if totalStored > 0 && s.ContentStore != nil {
-		proj, projErr := s.ContentStore.GetProject(ctx, projectID)
-		if projErr == nil && proj.DefaultStream == "" {
-			proj.DefaultStream = stream
-			_ = s.ContentStore.UpdateProject(ctx, proj)
-		}
-	}
-
-	cursor, err := s.Services.Project.LatestCursor(ctx, projectID)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-
-
-	// Publish push completed event if blocks were stored.
-	if totalStored > 0 && s.EventBus != nil {
-		var itemNames []string
-		for name := range itemGroups {
-			if name != "" {
-				itemNames = append(itemNames, name)
-			}
-		}
-
-		// Determine workspace slug from context.
-		wsSlug := ""
-		if ws, ok := c.Get("workspace_slug").(string); ok {
-			wsSlug = ws
-		}
-
-		s.EventBus.Publish(platev.Event{
-			Type:      platev.EventPushCompleted,
-			Source:    "sync",
-			ProjectID: projectID,
-			Actor:     userID,
-			Data: map[string]string{
-				"items":          strings.Join(itemNames, ","),
-				"push_id":        pushID,
-				"workspace_slug": wsSlug,
-			},
-		})
-
-		// Write pending push record for cross-instance tracking (#169).
-		// The leader's PushCompletionTracker polls this table.
-		if s.AutomationRunStore != nil {
-			_ = s.AutomationRunStore.InsertPendingPush(c.Request().Context(), &bstore.PendingPush{
-				PushID:    pushID,
-				ProjectID: projectID,
-				Items:     strings.Join(itemNames, ","),
-				WsSlug:    wsSlug,
-				Actor:     userID,
-			})
-		}
-	}
-
-	s.trackEvent(userID, "sync_push", map[string]any{
-		"project_id": projectID,
-		"blocks":     totalStored,
-		"items":      len(itemGroups),
-		"stream":     stream,
-	})
-
-	return c.JSON(http.StatusOK, apiclient.SyncPushResponse{
-		Stored:    totalStored,
-		NewCursor: cursor,
-		PushID:    pushID,
-	})
+// syncPushPayload wraps the push request with context needed by the worker.
+type syncPushPayload struct {
+	Request apiclient.SyncPushRequest `json:"request"`
+	UserID  string                    `json:"user_id"`
+	WsSlug  string                    `json:"ws_slug"`
 }
 
 // handleAsyncPush writes the push payload to blob storage and enqueues a job
 // for background processing (AD-037).
 func (s *Server) handleAsyncPush(c echo.Context, req *apiclient.SyncPushRequest, projectID, pushID, stream, userID string) error {
-	data, err := json.Marshal(req)
+	wsSlug := ""
+	if ws, ok := c.Get("workspace_slug").(string); ok {
+		wsSlug = ws
+	}
+	payload := syncPushPayload{
+		Request: *req,
+		UserID:  userID,
+		WsSlug:  wsSlug,
+	}
+	data, err := json.Marshal(payload)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to serialize push payload"})
 	}

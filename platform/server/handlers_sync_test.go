@@ -37,19 +37,14 @@ func TestSyncPush(t *testing.T) {
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push blocks.
+	// Push blocks (async — returns 202, then worker processes).
 	body := `{"blocks":[{"id":"b1","text":"Hello"},{"id":"b2","text":"World"}]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
+	rec := pushAndDrain(t, srv, e, authHeader, "/api/v1/projects/"+pid+"/sync/push", body)
 
-	var resp apiclient.SyncPushResponse
+	var resp map[string]any
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Equal(t, 2, resp.Stored)
-	assert.Greater(t, resp.NewCursor, int64(0))
+	assert.NotEmpty(t, resp["push_id"])
+	assert.Equal(t, "queued", resp["status"])
 }
 
 func TestSyncPush_ExceedsBatchLimit(t *testing.T) {

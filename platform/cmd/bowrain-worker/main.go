@@ -13,10 +13,14 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
 	"github.com/neokapi/neokapi/bowrain/credentials"
+	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	"github.com/neokapi/neokapi/bowrain/service"
 	"github.com/neokapi/neokapi/bowrain/storage"
+	bloblocal "github.com/neokapi/neokapi/bowrain/storage/localblob"
+	blobazure "github.com/neokapi/neokapi/bowrain/storage/azureblob"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	corestorage "github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/platform/store"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
@@ -101,6 +105,49 @@ func main() {
 		CredStore:    credStore,
 		Queue:        translationQueue,
 		QuotaStore:   pgQS,
+	}
+
+	// Configure blob store for async sync push processing (AD-037).
+	var blobStore corestorage.BlobStore
+	if azureStorageURL := os.Getenv("AZURE_STORAGE_ACCOUNT_URL"); azureStorageURL != "" {
+		container := envOrDefault("AZURE_STORAGE_CONTAINER", "bowrain-assets")
+		if connStr := os.Getenv("AZURE_STORAGE_CONNECTION_STRING"); connStr != "" {
+			bs, err := blobazure.NewFromConnectionString(connStr, container)
+			if err == nil {
+				blobStore = bs
+				log.Printf("Using Azure Blob Storage for push processing")
+			}
+		} else {
+			bs, err := blobazure.New(azureStorageURL, container)
+			if err == nil {
+				blobStore = bs
+				log.Printf("Using Azure Blob Storage (managed identity) for push processing")
+			}
+		}
+	}
+	if blobStore == nil {
+		blobStore = bloblocal.New("")
+		log.Printf("Using local blob storage for push processing")
+	}
+	translationDeps.BlobStore = blobStore
+
+	// Configure event bus for publishing EventPushCompleted after sync push (AD-037).
+	if serviceBusConn != "" {
+		bus, err := bowevent.NewServiceBusEventBus(serviceBusConn)
+		if err != nil {
+			log.Printf("WARNING: failed to create Service Bus event bus for worker: %v", err)
+		} else {
+			translationDeps.EventBus = bus
+			log.Printf("Worker event bus: Azure Service Bus")
+		}
+	} else if natsURL != "" {
+		bus, err := bowevent.NewNATSEventBus(natsURL)
+		if err != nil {
+			log.Printf("WARNING: failed to create NATS event bus for worker: %v", err)
+		} else {
+			translationDeps.EventBus = bus
+			log.Printf("Worker event bus: NATS JetStream")
+		}
 	}
 
 	// Configure platform Azure OpenAI if endpoint is set.
