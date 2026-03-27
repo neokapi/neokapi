@@ -132,6 +132,17 @@ func (s *PgJobStore) UpdateJobProgress(ctx context.Context, id string, doneBlock
 	return nil
 }
 
+func (s *PgJobStore) ClaimJob(ctx context.Context, id string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE translation_jobs SET status = 'processing', updated_at = NOW()
+		 WHERE id = $1 AND status = 'queued'`, id)
+	if err != nil {
+		return false, fmt.Errorf("claim job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
+
 func (s *PgJobStore) UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error {
 	_, err := s.db.ExecContext(ctx,
 		`UPDATE translation_jobs

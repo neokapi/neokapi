@@ -15,6 +15,8 @@ type ExtractionJobStore interface {
 	UpdateExtractionJobStatus(ctx context.Context, id string, status ExtractionJobStatus, errMsg string) error
 	UpdateExtractionJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks, itemsCreated int) error
 	ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error)
+	// ClaimExtractionJob atomically transitions from queued to processing. Returns true if claimed.
+	ClaimExtractionJob(ctx context.Context, id string) (bool, error)
 }
 
 // SQLiteExtractionJobStore implements ExtractionJobStore using SQLite.
@@ -92,6 +94,17 @@ func (s *SQLiteExtractionJobStore) UpdateExtractionJobProgress(ctx context.Conte
 		return fmt.Errorf("update extraction job progress: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteExtractionJobStore) ClaimExtractionJob(ctx context.Context, id string) (bool, error) {
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE extraction_jobs SET status = 'processing', updated_at = datetime('now')
+		 WHERE id = ? AND status = 'queued'`, id)
+	if err != nil {
+		return false, fmt.Errorf("claim extraction job: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
 }
 
 func (s *SQLiteExtractionJobStore) ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error) {

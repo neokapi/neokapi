@@ -757,4 +757,15 @@ var storeMigrations = []storage.Migration{
 			CREATE INDEX idx_automation_logs_run ON automation_logs(run_id);
 		`,
 	},
+	{
+		Version:     32,
+		Description: "create leader_leases table for distributed coordination (#169)",
+		SQL: `
+			CREATE TABLE leader_leases (
+				name       TEXT PRIMARY KEY,
+				holder_id  TEXT NOT NULL,
+				expires_at TEXT NOT NULL
+			);
+		`,
+	},
 }

@@ -21,6 +21,9 @@ type StepCompletionTracker struct {
 	pending      map[string]*pendingStep // stepID → state
 	pollInterval time.Duration
 	done         chan struct{}
+
+	// IsLeader gates polling to the leader instance only. If nil, always polls.
+	IsLeader func() bool
 }
 
 type pendingStep struct {
@@ -72,7 +75,9 @@ func (t *StepCompletionTracker) pollLoop() {
 		case <-t.done:
 			return
 		case <-ticker.C:
-			t.checkPending()
+			if t.IsLeader == nil || t.IsLeader() {
+				t.checkPending()
+			}
 		}
 	}
 }

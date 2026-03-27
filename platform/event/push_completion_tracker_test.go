@@ -30,6 +30,9 @@ func (s *stubJobStore) UpdateJobStatus(ctx context.Context, id string, status jo
 	return nil
 }
 func (s *stubJobStore) DeleteJob(ctx context.Context, id string) error { return nil }
+func (s *stubJobStore) ClaimJob(ctx context.Context, id string) (bool, error) {
+	return true, nil
+}
 func (s *stubJobStore) ListJobsByPushID(ctx context.Context, pushID string) ([]*jobs.TranslationJob, error) {
 	return s.jobs[pushID], nil
 }
@@ -50,6 +53,9 @@ func (s *stubExtractionStore) UpdateExtractionJobStatus(ctx context.Context, id 
 }
 func (s *stubExtractionStore) UpdateExtractionJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks, itemsCreated int) error {
 	return nil
+}
+func (s *stubExtractionStore) ClaimExtractionJob(ctx context.Context, id string) (bool, error) {
+	return true, nil
 }
 func (s *stubExtractionStore) ListByPushID(ctx context.Context, pushID string) ([]*jobs.ExtractionJob, error) {
 	return s.jobs[pushID], nil

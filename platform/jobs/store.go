@@ -11,4 +11,7 @@ type JobStore interface {
 	UpdateJobStatus(ctx context.Context, id string, status JobStatus, errMsg string) error
 	DeleteJob(ctx context.Context, id string) error
 	ListJobsByPushID(ctx context.Context, pushID string) ([]*TranslationJob, error)
+	// ClaimJob atomically transitions a job from queued to processing.
+	// Returns true if this caller won the claim, false if another worker already claimed it.
+	ClaimJob(ctx context.Context, id string) (bool, error)
 }
