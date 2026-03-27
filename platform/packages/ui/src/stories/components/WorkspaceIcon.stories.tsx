@@ -30,3 +30,23 @@ export const Inactive: Story = {
 export const Large: Story = {
   args: { workspace: sampleWorkspace, active: true, onClick: fn(), size: 56 },
 };
+
+export const PersonalActive: Story = {
+  args: { workspace: personalWorkspace, active: true, onClick: fn() },
+};
+
+export const PersonalLarge: Story = {
+  args: { workspace: personalWorkspace, active: false, onClick: fn(), size: 56 },
+};
+
+export const AllVariants: Story = {
+  render: () => (
+    <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
+      <WorkspaceIcon workspace={sampleWorkspace} active={false} onClick={fn()} />
+      <WorkspaceIcon workspace={personalWorkspace} active={false} onClick={fn()} />
+      <WorkspaceIcon workspace={sampleWorkspace} active={true} onClick={fn()} />
+      <WorkspaceIcon workspace={personalWorkspace} active={true} onClick={fn()} />
+      <WorkspaceIcon workspace={personalWorkspace} active={false} onClick={fn()} size={56} />
+    </div>
+  ),
+};

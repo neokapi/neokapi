@@ -81,7 +81,6 @@ export type { AppShellProps } from "./components/AppShell";
 export { CreateWorkspaceDialog } from "./components/CreateWorkspaceDialog";
 export type { CreateWorkspaceDialogProps } from "./components/CreateWorkspaceDialog";
 export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
-export { PersonalBadge } from "./components/PersonalBadge";
 export { LocaleSelect, MultiLocaleSelect } from "./components/LocaleSelect";
 export { ProjectDashboard } from "./components/ProjectDashboard";
 export { ProjectView } from "./components/ProjectView";

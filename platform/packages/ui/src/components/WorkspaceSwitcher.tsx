@@ -1,5 +1,4 @@
 import type { Workspace } from "../types/api";
-import { PersonalBadge } from "./PersonalBadge";
 import { WorkspaceIcon } from "./WorkspaceIcon";
 import { Plus } from "./icons";
 import {
@@ -65,7 +64,6 @@ export function WorkspaceSwitcher({
                   <WorkspaceIcon workspace={ws} active={false} onClick={() => {}} size={16} />
                 </div>
                 <span className="flex-1 truncate">{ws.name}</span>
-                {ws.type === "personal" && <PersonalBadge />}
                 {ws.role && (
                   <span className="text-[10px] text-muted-foreground uppercase tracking-wide">
                     {ws.role}

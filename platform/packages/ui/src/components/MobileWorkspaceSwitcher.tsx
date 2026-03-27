@@ -1,5 +1,4 @@
 import type { Workspace } from "../types/api";
-import { PersonalBadge } from "./PersonalBadge";
 import { WorkspaceIcon } from "./WorkspaceIcon";
 import { ChevronsUpDown, Plus } from "./icons";
 import {
@@ -47,9 +46,8 @@ export function MobileWorkspaceSwitcher({
                 </div>
               )}
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium inline-flex items-center gap-1.5">
+                <span className="truncate font-medium">
                   {activeWorkspace?.name || "No workspace"}
-                  {activeWorkspace?.type === "personal" && <PersonalBadge />}
                 </span>
                 {activeWorkspace?.role && (
                   <span className="truncate text-xs text-muted-foreground">
@@ -82,7 +80,6 @@ export function MobileWorkspaceSwitcher({
                   <WorkspaceIcon workspace={ws} active={false} onClick={() => {}} size={16} />
                 </div>
                 <span className="flex-1 truncate">{ws.name}</span>
-                {ws.type === "personal" && <PersonalBadge />}
               </DropdownMenuItem>
             ))}
             {onCreateWorkspace && (
