@@ -110,17 +110,11 @@ func (t *StepCompletionTracker) checkPending() {
 		}
 
 		// Count completed jobs by checking the job store.
-		doneJobs := 0
-		allDone := true
+		var doneJobs int
+		var allDone bool
 
 		if ps.isExtraction {
-			if t.extractStore != nil {
-				ejobs, err := t.extractStore.ListByPushID(ctx, stepID) // stepID is not push_id
-				_ = ejobs
-				_ = err
-			}
-			// For extraction, check via step's job_ids
-			doneJobs, allDone = t.checkJobsByIDs(ctx, step.JobIDs, ps.isExtraction)
+			doneJobs, allDone = t.checkJobsByIDs(ctx, step.JobIDs, true)
 		} else {
 			doneJobs, allDone = t.checkJobsByIDs(ctx, step.JobIDs, false)
 		}
@@ -176,7 +170,7 @@ func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID 
 		log.Printf("step-tracker: failed to increment done count for run %s: %v", runID, err)
 	}
 
-	t.runStore.AppendLogs(ctx, []bstore.AutomationLog{{
+	_ = t.runStore.AppendLogs(ctx, []bstore.AutomationLog{{
 		StepID:  stepID,
 		RunID:   runID,
 		Level:   "info",

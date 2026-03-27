@@ -47,7 +47,7 @@ func (h *automationRunHub) unsubscribe(runID string, ch chan []byte) {
 	close(ch)
 }
 
-func (h *automationRunHub) broadcast(runID string, eventType string, data any) {
+func (h *automationRunHub) broadcast(runID string, eventType string, data any) { //nolint:unused // will be used by RunManager for live push
 	payload, err := json.Marshal(map[string]any{"type": eventType, "data": data})
 	if err != nil {
 		return
