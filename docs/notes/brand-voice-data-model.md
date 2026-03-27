@@ -214,6 +214,118 @@ Five YAML-based starter packs are embedded via `go:embed` in `core/brand/packs/`
 
 Loaded via `packs.Load("professional-b2b")` which returns a `*brand.VoiceProfile`.
 
+## Hierarchical Profile Binding
+
+### Well-Known Property Keys
+
+Profile bindings use well-known keys stored on existing entity maps:
+
+| Entity | Map | Key | Purpose |
+|--------|-----|-----|---------|
+| Workspace | (native field) | `BrandVoiceProfileID` | Default profile for workspace |
+| Project | `Properties` | `brand_voice_profile_id` | Override profile for project |
+| Project | `Properties` | `brand_voice_channel` | Default channel override |
+| Stream | `Properties` | `brand_voice_profile_id` | Override profile for stream |
+| Stream | `Properties` | `brand_voice_channel` | Channel override for stream |
+| Collection | `ConnectorConfig` | `brand_voice_profile_id` | Override profile for collection |
+| Collection | `ConnectorConfig` | `brand_voice_channel` | Channel override for collection |
+
+### Resolution Algorithm
+
+`ResolveProfileFromContext()` in `core/brand/resolve.go`:
+
+```
+1. If ExplicitProfileID set → fetch that profile
+2. Check CollectionConfig["brand_voice_profile_id"]
+3. Check StreamProperties["brand_voice_profile_id"]
+4. Check ProjectProperties["brand_voice_profile_id"]
+5. Check WorkspaceProfileID
+6. None found → return nil (no enforcement)
+
+Channel resolution (most specific wins):
+  CollectionConfig > StreamProperties > ProjectProperties
+
+Apply: ResolveProfile(profile, locale, channel)
+```
+
+### CLI Config (`.bowrain/config.yaml`)
+
+```yaml
+brand_voice:
+  profile: "prof_abc123"
+  channel: "docs"
+  collections:
+    marketing-emails:
+      profile: "prof_abc123"
+      channel: "email"
+    help-center:
+      channel: "support"
+```
+
+## Profile Versioning Schema
+
+```sql
+-- New tables for profile versioning
+CREATE TABLE IF NOT EXISTS brand_profile_versions (
+    profile_id TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    snapshot TEXT NOT NULL,       -- JSON-encoded VoiceProfile
+    note TEXT NOT NULL DEFAULT '',
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (profile_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS brand_profile_tags (
+    profile_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    version INTEGER NOT NULL,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (profile_id, name)
+);
+```
+
+`StoredScore` gains `profile_version INTEGER NOT NULL DEFAULT 0` for linking scores to profile snapshots.
+
+## Evaluation Types
+
+```go
+// core/brand/evaluate.go
+type BrandVoiceEvaluation struct {
+    Stream            string                `json:"stream"`
+    BaselineStream    string                `json:"baseline_stream"`
+    StreamProfile     string                `json:"stream_profile"`
+    BaselineProfile   string                `json:"baseline_profile"`
+    BlocksEvaluated   int                   `json:"blocks_evaluated"`
+    StreamScore       AggregateScore        `json:"stream_score"`
+    BaselineScore     AggregateScore        `json:"baseline_score"`
+    ScoreDelta        int                   `json:"score_delta"`
+    BlastRadius       BlastRadius           `json:"blast_radius"`
+    DimensionComparison []DimensionComparison `json:"dimension_comparison"`
+    TopFindings       []EvaluationFinding   `json:"top_findings"`
+}
+
+type AggregateScore struct {
+    Overall      float64        `json:"overall"`
+    Min          int            `json:"min"`
+    Max          int            `json:"max"`
+    Median       int            `json:"median"`
+    Distribution map[string]int `json:"distribution"`
+}
+
+type BlastRadius struct {
+    TotalBlocks        int                     `json:"total_blocks"`
+    AffectedBlocks     int                     `json:"affected_blocks"`
+    ImprovedBlocks     int                     `json:"improved_blocks"`
+    DegradedBlocks     int                     `json:"degraded_blocks"`
+    NewViolations      int                     `json:"new_violations"`
+    ResolvedViolations int                     `json:"resolved_violations"`
+    CriticalCount      int                     `json:"critical_count"`
+    Collections        []CollectionBlastRadius `json:"collections"`
+}
+```
+
 ## Implementation Files
 
 ### Framework (`core/`, `cli/`)
@@ -224,7 +336,9 @@ Loaded via `packs.Load("professional-b2b")` which returns a `*brand.VoiceProfile
 | `core/brand/scoring.go` | Dimensions, severities, scoring algorithm |
 | `core/brand/store.go` | BrandStore interface + StoredScore, Correction types |
 | `core/brand/annotation.go` | BrandVoiceAnnotation (implements model.Annotation) |
-| `core/brand/resolve.go` | ResolveProfile for locale/channel overrides |
+| `core/brand/resolve.go` | ResolveProfile + ResolveProfileFromContext for hierarchical resolution |
+| `core/brand/binding.go` | BrandVoiceBinding, ResolveContext, ProfileResolver interface |
+| `core/brand/evaluate.go` | BrandVoiceEvaluation, BlastRadius, AggregateScore types |
 | `core/brand/workspace_tags.go` | TagDimension for workspace-configurable scoping |
 | `core/brand/packs/*.yaml` | Starter pack YAML definitions |
 | `core/brand/packs/embed.go` | Embedded starter pack loader |

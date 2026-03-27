@@ -65,6 +65,32 @@ var migrations = []storage.Migration{
 		);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "profile versioning, tags, and score profile_version",
+		SQL: `
+		CREATE TABLE IF NOT EXISTS brand_profile_versions (
+			profile_id TEXT NOT NULL,
+			version INTEGER NOT NULL,
+			snapshot TEXT NOT NULL,
+			note TEXT NOT NULL DEFAULT '',
+			created_by TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (profile_id, version)
+		);
+
+		CREATE TABLE IF NOT EXISTS brand_profile_tags (
+			profile_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			version INTEGER NOT NULL,
+			created_by TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			PRIMARY KEY (profile_id, name)
+		);
+
+		ALTER TABLE brand_voice_scores ADD COLUMN profile_version INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }
 
 // NewSQLiteBrandStore creates a new SQLite-backed brand store.
@@ -141,8 +167,22 @@ func (s *SQLiteBrandStore) GetProfile(ctx context.Context, id string) (*corebran
 }
 
 func (s *SQLiteBrandStore) UpdateProfile(ctx context.Context, profile *corebrand.VoiceProfile) error {
-	profile.UpdatedAt = time.Now()
-	profile.Version++
+	// Archive the current state as an immutable ProfileVersion before applying the edit.
+	existing, err := s.GetProfile(ctx, profile.ID)
+	if err != nil {
+		return fmt.Errorf("get existing profile for versioning: %w", err)
+	}
+
+	snapshotJSON, _ := json.Marshal(existing)
+	now := time.Now()
+	_, _ = s.db.ExecContext(ctx,
+		`INSERT OR IGNORE INTO brand_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)`,
+		existing.ID, existing.Version, string(snapshotJSON),
+		existing.VersionNote, existing.CreatedBy, now.Format(time.RFC3339))
+
+	profile.UpdatedAt = now
+	profile.Version = existing.Version + 1
 	tone, _ := json.Marshal(profile.Tone)
 	style, _ := json.Marshal(profile.Style)
 	vocab, _ := json.Marshal(profile.Vocabulary)
@@ -213,10 +253,10 @@ func (s *SQLiteBrandStore) StoreScore(ctx context.Context, score *corebrand.Stor
 	findings, _ := json.Marshal(score.Findings)
 
 	_, err := s.db.ExecContext(ctx,
-		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		score.ID, score.ProjectID, score.Stream, score.BlockID,
-		score.ProfileID, score.Locale, score.Score,
+		score.ProfileID, score.ProfileVersion, score.Locale, score.Score,
 		string(dims), string(findings),
 		score.CheckedAt.Format(time.RFC3339))
 	if err != nil {
@@ -312,6 +352,142 @@ func (s *SQLiteBrandStore) GetSuggestedRules(ctx context.Context, workspaceID st
 		rules = append(rules, &r)
 	}
 	return rules, nil
+}
+
+func (s *SQLiteBrandStore) ListProfileVersions(ctx context.Context, profileID string) ([]*corebrand.ProfileVersion, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		 FROM brand_profile_versions WHERE profile_id = ? ORDER BY version DESC`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list profile versions: %w", err)
+	}
+	defer rows.Close()
+
+	var versions []*corebrand.ProfileVersion
+	for rows.Next() {
+		var v corebrand.ProfileVersion
+		var snapshotJSON, createdStr string
+		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr); err != nil {
+			continue
+		}
+		_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
+		v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		versions = append(versions, &v)
+	}
+	return versions, nil
+}
+
+func (s *SQLiteBrandStore) GetProfileVersion(ctx context.Context, profileID string, version int) (*corebrand.ProfileVersion, error) {
+	var v corebrand.ProfileVersion
+	var snapshotJSON, createdStr string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		 FROM brand_profile_versions WHERE profile_id = ? AND version = ?`, profileID, version).
+		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &createdStr)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get profile version: %w", err)
+	}
+	_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
+	v.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+	return &v, nil
+}
+
+func (s *SQLiteBrandStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*corebrand.VoiceProfile, error) {
+	var version int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT version FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName).
+		Scan(&version)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get profile tag: %w", err)
+	}
+
+	v, err := s.GetProfileVersion(ctx, profileID, version)
+	if err != nil {
+		return nil, err
+	}
+	return &v.Snapshot, nil
+}
+
+func (s *SQLiteBrandStore) CreateProfileTag(ctx context.Context, tag *corebrand.ProfileTag) error {
+	if tag.CreatedAt.IsZero() {
+		tag.CreatedAt = time.Now()
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO brand_profile_tags (profile_id, name, version, created_by, created_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		tag.ProfileID, tag.Name, tag.Version, tag.CreatedBy,
+		tag.CreatedAt.Format(time.RFC3339))
+	if err != nil {
+		return fmt.Errorf("create profile tag: %w", err)
+	}
+	return nil
+}
+
+func (s *SQLiteBrandStore) ListProfileTags(ctx context.Context, profileID string) ([]*corebrand.ProfileTag, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT profile_id, name, version, created_by, created_at
+		 FROM brand_profile_tags WHERE profile_id = ? ORDER BY name`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list profile tags: %w", err)
+	}
+	defer rows.Close()
+
+	var tags []*corebrand.ProfileTag
+	for rows.Next() {
+		var t corebrand.ProfileTag
+		var createdStr string
+		if err := rows.Scan(&t.ProfileID, &t.Name, &t.Version, &t.CreatedBy, &createdStr); err != nil {
+			continue
+		}
+		t.CreatedAt, _ = time.Parse(time.RFC3339, createdStr)
+		tags = append(tags, &t)
+	}
+	return tags, nil
+}
+
+func (s *SQLiteBrandStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
+	result, err := s.db.ExecContext(ctx,
+		`DELETE FROM brand_profile_tags WHERE profile_id = ? AND name = ?`, profileID, tagName)
+	if err != nil {
+		return fmt.Errorf("delete profile tag: %w", err)
+	}
+	rows, _ := result.RowsAffected()
+	if rows == 0 {
+		return fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
+	}
+	return nil
+}
+
+func (s *SQLiteBrandStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*corebrand.StoredScore, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
+		 FROM brand_voice_scores WHERE project_id = ? AND stream = ? ORDER BY checked_at DESC`, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("query scores by stream: %w", err)
+	}
+	defer rows.Close()
+
+	var scores []*corebrand.StoredScore
+	for rows.Next() {
+		var sc corebrand.StoredScore
+		var dimsJSON, findingsJSON, checkedStr string
+		if err := rows.Scan(&sc.ID, &sc.ProjectID, &sc.Stream, &sc.BlockID,
+			&sc.ProfileID, &sc.ProfileVersion, &sc.Locale, &sc.Score,
+			&dimsJSON, &findingsJSON, &checkedStr); err != nil {
+			continue
+		}
+		_ = json.Unmarshal([]byte(dimsJSON), &sc.Dimensions)
+		_ = json.Unmarshal([]byte(findingsJSON), &sc.Findings)
+		sc.CheckedAt, _ = time.Parse(time.RFC3339, checkedStr)
+		scores = append(scores, &sc)
+	}
+	return scores, nil
 }
 
 func (s *SQLiteBrandStore) Close() error {

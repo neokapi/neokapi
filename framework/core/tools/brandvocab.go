@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -25,7 +26,10 @@ func (c *BrandVocabConfig) Validate() error  { return nil }
 type BrandVocabCheckTool struct {
 	tool.BaseTool
 	profile  *brand.VoiceProfile
-	termBase termbase.TermBase // optional — if provided, filters by term_source=brand_vocabulary
+	termBase termbase.TermBase       // optional — if provided, filters by term_source=brand_vocabulary
+	resolver brand.ProfileResolver   // optional: lazy profile resolution
+	rc       brand.ResolveContext     // context for resolver
+	resolved bool                    // true after first resolution attempt
 }
 
 // NewBrandVocabCheckTool creates a new brand vocabulary check tool.
@@ -41,7 +45,35 @@ func NewBrandVocabCheckTool(profile *brand.VoiceProfile, tb termbase.TermBase) *
 	return t
 }
 
+// NewBrandVocabCheckToolWithResolver creates a brand vocabulary check tool that
+// lazily resolves its profile from the organizational context hierarchy.
+func NewBrandVocabCheckToolWithResolver(resolver brand.ProfileResolver, rc brand.ResolveContext, tb termbase.TermBase) *BrandVocabCheckTool {
+	t := &BrandVocabCheckTool{
+		termBase: tb,
+		resolver: resolver,
+		rc:       rc,
+	}
+	t.ToolName = "brand-vocab-check"
+	t.ToolDescription = "Checks text against brand vocabulary rules (forbidden, competitor, preferred terms)"
+	t.Cfg = &BrandVocabConfig{}
+	t.HandleBlockFn = t.handleBlock
+	return t
+}
+
+func (t *BrandVocabCheckTool) resolveOnce() {
+	if t.resolved || t.resolver == nil {
+		return
+	}
+	t.resolved = true
+	profile, err := t.resolver.ResolveProfile(context.Background(), t.rc)
+	if err == nil && profile != nil {
+		t.profile = profile
+	}
+}
+
 func (t *BrandVocabCheckTool) handleBlock(part *model.Part) (*model.Part, error) {
+	t.resolveOnce()
+
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
 		return part, nil

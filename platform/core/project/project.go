@@ -177,6 +177,25 @@ type Config struct {
 
 	// Assets configures project-wide media asset sync behavior (AD-029).
 	Assets *AssetConfig `yaml:"assets,omitempty"`
+
+	// BrandVoice configures brand voice profile bindings for this project (AD-025).
+	BrandVoice *BrandVoiceProjectConfig `yaml:"brand_voice,omitempty" json:"brand_voice,omitempty"`
+}
+
+// BrandVoiceProjectConfig holds brand voice bindings for a project.
+type BrandVoiceProjectConfig struct {
+	// Profile is the default brand voice profile ID for this project.
+	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
+	// Channel is the default channel override key for this project.
+	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
+	// Collections maps collection names to brand voice entry configs.
+	Collections map[string]*BrandVoiceEntryConfig `yaml:"collections,omitempty" json:"collections,omitempty"`
+}
+
+// BrandVoiceEntryConfig holds a brand voice binding for a specific scope.
+type BrandVoiceEntryConfig struct {
+	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
+	Channel string `yaml:"channel,omitempty" json:"channel,omitempty"`
 }
 
 // AssetConfig controls project-wide media asset sync settings.
