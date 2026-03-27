@@ -191,7 +191,7 @@ func scanJobs(rows *sql.Rows) ([]*TranslationJob, error) {
 		var status string
 		err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.TargetLocale,
-			&j.ProviderConfigID, &j.Model, &j.PushID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
+			&j.ProviderConfigID, &j.Model, &j.PushID, &j.StepID, &status, &j.Progress, &j.TotalBlocks, &j.DoneBlocks,
 			&j.TokensUsed, &j.Error, &j.CreatedAt, &j.UpdatedAt)
 		if err != nil {
 			return nil, fmt.Errorf("scan job row: %w", err)
