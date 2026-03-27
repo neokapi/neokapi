@@ -13,6 +13,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockProfileResolver implements brand.ProfileResolver for testing.
+type mockProfileResolver struct {
+	profile *brand.VoiceProfile
+}
+
+func (m *mockProfileResolver) ResolveProfile(_ context.Context, _ brand.ResolveContext) (*brand.VoiceProfile, error) {
+	return m.profile, nil
+}
+
 func TestBrandVoiceCheckToolFindings(t *testing.T) {
 	mock := provider.NewMockProvider()
 	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
@@ -226,6 +235,84 @@ func TestBrandVoiceCheckToolAddsAnnotation(t *testing.T) {
 	bva := ann.(*brand.BrandVoiceAnnotation)
 	assert.Equal(t, "ann-test", bva.ProfileID)
 	assert.Len(t, bva.Findings, 1)
+}
+
+func TestBrandVoiceCheckToolWithResolver(t *testing.T) {
+	mock := provider.NewMockProvider()
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
+		return &provider.ChatResponse{
+			Content: `{"findings":[{"dimension":"tone","severity":"minor","message":"slightly informal","suggestion":"adjust"}]}`,
+			Model:   "test",
+		}, nil
+	}
+
+	profile := &brand.VoiceProfile{
+		ID:   "resolved-profile",
+		Name: "Resolved",
+		Tone: brand.ToneProfile{Formality: "formal"},
+	}
+
+	resolver := &mockProfileResolver{profile: profile}
+	rc := brand.ResolveContext{ExplicitProfileID: "resolved-profile"}
+
+	tool := tools.NewBrandVoiceCheckToolWithResolver(mock, resolver, rc)
+
+	ctx := context.Background()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "Hey check this out")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	err := tool.Process(ctx, in, out)
+	require.NoError(t, err)
+
+	result := <-out
+	resultBlock := result.Resource.(*model.Block)
+
+	// Verify it used the resolved profile.
+	ann, ok := resultBlock.Annotations["brand-voice"]
+	require.True(t, ok)
+	bva := ann.(*brand.BrandVoiceAnnotation)
+	assert.Equal(t, "resolved-profile", bva.ProfileID)
+}
+
+func TestBrandVoiceCheckToolWithResolverNilProfile(t *testing.T) {
+	mock := provider.NewMockProvider()
+	mock.ChatStructuredFunc = func(ctx context.Context, messages []provider.Message, schema provider.JSONSchema) (*provider.ChatResponse, error) {
+		return &provider.ChatResponse{
+			Content: `{"findings":[]}`,
+			Model:   "test",
+		}, nil
+	}
+
+	// Resolver returns nil profile — tool still processes but with empty context.
+	resolver := &mockProfileResolver{profile: nil}
+	rc := brand.ResolveContext{}
+
+	tool := tools.NewBrandVoiceCheckToolWithResolver(mock, resolver, rc)
+
+	ctx := context.Background()
+	in := make(chan *model.Part, 1)
+	out := make(chan *model.Part, 1)
+
+	block := model.NewBlock("tu1", "Hello world")
+	in <- &model.Part{Type: model.PartBlock, Resource: block}
+	close(in)
+
+	err := tool.Process(ctx, in, out)
+	require.NoError(t, err)
+
+	result := <-out
+	resultBlock := result.Resource.(*model.Block)
+
+	// Tool still processes — profile ID will be empty.
+	var score brand.BrandComplianceScore
+	err = json.Unmarshal([]byte(resultBlock.Properties["brand-voice-score"]), &score)
+	require.NoError(t, err)
+	assert.Equal(t, "", score.ProfileID)
+	assert.Equal(t, 100, score.Overall)
 }
 
 func TestBrandVoiceCheckToolNoFindings(t *testing.T) {
