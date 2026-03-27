@@ -53,6 +53,14 @@ func initTestStores(t *testing.T, srv *Server) {
 		}
 	}
 
+	// Register v1 push handler for test compatibility (removed from public routes in AD-038).
+	// Tests use pushAndDrain which hits the v1 endpoint to seed data.
+	testRL := RateLimitSyncPush(10, 3)
+	e := srv.GetEcho()
+	v1 := e.Group("/api/v1")
+	v1.POST("/projects/:id/sync/push", srv.HandleSyncPush, testRL)
+	v1.POST("/projects/:id/streams/:stream/sync/push", srv.HandleSyncPush, testRL)
+
 	// Install factory functions for in-memory TM/TB stores.
 	// Note: initTestStores also exposes DB() for SQLiteJobStore via cs.
 	srv.wsStores.tmFactory = func() sievepen.TMStore {
