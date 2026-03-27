@@ -36,6 +36,9 @@ import type {
   AutomationRule,
   AutomationEvent,
   AutomationHistoryEntry,
+  AutomationRun,
+  AutomationStep,
+  AutomationLogEntry,
   SaveAutomationRuleRequest,
   NotificationInfo,
   EntityInfo,
@@ -479,6 +482,31 @@ export interface ApiAdapter {
     workspaceSlug: string,
     projectId: string,
   ): Promise<AutomationHistoryEntry[]>;
+
+  // Automation Runs (AD-035)
+  listAutomationRuns(
+    workspaceSlug: string,
+    projectId: string,
+    status?: string,
+    limit?: number,
+  ): Promise<AutomationRun[]>;
+  getAutomationRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<{ run: AutomationRun; steps: AutomationStep[] }>;
+  listStepLogs(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+    stepId: string,
+    limit?: number,
+  ): Promise<AutomationLogEntry[]>;
+  cancelAutomationRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<void>;
 
   // Notifications
   listNotifications(

@@ -37,6 +37,9 @@ import type {
   AutomationRule,
   AutomationEvent,
   AutomationHistoryEntry,
+  AutomationRun,
+  AutomationStep,
+  AutomationLogEntry,
   SaveAutomationRuleRequest,
   NotificationInfo,
   EntityInfo,
@@ -1360,6 +1363,56 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
   ): Promise<AutomationHistoryEntry[]> {
     return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/history`);
+  }
+
+  // ── Automation Runs (AD-035) ──────────────────────────────────────────
+
+  async listAutomationRuns(
+    workspaceSlug: string,
+    projectId: string,
+    status?: string,
+    limit?: number,
+  ): Promise<AutomationRun[]> {
+    let qs = `limit=${limit ?? 20}`;
+    if (status) qs += `&status=${status}`;
+    const resp: { runs: AutomationRun[] } = await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/automation-runs?${qs}`,
+    );
+    return resp.runs;
+  }
+
+  async getAutomationRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<{ run: AutomationRun; steps: AutomationStep[] }> {
+    return this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}`,
+    );
+  }
+
+  async listStepLogs(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+    stepId: string,
+    limit?: number,
+  ): Promise<AutomationLogEntry[]> {
+    const resp: { logs: AutomationLogEntry[] } = await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}/steps/${stepId}/logs?limit=${limit ?? 100}`,
+    );
+    return resp.logs;
+  }
+
+  async cancelAutomationRun(
+    workspaceSlug: string,
+    projectId: string,
+    runId: string,
+  ): Promise<void> {
+    await this.fetchJSON(
+      `${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}/cancel`,
+      { method: "POST" },
+    );
   }
 
   // ── Notifications ──────────────────────────────────────────────────────
