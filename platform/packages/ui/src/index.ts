@@ -87,6 +87,7 @@ export { ProjectView } from "./components/ProjectView";
 export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
 export { TranslationDashboard } from "./components/TranslationDashboard";
+export { LanguageLabel } from "./components/LanguageLabel";
 export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";
 export { CollectionHeatmap } from "./components/CollectionHeatmap";

@@ -288,6 +288,7 @@ export const sampleCollections: CollectionInfo[] = [
 export const sampleLocaleStats: LocaleTranslationStats[] = [
   {
     locale: "fr-FR",
+    display_name: "French (France)",
     percentage: 85.2,
     translated_words: 4260,
     total_words: 5000,
@@ -296,6 +297,7 @@ export const sampleLocaleStats: LocaleTranslationStats[] = [
   },
   {
     locale: "de-DE",
+    display_name: "German (Germany)",
     percentage: 62.0,
     translated_words: 3100,
     total_words: 5000,
@@ -304,6 +306,7 @@ export const sampleLocaleStats: LocaleTranslationStats[] = [
   },
   {
     locale: "ja-JP",
+    display_name: "Japanese (Japan)",
     percentage: 45.5,
     translated_words: 2275,
     total_words: 5000,
@@ -312,6 +315,7 @@ export const sampleLocaleStats: LocaleTranslationStats[] = [
   },
   {
     locale: "es-ES",
+    display_name: "Spanish (Spain)",
     percentage: 92.0,
     translated_words: 4600,
     total_words: 5000,
