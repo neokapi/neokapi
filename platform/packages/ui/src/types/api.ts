@@ -206,6 +206,7 @@ export interface ProjectInfo {
   target_language_mode?: string;
   default_stream?: string;
   dashboard_visibility?: string;
+  properties?: Record<string, string>;
   workspace_id?: string;
   path?: string;
   items?: ProjectItem[];

@@ -691,7 +691,7 @@ export class RestApiAdapter implements ApiAdapter {
   async updateProject(
     workspaceSlug: string,
     projectId: string,
-    data: { name?: string; target_languages?: string[]; dashboard_visibility?: string },
+    data: { name?: string; target_languages?: string[]; dashboard_visibility?: string; properties?: Record<string, string> },
   ): Promise<ProjectInfo> {
     return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
       method: "PATCH",

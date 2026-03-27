@@ -243,7 +243,7 @@ export interface ApiAdapter {
   updateProject(
     workspaceSlug: string,
     projectId: string,
-    data: { name?: string; target_languages?: string[]; dashboard_visibility?: string },
+    data: { name?: string; target_languages?: string[]; dashboard_visibility?: string; properties?: Record<string, string> },
   ): Promise<ProjectInfo>;
   deleteProject(workspaceSlug: string, projectId: string): Promise<void>;
   restoreProject(workspaceSlug: string, projectId: string): Promise<void>;

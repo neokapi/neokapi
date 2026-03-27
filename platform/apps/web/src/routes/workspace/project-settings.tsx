@@ -79,6 +79,79 @@ export function ProjectSettingsRoute() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Translator Workflow</CardTitle>
+          <CardDescription>
+            Automatically create tasks for translators when content is ready
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Enable workflow</p>
+              <p className="text-xs text-muted-foreground">
+                Create review tasks after AI translation completes
+              </p>
+            </div>
+            <Switch
+              checked={project.properties?.workflow_enabled === "true"}
+              onCheckedChange={async (checked) => {
+                await adapter.updateProject(ws, project.id, {
+                  properties: { workflow_enabled: checked ? "true" : "false" },
+                });
+                invalidateProject();
+              }}
+              aria-label="Enable translator workflow"
+            />
+          </div>
+          {project.properties?.workflow_enabled === "true" && (
+            <div className="space-y-3 pt-2 border-t border-border/50">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Mode</p>
+                  <p className="text-xs text-muted-foreground">
+                    Review: translators verify AI translations. Translate: translators work from
+                    source.
+                  </p>
+                </div>
+                <select
+                  className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                  value={project.properties?.workflow_mode ?? "review"}
+                  onChange={async (e) => {
+                    await adapter.updateProject(ws, project.id, {
+                      properties: { workflow_mode: e.target.value },
+                    });
+                    invalidateProject();
+                  }}
+                >
+                  <option value="review">Review</option>
+                  <option value="translate">Translate</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Source review gate</p>
+                  <p className="text-xs text-muted-foreground">
+                    Require source review before translation fan-out
+                  </p>
+                </div>
+                <Switch
+                  checked={project.properties?.workflow_source_review === "true"}
+                  onCheckedChange={async (checked) => {
+                    await adapter.updateProject(ws, project.id, {
+                      properties: { workflow_source_review: checked ? "true" : "false" },
+                    });
+                    invalidateProject();
+                  }}
+                  aria-label="Enable source review gate"
+                />
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Pulse Dashboard</CardTitle>
           <CardDescription>
             Control whether this project appears on the public Pulse dashboard

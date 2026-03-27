@@ -84,6 +84,7 @@ function ConnectedTopBar({
   beforeAvatarSlot,
   onViewAllActivities,
   onViewAllTasks,
+  onTaskClick,
 }: {
   user: User | null;
   onSignOut?: () => void;
@@ -93,6 +94,7 @@ function ConnectedTopBar({
   beforeAvatarSlot?: React.ReactNode;
   onViewAllActivities?: () => void;
   onViewAllTasks?: () => void;
+  onTaskClick?: (task: import("@neokapi/ui").TaskInfo) => void;
 }) {
   const api = useApi();
 
@@ -110,6 +112,7 @@ function ConnectedTopBar({
       myTasks={myTasksData?.tasks}
       onViewAllActivities={onViewAllActivities}
       onViewAllTasks={onViewAllTasks}
+      onTaskClick={onTaskClick}
     />
   );
 }
@@ -556,6 +559,20 @@ export function WorkspaceLayout() {
                   onViewAllTasks={() =>
                     void navigate({ to: "/$workspace/tasks", params: { workspace: ws } })
                   }
+                  onTaskClick={(task) => {
+                    // Navigate to the project scoped to the task's stream.
+                    if (task.project_id) {
+                      const taskStream = task.stream || "main";
+                      void navigate({
+                        to: "/$workspace/p/$projectId/s/$stream",
+                        params: {
+                          workspace: ws,
+                          projectId: task.project_id,
+                          stream: taskStream,
+                        },
+                      });
+                    }
+                  }}
                   leftSlot={
                     sidebarContext?.level === "project" &&
                     sidebarContext.project.streams &&
