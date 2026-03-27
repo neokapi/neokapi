@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	platev "github.com/neokapi/neokapi/platform/event"
 	platstore "github.com/neokapi/neokapi/platform/store"
 )
@@ -18,6 +19,7 @@ type PushCompletionTracker struct {
 	jobStore     jobs.JobStore
 	extractStore jobs.ExtractionJobStore
 	contentStore platstore.ContentStore
+	runStore     *bstore.AutomationRunStore // optional; enables DB-based push discovery for multi-instance
 	sub          *platev.Subscription
 
 	mu      sync.Mutex
@@ -62,6 +64,11 @@ func NewPushCompletionTracker(
 	return t
 }
 
+// SetRunStore enables DB-based push discovery for multi-instance deployments.
+func (t *PushCompletionTracker) SetRunStore(store *bstore.AutomationRunStore) {
+	t.runStore = store
+}
+
 // Close stops the tracker and unsubscribes from the event bus.
 func (t *PushCompletionTracker) Close() {
 	close(t.done)
@@ -102,8 +109,37 @@ func (t *PushCompletionTracker) pollLoop() {
 			return
 		case <-ticker.C:
 			if t.IsLeader == nil || t.IsLeader() {
+				t.ingestFromDB()
 				t.checkPending()
 			}
+		}
+	}
+}
+
+// ingestFromDB reads pending pushes from the database and registers them
+// in the in-memory map. This enables the leader to discover pushes that
+// arrived on other server instances (which have their own local event bus).
+func (t *PushCompletionTracker) ingestFromDB() {
+	if t.runStore == nil {
+		return
+	}
+	ctx := context.Background()
+	pushes, err := t.runStore.ListPendingPushes(ctx)
+	if err != nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, pp := range pushes {
+		if _, exists := t.pending[pp.PushID]; exists {
+			continue
+		}
+		t.pending[pp.PushID] = &pendingPush{
+			projectID:    pp.ProjectID,
+			items:        pp.Items,
+			wsSlug:       pp.WsSlug,
+			actor:        pp.Actor,
+			registeredAt: pp.CreatedAt,
 		}
 	}
 }
@@ -153,6 +189,11 @@ func (t *PushCompletionTracker) checkPending() {
 			t.mu.Lock()
 			delete(t.pending, pushID)
 			t.mu.Unlock()
+
+			// Clean up the DB record.
+			if t.runStore != nil {
+				_ = t.runStore.DeletePendingPush(ctx, pushID)
+			}
 		}
 	}
 }

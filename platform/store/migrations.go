@@ -759,12 +759,20 @@ var storeMigrations = []storage.Migration{
 	},
 	{
 		Version:     32,
-		Description: "create leader_leases table for distributed coordination (#169)",
+		Description: "create leader_leases and pending_pushes tables (#169)",
 		SQL: `
 			CREATE TABLE leader_leases (
 				name       TEXT PRIMARY KEY,
 				holder_id  TEXT NOT NULL,
 				expires_at TEXT NOT NULL
+			);
+			CREATE TABLE pending_pushes (
+				push_id    TEXT PRIMARY KEY,
+				project_id TEXT NOT NULL,
+				items      TEXT NOT NULL DEFAULT '',
+				ws_slug    TEXT NOT NULL DEFAULT '',
+				actor      TEXT NOT NULL DEFAULT '',
+				created_at TEXT NOT NULL DEFAULT (datetime('now'))
 			);
 		`,
 	},

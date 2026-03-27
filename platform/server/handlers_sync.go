@@ -11,6 +11,7 @@ import (
 	platauth "github.com/neokapi/neokapi/platform/auth"
 
 	"github.com/neokapi/neokapi/bowrain/jobs"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
 	apiclient "github.com/neokapi/neokapi/platform/client"
@@ -179,6 +180,18 @@ func (s *Server) HandleSyncPush(c echo.Context) error {
 				"workspace_slug": wsSlug,
 			},
 		})
+
+		// Write pending push record for cross-instance tracking (#169).
+		// The leader's PushCompletionTracker polls this table.
+		if s.AutomationRunStore != nil {
+			_ = s.AutomationRunStore.InsertPendingPush(c.Request().Context(), &bstore.PendingPush{
+				PushID:    pushID,
+				ProjectID: projectID,
+				Items:     strings.Join(itemNames, ","),
+				WsSlug:    wsSlug,
+				Actor:     userID,
+			})
+		}
 	}
 
 	s.trackEvent(userID, "sync_push", map[string]any{

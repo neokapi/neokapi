@@ -415,6 +415,9 @@ func NewServer(cfg ServerConfig) *Server {
 		s.pushCompletionTracker = event.NewPushCompletionTracker(
 			s.EventBus, s.JobStore, s.ExtractionJobStore, s.ContentStore,
 		)
+		if s.AutomationRunStore != nil {
+			s.pushCompletionTracker.SetRunStore(s.AutomationRunStore)
+		}
 		if s.leader != nil {
 			s.pushCompletionTracker.IsLeader = s.leader.IsLeader
 		}
