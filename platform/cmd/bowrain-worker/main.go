@@ -112,7 +112,7 @@ func main() {
 	if azureStorageURL := os.Getenv("AZURE_STORAGE_ACCOUNT_URL"); azureStorageURL != "" {
 		container := envOrDefault("AZURE_STORAGE_CONTAINER", "bowrain-assets")
 		if connStr := os.Getenv("AZURE_STORAGE_CONNECTION_STRING"); connStr != "" {
-			bs, err := blobazure.NewFromConnectionString(connStr, container)
+			bs, err := blobazure.NewWithConnectionString(connStr, container)
 			if err == nil {
 				blobStore = bs
 				log.Printf("Using Azure Blob Storage for push processing")
@@ -126,7 +126,10 @@ func main() {
 		}
 	}
 	if blobStore == nil {
-		blobStore = bloblocal.New("")
+		localDir := envOrDefault("LOCAL_BLOB_DIR", "/tmp/bowrain-blobs")
+		if bs, err := bloblocal.New(localDir); err == nil {
+			blobStore = bs
+		}
 		log.Printf("Using local blob storage for push processing")
 	}
 	translationDeps.BlobStore = blobStore

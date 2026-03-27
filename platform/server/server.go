@@ -35,7 +35,9 @@ import (
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	platev "github.com/neokapi/neokapi/platform/event"
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/platform/store"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 	"google.golang.org/grpc"
@@ -161,6 +163,8 @@ type Server struct {
 	// runHub manages SSE connections for live automation run updates. Always initialized.
 	runHub *automationRunHub
 
+	// SyncCache is the optional Redis hash cache for sync diff engine (AD-038).
+	SyncCache bowsync.HashCache
 
 
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
@@ -264,6 +268,17 @@ func NewServer(cfg ServerConfig) *Server {
 		} else {
 			s.SessionStore = rs
 			log.Printf("Using Redis session store at %s", cfg.RedisURL)
+		}
+
+		// Wire Redis hash cache for sync diff engine (AD-038).
+		redisOpts, err := redis.ParseURL(cfg.RedisURL)
+		if err == nil {
+			if cfg.RedisPassword != "" {
+				redisOpts.Password = cfg.RedisPassword
+			}
+			redisClient := redis.NewClient(redisOpts)
+			s.SyncCache = bowsync.NewRedisHashCache(redisClient, 30*time.Minute)
+			log.Printf("Using Redis sync hash cache")
 		}
 	} else {
 		s.SessionStore = NewMemorySessionStore()

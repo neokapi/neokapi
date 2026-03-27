@@ -7,9 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
@@ -290,14 +288,3 @@ func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
 }
 
-// PushParallel is like Push but uploads chunks in parallel.
-func (c *BowrainClient) PushParallel(ctx context.Context, blocksByItem map[string][]*model.Block, items []ItemMeta, concurrency int) (*SyncPushResponse, error) {
-	if concurrency < 1 {
-		concurrency = 4
-	}
-	// For now, delegate to serial push. Parallel chunk upload will use errgroup
-	// once direct SAS upload is implemented.
-	_ = errgroup.Group{}
-	_ = sync.Mutex{}
-	return c.Push(ctx, blocksByItem, items)
-}

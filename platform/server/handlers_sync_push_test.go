@@ -174,3 +174,36 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &commitResp))
 	assert.NotEmpty(t, commitResp["push_id"])
 }
+
+func TestSyncPush_UploadBudgetEnforced(t *testing.T) {
+	srv, token := newTestServer(t)
+	// Set a very small budget.
+	srv.Config.MaxPushBytes = 100
+	e := srv.GetEcho()
+	authHeader := "Bearer " + token
+	pid := createProject(t, srv, token)
+
+	// Commit with chunks exceeding the budget.
+	itemsJSON, _ := json.Marshal([]map[string]string{
+		{"name": "en.json", "format": "json"},
+	})
+	commitBody, _ := json.Marshal(map[string]any{
+		"upload_id":  "test-upload",
+		"project_id": pid,
+		"stream":     "main",
+		"chunks": []map[string]any{
+			{"index": 0, "content_type": "blocks", "hash": "abc", "record_count": 1, "byte_size": 200},
+		},
+		"items": json.RawMessage(itemsJSON),
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/commit", bytes.NewReader(commitBody))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", authHeader)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, rec.Code)
+
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "upload budget exceeded")
+}

@@ -120,6 +120,11 @@ func main() {
 	if envWebUI := os.Getenv("BOWRAIN_WEB_UI_DIR"); envWebUI != "" {
 		cfg.WebUIDir = envWebUI
 	}
+	if v := os.Getenv("BOWRAIN_MAX_PUSH_BYTES"); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil && n > 0 {
+			cfg.MaxPushBytes = n
+		}
+	}
 
 	// Agent (@bravo) configuration.
 	if v := os.Getenv("BOWRAIN_AGENT_RUNTIME"); v != "" {
