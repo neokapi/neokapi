@@ -53,6 +53,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 | [034](034-translator-workflow.md) | Translator Workflow | Push completion tracking, task fan-out, source review gate, agent integration |
 | [035](035-automation-run-visibility.md) | Automation Run Visibility | GitHub Actions-style run/step/log model, real-time progress, SSE streaming |
 | [036](036-distributed-event-bus.md) | Distributed Event Bus | ASB topics (Azure), NATS JetStream (local), replaces leader election |
+| [037](037-async-content-ingestion.md) | Async Content Ingestion | Blob upload then job processing, bulk INSERT, rate limiting, pagination |
 
 ## Layer 6: Applications and Operations
 

@@ -61,7 +61,7 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 		log.Printf("run-manager: failed to create step: %v", err)
 	}
 
-	m.store.AppendLogs(ctx, []bstore.AutomationLog{{
+	_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
 		StepID:  step.ID,
 		RunID:   runID,
 		Level:   "info",
@@ -77,9 +77,9 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 	if isAsyncAction(action.Type) {
 		// Step stays running — tracked by StepCompletionTracker.
 		if err != nil {
-			m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusFailed, err.Error())
-			m.store.IncrementDoneCount(ctx, runID)
-			m.store.AppendLogs(ctx, []bstore.AutomationLog{{
+			_ = m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusFailed, err.Error())
+			_ = m.store.IncrementDoneCount(ctx, runID)
+			_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
 				StepID: step.ID, RunID: runID, Level: "error",
 				Message: "Action failed: " + err.Error(),
 			}})
@@ -87,19 +87,19 @@ func (m *AutomationRunManager) Execute(action AutomationAction, ev platev.Event)
 	} else {
 		// Synchronous — mark done now.
 		if err != nil {
-			m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusFailed, err.Error())
-			m.store.AppendLogs(ctx, []bstore.AutomationLog{{
+			_ = m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusFailed, err.Error())
+			_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
 				StepID: step.ID, RunID: runID, Level: "error",
 				Message: "Action failed: " + err.Error(),
 			}})
 		} else {
-			m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusCompleted, "")
-			m.store.AppendLogs(ctx, []bstore.AutomationLog{{
+			_ = m.store.UpdateStepStatus(ctx, step.ID, bstore.StepStatusCompleted, "")
+			_ = m.store.AppendLogs(ctx, []bstore.AutomationLog{{
 				StepID: step.ID, RunID: runID, Level: "info",
 				Message: "Action completed: " + action.Type,
 			}})
 		}
-		m.store.IncrementDoneCount(ctx, runID)
+		_ = m.store.IncrementDoneCount(ctx, runID)
 		m.maybeCompleteRun(ctx, runID)
 	}
 
@@ -159,7 +159,7 @@ func (m *AutomationRunManager) maybeCompleteRun(ctx context.Context, runID strin
 				break
 			}
 		}
-		m.store.UpdateRunStatus(ctx, runID, status, "")
+		_ = m.store.UpdateRunStatus(ctx, runID, status, "")
 	}
 }
 
