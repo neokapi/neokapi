@@ -179,7 +179,7 @@ func (s *SQLiteBrandStore) UpdateProfile(ctx context.Context, profile *corebrand
 		`INSERT OR IGNORE INTO brand_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?)`,
 		existing.ID, existing.Version, string(snapshotJSON),
-		existing.VersionNote, existing.CreatedBy, now.Format(time.RFC3339))
+		profile.VersionNote, existing.CreatedBy, now.Format(time.RFC3339))
 
 	profile.UpdatedAt = now
 	profile.Version = existing.Version + 1
