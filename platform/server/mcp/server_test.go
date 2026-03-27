@@ -56,6 +56,25 @@ func (m *memBrandStore) StoreCorrection(_ context.Context, _ *corebrand.Correcti
 func (m *memBrandStore) GetSuggestedRules(_ context.Context, _ string, _ int) ([]*corebrand.SuggestedRule, error) {
 	return nil, nil
 }
+func (m *memBrandStore) ListProfileVersions(_ context.Context, _ string) ([]*corebrand.ProfileVersion, error) {
+	return nil, nil
+}
+func (m *memBrandStore) GetProfileVersion(_ context.Context, _ string, _ int) (*corebrand.ProfileVersion, error) {
+	return nil, nil
+}
+func (m *memBrandStore) GetProfileAtTag(_ context.Context, _, _ string) (*corebrand.VoiceProfile, error) {
+	return nil, nil
+}
+func (m *memBrandStore) CreateProfileTag(_ context.Context, _ *corebrand.ProfileTag) error {
+	return nil
+}
+func (m *memBrandStore) ListProfileTags(_ context.Context, _ string) ([]*corebrand.ProfileTag, error) {
+	return nil, nil
+}
+func (m *memBrandStore) DeleteProfileTag(_ context.Context, _, _ string) error { return nil }
+func (m *memBrandStore) GetScoresByStream(_ context.Context, _, _ string) ([]*corebrand.StoredScore, error) {
+	return nil, nil
+}
 func (m *memBrandStore) Close() error { return nil }
 
 func testProfile() *corebrand.VoiceProfile {
