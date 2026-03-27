@@ -160,6 +160,8 @@ func (s *Server) HandleListAutomationEvents(c echo.Context) error {
 		{string(platev.EventFlowCompleted), "When a flow finishes"},
 		{string(platev.EventFlowFailed), "When a flow fails"},
 		{string(platev.EventQualityGateFail), "When a quality gate fails"},
+		{string(platev.EventPushAutomationsCompleted), "When all automations for a push complete"},
+		{string(platev.EventSourceReviewCompleted), "When a source review task is completed"},
 	}
 	return c.JSON(http.StatusOK, events)
 }

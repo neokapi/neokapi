@@ -10,7 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Switch } from "./ui/switch";
 
 const OPERATORS = ["equals", "contains", "exists"] as const;
-const ACTION_TYPES = ["auto_translate", "run_flow", "webhook", "notify"] as const;
+const ACTION_TYPES = [
+  "auto_translate",
+  "create_review_tasks",
+  "create_source_review",
+  "run_flow",
+  "webhook",
+  "notify",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Condition row
@@ -66,6 +73,12 @@ function ConditionRow({
 // Action row
 // ---------------------------------------------------------------------------
 
+// Default config fields for workflow action types.
+const ACTION_DEFAULTS: Record<string, Record<string, string>> = {
+  create_review_tasks: { mode: "review" },
+  create_source_review: { reviewer: "" },
+};
+
 function ActionRow({
   action,
   onChange,
@@ -101,8 +114,14 @@ function ActionRow({
   return (
     <div className="border rounded-md p-3 space-y-2">
       <div className="flex items-center gap-2">
-        <Select value={action.Type} onValueChange={(v: string) => onChange({ ...action, Type: v })}>
-          <SelectTrigger className="w-[180px]">
+        <Select
+          value={action.Type}
+          onValueChange={(v: string) => {
+            const defaults = ACTION_DEFAULTS[v];
+            onChange({ ...action, Type: v, Config: defaults ? { ...defaults } : action.Config });
+          }}
+        >
+          <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Action type" />
           </SelectTrigger>
           <SelectContent>

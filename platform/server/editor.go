@@ -129,6 +129,7 @@ type ProjectInfoResponse struct {
 	TargetLanguageMode    string                `json:"target_language_mode"`
 	DefaultStream         string                `json:"default_stream,omitempty"`
 	DashboardVisibility   string                `json:"dashboard_visibility,omitempty"`
+	Properties            map[string]string     `json:"properties,omitempty"`
 	Items                 []ProjectItemResponse `json:"items"`
 	Collections           []CollectionResponse  `json:"collections,omitempty"`
 	Streams               []store.Stream        `json:"streams,omitempty"`
@@ -985,6 +986,7 @@ func projectToInfoResponse(p *store.Project) *ProjectInfoResponse {
 		TargetLanguageMode:    mode,
 		DefaultStream:         p.DefaultStream,
 		DashboardVisibility:   p.DashboardVisibility,
+		Properties:            p.Properties,
 		Items:                 []ProjectItemResponse{},
 		CreatedAt:             p.CreatedAt.Format(time.RFC3339),
 		ModifiedAt:            p.UpdatedAt.Format(time.RFC3339),

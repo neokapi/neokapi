@@ -36,6 +36,7 @@ const typeLabels: Record<string, string> = {
   fix_brand_voice: "Brand Fix",
   fix_terminology: "Terminology Fix",
   connector_setup: "Connector Setup",
+  source_review: "Source Review",
   custom: "Custom",
 };
 
