@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/bowrain/event"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	platev "github.com/neokapi/neokapi/platform/event"
 )
 
 // HandleListTasks returns tasks for a workspace, optionally filtered.
@@ -228,6 +230,22 @@ func (s *Server) HandleCompleteTask(c echo.Context) error {
 
 	if err := s.TaskStore.Complete(c.Request().Context(), taskID, userID); err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// AD-034: Emit source.review.completed when a source review task is completed,
+	// allowing automation rules to fan out per-locale tasks.
+	if s.EventBus != nil {
+		task, err := s.TaskStore.Get(c.Request().Context(), taskID)
+		if err == nil && task.Type == bstore.TaskSourceReview {
+			s.EventBus.Publish(platev.Event{
+				Type:        platev.EventSourceReviewCompleted,
+				Source:      "task",
+				ProjectID:   task.ProjectID,
+				Actor:       userID,
+				Data:        task.Data,
+				CausationID: event.NextCausationID(platev.Event{ID: task.ID}),
+			})
+		}
 	}
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})

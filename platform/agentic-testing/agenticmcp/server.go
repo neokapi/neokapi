@@ -81,13 +81,15 @@ type IssueTracker interface {
 
 // Server wraps the MCP protocol server with agentic testing fleet tools.
 type Server struct {
-	fleetRepo FleetRepo
-	execStore *PostgresExecutionStore
-	eventHub  *EventHub
-	walker    ReleaseWalker
-	issues    IssueTracker
-	server    *mcp.Server
-	handler   http.Handler
+	fleetRepo    FleetRepo
+	execStore    *PostgresExecutionStore
+	eventHub     *EventHub
+	walker       ReleaseWalker
+	issues       IssueTracker
+	bowrainURL   string
+	bowrainToken string
+	server       *mcp.Server
+	handler      http.Handler
 }
 
 // Config holds configuration for the Agentic Testing MCP server.
@@ -124,6 +126,11 @@ func WithIssueTracker(t IssueTracker) Option {
 	return func(s *Server) { s.issues = t }
 }
 
+// WithBowrain configures direct Bowrain API access for task tools.
+func WithBowrain(url, token string) Option {
+	return func(s *Server) { s.bowrainURL = url; s.bowrainToken = token }
+}
+
 // NewServer creates a new Agentic Testing MCP server.
 func NewServer(cfg Config, opts ...Option) (*Server, error) {
 	s := mcp.NewServer(
@@ -139,11 +146,12 @@ func NewServer(cfg Config, opts ...Option) (*Server, error) {
 		opt(as)
 	}
 
-	// Register all 9 fleet management tools.
+	// Register fleet management and task tools.
 	as.registerFleetTools()
 	as.registerExecutionTools()
 	as.registerReleaseTools()
 	as.registerFeedbackTools()
+	as.registerTaskTools()
 
 	// Create Streamable HTTP handler.
 	streamableHandler := mcp.NewStreamableHTTPHandler(

@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/core/id"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	platev "github.com/neokapi/neokapi/platform/event"
 )
 
@@ -45,6 +47,26 @@ func (s *Server) registerDefaultAutomations() {
 		},
 		Actions: []event.AutomationAction{
 			{Type: "auto_translate_new_locale"},
+		},
+	})
+
+	// Rule 4: Create review tasks when automations complete (AD-034).
+	// This rule is registered but only fires for projects that have it enabled
+	// via stored rules. The built-in version serves as a template.
+	s.AutomationEngine.AddRule(event.AutomationRule{
+		Name:      "create-review-tasks-on-automation-complete",
+		EventType: platev.EventPushAutomationsCompleted,
+		Actions: []event.AutomationAction{
+			{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
+		},
+	})
+
+	// Rule 5: Fan out review tasks after source review (AD-034).
+	s.AutomationEngine.AddRule(event.AutomationRule{
+		Name:      "fan-out-after-source-review",
+		EventType: platev.EventSourceReviewCompleted,
+		Actions: []event.AutomationAction{
+			{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
 		},
 	})
 
@@ -153,6 +175,12 @@ func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event)
 		}
 		locales := strings.Split(newLocales, ",")
 		go s.triggerAutoTranslateNewLocales(context.Background(), ev.ProjectID, locales, wsSlug)
+
+	case "create_review_tasks":
+		go s.createReviewTasks(context.Background(), action, ev)
+
+	case "create_source_review":
+		go s.createSourceReviewTask(context.Background(), action, ev)
 	}
 	return nil
 }
@@ -326,4 +354,202 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 	}
 
 	s.triggerAutoTranslate(ctx, projectID, itemNames, locales, pushID, wsSlug)
+}
+
+// createReviewTasks creates per-locale review or translate tasks for project members (AD-034).
+func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationAction, ev platev.Event) {
+	if s.ContentStore == nil || s.TaskStore == nil || s.AuthStore == nil {
+		return
+	}
+
+	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
+	if err != nil {
+		log.Printf("create-review-tasks: failed to load project %s: %v", ev.ProjectID, err)
+		return
+	}
+
+	// Check opt-in: only create tasks if the project has workflow_enabled=true.
+	if proj.Properties == nil || proj.Properties["workflow_enabled"] != "true" {
+		return
+	}
+
+	mode := action.Config["mode"]
+	if mode == "" {
+		mode = "review"
+	}
+	taskType := bstore.TaskReview
+	if mode == "translate" {
+		taskType = bstore.TaskTranslate
+	}
+
+	priority := bstore.TaskPriority(action.Config["priority"])
+	if priority == "" {
+		priority = bstore.TaskPriorityNormal
+	}
+
+	members, err := s.AuthStore.ListProjectMembers(ctx, proj.ID)
+	if err != nil {
+		log.Printf("create-review-tasks: failed to list members for %s: %v", proj.ID, err)
+		return
+	}
+
+	pushID := ev.Data["push_id"]
+	items := ev.Data["items"]
+
+	for _, locale := range proj.TargetLanguages {
+		localeStr := string(locale)
+		assignees := s.findMembersForLocale(ctx, members, localeStr, mode)
+
+		for _, m := range assignees {
+			task := &bstore.Task{
+				WorkspaceID: proj.WorkspaceID,
+				ProjectID:   proj.ID,
+				Stream:      "main",
+				Type:        taskType,
+				Status:      bstore.TaskStatusOpen,
+				Priority:    priority,
+				Title:       fmt.Sprintf("Review %s translations", localeStr),
+				AssigneeID:  m.UserID,
+				CreatedBy:   "system",
+				Data: map[string]string{
+					"push_id": pushID,
+					"locale":  localeStr,
+					"items":   items,
+					"mode":    mode,
+				},
+			}
+			if err := s.TaskStore.Create(ctx, task); err != nil {
+				log.Printf("create-review-tasks: failed to create task for %s/%s: %v", localeStr, m.UserID, err)
+				continue
+			}
+			if s.NotificationDispatcher != nil {
+				s.NotificationDispatcher.DispatchTaskNotification(
+					ctx, task, bstore.NotificationTaskAssigned,
+					fmt.Sprintf("New %s task: %s", mode, localeStr),
+					fmt.Sprintf("Content is ready for %s in %s.", mode, localeStr),
+				)
+			}
+		}
+
+		// If no members for this locale, create unassigned task.
+		if len(assignees) == 0 {
+			task := &bstore.Task{
+				WorkspaceID: proj.WorkspaceID,
+				ProjectID:   proj.ID,
+				Stream:      "main",
+				Type:        taskType,
+				Status:      bstore.TaskStatusOpen,
+				Priority:    priority,
+				Title:       fmt.Sprintf("Review %s translations (unassigned)", localeStr),
+				CreatedBy:   "system",
+				Data: map[string]string{
+					"push_id": pushID,
+					"locale":  localeStr,
+					"items":   items,
+					"mode":    mode,
+				},
+			}
+			_ = s.TaskStore.Create(ctx, task)
+		}
+	}
+}
+
+// createSourceReviewTask creates a source review task before language fan-out (AD-034).
+func (s *Server) createSourceReviewTask(ctx context.Context, action event.AutomationAction, ev platev.Event) {
+	if s.ContentStore == nil || s.TaskStore == nil {
+		return
+	}
+
+	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
+	if err != nil {
+		log.Printf("create-source-review: failed to load project %s: %v", ev.ProjectID, err)
+		return
+	}
+
+	if proj.Properties == nil || proj.Properties["workflow_enabled"] != "true" {
+		return
+	}
+
+	reviewer := action.Config["reviewer"]
+
+	// Fall back to first project member with PermEditSource.
+	if reviewer == "" && s.AuthStore != nil {
+		members, err := s.AuthStore.ListProjectMembers(ctx, proj.ID)
+		if err == nil {
+			for _, m := range members {
+				rt, err := s.AuthStore.GetRoleTemplate(ctx, proj.WorkspaceID, m.RoleID)
+				if err == nil && rt.Permissions.Has(platauth.PermEditSource) {
+					reviewer = m.UserID
+					break
+				}
+			}
+		}
+	}
+
+	task := &bstore.Task{
+		WorkspaceID: proj.WorkspaceID,
+		ProjectID:   proj.ID,
+		Stream:      "main",
+		Type:        bstore.TaskSourceReview,
+		Status:      bstore.TaskStatusOpen,
+		Priority:    bstore.TaskPriorityNormal,
+		Title:       "Review source content before translation",
+		AssigneeID:  reviewer,
+		CreatedBy:   "system",
+		Data:        ev.Data, // carries push_id, items, workspace_slug
+	}
+
+	if err := s.TaskStore.Create(ctx, task); err != nil {
+		log.Printf("create-source-review: failed to create task: %v", err)
+		return
+	}
+
+	if reviewer != "" && s.NotificationDispatcher != nil {
+		s.NotificationDispatcher.DispatchTaskNotification(
+			ctx, task, bstore.NotificationTaskAssigned,
+			"Source review needed",
+			"New content needs source review before translation fan-out.",
+		)
+	}
+}
+
+// findMembersForLocale returns project members whose language scope includes the locale
+// and whose role has the required permission for the given mode.
+func (s *Server) findMembersForLocale(ctx context.Context, members []*platauth.ProjectMembership, locale, mode string) []*platauth.ProjectMembership {
+	requiredPerm := platauth.PermReview
+	if mode == "translate" {
+		requiredPerm = platauth.PermTranslate
+	}
+
+	var result []*platauth.ProjectMembership
+	for _, m := range members {
+		// Check language scope: empty = all languages.
+		if len(m.Languages) > 0 {
+			found := false
+			for _, l := range m.Languages {
+				if l == locale {
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		// Check permission via role template.
+		if s.AuthStore == nil {
+			continue
+		}
+		rt, err := s.AuthStore.GetRoleTemplate(ctx, m.WorkspaceID, m.RoleID)
+		if err != nil {
+			continue
+		}
+		if !rt.Permissions.Has(requiredPerm) {
+			continue
+		}
+
+		result = append(result, m)
+	}
+	return result
 }

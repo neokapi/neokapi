@@ -210,7 +210,7 @@ func TestServerListTools(t *testing.T) {
 	for _, name := range expected {
 		assert.Contains(t, toolNames, name)
 	}
-	assert.Len(t, result.Tools, 9, "expected exactly 9 tools")
+	assert.Len(t, result.Tools, 12, "expected exactly 12 tools (9 fleet + 3 task)")
 }
 
 // ── Handler-level tests (direct, no transport) ───────────────────────────

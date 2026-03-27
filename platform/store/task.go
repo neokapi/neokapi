@@ -22,6 +22,7 @@ const (
 	TaskFixBrandVoice  TaskType = "fix_brand_voice"
 	TaskFixTerminology TaskType = "fix_terminology"
 	TaskConnectorSetup TaskType = "connector_setup"
+	TaskSourceReview   TaskType = "source_review"
 	TaskCustom         TaskType = "custom"
 )
 

@@ -148,6 +148,9 @@ type Server struct {
 	// progressTracker detects translation progress milestones. Nil when not configured.
 	progressTracker *event.ProgressTracker
 
+	// pushCompletionTracker monitors automation jobs per push and emits push.automations.completed. Nil when not configured.
+	pushCompletionTracker *event.PushCompletionTracker
+
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
 
@@ -375,6 +378,13 @@ func NewServer(cfg ServerConfig) *Server {
 	// Wire up progress milestone tracker (AD-027).
 	if s.ContentStore != nil && s.NotificationDispatcher != nil {
 		s.progressTracker = event.NewProgressTracker(s.ContentStore, s.NotificationDispatcher, s.EventBus)
+	}
+
+	// Wire up push completion tracker (AD-034).
+	if s.EventBus != nil && s.JobStore != nil {
+		s.pushCompletionTracker = event.NewPushCompletionTracker(
+			s.EventBus, s.JobStore, s.ExtractionJobStore, s.ContentStore,
+		)
 	}
 
 	// Wire up graph sync if graph store is available.
