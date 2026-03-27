@@ -81,6 +81,40 @@ func TestExtractionJobStore_UpdateStatus(t *testing.T) {
 	assert.Equal(t, "some error", got.Error)
 }
 
+func TestExtractionJobStore_ListByPushID(t *testing.T) {
+	store := newTestExtractionStore(t)
+	ctx := context.Background()
+
+	// Create jobs for two different pushes.
+	for _, pid := range []string{"push-A", "push-A", "push-B"} {
+		job := &ExtractionJob{
+			ID:            uuid.NewString(),
+			WorkspaceSlug: "ws",
+			ProjectID:     "p1",
+			ItemName:      "file.json",
+			Locale:        "en-US",
+			PushID:        pid,
+			Status:        ExtractionStatusQueued,
+		}
+		require.NoError(t, store.CreateExtractionJob(ctx, job))
+	}
+
+	got, err := store.ListByPushID(ctx, "push-A")
+	require.NoError(t, err)
+	assert.Len(t, got, 2)
+	for _, j := range got {
+		assert.Equal(t, "push-A", j.PushID)
+	}
+
+	got, err = store.ListByPushID(ctx, "push-B")
+	require.NoError(t, err)
+	assert.Len(t, got, 1)
+
+	got, err = store.ListByPushID(ctx, "nonexistent")
+	require.NoError(t, err)
+	assert.Empty(t, got)
+}
+
 func TestExtractionJobStore_UpdateProgress(t *testing.T) {
 	store := newTestExtractionStore(t)
 	ctx := context.Background()
