@@ -50,7 +50,7 @@ func (s *Server) HandleSyncPushInit(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "content store not configured"})
 	}
 
-	diffEngine := bowsync.NewDiffEngine(s.ContentStore, nil) // TODO: wire Redis cache
+	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
 
 	// Fast path: root hash comparison.
 	if req.RootHash != "" {
@@ -103,7 +103,7 @@ func (s *Server) HandleSyncPushDiff(c echo.Context) error {
 		stream = "main"
 	}
 
-	diffEngine := bowsync.NewDiffEngine(s.ContentStore, nil)
+	diffEngine := bowsync.NewDiffEngine(s.ContentStore, s.SyncCache)
 
 	blockDiff, err := diffEngine.CompareBlocks(c.Request().Context(), projectID, stream, req.ItemName, req.BlockHashes)
 	if err != nil {
@@ -178,6 +178,21 @@ func (s *Server) HandleSyncPushCommit(c echo.Context) error {
 				})
 			}
 		}
+	}
+
+	// Enforce upload budget.
+	maxPushBytes := s.Config.MaxPushBytes
+	if maxPushBytes <= 0 {
+		maxPushBytes = 256 * 1024 * 1024 // default 256MB
+	}
+	var totalBytes int64
+	for _, chunk := range manifest.Chunks {
+		totalBytes += chunk.ByteSize
+	}
+	if totalBytes > maxPushBytes {
+		return c.JSON(http.StatusRequestEntityTooLarge, ErrorResponse{
+			Error: fmt.Sprintf("upload budget exceeded: %d bytes > %d bytes max", totalBytes, maxPushBytes),
+		})
 	}
 
 	pushID := id.New()

@@ -69,6 +69,9 @@ type ServerConfig struct {
 	AzureStorageConnStr    string // Azure connection string (dev/Azurite fallback)
 	BlobStorageLocalDir    string // Local blob storage root directory
 
+	// Sync protocol (AD-038)
+	MaxPushBytes int64 // Max total upload size per push (default: 256MB)
+
 	// External services
 	ServiceBusConnection string // Azure Service Bus connection string for job queue
 	NATSUrl              string // NATS server URL for job queue (e.g. nats://localhost:4222)

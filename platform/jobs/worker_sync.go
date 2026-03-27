@@ -197,7 +197,23 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 }
 
 // processBlockChunk converts SyncBlocks to model.Blocks and stores them.
+// Blocks with ExpectedHash set are checked for optimistic concurrency conflicts.
 func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChunk, projectID, stream string, itemMetas map[string]*pb.SyncItemMeta) (int, []string, error) {
+	// Check expected_hash conflict detection (optimistic concurrency).
+	for _, sb := range chunk.Blocks {
+		if sb.ExpectedHash == "" {
+			continue
+		}
+		existing, err := deps.ContentStore.GetBlock(ctx, projectID, stream, sb.Id)
+		if err != nil {
+			continue // Block doesn't exist yet — no conflict.
+		}
+		if existing.ContentHash != sb.ExpectedHash {
+			return 0, nil, fmt.Errorf("conflict on block %s in %s: expected hash %s but current is %s",
+				sb.Id, sb.ItemName, sb.ExpectedHash, existing.ContentHash)
+		}
+	}
+
 	// Group blocks by item.
 	itemGroups := map[string][]*model.Block{}
 	for _, sb := range chunk.Blocks {
@@ -224,7 +240,12 @@ func processBlockChunk(ctx context.Context, deps *WorkerDeps, chunk *pb.SyncChun
 				}
 				item.BlockIndex = meta.BlockIndexJson
 				item.PreviewHTML = meta.PreviewHtml
-				// TODO: resolve collection name to ID if meta.Collection is set
+				if meta.Collection != "" {
+					coll, err := deps.ContentStore.GetCollectionByName(ctx, projectID, meta.Collection, stream)
+					if err == nil && coll != nil {
+						item.CollectionID = coll.ID
+					}
+				}
 			}
 			_ = deps.ContentStore.StoreItem(ctx, projectID, stream, item)
 			itemNames = append(itemNames, itemName)
