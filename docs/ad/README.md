@@ -54,7 +54,7 @@ are separated into [Implementation Notes](/docs/notes/index).
 | [035](035-automation-run-visibility.md) | Automation Run Visibility | GitHub Actions-style run/step/log model, real-time progress, SSE streaming |
 | [036](036-distributed-event-bus.md) | Distributed Event Bus | ASB topics (Azure), NATS JetStream (local), replaces leader election |
 | [037](037-async-content-ingestion.md) | Async Content Ingestion | Blob upload then job processing, bulk INSERT, rate limiting, pagination |
-| [038](038-sync-protocol-v2.md) | Sync Protocol | Chunked resumable direct-to-storage, typed content layer, rich Block/Term/TM model, zstd |
+| [038](038-sync-protocol.md) | Sync Protocol | Chunked resumable direct-to-storage, typed content layer, rich Block/Term/TM model, zstd |
 
 ## Layer 6: Applications and Operations
 
