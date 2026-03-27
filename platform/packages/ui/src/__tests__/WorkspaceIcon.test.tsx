@@ -40,38 +40,43 @@ describe("WorkspaceIcon", () => {
   });
 
   it("uses rounded square border-radius when active", () => {
-    render(<WorkspaceIcon workspace={ws()} active={true} onClick={() => {}} />);
-    const btn = screen.getByRole("button");
-    expect(btn.style.borderRadius).toBe("12px");
+    const { container } = render(
+      <WorkspaceIcon workspace={ws()} active={true} onClick={() => {}} />,
+    );
+    const inner = container.querySelector("[aria-hidden]") as HTMLElement;
+    expect(inner.style.borderRadius).toBe("12px");
   });
 
   it("uses circular border-radius when inactive", () => {
-    render(<WorkspaceIcon workspace={ws()} active={false} onClick={() => {}} />);
-    const btn = screen.getByRole("button");
-    expect(btn.style.borderRadius).toBe("20px"); // size/2 = 40/2
+    const { container } = render(
+      <WorkspaceIcon workspace={ws()} active={false} onClick={() => {}} />,
+    );
+    const inner = container.querySelector("[aria-hidden]") as HTMLElement;
+    expect(inner.style.borderRadius).toBe("20px"); // size/2 = 40/2
   });
 
   it("hides letter when logo_url is set", () => {
-    render(
+    const { container } = render(
       <WorkspaceIcon
         workspace={ws({ logo_url: "https://example.com/logo.png" })}
         active={false}
         onClick={() => {}}
       />,
     );
-    expect(screen.getByRole("button").textContent).toBe("");
+    const inner = container.querySelector("[aria-hidden]") as HTMLElement;
+    expect(inner.textContent).toBe("");
   });
 
   it("sets background-image when logo_url is set", () => {
-    render(
+    const { container } = render(
       <WorkspaceIcon
         workspace={ws({ logo_url: "https://example.com/logo.png" })}
         active={false}
         onClick={() => {}}
       />,
     );
-    const btn = screen.getByRole("button");
-    expect(btn.style.backgroundImage).toContain("https://example.com/logo.png");
+    const inner = container.querySelector("[aria-hidden]") as HTMLElement;
+    expect(inner.style.backgroundImage).toContain("https://example.com/logo.png");
   });
 
   it("uses the workspace name as title", () => {
@@ -80,27 +85,56 @@ describe("WorkspaceIcon", () => {
   });
 
   it("produces consistent colors for the same name", () => {
-    const { unmount } = render(
+    const { unmount, container } = render(
       <WorkspaceIcon workspace={ws({ name: "test" })} active={false} onClick={() => {}} />,
     );
-    const color1 = screen.getByRole("button").style.backgroundColor;
+    const color1 = (container.querySelector("[aria-hidden]") as HTMLElement).style.backgroundColor;
     unmount();
 
-    render(<WorkspaceIcon workspace={ws({ name: "test" })} active={false} onClick={() => {}} />);
-    const color2 = screen.getByRole("button").style.backgroundColor;
+    const { container: c2 } = render(
+      <WorkspaceIcon workspace={ws({ name: "test" })} active={false} onClick={() => {}} />,
+    );
+    const color2 = (c2.querySelector("[aria-hidden]") as HTMLElement).style.backgroundColor;
     expect(color1).toBe(color2);
   });
 
   it("produces different colors for different names", () => {
-    const { unmount } = render(
+    const { unmount, container } = render(
       <WorkspaceIcon workspace={ws({ name: "alpha" })} active={false} onClick={() => {}} />,
     );
-    const _color1 = screen.getByRole("button").style.backgroundColor;
+    const _color1 = (container.querySelector("[aria-hidden]") as HTMLElement).style.backgroundColor;
     unmount();
 
-    render(<WorkspaceIcon workspace={ws({ name: "zeta" })} active={false} onClick={() => {}} />);
-    const color2 = screen.getByRole("button").style.backgroundColor;
+    const { container: c2 } = render(
+      <WorkspaceIcon workspace={ws({ name: "zeta" })} active={false} onClick={() => {}} />,
+    );
+    const color2 = (c2.querySelector("[aria-hidden]") as HTMLElement).style.backgroundColor;
     // Statistically unlikely to be the same, but we just check it works
     expect(typeof color2).toBe("string");
+  });
+
+  it("shows @ indicator for personal workspaces", () => {
+    render(
+      <WorkspaceIcon workspace={ws({ type: "personal" })} active={false} onClick={() => {}} />,
+    );
+    expect(screen.getByTestId("personal-indicator")).toHaveTextContent("@");
+  });
+
+  it("does not show @ indicator for team workspaces", () => {
+    render(<WorkspaceIcon workspace={ws({ type: "team" })} active={false} onClick={() => {}} />);
+    expect(screen.queryByTestId("personal-indicator")).toBeNull();
+  });
+
+  it("scales the personal indicator with icon size", () => {
+    render(
+      <WorkspaceIcon
+        workspace={ws({ type: "personal" })}
+        active={false}
+        onClick={() => {}}
+        size={60}
+      />,
+    );
+    const indicator = screen.getByTestId("personal-indicator");
+    expect(indicator.style.width).toBe("24px"); // Math.round(60 * 0.4)
   });
 });
