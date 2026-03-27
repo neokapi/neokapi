@@ -662,8 +662,14 @@ var storeMigrationsPg = []storage.Migration{
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
-			ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
+			DO $$ BEGIN
+				IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'translation_jobs') THEN
+					ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
+				END IF;
+				IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'extraction_jobs') THEN
+					ALTER TABLE extraction_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
+				END IF;
+			END $$;
 		`,
 	},
 }
