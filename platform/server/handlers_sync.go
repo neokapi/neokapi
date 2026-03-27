@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -291,28 +290,3 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 	})
 }
 
-// detectFormatFromName infers a format identifier from the file extension.
-func detectFormatFromName(name string) string {
-	switch strings.ToLower(filepath.Ext(name)) {
-	case ".json":
-		return "json"
-	case ".md", ".mdx":
-		return "markdown"
-	case ".html", ".htm":
-		return "html"
-	case ".xml":
-		return "xml"
-	case ".yaml", ".yml":
-		return "yaml"
-	case ".po":
-		return "po"
-	case ".properties":
-		return "properties"
-	case ".csv":
-		return "csv"
-	case ".txt":
-		return "plaintext"
-	default:
-		return filepath.Ext(name)
-	}
-}
