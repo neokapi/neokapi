@@ -51,7 +51,7 @@ func NewNotificationDispatcher(
 		sender:    sender,
 		targetFn:  targetFn,
 	}
-	d.sub = bus.SubscribeAll(d.handleEvent)
+	d.sub = bus.SubscribeGroup("notifications", d.handleEvent)
 	return d
 }
 

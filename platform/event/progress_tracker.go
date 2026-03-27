@@ -46,7 +46,7 @@ func NewProgressTracker(
 		bus:          bus,
 		seen:         make(map[string]bool),
 	}
-	pt.sub = bus.SubscribeAll(pt.handleEvent)
+	pt.sub = bus.SubscribeGroup("progress-tracker", pt.handleEvent)
 	return pt
 }
 

@@ -21,7 +21,7 @@ type ActivityRecorder struct {
 // NewActivityRecorder creates and starts an activity recorder.
 func NewActivityRecorder(store *bstore.ActivityStore, bus platev.EventBus) *ActivityRecorder {
 	r := &ActivityRecorder{store: store, bus: bus}
-	r.sub = bus.SubscribeAll(r.handleEvent)
+	r.sub = bus.SubscribeGroup("activity-recorder", r.handleEvent)
 	return r
 }
 

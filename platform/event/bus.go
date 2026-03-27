@@ -68,6 +68,19 @@ func (b *ChannelEventBus) Subscribe(eventType platev.EventType, handler platev.E
 	return sub
 }
 
+// SubscribeGroup registers a handler with a named consumer group.
+// For ChannelEventBus, group is stored but all subscribers still receive all events
+// (no competing consumer semantics in-process).
+func (b *ChannelEventBus) SubscribeGroup(group string, handler platev.EventHandler) *platev.Subscription {
+	sub := &platev.Subscription{
+		ID:      id.New(),
+		Group:   group,
+		Handler: handler,
+	}
+	b.addSubscriber(sub)
+	return sub
+}
+
 // SubscribeAll registers a handler for all events.
 func (b *ChannelEventBus) SubscribeAll(handler platev.EventHandler) *platev.Subscription {
 	sub := &platev.Subscription{

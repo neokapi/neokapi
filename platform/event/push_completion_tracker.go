@@ -28,9 +28,6 @@ type PushCompletionTracker struct {
 	pollInterval time.Duration
 	timeout      time.Duration
 	done         chan struct{}
-
-	// IsLeader gates polling to the leader instance only. If nil, always polls.
-	IsLeader func() bool
 }
 
 type pendingPush struct {
@@ -59,7 +56,7 @@ func NewPushCompletionTracker(
 		timeout:      30 * time.Minute,
 		done:         make(chan struct{}),
 	}
-	t.sub = bus.Subscribe(platev.EventPushCompleted, t.handlePush)
+	t.sub = bus.SubscribeGroup("push-tracker", t.handlePush)
 	go t.pollLoop()
 	return t
 }
@@ -78,6 +75,9 @@ func (t *PushCompletionTracker) Close() {
 }
 
 func (t *PushCompletionTracker) handlePush(ev platev.Event) {
+	if ev.Type != platev.EventPushCompleted {
+		return // only interested in push events
+	}
 	pushID := ev.Data["push_id"]
 	if pushID == "" {
 		return
@@ -108,10 +108,8 @@ func (t *PushCompletionTracker) pollLoop() {
 		case <-t.done:
 			return
 		case <-ticker.C:
-			if t.IsLeader == nil || t.IsLeader() {
-				t.ingestFromDB()
-				t.checkPending()
-			}
+			t.ingestFromDB()
+			t.checkPending()
 		}
 	}
 }

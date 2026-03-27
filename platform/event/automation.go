@@ -48,8 +48,6 @@ type AutomationEngine struct {
 	paused        atomic.Bool
 	sub           *platev.Subscription
 	mu            sync.RWMutex
-	// IsLeader gates event processing to the leader instance only. If nil, always processes.
-	IsLeader func() bool
 }
 
 // NewAutomationEngine creates an automation engine.
@@ -59,7 +57,7 @@ func NewAutomationEngine(bus platev.EventBus, executor ActionExecutor) *Automati
 		executor:      executor,
 		maxChainDepth: MaxChainDepth,
 	}
-	e.sub = bus.SubscribeAll(e.handleEvent)
+	e.sub = bus.SubscribeGroup("automations", e.handleEvent)
 	return e
 }
 
@@ -109,9 +107,6 @@ func (e *AutomationEngine) Close() {
 
 func (e *AutomationEngine) handleEvent(event platev.Event) {
 	if e.paused.Load() {
-		return
-	}
-	if e.IsLeader != nil && !e.IsLeader() {
 		return
 	}
 
