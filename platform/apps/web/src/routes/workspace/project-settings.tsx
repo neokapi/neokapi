@@ -46,7 +46,15 @@ export function ProjectSettingsRoute() {
       dashboard_visibility: newVis,
     });
     invalidateProject();
-  }, [ws, adapter, project.id, project.dashboard_visibility, queryClient, activeStream, invalidateProject]);
+  }, [
+    ws,
+    adapter,
+    project.id,
+    project.dashboard_visibility,
+    queryClient,
+    activeStream,
+    invalidateProject,
+  ]);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 py-4">
