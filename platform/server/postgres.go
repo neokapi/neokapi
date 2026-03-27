@@ -23,6 +23,7 @@ type pgStores struct {
 	Content    store.ContentStore
 	Auth       auth.AuthStore
 	Job        jobs.JobStore
+	Extraction jobs.ExtractionJobStore
 	Quota      jobs.QuotaStore
 	Brand      corebrand.BrandStore
 	GraphStore coreg.GraphStore
@@ -77,7 +78,12 @@ func initPostgresStores(db *storage.PgDB) (*pgStores, error) {
 		log.Printf("WARNING: failed to init brand store: %v (brand voice features disabled)", err)
 	}
 
-	stores := &pgStores{Content: cs, Auth: as, Job: js, Quota: qs, Brand: bs, DB: db}
+	es, err := jobs.NewPgExtractionJobStore(db)
+	if err != nil {
+		return nil, fmt.Errorf("init PostgreSQL extraction job store: %w", err)
+	}
+
+	stores := &pgStores{Content: cs, Auth: as, Job: js, Extraction: es, Quota: qs, Brand: bs, DB: db}
 
 	// Initialize graph store if pgxpool is available (AfterConnect was wired).
 	if pool := db.Pool(); pool != nil {

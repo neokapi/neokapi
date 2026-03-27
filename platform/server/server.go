@@ -305,6 +305,7 @@ func NewServer(cfg ServerConfig) *Server {
 			s.ContentStore = pg.Content
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
 			s.JobStore = pg.Job
+			s.ExtractionJobStore = pg.Extraction
 			s.QuotaStore = pg.Quota
 			s.wsStores.pgDB = pg.DB
 			pgSQL := pg.DB.DB // embedded *sql.DB
