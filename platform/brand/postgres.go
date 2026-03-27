@@ -89,8 +89,23 @@ func (s *PostgresBrandStore) GetProfile(ctx context.Context, profileID string) (
 }
 
 func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corebrand.VoiceProfile) error {
+	// Archive the current state as an immutable ProfileVersion before applying the edit.
+	existing, err := s.GetProfile(ctx, profile.ID)
+	if err != nil {
+		return fmt.Errorf("get existing profile for versioning: %w", err)
+	}
+
+	snapshotJSON, _ := json.Marshal(existing)
+	_, _ = s.db.ExecContext(ctx,
+		`INSERT INTO brand_profile_versions (profile_id, version, snapshot, note, created_by, created_at)
+		 VALUES ($1, $2, $3, $4, $5, NOW())
+		 ON CONFLICT DO NOTHING`,
+		existing.ID, existing.Version, string(snapshotJSON),
+		profile.VersionNote, existing.CreatedBy)
+
 	now := time.Now().UTC()
 	profile.UpdatedAt = now
+	profile.Version = existing.Version + 1
 
 	tone, err := json.Marshal(profile.Tone)
 	if err != nil {
@@ -120,12 +135,12 @@ func (s *PostgresBrandStore) UpdateProfile(ctx context.Context, profile *corebra
 	res, err := s.db.ExecContext(ctx,
 		`UPDATE brand_profiles
 		 SET name=$1, description=$2, tone=$3, style=$4, vocabulary=$5, examples=$6,
-		     locales=$7, channels=$8, version=version+1, updated_at=$9
-		 WHERE id=$10`,
+		     locales=$7, channels=$8, version=$9, updated_at=$10
+		 WHERE id=$11`,
 		profile.Name, profile.Description,
 		string(tone), string(style), string(vocab), string(examples),
 		string(locales), string(channels),
-		now, profile.ID)
+		profile.Version, now, profile.ID)
 	if err != nil {
 		return fmt.Errorf("update brand profile: %w", err)
 	}
@@ -195,10 +210,10 @@ func (s *PostgresBrandStore) StoreScore(ctx context.Context, score *corebrand.St
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		`INSERT INTO brand_voice_scores (id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
 		score.ID, score.ProjectID, stream, score.BlockID, score.ProfileID,
-		score.Locale, score.Score, string(dims), string(findings), score.CheckedAt)
+		score.ProfileVersion, score.Locale, score.Score, string(dims), string(findings), score.CheckedAt)
 	if err != nil {
 		return fmt.Errorf("insert brand voice score: %w", err)
 	}
@@ -207,7 +222,7 @@ func (s *PostgresBrandStore) StoreScore(ctx context.Context, score *corebrand.St
 
 func (s *PostgresBrandStore) GetScores(ctx context.Context, projectID, locale string) ([]*corebrand.StoredScore, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, project_id, stream, block_id, profile_id, locale, score, dimensions, findings, checked_at
+		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
 		 FROM brand_voice_scores WHERE project_id = $1 AND locale = $2
 		 ORDER BY checked_at DESC`, projectID, locale)
 	if err != nil {
@@ -300,6 +315,144 @@ func (s *PostgresBrandStore) GetSuggestedRules(ctx context.Context, workspaceID 
 }
 
 // ---------------------------------------------------------------------------
+// Profile versioning
+// ---------------------------------------------------------------------------
+
+func (s *PostgresBrandStore) ListProfileVersions(ctx context.Context, profileID string) ([]*corebrand.ProfileVersion, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		 FROM brand_profile_versions WHERE profile_id = $1 ORDER BY version DESC`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list profile versions: %w", err)
+	}
+	defer rows.Close()
+
+	var versions []*corebrand.ProfileVersion
+	for rows.Next() {
+		var v corebrand.ProfileVersion
+		var snapshotJSON string
+		if err := rows.Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan profile version: %w", err)
+		}
+		_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
+		versions = append(versions, &v)
+	}
+	return versions, rows.Err()
+}
+
+func (s *PostgresBrandStore) GetProfileVersion(ctx context.Context, profileID string, version int) (*corebrand.ProfileVersion, error) {
+	var v corebrand.ProfileVersion
+	var snapshotJSON string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT profile_id, version, snapshot, note, created_by, created_at
+		 FROM brand_profile_versions WHERE profile_id = $1 AND version = $2`, profileID, version).
+		Scan(&v.ProfileID, &v.Version, &snapshotJSON, &v.Note, &v.CreatedBy, &v.CreatedAt)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("profile version not found: %s v%d", profileID, version)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get profile version: %w", err)
+	}
+	_ = json.Unmarshal([]byte(snapshotJSON), &v.Snapshot)
+	return &v, nil
+}
+
+func (s *PostgresBrandStore) GetProfileAtTag(ctx context.Context, profileID, tagName string) (*corebrand.VoiceProfile, error) {
+	var version int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT version FROM brand_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName).
+		Scan(&version)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get profile tag: %w", err)
+	}
+
+	v, err := s.GetProfileVersion(ctx, profileID, version)
+	if err != nil {
+		return nil, err
+	}
+	return &v.Snapshot, nil
+}
+
+// ---------------------------------------------------------------------------
+// Profile tags
+// ---------------------------------------------------------------------------
+
+func (s *PostgresBrandStore) CreateProfileTag(ctx context.Context, tag *corebrand.ProfileTag) error {
+	if tag.CreatedAt.IsZero() {
+		tag.CreatedAt = time.Now().UTC()
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO brand_profile_tags (profile_id, name, version, created_by, created_at)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		tag.ProfileID, tag.Name, tag.Version, tag.CreatedBy, tag.CreatedAt)
+	if err != nil {
+		return fmt.Errorf("create profile tag: %w", err)
+	}
+	return nil
+}
+
+func (s *PostgresBrandStore) ListProfileTags(ctx context.Context, profileID string) ([]*corebrand.ProfileTag, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT profile_id, name, version, created_by, created_at
+		 FROM brand_profile_tags WHERE profile_id = $1 ORDER BY name`, profileID)
+	if err != nil {
+		return nil, fmt.Errorf("list profile tags: %w", err)
+	}
+	defer rows.Close()
+
+	var tags []*corebrand.ProfileTag
+	for rows.Next() {
+		var t corebrand.ProfileTag
+		if err := rows.Scan(&t.ProfileID, &t.Name, &t.Version, &t.CreatedBy, &t.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan profile tag: %w", err)
+		}
+		tags = append(tags, &t)
+	}
+	return tags, rows.Err()
+}
+
+func (s *PostgresBrandStore) DeleteProfileTag(ctx context.Context, profileID, tagName string) error {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM brand_profile_tags WHERE profile_id = $1 AND name = $2`, profileID, tagName)
+	if err != nil {
+		return fmt.Errorf("delete profile tag: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("profile tag not found: %s/%s", profileID, tagName)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Scores by stream
+// ---------------------------------------------------------------------------
+
+func (s *PostgresBrandStore) GetScoresByStream(ctx context.Context, projectID, stream string) ([]*corebrand.StoredScore, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, project_id, stream, block_id, profile_id, profile_version, locale, score, dimensions, findings, checked_at
+		 FROM brand_voice_scores WHERE project_id = $1 AND stream = $2
+		 ORDER BY checked_at DESC`, projectID, stream)
+	if err != nil {
+		return nil, fmt.Errorf("query scores by stream: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*corebrand.StoredScore
+	for rows.Next() {
+		sc, err := scanScore(rows)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, sc)
+	}
+	return result, rows.Err()
+}
+
+// ---------------------------------------------------------------------------
 // Scan helpers
 // ---------------------------------------------------------------------------
 
@@ -351,7 +504,7 @@ func scanScore(row scanner) (*corebrand.StoredScore, error) {
 
 	err := row.Scan(
 		&sc.ID, &sc.ProjectID, &sc.Stream, &sc.BlockID, &sc.ProfileID,
-		&sc.Locale, &sc.Score, &dimsJSON, &findingsJSON, &sc.CheckedAt)
+		&sc.ProfileVersion, &sc.Locale, &sc.Score, &dimsJSON, &findingsJSON, &sc.CheckedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan brand score: %w", err)
 	}

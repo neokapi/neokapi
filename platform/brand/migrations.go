@@ -56,4 +56,30 @@ var brandMigrations = []storage.Migration{
 			CREATE INDEX idx_bvc_profile_dim ON brand_voice_corrections(profile_id, dimension);
 		`,
 	},
+	{
+		Version:     2,
+		Description: "add profile versioning, tags, and profile_version on scores",
+		SQL: `
+			CREATE TABLE brand_profile_versions (
+				profile_id TEXT NOT NULL,
+				version    INTEGER NOT NULL,
+				snapshot   JSONB NOT NULL,
+				note       TEXT NOT NULL DEFAULT '',
+				created_by TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (profile_id, version)
+			);
+
+			CREATE TABLE brand_profile_tags (
+				profile_id TEXT NOT NULL,
+				name       TEXT NOT NULL,
+				version    INTEGER NOT NULL,
+				created_by TEXT NOT NULL DEFAULT '',
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (profile_id, name)
+			);
+
+			ALTER TABLE brand_voice_scores ADD COLUMN profile_version INTEGER NOT NULL DEFAULT 0;
+		`,
+	},
 }
