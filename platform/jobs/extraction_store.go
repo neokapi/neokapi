@@ -14,6 +14,7 @@ type ExtractionJobStore interface {
 	GetExtractionJob(ctx context.Context, id string) (*ExtractionJob, error)
 	UpdateExtractionJobStatus(ctx context.Context, id string, status ExtractionJobStatus, errMsg string) error
 	UpdateExtractionJobProgress(ctx context.Context, id string, doneBlocks, totalBlocks, itemsCreated int) error
+	ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error)
 }
 
 // SQLiteExtractionJobStore implements ExtractionJobStore using SQLite.
@@ -91,4 +92,32 @@ func (s *SQLiteExtractionJobStore) UpdateExtractionJobProgress(ctx context.Conte
 		return fmt.Errorf("update extraction job progress: %w", err)
 	}
 	return nil
+}
+
+func (s *SQLiteExtractionJobStore) ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, model,
+				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
+		 FROM extraction_jobs WHERE push_id = ? ORDER BY created_at`, pushID)
+	if err != nil {
+		return nil, fmt.Errorf("list extraction jobs by push: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*ExtractionJob
+	for rows.Next() {
+		var j ExtractionJob
+		var status, createdAt, updatedAt string
+		if err := rows.Scan(
+			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
+			&j.PushID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
+			&j.ItemsCreated, &j.Error, &createdAt, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan extraction job: %w", err)
+		}
+		j.Status = ExtractionJobStatus(status)
+		j.CreatedAt, _ = time.Parse(time.RFC3339, createdAt)
+		j.UpdatedAt, _ = time.Parse(time.RFC3339, updatedAt)
+		result = append(result, &j)
+	}
+	return result, rows.Err()
 }
