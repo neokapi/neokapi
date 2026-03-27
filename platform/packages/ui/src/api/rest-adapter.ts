@@ -694,7 +694,12 @@ export class RestApiAdapter implements ApiAdapter {
   async updateProject(
     workspaceSlug: string,
     projectId: string,
-    data: { name?: string; target_languages?: string[]; dashboard_visibility?: string; properties?: Record<string, string> },
+    data: {
+      name?: string;
+      target_languages?: string[];
+      dashboard_visibility?: string;
+      properties?: Record<string, string>;
+    },
   ): Promise<ProjectInfo> {
     return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
       method: "PATCH",
@@ -1386,9 +1391,7 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     runId: string,
   ): Promise<{ run: AutomationRun; steps: AutomationStep[] }> {
-    return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}`,
-    );
+    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}`);
   }
 
   async listStepLogs(
@@ -1409,10 +1412,9 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     runId: string,
   ): Promise<void> {
-    await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}/cancel`,
-      { method: "POST" },
-    );
+    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}/cancel`, {
+      method: "POST",
+    });
   }
 
   // ── Notifications ──────────────────────────────────────────────────────
