@@ -143,6 +143,10 @@ The translator workflow ([AD-034](./034-translator-workflow.md)) extends the
 automation system with push completion tracking and task fan-out — translators
 receive tasks only after all prep-work automations finish.
 
+Automation run visibility ([AD-035](./035-automation-run-visibility.md)) adds
+GitHub Actions-style observability: run/step/log hierarchy, real-time progress,
+and structured log capture from workers.
+
 ### Automation Rule Persistence and Visual Editor (Server-Side)
 
 Automation rules are persisted in the database via `RuleStore` (SQLite

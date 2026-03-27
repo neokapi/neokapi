@@ -30,3 +30,4 @@ and other reference material.
 | [Entity & Term Extraction](entity-term-extraction.md) | [AD-022](/docs/ad/022-entity-term-extraction) | NER interface, extraction flow, review queue schema |
 | [Translation Job Queue](translation-job-queue.md) | [AD-008](/docs/ad/008-ai-integration) | Job model, worker algorithm, quota schema, queue backends |
 | [Translator Workflow](translator-workflow.md) | [AD-034](/docs/ad/034-translator-workflow) | PushCompletionTracker, task fan-out, source review, MCP tools |
+| [Automation Run Visibility](automation-run-visibility.md) | [AD-035](/docs/ad/035-automation-run-visibility) | Run/step/log model, RunManager, StepCompletionTracker, SSE, REST API |
