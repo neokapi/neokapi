@@ -34,6 +34,7 @@ import (
 	libtools "github.com/neokapi/neokapi/core/tools"
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	platconn "github.com/neokapi/neokapi/platform/connector"
+	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/neokapi/neokapi/platform/store"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -50,7 +51,7 @@ type Server struct {
 	BlobStore      corestorage.BlobStore
 	Services       *service.Services
 	AuthStore      auth.AuthStore
-	EventBus       *event.ChannelEventBus
+	EventBus       platev.EventBus
 	Echo           *echo.Echo
 
 	// wsStores manages per-workspace TM and terminology stores.
@@ -160,8 +161,7 @@ type Server struct {
 	// runHub manages SSE connections for live automation run updates. Always initialized.
 	runHub *automationRunHub
 
-	// leader provides distributed leader election for singleton components.
-	leader *bstore.LeaderElector
+
 
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
@@ -210,6 +210,30 @@ type Server struct {
 }
 
 // NewServer creates a new Server with the given configuration.
+// createEventBus selects the event bus backend based on configuration (AD-036).
+func createEventBus(cfg ServerConfig) platev.EventBus {
+	if cfg.ServiceBusConnection != "" {
+		bus, err := event.NewServiceBusEventBus(cfg.ServiceBusConnection)
+		if err != nil {
+			log.Printf("WARNING: failed to create Service Bus event bus: %v (falling back to in-memory)", err)
+			return event.NewChannelEventBus()
+		}
+		log.Println("Using Azure Service Bus event bus")
+		return bus
+	}
+	if cfg.NATSUrl != "" {
+		bus, err := event.NewNATSEventBus(cfg.NATSUrl)
+		if err != nil {
+			log.Printf("WARNING: failed to create NATS event bus: %v (falling back to in-memory)", err)
+			return event.NewChannelEventBus()
+		}
+		log.Println("Using NATS JetStream event bus")
+		return bus
+	}
+	log.Println("Using in-memory event bus (single instance only)")
+	return event.NewChannelEventBus()
+}
+
 func NewServer(cfg ServerConfig) *Server {
 	formatReg := registry.NewFormatRegistry()
 	formats.RegisterAll(formatReg)
@@ -224,7 +248,7 @@ func NewServer(cfg ServerConfig) *Server {
 		FormatRegistry:  formatReg,
 		ToolRegistry:    toolReg,
 		ConnectorReg:    connReg,
-		EventBus:        event.NewChannelEventBus(),
+		EventBus:        createEventBus(cfg),
 		wsStores:        newWorkspaceStores(),
 		collabHub:       newCollabHub(),
 		notificationHub: newNotificationHub(),
@@ -276,8 +300,6 @@ func NewServer(cfg ServerConfig) *Server {
 			s.ActivityStore = bstore.NewPostgresActivityStore(pgSQL)
 			s.TaskStore = bstore.NewPostgresTaskStore(pgSQL)
 			s.AutomationRunStore = bstore.NewAutomationRunStorePg(pgSQL)
-			s.leader = bstore.NewLeaderElector(pgSQL, bstore.DialectPostgres, "bowrain-server", 30*time.Second, 10*time.Second)
-			s.leader.Start()
 			s.PreferenceStore = bstore.NewPostgresPreferenceStore(pgSQL)
 			s.DigestStore = bstore.NewPostgresDigestStore(pgSQL)
 			s.BrandStore = pg.Brand
@@ -327,20 +349,8 @@ func NewServer(cfg ServerConfig) *Server {
 	// Wire up automation engine with run manager (AD-035).
 	s.runHub = newAutomationRunHub()
 
-	// Leader election for singleton components (#169).
-	// Uses the content store's DB for the leader_leases table.
-	if s.ContentStore != nil {
-		if sqliteStore, ok := s.ContentStore.(*bstore.SQLiteStore); ok {
-			s.leader = bstore.NewLeaderElector(sqliteStore.DB(), bstore.DialectSQLite, "bowrain-server", 30*time.Second, 10*time.Second)
-			s.leader.Start()
-		}
-	}
-
 	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
-	if s.leader != nil {
-		s.AutomationEngine.IsLeader = s.leader.IsLeader
-	}
 	s.registerDefaultAutomations()
 
 	// Wire up activity recorder (AD-027).
@@ -418,9 +428,6 @@ func NewServer(cfg ServerConfig) *Server {
 		if s.AutomationRunStore != nil {
 			s.pushCompletionTracker.SetRunStore(s.AutomationRunStore)
 		}
-		if s.leader != nil {
-			s.pushCompletionTracker.IsLeader = s.leader.IsLeader
-		}
 	}
 
 	// Wire up step completion tracker (AD-035).
@@ -428,9 +435,6 @@ func NewServer(cfg ServerConfig) *Server {
 		s.stepCompletionTracker = event.NewStepCompletionTracker(
 			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
 		)
-		if s.leader != nil {
-			s.stepCompletionTracker.IsLeader = s.leader.IsLeader
-		}
 	}
 
 	// Wire up run retention cleaner (AD-035): delete runs older than 30 days, check daily.

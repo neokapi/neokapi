@@ -128,6 +128,7 @@ type EventHandler func(Event)
 type Subscription struct {
 	ID        string
 	EventType EventType // Empty = all events
+	Group     string    // Consumer group name (for distributed buses; empty = broadcast)
 	Handler   EventHandler
 }
 
@@ -136,6 +137,10 @@ type EventBus interface {
 	Publish(event Event)
 	Subscribe(eventType EventType, handler EventHandler) *Subscription
 	SubscribeAll(handler EventHandler) *Subscription
+	// SubscribeGroup subscribes with a named consumer group. In distributed
+	// buses, only one instance in the group receives each event. Falls back
+	// to SubscribeAll for in-process buses.
+	SubscribeGroup(group string, handler EventHandler) *Subscription
 	Unsubscribe(sub *Subscription)
 	Close()
 }

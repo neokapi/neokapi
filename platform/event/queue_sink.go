@@ -129,7 +129,7 @@ func NewQueueSink(bus platev.EventBus, publisher QueuePublisher, config QueueSin
 		s.routes[r.EventType] = r.QueueFunc
 	}
 
-	s.sub = bus.SubscribeAll(s.handleEvent)
+	s.sub = bus.SubscribeGroup("queue-sink", s.handleEvent)
 	return s
 }
 

@@ -34,7 +34,7 @@ type AuditEntry struct {
 // NewAuditLogger creates and starts an audit logger that persists all events.
 func NewAuditLogger(db *sql.DB, bus platev.EventBus) *AuditLogger {
 	a := &AuditLogger{db: db, bus: bus}
-	a.sub = bus.SubscribeAll(a.handleEvent)
+	a.sub = bus.SubscribeGroup("audit-logger", a.handleEvent)
 	return a
 }
 
