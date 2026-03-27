@@ -708,4 +708,53 @@ var storeMigrations = []storage.Migration{
 			ALTER TABLE streams ADD COLUMN locked_at TEXT;
 		`,
 	},
+	{
+		Version:     31,
+		Description: "create automation_runs, automation_steps, automation_logs tables (AD-035)",
+		SQL: `
+			CREATE TABLE automation_runs (
+				id           TEXT PRIMARY KEY,
+				project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+				trigger_type TEXT NOT NULL,
+				trigger_id   TEXT NOT NULL DEFAULT '',
+				trigger_data TEXT NOT NULL DEFAULT '{}',
+				status       TEXT NOT NULL DEFAULT 'pending',
+				step_count   INTEGER NOT NULL DEFAULT 0,
+				done_count   INTEGER NOT NULL DEFAULT 0,
+				error        TEXT NOT NULL DEFAULT '',
+				started_at   TEXT NOT NULL DEFAULT (datetime('now')),
+				ended_at     TEXT
+			);
+			CREATE INDEX idx_automation_runs_project ON automation_runs(project_id);
+
+			CREATE TABLE automation_steps (
+				id          TEXT PRIMARY KEY,
+				run_id      TEXT NOT NULL REFERENCES automation_runs(id) ON DELETE CASCADE,
+				rule_name   TEXT NOT NULL DEFAULT '',
+				action_type TEXT NOT NULL,
+				status      TEXT NOT NULL DEFAULT 'pending',
+				config      TEXT NOT NULL DEFAULT '{}',
+				job_ids     TEXT NOT NULL DEFAULT '[]',
+				task_ids    TEXT NOT NULL DEFAULT '[]',
+				total_jobs  INTEGER NOT NULL DEFAULT 0,
+				done_jobs   INTEGER NOT NULL DEFAULT 0,
+				error       TEXT NOT NULL DEFAULT '',
+				started_at  TEXT NOT NULL DEFAULT (datetime('now')),
+				ended_at    TEXT
+			);
+			CREATE INDEX idx_automation_steps_run ON automation_steps(run_id);
+
+			CREATE TABLE automation_logs (
+				id        TEXT PRIMARY KEY,
+				step_id   TEXT NOT NULL,
+				run_id    TEXT NOT NULL,
+				level     TEXT NOT NULL DEFAULT 'info',
+				message   TEXT NOT NULL,
+				data      TEXT NOT NULL DEFAULT '{}',
+				timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+			);
+			CREATE INDEX idx_automation_logs_step ON automation_logs(step_id);
+			CREATE INDEX idx_automation_logs_run ON automation_logs(run_id);
+		`,
+	},
 }
