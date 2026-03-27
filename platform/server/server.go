@@ -729,9 +729,10 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		// Sync routes: accept either JWT or ClaimToken.
 		// Register both legacy (flat) and stream-scoped routes.
 		if s.AuthStore != nil {
+			legacySyncRateLimit := RateLimitSyncPush(10, 3)
 			syncGroup := v1.Group("/projects/:id/sync")
 			syncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
-			syncGroup.POST("/push", s.HandleSyncPush)
+			syncGroup.POST("/push", s.HandleSyncPush, legacySyncRateLimit)
 			syncGroup.GET("/pull", s.HandleSyncPull)
 			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
@@ -740,7 +741,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 			// Stream-scoped sync routes: /projects/:id/streams/:stream/sync/*
 			streamSyncGroup := v1.Group("/projects/:id/streams/:stream/sync")
 			streamSyncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
-			streamSyncGroup.POST("/push", s.HandleSyncPush)
+			streamSyncGroup.POST("/push", s.HandleSyncPush, legacySyncRateLimit)
 			streamSyncGroup.GET("/pull", s.HandleSyncPull)
 			streamSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
 			streamSyncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)

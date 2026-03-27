@@ -107,21 +107,23 @@ func TestSyncPull_Pagination(t *testing.T) {
 	authHeader := "Bearer " + token
 	pid := createProject(t, srv, token)
 
-	// Push 5 blocks.
+	// Push 5 blocks in a single request.
+	var blocks []string
 	for i := 0; i < 5; i++ {
-		body := fmt.Sprintf(`{"blocks":[{"id":"b%d","text":"text %d"}]}`, i, i)
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", authHeader)
-		rec := httptest.NewRecorder()
-		e.ServeHTTP(rec, req)
-		require.Equal(t, http.StatusOK, rec.Code)
+		blocks = append(blocks, fmt.Sprintf(`{"id":"b%d","text":"text %d"}`, i, i))
 	}
-
-	// Pull with limit=3.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0&limit=3", nil)
+	body := `{"blocks":[` + strings.Join(blocks, ",") + `]}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	// Pull with limit=3.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0&limit=3", nil)
+	req.Header.Set("Authorization", authHeader)
+	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
