@@ -156,19 +156,20 @@ const (
 // Every project has an implicit "main" stream. Additional streams branch
 // from a parent stream at a specific cursor position (copy-on-write).
 type Stream struct {
-	ProjectID   string           `json:"project_id"`
-	Name        string           `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
-	Parent      string           `json:"parent"`      // parent stream name; empty for "main"
-	BaseCursor  int64            `json:"base_cursor"` // cursor in parent at branch point
-	Archived    bool             `json:"archived"`
-	Locked      bool             `json:"locked"`                // when true, no further content changes are allowed
-	LockedBy    string           `json:"locked_by,omitempty"`   // user who locked the stream
-	LockedAt    *time.Time       `json:"locked_at,omitempty"`   // when the stream was locked
-	Visibility  StreamVisibility `json:"visibility"`            // "public", "private", "shared"
-	Description string           `json:"description"`           // human-readable purpose
-	SharedWith  []string         `json:"shared_with,omitempty"` // user IDs (only for "shared" visibility)
-	CreatedAt   time.Time        `json:"created_at"`
-	CreatedBy   string           `json:"created_by"`
+	ProjectID   string            `json:"project_id"`
+	Name        string            `json:"name"`        // "main", "v2.0", "feature/new-ui", "pr/142"
+	Parent      string            `json:"parent"`      // parent stream name; empty for "main"
+	BaseCursor  int64             `json:"base_cursor"` // cursor in parent at branch point
+	Archived    bool              `json:"archived"`
+	Locked      bool              `json:"locked"`                // when true, no further content changes are allowed
+	LockedBy    string            `json:"locked_by,omitempty"`   // user who locked the stream
+	LockedAt    *time.Time        `json:"locked_at,omitempty"`   // when the stream was locked
+	Visibility  StreamVisibility  `json:"visibility"`            // "public", "private", "shared"
+	Description string            `json:"description"`           // human-readable purpose
+	SharedWith  []string          `json:"shared_with,omitempty"` // user IDs (only for "shared" visibility)
+	Properties  map[string]string `json:"properties,omitempty"`  // extensible metadata (brand voice bindings, etc.)
+	CreatedAt   time.Time         `json:"created_at"`
+	CreatedBy   string            `json:"created_by"`
 }
 
 // ---------------------------------------------------------------------------

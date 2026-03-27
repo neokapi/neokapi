@@ -17,9 +17,30 @@ type VoiceProfile struct {
 	Channels    map[string]ChannelOverride `json:"channels,omitempty" yaml:"channels,omitempty"`
 	WorkspaceID string                     `json:"workspace_id" yaml:"workspace_id,omitempty"`
 	Version     int                        `json:"version" yaml:"version,omitempty"`
+	VersionNote string                     `json:"version_note,omitempty" yaml:"version_note,omitempty"`
 	CreatedAt   time.Time                  `json:"created_at" yaml:"created_at,omitempty"`
 	UpdatedAt   time.Time                  `json:"updated_at" yaml:"updated_at,omitempty"`
 	CreatedBy   string                     `json:"created_by,omitempty" yaml:"created_by,omitempty"`
+}
+
+// ProfileVersion is an immutable snapshot of a profile at a point in time.
+// Each UpdateProfile() call archives the previous state as a ProfileVersion.
+type ProfileVersion struct {
+	ProfileID string       `json:"profile_id"`
+	Version   int          `json:"version"`
+	Snapshot  VoiceProfile `json:"snapshot"`
+	Note      string       `json:"note"`
+	CreatedBy string       `json:"created_by"`
+	CreatedAt time.Time    `json:"created_at"`
+}
+
+// ProfileTag is a named reference to a specific profile version.
+type ProfileTag struct {
+	ProfileID string    `json:"profile_id"`
+	Name      string    `json:"name"`    // e.g., "v1.0-launch", "pre-rebrand"
+	Version   int       `json:"version"` // points to a specific ProfileVersion
+	CreatedBy string    `json:"created_by"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ToneProfile describes the desired tone characteristics.

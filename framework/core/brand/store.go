@@ -14,10 +14,21 @@ type BrandStore interface {
 	DeleteProfile(ctx context.Context, id string) error
 	ListProfiles(ctx context.Context, workspaceID string) ([]*VoiceProfile, error)
 
+	// Profile version history
+	ListProfileVersions(ctx context.Context, profileID string) ([]*ProfileVersion, error)
+	GetProfileVersion(ctx context.Context, profileID string, version int) (*ProfileVersion, error)
+	GetProfileAtTag(ctx context.Context, profileID, tagName string) (*VoiceProfile, error)
+
+	// Profile tags
+	CreateProfileTag(ctx context.Context, tag *ProfileTag) error
+	ListProfileTags(ctx context.Context, profileID string) ([]*ProfileTag, error)
+	DeleteProfileTag(ctx context.Context, profileID, tagName string) error
+
 	// Score storage
 	StoreScore(ctx context.Context, score *StoredScore) error
 	GetScores(ctx context.Context, projectID, locale string) ([]*StoredScore, error)
 	GetScoreTrends(ctx context.Context, projectID string, days int) ([]*ScoreTrend, error)
+	GetScoresByStream(ctx context.Context, projectID, stream string) ([]*StoredScore, error)
 
 	// Correction storage (feedback loop)
 	StoreCorrection(ctx context.Context, correction *Correction) error
@@ -28,16 +39,17 @@ type BrandStore interface {
 
 // StoredScore represents a persisted brand compliance score for a block.
 type StoredScore struct {
-	ID         string              `json:"id"`
-	ProjectID  string              `json:"project_id"`
-	Stream     string              `json:"stream"`
-	BlockID    string              `json:"block_id"`
-	ProfileID  string              `json:"profile_id"`
-	Locale     string              `json:"locale"`
-	Score      int                 `json:"score"`
-	Dimensions []DimensionScore    `json:"dimensions"`
-	Findings   []BrandVoiceFinding `json:"findings"`
-	CheckedAt  time.Time           `json:"checked_at"`
+	ID             string              `json:"id"`
+	ProjectID      string              `json:"project_id"`
+	Stream         string              `json:"stream"`
+	BlockID        string              `json:"block_id"`
+	ProfileID      string              `json:"profile_id"`
+	ProfileVersion int                 `json:"profile_version"`
+	Locale         string              `json:"locale"`
+	Score          int                 `json:"score"`
+	Dimensions     []DimensionScore    `json:"dimensions"`
+	Findings       []BrandVoiceFinding `json:"findings"`
+	CheckedAt      time.Time           `json:"checked_at"`
 }
 
 // Correction records a user correction to a brand voice finding.
