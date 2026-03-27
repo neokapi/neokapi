@@ -17,6 +17,7 @@ const chartConfig: ChartConfig = {
 interface TooltipPayload {
   payload?: {
     locale?: string;
+    displayName?: string;
     percentage?: number;
     translated_words?: number;
     total_words?: number;
@@ -32,7 +33,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
   return (
     <div className="rounded-lg border border-border/50 bg-background px-2.5 py-1.5 text-xs shadow-xl">
       <div className="font-medium">
-        {d.locale}: {d.percentage}% complete
+        {d.displayName ?? d.locale}: {d.percentage}% complete
       </div>
       <div className="text-muted-foreground">
         {(d.translated_words ?? 0).toLocaleString()} / {(d.total_words ?? 0).toLocaleString()} words
@@ -47,7 +48,8 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Toolti
 
 export function LocaleCompletionChart({ localeStats }: LocaleCompletionChartProps) {
   const data = localeStats.map((l) => ({
-    locale: l.locale,
+    locale: l.display_name ?? l.locale,
+    displayName: l.display_name,
     percentage: Math.round(l.percentage * 10) / 10,
     translated_words: l.translated_words,
     total_words: l.total_words,

@@ -127,6 +127,11 @@ export function TranslationDashboard({ stats, projectName, className }: Translat
         <FileProgressTable
           itemStats={stats.item_stats}
           locales={stats.locale_stats.map((l) => l.locale)}
+          localeDisplayNames={Object.fromEntries(
+            stats.locale_stats
+              .filter((l) => l.display_name)
+              .map((l) => [l.locale, l.display_name!]),
+          )}
         />
       )}
     </div>

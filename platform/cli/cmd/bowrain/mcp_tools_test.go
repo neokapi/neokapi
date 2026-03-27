@@ -42,8 +42,11 @@ func TestHandleProjectConfig(t *testing.T) {
 
 	_, out, err := handleProjectConfig()
 	require.NoError(t, err)
-	assert.Equal(t, "en", out.SourceLanguage)
-	assert.Equal(t, []string{"fr", "de"}, out.TargetLanguages)
+	assert.Equal(t, MCPLocaleInfo{Code: "en", DisplayName: "English"}, out.SourceLanguage)
+	assert.Equal(t, []MCPLocaleInfo{
+		{Code: "fr", DisplayName: "French"},
+		{Code: "de", DisplayName: "German"},
+	}, out.TargetLanguages)
 	assert.Equal(t, 1, out.ContentCount)
 	assert.Empty(t, out.ServerURL)
 }

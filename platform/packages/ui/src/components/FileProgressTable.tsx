@@ -6,6 +6,7 @@ import { cn } from "../lib/utils";
 interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];
   locales: string[];
+  localeDisplayNames?: Record<string, string>;
 }
 
 type SortField = "name" | "words" | "completion";
@@ -18,7 +19,7 @@ function completionBarColor(pct: number): string {
   return "bg-muted";
 }
 
-export function FileProgressTable({ itemStats, locales }: FileProgressTableProps) {
+export function FileProgressTable({ itemStats, locales, localeDisplayNames }: FileProgressTableProps) {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -99,7 +100,7 @@ export function FileProgressTable({ itemStats, locales }: FileProgressTableProps
                     key={l}
                     className="min-w-[80px] px-1 py-2 text-center font-medium text-muted-foreground"
                   >
-                    {l}
+                    {localeDisplayNames?.[l] ?? l}
                   </th>
                 ))}
               </tr>

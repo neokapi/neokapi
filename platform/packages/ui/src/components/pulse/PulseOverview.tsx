@@ -15,13 +15,16 @@ interface PulseOverviewProps {
     id: string;
     name: string;
     source_language: string;
+    source_language_display_name?: string;
     target_languages: string[];
+    target_language_names?: Record<string, string>;
     total_words: number;
     translated_words: number;
     percentage: number;
   }[];
   languages: {
     locale: string;
+    display_name?: string;
     translated_words: number;
     total_words: number;
     percentage: number;
@@ -73,8 +76,10 @@ export function PulseOverview({
               <PulseProjectCard
                 key={p.id}
                 name={p.name}
-                sourceLanguage={p.source_language}
-                targetLanguages={p.target_languages}
+                sourceLanguage={p.source_language_display_name ?? p.source_language}
+                targetLanguages={p.target_languages.map(
+                  (t) => p.target_language_names?.[t] ?? t,
+                )}
                 totalWords={p.total_words}
                 translatedWords={p.translated_words}
                 percentage={p.percentage}
