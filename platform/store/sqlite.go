@@ -540,13 +540,32 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 	}
 	defer stmt.Close()
 
-	// Prepare change log statement for detecting add vs modify.
-	hashStmt, err := tx.PrepareContext(ctx,
-		`SELECT content_hash FROM blocks WHERE project_id = ? AND id = ?`)
-	if err != nil {
-		return fmt.Errorf("prepare hash lookup: %w", err)
+	// Batch-load existing block hashes (replaces per-block SELECT).
+	existingHashes := map[string]string{} // block_id → content_hash
+	{
+		var hashQuery string
+		var hashArgs []any
+		if itemName != "" {
+			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=? AND item_name=?`
+			hashArgs = []any{projectID, itemName}
+		} else {
+			hashQuery = `SELECT id, content_hash FROM blocks WHERE project_id=?`
+			hashArgs = []any{projectID}
+		}
+		hashRows, err := tx.QueryContext(ctx, hashQuery, hashArgs...)
+		if err != nil {
+			return fmt.Errorf("batch hash lookup: %w", err)
+		}
+		for hashRows.Next() {
+			var bid, ch string
+			if err := hashRows.Scan(&bid, &ch); err != nil {
+				hashRows.Close()
+				return fmt.Errorf("scan hash: %w", err)
+			}
+			existingHashes[bid] = ch
+		}
+		hashRows.Close()
 	}
-	defer hashStmt.Close()
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	for _, b := range blocks {
@@ -554,7 +573,6 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 		internalID := b.ID
 
 		if itemName != "" {
-			// The block's ID is a format-reader-assigned ID; map it to an internal ID.
 			sourceID = b.ID
 			if existingID, found := existingSourceIDs[sourceID]; found {
 				internalID = existingID
@@ -567,10 +585,9 @@ func (s *SQLiteStore) storeBlocks(ctx context.Context, projectID, stream, itemNa
 
 		identity := model.ComputeIdentity(b)
 
-		// Check existing hash for change log.
-		var existingHash string
-		err := hashStmt.QueryRowContext(ctx, projectID, internalID).Scan(&existingHash)
-		isNew := err == sql.ErrNoRows
+		existingHash, isExisting := existingHashes[internalID]
+		isNew := !isExisting
+		_ = existingHash // used in change detection below
 
 		// Record target history before overwriting.
 		if !isNew && len(b.Targets) > 0 {
