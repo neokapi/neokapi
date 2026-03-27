@@ -233,6 +233,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 				ProviderConfigID: "platform",
 				Model:            model,
 				PushID:           pushID,
+				StepID:           stepID,
 				Status:           jobs.StatusQueued,
 			}
 
@@ -328,6 +329,7 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 			ItemName:      itemName,
 			Locale:        locale,
 			PushID:        pushID,
+			StepID:        stepID,
 			Model:         model,
 			Status:        jobs.ExtractionStatusQueued,
 		}

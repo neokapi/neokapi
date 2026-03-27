@@ -40,11 +40,11 @@ func (s *SQLiteExtractionJobStore) CreateExtractionJob(ctx context.Context, job 
 
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO extraction_jobs
-			(id, workspace_slug, project_id, item_name, locale, push_id, model,
+			(id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
 			 status, total_blocks, done_blocks, items_created, error, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		job.ID, job.WorkspaceSlug, job.ProjectID, job.ItemName, job.Locale,
-		job.PushID, job.Model, string(job.Status), job.TotalBlocks,
+		job.PushID, job.StepID, job.Model, string(job.Status), job.TotalBlocks,
 		job.DoneBlocks, job.ItemsCreated, job.Error,
 		now.Format(time.RFC3339), now.Format(time.RFC3339))
 	if err != nil {
@@ -55,7 +55,7 @@ func (s *SQLiteExtractionJobStore) CreateExtractionJob(ctx context.Context, job 
 
 func (s *SQLiteExtractionJobStore) GetExtractionJob(ctx context.Context, id string) (*ExtractionJob, error) {
 	row := s.db.QueryRowContext(ctx,
-		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, model,
+		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
 				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
 		 FROM extraction_jobs WHERE id = ?`, id)
 
@@ -63,7 +63,7 @@ func (s *SQLiteExtractionJobStore) GetExtractionJob(ctx context.Context, id stri
 	var status, createdAt, updatedAt string
 	err := row.Scan(
 		&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
-		&j.PushID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
+		&j.PushID, &j.StepID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
 		&j.ItemsCreated, &j.Error, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("scan extraction job: %w", err)
@@ -96,7 +96,7 @@ func (s *SQLiteExtractionJobStore) UpdateExtractionJobProgress(ctx context.Conte
 
 func (s *SQLiteExtractionJobStore) ListByPushID(ctx context.Context, pushID string) ([]*ExtractionJob, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, model,
+		`SELECT id, workspace_slug, project_id, item_name, locale, push_id, step_id, model,
 				status, total_blocks, done_blocks, items_created, error, created_at, updated_at
 		 FROM extraction_jobs WHERE push_id = ? ORDER BY created_at`, pushID)
 	if err != nil {
@@ -110,7 +110,7 @@ func (s *SQLiteExtractionJobStore) ListByPushID(ctx context.Context, pushID stri
 		var status, createdAt, updatedAt string
 		if err := rows.Scan(
 			&j.ID, &j.WorkspaceSlug, &j.ProjectID, &j.ItemName, &j.Locale,
-			&j.PushID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
+			&j.PushID, &j.StepID, &j.Model, &status, &j.TotalBlocks, &j.DoneBlocks,
 			&j.ItemsCreated, &j.Error, &createdAt, &updatedAt); err != nil {
 			return nil, fmt.Errorf("scan extraction job: %w", err)
 		}

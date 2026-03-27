@@ -157,6 +157,9 @@ type Server struct {
 	// stepCompletionTracker monitors async automation steps. Nil when not configured.
 	stepCompletionTracker *event.StepCompletionTracker
 
+	// runHub manages SSE connections for live automation run updates. Always initialized.
+	runHub *automationRunHub
+
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore
 
@@ -317,6 +320,7 @@ func NewServer(cfg ServerConfig) *Server {
 	}
 
 	// Wire up automation engine with run manager (AD-035).
+	s.runHub = newAutomationRunHub()
 	runManager := event.NewAutomationRunManager(s.AutomationRunStore, s.executeAutomationAction)
 	s.AutomationEngine = event.NewAutomationEngine(s.EventBus, runManager.Execute)
 	s.registerDefaultAutomations()
@@ -400,6 +404,11 @@ func NewServer(cfg ServerConfig) *Server {
 		s.stepCompletionTracker = event.NewStepCompletionTracker(
 			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
 		)
+	}
+
+	// Wire up run retention cleaner (AD-035): delete runs older than 30 days, check daily.
+	if s.AutomationRunStore != nil {
+		_ = event.NewRunRetentionCleaner(s.AutomationRunStore, 30*24*time.Hour, 24*time.Hour)
 	}
 
 	// Wire up graph sync if graph store is available.
@@ -1000,6 +1009,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.GET("/projects/:id/automation-runs/:runId/steps", s.HandleListAutomationRunSteps)
 	g.GET("/projects/:id/automation-runs/:runId/steps/:stepId/logs", s.HandleListStepLogs)
 	g.POST("/projects/:id/automation-runs/:runId/cancel", s.HandleCancelAutomationRun)
+	g.GET("/projects/:id/automation-runs/:runId/events", s.HandleAutomationRunSSE)
 
 	// Review queue (project-scoped, AD-022)
 	g.GET("/projects/:id/review-queue", s.HandleListReviewQueue)

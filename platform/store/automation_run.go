@@ -365,6 +365,29 @@ func (s *AutomationRunStore) ListLogs(ctx context.Context, stepID string, limit 
 }
 
 // ---------------------------------------------------------------------------
+// Retention
+// ---------------------------------------------------------------------------
+
+// DeleteRunsOlderThan removes automation runs (and cascading steps/logs) older than the given duration.
+func (s *AutomationRunStore) DeleteRunsOlderThan(ctx context.Context, age time.Duration) (int64, error) {
+	cutoff := time.Now().UTC().Add(-age).Format(time.RFC3339)
+
+	// Delete logs for old runs first (no cascade in SQLite for this table).
+	_, _ = s.db.ExecContext(ctx,
+		Rebind(s.dialect, `DELETE FROM automation_logs WHERE run_id IN
+			(SELECT id FROM automation_runs WHERE started_at < ?)`), cutoff)
+
+	// Steps cascade via FK on runs.
+	res, err := s.db.ExecContext(ctx,
+		Rebind(s.dialect, `DELETE FROM automation_runs WHERE started_at < ?`), cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("delete old runs: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+// ---------------------------------------------------------------------------
 // Scan helpers
 // ---------------------------------------------------------------------------
 
