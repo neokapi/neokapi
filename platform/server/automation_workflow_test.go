@@ -339,3 +339,216 @@ func extractUserIDs(members []*platauth.ProjectMembership) []string {
 	}
 	return ids
 }
+
+// TestWorkflowEndToEnd tests the full chain:
+// EventPushAutomationsCompleted → automation engine → create_review_tasks → tasks created
+func TestWorkflowEndToEnd(t *testing.T) {
+	srv, _, wsID := newWorkflowTestServer(t)
+	ctx := context.Background()
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{
+		"workflow_enabled": "true",
+	})
+	frUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
+	deUser := addProjectMember(t, srv, wsID, projID, "reviewer", []string{"de-DE"})
+
+	// Wire up the automation engine with the server's action executor.
+	engine := event.NewAutomationEngine(srv.EventBus, srv.executeAutomationAction)
+	defer engine.Close()
+
+	// Register the built-in rule: push.automations.completed → create_review_tasks
+	engine.AddRule(event.AutomationRule{
+		Name:      "create-review-tasks",
+		EventType: platev.EventPushAutomationsCompleted,
+		Actions: []event.AutomationAction{
+			{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
+		},
+	})
+
+	// Simulate: push automations completed (normally emitted by PushCompletionTracker).
+	srv.EventBus.Publish(platev.Event{
+		Type:      platev.EventPushAutomationsCompleted,
+		Source:    "push_completion_tracker",
+		ProjectID: projID,
+		Actor:     "system",
+		Data: map[string]string{
+			"push_id":            "push-e2e",
+			"items":              "en.json",
+			"workspace_slug":     "test-ws",
+			"translation_status": "all_completed",
+			"extraction_status":  "none",
+		},
+	})
+
+	// Wait for async automation execution.
+	require.Eventually(t, func() bool {
+		res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
+			WorkspaceID: wsID,
+			ProjectID:   projID,
+		})
+		return err == nil && len(res.Tasks) >= 2
+	}, 3*time.Second, 100*time.Millisecond, "tasks should be created by automation")
+
+	// Verify tasks.
+	res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
+		WorkspaceID: wsID,
+		ProjectID:   projID,
+	})
+	require.NoError(t, err)
+
+	localeAssignees := map[string]string{}
+	for _, task := range res.Tasks {
+		assert.Equal(t, bstore.TaskReview, task.Type)
+		assert.Equal(t, "push-e2e", task.Data["push_id"])
+		localeAssignees[task.Data["locale"]] = task.AssigneeID
+	}
+	assert.Equal(t, frUser, localeAssignees["fr-FR"])
+	assert.Equal(t, deUser, localeAssignees["de-DE"])
+}
+
+// TestWorkflowEndToEnd_SourceReviewGate tests the full chain with source review:
+// EventPushAutomationsCompleted → create_source_review → complete task →
+// EventSourceReviewCompleted → create_review_tasks → tasks created
+func TestWorkflowEndToEnd_SourceReviewGate(t *testing.T) {
+	srv, token, wsID := newWorkflowTestServer(t)
+	ctx := context.Background()
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{
+		"workflow_enabled": "true",
+	})
+	addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
+	addProjectMember(t, srv, wsID, projID, "reviewer", []string{"de-DE"})
+
+	// Wire up the automation engine.
+	engine := event.NewAutomationEngine(srv.EventBus, srv.executeAutomationAction)
+	defer engine.Close()
+
+	// Rule 1: push.automations.completed → create_source_review
+	engine.AddRule(event.AutomationRule{
+		Name:      "source-review-gate",
+		EventType: platev.EventPushAutomationsCompleted,
+		Actions: []event.AutomationAction{
+			{Type: "create_source_review", Config: map[string]string{"reviewer": "admin-1"}},
+		},
+	})
+
+	// Rule 2: source.review.completed → create_review_tasks
+	engine.AddRule(event.AutomationRule{
+		Name:      "fan-out-after-review",
+		EventType: platev.EventSourceReviewCompleted,
+		Actions: []event.AutomationAction{
+			{Type: "create_review_tasks", Config: map[string]string{"mode": "review"}},
+		},
+	})
+
+	// Simulate: push automations completed.
+	srv.EventBus.Publish(platev.Event{
+		Type:      platev.EventPushAutomationsCompleted,
+		Source:    "push_completion_tracker",
+		ProjectID: projID,
+		Data: map[string]string{
+			"push_id":            "push-gate",
+			"items":              "en.json",
+			"workspace_slug":     "test-ws",
+			"translation_status": "all_completed",
+			"extraction_status":  "none",
+		},
+	})
+
+	// Wait for source review task to be created.
+	var sourceReviewTaskID string
+	require.Eventually(t, func() bool {
+		res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
+			WorkspaceID: wsID,
+			ProjectID:   projID,
+			Type:        "source_review",
+		})
+		if err != nil || len(res.Tasks) == 0 {
+			return false
+		}
+		sourceReviewTaskID = res.Tasks[0].ID
+		return true
+	}, 3*time.Second, 100*time.Millisecond, "source review task should be created")
+
+	// At this point, no review tasks should exist yet (only source review).
+	res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
+		WorkspaceID: wsID,
+		ProjectID:   projID,
+		Type:        "review",
+	})
+	require.NoError(t, err)
+	assert.Empty(t, res.Tasks, "no review tasks before source review completed")
+
+	// Complete the source review task via API (triggers EventSourceReviewCompleted).
+	e := srv.GetEcho()
+	req := httptest.NewRequest(http.MethodPost,
+		"/api/v1/workspaces/test-ws/tasks/"+sourceReviewTaskID+"/complete", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	// Wait for review tasks to be created by the fan-out rule.
+	require.Eventually(t, func() bool {
+		res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
+			WorkspaceID: wsID,
+			ProjectID:   projID,
+			Type:        "review",
+		})
+		return err == nil && len(res.Tasks) >= 2
+	}, 3*time.Second, 100*time.Millisecond, "review tasks should be created after source review")
+
+	// Verify review tasks were created for both locales.
+	res, err = srv.TaskStore.List(ctx, bstore.TaskQuery{
+		WorkspaceID: wsID,
+		ProjectID:   projID,
+		Type:        "review",
+	})
+	require.NoError(t, err)
+	assert.Len(t, res.Tasks, 2)
+
+	locales := map[string]bool{}
+	for _, task := range res.Tasks {
+		locales[task.Data["locale"]] = true
+	}
+	assert.True(t, locales["fr-FR"])
+	assert.True(t, locales["de-DE"])
+}
+
+// TestWorkflowDeduplication verifies that duplicate tasks are not created.
+func TestWorkflowDeduplication(t *testing.T) {
+	srv, _, wsID := newWorkflowTestServer(t)
+	ctx := context.Background()
+
+	projID := createWorkflowProject(t, srv, wsID, map[string]string{
+		"workflow_enabled": "true",
+	})
+	addProjectMember(t, srv, wsID, projID, "reviewer", []string{"fr-FR"})
+
+	action := event.AutomationAction{
+		Type:   "create_review_tasks",
+		Config: map[string]string{"mode": "review"},
+	}
+	ev := platev.Event{
+		ProjectID: projID,
+		Data:      map[string]string{"push_id": "p1", "items": "en.json"},
+	}
+
+	// Create tasks twice.
+	srv.createReviewTasks(ctx, action, ev)
+	srv.createReviewTasks(ctx, action, ev)
+
+	res, err := srv.TaskStore.List(ctx, bstore.TaskQuery{
+		WorkspaceID: wsID,
+		ProjectID:   projID,
+		Type:        "review",
+	})
+	require.NoError(t, err)
+
+	// fr-FR should have 1 task (dedup), de-DE should have 1 unassigned task (dedup).
+	frTasks := filterTasksByLocale(res.Tasks, "fr-FR")
+	assert.Len(t, frTasks, 1, "duplicate fr-FR tasks should be prevented")
+
+	deTasks := filterTasksByLocale(res.Tasks, "de-DE")
+	assert.Len(t, deTasks, 1, "duplicate de-DE tasks should be prevented")
+}
