@@ -19,7 +19,7 @@ describe("PulseProjectCard", () => {
 
   it("shows language pair", () => {
     render(<PulseProjectCard {...defaultProps} />);
-    expect(screen.getByText("en-US → fr-FR, de-DE")).toBeTruthy();
+    expect(screen.getByText("English → French, German")).toBeTruthy();
   });
 
   it("calls onClick when clicked", () => {
