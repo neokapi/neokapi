@@ -236,7 +236,10 @@ func (c *BowrainClient) uploadChunk(ctx context.Context, uploadID string, index 
 		return nil, fmt.Errorf("marshal chunk: %w", err)
 	}
 
-	// TODO: zstd compress here when enabled
+	// Compress with zstd.
+	if c.compressor != nil {
+		data = c.compressor.Compress(data)
+	}
 
 	// Upload via proxy (local dev) — direct SAS upload can be added later.
 	u := c.streamPrefix() + fmt.Sprintf("/sync/push/chunks/%s/%d", uploadID, index)
