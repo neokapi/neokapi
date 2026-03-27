@@ -13,7 +13,7 @@ import (
 var pgJobMigrations = []storage.Migration{
 	{
 		Version:     1,
-		Description: "create translation_jobs table",
+		Description: "translation jobs schema",
 		SQL: `
 			CREATE TABLE IF NOT EXISTS translation_jobs (
 				id                 TEXT PRIMARY KEY,
@@ -22,39 +22,21 @@ var pgJobMigrations = []storage.Migration{
 				item_name          TEXT NOT NULL,
 				target_locale      TEXT NOT NULL,
 				provider_config_id TEXT NOT NULL DEFAULT '',
+				model              TEXT NOT NULL DEFAULT '',
+				push_id            TEXT NOT NULL DEFAULT '',
+				step_id            TEXT NOT NULL DEFAULT '',
 				status             TEXT NOT NULL DEFAULT 'queued',
 				progress           INTEGER NOT NULL DEFAULT 0,
 				total_blocks       INTEGER NOT NULL DEFAULT 0,
 				done_blocks        INTEGER NOT NULL DEFAULT 0,
+				tokens_used        INTEGER NOT NULL DEFAULT 0,
 				error              TEXT NOT NULL DEFAULT '',
 				created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 				updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
 			CREATE INDEX IF NOT EXISTS idx_jobs_workspace ON translation_jobs(workspace_slug, created_at DESC);
 			CREATE INDEX IF NOT EXISTS idx_jobs_status ON translation_jobs(status);
-		`,
-	},
-	{
-		Version:     2,
-		Description: "add model and tokens_used columns",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS model TEXT NOT NULL DEFAULT '';
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS tokens_used INTEGER NOT NULL DEFAULT 0;
-		`,
-	},
-	{
-		Version:     3,
-		Description: "add push_id column",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS push_id TEXT NOT NULL DEFAULT '';
 			CREATE INDEX IF NOT EXISTS idx_jobs_push_id ON translation_jobs(push_id) WHERE push_id != '';
-		`,
-	},
-	{
-		Version:     4,
-		Description: "add step_id column for automation run tracking (AD-035)",
-		SQL: `
-			ALTER TABLE translation_jobs ADD COLUMN IF NOT EXISTS step_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
