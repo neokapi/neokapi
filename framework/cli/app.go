@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/registry"
+	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,7 @@ import (
 // CLI tools create an App instance and attach shared commands.
 type App struct {
 	FormatReg    *registry.FormatRegistry
+	ToolReg      *registry.ToolRegistry
 	SchemaReg    *schema.SchemaRegistry
 	PluginLoader *loader.PluginLoader
 	Config       *config.AppConfig
@@ -68,6 +70,9 @@ func (a *App) AddProcessingFlags(cmd *cobra.Command) {
 func (a *App) Init() {
 	a.FormatReg = registry.NewFormatRegistry()
 	formats.RegisterAll(a.FormatReg)
+
+	a.ToolReg = registry.NewToolRegistry()
+	libtools.RegisterAll(a.ToolReg)
 
 	// Create unified schema registry and collect native format schemas.
 	a.SchemaReg = schema.NewSchemaRegistry()
