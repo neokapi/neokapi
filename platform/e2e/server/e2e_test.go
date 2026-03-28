@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -16,7 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const serverURL = "http://localhost:8080"
+var serverURL = getServerURL()
+
+func getServerURL() string {
+	if u := os.Getenv("BOWRAIN_URL"); u != "" {
+		return u
+	}
+	return "http://localhost:8080"
+}
 
 // helper to make JSON requests with optional auth token.
 func apiRequest(t *testing.T, method, path, token string, body string) *http.Response {
