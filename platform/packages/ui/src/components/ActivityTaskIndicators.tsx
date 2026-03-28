@@ -76,21 +76,27 @@ export function ActivityIndicator({
   onViewAll,
 }: ActivityIndicatorProps) {
   const [open, setOpen] = useState(false);
+  const [seenCount, setSeenCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close);
 
-  const hasActivities = activities.length > 0;
+  const hasNew = activities.length > seenCount;
 
   return (
     <div ref={ref} className="relative">
       <button
         className="flex items-center justify-center w-7 h-7 rounded bg-transparent border-none cursor-pointer transition-colors text-muted-foreground hover:text-foreground relative"
         title="Recent activity"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          setOpen((prev) => {
+            if (!prev) setSeenCount(activities.length);
+            return !prev;
+          });
+        }}
       >
         <Clock className="w-4 h-4" />
-        {hasActivities && <DotIndicator />}
+        {hasNew && <DotIndicator />}
       </button>
 
       {open && (
