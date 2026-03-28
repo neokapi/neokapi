@@ -705,10 +705,7 @@ func deriveAppURL(origin string) string {
 	if idx := strings.Index(host, "://"); idx >= 0 {
 		host = host[idx+3:]
 	}
-	// Remove "ctrl." prefix.
-	if strings.HasPrefix(host, "ctrl.") {
-		host = host[5:]
-	}
+	host = strings.TrimPrefix(host, "ctrl.")
 	return "https://" + host
 }
 
