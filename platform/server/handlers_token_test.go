@@ -50,7 +50,7 @@ func TestCreateToken(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"name":"CI Token"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -74,7 +74,7 @@ func TestCreateTokenWithExpiration(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"name":"Short-lived","expire_days":30}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -94,7 +94,7 @@ func TestCreateTokenWithScopes(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"name":"Scoped Token","scopes":["translate:fr,de"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -114,7 +114,7 @@ func TestCreateTokenWithInvalidScopes(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"name":"Bad Scopes","scopes":["delete"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -129,7 +129,7 @@ func TestCreateTokenWithMultipleScopes(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"name":"Multi Scope","scopes":["read","translate:fr"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -149,7 +149,7 @@ func TestCreateTokenScopesPersistedInList(t *testing.T) {
 
 	// Create a scoped token.
 	body := `{"name":"Review Token","scopes":["review"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -158,7 +158,7 @@ func TestCreateTokenScopesPersistedInList(t *testing.T) {
 	require.Equal(t, http.StatusCreated, rec.Code)
 
 	// List tokens and verify scopes persisted.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/tokens", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/tokens", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -175,7 +175,7 @@ func TestCreateTokenMissingName(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -192,7 +192,7 @@ func TestListTokens(t *testing.T) {
 	// Create 2 tokens.
 	for _, name := range []string{"Token A", "Token B"} {
 		body := `{"name":"` + name + `"}`
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 			strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+jwt)
@@ -202,7 +202,7 @@ func TestListTokens(t *testing.T) {
 	}
 
 	// List tokens.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/tokens", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/tokens", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -220,7 +220,7 @@ func TestDeleteToken(t *testing.T) {
 
 	// Create a token.
 	body := `{"name":"Doomed Token"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -232,14 +232,14 @@ func TestDeleteToken(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
 
 	// Delete it.
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/workspaces/"+wsSlug+"/tokens/"+created.ID, nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/"+wsSlug+"/tokens/"+created.ID, nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 
 	// List should be empty.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/tokens", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/tokens", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -256,7 +256,7 @@ func TestUseAPITokenForAuth(t *testing.T) {
 
 	// Create a token via the API.
 	body := `{"name":"Auth Token"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/tokens",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/tokens",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)

@@ -98,11 +98,11 @@ func (room *collabRoom) broadcast(sender *collabClient, msg []byte) {
 }
 
 // HandleCollabWebSocket handles WebSocket connections for collaborative editing.
-// Route: GET /api/v1/workspaces/:ws/editor/projects/:pid/collab/*
+// Route: GET /api/v1/:ws/:id/collab/:ref
 // Query params: locale (required)
 func (s *Server) HandleCollabWebSocket(c echo.Context) error {
 	ws := c.Param("ws")
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 	locale := c.QueryParam("locale")
 

@@ -64,11 +64,11 @@ func TestCollabWebSocket_RequiresLocale(t *testing.T) {
 	s := &Server{collabHub: newCollabHub()}
 	e := echo.New()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/ws1/editor/projects/p1/collab/file.html", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws1/p1/collab/main?item=file.html", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "pid", "fname")
-	c.SetParamValues("ws1", "p1", "file.html")
+	c.SetParamNames("ws", "pid")
+	c.SetParamValues("ws1", "p1")
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)
@@ -81,11 +81,11 @@ func TestCollabWebSocket_RequiresAuth(t *testing.T) {
 	s := &Server{collabHub: newCollabHub()}
 	e := echo.New()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/ws1/editor/projects/p1/collab/file.html?locale=fr", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws1/p1/collab/main?item=file.html&locale=fr", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	c.SetParamNames("ws", "pid", "fname")
-	c.SetParamValues("ws1", "p1", "file.html")
+	c.SetParamNames("ws", "pid")
+	c.SetParamValues("ws1", "p1")
 
 	err := s.HandleCollabWebSocket(c)
 	require.Error(t, err)

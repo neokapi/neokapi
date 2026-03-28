@@ -25,7 +25,7 @@ func (s *Server) HandleAddBlockNote(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 
 	var req struct {
@@ -80,7 +80,7 @@ func (s *Server) HandleListBlockNotes(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 
 	notes, err := s.ContentStore.ListBlockNotes(c.Request().Context(), pid, "main", bid)
@@ -102,7 +102,7 @@ func (s *Server) HandleDeleteBlockNote(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	nid := c.Param("nid")
 
 	if err := s.ContentStore.DeleteBlockNote(c.Request().Context(), pid, "main", nid); err != nil {

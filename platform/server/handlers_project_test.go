@@ -43,9 +43,9 @@ func TestProjectCRUDEndpoints(t *testing.T) {
 	e := srv.GetEcho()
 	authHeader := "Bearer " + token
 
-	// Create project.
+	// Create project (workspace-scoped: /api/v1/:ws/projects).
 	body := `{"name":"Test","default_source_language":"en","target_languages":["fr","de"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
@@ -58,15 +58,15 @@ func TestProjectCRUDEndpoints(t *testing.T) {
 	assert.NotEmpty(t, project.ID)
 	projectID := project.ID
 
-	// Get project.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+projectID, nil)
+	// Get project (workspace-scoped: /api/v1/:ws/:pid).
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+projectID, nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	// List projects.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects", nil)
+	// List projects (workspace-scoped: /api/v1/:ws/projects).
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/projects", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -76,92 +76,19 @@ func TestProjectCRUDEndpoints(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &projects))
 	assert.Len(t, projects, 1)
 
-	// Update project.
+	// Update project (workspace-scoped: /api/v1/:ws/:pid).
 	body = `{"name":"Updated","default_source_language":"en","target_languages":["fr"]}`
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/projects/"+projectID, strings.NewReader(body))
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/test/"+projectID, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	// Delete project.
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+projectID, nil)
+	// Delete project (workspace-scoped: /api/v1/:ws/:pid).
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/test/"+projectID, nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
-}
-
-func TestBlockEndpoints(t *testing.T) {
-	srv, token := newTestServer(t)
-	e := srv.GetEcho()
-	authHeader := "Bearer " + token
-
-	// Create project first.
-	body := `{"name":"Test","default_source_language":"en"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusCreated, rec.Code)
-
-	var project store.Project
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &project))
-
-	// Store blocks.
-	blocksBody := `{"blocks":[{"id":"b1","text":"Hello"},{"id":"b2","text":"World"}]}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+project.ID+"/blocks", strings.NewReader(blocksBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	// Get blocks.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+project.ID+"/blocks", nil)
-	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusOK, rec.Code)
-}
-
-func TestVersionEndpoints(t *testing.T) {
-	srv, token := newTestServer(t)
-	e := srv.GetEcho()
-	authHeader := "Bearer " + token
-
-	// Create project + blocks.
-	body := `{"name":"Test","default_source_language":"en"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	var project store.Project
-	_ = json.Unmarshal(rec.Body.Bytes(), &project)
-
-	blocksBody := `{"blocks":[{"id":"b1","text":"Hello"}]}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+project.ID+"/blocks", strings.NewReader(blocksBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-
-	// Create version.
-	versionBody := `{"label":"v1.0","description":"Initial"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+project.ID+"/versions", strings.NewReader(versionBody))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusCreated, rec.Code)
-
-	// List versions.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+project.ID+"/versions", nil)
-	req.Header.Set("Authorization", authHeader)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusOK, rec.Code)
 }

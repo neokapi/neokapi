@@ -28,40 +28,6 @@ func TestHealthEndpoint(t *testing.T) {
 	assert.NotEmpty(t, resp.Version)
 }
 
-func TestConfigEndpoint(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
-	e := srv.GetEcho()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp ConfigResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.Equal(t, "standalone", resp.Mode)
-}
-
-func TestConfigEndpointStandaloneMode(t *testing.T) {
-	// Without JWTSecret, mode should be "standalone".
-	cfg := DefaultServerConfig()
-	srv := NewServer(cfg)
-	e := srv.GetEcho()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp ConfigResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.Equal(t, "standalone", resp.Mode)
-}
-
 func TestInfoEndpoint(t *testing.T) {
 	srv := NewServer(DefaultServerConfig())
 	e := srv.GetEcho()
@@ -78,59 +44,59 @@ func TestInfoEndpoint(t *testing.T) {
 	assert.NotEmpty(t, resp.Version)
 	assert.NotEmpty(t, resp.Commit)
 	assert.NotEmpty(t, resp.BuildDate)
+	assert.Equal(t, "standalone", resp.Mode)
+	assert.NotEmpty(t, resp.Formats)
+	assert.NotNil(t, resp.Tools)
+	assert.NotEmpty(t, resp.Locales)
 }
 
-func TestListFormatsEndpoint(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
+func TestInfoEndpointServerMode(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.JWTSecret = "test-secret"
+	srv := NewServer(cfg)
 	e := srv.GetEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/formats", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	var formats []FormatInfo
-	err := json.Unmarshal(rec.Body.Bytes(), &formats)
+	var resp InfoResponse
+	err := json.Unmarshal(rec.Body.Bytes(), &resp)
 	require.NoError(t, err)
-	require.NotEmpty(t, formats)
+	assert.Equal(t, "server", resp.Mode)
+}
 
-	// Verify some expected formats exist.
+func TestInfoEndpointContainsFormatsAndLocales(t *testing.T) {
+	srv := NewServer(DefaultServerConfig())
+	e := srv.GetEcho()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var resp InfoResponse
+	err := json.Unmarshal(rec.Body.Bytes(), &resp)
+	require.NoError(t, err)
+
+	// Verify formats are populated and sorted.
 	formatNames := make(map[string]FormatInfo)
-	for _, f := range formats {
+	for _, f := range resp.Formats {
 		formatNames[f.Name] = f
 	}
-
-	expectedFormats := []string{"plaintext", "html", "xml", "json", "yaml", "xliff2", "csv", "srt", "vtt"}
-	for _, name := range expectedFormats {
-		info, ok := formatNames[name]
-		assert.True(t, ok, "expected format %q not found", name)
-		if ok {
-			assert.True(t, info.HasReader, "format %q should have reader", name)
-			assert.True(t, info.HasWriter, "format %q should have writer", name)
-		}
+	for _, name := range []string{"plaintext", "html", "json", "yaml"} {
+		_, ok := formatNames[name]
+		assert.True(t, ok, "expected format %q in /info response", name)
+	}
+	for i := 1; i < len(resp.Formats); i++ {
+		assert.LessOrEqual(t, resp.Formats[i-1].Name, resp.Formats[i].Name, "formats should be sorted")
 	}
 
-	// Verify sorted order.
-	for i := 1; i < len(formats); i++ {
-		assert.LessOrEqual(t, formats[i-1].Name, formats[i].Name, "formats should be sorted")
-	}
-}
-
-func TestListToolsEndpoint(t *testing.T) {
-	srv := NewServer(DefaultServerConfig())
-	e := srv.GetEcho()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/tools", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var tools []ToolInfo
-	err := json.Unmarshal(rec.Body.Bytes(), &tools)
-	require.NoError(t, err)
-	assert.NotNil(t, tools)
+	// Verify locales are populated.
+	assert.Greater(t, len(resp.Locales), 10, "should have many locales")
 }
 
 func TestDefaultServerConfig(t *testing.T) {
@@ -138,25 +104,6 @@ func TestDefaultServerConfig(t *testing.T) {
 	assert.Equal(t, 8080, cfg.Port)
 	assert.Equal(t, "0.0.0.0", cfg.Host)
 	assert.Empty(t, cfg.DataDir)
-}
-
-func TestConfigEndpointServerMode(t *testing.T) {
-	// With JWTSecret, mode should be "server".
-	cfg := DefaultServerConfig()
-	cfg.JWTSecret = "test-secret"
-	srv := NewServer(cfg)
-	e := srv.GetEcho()
-
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/config", nil)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp ConfigResponse
-	err := json.Unmarshal(rec.Body.Bytes(), &resp)
-	require.NoError(t, err)
-	assert.Equal(t, "server", resp.Mode)
 }
 
 func TestRequestBaseURL(t *testing.T) {

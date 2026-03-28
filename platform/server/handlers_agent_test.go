@@ -36,7 +36,7 @@ func TestHandleCreateBravoConversation(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"title":"My chat","project_id":"proj-1"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/bravo/conversations", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/bravo/conversations", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -61,7 +61,7 @@ func TestHandleListBravoConversations_Empty(t *testing.T) {
 	srv := setupAgentTestServer(t)
 	e := srv.GetEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/bravo/conversations", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/bravo/conversations", nil)
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)
@@ -91,7 +91,7 @@ func TestHandleGetBravoConversation(t *testing.T) {
 		"ws-1", "user-1", "", "Test")
 	require.NoError(t, err)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/bravo/conversations/"+conv.ID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/bravo/conversations/"+conv.ID, nil)
 	rec := httptest.NewRecorder()
 
 	c := e.NewContext(req, rec)

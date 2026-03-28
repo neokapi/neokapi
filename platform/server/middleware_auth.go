@@ -252,7 +252,7 @@ func ProjectAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// Extract project ID from either :pid or :id parameter.
-			projectID := c.Param("pid")
+			projectID := projectParam(c)
 			if projectID == "" {
 				projectID = c.Param("id")
 			}

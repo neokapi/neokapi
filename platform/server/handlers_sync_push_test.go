@@ -39,7 +39,7 @@ func TestSyncPush_Init_Unchanged(t *testing.T) {
 		"item_hashes": itemHashes,
 		"root_hash":  rootHash,
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/init", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
@@ -67,7 +67,7 @@ func TestSyncPush_Init_DiffComputed(t *testing.T) {
 		"project_id":  pid,
 		"item_hashes": map[string]string{"en.json": "different-hash"},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/init", bytes.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
@@ -93,7 +93,7 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 		"project_id":  pid,
 		"item_hashes": map[string]string{"en.json": "new-hash"},
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/init", bytes.NewReader(initBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(initBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
@@ -111,7 +111,7 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 		"item_name":   "en.json",
 		"block_hashes": map[string]string{"b1": "hash1", "b2": "hash2"},
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/diff", bytes.NewReader(diffBody))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/diff", bytes.NewReader(diffBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
@@ -141,7 +141,7 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	req = httptest.NewRequest(http.MethodPut,
-		"/api/v1/projects/"+pid+"/sync/push/chunks/"+uploadID+"/0",
+		"/api/v1/projects/"+pid+"/sync/main/push/chunks/"+uploadID+"/0",
 		bytes.NewReader(chunkData))
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Authorization", authHeader)
@@ -163,7 +163,7 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 		},
 		"items": json.RawMessage(itemsJSON),
 	})
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/commit", bytes.NewReader(commitBody))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/commit", bytes.NewReader(commitBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
@@ -196,7 +196,7 @@ func TestSyncPush_UploadBudgetEnforced(t *testing.T) {
 		},
 		"items": json.RawMessage(itemsJSON),
 	})
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/commit", bytes.NewReader(commitBody))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/commit", bytes.NewReader(commitBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()

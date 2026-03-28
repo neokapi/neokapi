@@ -12,7 +12,7 @@ import (
 
 // HandleGetBilling returns the current plan, subscription status, credit balance,
 // and weekly reset countdown for a workspace.
-// GET /api/v1/workspaces/:ws/billing
+// GET /api/v1/:ws/billing
 func (s *Server) HandleGetBilling(c echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
@@ -60,7 +60,7 @@ func (s *Server) HandleGetBilling(c echo.Context) error {
 }
 
 // HandleGetBillingUsage returns the credit usage breakdown by operation type.
-// GET /api/v1/workspaces/:ws/billing/usage
+// GET /api/v1/:ws/billing/usage
 func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 	if s.BillingStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "billing not configured"})
@@ -106,7 +106,7 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 }
 
 // HandleCreateCheckout creates a Stripe Checkout session and returns the URL.
-// POST /api/v1/workspaces/:ws/billing/checkout
+// POST /api/v1/:ws/billing/checkout
 func (s *Server) HandleCreateCheckout(c echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
@@ -171,7 +171,7 @@ func (s *Server) HandleCreateCheckout(c echo.Context) error {
 }
 
 // HandleCreatePortal creates a Stripe Customer Portal session and returns the URL.
-// POST /api/v1/workspaces/:ws/billing/portal
+// POST /api/v1/:ws/billing/portal
 func (s *Server) HandleCreatePortal(c echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
@@ -207,7 +207,7 @@ func (s *Server) HandleCreatePortal(c echo.Context) error {
 }
 
 // HandleGetInvoices returns invoice history from Stripe.
-// GET /api/v1/workspaces/:ws/billing/invoices
+// GET /api/v1/:ws/billing/invoices
 func (s *Server) HandleGetInvoices(c echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})
@@ -232,7 +232,7 @@ func (s *Server) HandleGetInvoices(c echo.Context) error {
 }
 
 // HandleBuyCredits creates a one-time Stripe Checkout session for purchasing credit packs.
-// POST /api/v1/workspaces/:ws/billing/buy-credits
+// POST /api/v1/:ws/billing/buy-credits
 func (s *Server) HandleBuyCredits(c echo.Context) error {
 	if s.StripeClient == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "stripe not configured"})

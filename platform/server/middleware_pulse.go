@@ -62,7 +62,7 @@ func PulseAccessMiddleware(jwtSecret string, authStore auth.AuthStore) echo.Midd
 func PulseProjectAccessMiddleware(cs store.ContentStore) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			pid := c.Param("pid")
+			pid := projectParam(c)
 			if pid == "" {
 				return next(c)
 			}

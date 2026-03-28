@@ -7,7 +7,6 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/core/model"
 	platauth "github.com/neokapi/neokapi/platform/auth"
-	apiclient "github.com/neokapi/neokapi/platform/client"
 	platev "github.com/neokapi/neokapi/platform/event"
 	"github.com/neokapi/neokapi/platform/store"
 )
@@ -22,16 +21,6 @@ type ProjectRequest struct {
 	Workspace             string   `json:"workspace,omitempty"`
 }
 
-// BlocksRequest is the request body for storing blocks.
-type BlocksRequest struct {
-	Blocks []apiclient.BlockInput `json:"blocks"`
-}
-
-// VersionRequest is the request body for creating a version.
-type VersionRequest struct {
-	Label       string `json:"label"`
-	Description string `json:"description"`
-}
 
 // HandleCreateProject creates a project in the authenticated user's workspace.
 // If a workspace slug is provided in the request, it verifies membership and
@@ -230,68 +219,3 @@ func (s *Server) HandleDeleteProject(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
-func (s *Server) HandleStoreBlocks(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	var req BlocksRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	blocks := make([]*model.Block, len(req.Blocks))
-	for i, bi := range req.Blocks {
-		b := model.NewBlock(bi.ID, bi.Text)
-		b.Name = bi.Name
-		b.Type = bi.Type
-		blocks[i] = b
-	}
-
-	projectID := c.Param("id")
-	if err := s.Services.Project.StoreBlocks(c.Request().Context(), projectID, blocks); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	return c.JSON(http.StatusOK, map[string]int{"stored": len(blocks)})
-}
-
-func (s *Server) HandleGetBlocks(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-	blocks, err := s.Services.Project.GetBlocks(c.Request().Context(), store.BlockQuery{
-		ProjectID: c.Param("id"),
-	})
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	return c.JSON(http.StatusOK, blocks)
-}
-
-func (s *Server) HandleCreateVersion(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	var req VersionRequest
-	if err := c.Bind(&req); err != nil {
-		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-	}
-
-	v, err := s.Services.Project.CreateVersion(c.Request().Context(), c.Param("id"), req.Label, req.Description)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	return c.JSON(http.StatusCreated, v)
-}
-
-func (s *Server) HandleListVersions(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-	versions, err := s.Services.Project.ListVersions(c.Request().Context(), c.Param("id"))
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	return c.JSON(http.StatusOK, versions)
-}

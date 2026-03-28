@@ -278,7 +278,7 @@ func TestSourceReviewCompletionEmitsEvent(t *testing.T) {
 	// Complete the task via API.
 	e := srv.GetEcho()
 	req := httptest.NewRequest(http.MethodPost,
-		"/api/v1/workspaces/test-ws/tasks/"+task.ID+"/complete", nil)
+		"/api/v1/test-ws/tasks/"+task.ID+"/complete", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -494,7 +494,7 @@ func TestWorkflowEndToEnd_SourceReviewGate(t *testing.T) {
 	// Complete the source review task via API (triggers EventSourceReviewCompleted).
 	e := srv.GetEcho()
 	req := httptest.NewRequest(http.MethodPost,
-		"/api/v1/workspaces/test-ws/tasks/"+sourceReviewTaskID+"/complete", nil)
+		"/api/v1/test-ws/tasks/"+sourceReviewTaskID+"/complete", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

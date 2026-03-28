@@ -247,16 +247,14 @@ export class RestApiAdapter implements ApiAdapter {
     return resp.text();
   }
 
-  /** Encode a file path for use in URLs, keeping `/` separators intact. */
-  private encodeFilePath(name: string): string {
-    return name.split("/").map(encodeURIComponent).join("/");
+  /** Returns the ref path segment (defaults to "main"). */
+  private ref(stream?: string): string {
+    return encodeURIComponent(stream || "main");
   }
 
-  /** Appends ?stream=X to a path (or &stream=X if query params exist). */
-  private withStream(path: string, stream?: string): string {
-    if (!stream || stream === "main") return path;
-    const sep = path.includes("?") ? "&" : "?";
-    return `${path}${sep}stream=${encodeURIComponent(stream)}`;
+  /** Project prefix: /api/v1/{ws}/{projectId} */
+  private projectEp(ws: string, projectId: string): string {
+    return `/api/v1/${ws}/${encodeURIComponent(projectId)}`;
   }
 
   // ── Config ──────────────────────────────────────────────────────────────
@@ -289,42 +287,42 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async getWorkspace(slug: string): Promise<Workspace> {
-    return this.fetchJSON(`/api/v1/workspaces/${slug}`);
+    return this.fetchJSON(`/api/v1/${slug}`);
   }
 
   async updateWorkspace(slug: string, data: Partial<Workspace>): Promise<Workspace> {
-    return this.fetchJSON(`/api/v1/workspaces/${slug}`, {
+    return this.fetchJSON(`/api/v1/${slug}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     });
   }
 
   async deleteWorkspace(slug: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${slug}`, { method: "DELETE" });
+    await this.fetchJSON(`/api/v1/${slug}`, { method: "DELETE" });
   }
 
   // ── Members ──────────────────────────────────────────────────────────────
 
   async listMembers(workspaceSlug: string): Promise<Membership[]> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/members`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/members`);
   }
 
   async addMember(workspaceSlug: string, userId: string, role: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/members`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/members`, {
       method: "POST",
       body: JSON.stringify({ user_id: userId, role }),
     });
   }
 
   async updateMemberRole(workspaceSlug: string, userId: string, role: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/members/${userId}/role`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/members/${userId}/role`, {
       method: "PUT",
       body: JSON.stringify({ role }),
     });
   }
 
   async removeMember(workspaceSlug: string, userId: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/members/${userId}`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/members/${userId}`, {
       method: "DELETE",
     });
   }
@@ -332,7 +330,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Invites ──────────────────────────────────────────────────────────────
 
   async listInvites(workspaceSlug: string): Promise<Invite[]> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/invites`);
   }
 
   async createInvite(
@@ -341,14 +339,14 @@ export class RestApiAdapter implements ApiAdapter {
     role: string,
     maxUses: number,
   ): Promise<Invite> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites`, {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/invites`, {
       method: "POST",
       body: JSON.stringify({ email, role, max_uses: maxUses }),
     });
   }
 
   async deleteInvite(workspaceSlug: string, inviteId: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/invites/${inviteId}`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/invites/${inviteId}`, {
       method: "DELETE",
     });
   }
@@ -356,7 +354,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Role Templates ───────────────────────────────────────────────────
 
   async listRoleTemplates(workspaceSlug: string): Promise<RoleTemplate[]> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/roles`);
   }
 
   async createRoleTemplate(
@@ -369,7 +367,7 @@ export class RestApiAdapter implements ApiAdapter {
       position?: number;
     },
   ): Promise<RoleTemplate> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles`, {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/roles`, {
       method: "POST",
       body: JSON.stringify(data),
     });
@@ -386,14 +384,14 @@ export class RestApiAdapter implements ApiAdapter {
       position?: number;
     },
   ): Promise<RoleTemplate> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`, {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/roles/${roleId}`, {
       method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
   async deleteRoleTemplate(workspaceSlug: string, roleId: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/roles/${roleId}`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/roles/${roleId}`, {
       method: "DELETE",
     });
   }
@@ -402,7 +400,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]> {
     return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members`,
+      `${this.projectEp(workspaceSlug, projectId)}/members`,
     );
   }
 
@@ -416,7 +414,7 @@ export class RestApiAdapter implements ApiAdapter {
     },
   ): Promise<ProjectMembership> {
     return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members`,
+      `${this.projectEp(workspaceSlug, projectId)}/members`,
       {
         method: "POST",
         body: JSON.stringify(data),
@@ -434,7 +432,7 @@ export class RestApiAdapter implements ApiAdapter {
     },
   ): Promise<ProjectMembership> {
     return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members/${userId}`,
+      `${this.projectEp(workspaceSlug, projectId)}/members/${userId}`,
       {
         method: "PUT",
         body: JSON.stringify(data),
@@ -448,7 +446,7 @@ export class RestApiAdapter implements ApiAdapter {
     userId: string,
   ): Promise<void> {
     await this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/editor/projects/${projectId}/members/${userId}`,
+      `${this.projectEp(workspaceSlug, projectId)}/members/${userId}`,
       { method: "DELETE" },
     );
   }
@@ -456,7 +454,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── API Tokens ─────────────────────────────────────────────────────────
 
   async listApiTokens(workspaceSlug: string): Promise<ApiToken[]> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/tokens`);
   }
 
   async createApiToken(
@@ -469,14 +467,14 @@ export class RestApiAdapter implements ApiAdapter {
     if (scopes && scopes.length > 0) {
       body.scopes = scopes;
     }
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens`, {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/tokens`, {
       method: "POST",
       body: JSON.stringify(body),
     });
   }
 
   async deleteApiToken(workspaceSlug: string, tokenId: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/tokens/${tokenId}`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/tokens/${tokenId}`, {
       method: "DELETE",
     });
   }
@@ -495,7 +493,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Streams ─────────────────────────────────────────────────────────────
 
   private streamEp(ws: string, projectId: string) {
-    return `/api/v1/workspaces/${ws}/projects/${encodeURIComponent(projectId)}/streams`;
+    return `${this.projectEp(ws, projectId)}/streams`;
   }
 
   async listStreams(workspaceSlug: string, projectId: string): Promise<StreamInfo[]> {
@@ -653,18 +651,14 @@ export class RestApiAdapter implements ApiAdapter {
   ): Promise<StreamTag[]> {
     const params = kind ? `?kind=${encodeURIComponent(kind)}` : "";
     return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/editor/projects/${encodeURIComponent(projectId)}/tags${params}`,
+      `${this.projectEp(workspaceSlug, projectId)}/tags${params}`,
     );
   }
 
   // ── Projects ─────────────────────────────────────────────────────────────
 
-  private ep(ws: string) {
-    return `/api/v1/workspaces/${ws}/editor/projects`;
-  }
-
   async listProjects(workspaceSlug: string): Promise<ProjectInfo[]> {
-    return this.fetchJSON(this.ep(workspaceSlug));
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/projects`);
   }
 
   async createProject(
@@ -673,7 +667,7 @@ export class RestApiAdapter implements ApiAdapter {
     defaultSourceLanguage: string,
     targetLanguages: string[],
   ): Promise<ProjectInfo> {
-    return this.fetchJSON(this.ep(workspaceSlug), {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/projects`, {
       method: "POST",
       body: JSON.stringify({
         name,
@@ -686,9 +680,9 @@ export class RestApiAdapter implements ApiAdapter {
   async getProject(
     workspaceSlug: string,
     projectId: string,
-    stream?: string,
+    _stream?: string,
   ): Promise<ProjectInfo> {
-    return this.fetchJSON(this.withStream(`${this.ep(workspaceSlug)}/${projectId}`, stream));
+    return this.fetchJSON(this.projectEp(workspaceSlug, projectId));
   }
 
   async updateProject(
@@ -701,7 +695,7 @@ export class RestApiAdapter implements ApiAdapter {
       properties?: Record<string, string>;
     },
   ): Promise<ProjectInfo> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
+    return this.fetchJSON(this.projectEp(workspaceSlug, projectId), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
@@ -709,30 +703,30 @@ export class RestApiAdapter implements ApiAdapter {
   }
 
   async deleteProject(workspaceSlug: string, projectId: string): Promise<void> {
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}`, {
+    await this.fetchJSON(this.projectEp(workspaceSlug, projectId), {
       method: "DELETE",
     });
   }
 
   async restoreProject(workspaceSlug: string, projectId: string): Promise<void> {
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/restore`, {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/restore`, {
       method: "POST",
     });
   }
 
   async permanentlyDeleteProject(workspaceSlug: string, projectId: string): Promise<void> {
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/permanent`, {
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/permanent`, {
       method: "DELETE",
     });
   }
 
   async listArchivedProjects(workspaceSlug: string): Promise<ArchivedProject[]> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/archived/projects`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/archived-projects`);
   }
 
   async restoreStream(workspaceSlug: string, projectId: string, streamName: string): Promise<void> {
     await this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/projects/${projectId}/streams/${streamName}/restore`,
+      `${this.streamEp(workspaceSlug, projectId)}/${encodeURIComponent(streamName)}/restore`,
       { method: "POST" },
     );
   }
@@ -747,7 +741,7 @@ export class RestApiAdapter implements ApiAdapter {
     for (const file of files) {
       formData.append("files", file);
     }
-    const url = this.withStream(`${this.ep(workspaceSlug)}/${projectId}/files`, stream);
+    const url = `${this.projectEp(workspaceSlug, projectId)}/items/${this.ref(stream)}`;
     const resp = await fetch(`${this.baseUrl}${url}`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
@@ -768,10 +762,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<ProjectInfo> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file/${this.encodeFilePath(fileName)}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/items/${this.ref(stream)}?item=${encodeURIComponent(fileName)}`,
       { method: "DELETE" },
     );
   }
@@ -784,7 +775,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<CollectionInfo[]> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/collections`, stream),
+      `${this.projectEp(workspaceSlug, projectId)}/collections/${this.ref(stream)}`,
     );
   }
 
@@ -793,7 +784,7 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     req: CreateCollectionRequest,
   ): Promise<CollectionInfo> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections`, {
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/collections`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(req),
@@ -805,7 +796,9 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     collectionId: string,
   ): Promise<CollectionInfo> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`);
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}`,
+    );
   }
 
   async updateCollection(
@@ -814,11 +807,14 @@ export class RestApiAdapter implements ApiAdapter {
     collectionId: string,
     req: Partial<CreateCollectionRequest>,
   ): Promise<CollectionInfo> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(req),
-    });
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req),
+      },
+    );
   }
 
   async deleteCollection(
@@ -826,9 +822,10 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     collectionId: string,
   ): Promise<void> {
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}`, {
-      method: "DELETE",
-    });
+    await this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}`,
+      { method: "DELETE" },
+    );
   }
 
   async uploadToCollection(
@@ -842,10 +839,7 @@ export class RestApiAdapter implements ApiAdapter {
     for (const file of files) {
       formData.append("files", file);
     }
-    const url = this.withStream(
-      `${this.ep(workspaceSlug)}/${projectId}/collections/${collectionId}/files`,
-      stream,
-    );
+    const url = `${this.projectEp(workspaceSlug, projectId)}/collections/${collectionId}/files/${this.ref(stream)}`;
     const resp = await fetch(`${this.baseUrl}${url}`, {
       method: "POST",
       headers: this.token ? { Authorization: `Bearer ${this.token}` } : {},
@@ -868,18 +862,18 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<BlockInfo[]> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-blocks/${this.encodeFilePath(fileName)}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}?item=${encodeURIComponent(fileName)}`,
     );
   }
 
   async updateBlockTarget(workspaceSlug: string, req: UpdateBlockRequest): Promise<void> {
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${req.project_id}/blocks/${req.block_id}`, {
-      method: "PUT",
-      body: JSON.stringify(req),
-    });
+    await this.fetchJSON(
+      `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(req),
+      },
+    );
   }
 
   async updateBlockTargetCoded(
@@ -887,7 +881,7 @@ export class RestApiAdapter implements ApiAdapter {
     req: UpdateBlockTargetCodedRequest,
   ): Promise<void> {
     await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${req.project_id}/blocks/${req.block_id}/coded`,
+      `${this.projectEp(workspaceSlug, req.project_id)}/blocks/${this.ref(req.stream)}/${req.block_id}/coded`,
       { method: "PUT", body: JSON.stringify(req) },
     );
   }
@@ -900,11 +894,11 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<TranslationStats> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-pseudo/${this.encodeFilePath(fileName)}`,
-        stream,
-      ),
-      { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
+      `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/pseudo-translate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ item: fileName, target_locale: targetLocale }),
+      },
     );
   }
 
@@ -913,8 +907,8 @@ export class RestApiAdapter implements ApiAdapter {
     req: AITranslateFileRequest,
   ): Promise<TranslationStats> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${req.project_id}/file-ai-translate/${encodeURIComponent(req.item_name)}`,
-      { method: "POST", body: JSON.stringify(req) },
+      `${this.projectEp(workspaceSlug, req.project_id)}/actions/${this.ref()}/ai-translate`,
+      { method: "POST", body: JSON.stringify({ ...req, item: req.item_name }) },
     );
   }
 
@@ -926,11 +920,11 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<TranslationStats> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-tm-translate/${this.encodeFilePath(fileName)}`,
-        stream,
-      ),
-      { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
+      `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/tm-translate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ item: fileName, target_locale: targetLocale }),
+      },
     );
   }
 
@@ -941,10 +935,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<WordCountResult> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-wordcount/${this.encodeFilePath(fileName)}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/word-count/${this.ref(stream)}?item=${encodeURIComponent(fileName)}`,
     );
   }
 
@@ -956,11 +947,11 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<Blob> {
     return this.fetchBlob(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-export/${this.encodeFilePath(fileName)}`,
-        stream,
-      ),
-      { method: "POST", body: JSON.stringify({ target_locale: targetLocale }) },
+      `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/export`,
+      {
+        method: "POST",
+        body: JSON.stringify({ item: fileName, target_locale: targetLocale }),
+      },
     );
   }
 
@@ -970,7 +961,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<TranslationDashboardStats> {
     return this.fetchJSON(
-      this.withStream(`${this.ep(workspaceSlug)}/${projectId}/dashboard`, stream),
+      `${this.projectEp(workspaceSlug, projectId)}/dashboard/${this.ref(stream)}`,
     );
   }
 
@@ -983,10 +974,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<TMMatchInfo[]> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/tm-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/tm-matches?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
     );
   }
 
@@ -999,10 +987,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<BlockTermMatch[]> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/term-lookup?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/term-matches?item=${encodeURIComponent(itemName)}&target_locale=${targetLocale}`,
     );
   }
 
@@ -1019,10 +1004,7 @@ export class RestApiAdapter implements ApiAdapter {
     const params = new URLSearchParams({ locale });
     if (limit) params.set("limit", String(limit));
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/history?${params}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/history?${params}`,
     );
   }
 
@@ -1034,10 +1016,13 @@ export class RestApiAdapter implements ApiAdapter {
     blockId: string,
     text: string,
   ): Promise<BlockNote> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/notes`, {
-      method: "POST",
-      body: JSON.stringify({ text }),
-    });
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/notes`,
+      {
+        method: "POST",
+        body: JSON.stringify({ text }),
+      },
+    );
   }
 
   async listBlockNotes(
@@ -1045,15 +1030,18 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     blockId: string,
   ): Promise<BlockNote[]> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/notes`);
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/notes`,
+    );
   }
 
   async deleteBlockNote(workspaceSlug: string, projectId: string, noteId: string): Promise<void> {
     // Note: the route includes block ID in the path, but for deletion we use a
     // placeholder since the server only needs project ID and note ID.
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/blocks/_/notes/${noteId}`, {
-      method: "DELETE",
-    });
+    await this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/_/notes/${noteId}`,
+      { method: "DELETE" },
+    );
   }
 
   // ── QA ─────────────────────────────────────────────────────────────────
@@ -1066,11 +1054,11 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<QAIssue[]> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/qa-check?locale=${locale}`,
-        stream,
-      ),
-      { method: "POST" },
+      `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/qa-check-block`,
+      {
+        method: "POST",
+        body: JSON.stringify({ block_id: blockId, locale }),
+      },
     );
   }
 
@@ -1082,11 +1070,11 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<FileQAResult[]> {
     return this.fetchJSON(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-qa-check/${this.encodeFilePath(fileName)}?locale=${locale}`,
-        stream,
-      ),
-      { method: "POST" },
+      `${this.projectEp(workspaceSlug, projectId)}/actions/${this.ref(stream)}/qa-check`,
+      {
+        method: "POST",
+        body: JSON.stringify({ item: fileName, locale }),
+      },
     );
   }
 
@@ -1100,10 +1088,7 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<string> {
     return this.fetchText(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/file-preview/${this.encodeFilePath(fileName)}?locale=${targetLocale}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/preview/${this.ref(stream)}?item=${encodeURIComponent(fileName)}&locale=${targetLocale}`,
     );
   }
 
@@ -1115,17 +1100,14 @@ export class RestApiAdapter implements ApiAdapter {
     stream?: string,
   ): Promise<string> {
     return this.fetchText(
-      this.withStream(
-        `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/html?locale=${targetLocale}`,
-        stream,
-      ),
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref(stream)}/${blockId}/html?locale=${targetLocale}`,
     );
   }
 
   // ── Translation Memory ───────────────────────────────────────────────────
 
   private tmEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/tm`;
+    return `/api/v1/${ws}/translation-memory`;
   }
 
   async getTMEntries(
@@ -1183,7 +1165,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Terminology ──────────────────────────────────────────────────────────
 
   private termsEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/terms`;
+    return `/api/v1/${ws}/terms`;
   }
 
   async getTerms(
@@ -1271,27 +1253,27 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Providers ────────────────────────────────────────────────────────────
 
   async listProviderConfigs(workspaceSlug: string): Promise<ProviderConfig[]> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/providers`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/providers`);
   }
 
   async saveProviderConfig(
     workspaceSlug: string,
     cfg: ProviderConfigWithKey,
   ): Promise<ProviderConfig> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/providers`, {
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/providers`, {
       method: "POST",
       body: JSON.stringify(cfg),
     });
   }
 
   async deleteProviderConfig(workspaceSlug: string, id: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/providers/${id}`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/providers/${id}`, {
       method: "DELETE",
     });
   }
 
   async testProviderConfig(workspaceSlug: string, cfg: ProviderConfigWithKey): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/providers/test`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/providers/test`, {
       method: "POST",
       body: JSON.stringify(cfg),
     });
@@ -1300,7 +1282,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Automations ────────────────────────────────────────────────────────
 
   private automationsEp(ws: string, projectId: string) {
-    return `/api/v1/workspaces/${ws}/projects/${encodeURIComponent(projectId)}/automations`;
+    return `${this.projectEp(ws, projectId)}/automations`;
   }
 
   async listAutomationRules(workspaceSlug: string, projectId: string): Promise<AutomationRule[]> {
@@ -1381,7 +1363,7 @@ export class RestApiAdapter implements ApiAdapter {
     let qs = `limit=${limit ?? 20}`;
     if (status) qs += `&status=${status}`;
     const resp: { runs: AutomationRun[] } = await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/automation-runs?${qs}`,
+      `${this.automationsEp(workspaceSlug, projectId)}/runs?${qs}`,
     );
     return resp.runs;
   }
@@ -1391,7 +1373,7 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     runId: string,
   ): Promise<{ run: AutomationRun; steps: AutomationStep[] }> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}`);
+    return this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}`);
   }
 
   async listStepLogs(
@@ -1402,7 +1384,7 @@ export class RestApiAdapter implements ApiAdapter {
     limit?: number,
   ): Promise<AutomationLogEntry[]> {
     const resp: { logs: AutomationLogEntry[] } = await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}/steps/${stepId}/logs?limit=${limit ?? 100}`,
+      `${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}/steps/${stepId}/logs?limit=${limit ?? 100}`,
     );
     return resp.logs;
   }
@@ -1412,7 +1394,7 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     runId: string,
   ): Promise<void> {
-    await this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/automation-runs/${runId}/cancel`, {
+    await this.fetchJSON(`${this.automationsEp(workspaceSlug, projectId)}/runs/${runId}/cancel`, {
       method: "POST",
     });
   }
@@ -1427,23 +1409,23 @@ export class RestApiAdapter implements ApiAdapter {
     const params = new URLSearchParams();
     if (limit) params.set("limit", String(limit));
     if (unreadOnly) params.set("unread", "true");
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications?${params}`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/notifications?${params}`);
   }
 
   async markNotificationRead(workspaceSlug: string, id: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/${id}/read`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/notifications/${id}/read`, {
       method: "PUT",
     });
   }
 
   async markAllNotificationsRead(workspaceSlug: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/read-all`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/notifications/read-all`, {
       method: "PUT",
     });
   }
 
   async deleteNotification(workspaceSlug: string, id: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/${id}`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/notifications/${id}`, {
       method: "DELETE",
     });
   }
@@ -1452,7 +1434,7 @@ export class RestApiAdapter implements ApiAdapter {
 
   async getDigestSettings(workspaceSlug: string): Promise<DigestSettingsDTO> {
     return this.fetchJSON<DigestSettingsDTO>(
-      `/api/v1/workspaces/${workspaceSlug}/notifications/digest-settings`,
+      `/api/v1/${workspaceSlug}/digest-settings`,
     );
   }
 
@@ -1461,7 +1443,7 @@ export class RestApiAdapter implements ApiAdapter {
     settings: DigestSettingsDTO,
   ): Promise<DigestSettingsDTO> {
     return this.fetchJSON<DigestSettingsDTO>(
-      `/api/v1/workspaces/${workspaceSlug}/notifications/digest-settings`,
+      `/api/v1/${workspaceSlug}/digest-settings`,
       { method: "PUT", body: JSON.stringify(settings) },
     );
   }
@@ -1475,10 +1457,13 @@ export class RestApiAdapter implements ApiAdapter {
     blockId: string,
     entity: Partial<EntityInfo>,
   ): Promise<EntityInfo> {
-    return this.fetchJSON(`${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities`, {
-      method: "POST",
-      body: JSON.stringify({ item_name: itemName, ...entity }),
-    });
+    return this.fetchJSON(
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities`,
+      {
+        method: "POST",
+        body: JSON.stringify({ item_name: itemName, ...entity }),
+      },
+    );
   }
 
   async updateEntity(
@@ -1490,7 +1475,7 @@ export class RestApiAdapter implements ApiAdapter {
     entity: Partial<EntityInfo>,
   ): Promise<EntityInfo> {
     return this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}`,
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities/${encodeURIComponent(entityKey)}`,
       { method: "PUT", body: JSON.stringify({ item_name: itemName, ...entity }) },
     );
   }
@@ -1503,7 +1488,7 @@ export class RestApiAdapter implements ApiAdapter {
     entityKey: string,
   ): Promise<void> {
     await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}?item_name=${encodeURIComponent(itemName)}`,
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities/${encodeURIComponent(entityKey)}?item_name=${encodeURIComponent(itemName)}`,
       { method: "DELETE" },
     );
   }
@@ -1516,7 +1501,7 @@ export class RestApiAdapter implements ApiAdapter {
     entityKey: string,
   ): Promise<void> {
     await this.fetchJSON(
-      `${this.ep(workspaceSlug)}/${projectId}/blocks/${blockId}/entities/${encodeURIComponent(entityKey)}/promote`,
+      `${this.projectEp(workspaceSlug, projectId)}/blocks/${this.ref()}/${blockId}/entities/${encodeURIComponent(entityKey)}/promote`,
       { method: "POST", body: JSON.stringify({ item_name: itemName }) },
     );
   }
@@ -1524,7 +1509,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Brand Voice ──────────────────────────────────────────────────────────
 
   private brandEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/brand-profiles`;
+    return `/api/v1/${ws}/brand-profiles`;
   }
 
   async listBrandProfiles(workspaceSlug: string): Promise<VoiceProfile[]> {
@@ -1563,13 +1548,13 @@ export class RestApiAdapter implements ApiAdapter {
 
   async getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]> {
     return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/brand/scores?project_id=${encodeURIComponent(projectId)}`,
+      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/scores`,
     );
   }
 
   async getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]> {
     return this.fetchJSON(
-      `/api/v1/workspaces/${workspaceSlug}/brand/trends?project_id=${encodeURIComponent(projectId)}`,
+      `${this.projectEp(workspaceSlug, projectId)}/brand-voice/${this.ref()}/trends`,
     );
   }
 
@@ -1609,11 +1594,11 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`);
   }
 
   async markActivitiesSeen(workspaceSlug: string): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/activities/seen`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/activities/seen`, {
       method: "POST",
     });
   }
@@ -1621,7 +1606,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Tasks (AD-027) ────────────────────────────────────────────────────
 
   private tasksEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/tasks`;
+    return `/api/v1/${ws}/tasks`;
   }
 
   async listTasks(
@@ -1704,7 +1689,7 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.cursor) params.set("cursor", query.cursor);
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/my/tasks${qs ? `?${qs}` : ""}`);
   }
 
   // ── Notification Preferences (AD-027) ─────────────────────────────────
@@ -1712,14 +1697,14 @@ export class RestApiAdapter implements ApiAdapter {
   async getNotificationPreferences(
     workspaceSlug: string,
   ): Promise<{ preferences: NotificationPreference[] }> {
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/preferences`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/notification-preferences`);
   }
 
   async updateNotificationPreferences(
     workspaceSlug: string,
     preferences: NotificationPreference[],
   ): Promise<void> {
-    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/notifications/preferences`, {
+    await this.fetchJSON(`/api/v1/${workspaceSlug}/notification-preferences`, {
       method: "PUT",
       body: JSON.stringify({ preferences }),
     });
@@ -1736,13 +1721,13 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.limit) params.set("limit", String(query.limit));
     if (query?.offset) params.set("offset", String(query.offset));
     const qs = params.toString();
-    return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
+    return this.fetchJSON(`/api/v1/${workspaceSlug}/audit-log${qs ? `?${qs}` : ""}`);
   }
 
   // ── @bravo Agent (AD-028) ────────────────────────────────────────────────
 
   private bravoEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/bravo`;
+    return `/api/v1/${ws}/bravo`;
   }
 
   async bravoCreateConversation(
@@ -1992,7 +1977,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Billing (AD-030) ────────────────────────────────────────────────────
 
   private billingEp(ws: string) {
-    return `/api/v1/workspaces/${ws}/billing`;
+    return `/api/v1/${ws}/billing`;
   }
 
   async billingGetOverview(workspaceSlug: string): Promise<BillingOverview> {

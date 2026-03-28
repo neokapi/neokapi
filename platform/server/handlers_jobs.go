@@ -9,7 +9,7 @@ import (
 )
 
 // HandleCreateTranslationJob creates a new async translation job and enqueues it.
-// POST /api/v1/workspaces/:ws/jobs/translate
+// POST /api/v1/:ws/jobs/translate
 func (s *Server) HandleCreateTranslationJob(c echo.Context) error {
 	if s.JobStore == nil || s.JobQueue == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
@@ -127,7 +127,7 @@ func (s *Server) HandleCreateProjectTranslationJob(c echo.Context) error {
 }
 
 // HandleGetJob returns the current status and progress of a job.
-// GET /api/v1/workspaces/:ws/jobs/:id
+// GET /api/v1/:ws/jobs/:id
 func (s *Server) HandleGetJob(c echo.Context) error {
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
@@ -143,7 +143,7 @@ func (s *Server) HandleGetJob(c echo.Context) error {
 }
 
 // HandleListJobs lists recent jobs for a workspace.
-// GET /api/v1/workspaces/:ws/jobs
+// GET /api/v1/:ws/jobs
 func (s *Server) HandleListJobs(c echo.Context) error {
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})
@@ -159,7 +159,7 @@ func (s *Server) HandleListJobs(c echo.Context) error {
 }
 
 // HandleGetAIUsage returns the AI usage summary for a workspace.
-// GET /api/v1/workspaces/:ws/ai/usage
+// GET /api/v1/:ws/ai-usage
 func (s *Server) HandleGetAIUsage(c echo.Context) error {
 	if s.QuotaStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "quota tracking not configured"})
@@ -175,7 +175,7 @@ func (s *Server) HandleGetAIUsage(c echo.Context) error {
 }
 
 // HandleDeleteJob cancels a job by setting its status to failed.
-// DELETE /api/v1/workspaces/:ws/jobs/:id
+// DELETE /api/v1/:ws/jobs/:id
 func (s *Server) HandleDeleteJob(c echo.Context) error {
 	if s.JobStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "job system not configured"})

@@ -34,7 +34,7 @@ func TestHandleListActivities_Empty(t *testing.T) {
 	srv := setupTestServerWithStores(t)
 	e := srv.GetEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/activities", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities", nil)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -68,7 +68,7 @@ func TestHandleListActivities_WithData(t *testing.T) {
 	require.NoError(t, srv.ActivityStore.Create(ctx, a))
 
 	e := srv.GetEcho()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/activities?project_id=proj-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/activities?project_id=proj-1", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws")
@@ -89,7 +89,7 @@ func TestHandleCreateTask(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"project_id":"proj-1","type":"translate","title":"Translate docs","priority":"high"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/tasks", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 
@@ -116,7 +116,7 @@ func TestHandleCreateTask_ValidationErrors(t *testing.T) {
 
 	t.Run("missing title", func(t *testing.T) {
 		body := `{"project_id":"proj-1","type":"translate"}`
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/tasks", strings.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -130,7 +130,7 @@ func TestHandleCreateTask_ValidationErrors(t *testing.T) {
 
 	t.Run("missing project_id", func(t *testing.T) {
 		body := `{"title":"Test","type":"translate"}`
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/tasks", strings.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
@@ -157,7 +157,7 @@ func TestHandleGetTask(t *testing.T) {
 	require.NoError(t, srv.TaskStore.Create(ctx, task))
 
 	e := srv.GetEcho()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/tasks/"+task.ID, nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/tasks/"+task.ID, nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws", "taskId")
@@ -186,7 +186,7 @@ func TestHandleCompleteTask(t *testing.T) {
 	require.NoError(t, srv.TaskStore.Create(ctx, task))
 
 	e := srv.GetEcho()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/tasks/"+task.ID+"/complete", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks/"+task.ID+"/complete", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws", "taskId")
@@ -218,7 +218,7 @@ func TestHandleCancelTask(t *testing.T) {
 	require.NoError(t, srv.TaskStore.Create(ctx, task))
 
 	e := srv.GetEcho()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/tasks/"+task.ID+"/cancel", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/tasks/"+task.ID+"/cancel", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws", "taskId")
@@ -233,42 +233,12 @@ func TestHandleCancelTask(t *testing.T) {
 	assert.Equal(t, bstore.TaskStatusCancelled, got.Status)
 }
 
-func TestHandleListMyTasks(t *testing.T) {
-	srv := setupTestServerWithStores(t)
-	ctx := context.Background()
-
-	// Create tasks with different assignees.
-	for _, task := range []*bstore.Task{
-		{WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskTranslate, Title: "T1", AssigneeID: "user-1", CreatedBy: "user-0"},
-		{WorkspaceID: "demo", ProjectID: "proj-1", Type: bstore.TaskReview, Title: "T2", AssigneeID: "user-2", CreatedBy: "user-0"},
-		{WorkspaceID: "demo", ProjectID: "proj-2", Type: bstore.TaskTranslate, Title: "T3", AssigneeID: "user-1", CreatedBy: "user-0"},
-	} {
-		require.NoError(t, srv.TaskStore.Create(ctx, task))
-	}
-
-	e := srv.GetEcho()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/my/tasks", nil)
-	rec := httptest.NewRecorder()
-	c := e.NewContext(req, rec)
-	c.SetParamNames("ws")
-	c.SetParamValues("demo")
-	c.Set("user_id", "user-1")
-
-	err := srv.HandleListMyTasks(c)
-	require.NoError(t, err)
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	var resp bstore.TaskResult
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp.Tasks, 2) // Only user-1's tasks.
-}
-
 func TestHandleNotificationPreferences_RoundTrip(t *testing.T) {
 	srv := setupTestServerWithStores(t)
 	e := srv.GetEcho()
 
 	// Get defaults.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/demo/notifications/preferences", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/demo/notification-preferences", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws")
@@ -287,7 +257,7 @@ func TestHandleNotificationPreferences_RoundTrip(t *testing.T) {
 
 	// Update preferences.
 	updateBody := `{"preferences":[{"category":"task","channels":{"web":true,"email":true,"push":false,"desktop":false}}]}`
-	req2 := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/demo/notifications/preferences", strings.NewReader(updateBody))
+	req2 := httptest.NewRequest(http.MethodPut, "/api/v1/demo/notification-preferences", strings.NewReader(updateBody))
 	req2.Header.Set("Content-Type", "application/json")
 	rec2 := httptest.NewRecorder()
 	c2 := e.NewContext(req2, rec2)

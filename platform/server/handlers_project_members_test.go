@@ -41,7 +41,7 @@ func newProjectMembersTestServer(t *testing.T) (*Server, string, string, string,
 
 	// Create a project via the workspace-scoped editor route.
 	body := `{"name":"Members Test","default_source_language":"en","target_languages":["fr","de"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+ws.Slug+"/editor/projects",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+ws.Slug+"/projects",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -60,7 +60,7 @@ func TestListProjectMembers(t *testing.T) {
 	e := srv.GetEcho()
 
 	req := httptest.NewRequest(http.MethodGet,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members", nil)
+		"/api/v1/"+wsSlug+"/"+pid+"/members", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -95,7 +95,7 @@ func TestAddProjectMember(t *testing.T) {
 
 	body := `{"user_id":"` + member.ID + `","role_id":"` + translatorRoleID + `","languages":["fr"]}`
 	req := httptest.NewRequest(http.MethodPost,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members",
+		"/api/v1/"+wsSlug+"/"+pid+"/members",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -112,7 +112,7 @@ func TestAddProjectMember(t *testing.T) {
 
 	// Verify member appears in list.
 	req = httptest.NewRequest(http.MethodGet,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members", nil)
+		"/api/v1/"+wsSlug+"/"+pid+"/members", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -149,7 +149,7 @@ func TestUpdateProjectMember(t *testing.T) {
 	// Add as translator.
 	body := `{"user_id":"` + member.ID + `","role_id":"` + translatorRoleID + `","languages":["fr"]}`
 	req := httptest.NewRequest(http.MethodPost,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members",
+		"/api/v1/"+wsSlug+"/"+pid+"/members",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -160,7 +160,7 @@ func TestUpdateProjectMember(t *testing.T) {
 	// Update to reviewer with different languages.
 	updateBody := `{"role_id":"` + reviewerRoleID + `","languages":["fr","de"]}`
 	req = httptest.NewRequest(http.MethodPut,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members/"+member.ID,
+		"/api/v1/"+wsSlug+"/"+pid+"/members/"+member.ID,
 		strings.NewReader(updateBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -196,7 +196,7 @@ func TestRemoveProjectMember(t *testing.T) {
 
 	body := `{"user_id":"` + member.ID + `","role_id":"` + roleID + `"}`
 	req := httptest.NewRequest(http.MethodPost,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members",
+		"/api/v1/"+wsSlug+"/"+pid+"/members",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -206,7 +206,7 @@ func TestRemoveProjectMember(t *testing.T) {
 
 	// Remove the member.
 	req = httptest.NewRequest(http.MethodDelete,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members/"+member.ID, nil)
+		"/api/v1/"+wsSlug+"/"+pid+"/members/"+member.ID, nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -214,7 +214,7 @@ func TestRemoveProjectMember(t *testing.T) {
 
 	// Verify member is removed.
 	req = httptest.NewRequest(http.MethodGet,
-		"/api/v1/workspaces/"+wsSlug+"/editor/projects/"+pid+"/members", nil)
+		"/api/v1/"+wsSlug+"/"+pid+"/members", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
