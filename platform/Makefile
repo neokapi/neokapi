@@ -203,10 +203,10 @@ email-build: email-deps ## Pre-render React Email templates
 # ── Keycloak Theme ─────────────────────────────────────────────────────────
 
 keycloak-theme: ui-deps ## Build Keycloak login theme JAR
-	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run build-keycloak-theme
+	cd $(KC_THEME_DIR) && $(NPM) run build-keycloak-theme
 
 keycloak-check: ## Lint, format-check, and typecheck Keycloak theme
-	cd $(KC_THEME_DIR) && $(NPM) ci && $(NPM) run check
+	cd $(KC_THEME_DIR) && $(NPM) run check
 
 # ── Frontend Checks (all) ────────────────────────────────────────────────
 
