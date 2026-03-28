@@ -6,6 +6,7 @@
     "apps/web",
     "apps/ctrl",
     "apps/pulse",
+    "apps/keycloak-theme",
     "apps/bowrain/frontend"
   ],
   "devDependencies": {
