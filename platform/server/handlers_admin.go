@@ -486,18 +486,17 @@ func (s *Server) HandleAdminListUsers(c echo.Context) error {
 	ctx := c.Request().Context()
 
 	if query != "" {
-		// Search by email.
-		user, err := s.AuthStore.GetUserByEmail(ctx, query)
+		// Search by name or email (fuzzy match).
+		users, err := s.AuthStore.SearchUsers(ctx, query, 20)
 		if err != nil {
-			return c.JSON(http.StatusOK, map[string]any{
-				"users": []any{},
-				"total": 0,
-			})
+			// Fallback to exact email match.
+			user, err2 := s.AuthStore.GetUserByEmail(ctx, query)
+			if err2 != nil {
+				return c.JSON(http.StatusOK, map[string]any{"users": []any{}, "total": 0})
+			}
+			return c.JSON(http.StatusOK, map[string]any{"users": []*platauth.User{user}, "total": 1})
 		}
-		return c.JSON(http.StatusOK, map[string]any{
-			"users": []any{user},
-			"total": 1,
-		})
+		return c.JSON(http.StatusOK, map[string]any{"users": users, "total": len(users)})
 	}
 
 	// No query — return paginated list of all users.

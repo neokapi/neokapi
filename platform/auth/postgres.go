@@ -80,6 +80,27 @@ func (s *PostgresAuthStore) GetUserByOIDCSub(ctx context.Context, sub string) (*
 	return scanUserPg(row)
 }
 
+func (s *PostgresAuthStore) SearchUsers(ctx context.Context, query string, limit int) ([]*platauth.User, error) {
+	pattern := "%" + query + "%"
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users
+		 WHERE email ILIKE $1 OR name ILIKE $1
+		 ORDER BY email ASC LIMIT $2`, pattern, limit)
+	if err != nil {
+		return nil, fmt.Errorf("search users: %w", err)
+	}
+	defer rows.Close()
+	var users []*platauth.User
+	for rows.Next() {
+		u, err := scanUserPg(rows)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, rows.Err()
+}
+
 func (s *PostgresAuthStore) ListUsers(ctx context.Context, limit, offset int) ([]*platauth.User, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT id, email, name, avatar_url, oidc_sub, created_at FROM users ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
