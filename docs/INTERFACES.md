@@ -961,6 +961,7 @@ message ToolInfo {
     string name = 1;
     string description = 2;
     string version = 3;
+    string category = 4; // e.g. "translation", "quality", "analysis", "text-processing"
 }
 
 message OpenRequest {
