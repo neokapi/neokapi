@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
@@ -45,4 +46,15 @@ func (r *ownerEmailResolver) GetOwnerEmail(ctx context.Context, workspaceID stri
 		}
 	}
 	return ""
+}
+
+// billingGuardEvent returns a GuardEventFunc that fires PostHog events.
+// Returns nil (no-op) when PostHog is not configured.
+func (s *Server) billingGuardEvent() billing.GuardEventFunc {
+	if s.PostHogClient == nil {
+		return nil
+	}
+	return func(event string, workspaceID string, props map[string]any) {
+		s.PostHogClient.CaptureEvent(workspaceID, event, props)
+	}
 }

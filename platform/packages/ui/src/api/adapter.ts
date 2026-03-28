@@ -68,6 +68,7 @@ import type {
   BillingOverview,
   BillingUsageBreakdown,
   CreditLedgerEntry,
+  ModelUsageResponse,
   RoleTemplate,
   ProjectMembership,
   DigestSettingsDTO,
@@ -688,6 +689,7 @@ export interface ApiAdapter {
   // Billing
   billingGetOverview(workspaceSlug: string): Promise<BillingOverview>;
   billingGetUsage(workspaceSlug: string): Promise<BillingUsageBreakdown>;
+  billingGetModelUsage(workspaceSlug: string, from?: string, to?: string): Promise<ModelUsageResponse>;
   billingCreateCheckout(
     workspaceSlug: string,
     priceId: string,

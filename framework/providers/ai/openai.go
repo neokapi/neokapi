@@ -62,6 +62,7 @@ func (p *OpenAIProvider) Translate(ctx context.Context, req TranslateRequest) (*
 		Translation: resp.Content,
 		Confidence:  0.85,
 		Model:       resp.Model,
+		Usage:       resp.Usage,
 	}, nil
 }
 
@@ -119,6 +120,7 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	return &ChatResponse{
 		Content: apiResp.Choices[0].Message.Content,
 		Model:   apiResp.Model,
+		Usage:   apiResp.Usage.toTokenUsage(),
 	}, nil
 }
 
@@ -185,6 +187,7 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 	return &ChatResponse{
 		Content: apiResp.Choices[0].Message.Content,
 		Model:   apiResp.Model,
+		Usage:   apiResp.Usage.toTokenUsage(),
 	}, nil
 }
 
@@ -218,6 +221,19 @@ type openaiJSONSchemaRef struct {
 type openaiResponse struct {
 	Choices []openaiChoice `json:"choices"`
 	Model   string         `json:"model"`
+	Usage   openaiUsage    `json:"usage"`
+}
+
+type openaiUsage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+}
+
+func (u openaiUsage) toTokenUsage() TokenUsage {
+	return TokenUsage{
+		InputTokens:  u.PromptTokens,
+		OutputTokens: u.CompletionTokens,
+	}
 }
 
 type openaiChoice struct {

@@ -221,6 +221,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 	const progressChunk = 50
 	var allOutParts []*model.Part
 	totalTokensUsed := 0
+	prevUsage := translateTool.TotalUsage()
 
 	for i := 0; i < totalBlocks; i += progressChunk {
 		end := i + progressChunk
@@ -241,17 +242,29 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		}
 		allOutParts = append(allOutParts, outParts...)
 
-		// Estimate token usage (rough: ~4 chars per token for source + target).
-		chunkTokens := estimateTokens(chunk)
+		// Read actual token usage from the provider (via tool accumulator).
+		// Fall back to estimate if the provider returned zero usage.
+		currentUsage := translateTool.TotalUsage()
+		chunkTokens := currentUsage.TotalTokens() - prevUsage.TotalTokens()
+		chunkInput := currentUsage.InputTokens - prevUsage.InputTokens
+		chunkOutput := currentUsage.OutputTokens - prevUsage.OutputTokens
+		prevUsage = currentUsage
+		if chunkTokens <= 0 {
+			chunkTokens = estimateTokens(chunk)
+		}
 		totalTokensUsed += chunkTokens
 
 		// Record usage per chunk so quota is updated incrementally.
 		if deps.QuotaStore != nil {
 			_ = deps.QuotaStore.RecordUsage(ctx, AIUsageRecord{
 				WorkspaceSlug: job.WorkspaceSlug,
+				WorkspaceID:   job.WorkspaceID,
 				ProjectID:     job.ProjectID,
 				JobID:         job.ID,
 				Model:         job.Model,
+				Operation:     "translate",
+				PromptTokens:  chunkInput,
+				OutputTokens:  chunkOutput,
 				TotalTokens:   chunkTokens,
 			})
 		}

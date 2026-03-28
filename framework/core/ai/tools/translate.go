@@ -15,6 +15,7 @@ import (
 // AITranslateTool translates untranslated Blocks using an LLM provider.
 type AITranslateTool struct {
 	tool.BaseTool
+	usageAccumulator
 	provider     provider.LLMProvider
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
@@ -106,6 +107,7 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ai-translate: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	block.SetTargetText(t.targetLocale, resp.Translation)
 	t.annotateTranslation(block, resp)
@@ -132,6 +134,7 @@ func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 	if err != nil {
 		return nil, fmt.Errorf("ai-translate: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	// Reconstruct Fragment from the LLM response.
 	targetFrag := model.ParsePlaceholderText(resp.Translation, frag.Spans)
@@ -333,6 +336,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 	if err != nil {
 		return fmt.Errorf("ai-translate batch: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	// Parse structured JSON response.
 	var result batchResult

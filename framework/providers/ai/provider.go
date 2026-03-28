@@ -53,17 +53,42 @@ type TranslateRequest struct {
 	Format         string            `json:"format,omitempty"` // e.g., "html", "plain"
 }
 
+// TokenUsage holds token consumption data from an AI provider call.
+type TokenUsage struct {
+	InputTokens         int `json:"input_tokens"`
+	OutputTokens        int `json:"output_tokens"`
+	CacheCreationTokens int `json:"cache_creation_tokens,omitempty"`
+	CacheReadTokens     int `json:"cache_read_tokens,omitempty"`
+}
+
+// TotalTokens returns the sum of input and output tokens.
+func (u TokenUsage) TotalTokens() int {
+	return u.InputTokens + u.OutputTokens
+}
+
+// Add returns the sum of two TokenUsage values.
+func (u TokenUsage) Add(other TokenUsage) TokenUsage {
+	return TokenUsage{
+		InputTokens:         u.InputTokens + other.InputTokens,
+		OutputTokens:        u.OutputTokens + other.OutputTokens,
+		CacheCreationTokens: u.CacheCreationTokens + other.CacheCreationTokens,
+		CacheReadTokens:     u.CacheReadTokens + other.CacheReadTokens,
+	}
+}
+
 // TranslateResponse contains the translation result.
 type TranslateResponse struct {
-	Translation string  `json:"translation"`
-	Confidence  float64 `json:"confidence"`
-	Model       string  `json:"model"`
+	Translation string     `json:"translation"`
+	Confidence  float64    `json:"confidence"`
+	Model       string     `json:"model"`
+	Usage       TokenUsage `json:"usage"`
 }
 
 // ChatResponse contains the chat result.
 type ChatResponse struct {
-	Content string `json:"content"`
-	Model   string `json:"model"`
+	Content string     `json:"content"`
+	Model   string     `json:"model"`
+	Usage   TokenUsage `json:"usage"`
 }
 
 // QAIssue represents a quality assurance issue found in a translation.
