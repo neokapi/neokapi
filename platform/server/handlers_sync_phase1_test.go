@@ -36,7 +36,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
-	var allBlocks []apiclient.BlockContent
+	var allBlocks []apiclient.SyncBlock
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &allBlocks))
 	assert.Len(t, allBlocks, 5)
 
@@ -46,7 +46,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
-	var page1 []apiclient.BlockContent
+	var page1 []apiclient.SyncBlock
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &page1))
 	assert.Len(t, page1, 2)
 
@@ -56,7 +56,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
-	var page2 []apiclient.BlockContent
+	var page2 []apiclient.SyncBlock
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &page2))
 	assert.Len(t, page2, 2)
 
@@ -117,8 +117,8 @@ func TestSyncPush_BatchHashLookup(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var blocks []apiclient.BlockContent
+	var blocks []apiclient.SyncBlock
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &blocks))
 	assert.Len(t, blocks, 1, "should have 1 block, not 2 (upsert)")
-	assert.Equal(t, "modified", blocks[0].Source)
+	assert.Equal(t, "modified", blocks[0].SourceText)
 }

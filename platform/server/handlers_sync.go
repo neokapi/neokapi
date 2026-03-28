@@ -9,13 +9,13 @@ import (
 	"strings"
 
 	"github.com/labstack/echo/v4"
-	platauth "github.com/neokapi/neokapi/platform/auth"
-
+	"github.com/neokapi/neokapi/bowrain/compression"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/storage"
 	apiclient "github.com/neokapi/neokapi/platform/client"
+	platauth "github.com/neokapi/neokapi/platform/auth"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -280,17 +280,26 @@ func readBody(c echo.Context, maxBytes int64) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(c.Request().Body, maxBytes))
 }
 
-// HandleSyncPull returns change log entries for a project, optionally scoped by locale.
+// HandleSyncPull returns full blocks, terms, and media for a project since the
+// given cursor. The response is a RichPullResponse (AD-038 Phase 7) with structured
+// SyncBlock records instead of raw change log entries. When the client sends
+// Accept-Encoding: zstd, the response is zstd-compressed.
 func (s *Server) HandleSyncPull(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
+	ctx := c.Request().Context()
 	projectID := c.Param("id")
 	cursor, _ := strconv.ParseInt(c.QueryParam("cursor"), 10, 64)
 	limit, _ := strconv.Atoi(c.QueryParam("limit"))
 	if limit <= 0 {
-		limit = 100
+		limit = 1000
+	}
+
+	stream := c.Param("stream")
+	if stream == "" {
+		stream = "main"
 	}
 
 	var locales []string
@@ -302,12 +311,88 @@ func (s *Server) HandleSyncPull(c echo.Context) error {
 		}
 	}
 
-	cs, err := s.Services.Project.GetChanges(c.Request().Context(), projectID, cursor, locales, limit)
+	// Get change log entries to determine what changed.
+	cs, err := s.Services.Project.GetChanges(ctx, projectID, cursor, locales, limit)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	return c.JSON(http.StatusOK, cs)
+	resp := apiclient.RichPullResponse{
+		Cursor:  cs.NewCursor,
+		HasMore: cs.HasMore,
+	}
+
+	if len(cs.Changes) > 0 {
+		// Collect unique block IDs from the change log.
+		blockIDSet := make(map[string]struct{})
+		itemSet := make(map[string]struct{})
+		for _, ch := range cs.Changes {
+			if ch.ChangeType != "source_removed" {
+				blockIDSet[ch.BlockID] = struct{}{}
+			}
+		}
+
+		if len(blockIDSet) > 0 {
+			blockIDs := make([]string, 0, len(blockIDSet))
+			for id := range blockIDSet {
+				blockIDs = append(blockIDs, id)
+			}
+
+			// Fetch full blocks from the store.
+			query := store.BlockQuery{
+				ProjectID: projectID,
+				Stream:    stream,
+				IDs:       blockIDs,
+				Limit:     len(blockIDs),
+			}
+			stored, err := s.Services.Project.GetBlocks(ctx, query)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+			}
+
+			resp.Blocks = make([]apiclient.SyncBlock, 0, len(stored))
+			for _, sb := range stored {
+				resp.Blocks = append(resp.Blocks, apiclient.StoredBlockToSyncBlock(sb))
+				itemSet[sb.ItemName] = struct{}{}
+			}
+		}
+
+		// Fetch media assets for affected items.
+		if s.ContentStore != nil && len(itemSet) > 0 {
+			for itemName := range itemSet {
+				assets, err := s.ContentStore.ListAssets(ctx, projectID, stream, itemName)
+				if err != nil {
+					continue // best-effort: skip media on error
+				}
+				for _, a := range assets {
+					resp.Media = append(resp.Media, apiclient.AssetToSyncMedia(a))
+				}
+			}
+		}
+	}
+
+	return writePullResponse(c, resp)
+}
+
+// syncCompressorPool is a lazily-initialized zstd compression pool for pull responses.
+var syncCompressorPool = compression.NewPool(nil)
+
+// writePullResponse marshals the response as JSON and optionally compresses with zstd.
+func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "marshal response"})
+	}
+
+	// Compress with zstd if the client accepts it.
+	if strings.Contains(c.Request().Header.Get("Accept-Encoding"), "zstd") {
+		compressed := syncCompressorPool.Compress(data)
+		c.Response().Header().Set("Content-Encoding", "zstd")
+		c.Response().Header().Set("Content-Type", "application/json")
+		return c.Blob(http.StatusOK, "application/json", compressed)
+	}
+
+	return c.JSONBlob(http.StatusOK, data)
 }
 
 // HandleGetChanges returns raw change log entries for a project.
@@ -342,7 +427,8 @@ func (s *Server) HandleGetChanges(c echo.Context) error {
 	return c.JSON(http.StatusOK, cs)
 }
 
-// HandleSyncGetBlocks returns blocks with their translations for a specific item.
+// HandleSyncGetBlocks returns blocks with full structured content for a specific item.
+// Returns []SyncBlock with segments, spans, annotations, and metadata.
 func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 	if s.Services == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
@@ -385,20 +471,9 @@ func (s *Server) HandleSyncGetBlocks(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	// Convert stored blocks to the wire format with targets.
-	result := make([]apiclient.BlockContent, len(blocks))
-	for i, b := range blocks {
-		targets := make(map[string]string)
-		for locale := range b.Block.Targets {
-			targets[string(locale)] = b.Block.TargetText(locale)
-		}
-		result[i] = apiclient.BlockContent{
-			ID:       b.Block.ID,
-			Name:     b.Block.Name,
-			ItemName: b.ItemName,
-			Source:   b.Block.SourceText(),
-			Targets:  targets,
-		}
+	result := make([]apiclient.SyncBlock, len(blocks))
+	for i, sb := range blocks {
+		result[i] = apiclient.StoredBlockToSyncBlock(sb)
 	}
 
 	return c.JSON(http.StatusOK, result)
