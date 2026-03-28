@@ -282,8 +282,10 @@ type BlockContent struct {
 	Targets  map[string]string `json:"targets"` // locale → plain text
 }
 
-// Pull fetches changes from the server since the given cursor.
-func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string, limit int) (*SyncPullResponse, error) {
+// Pull fetches full blocks, terms, and media from the server since the given cursor.
+// Returns a RichPullResponse with structured SyncBlock records. The response is
+// automatically decompressed when the server returns zstd-compressed data.
+func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string, limit int) (*RichPullResponse, error) {
 	u, err := url.Parse(c.streamPrefix() + "/sync/pull")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
@@ -303,6 +305,7 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
+	req.Header.Set("Accept-Encoding", "zstd, gzip")
 
 	resp, err := c.doRequest(req)
 	if err != nil {
@@ -315,8 +318,22 @@ func (c *BowrainClient) Pull(ctx context.Context, cursor int64, locales []string
 		return nil, fmt.Errorf("pull failed (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
 
-	var result SyncPullResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read pull response: %w", err)
+	}
+
+	// Decompress zstd if the server compressed the response.
+	if resp.Header.Get("Content-Encoding") == "zstd" {
+		decompressor := compression.NewPool(nil)
+		body, err = decompressor.Decompress(body)
+		if err != nil {
+			return nil, fmt.Errorf("decompress pull response: %w", err)
+		}
+	}
+
+	var result RichPullResponse
+	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("decode pull response: %w", err)
 	}
 	return &result, nil
@@ -356,8 +373,9 @@ func (c *BowrainClient) PushStatus(ctx context.Context, pushID string) (*PushSta
 	return &result, nil
 }
 
-// GetBlocks fetches blocks for a specific item (source file) with their translations.
-func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]BlockContent, error) {
+// GetBlocks fetches blocks for a specific item (source file) with full structured
+// content including segments, spans, annotations, and metadata.
+func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]SyncBlock, error) {
 	u, err := url.Parse(c.streamPrefix() + "/sync/blocks")
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
@@ -384,7 +402,7 @@ func (c *BowrainClient) GetBlocks(ctx context.Context, itemName string) ([]Block
 		return nil, fmt.Errorf("get blocks failed (HTTP %d): %s", resp.StatusCode, string(respBody))
 	}
 
-	var blocks []BlockContent
+	var blocks []SyncBlock
 	if err := json.NewDecoder(resp.Body).Decode(&blocks); err != nil {
 		return nil, fmt.Errorf("decode blocks response: %w", err)
 	}

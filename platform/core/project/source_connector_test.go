@@ -80,11 +80,11 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 // and records push requests for assertions.
 type mockSyncHandler struct {
 	pushCalls    int
-	chunkUploads int                                  // number of chunk uploads received
-	initItems    []string                             // item names sent to init
+	chunkUploads int                                // number of chunk uploads received
+	initItems    []string                           // item names sent to init
 	pullCursor   int64
-	pullChanges  []apiclient.ChangeEntry             // Changes to return from pull
-	blocksByItem map[string][]apiclient.BlockContent // item_name → blocks for /sync/blocks
+	pullBlocks   []apiclient.SyncBlock              // Blocks to return from pull
+	blocksByItem map[string][]apiclient.SyncBlock   // item_name → blocks for /sync/blocks
 	lastUploadID string
 }
 
@@ -146,24 +146,24 @@ func (m *mockSyncHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	case r.Method == http.MethodGet && contains(r.URL.Path, "/sync/blocks"):
 		itemName := r.URL.Query().Get("item_name")
-		var blocks []apiclient.BlockContent
+		var blocks []apiclient.SyncBlock
 		if m.blocksByItem != nil {
 			blocks = m.blocksByItem[itemName]
 		}
 		if blocks == nil {
-			blocks = []apiclient.BlockContent{}
+			blocks = []apiclient.SyncBlock{}
 		}
 		_ = json.NewEncoder(w).Encode(blocks)
 
 	case r.Method == http.MethodGet && contains(r.URL.Path, "/sync/pull"):
-		changes := m.pullChanges
-		if changes == nil {
-			changes = []apiclient.ChangeEntry{}
+		blocks := m.pullBlocks
+		if blocks == nil {
+			blocks = []apiclient.SyncBlock{}
 		}
-		_ = json.NewEncoder(w).Encode(apiclient.SyncPullResponse{
-			Changes:   changes,
-			NewCursor: m.pullCursor,
-			HasMore:   false,
+		_ = json.NewEncoder(w).Encode(apiclient.RichPullResponse{
+			Blocks:  blocks,
+			Cursor:  m.pullCursor,
+			HasMore: false,
 		})
 
 	default:
@@ -182,6 +182,24 @@ func containsSubstr(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// mockSyncBlock creates a SyncBlock from simple text values for testing.
+func mockSyncBlock(id, name, itemName, source string, targets map[string]string) apiclient.SyncBlock {
+	sb := apiclient.SyncBlock{
+		ID:         id,
+		ItemName:   itemName,
+		Name:       name,
+		SourceText: source,
+		Source:     []apiclient.SyncSegment{{ID: "s1", Text: source}},
+	}
+	if len(targets) > 0 {
+		sb.Targets = make(map[string][]apiclient.SyncSegment)
+		for loc, text := range targets {
+			sb.Targets[loc] = []apiclient.SyncSegment{{ID: "s1", Text: text}}
+		}
+	}
+	return sb
 }
 
 func TestNewSourceConnector_RequiresServer(t *testing.T) {
@@ -378,15 +396,9 @@ func TestSourceConnector_Pull_WriteBack(t *testing.T) {
 	// For {"farewell":"Goodbye","greeting":"Hello"}, the reader produces:
 	//   tu1 (farewell) and tu2 (greeting)
 	mock := &mockSyncHandler{
-		pullChanges: []apiclient.ChangeEntry{
-			{Seq: 1, BlockID: "tu1", ChangeType: "target_added", Locale: "fr"},
-			{Seq: 2, BlockID: "tu2", ChangeType: "target_added", Locale: "fr"},
-		},
-		blocksByItem: map[string][]apiclient.BlockContent{
-			"src/locales/en.json": {
-				{ID: "tu1", Name: "farewell", ItemName: "src/locales/en.json", Source: "Goodbye", Targets: map[string]string{"fr": "Au revoir"}},
-				{ID: "tu2", Name: "greeting", ItemName: "src/locales/en.json", Source: "Hello", Targets: map[string]string{"fr": "Bonjour"}},
-			},
+		pullBlocks: []apiclient.SyncBlock{
+			mockSyncBlock("tu1", "farewell", "src/locales/en.json", "Goodbye", map[string]string{"fr": "Au revoir"}),
+			mockSyncBlock("tu2", "greeting", "src/locales/en.json", "Hello", map[string]string{"fr": "Bonjour"}),
 		},
 	}
 	proj, formatReg := setupTestProject(t, mock)
@@ -422,13 +434,8 @@ func TestSourceConnector_Pull_WriteBack(t *testing.T) {
 
 func TestSourceConnector_Pull_WriteBack_DryRun(t *testing.T) {
 	mock := &mockSyncHandler{
-		pullChanges: []apiclient.ChangeEntry{
-			{Seq: 1, BlockID: "tu2", ChangeType: "target_added", Locale: "fr"},
-		},
-		blocksByItem: map[string][]apiclient.BlockContent{
-			"src/locales/en.json": {
-				{ID: "tu2", Name: "greeting", ItemName: "src/locales/en.json", Source: "Hello", Targets: map[string]string{"fr": "Bonjour"}},
-			},
+		pullBlocks: []apiclient.SyncBlock{
+			mockSyncBlock("tu2", "greeting", "src/locales/en.json", "Hello", map[string]string{"fr": "Bonjour"}),
 		},
 	}
 	proj, formatReg := setupTestProject(t, mock)
@@ -455,8 +462,8 @@ func TestSourceConnector_Pull_WriteBack_DryRun(t *testing.T) {
 
 func TestSourceConnector_Pull_NoLocales(t *testing.T) {
 	mock := &mockSyncHandler{
-		pullChanges: []apiclient.ChangeEntry{
-			{Seq: 1, BlockID: "tu2", ChangeType: "target_added", Locale: "fr"},
+		pullBlocks: []apiclient.SyncBlock{
+			mockSyncBlock("tu2", "greeting", "src/locales/en.json", "Hello", map[string]string{"fr": "Bonjour"}),
 		},
 	}
 	proj, formatReg := setupTestProject(t, mock)
@@ -476,13 +483,8 @@ func TestSourceConnector_Pull_NoLocales(t *testing.T) {
 
 func TestSourceConnector_Pull_TargetPathTemplate(t *testing.T) {
 	mock := &mockSyncHandler{
-		pullChanges: []apiclient.ChangeEntry{
-			{Seq: 1, BlockID: "tu2", ChangeType: "target_added", Locale: "fr"},
-		},
-		blocksByItem: map[string][]apiclient.BlockContent{
-			"src/locales/en.json": {
-				{ID: "tu2", Name: "greeting", ItemName: "src/locales/en.json", Source: "Hello", Targets: map[string]string{"fr": "Bonjour"}},
-			},
+		pullBlocks: []apiclient.SyncBlock{
+			mockSyncBlock("tu2", "greeting", "src/locales/en.json", "Hello", map[string]string{"fr": "Bonjour"}),
 		},
 	}
 	proj, formatReg := setupTestProject(t, mock)
@@ -710,8 +712,8 @@ func TestSourceConnector_CollectionInPush(t *testing.T) {
 func TestSourceConnector_ServerTargetLanguagesFallback(t *testing.T) {
 	// Mock a server that returns project metadata AND handles sync endpoints.
 	mock := &mockSyncHandler{
-		pullChanges: []apiclient.ChangeEntry{
-			{Seq: 1, BlockID: "tu1", ChangeType: "target_added", Locale: "fr"},
+		pullBlocks: []apiclient.SyncBlock{
+			mockSyncBlock("tu1", "hello", "src/locales/en.json", "Hello", map[string]string{"fr": "Bonjour"}),
 		},
 	}
 

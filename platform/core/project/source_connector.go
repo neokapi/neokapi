@@ -219,8 +219,8 @@ func (c *BowrainSourceConnector) Status(ctx context.Context) (*connector.SyncSta
 	pendingPull := 0
 	if c.cache.GetStreamCursor(c.stream) > 0 {
 		resp, err := c.client.Pull(ctx, c.cache.GetStreamCursor(c.stream), nil, 1)
-		if err == nil && len(resp.Changes) > 0 {
-			pendingPull = len(resp.Changes)
+		if err == nil && len(resp.Blocks) > 0 {
+			pendingPull = len(resp.Blocks)
 			if resp.HasMore {
 				pendingPull = -1 // Unknown, but there are more
 			}
@@ -291,7 +291,7 @@ func (c *BowrainSourceConnector) Push(ctx context.Context, opts connector.PushOp
 			if cursor > 0 {
 				// Quick probe: pull with cursor=0, limit=1 to check if server has data.
 				resp, err := c.client.Pull(ctx, 0, nil, 1)
-				if err == nil && resp.NewCursor == 0 {
+				if err == nil && resp.Cursor == 0 {
 					// Server is empty but cache says we've pushed — re-push everything.
 					for itemName, blocks := range blockMap {
 						for _, b := range blocks {
@@ -484,17 +484,22 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 		cursor = 0
 	}
 
-	// Phase 1: Collect changes from the change log.
+	// Pull blocks directly from the server using the rich pull response.
+	// Each response includes full SyncBlock records with structured segments.
 	totalPulled := 0
+
+	// Collect all blocks across paginated responses.
+	var allBlocks []apiclient.SyncBlock
 
 	for {
 		resp, err := c.client.Pull(ctx, cursor, locales, 1000)
 		if err != nil {
-			return nil, fmt.Errorf("pull changes: %w", err)
+			return nil, fmt.Errorf("pull: %w", err)
 		}
 
-		totalPulled += len(resp.Changes)
-		cursor = resp.NewCursor
+		totalPulled += len(resp.Blocks)
+		allBlocks = append(allBlocks, resp.Blocks...)
+		cursor = resp.Cursor
 
 		if !resp.HasMore {
 			break
@@ -508,26 +513,16 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 		}, nil
 	}
 
-	// Phase 2: For each item with changes, fetch blocks and write translated files.
+	// Group pulled blocks by item name.
 	filesWritten := 0
 
-	if totalPulled > 0 && len(locales) > 0 {
-		// Get all local items by scanning source files.
-		hashMap, _, err := c.scanLocalBlocks(ctx, nil)
-		if err != nil {
-			return nil, fmt.Errorf("scan local blocks: %w", err)
+	if len(allBlocks) > 0 && len(locales) > 0 {
+		blocksByItem := map[string][]apiclient.SyncBlock{}
+		for _, b := range allBlocks {
+			blocksByItem[b.ItemName] = append(blocksByItem[b.ItemName], b)
 		}
 
-		for itemName := range hashMap {
-			// Fetch server blocks with targets for this item.
-			blocks, err := c.client.GetBlocks(ctx, itemName)
-			if err != nil {
-				continue // Skip items that fail.
-			}
-			if len(blocks) == 0 {
-				continue
-			}
-
+		for itemName, blocks := range blocksByItem {
 			// Check if any blocks have targets for our locales.
 			hasTargets := false
 			for _, b := range blocks {
@@ -542,11 +537,18 @@ func (c *BowrainSourceConnector) Pull(ctx context.Context, opts connector.PullOp
 
 			// Write a translated file for each target locale.
 			for _, loc := range locales {
-				// Build target map for this locale.
+				// Build target map for this locale from structured segments.
 				targetMap := map[string]string{} // blockID → translated text
 				for _, b := range blocks {
-					if t, ok := b.Targets[loc]; ok {
-						targetMap[b.ID] = t
+					if segs, ok := b.Targets[loc]; ok {
+						// Extract plain text from segments.
+						var text string
+						for _, seg := range segs {
+							text += seg.Text
+						}
+						if text != "" {
+							targetMap[b.ID] = text
+						}
 					}
 				}
 				if len(targetMap) == 0 {

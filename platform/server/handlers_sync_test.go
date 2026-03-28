@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/neokapi/neokapi/bowrain/compression"
 	apiclient "github.com/neokapi/neokapi/platform/client"
 	"github.com/neokapi/neokapi/platform/store"
 	"github.com/stretchr/testify/assert"
@@ -61,18 +62,29 @@ func TestSyncPull(t *testing.T) {
 		{ID: "b2", Text: "World", ItemName: "en.json"},
 	})
 
-	// Pull all changes from cursor 0.
+	// Pull all blocks from cursor 0.
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp store.ChangeSet
+	var resp apiclient.RichPullResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp.Changes, 2)
-	assert.Greater(t, resp.NewCursor, int64(0))
+	assert.Len(t, resp.Blocks, 2)
+	assert.Greater(t, resp.Cursor, int64(0))
 	assert.False(t, resp.HasMore)
+
+	// Verify rich block content: source segments with text.
+	sourceTexts := map[string]bool{}
+	for _, b := range resp.Blocks {
+		assert.NotEmpty(t, b.SourceText)
+		assert.NotEmpty(t, b.Source, "source segments should be populated")
+		assert.Equal(t, "en.json", b.ItemName)
+		sourceTexts[b.SourceText] = true
+	}
+	assert.True(t, sourceTexts["Hello"])
+	assert.True(t, sourceTexts["World"])
 }
 
 func TestSyncPull_Pagination(t *testing.T) {
@@ -99,22 +111,22 @@ func TestSyncPull_Pagination(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp store.ChangeSet
+	var resp apiclient.RichPullResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
-	assert.Len(t, resp.Changes, 3)
+	assert.Len(t, resp.Blocks, 3)
 	assert.True(t, resp.HasMore)
 
 	// Pull remaining from cursor.
-	url := fmt.Sprintf("/api/v1/projects/%s/sync/pull?cursor=%d&limit=3", pid, resp.NewCursor)
+	url := fmt.Sprintf("/api/v1/projects/%s/sync/pull?cursor=%d&limit=3", pid, resp.Cursor)
 	req = httptest.NewRequest(http.MethodGet, url, nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var resp2 store.ChangeSet
+	var resp2 apiclient.RichPullResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp2))
-	assert.Len(t, resp2.Changes, 2)
+	assert.Len(t, resp2.Blocks, 2)
 	assert.False(t, resp2.HasMore)
 }
 
@@ -137,14 +149,14 @@ func TestSyncGetBlocks(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var blocks []apiclient.BlockContent
+	var blocks []apiclient.SyncBlock
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &blocks))
 	assert.Len(t, blocks, 2)
 
-	// Verify block content.
-	sourceMap := map[string]apiclient.BlockContent{}
+	// Verify rich block content.
+	sourceMap := map[string]apiclient.SyncBlock{}
 	for _, b := range blocks {
-		sourceMap[b.Source] = b
+		sourceMap[b.SourceText] = b
 	}
 	assert.Contains(t, sourceMap, "Hello")
 	assert.Contains(t, sourceMap, "World")
@@ -155,6 +167,9 @@ func TestSyncGetBlocks(t *testing.T) {
 	assert.NotEqual(t, "b1", sourceMap["Hello"].ID)
 	assert.Len(t, sourceMap["World"].ID, 8)
 	assert.NotEqual(t, "b2", sourceMap["World"].ID)
+	// Verify source segments are populated.
+	assert.NotEmpty(t, sourceMap["Hello"].Source, "source segments should be populated")
+	assert.Equal(t, "Hello", sourceMap["Hello"].Source[0].Text)
 }
 
 func TestSyncGetBlocks_Empty(t *testing.T) {
@@ -170,9 +185,40 @@ func TestSyncGetBlocks_Empty(t *testing.T) {
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var blocks []apiclient.BlockContent
+	var blocks []apiclient.SyncBlock
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &blocks))
 	assert.Empty(t, blocks)
+}
+
+func TestSyncPull_ZstdCompression(t *testing.T) {
+	srv, token := newTestServer(t)
+	e := srv.GetEcho()
+	authHeader := "Bearer " + token
+	pid := createProject(t, srv, token)
+
+	// Push blocks.
+	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
+		{ID: "b1", Text: "Hello", ItemName: "en.json"},
+	})
+
+	// Pull with Accept-Encoding: zstd.
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0", nil)
+	req.Header.Set("Authorization", authHeader)
+	req.Header.Set("Accept-Encoding", "zstd")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "zstd", rec.Header().Get("Content-Encoding"))
+
+	// Decompress and verify.
+	pool := compression.NewPool(nil)
+	decompressed, err := pool.Decompress(rec.Body.Bytes())
+	require.NoError(t, err)
+
+	var resp apiclient.RichPullResponse
+	require.NoError(t, json.Unmarshal(decompressed, &resp))
+	assert.Len(t, resp.Blocks, 1)
+	assert.Equal(t, "Hello", resp.Blocks[0].SourceText)
 }
 
 func TestGetChanges(t *testing.T) {
