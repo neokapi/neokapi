@@ -45,8 +45,5 @@ func init() {
 		rootCmd.AddCommand(cmd)
 	}
 
-	// Deprecated "flow" command (hidden, functional for backward compat).
-	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{}))
-
 	rootCmd.AddCommand(newMCPCmd())
 }
