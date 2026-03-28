@@ -31,21 +31,69 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// FlowCmdOptions configures the flow command.
+// FlowCmdOptions configures the flow and run commands.
 type FlowCmdOptions struct {
-	// FallbackRunE is called when --input is not provided.
-	// If nil, --input is required.
+	// FallbackRunE is called when the flow name doesn't match a built-in flow.
+	// If nil, unknown flow names return an error.
 	FallbackRunE func(cmd *cobra.Command, flowName string, args []string) error
 
 	// ExtraFlows returns additional flows for the list command (e.g. project flows).
 	ExtraFlows func() []output.FlowInfo
 }
 
-// NewFlowCmd creates the flow command group (flow run, flow list).
+// RunFlow executes a flow by name with the given input files.
+// This is the core flow execution method used by both "kapi run" and the
+// deprecated "kapi flow run".
+func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, opts FlowCmdOptions) error {
+	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
+
+	if len(inputPaths) > 0 {
+		if a.TargetLang == "" {
+			if flowName == "pseudo-translate" {
+				a.TargetLang = "qps"
+			} else {
+				return fmt.Errorf("--target-lang is required")
+			}
+		}
+		outputFlag, _ := cmd.Flags().GetString("output")
+		if len(inputPaths) == 1 {
+			return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
+		}
+		return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, outputFlag)
+	}
+
+	// No --input: try fallback (e.g. project flow).
+	if opts.FallbackRunE != nil {
+		return opts.FallbackRunE(cmd, flowName, []string{flowName})
+	}
+	return fmt.Errorf("--input (-i) is required")
+}
+
+// addFlowRunFlags registers the common flags for flow execution commands.
+func (a *App) addFlowRunFlags(cmd *cobra.Command) {
+	a.AddProcessingFlags(cmd)
+	cmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
+	cmd.Flags().StringP("output", "o", "", "output path or template (e.g. ./out/{name}_{lang}.{ext})")
+	cmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
+	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	cmd.Flags().String("api-key", "", "API key for the AI provider")
+	cmd.Flags().String("model", "", "AI model name")
+	cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
+	cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
+	cmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
+	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
+	cmd.Flags().Bool("stats", false, "include part/block counts in output")
+}
+
+// NewFlowCmd creates the deprecated "flow" command group (flow run, flow list).
+// Use NewRunCmd and NewFlowsCmd instead.
 func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 	flowCmd := &cobra.Command{
-		Use:   "flow",
-		Short: "Run processing flows",
+		Use:        "flow",
+		Short:      "Run processing flows (deprecated: use 'run' and 'flows' instead)",
+		Hidden:     true,
+		Deprecated: `use "run" for executing flows and "flows" for listing them`,
 	}
 
 	flowRunCmd := &cobra.Command{
@@ -54,74 +102,49 @@ func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			flowName := args[0]
-			inputPaths, _ := cmd.Flags().GetStringSlice("input")
-			concurrency, _ := cmd.Flags().GetInt("concurrency")
-
-			if len(inputPaths) > 0 {
-				if a.TargetLang == "" {
-					if flowName == "pseudo-translate" {
-						a.TargetLang = "qps"
-					} else {
-						return fmt.Errorf("--target-lang is required")
-					}
-				}
-				outputFlag, _ := cmd.Flags().GetString("output")
-				ctx := context.Background()
-				if len(inputPaths) == 1 {
-					return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
-				}
-				return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, outputFlag)
-			}
-
-			// No --input: try fallback (e.g. project flow).
-			if opts.FallbackRunE != nil {
-				return opts.FallbackRunE(cmd, flowName, args)
-			}
-			return fmt.Errorf("--input (-i) is required")
+			fmt.Fprintf(os.Stderr, "Warning: \"flow run\" is deprecated, use \"run %s\" instead\n", flowName)
+			return a.RunFlow(context.Background(), cmd, flowName, opts)
 		},
 	}
 
-	a.AddProcessingFlags(flowRunCmd)
-	flowRunCmd.Flags().StringSliceP("input", "i", nil, "input file path(s); repeat for multiple files")
-	flowRunCmd.Flags().StringP("output", "o", "", "output path or template (e.g. ./out/{name}_{lang}.{ext})")
-	flowRunCmd.Flags().IntP("concurrency", "j", 0, "number of files to process at once (0 = auto)")
-	flowRunCmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
-	flowRunCmd.Flags().String("api-key", "", "API key for the AI provider")
-	flowRunCmd.Flags().String("model", "", "AI model name")
-	flowRunCmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
-	flowRunCmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
-	flowRunCmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
-	flowRunCmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
-	flowRunCmd.Flags().Bool("stats", false, "include part/block counts in output")
+	a.addFlowRunFlags(flowRunCmd)
 
 	flowListCmd := &cobra.Command{
 		Use:   "list",
 		Short: "List available flows",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			builtinFlows := []output.FlowInfo{
-				{Name: "ai-translate", Description: "Translate content using AI/LLM"},
-				{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
-				{Name: "pseudo-translate", Description: "Generate pseudo-translations for testing"},
-				{Name: "qa-check", Description: "Run rule-based quality checks on translations"},
-				{Name: "tm-leverage", Description: "Pre-fill translations from translation memory"},
-				{Name: "segmentation", Description: "Split source text into sentence segments"},
-			}
-
-			if opts.ExtraFlows != nil {
-				builtinFlows = append(builtinFlows, opts.ExtraFlows()...)
-			}
-
-			out := output.FlowsListOutput{
-				Flows: builtinFlows,
-				Total: len(builtinFlows),
-			}
-			return output.Print(cmd, out)
+			fmt.Fprintln(os.Stderr, `Warning: "flow list" is deprecated, use "flows" instead`)
+			return a.listFlows(cmd, opts)
 		},
 	}
 
 	flowCmd.AddCommand(flowRunCmd)
 	flowCmd.AddCommand(flowListCmd)
 	return flowCmd
+}
+
+// listFlows outputs the list of available flows.
+func (a *App) listFlows(cmd *cobra.Command, opts FlowCmdOptions) error {
+	flows := builtinComposedFlows()
+
+	if opts.ExtraFlows != nil {
+		flows = append(flows, opts.ExtraFlows()...)
+	}
+
+	out := output.FlowsListOutput{
+		Flows: flows,
+		Total: len(flows),
+	}
+	return output.Print(cmd, out)
+}
+
+// builtinComposedFlows returns the list of built-in composed flows
+// (multi-tool pipelines). Single-tool operations are exposed as top-level
+// tool commands instead.
+func builtinComposedFlows() []output.FlowInfo {
+	return []output.FlowInfo{
+		{Name: "ai-translate-qa", Description: "Translate + quality check using AI/LLM"},
+	}
 }
 
 func (a *App) runSingleFile(ctx context.Context, cmd *cobra.Command, flowName, inputPath string) error {

@@ -26,19 +26,27 @@ translate with AI, and run quality checks across a wide range of file types.`,
 func init() {
 	app.AddPersistentFlags(rootCmd)
 
-	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{}))
+	// Primary commands.
+	rootCmd.AddCommand(app.NewRunCmd(cli.RunCmdOptions{}))
+
+	// Management commands.
+	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
+	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewFormatsCmd())
 	rootCmd.AddCommand(app.NewPluginsCmd())
 	rootCmd.AddCommand(app.NewRegistryCmd())
-	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewPresetsCmd())
 	rootCmd.AddCommand(app.NewTermbaseCmd())
 	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("kapi"))
 
+	// Top-level tool commands (declarative opt-in via BuiltinToolCommands).
 	for _, cmd := range app.NewToolCommands() {
 		rootCmd.AddCommand(cmd)
 	}
+
+	// Deprecated "flow" command (hidden, functional for backward compat).
+	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{}))
 
 	rootCmd.AddCommand(newMCPCmd())
 }
