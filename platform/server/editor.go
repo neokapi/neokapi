@@ -451,17 +451,6 @@ func streamParamWithProject(c echo.Context, p *store.Project) string {
 	return refParamWithProject(c, p)
 }
 
-// itemParam extracts the item path from the ?item= query parameter.
-// AD-040: item paths use query params instead of wildcard suffixes.
-// Falls back to wildcard path param (*) for backward compatibility.
-func itemParam(c echo.Context) string {
-	if item := c.QueryParam("item"); item != "" {
-		return item
-	}
-	// Legacy wildcard fallback.
-	return c.Param("*")
-}
-
 // projectParam extracts the project ID from either :id or :pid path parameter.
 // AD-040 uses :id consistently, but some handlers historically use :pid.
 func projectParam(c echo.Context) string {

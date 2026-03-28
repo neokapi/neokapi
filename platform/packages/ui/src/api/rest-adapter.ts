@@ -399,9 +399,7 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Project Members ─────────────────────────────────────────────────
 
   async listProjectMembers(workspaceSlug: string, projectId: string): Promise<ProjectMembership[]> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members`,
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members`);
   }
 
   async addProjectMember(
@@ -413,13 +411,10 @@ export class RestApiAdapter implements ApiAdapter {
       languages?: string[];
     },
   ): Promise<ProjectMembership> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members`,
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   }
 
   async updateProjectMember(
@@ -431,13 +426,10 @@ export class RestApiAdapter implements ApiAdapter {
       languages?: string[];
     },
   ): Promise<ProjectMembership> {
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members/${userId}`,
-      {
-        method: "PUT",
-        body: JSON.stringify(data),
-      },
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members/${userId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
   }
 
   async removeProjectMember(
@@ -445,10 +437,9 @@ export class RestApiAdapter implements ApiAdapter {
     projectId: string,
     userId: string,
   ): Promise<void> {
-    await this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/members/${userId}`,
-      { method: "DELETE" },
-    );
+    await this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/members/${userId}`, {
+      method: "DELETE",
+    });
   }
 
   // ── API Tokens ─────────────────────────────────────────────────────────
@@ -650,9 +641,7 @@ export class RestApiAdapter implements ApiAdapter {
     kind?: StreamTagKind,
   ): Promise<StreamTag[]> {
     const params = kind ? `?kind=${encodeURIComponent(kind)}` : "";
-    return this.fetchJSON(
-      `${this.projectEp(workspaceSlug, projectId)}/tags${params}`,
-    );
+    return this.fetchJSON(`${this.projectEp(workspaceSlug, projectId)}/tags${params}`);
   }
 
   // ── Projects ─────────────────────────────────────────────────────────────
@@ -1433,19 +1422,17 @@ export class RestApiAdapter implements ApiAdapter {
   // ── Digest Settings ──────────────────────────────────────────────────────
 
   async getDigestSettings(workspaceSlug: string): Promise<DigestSettingsDTO> {
-    return this.fetchJSON<DigestSettingsDTO>(
-      `/api/v1/${workspaceSlug}/digest-settings`,
-    );
+    return this.fetchJSON<DigestSettingsDTO>(`/api/v1/${workspaceSlug}/digest-settings`);
   }
 
   async updateDigestSettings(
     workspaceSlug: string,
     settings: DigestSettingsDTO,
   ): Promise<DigestSettingsDTO> {
-    return this.fetchJSON<DigestSettingsDTO>(
-      `/api/v1/${workspaceSlug}/digest-settings`,
-      { method: "PUT", body: JSON.stringify(settings) },
-    );
+    return this.fetchJSON<DigestSettingsDTO>(`/api/v1/${workspaceSlug}/digest-settings`, {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    });
   }
 
   // ── Entity Annotations ──────────────────────────────────────────────────
