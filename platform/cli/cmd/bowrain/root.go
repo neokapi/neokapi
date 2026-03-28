@@ -72,12 +72,6 @@ func init() {
 	for _, cmd := range app.NewToolCommands() {
 		rootCmd.AddCommand(cmd)
 	}
-
-	// Deprecated "flow" command (hidden, functional for backward compat).
-	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{
-		FallbackRunE: projectFlowFallback,
-		ExtraFlows:   listProjectFlows,
-	}))
 }
 
 // projectFlowFallback is called when a flow name doesn't match a built-in

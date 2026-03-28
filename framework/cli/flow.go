@@ -42,8 +42,6 @@ type FlowCmdOptions struct {
 }
 
 // RunFlow executes a flow by name with the given input files.
-// This is the core flow execution method used by both "kapi run" and the
-// deprecated "kapi flow run".
 func (a *App) RunFlow(ctx context.Context, cmd *cobra.Command, flowName string, opts FlowCmdOptions) error {
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
@@ -84,43 +82,6 @@ func (a *App) addFlowRunFlags(cmd *cobra.Command) {
 	cmd.Flags().String("tm", "", "named TM for tm-leverage flow (resolves from KAPI_HOME)")
 	cmd.Flags().String("termbase", "", "named termbase for term-lookup/enforce (resolves from KAPI_HOME)")
 	cmd.Flags().Bool("stats", false, "include part/block counts in output")
-}
-
-// NewFlowCmd creates the deprecated "flow" command group (flow run, flow list).
-// Use NewRunCmd and NewFlowsCmd instead.
-func (a *App) NewFlowCmd(opts FlowCmdOptions) *cobra.Command {
-	flowCmd := &cobra.Command{
-		Use:        "flow",
-		Short:      "Run processing flows (deprecated: use 'run' and 'flows' instead)",
-		Hidden:     true,
-		Deprecated: `use "run" for executing flows and "flows" for listing them`,
-	}
-
-	flowRunCmd := &cobra.Command{
-		Use:   "run [flow-name]",
-		Short: "Run a flow",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			flowName := args[0]
-			fmt.Fprintf(os.Stderr, "Warning: \"flow run\" is deprecated, use \"run %s\" instead\n", flowName)
-			return a.RunFlow(context.Background(), cmd, flowName, opts)
-		},
-	}
-
-	a.addFlowRunFlags(flowRunCmd)
-
-	flowListCmd := &cobra.Command{
-		Use:   "list",
-		Short: "List available flows",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(os.Stderr, `Warning: "flow list" is deprecated, use "flows" instead`)
-			return a.listFlows(cmd, opts)
-		},
-	}
-
-	flowCmd.AddCommand(flowRunCmd)
-	flowCmd.AddCommand(flowListCmd)
-	return flowCmd
 }
 
 // listFlows outputs the list of available flows.
