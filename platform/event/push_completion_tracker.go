@@ -38,6 +38,14 @@ type pendingPush struct {
 	registeredAt time.Time
 }
 
+// PushTrackerOption configures a PushCompletionTracker.
+type PushTrackerOption func(*PushCompletionTracker)
+
+// WithPollInterval sets the poll interval (default 5s).
+func WithPollInterval(d time.Duration) PushTrackerOption {
+	return func(t *PushCompletionTracker) { t.pollInterval = d }
+}
+
 // NewPushCompletionTracker creates a tracker that subscribes to push events
 // and monitors job completion.
 func NewPushCompletionTracker(
@@ -45,6 +53,7 @@ func NewPushCompletionTracker(
 	jobStore jobs.JobStore,
 	extractStore jobs.ExtractionJobStore,
 	contentStore platstore.ContentStore,
+	opts ...PushTrackerOption,
 ) *PushCompletionTracker {
 	t := &PushCompletionTracker{
 		bus:          bus,
@@ -55,6 +64,9 @@ func NewPushCompletionTracker(
 		pollInterval: 5 * time.Second,
 		timeout:      30 * time.Minute,
 		done:         make(chan struct{}),
+	}
+	for _, opt := range opts {
+		opt(t)
 	}
 	t.sub = bus.SubscribeGroup("push-tracker", t.handlePush)
 	go t.pollLoop()
