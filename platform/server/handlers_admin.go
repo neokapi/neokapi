@@ -290,10 +290,13 @@ func (s *Server) HandleAdminGetModelUsage(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	runnerUsage, _ := pgStore.GetRunnerUsage(ctx, wsID, from, to)
+
 	return c.JSON(http.StatusOK, map[string]any{
-		"model_usage": usage,
-		"from":        from,
-		"to":          to,
+		"model_usage":  usage,
+		"runner_usage": runnerUsage,
+		"from":         from,
+		"to":           to,
 	})
 }
 

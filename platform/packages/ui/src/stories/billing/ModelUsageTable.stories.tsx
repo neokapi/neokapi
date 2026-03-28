@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ModelUsageTable } from "../../components/billing/ModelUsageTable";
-import type { ModelUsage } from "../../types/api";
+import type { ModelUsage, RunnerUsage } from "../../types/api";
 
 const meta: Meta<typeof ModelUsageTable> = {
   title: "Billing/ModelUsageTable",
@@ -54,9 +54,16 @@ const sampleEntries: ModelUsage[] = [
   },
 ];
 
+const sampleRunnerEntries: RunnerUsage[] = [
+  { operation: "bravo_container", total_seconds: 2_340, count: 58 },
+  { operation: "auto_translate", total_seconds: 845, count: 15 },
+  { operation: "auto_extract", total_seconds: 120, count: 4 },
+];
+
 export const Default: Story = {
   args: {
     entries: sampleEntries,
+    runnerEntries: sampleRunnerEntries,
   },
 };
 

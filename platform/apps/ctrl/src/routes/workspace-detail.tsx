@@ -248,8 +248,11 @@ export function WorkspaceDetailRoute() {
         </TabsContent>
 
         <TabsContent value="usage" className="mt-4 space-y-4">
-          <h3 className="text-sm font-medium">Token Usage by Model</h3>
-          <ModelUsageTable entries={modelUsageData?.model_usage ?? []} />
+          <h3 className="text-sm font-medium">Usage by Model &amp; Runner</h3>
+          <ModelUsageTable
+            entries={modelUsageData?.model_usage ?? []}
+            runnerEntries={modelUsageData?.runner_usage ?? []}
+          />
         </TabsContent>
 
         <TabsContent value="overrides" className="mt-4 space-y-4">
