@@ -157,6 +157,14 @@ A **transition period** can support both: if the request includes `?async=true`,
 
 - **Queue the raw request body**: Simpler than blob but limited by queue message size (256KB for Service Bus). Blobs have no practical size limit.
 
+## Operational: Blob Store Alignment
+
+The API server and worker **must use the same blob store**. In production, both use Azure Blob Storage via managed identity. In local dev, both must point to the same filesystem directory (set `BLOB_STORAGE_LOCAL_DIR` / `LOCAL_BLOB_DIR` to the same path).
+
+If they use different stores, the worker cannot find chunks uploaded by the server, and push jobs fail silently with "chunk download failed".
+
+The dev Makefile pins both to `/tmp/bowrain-blobs`. The bowrain-infra `containerapp-worker.bicep` passes `AZURE_STORAGE_ACCOUNT_URL` and `AZURE_STORAGE_CONTAINER` to ensure blob store alignment in Azure.
+
 ## Consequences
 
 - Push endpoint returns 202 immediately — API server stays responsive under any load
@@ -164,5 +172,4 @@ A **transition period** can support both: if the request includes `?async=true`,
 - Blob provides natural durability — if worker crashes, blob is re-processed on retry
 - Rate limiting prevents resource exhaustion
 - Pagination prevents memory exhaustion on reads
-- Backward compatible via `?async=true` transition flag
 - Slightly more complex flow for clients (poll for completion)

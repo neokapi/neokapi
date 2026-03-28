@@ -139,3 +139,23 @@ GET    /api/v1/workspaces/:ws/projects/:id/sync/status
 
 Bowrain CLI interacts with the store via API, not directly. The `bowrain pull/push` commands call the sync endpoints, which query the ContentStore, compute diffs, and return only changed blocks ([AD-016](/docs/ad/016-kapi-project-model)).
 
+## Migration Strategy
+
+### PostgreSQL: Single consolidated migration
+
+The PostgreSQL content store schema (`platform/store/migrations_pg.go`) uses a **single migration** containing the complete schema. There are no incremental migrations — we start from scratch on each fresh database.
+
+When adding new tables or columns:
+- **Add to the single migration** in `migrations_pg.go` — do not add migration 2
+- If deployed databases exist, add a separate migration with `ALTER TABLE IF NOT EXISTS` guards
+- The migration table is `store_schema_migrations`
+
+Other stores follow the same pattern:
+- `jobs_schema_migrations` — translation jobs (single migration)
+- `extraction_schema_migrations` — extraction jobs (single migration)
+- `auth_schema_migrations`, `brand_schema_migrations`, etc. — may still have incremental migrations
+
+### SQLite: Incremental migrations
+
+SQLite (`platform/store/migrations.go`) uses incremental migrations (currently at version 33). Each new table or column gets a new version. The migration table is `schema_migrations`.
+
