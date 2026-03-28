@@ -135,7 +135,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 		"project_id":  projectID,
 		"item_hashes": itemHashes,
 	})
-	req := httptest.NewRequest(http.MethodPost, basePath+"/sync/push/init", bytes.NewReader(initBody))
+	req := httptest.NewRequest(http.MethodPost, basePath+"/sync/main/push/init", bytes.NewReader(initBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
@@ -177,7 +177,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 			"item_name":    itemName,
 			"block_hashes": hashes,
 		})
-		req = httptest.NewRequest(http.MethodPost, basePath+"/sync/push/diff", bytes.NewReader(diffBody))
+		req = httptest.NewRequest(http.MethodPost, basePath+"/sync/main/push/diff", bytes.NewReader(diffBody))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", authHeader)
 		rec = httptest.NewRecorder()
@@ -228,7 +228,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 		require.NoError(t, err)
 
 		req = httptest.NewRequest(http.MethodPut,
-			fmt.Sprintf("%s/sync/push/chunks/%s/%d", basePath, uploadID, chunkIndex),
+			fmt.Sprintf("%s/sync/main/push/chunks/%s/%d", basePath, uploadID, chunkIndex),
 			bytes.NewReader(chunkData))
 		req.Header.Set("Content-Type", "application/octet-stream")
 		req.Header.Set("Authorization", authHeader)
@@ -270,7 +270,7 @@ func pushBlocks(t *testing.T, srv *Server, e *echo.Echo, authHeader, projectID s
 		"chunks":     chunkRefs,
 		"items":      json.RawMessage(itemsJSON),
 	})
-	req = httptest.NewRequest(http.MethodPost, basePath+"/sync/push/commit", bytes.NewReader(commitBody))
+	req = httptest.NewRequest(http.MethodPost, basePath+"/sync/main/push/commit", bytes.NewReader(commitBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()

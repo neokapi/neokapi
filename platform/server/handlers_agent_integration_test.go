@@ -29,7 +29,7 @@ func TestBravoEndToEnd_ConversationLifecycle(t *testing.T) {
 
 	// ── 1. Create conversation ─────────────────────────────────────────
 	body := `{"title":"E2E Chat","project_id":"proj-e2e"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/demo/bravo/conversations", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/demo/bravo/conversations", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)

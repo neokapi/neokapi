@@ -22,7 +22,7 @@ const StreamHeader = "X-Bowrain-Stream"
 // BowrainClient is a REST client for the Bowrain server sync API.
 // It supports two auth modes:
 //   - ClaimToken: unclaimed project, flat routes /api/v1/projects/:id/sync/*
-//   - JWT + workspace: workspace project, routes /api/v1/workspaces/:ws/projects/:id/sync/*
+//   - JWT + workspace: workspace project, routes /api/v1/:ws/:id/sync/:ref/*
 type BowrainClient struct {
 	baseURL    string
 	projectID  string
@@ -72,24 +72,32 @@ func NewProjectBearerClient(serverURL, projectID, authToken string) *BowrainClie
 }
 
 // projectPrefix returns the URL prefix for project-scoped endpoints.
-// Workspace project: /api/v1/workspaces/{ws}/projects/{pid}
-// Unclaimed project: /api/v1/projects/{pid}
+// AD-040: workspace project uses bare slug /:ws/:pid, unclaimed uses /projects/:pid.
 func (c *BowrainClient) projectPrefix() string {
 	if c.workspace != "" {
-		return fmt.Sprintf("%s/api/v1/workspaces/%s/projects/%s", c.baseURL, c.workspace, c.projectID)
+		return fmt.Sprintf("%s/api/v1/%s/%s", c.baseURL, c.workspace, c.projectID)
 	}
 	return fmt.Sprintf("%s/api/v1/projects/%s", c.baseURL, c.projectID)
 }
 
-// streamPrefix returns the URL prefix for stream-scoped endpoints.
-// All content operations use: .../projects/{pid}/streams/{stream}/...
-// When stream is empty or "main", it still uses the path explicitly.
-func (c *BowrainClient) streamPrefix() string {
-	stream := c.stream
-	if stream == "" {
-		stream = "main"
+// ref returns the active stream/tag ref, defaulting to "main".
+func (c *BowrainClient) ref() string {
+	if c.stream != "" {
+		return url.PathEscape(c.stream)
 	}
-	return c.projectPrefix() + "/streams/" + url.PathEscape(stream)
+	return "main"
+}
+
+// streamPrefix returns the URL prefix for sync-scoped endpoints.
+// AD-040: resource-first ref pattern — /:ws/:pid/sync/:ref
+func (c *BowrainClient) streamPrefix() string {
+	return c.projectPrefix() + "/sync/" + c.ref()
+}
+
+// assetPrefix returns the URL prefix for asset-scoped endpoints.
+// AD-040: resource-first ref pattern — /:ws/:pid/assets/:ref
+func (c *BowrainClient) assetPrefix() string {
+	return c.projectPrefix() + "/assets/" + c.ref()
 }
 
 // SetStream sets the active stream for all subsequent requests.
@@ -978,7 +986,7 @@ func (c *BowrainClient) GetAssetUploadURL(ctx context.Context, blobKey, contentT
 		return nil, fmt.Errorf("marshal upload-url request: %w", err)
 	}
 
-	u := c.streamPrefix() + "/assets/upload-url"
+	u := c.assetPrefix() + "/upload-url"
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -1010,7 +1018,7 @@ func (c *BowrainClient) PushAsset(ctx context.Context, asset AssetInput) (*Asset
 		return nil, fmt.Errorf("marshal asset: %w", err)
 	}
 
-	u := c.streamPrefix() + "/assets"
+	u := c.assetPrefix()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -1037,7 +1045,7 @@ func (c *BowrainClient) PushAsset(ctx context.Context, asset AssetInput) (*Asset
 
 // ListAssets fetches assets for a project, optionally filtered by item name.
 func (c *BowrainClient) ListAssets(ctx context.Context, itemName string) ([]AssetResponse, error) {
-	u, err := url.Parse(c.streamPrefix() + "/assets")
+	u, err := url.Parse(c.assetPrefix())
 	if err != nil {
 		return nil, fmt.Errorf("parse URL: %w", err)
 	}
@@ -1088,7 +1096,7 @@ type AssetVariantListResponse struct {
 
 // ListAssetVariants fetches locale variants for an asset.
 func (c *BowrainClient) ListAssetVariants(ctx context.Context, assetID string) ([]AssetVariantResponse, error) {
-	u := c.streamPrefix() + "/assets/" + assetID + "/variants"
+	u := c.assetPrefix() + "/" + assetID + "/variants"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)

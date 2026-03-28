@@ -42,7 +42,7 @@ func TestListRoleTemplates(t *testing.T) {
 	srv, jwt, wsSlug := newRolesTestServer(t)
 	e := srv.GetEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/roles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/roles", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -59,7 +59,7 @@ func TestCreateRoleTemplate(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"name":"custom-role","display_name":"Custom Role","description":"A custom role","permissions":["translate","review"],"position":10}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/roles",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/roles",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -75,7 +75,7 @@ func TestCreateRoleTemplate(t *testing.T) {
 	assert.NotEmpty(t, created.ID)
 
 	// Verify it appears in list (5 defaults + 1 custom = 6).
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/roles", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/roles", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -92,7 +92,7 @@ func TestUpdateRoleTemplate(t *testing.T) {
 
 	// Create a custom role to update.
 	body := `{"name":"updatable","display_name":"Updatable","permissions":["translate"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/roles",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/roles",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -105,7 +105,7 @@ func TestUpdateRoleTemplate(t *testing.T) {
 
 	// Update name and permissions.
 	updateBody := `{"name":"updated-role","display_name":"Updated Role","permissions":["translate","review","manage_tm"]}`
-	req = httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/"+wsSlug+"/roles/"+created.ID,
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/"+wsSlug+"/roles/"+created.ID,
 		strings.NewReader(updateBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -126,7 +126,7 @@ func TestDeleteRoleTemplate(t *testing.T) {
 
 	// Create a custom (non-builtin) role to delete.
 	body := `{"name":"deletable","display_name":"Deletable","permissions":["translate"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/workspaces/"+wsSlug+"/roles",
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/"+wsSlug+"/roles",
 		strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+jwt)
@@ -138,14 +138,14 @@ func TestDeleteRoleTemplate(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
 
 	// Delete it.
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/workspaces/"+wsSlug+"/roles/"+created.ID, nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/"+wsSlug+"/roles/"+created.ID, nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusNoContent, rec.Code)
 
 	// Verify it's gone (back to 5 defaults).
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/roles", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/roles", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -161,7 +161,7 @@ func TestDeleteBuiltinRoleTemplate(t *testing.T) {
 	e := srv.GetEcho()
 
 	// List roles to find a builtin ID.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/"+wsSlug+"/roles", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/"+wsSlug+"/roles", nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -174,7 +174,7 @@ func TestDeleteBuiltinRoleTemplate(t *testing.T) {
 	builtinID := roles[0].ID
 
 	// Attempt to delete a builtin role — should fail.
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/workspaces/"+wsSlug+"/roles/"+builtinID, nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/"+wsSlug+"/roles/"+builtinID, nil)
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

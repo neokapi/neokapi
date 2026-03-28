@@ -395,38 +395,6 @@ func writePullResponse(c echo.Context, resp apiclient.RichPullResponse) error {
 	return c.JSONBlob(http.StatusOK, data)
 }
 
-// HandleGetChanges returns raw change log entries for a project.
-func (s *Server) HandleGetChanges(c echo.Context) error {
-	if s.Services == nil {
-		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
-	}
-
-	projectID := c.Param("id")
-	cursor, _ := strconv.ParseInt(c.QueryParam("cursor"), 10, 64)
-	limit, _ := strconv.Atoi(c.QueryParam("limit"))
-	if limit <= 0 {
-		limit = 100
-	}
-
-	var locales []string
-	if raw := c.QueryParam("locales"); raw != "" {
-		for _, l := range strings.Split(raw, ",") {
-			if t := strings.TrimSpace(l); t != "" {
-				locales = append(locales, t)
-			}
-		}
-	} else if single := c.QueryParam("locale"); single != "" {
-		locales = []string{single}
-	}
-
-	cs, err := s.Services.Project.GetChanges(c.Request().Context(), projectID, cursor, locales, limit)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-
-	return c.JSON(http.StatusOK, cs)
-}
-
 // HandleSyncGetBlocks returns blocks with full structured content for a specific item.
 // Returns []SyncBlock with segments, spans, annotations, and metadata.
 func (s *Server) HandleSyncGetBlocks(c echo.Context) error {

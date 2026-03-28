@@ -15,12 +15,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// createProject creates a test project via the API and returns its ID.
+// createProject creates a test project via the workspace-scoped API and returns its ID.
+// The test workspace slug is "test" (created by newTestServer).
 func createProject(t *testing.T, srv *Server, token string) string {
 	t.Helper()
 	e := srv.GetEcho()
 	body := `{"name":"SyncTest","default_source_language":"en"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -63,7 +64,7 @@ func TestSyncPull(t *testing.T) {
 	})
 
 	// Pull all blocks from cursor 0.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/pull?cursor=0", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -105,7 +106,7 @@ func TestSyncPull_Pagination(t *testing.T) {
 	pushBlocks(t, srv, e, authHeader, pid, items)
 
 	// Pull with limit=3.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0&limit=3", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/pull?cursor=0&limit=3", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -117,7 +118,7 @@ func TestSyncPull_Pagination(t *testing.T) {
 	assert.True(t, resp.HasMore)
 
 	// Pull remaining from cursor.
-	url := fmt.Sprintf("/api/v1/projects/%s/sync/pull?cursor=%d&limit=3", pid, resp.Cursor)
+	url := fmt.Sprintf("/api/v1/projects/%s/sync/main/pull?cursor=%d&limit=3", pid, resp.Cursor)
 	req = httptest.NewRequest(http.MethodGet, url, nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
@@ -143,7 +144,7 @@ func TestSyncGetBlocks(t *testing.T) {
 	})
 
 	// Get blocks for item.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/blocks?item_name=en.json", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -179,7 +180,7 @@ func TestSyncGetBlocks_Empty(t *testing.T) {
 	pid := createProject(t, srv, token)
 
 	// Get blocks for an item that doesn't exist.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=nonexistent.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/blocks?item_name=nonexistent.json", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -202,7 +203,7 @@ func TestSyncPull_ZstdCompression(t *testing.T) {
 	})
 
 	// Pull with Accept-Encoding: zstd.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/pull?cursor=0", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/pull?cursor=0", nil)
 	req.Header.Set("Authorization", authHeader)
 	req.Header.Set("Accept-Encoding", "zstd")
 	rec := httptest.NewRecorder()
@@ -219,34 +220,6 @@ func TestSyncPull_ZstdCompression(t *testing.T) {
 	require.NoError(t, json.Unmarshal(decompressed, &resp))
 	assert.Len(t, resp.Blocks, 1)
 	assert.Equal(t, "Hello", resp.Blocks[0].SourceText)
-}
-
-func TestGetChanges(t *testing.T) {
-	srv, token := newTestServer(t)
-	e := srv.GetEcho()
-	authHeader := "Bearer " + token
-	pid := createProject(t, srv, token)
-
-	// Push, modify, then pull changes.
-	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
-		{ID: "b1", Text: "Hello", ItemName: "en.json"},
-	})
-	pushBlocks(t, srv, e, authHeader, pid, []pushBlockItem{
-		{ID: "b1", Text: "Hello World", ItemName: "en.json"},
-	})
-
-	// Get changes via the changes endpoint.
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/changes?cursor=0", nil)
-	req.Header.Set("Authorization", authHeader)
-	rec := httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	require.Equal(t, http.StatusOK, rec.Code)
-
-	var cs store.ChangeSet
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &cs))
-	assert.Len(t, cs.Changes, 2)
-	assert.Equal(t, "source_added", cs.Changes[0].ChangeType)
-	assert.Equal(t, "source_modified", cs.Changes[1].ChangeType)
 }
 
 func TestSyncPush_AutoSetsDefaultStream(t *testing.T) {

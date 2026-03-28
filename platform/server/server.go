@@ -629,28 +629,12 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 	// API v1 routes
 	v1 := e.Group("/api/v1")
+
+	// Public endpoints (no auth).
 	v1.GET("/health", s.HandleHealth)
 	v1.GET("/ready", s.HandleReady)
-	v1.GET("/config", s.HandleConfig)
 	v1.GET("/info", s.HandleInfo)
-	v1.GET("/formats", s.HandleListFormats)
-	v1.GET("/tools", s.HandleListTools)
-	v1.GET("/locales", s.HandleGetKnownLocales)
-
-	// Brand voice starter packs (public, no auth required).
-	v1.GET("/brand-voice/starter-packs", s.HandleListStarterPacks)
-
-	// Connector endpoints (public).
-	v1.GET("/connectors/types", s.HandleListConnectorTypes)
-	v1.GET("/connectors", s.HandleListActiveConnectors)
-	v1.POST("/connectors", s.HandleAddConnector)
-	v1.DELETE("/connectors/:id", s.HandleRemoveConnector)
-	v1.GET("/connectors/:id/status", s.HandleConnectorStatus)
-	v1.POST("/fetch", s.HandleFetch)
-	v1.POST("/publish", s.HandlePublish)
-
-	// Public badge endpoint (shields.io-compatible, CDN-cacheable).
-	v1.GET("/badges/projects/:id", s.HandleProjectBadge)
+	v1.GET("/badges/:proj", s.HandleProjectBadge)
 
 	// Pulse public activity dashboard (AD-033).
 	// No auth required — access gated by workspace/project dashboard_visibility.
@@ -668,8 +652,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 
 		// Project-scoped routes also enforce project-level visibility.
 		pulseProjectGroup := pulseGroup.Group("", PulseProjectAccessMiddleware(s.ContentStore))
-		pulseProjectGroup.GET("/projects/:pid", s.HandlePulseProjectDetail)
-		pulseProjectGroup.GET("/projects/:pid/lang/:locale", s.HandlePulseLocaleDetail)
+		pulseProjectGroup.GET("/projects/:id", s.HandlePulseProjectDetail)
+		pulseProjectGroup.GET("/projects/:id/lang/:locale", s.HandlePulseLocaleDetail)
 	}
 
 	// Authenticated mode: auth routes, protected endpoints, workspace management.
@@ -705,81 +689,38 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		authProtected.POST("/logout", s.HandleAuthLogout)
 		authProtected.POST("/token/exchange", s.HandleTokenExchange)
 
-		// JWT-protected routes: project CRUD, blocks, versions, changes.
+		// Project claim and invite acceptance (auth required, no workspace).
 		jwtProtected := v1.Group("")
 		jwtProtected.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
-		jwtProtected.POST("/projects", s.HandleCreateProject)
-		jwtProtected.GET("/projects", s.HandleListProjects)
-		jwtProtected.GET("/projects/:id", s.HandleGetProject)
-		jwtProtected.PUT("/projects/:id", s.HandleUpdateProject)
-		jwtProtected.PATCH("/projects/:id", s.HandleUpdateProject)
-		jwtProtected.DELETE("/projects/:id", s.HandleDeleteProject)
-		jwtProtected.POST("/projects/:id/blocks", s.HandleStoreBlocks)
-		jwtProtected.GET("/projects/:id/blocks", s.HandleGetBlocks)
-		jwtProtected.POST("/projects/:id/versions", s.HandleCreateVersion)
-		jwtProtected.GET("/projects/:id/versions", s.HandleListVersions)
-		jwtProtected.GET("/projects/:id/changes", s.HandleGetChanges)
 		jwtProtected.POST("/projects/claim", s.HandleClaimProject)
 		jwtProtected.POST("/join/:code", s.HandleAcceptInvite)
 
-		// Asset routes (AD-029): non-workspace scoped, JWT-protected.
-		jwtProtected.POST("/projects/:id/assets/upload-url", s.HandleAssetUploadURL)
-		jwtProtected.POST("/projects/:id/assets", s.HandleCreateAsset)
-		jwtProtected.GET("/projects/:id/assets", s.HandleListAssets)
-		jwtProtected.GET("/projects/:id/assets/:aid", s.HandleGetAsset)
-		jwtProtected.DELETE("/projects/:id/assets/:aid", s.HandleDeleteAsset)
-		jwtProtected.POST("/projects/:id/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
-		jwtProtected.POST("/projects/:id/assets/:aid/variants", s.HandleCreateVariant)
-		jwtProtected.GET("/projects/:id/assets/:aid/variants", s.HandleListVariants)
-
-		// Stream-scoped asset routes (AD-029).
-		jwtProtected.POST("/projects/:id/streams/:stream/assets/upload-url", s.HandleAssetUploadURL)
-		jwtProtected.POST("/projects/:id/streams/:stream/assets", s.HandleCreateAsset)
-		jwtProtected.GET("/projects/:id/streams/:stream/assets", s.HandleListAssets)
-		jwtProtected.GET("/projects/:id/streams/:stream/assets/:aid", s.HandleGetAsset)
-		jwtProtected.DELETE("/projects/:id/streams/:stream/assets/:aid", s.HandleDeleteAsset)
-		jwtProtected.POST("/projects/:id/streams/:stream/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
-		jwtProtected.POST("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleCreateVariant)
-		jwtProtected.GET("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleListVariants)
-
-		// Sync routes: accept either JWT or ClaimToken.
-		// Register both legacy (flat) and stream-scoped routes.
+		// Flat sync routes for unclaimed projects (claim-token or JWT auth).
+		// AD-040: /api/v1/projects/:id/sync/:ref/*
 		if s.AuthStore != nil {
-			legacySyncRateLimit := RateLimitSyncPush(10, 3)
-			syncGroup := v1.Group("/projects/:id/sync")
-			syncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
-			syncGroup.GET("/pull", s.HandleSyncPull)
-			syncGroup.GET("/blocks", s.HandleSyncGetBlocks)
-			syncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
-			syncGroup.GET("/status", s.HandleSyncPushStatus)
-			// Sync push routes (AD-038 — chunked, diff-based)
-			syncGroup.POST("/push/init", s.HandleSyncPushInit)
-			syncGroup.POST("/push/diff", s.HandleSyncPushDiff)
-			syncGroup.POST("/push/commit", s.HandleSyncPushCommit, legacySyncRateLimit)
-			syncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
-
-			// Stream-scoped sync routes: /projects/:id/streams/:stream/sync/*
-			streamSyncGroup := v1.Group("/projects/:id/streams/:stream/sync")
-			streamSyncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
-			streamSyncGroup.GET("/pull", s.HandleSyncPull)
-			streamSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
-			streamSyncGroup.POST("/translate", s.HandleCreateProjectTranslationJob)
-			streamSyncGroup.GET("/status", s.HandleSyncPushStatus)
-			// Stream-scoped push routes
-			streamSyncGroup.POST("/push/init", s.HandleSyncPushInit)
-			streamSyncGroup.POST("/push/diff", s.HandleSyncPushDiff)
-			streamSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, legacySyncRateLimit)
-			streamSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+			syncRateLimit := RateLimitSyncPush(10, 3)
+			flatSyncGroup := v1.Group("/projects/:id/sync/:ref")
+			flatSyncGroup.Use(ClaimOrAuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+			flatSyncGroup.GET("/pull", s.HandleSyncPull)
+			flatSyncGroup.GET("/blocks", s.HandleSyncGetBlocks)
+			flatSyncGroup.GET("/status", s.HandleSyncPushStatus)
+			flatSyncGroup.POST("/push/init", s.HandleSyncPushInit)
+			flatSyncGroup.POST("/push/diff", s.HandleSyncPushDiff)
+			flatSyncGroup.POST("/push/commit", s.HandleSyncPushCommit, syncRateLimit)
+			flatSyncGroup.PUT("/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
 		}
 
-		// Workspace endpoints (require auth + workspace membership)
-		wsGroup := v1.Group("/workspaces")
-		wsGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
-		wsGroup.POST("", s.HandleCreateWorkspace)
-		wsGroup.GET("", s.HandleListWorkspaces)
+		// Workspace collection routes: list and create (require auth).
+		// AD-040: /api/v1/workspaces (collection noun for list/create)
+		wsCollectionGroup := v1.Group("/workspaces")
+		wsCollectionGroup.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
+		wsCollectionGroup.POST("", s.HandleCreateWorkspace)
+		wsCollectionGroup.GET("", s.HandleListWorkspaces)
 
-		// Workspace-specific routes with auth and membership checks
-		wsSpecific := wsGroup.Group("/:ws")
+		// Workspace-specific routes: bare slug at /:ws (require auth + membership).
+		// AD-040: /api/v1/:ws (bare workspace slug)
+		wsSpecific := v1.Group("/:ws")
+		wsSpecific.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
 		}
@@ -902,8 +843,16 @@ func serveSPAFile(c echo.Context, dir string) error {
 }
 
 // registerWorkspaceContentRoutes registers all workspace-scoped content routes
-// (editor projects, file management, block editing, translation, TM, terms, providers)
-// on the given route group.
+// on the given route group (mounted at /:ws).
+//
+// AD-040 URL patterns:
+//   - Workspace-level: /:ws/translation-memory, /:ws/terms, /:ws/providers, etc.
+//   - Project collection: /:ws/projects (list/create)
+//   - Project-specific: /:ws/:id (bare slug, get/update/delete)
+//   - Ref-scoped content: /:ws/:id/blocks/:ref, /:ws/:id/sync/:ref, etc.
+//
+// Note: During migration, handlers still extract project ID via c.Param("pid")
+// or c.Param("id"). Slug-to-ID resolution middleware will be added separately.
 func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	// Apply project-level permission resolution for routes with :pid or :id params.
 	// The middleware is a no-op when no project ID is present (workspace-scoped routes).
@@ -917,121 +866,18 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 		g.Use(SessionGrantMiddleware(s.SessionStore))
 	}
 
-	// Workspace-scoped project routes
-	g.GET("/projects", s.HandleListWorkspaceProjects)
-	g.POST("/projects", s.HandleCreateWorkspaceProject)
+	// -----------------------------------------------------------------------
+	// Workspace-level resources (no project context)
+	// -----------------------------------------------------------------------
 
-	// Sync routes (workspace-scoped)
-	syncRateLimit := RateLimitSyncPush(10, 3) // 10 pushes/min, burst of 3
-	g.GET("/projects/:id/sync/pull", s.HandleSyncPull)
-	g.GET("/projects/:id/sync/blocks", s.HandleSyncGetBlocks)
-	g.GET("/projects/:id/sync/status", s.HandleSyncPushStatus)
+	// TM CRUD — AD-040: /:ws/translation-memory
+	g.GET("/translation-memory", s.HandleGetTMEntries)
+	g.GET("/translation-memory/count", s.HandleGetTMCount)
+	g.POST("/translation-memory", s.HandleAddTMEntry)
+	g.PUT("/translation-memory/:eid", s.HandleUpdateTMEntry)
+	g.DELETE("/translation-memory/:eid", s.HandleDeleteTMEntry)
 
-	// Stream-scoped sync routes (workspace-scoped)
-	g.GET("/projects/:id/streams/:stream/sync/pull", s.HandleSyncPull)
-	g.GET("/projects/:id/streams/:stream/sync/blocks", s.HandleSyncGetBlocks)
-	g.GET("/projects/:id/streams/:stream/sync/status", s.HandleSyncPushStatus)
-
-	// Sync push routes (AD-038 — chunked, diff-based)
-	g.POST("/projects/:id/sync/push/init", s.HandleSyncPushInit)
-	g.POST("/projects/:id/sync/push/diff", s.HandleSyncPushDiff)
-	g.POST("/projects/:id/sync/push/commit", s.HandleSyncPushCommit, syncRateLimit)
-	g.PUT("/projects/:id/sync/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
-	g.POST("/projects/:id/streams/:stream/sync/push/init", s.HandleSyncPushInit)
-	g.POST("/projects/:id/streams/:stream/sync/push/diff", s.HandleSyncPushDiff)
-	g.POST("/projects/:id/streams/:stream/sync/push/commit", s.HandleSyncPushCommit, syncRateLimit)
-	g.PUT("/projects/:id/streams/:stream/sync/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
-
-	// Asset management (AD-029)
-	g.POST("/projects/:id/assets/upload-url", s.HandleAssetUploadURL)
-	g.POST("/projects/:id/assets", s.HandleCreateAsset)
-	g.GET("/projects/:id/assets", s.HandleListAssets)
-	g.GET("/projects/:id/assets/:aid", s.HandleGetAsset)
-	g.DELETE("/projects/:id/assets/:aid", s.HandleDeleteAsset)
-	g.POST("/projects/:id/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
-	g.POST("/projects/:id/assets/:aid/variants", s.HandleCreateVariant)
-	g.GET("/projects/:id/assets/:aid/variants", s.HandleListVariants)
-
-	// Stream-scoped asset routes (AD-029)
-	g.POST("/projects/:id/streams/:stream/assets/upload-url", s.HandleAssetUploadURL)
-	g.POST("/projects/:id/streams/:stream/assets", s.HandleCreateAsset)
-	g.GET("/projects/:id/streams/:stream/assets", s.HandleListAssets)
-	g.GET("/projects/:id/streams/:stream/assets/:aid", s.HandleGetAsset)
-	g.DELETE("/projects/:id/streams/:stream/assets/:aid", s.HandleDeleteAsset)
-	g.POST("/projects/:id/streams/:stream/assets/:aid/variants/upload-url", s.HandleVariantUploadURL)
-	g.POST("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleCreateVariant)
-	g.GET("/projects/:id/streams/:stream/assets/:aid/variants", s.HandleListVariants)
-
-	// Editor project routes
-	g.POST("/editor/projects", s.HandleCreateEditorProject)
-	g.GET("/editor/projects", s.HandleListEditorProjects)
-	g.GET("/editor/projects/:pid", s.HandleGetEditorProject)
-	g.PUT("/editor/projects/:pid", s.HandleUpdateEditorProject)
-	g.PATCH("/editor/projects/:pid", s.HandleUpdateEditorProject)
-	g.DELETE("/editor/projects/:pid", s.HandleDeleteEditorProject)
-	g.POST("/editor/projects/:pid/restore", s.HandleRestoreProject)
-	g.DELETE("/editor/projects/:pid/permanent", s.HandlePermanentlyDeleteProject)
-
-	// Project member management
-	g.GET("/editor/projects/:pid/members", s.HandleListProjectMembers)
-	g.POST("/editor/projects/:pid/members", s.HandleAddProjectMember)
-	g.PUT("/editor/projects/:pid/members/:uid", s.HandleUpdateProjectMember)
-	g.DELETE("/editor/projects/:pid/members/:uid", s.HandleRemoveProjectMember)
-
-	// Archived projects (recycle bin)
-	g.GET("/archived/projects", s.HandleListArchivedProjects)
-
-	// Translation dashboard (project-scoped, cached)
-	g.GET("/editor/projects/:pid/dashboard", s.HandleGetTranslationDashboard)
-
-	// Collection management (project-scoped)
-	g.GET("/editor/projects/:pid/collections", s.HandleListCollections)
-	g.POST("/editor/projects/:pid/collections", s.HandleCreateCollection)
-	g.GET("/editor/projects/:pid/collections/:cid", s.HandleGetCollection)
-	g.PUT("/editor/projects/:pid/collections/:cid", s.HandleUpdateCollection)
-	g.DELETE("/editor/projects/:pid/collections/:cid", s.HandleDeleteCollection)
-	g.POST("/editor/projects/:pid/collections/:cid/files", s.HandleUploadToCollection)
-
-	// File management
-	g.POST("/editor/projects/:pid/files", s.HandleUploadFiles)
-	g.DELETE("/editor/projects/:pid/file/*", s.HandleRemoveFile)
-
-	// Block editing
-	g.GET("/editor/projects/:pid/file-blocks/*", s.HandleGetFileBlocks)
-	g.PUT("/editor/projects/:pid/blocks/:bid", s.HandleUpdateBlockTarget)
-	g.PUT("/editor/projects/:pid/blocks/:bid/coded", s.HandleUpdateBlockTargetCoded)
-
-	// Translation operations (pseudo + AI are automation/API-only, not exposed in editor UI)
-	g.POST("/editor/projects/:pid/file-pseudo/*", s.HandlePseudoTranslate)
-	g.POST("/editor/projects/:pid/file-ai-translate/*", s.HandleAITranslate)
-	g.POST("/editor/projects/:pid/file-tm-translate/*", s.HandleTMTranslate)
-	g.GET("/editor/projects/:pid/file-wordcount/*", s.HandleGetWordCount)
-	g.POST("/editor/projects/:pid/file-export/*", s.HandleExportTranslatedFile)
-
-	// QA checks
-	g.POST("/editor/projects/:pid/blocks/:bid/qa-check", s.HandleQACheckBlock)
-	g.POST("/editor/projects/:pid/file-qa-check/*", s.HandleQACheckFile)
-
-	// Block history
-	g.GET("/editor/projects/:pid/blocks/:bid/history", s.HandleGetBlockHistory)
-
-	// Block notes
-	g.POST("/editor/projects/:pid/blocks/:bid/notes", s.HandleAddBlockNote)
-	g.GET("/editor/projects/:pid/blocks/:bid/notes", s.HandleListBlockNotes)
-	g.DELETE("/editor/projects/:pid/blocks/:bid/notes/:nid", s.HandleDeleteBlockNote)
-
-	// Block-level TM and term lookup
-	g.GET("/editor/projects/:pid/blocks/:bid/tm-lookup", s.HandleLookupTMForBlock)
-	g.GET("/editor/projects/:pid/blocks/:bid/term-lookup", s.HandleLookupTermsForBlock)
-
-	// TM CRUD (workspace-scoped)
-	g.GET("/tm", s.HandleGetTMEntries)
-	g.GET("/tm/count", s.HandleGetTMCount)
-	g.POST("/tm", s.HandleAddTMEntry)
-	g.PUT("/tm/:eid", s.HandleUpdateTMEntry)
-	g.DELETE("/tm/:eid", s.HandleDeleteTMEntry)
-
-	// Terminology CRUD (workspace-scoped)
+	// Terminology CRUD — AD-040: /:ws/terms
 	g.GET("/terms", s.HandleGetTerms)
 	g.GET("/terms/count", s.HandleGetTermCount)
 	g.POST("/terms", s.HandleAddConcept)
@@ -1041,68 +887,60 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/terms/import/json", s.HandleImportTermsJSON)
 	g.GET("/terms/export/json", s.HandleExportTermsJSON)
 
-	// Preview rendering
-	g.GET("/editor/projects/:pid/file-preview/*", s.HandleRenderDocumentPreview)
-	g.GET("/editor/projects/:pid/blocks/:bid/html", s.HandleRenderBlockHTML)
-
-	// Collaborative editing WebSocket
-	g.GET("/editor/projects/:pid/collab/*", s.HandleCollabWebSocket)
-
-	// Provider configs (workspace-level)
+	// Provider configs — AD-040: /:ws/providers
 	g.GET("/providers", s.HandleListProviderConfigs)
 	g.POST("/providers", s.HandleSaveProviderConfig)
 	g.DELETE("/providers/:id", s.HandleDeleteProviderConfig)
 	g.POST("/providers/test", s.HandleTestProviderConfig)
 
-	// Translation jobs (async)
+	// Connectors — AD-040: /:ws/connectors (moved from public)
+	g.GET("/connectors", s.HandleListActiveConnectors)
+	g.POST("/connectors", s.HandleAddConnector)
+	g.DELETE("/connectors/:id", s.HandleRemoveConnector)
+	g.GET("/connectors/:id/status", s.HandleConnectorStatus)
+	g.POST("/connectors/:id/fetch", s.HandleFetch)
+	g.POST("/connectors/:id/publish", s.HandlePublish)
+
+	// Brand profiles — AD-040: /:ws/brand-profiles
+	g.GET("/brand-profiles", s.HandleListBrandProfiles)
+	g.POST("/brand-profiles", s.HandleCreateBrandProfile)
+	g.GET("/brand-profiles/:id", s.HandleGetBrandProfile)
+	g.PUT("/brand-profiles/:id", s.HandleUpdateBrandProfile)
+	g.DELETE("/brand-profiles/:id", s.HandleDeleteBrandProfile)
+	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice)
+	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
+	g.GET("/brand-profiles/suggested-rules", s.HandleGetSuggestedRules)
+	g.GET("/brand-profiles/starter-packs", s.HandleListStarterPacks)
+
+	// Translation jobs — AD-040: /:ws/jobs
 	g.POST("/jobs/translate", s.HandleCreateTranslationJob)
 	g.GET("/jobs", s.HandleListJobs)
 	g.GET("/jobs/:id", s.HandleGetJob)
 	g.DELETE("/jobs/:id", s.HandleDeleteJob)
-	g.GET("/ai/usage", s.HandleGetAIUsage)
+	g.GET("/ai-usage", s.HandleGetAIUsage)
 
-	// Automation rules (project-scoped)
-	g.GET("/projects/:id/automations", s.HandleListAutomationRules)
-	g.POST("/projects/:id/automations", s.HandleCreateAutomationRule)
-	g.PUT("/projects/:id/automations/:ruleId", s.HandleUpdateAutomationRule)
-	g.DELETE("/projects/:id/automations/:ruleId", s.HandleDeleteAutomationRule)
-	g.PATCH("/projects/:id/automations/:ruleId/toggle", s.HandleToggleAutomationRule)
-	g.GET("/projects/:id/automations/events", s.HandleListAutomationEvents)
-	g.GET("/projects/:id/automations/history", s.HandleListAutomationHistory)
+	// Graph — AD-040: /:ws/graph
+	g.GET("/graph/concepts", s.HandleGetConceptHierarchy)
+	g.GET("/graph/nodes/:nodeId/neighbors", s.HandleGetGraphNeighbors)
+	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
+	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
 
-	// Automation runs (project-scoped, AD-035)
-	g.GET("/projects/:id/automation-runs", s.HandleListAutomationRuns)
-	g.GET("/projects/:id/automation-runs/:runId", s.HandleGetAutomationRun)
-	g.GET("/projects/:id/automation-runs/:runId/steps", s.HandleListAutomationRunSteps)
-	g.GET("/projects/:id/automation-runs/:runId/steps/:stepId/logs", s.HandleListStepLogs)
-	g.POST("/projects/:id/automation-runs/:runId/cancel", s.HandleCancelAutomationRun)
-	g.GET("/projects/:id/automation-runs/:runId/events", s.HandleAutomationRunSSE)
-
-	// Review queue (project-scoped, AD-022)
-	g.GET("/projects/:id/review-queue", s.HandleListReviewQueue)
-	g.GET("/projects/:id/review-queue/:itemId", s.HandleGetReviewQueueItem)
-	g.POST("/projects/:id/review-queue/:itemId/decide", s.HandleDecideReviewItem)
-	g.POST("/projects/:id/review-queue/:itemId/assign", s.HandleAssignReviewItem)
-	g.POST("/projects/:id/review-queue/:itemId/split", s.HandleSplitReviewItem)
-	g.POST("/projects/:id/review-queue/batch-decide", s.HandleBatchDecideReviewItems)
-	g.POST("/projects/:id/review-queue/sync", s.HandleSyncReviewDecisions)
-
-	// Notifications (user-scoped)
+	// Notifications — AD-040: /:ws/notifications
 	g.GET("/notifications", s.HandleListNotifications)
 	g.POST("/notifications/:nid/read", s.HandleMarkNotificationRead)
 	g.POST("/notifications/read-all", s.HandleMarkAllNotificationsRead)
 	g.DELETE("/notifications/:nid", s.HandleDeleteNotification)
 	g.GET("/notifications/ws", s.HandleNotificationWebSocket)
-	g.GET("/notifications/preferences", s.HandleGetNotificationPreferences)
-	g.PUT("/notifications/preferences", s.HandleUpdateNotificationPreferences)
-	g.GET("/notifications/digest-settings", s.HandleGetDigestSettings)
-	g.PUT("/notifications/digest-settings", s.HandleUpdateDigestSettings)
+	g.GET("/notification-preferences", s.HandleGetNotificationPreferences)
+	g.PUT("/notification-preferences", s.HandleUpdateNotificationPreferences)
+	g.GET("/digest-settings", s.HandleGetDigestSettings)
+	g.PUT("/digest-settings", s.HandleUpdateDigestSettings)
 
-	// Activities (workspace-scoped, AD-027)
+	// Activities — AD-040: /:ws/activities
 	g.GET("/activities", s.HandleListActivities)
 	g.POST("/activities/seen", s.HandleMarkActivitiesSeen)
 
-	// Tasks (workspace-scoped, AD-027)
+	// Tasks — AD-040: /:ws/tasks (no more /my/tasks, use ?assignee_id=me)
 	g.GET("/tasks", s.HandleListTasks)
 	g.POST("/tasks", s.HandleCreateTask)
 	g.GET("/tasks/:taskId", s.HandleGetTask)
@@ -1111,62 +949,174 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 	g.POST("/tasks/:taskId/assign", s.HandleAssignTask)
 	g.POST("/tasks/:taskId/complete", s.HandleCompleteTask)
 	g.POST("/tasks/:taskId/cancel", s.HandleCancelTask)
-	g.GET("/my/tasks", s.HandleListMyTasks)
 
-	// Entity annotations (block-scoped, AD-022)
-	g.POST("/editor/projects/:pid/blocks/:bid/entities", s.HandleCreateEntity)
-	g.PUT("/editor/projects/:pid/blocks/:bid/entities/:idx", s.HandleUpdateEntity)
-	g.DELETE("/editor/projects/:pid/blocks/:bid/entities/:idx", s.HandleDeleteEntity)
-	g.POST("/editor/projects/:pid/blocks/:bid/entities/:idx/promote", s.HandlePromoteEntity)
-
-	// Extraction settings (project-scoped, AD-022)
-	g.GET("/projects/:id/settings/extraction", s.HandleGetExtractionSettings)
-	g.PUT("/projects/:id/settings/extraction", s.HandleUpdateExtractionSettings)
-
-	// Brand voice profiles (workspace-scoped)
-	g.GET("/brand-profiles", s.HandleListBrandProfiles)
-	g.POST("/brand-profiles", s.HandleCreateBrandProfile)
-	g.GET("/brand-profiles/:id", s.HandleGetBrandProfile)
-	g.PUT("/brand-profiles/:id", s.HandleUpdateBrandProfile)
-	g.DELETE("/brand-profiles/:id", s.HandleDeleteBrandProfile)
-	g.POST("/brand-profiles/:id/check", s.HandleCheckBrandVoice)
-	g.POST("/brand-profiles/from-starter", s.HandleCreateFromStarter)
-	g.GET("/brand-voice/suggested-rules", s.HandleGetSuggestedRules)
-
-	// Brand voice scores and corrections (project-scoped)
-	g.GET("/projects/:id/brand-voice/scores", s.HandleGetBrandVoiceScores)
-	g.GET("/projects/:id/brand-voice/scores/:locale", s.HandleGetBrandVoiceScoresByLocale)
-	g.GET("/projects/:id/brand-voice/trends", s.HandleGetBrandVoiceTrends)
-	g.POST("/projects/:id/brand-voice/corrections", s.HandleCreateBrandVoiceCorrection)
-
-	// Graph query endpoints (dashboard analytics)
-	g.GET("/graph/concepts", s.HandleGetConceptHierarchy)
-	g.GET("/graph/nodes/:nodeId/neighbors", s.HandleGetGraphNeighbors)
-	g.GET("/graph/nodes/:nodeId/edges", s.HandleGetGraphEdges)
-	g.GET("/graph/shortest-path", s.HandleGetShortestPath)
-
-	// Audit log
+	// Workspace audit log — AD-040: /:ws/audit-log
 	g.GET("/audit-log", s.HandleListWorkspaceAuditLog)
-	g.GET("/projects/:id/audit-log", s.HandleListAuditLog)
 
-	// Stream management (project-scoped)
-	g.GET("/projects/:id/streams", s.HandleListStreams)
-	g.POST("/projects/:id/streams", s.HandleCreateStream)
-	g.GET("/projects/:id/streams/:stream", s.HandleGetStream)
-	g.PATCH("/projects/:id/streams/:stream", s.HandleUpdateStream)
-	g.DELETE("/projects/:id/streams/:stream", s.HandleArchiveStream)
-	g.POST("/projects/:id/streams/:stream/restore", s.HandleRestoreStream)
-	g.POST("/projects/:id/streams/:stream/merge", s.HandleMergeStream)
-	g.GET("/projects/:id/streams/:stream/diff", s.HandleDiffStream)
-	g.POST("/projects/:id/streams/:stream/lock", s.HandleLockStream)
-	g.POST("/projects/:id/streams/:stream/unlock", s.HandleUnlockStream)
+	// Archived projects — AD-040: /:ws/archived-projects
+	g.GET("/archived-projects", s.HandleListArchivedProjects)
 
-	// Stream tags
-	g.GET("/projects/:id/streams/:stream/tags", s.HandleListStreamTags)
-	g.POST("/projects/:id/streams/:stream/tags", s.HandleCreateStreamTag)
-	g.GET("/projects/:id/streams/:stream/tags/:tag", s.HandleGetStreamTag)
-	g.DELETE("/projects/:id/streams/:stream/tags/:tag", s.HandleDeleteStreamTag)
-	g.GET("/projects/:id/tags", s.HandleListProjectTags)
+	// -----------------------------------------------------------------------
+	// Project collection routes: /:ws/projects
+	// -----------------------------------------------------------------------
+
+	g.GET("/projects", s.HandleListWorkspaceProjects)
+	g.POST("/projects", s.HandleCreateWorkspaceProject)
+
+	// -----------------------------------------------------------------------
+	// Project-specific routes: /:ws/:id
+	// AD-040: bare project slug, no /p/ prefix
+	// -----------------------------------------------------------------------
+
+	// Project CRUD
+	g.GET("/:id", s.HandleGetEditorProject)
+	g.PUT("/:id", s.HandleUpdateEditorProject)
+	g.PATCH("/:id", s.HandleUpdateEditorProject)
+	g.DELETE("/:id", s.HandleDeleteEditorProject)
+	g.POST("/:id/restore", s.HandleRestoreProject)
+	g.DELETE("/:id/permanent", s.HandlePermanentlyDeleteProject)
+
+	// Project members — AD-040: /:ws/:id/members
+	g.GET("/:id/members", s.HandleListProjectMembers)
+	g.POST("/:id/members", s.HandleAddProjectMember)
+	g.PUT("/:id/members/:uid", s.HandleUpdateProjectMember)
+	g.DELETE("/:id/members/:uid", s.HandleRemoveProjectMember)
+
+	// Project settings — AD-040: /:ws/:id/settings
+	g.GET("/:id/settings/extraction", s.HandleGetExtractionSettings)
+	g.PUT("/:id/settings/extraction", s.HandleUpdateExtractionSettings)
+
+	// Project audit log — AD-040: /:ws/:id/audit-log
+	g.GET("/:id/audit-log", s.HandleListAuditLog)
+
+	// Automations — AD-040: /:ws/:id/automations
+	g.GET("/:id/automations", s.HandleListAutomationRules)
+	g.POST("/:id/automations", s.HandleCreateAutomationRule)
+	g.PUT("/:id/automations/:ruleId", s.HandleUpdateAutomationRule)
+	g.DELETE("/:id/automations/:ruleId", s.HandleDeleteAutomationRule)
+	g.PATCH("/:id/automations/:ruleId/toggle", s.HandleToggleAutomationRule)
+	g.GET("/:id/automations/events", s.HandleListAutomationEvents)
+	g.GET("/:id/automations/history", s.HandleListAutomationHistory)
+
+	// Automation runs — AD-040: /:ws/:id/automations/runs (nested)
+	g.GET("/:id/automations/runs", s.HandleListAutomationRuns)
+	g.GET("/:id/automations/runs/:runId", s.HandleGetAutomationRun)
+	g.GET("/:id/automations/runs/:runId/steps", s.HandleListAutomationRunSteps)
+	g.GET("/:id/automations/runs/:runId/steps/:stepId/logs", s.HandleListStepLogs)
+	g.POST("/:id/automations/runs/:runId/cancel", s.HandleCancelAutomationRun)
+	g.GET("/:id/automations/runs/:runId/events", s.HandleAutomationRunSSE)
+
+	// Stream management — AD-040: /:ws/:id/streams
+	g.GET("/:id/streams", s.HandleListStreams)
+	g.POST("/:id/streams", s.HandleCreateStream)
+	g.GET("/:id/streams/:stream", s.HandleGetStream)
+	g.PATCH("/:id/streams/:stream", s.HandleUpdateStream)
+	g.DELETE("/:id/streams/:stream", s.HandleArchiveStream)
+	g.POST("/:id/streams/:stream/restore", s.HandleRestoreStream)
+	g.POST("/:id/streams/:stream/merge", s.HandleMergeStream)
+	g.GET("/:id/streams/:stream/diff", s.HandleDiffStream)
+	g.POST("/:id/streams/:stream/lock", s.HandleLockStream)
+	g.POST("/:id/streams/:stream/unlock", s.HandleUnlockStream)
+
+	// Tags — AD-040: /:ws/:id/tags (peer to streams)
+	g.GET("/:id/tags", s.HandleListProjectTags)
+	g.POST("/:id/tags", s.HandleCreateStreamTag)
+	g.GET("/:id/tags/:tag", s.HandleGetStreamTag)
+	g.DELETE("/:id/tags/:tag", s.HandleDeleteStreamTag)
+
+	// Refs — AD-040: /:ws/:id/refs (unified listing)
+	g.GET("/:id/refs", s.HandleListProjectTags) // TODO: implement unified ref listing
+
+	// -----------------------------------------------------------------------
+	// Ref-scoped content routes: /:ws/:id/<resource>/:ref
+	// AD-040: resource-first ref pattern (GitHub-style)
+	// -----------------------------------------------------------------------
+
+	syncRateLimit := RateLimitSyncPush(10, 3) // 10 pushes/min, burst of 3
+
+	// Items — AD-040: /:ws/:id/items/:ref
+	g.GET("/:id/items/:ref", s.HandleGetFileBlocks) // list items
+	g.POST("/:id/items/:ref", s.HandleUploadFiles)
+	g.DELETE("/:id/items/:ref", s.HandleRemoveFile) // ?item=path/to/file
+
+	// Blocks — AD-040: /:ws/:id/blocks/:ref
+	g.GET("/:id/blocks/:ref", s.HandleGetFileBlocks)
+	g.PUT("/:id/blocks/:ref/:bid", s.HandleUpdateBlockTarget)
+	g.PUT("/:id/blocks/:ref/:bid/coded", s.HandleUpdateBlockTargetCoded)
+	g.GET("/:id/blocks/:ref/:bid/history", s.HandleGetBlockHistory)
+	g.GET("/:id/blocks/:ref/:bid/notes", s.HandleListBlockNotes)
+	g.POST("/:id/blocks/:ref/:bid/notes", s.HandleAddBlockNote)
+	g.DELETE("/:id/blocks/:ref/:bid/notes/:nid", s.HandleDeleteBlockNote)
+	g.GET("/:id/blocks/:ref/:bid/tm-matches", s.HandleLookupTMForBlock)
+	g.GET("/:id/blocks/:ref/:bid/term-matches", s.HandleLookupTermsForBlock)
+	g.GET("/:id/blocks/:ref/:bid/html", s.HandleRenderBlockHTML)
+
+	// Entities on blocks — AD-040: /:ws/:id/blocks/:ref/:bid/entities
+	g.POST("/:id/blocks/:ref/:bid/entities", s.HandleCreateEntity)
+	g.PUT("/:id/blocks/:ref/:bid/entities/:idx", s.HandleUpdateEntity)
+	g.DELETE("/:id/blocks/:ref/:bid/entities/:idx", s.HandleDeleteEntity)
+	g.POST("/:id/blocks/:ref/:bid/entities/:idx/promote", s.HandlePromoteEntity)
+
+	// Actions — AD-040: /:ws/:id/actions/:ref/<verb>
+	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
+	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate)
+	g.POST("/:id/actions/:ref/tm-translate", s.HandleTMTranslate)
+	g.POST("/:id/actions/:ref/export", s.HandleExportTranslatedFile)
+	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)
+	g.POST("/:id/actions/:ref/qa-check-block", s.HandleQACheckBlock)
+
+	// Preview and word count — AD-040: /:ws/:id/preview/:ref, /:ws/:id/word-count/:ref
+	g.GET("/:id/preview/:ref", s.HandleRenderDocumentPreview)
+	g.GET("/:id/word-count/:ref", s.HandleGetWordCount)
+
+	// Dashboard — AD-040: /:ws/:id/dashboard/:ref
+	g.GET("/:id/dashboard/:ref", s.HandleGetTranslationDashboard)
+
+	// Sync — AD-040: /:ws/:id/sync/:ref
+	g.GET("/:id/sync/:ref/pull", s.HandleSyncPull)
+	g.GET("/:id/sync/:ref/blocks", s.HandleSyncGetBlocks)
+	g.GET("/:id/sync/:ref/status", s.HandleSyncPushStatus)
+	g.POST("/:id/sync/:ref/push/init", s.HandleSyncPushInit)
+	g.POST("/:id/sync/:ref/push/diff", s.HandleSyncPushDiff)
+	g.POST("/:id/sync/:ref/push/commit", s.HandleSyncPushCommit, syncRateLimit)
+	g.PUT("/:id/sync/:ref/push/chunks/:uploadId/:chunkIndex", s.HandleSyncProxyChunkUpload)
+	g.POST("/:id/sync/:ref/translate", s.HandleCreateProjectTranslationJob)
+
+	// Collections — AD-040: /:ws/:id/collections/:ref
+	g.GET("/:id/collections/:ref", s.HandleListCollections)
+	g.POST("/:id/collections/:ref", s.HandleCreateCollection)
+	g.GET("/:id/collections/:ref/:cid", s.HandleGetCollection)
+	g.PUT("/:id/collections/:ref/:cid", s.HandleUpdateCollection)
+	g.DELETE("/:id/collections/:ref/:cid", s.HandleDeleteCollection)
+	g.POST("/:id/collections/:ref/:cid/items", s.HandleUploadToCollection)
+
+	// Assets — AD-040: /:ws/:id/assets/:ref
+	g.POST("/:id/assets/:ref/upload-url", s.HandleAssetUploadURL)
+	g.GET("/:id/assets/:ref", s.HandleListAssets)
+	g.POST("/:id/assets/:ref", s.HandleCreateAsset)
+	g.GET("/:id/assets/:ref/:aid", s.HandleGetAsset)
+	g.DELETE("/:id/assets/:ref/:aid", s.HandleDeleteAsset)
+	g.POST("/:id/assets/:ref/:aid/variants/upload-url", s.HandleVariantUploadURL)
+	g.GET("/:id/assets/:ref/:aid/variants", s.HandleListVariants)
+	g.POST("/:id/assets/:ref/:aid/variants", s.HandleCreateVariant)
+
+	// Review queue — AD-040: /:ws/:id/review-queue/:ref
+	g.GET("/:id/review-queue/:ref", s.HandleListReviewQueue)
+	g.GET("/:id/review-queue/:ref/:itemId", s.HandleGetReviewQueueItem)
+	g.POST("/:id/review-queue/:ref/:itemId/decide", s.HandleDecideReviewItem)
+	g.POST("/:id/review-queue/:ref/:itemId/assign", s.HandleAssignReviewItem)
+	g.POST("/:id/review-queue/:ref/:itemId/split", s.HandleSplitReviewItem)
+	g.POST("/:id/review-queue/:ref/batch-decide", s.HandleBatchDecideReviewItems)
+	g.POST("/:id/review-queue/:ref/sync", s.HandleSyncReviewDecisions)
+
+	// Brand voice — AD-040: /:ws/:id/brand-voice/:ref
+	g.GET("/:id/brand-voice/:ref/scores", s.HandleGetBrandVoiceScores)
+	g.GET("/:id/brand-voice/:ref/scores/:locale", s.HandleGetBrandVoiceScoresByLocale)
+	g.GET("/:id/brand-voice/:ref/trends", s.HandleGetBrandVoiceTrends)
+	g.POST("/:id/brand-voice/:ref/corrections", s.HandleCreateBrandVoiceCorrection)
+
+	// Collab — AD-040: /:ws/:id/collab/:ref
+	g.GET("/:id/collab/:ref", s.HandleCollabWebSocket)
 }
 
 // Start initializes the Echo server and starts listening.

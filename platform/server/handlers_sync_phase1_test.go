@@ -31,7 +31,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	pushBlocks(t, srv, e, authHeader, pid, items)
 
 	// Get all blocks (default pagination).
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/blocks?item_name=en.json", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -41,7 +41,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	assert.Len(t, allBlocks, 5)
 
 	// Get with limit=2.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json&limit=2", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/blocks?item_name=en.json&limit=2", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -51,7 +51,7 @@ func TestSyncGetBlocks_Pagination(t *testing.T) {
 	assert.Len(t, page1, 2)
 
 	// Get with limit=2, offset=2.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json&limit=2&offset=2", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/blocks?item_name=en.json&limit=2&offset=2", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -77,7 +77,7 @@ func TestSyncPush_RateLimiting(t *testing.T) {
 	successes := 0
 	rateLimited := 0
 	for i := 0; i < 5; i++ {
-		req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/push/commit", strings.NewReader(body))
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/commit", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", authHeader)
 		rec := httptest.NewRecorder()
@@ -111,7 +111,7 @@ func TestSyncPush_BatchHashLookup(t *testing.T) {
 	})
 
 	// Verify the block was updated (not duplicated).
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/blocks?item_name=en.json", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/sync/main/blocks?item_name=en.json", nil)
 	req.Header.Set("Authorization", authHeader)
 	rec := httptest.NewRecorder()
 	e.ServeHTTP(rec, req)

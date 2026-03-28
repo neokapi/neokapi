@@ -26,7 +26,7 @@ func newTestServerWithBlob(t *testing.T) (*Server, string) {
 func createTestProjectForAssets(t *testing.T, e http.Handler, token string) string {
 	t.Helper()
 	body := `{"name":"Asset Test","default_source_language":"en","target_languages":["fr"]}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/projects", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	rec := httptest.NewRecorder()
@@ -46,7 +46,7 @@ func TestAssetUploadURL(t *testing.T) {
 
 	// Request upload URL — local backend returns empty URL (not supported).
 	body := `{"blob_key":"aaaa1111bbbb2222cccc3333dddd4444eeee5555ffff6666aaaa1111bbbb2222","content_type":"image/png"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets/upload-url", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main/upload-url", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec := httptest.NewRecorder()
@@ -65,9 +65,9 @@ func TestAssetCRUDEndpoints(t *testing.T) {
 	auth := "Bearer " + token
 	pid := createTestProjectForAssets(t, e, token)
 
-	// Create asset.
+	// Create asset (workspace-scoped: /api/v1/:ws/:pid/assets/:ref).
 	body := `{"blob_key":"deadbeef12345678","mime_type":"image/png","filename":"diagram.png","size_bytes":1024,"item_name":"doc.docx"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec := httptest.NewRecorder()
@@ -83,7 +83,7 @@ func TestAssetCRUDEndpoints(t *testing.T) {
 	assetID := asset.ID
 
 	// List assets.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/assets?item_name=doc.docx", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/assets/main?item_name=doc.docx", nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -94,7 +94,7 @@ func TestAssetCRUDEndpoints(t *testing.T) {
 	assert.Len(t, listResp["assets"], 1)
 
 	// Get single asset.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/assets/"+assetID, nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/assets/main/"+assetID, nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -105,14 +105,14 @@ func TestAssetCRUDEndpoints(t *testing.T) {
 	assert.Equal(t, assetID, gotAsset.ID)
 
 	// Delete asset.
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+pid+"/assets/"+assetID, nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/test/"+pid+"/assets/main/"+assetID, nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusNoContent, rec.Code)
 
 	// Verify deleted.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/assets/"+assetID, nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/assets/main/"+assetID, nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -125,9 +125,9 @@ func TestAssetVariantEndpoints(t *testing.T) {
 	auth := "Bearer " + token
 	pid := createTestProjectForAssets(t, e, token)
 
-	// Create asset first.
+	// Create asset first (workspace-scoped).
 	body := `{"blob_key":"varianttest1234","mime_type":"image/png","filename":"logo.png"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec := httptest.NewRecorder()
@@ -140,7 +140,7 @@ func TestAssetVariantEndpoints(t *testing.T) {
 
 	// Create variant.
 	body = `{"locale":"fr-FR","blob_key":"frvariant5678","mime_type":"image/png","status":"draft","size_bytes":512}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets/"+assetID+"/variants", strings.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main/"+assetID+"/variants", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
@@ -153,7 +153,7 @@ func TestAssetVariantEndpoints(t *testing.T) {
 	assert.Equal(t, "draft", variant.Status)
 
 	// List variants.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/assets/"+assetID+"/variants", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/assets/main/"+assetID+"/variants", nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -173,7 +173,7 @@ func TestAssetValidation(t *testing.T) {
 
 	// Missing blob_key.
 	body := `{"mime_type":"image/png"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec := httptest.NewRecorder()
@@ -182,7 +182,7 @@ func TestAssetValidation(t *testing.T) {
 
 	// Missing mime_type.
 	body = `{"blob_key":"abc123"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets", strings.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
@@ -191,7 +191,7 @@ func TestAssetValidation(t *testing.T) {
 
 	// Missing blob_key on upload-url.
 	body = `{"content_type":"image/png"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets/upload-url", strings.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main/upload-url", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
@@ -200,7 +200,7 @@ func TestAssetValidation(t *testing.T) {
 
 	// Missing locale on variant.
 	body = `{"blob_key":"abc"}`
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets/fake-id/variants", strings.NewReader(body))
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main/fake-id/variants", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
@@ -217,7 +217,7 @@ func TestAssetNoBlobStore(t *testing.T) {
 
 	// Upload URL should fail when no blob store.
 	body := `{"blob_key":"test","content_type":"image/png"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/assets/upload-url", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main/upload-url", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec := httptest.NewRecorder()
@@ -231,9 +231,9 @@ func TestAssetStreamScopedRoutes(t *testing.T) {
 	auth := "Bearer " + token
 	pid := createTestProjectForAssets(t, e, token)
 
-	// Create asset via stream-scoped route.
+	// Create asset via workspace-scoped ref route (ref=main).
 	body := `{"blob_key":"streamscoped1234","mime_type":"image/png","filename":"stream.png"}`
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/streams/main/assets", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/test/"+pid+"/assets/main", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", auth)
 	rec := httptest.NewRecorder()
@@ -244,8 +244,8 @@ func TestAssetStreamScopedRoutes(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &asset))
 	assetID := asset.ID
 
-	// List via stream-scoped route.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/streams/main/assets", nil)
+	// List via workspace-scoped ref route.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/assets/main", nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
@@ -255,22 +255,15 @@ func TestAssetStreamScopedRoutes(t *testing.T) {
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &listResp))
 	assert.Len(t, listResp["assets"], 1)
 
-	// Get via stream-scoped route.
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/streams/main/assets/"+assetID, nil)
+	// Get via workspace-scoped ref route.
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/test/"+pid+"/assets/main/"+assetID, nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	// Also accessible via flat route (defaults to "main").
-	req = httptest.NewRequest(http.MethodGet, "/api/v1/projects/"+pid+"/assets/"+assetID, nil)
-	req.Header.Set("Authorization", auth)
-	rec = httptest.NewRecorder()
-	e.ServeHTTP(rec, req)
-	assert.Equal(t, http.StatusOK, rec.Code)
-
-	// Delete via stream-scoped route.
-	req = httptest.NewRequest(http.MethodDelete, "/api/v1/projects/"+pid+"/streams/main/assets/"+assetID, nil)
+	// Delete via workspace-scoped ref route.
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/test/"+pid+"/assets/main/"+assetID, nil)
 	req.Header.Set("Authorization", auth)
 	rec = httptest.NewRecorder()
 	e.ServeHTTP(rec, req)
