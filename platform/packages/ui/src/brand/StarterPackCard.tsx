@@ -27,7 +27,7 @@ export function StarterPackCard({ pack, onClick }: StarterPackCardProps) {
       {/* Accent top bar */}
       <div className="h-1" style={{ backgroundColor: pack.accentColor }} />
 
-      <div className="p-4 space-y-3">
+      <div className="p-5 space-y-3">
         {/* Header: icon + title */}
         <div className="flex items-start gap-3">
           <div
