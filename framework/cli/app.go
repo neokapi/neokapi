@@ -67,19 +67,24 @@ func (a *App) AddProcessingFlags(cmd *cobra.Command) {
 
 // Init initializes the format registry and loads plugins.
 // Call this in PersistentPreRun after setting a.Config.
+//
+// Built-in formats are registered with static metadata — no reader/writer
+// instances are created. Schemas and config decoders are registered in the
+// same pass for formats that support them. Plugin metadata is loaded from
+// a pre-computed cache file ({plugin_dir}/plugin-cache.json) built at
+// install time, avoiding directory scanning and manifest parsing.
 func (a *App) Init() {
 	a.FormatReg = registry.NewFormatRegistry()
-	formats.RegisterAll(a.FormatReg)
+	a.SchemaReg = schema.NewSchemaRegistry()
+
+	// Single-pass registration: formats, schemas, and config decoders.
+	formats.RegisterAll(a.FormatReg, formats.RegisterOptions{
+		SchemaReg: a.SchemaReg,
+		ConfigReg: neokapiconfig.DefaultRegistry,
+	})
 
 	a.ToolReg = registry.NewToolRegistry()
 	libtools.RegisterAll(a.ToolReg)
-
-	// Create unified schema registry and collect native format schemas.
-	a.SchemaReg = schema.NewSchemaRegistry()
-	a.FormatReg.CollectNativeSchemas(a.SchemaReg)
-
-	// Register config envelope decoders for all native formats.
-	a.FormatReg.CollectNativeDecoders(neokapiconfig.DefaultRegistry)
 
 	if a.Config == nil {
 		a.Config = config.NewAppConfig()
@@ -102,7 +107,6 @@ func (a *App) Init() {
 
 	a.PluginLoader = loader.NewPluginLoader(dir, logger)
 
-	// Parse disabled plugins from flag, env, or config.
 	disabled := a.disabledPluginSet()
 	if len(disabled) > 0 {
 		a.PluginLoader.SetDisabledPlugins(disabled)
@@ -114,8 +118,7 @@ func (a *App) Init() {
 		}
 	}
 
-	// Merge bridge schemas into the unified registry so that CLI commands
-	// (formats info, formats schema, presets list) see both native and bridge schemas.
+	// Merge plugin schemas into the unified registry.
 	for _, id := range a.PluginLoader.Schemas().FilterIDs() {
 		if s, ok := a.PluginLoader.Schemas().GetSchema(id); ok {
 			if !a.SchemaReg.HasSchema(id) {
@@ -124,16 +127,13 @@ func (a *App) Init() {
 		}
 	}
 
-	// Extract native format presets (bridge presets are already extracted by ScanMetadata).
+	// Extract presets from plugin schemas.
 	a.SchemaReg.ExtractPresets(a.PluginLoader.Presets())
 
 	// Apply format priority overrides from configuration.
-	// Supports both exact names (e.g. "html": 200) and glob patterns
-	// (e.g. "okf_*": 200) that match against all registered format names.
-	// These override the preference setting above.
 	a.applyFormatPriorities(a.Config.FormatPriorities())
 
-	// Register lazy bridge loading: bridges start only when a non-built-in
+	// Lazy bridge loading: bridges start only when a non-built-in
 	// format is requested for the first time.
 	a.FormatReg.SetOnMiss(func() {
 		a.EnsureBridgesLoaded()

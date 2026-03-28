@@ -1,7 +1,13 @@
 package formats
 
 import (
+	"bytes"
+	"fmt"
+	"strings"
+
+	"github.com/neokapi/neokapi/core/config"
 	"github.com/neokapi/neokapi/core/format"
+	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats/archive"
 	csvfmt "github.com/neokapi/neokapi/core/formats/csv"
 	"github.com/neokapi/neokapi/core/formats/doxygen"
@@ -46,173 +52,502 @@ import (
 	"github.com/neokapi/neokapi/core/registry"
 )
 
+// RegisterOptions configures optional registries populated during RegisterAll.
+type RegisterOptions struct {
+	SchemaReg *schema.SchemaRegistry
+	ConfigReg *config.Registry
+}
+
 // RegisterAll registers all built-in data formats with the given registry.
-func RegisterAll(reg *registry.FormatRegistry) {
+// No reader or writer instances are created during registration — all metadata
+// (signatures, display names) is provided as static data.
+//
+// If opts is provided, schemas and config decoders are also registered in a
+// single pass, eliminating the need for separate CollectNativeSchemas and
+// CollectNativeDecoders calls.
+func RegisterAll(reg *registry.FormatRegistry, opts ...RegisterOptions) {
+	var o RegisterOptions
+	if len(opts) > 0 {
+		o = opts[0]
+	}
+
 	// Plain Text
-	reg.RegisterReader("plaintext", func() format.DataFormatReader { return plaintext.NewReader() })
+	reg.RegisterReader("plaintext",
+		func() format.DataFormatReader { return plaintext.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/plain"},
+			Extensions: []string{".txt", ".text"},
+		}, "Plain Text")
 	reg.RegisterWriter("plaintext", func() format.DataFormatWriter { return plaintext.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "plaintext", func() format.DataFormatReader { return plaintext.NewReader() })
 
 	// HTML
-	reg.RegisterReader("html", func() format.DataFormatReader { return html.NewReader() })
+	reg.RegisterReader("html",
+		func() format.DataFormatReader { return html.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/html", "application/xhtml+xml"},
+			Extensions: []string{".html", ".htm", ".xhtml"},
+			MagicBytes: [][]byte{[]byte("<!DOCTYPE"), []byte("<!doctype"), []byte("<html"), []byte("<HTML")},
+		}, "HTML")
 	reg.RegisterWriter("html", func() format.DataFormatWriter { return html.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "html", func() format.DataFormatReader { return html.NewReader() })
 
 	// XML
-	reg.RegisterReader("xml", func() format.DataFormatReader { return xmlfmt.NewReader() })
+	reg.RegisterReader("xml",
+		func() format.DataFormatReader { return xmlfmt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/xml", "application/xml"},
+			Extensions: []string{".xml"},
+			MagicBytes: [][]byte{[]byte("<?xml")},
+		}, "XML")
 	reg.RegisterWriter("xml", func() format.DataFormatWriter { return xmlfmt.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "xml", func() format.DataFormatReader { return xmlfmt.NewReader() })
 
 	// XLIFF 1.2
-	reg.RegisterReader("xliff", func() format.DataFormatReader { return xliff.NewReader() })
+	reg.RegisterReader("xliff",
+		func() format.DataFormatReader { return xliff.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/xliff+xml", "application/x-xliff+xml"},
+			Extensions: []string{".xlf", ".xliff"},
+			Sniff: func(data []byte) bool {
+				s := string(data)
+				return strings.Contains(s, "<xliff") && strings.Contains(s, "urn:oasis:names:tc:xliff:document:1")
+			},
+		}, "XLIFF 1.2")
 	reg.RegisterWriter("xliff", func() format.DataFormatWriter { return xliff.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "xliff", func() format.DataFormatReader { return xliff.NewReader() })
 
 	// XLIFF 2.0
-	reg.RegisterReader("xliff2", func() format.DataFormatReader { return xliff2.NewReader() })
+	reg.RegisterReader("xliff2",
+		func() format.DataFormatReader { return xliff2.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/xliff+xml"},
+			Extensions: []string{".xlf", ".xliff"},
+			Sniff: func(data []byte) bool {
+				s := string(data)
+				return strings.Contains(s, "<xliff") && strings.Contains(s, "version=\"2")
+			},
+		}, "XLIFF 2.0")
 	reg.RegisterWriter("xliff2", func() format.DataFormatWriter { return xliff2.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "xliff2", func() format.DataFormatReader { return xliff2.NewReader() })
 
 	// YAML
-	reg.RegisterReader("yaml", func() format.DataFormatReader { return yaml.NewReader() })
+	reg.RegisterReader("yaml",
+		func() format.DataFormatReader { return yaml.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/yaml", "text/yaml", "application/x-yaml"},
+			Extensions: []string{".yaml", ".yml"},
+		}, "YAML")
 	reg.RegisterWriter("yaml", func() format.DataFormatWriter { return yaml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "yaml", func() format.DataFormatReader { return yaml.NewReader() })
 
 	// JSON
-	reg.RegisterReader("json", func() format.DataFormatReader { return json.NewReader() })
+	reg.RegisterReader("json",
+		func() format.DataFormatReader { return json.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/json"},
+			Extensions: []string{".json"},
+		}, "JSON")
 	reg.RegisterWriter("json", func() format.DataFormatWriter { return json.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "json", func() format.DataFormatReader { return json.NewReader() })
 
 	// PO (GNU gettext)
-	reg.RegisterReader("po", func() format.DataFormatReader { return po.NewReader() })
+	reg.RegisterReader("po",
+		func() format.DataFormatReader { return po.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-gettext-translation"},
+			Extensions: []string{".po", ".pot"},
+		}, "PO (Gettext)")
 	reg.RegisterWriter("po", func() format.DataFormatWriter { return po.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "po", func() format.DataFormatReader { return po.NewReader() })
 
 	// Java Properties
-	reg.RegisterReader("properties", func() format.DataFormatReader { return properties.NewReader() })
+	reg.RegisterReader("properties",
+		func() format.DataFormatReader { return properties.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-java-properties"},
+			Extensions: []string{".properties"},
+		}, "Java Properties")
 	reg.RegisterWriter("properties", func() format.DataFormatWriter { return properties.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "properties", func() format.DataFormatReader { return properties.NewReader() })
 
 	// Markdown
-	reg.RegisterReader("markdown", func() format.DataFormatReader { return markdown.NewReader() })
+	reg.RegisterReader("markdown",
+		func() format.DataFormatReader { return markdown.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/markdown", "text/x-markdown"},
+			Extensions: []string{".md", ".markdown"},
+		}, "Markdown")
 	reg.RegisterWriter("markdown", func() format.DataFormatWriter { return markdown.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "markdown", func() format.DataFormatReader { return markdown.NewReader() })
 
 	// CSV
-	reg.RegisterReader("csv", func() format.DataFormatReader { return csvfmt.NewReader() })
+	reg.RegisterReader("csv",
+		func() format.DataFormatReader { return csvfmt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/csv"},
+			Extensions: []string{".csv"},
+		}, "CSV")
 	reg.RegisterWriter("csv", func() format.DataFormatWriter { return csvfmt.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "csv", func() format.DataFormatReader { return csvfmt.NewReader() })
 
 	// TSV (Tab-Separated Values)
-	reg.RegisterReader("tsv", func() format.DataFormatReader { return csvfmt.NewTSVReader() })
+	reg.RegisterReader("tsv",
+		func() format.DataFormatReader { return csvfmt.NewTSVReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/tab-separated-values"},
+			Extensions: []string{".tsv"},
+		}, "TSV")
 	reg.RegisterWriter("tsv", func() format.DataFormatWriter { return csvfmt.NewTSVWriter() })
 
 	// Moses Text
-	reg.RegisterReader("mosestext", func() format.DataFormatReader { return mosestext.NewReader() })
+	reg.RegisterReader("mosestext",
+		func() format.DataFormatReader { return mosestext.NewReader() },
+		format.FormatSignature{
+			MIMETypes: []string{"text/x-mosestext"},
+		}, "Moses Text")
 	reg.RegisterWriter("mosestext", func() format.DataFormatWriter { return mosestext.NewWriter() })
 
 	// SRT Subtitles
-	reg.RegisterReader("srt", func() format.DataFormatReader { return srt.NewReader() })
+	reg.RegisterReader("srt",
+		func() format.DataFormatReader { return srt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-subrip", "text/srt"},
+			Extensions: []string{".srt"},
+		}, "SRT Subtitles")
 	reg.RegisterWriter("srt", func() format.DataFormatWriter { return srt.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "srt", func() format.DataFormatReader { return srt.NewReader() })
 
 	// TTML Subtitles
-	reg.RegisterReader("ttml", func() format.DataFormatReader { return ttml.NewReader() })
+	reg.RegisterReader("ttml",
+		func() format.DataFormatReader { return ttml.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/ttml+xml"},
+			Extensions: []string{".ttml", ".dfxp"},
+		}, "TTML Subtitles")
 	reg.RegisterWriter("ttml", func() format.DataFormatWriter { return ttml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "ttml", func() format.DataFormatReader { return ttml.NewReader() })
 
 	// WebVTT Subtitles
-	reg.RegisterReader("vtt", func() format.DataFormatReader { return vtt.NewReader() })
+	reg.RegisterReader("vtt",
+		func() format.DataFormatReader { return vtt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/vtt"},
+			Extensions: []string{".vtt"},
+			MagicBytes: [][]byte{[]byte("WEBVTT")},
+		}, "WebVTT")
 	reg.RegisterWriter("vtt", func() format.DataFormatWriter { return vtt.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "vtt", func() format.DataFormatReader { return vtt.NewReader() })
 
 	// TMX (Translation Memory eXchange)
-	reg.RegisterReader("tmx", func() format.DataFormatReader { return tmx.NewReader() })
+	reg.RegisterReader("tmx",
+		func() format.DataFormatReader { return tmx.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-tmx+xml"},
+			Extensions: []string{".tmx"},
+		}, "TMX")
 	reg.RegisterWriter("tmx", func() format.DataFormatWriter { return tmx.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "tmx", func() format.DataFormatReader { return tmx.NewReader() })
 
 	// OpenXML (DOCX, PPTX, XLSX)
-	reg.RegisterReader("openxml", func() format.DataFormatReader { return openxml.NewReader() })
+	reg.RegisterReader("openxml",
+		func() format.DataFormatReader { return openxml.NewReader() },
+		format.FormatSignature{
+			MIMETypes: []string{
+				"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+				"application/vnd.openxmlformats-officedocument.presentationml.presentation",
+				"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+			},
+			Extensions: []string{".docx", ".docm", ".dotx", ".dotm", ".xlsx", ".xlsm", ".xltx", ".xltm", ".pptx", ".pptm", ".ppsx", ".potx"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+		}, "Office Open XML")
 	reg.RegisterWriter("openxml", func() format.DataFormatWriter { return openxml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "openxml", func() format.DataFormatReader { return openxml.NewReader() })
 
 	// DTD
-	reg.RegisterReader("dtd", func() format.DataFormatReader { return dtdfmt.NewReader() })
+	reg.RegisterReader("dtd",
+		func() format.DataFormatReader { return dtdfmt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/xml-dtd"},
+			Extensions: []string{".dtd"},
+		}, "DTD")
 	reg.RegisterWriter("dtd", func() format.DataFormatWriter { return dtdfmt.NewWriter() })
 
-	// Qt TS (Qt Linguist)
-	reg.RegisterReader("ts", func() format.DataFormatReader { return tsfmt.NewReader() })
+	// Qt TS
+	reg.RegisterReader("ts",
+		func() format.DataFormatReader { return tsfmt.NewReader() },
+		format.FormatSignature{
+			MIMETypes: []string{"application/x-ts", "application/x-linguist"},
+			Sniff: func(data []byte) bool {
+				return bytes.Contains(data, []byte("<TS")) && bytes.Contains(data, []byte("</TS>"))
+			},
+		}, "Qt TS")
 	reg.RegisterWriter("ts", func() format.DataFormatWriter { return tsfmt.NewWriter() })
 
 	// Wiki (MediaWiki/DokuWiki)
-	reg.RegisterReader("wiki", func() format.DataFormatReader { return wiki.NewReader() })
+	reg.RegisterReader("wiki",
+		func() format.DataFormatReader { return wiki.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-wiki"},
+			Extensions: []string{".wiki", ".mediawiki"},
+		}, "Wiki")
 	reg.RegisterWriter("wiki", func() format.DataFormatWriter { return wiki.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "wiki", func() format.DataFormatReader { return wiki.NewReader() })
 
 	// TeX/LaTeX
-	reg.RegisterReader("tex", func() format.DataFormatReader { return tex.NewReader() })
+	reg.RegisterReader("tex",
+		func() format.DataFormatReader { return tex.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-tex", "text/x-tex"},
+			Extensions: []string{".tex", ".latex"},
+		}, "TeX/LaTeX")
 	reg.RegisterWriter("tex", func() format.DataFormatWriter { return tex.NewWriter() })
 
 	// Regex
-	reg.RegisterReader("regex", func() format.DataFormatReader { return regexfmt.NewReader() })
+	reg.RegisterReader("regex",
+		func() format.DataFormatReader { return regexfmt.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-regex"},
+			Extensions: []string{".strings", ".ini", ".info", ".rls"},
+		}, "Regex Extraction")
 	reg.RegisterWriter("regex", func() format.DataFormatWriter { return regexfmt.NewWriter() })
 
 	// Doxygen
-	reg.RegisterReader("doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
+	reg.RegisterReader("doxygen",
+		func() format.DataFormatReader { return doxygen.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-doxygen-txt"},
+			Extensions: []string{".c", ".cpp", ".h", ".java", ".m", ".py"},
+		}, "Doxygen Comments")
 	reg.RegisterWriter("doxygen", func() format.DataFormatWriter { return doxygen.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "doxygen", func() format.DataFormatReader { return doxygen.NewReader() })
 
 	// ICU MessageFormat
-	reg.RegisterReader("messageformat", func() format.DataFormatReader { return messageformat.NewReader() })
+	reg.RegisterReader("messageformat",
+		func() format.DataFormatReader { return messageformat.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-messageformat"},
+			Extensions: []string{".mf", ".messageformat"},
+		}, "ICU MessageFormat")
 	reg.RegisterWriter("messageformat", func() format.DataFormatWriter { return messageformat.NewWriter() })
 
 	// PHP Content
-	reg.RegisterReader("phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
+	reg.RegisterReader("phpcontent",
+		func() format.DataFormatReader { return phpcontent.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-php"},
+			Extensions: []string{".php", ".phpcnt"},
+		}, "PHP Content")
 	reg.RegisterWriter("phpcontent", func() format.DataFormatWriter { return phpcontent.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "phpcontent", func() format.DataFormatReader { return phpcontent.NewReader() })
 
 	// ICML (InCopy Markup Language)
-	reg.RegisterReader("icml", func() format.DataFormatReader { return icml.NewReader() })
+	reg.RegisterReader("icml",
+		func() format.DataFormatReader { return icml.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-icml+xml"},
+			Extensions: []string{".icml", ".wcml"},
+		}, "ICML (Adobe InCopy)")
 	reg.RegisterWriter("icml", func() format.DataFormatWriter { return icml.NewWriter() })
 
 	// IDML (InDesign Markup Language)
-	reg.RegisterReader("idml", func() format.DataFormatReader { return idml.NewReader() })
+	reg.RegisterReader("idml",
+		func() format.DataFormatReader { return idml.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/vnd.adobe.indesign-idml-package"},
+			Extensions: []string{".idml"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+		}, "Adobe InDesign Markup Language")
 	reg.RegisterWriter("idml", func() format.DataFormatWriter { return idml.NewWriter() })
 
 	// Fixed-Width Table
-	reg.RegisterReader("fixedwidth", func() format.DataFormatReader { return fixedwidth.NewReader() })
+	reg.RegisterReader("fixedwidth",
+		func() format.DataFormatReader { return fixedwidth.NewReader() },
+		format.FormatSignature{
+			Extensions: []string{".dat", ".fixed"},
+		}, "Fixed-Width")
 	reg.RegisterWriter("fixedwidth", func() format.DataFormatWriter { return fixedwidth.NewWriter() })
 
 	// Translation Table
-	reg.RegisterReader("transtable", func() format.DataFormatReader { return transtable.NewReader() })
+	reg.RegisterReader("transtable",
+		func() format.DataFormatReader { return transtable.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/tab-separated-values"},
+			Extensions: []string{".tab", ".tsv"},
+		}, "Translation Table")
 	reg.RegisterWriter("transtable", func() format.DataFormatWriter { return transtable.NewWriter() })
 
 	// Paragraph Plain Text
-	reg.RegisterReader("paraplaintext", func() format.DataFormatReader { return paraplaintext.NewReader() })
+	reg.RegisterReader("paraplaintext",
+		func() format.DataFormatReader { return paraplaintext.NewReader() },
+		format.FormatSignature{}, "Paragraph Plain Text")
 	reg.RegisterWriter("paraplaintext", func() format.DataFormatWriter { return paraplaintext.NewWriter() })
 
 	// Spliced Lines
-	reg.RegisterReader("splicedlines", func() format.DataFormatReader { return splicedlines.NewReader() })
+	reg.RegisterReader("splicedlines",
+		func() format.DataFormatReader { return splicedlines.NewReader() },
+		format.FormatSignature{}, "Spliced Lines")
 	reg.RegisterWriter("splicedlines", func() format.DataFormatWriter { return splicedlines.NewWriter() })
 
 	// Versified Text
-	reg.RegisterReader("versifiedtext", func() format.DataFormatReader { return versifiedtext.NewReader() })
+	reg.RegisterReader("versifiedtext",
+		func() format.DataFormatReader { return versifiedtext.NewReader() },
+		format.FormatSignature{
+			Extensions: []string{".ver"},
+		}, "Versified Text")
 	reg.RegisterWriter("versifiedtext", func() format.DataFormatWriter { return versifiedtext.NewWriter() })
 
 	// R Vignette
-	reg.RegisterReader("vignette", func() format.DataFormatReader { return vignette.NewReader() })
+	reg.RegisterReader("vignette",
+		func() format.DataFormatReader { return vignette.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"text/x-r-markdown"},
+			Extensions: []string{".Rmd", ".Rnw"},
+		}, "R Vignette")
 	reg.RegisterWriter("vignette", func() format.DataFormatWriter { return vignette.NewWriter() })
 
 	// ODF (Open Document Format)
-	reg.RegisterReader("odf", func() format.DataFormatReader { return odf.NewReader() })
+	reg.RegisterReader("odf",
+		func() format.DataFormatReader { return odf.NewReader() },
+		format.FormatSignature{
+			MIMETypes: []string{
+				"application/vnd.oasis.opendocument.text",
+				"application/vnd.oasis.opendocument.spreadsheet",
+				"application/vnd.oasis.opendocument.presentation",
+			},
+			Extensions: []string{".odt", ".ods", ".odp", ".odg", ".odf"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+		}, "Open Document Format")
 	reg.RegisterWriter("odf", func() format.DataFormatWriter { return odf.NewWriter() })
 
 	// Archive (ZIP)
-	reg.RegisterReader("archive", func() format.DataFormatReader { return archive.NewReader() })
+	reg.RegisterReader("archive",
+		func() format.DataFormatReader { return archive.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/zip", "application/x-zip-compressed"},
+			Extensions: []string{".zip"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+		}, "ZIP Archive")
 	reg.RegisterWriter("archive", func() format.DataFormatWriter { return archive.NewWriter() })
 
 	// EPUB
-	reg.RegisterReader("epub", func() format.DataFormatReader { return epub.NewReader() })
+	reg.RegisterReader("epub",
+		func() format.DataFormatReader { return epub.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/epub+zip"},
+			Extensions: []string{".epub"},
+			MagicBytes: [][]byte{{0x50, 0x4B, 0x03, 0x04}},
+			Sniff: func(data []byte) bool {
+				return bytes.Contains(data, []byte("application/epub+zip"))
+			},
+		}, "EPUB E-Book")
 	reg.RegisterWriter("epub", func() format.DataFormatWriter { return epub.NewWriter() })
 
 	// RTF (Rich Text Format)
-	reg.RegisterReader("rtf", func() format.DataFormatReader { return rtf.NewReader() })
+	reg.RegisterReader("rtf",
+		func() format.DataFormatReader { return rtf.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/rtf", "text/rtf"},
+			Extensions: []string{".rtf"},
+			MagicBytes: [][]byte{[]byte("{\\rtf")},
+		}, "Rich Text Format")
 	reg.RegisterWriter("rtf", func() format.DataFormatWriter { return rtf.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "rtf", func() format.DataFormatReader { return rtf.NewReader() })
 
 	// MIF (Adobe FrameMaker)
-	reg.RegisterReader("mif", func() format.DataFormatReader { return mif.NewReader() })
+	reg.RegisterReader("mif",
+		func() format.DataFormatReader { return mif.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-mif", "application/vnd.mif"},
+			Extensions: []string{".mif"},
+			Sniff: func(data []byte) bool {
+				return len(data) >= 9 && string(data[:9]) == "<MIFFile "
+			},
+		}, "Adobe FrameMaker MIF")
 	reg.RegisterWriter("mif", func() format.DataFormatWriter { return mif.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "mif", func() format.DataFormatReader { return mif.NewReader() })
 
 	// TTX (Trados TagEditor)
-	reg.RegisterReader("ttx", func() format.DataFormatReader { return ttx.NewReader() })
+	reg.RegisterReader("ttx",
+		func() format.DataFormatReader { return ttx.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-ttx+xml"},
+			Extensions: []string{".ttx"},
+			Sniff: func(data []byte) bool {
+				s := string(data)
+				return strings.Contains(s, "<TRADOStag")
+			},
+		}, "Trados TagEditor TTX")
 	reg.RegisterWriter("ttx", func() format.DataFormatWriter { return ttx.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "ttx", func() format.DataFormatReader { return ttx.NewReader() })
 
 	// TXML (Trados XML)
-	reg.RegisterReader("txml", func() format.DataFormatReader { return txml.NewReader() })
+	reg.RegisterReader("txml",
+		func() format.DataFormatReader { return txml.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/x-txml+xml"},
+			Extensions: []string{".txml"},
+			Sniff: func(data []byte) bool {
+				s := string(data)
+				return strings.Contains(s, "<txml")
+			},
+		}, "Trados XML")
 	reg.RegisterWriter("txml", func() format.DataFormatWriter { return txml.NewWriter() })
+	registerSchemaAndDecoder(o, reg, "txml", func() format.DataFormatReader { return txml.NewReader() })
 
 	// PDF (extraction only)
-	reg.RegisterReader("pdf", func() format.DataFormatReader { return pdf.NewReader() })
+	reg.RegisterReader("pdf",
+		func() format.DataFormatReader { return pdf.NewReader() },
+		format.FormatSignature{
+			MIMETypes:  []string{"application/pdf"},
+			Extensions: []string{".pdf"},
+			MagicBytes: [][]byte{[]byte("%PDF-")},
+		}, "PDF Text Extraction")
 	reg.RegisterWriter("pdf", func() format.DataFormatWriter { return pdf.NewWriter() })
+}
+
+// registerSchemaAndDecoder registers a format's schema and config decoder
+// if the format implements SchemaProvider. This creates one reader instance
+// per format that has a schema — only called for formats that implement it.
+func registerSchemaAndDecoder(o RegisterOptions, reg *registry.FormatRegistry, name string, factory func() format.DataFormatReader) {
+	if o.SchemaReg == nil && o.ConfigReg == nil {
+		return
+	}
+
+	reader := factory()
+	cfg := reader.Config()
+	if cfg == nil {
+		return
+	}
+
+	if o.SchemaReg != nil {
+		if sp, ok := cfg.(format.SchemaProvider); ok {
+			o.SchemaReg.RegisterSchema(name, sp.Schema())
+		}
+	}
+
+	if o.ConfigReg != nil {
+		kind := config.FormatConfigKind(name)
+		if ckp, ok := cfg.(format.ConfigKindProvider); ok {
+			kind = ckp.ConfigKind()
+		}
+
+		formatName := name
+		o.ConfigReg.Register(kind, config.SpecDecoderFunc(func(spec map[string]any) (any, error) {
+			f := reg.ReaderFactory(formatName)
+			if f == nil {
+				return nil, fmt.Errorf("format %q not found", formatName)
+			}
+			rdr := f()
+			c := rdr.Config()
+			if c == nil {
+				return spec, nil
+			}
+			c.Reset()
+			if err := c.ApplyMap(spec); err != nil {
+				return nil, err
+			}
+			return c, nil
+		}))
+	}
 }

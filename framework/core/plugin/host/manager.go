@@ -113,12 +113,10 @@ func (m *PluginManager) loadPlugin(path string, reg *registry.FormatRegistry) er
 
 				if reg != nil {
 					sig := reader.Signature()
-					// Create a factory that returns a new reader client each time.
-					// For simplicity, we return the same client instance since
-					// the plugin process persists.
+					displayName := reader.DisplayName()
 					reg.RegisterReader(name, func() format.DataFormatReader {
 						return reader
-					})
+					}, sig, displayName)
 					m.logger.Printf("registered format reader plugin: %s (mime=%v, ext=%v)",
 						name, sig.MIMETypes, sig.Extensions)
 				}
