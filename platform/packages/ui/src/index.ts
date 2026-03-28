@@ -84,6 +84,7 @@ export { WorkspaceSwitcher } from "./components/WorkspaceSwitcher";
 export { LocaleSelect, MultiLocaleSelect } from "./components/LocaleSelect";
 export { ProjectDashboard } from "./components/ProjectDashboard";
 export { ProjectView } from "./components/ProjectView";
+export { FormattedFileName, formatIcon } from "./components/FormattedFileName";
 export { OpenInDesktop } from "./components/OpenInDesktop";
 export { TranslationEditor } from "./components/TranslationEditor";
 export { TranslationDashboard } from "./components/TranslationDashboard";

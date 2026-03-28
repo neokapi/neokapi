@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import type { ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
+import { FormattedFileName } from "./FormattedFileName";
 import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { cn } from "../lib/utils";
 
@@ -131,7 +132,11 @@ export function FileProgressTable({
                       className="max-w-[200px] truncate py-2 pr-3 font-medium"
                       title={item.item_name}
                     >
-                      {item.item_name}
+                      <FormattedFileName
+                        name={item.item_name}
+                        format={item.format}
+                        iconClassName="w-3.5 h-3.5 shrink-0"
+                      />
                     </td>
                     <td className="px-2 py-2 text-muted-foreground">{item.format}</td>
                     <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">
