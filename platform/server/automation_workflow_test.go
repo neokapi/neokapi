@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -266,9 +267,12 @@ func TestSourceReviewCompletionEmitsEvent(t *testing.T) {
 	require.NoError(t, srv.TaskStore.Create(ctx, task))
 
 	// Subscribe to the event.
+	var mu sync.Mutex
 	var received []platev.Event
 	srv.EventBus.Subscribe(platev.EventSourceReviewCompleted, func(ev platev.Event) {
+		mu.Lock()
 		received = append(received, ev)
+		mu.Unlock()
 	})
 
 	// Complete the task via API.
@@ -281,8 +285,14 @@ func TestSourceReviewCompletionEmitsEvent(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code)
 
 	// Wait for async event delivery.
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(received) > 0
+	}, 2*time.Second, 50*time.Millisecond)
 
+	mu.Lock()
+	defer mu.Unlock()
 	require.Len(t, received, 1, "should emit source.review.completed")
 	assert.Equal(t, projID, received[0].ProjectID)
 	assert.Equal(t, "push-src", received[0].Data["push_id"])
