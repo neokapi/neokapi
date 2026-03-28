@@ -93,6 +93,76 @@ func TestPrintToTextWithFormatter(t *testing.T) {
 	assert.Equal(t, "formatted", buf.String())
 }
 
+func TestToolsListOutputGroupsByCategory(t *testing.T) {
+	var buf bytes.Buffer
+	out := ToolsListOutput{
+		Tools: []ToolInfo{
+			{Name: "ai-translate", Description: "Translate with AI", Category: "translation"},
+			{Name: "pseudo-translate", Description: "Pseudo-translate", Category: "translation"},
+			{Name: "qa-check", Description: "Run QA checks", Category: "quality"},
+			{Name: "word-count", Description: "Count words", Category: "analysis"},
+			{Name: "search-replace", Description: "Find and replace", Category: "text-processing"},
+		},
+		Total: 5,
+	}
+	err := out.FormatText(&buf)
+	require.NoError(t, err)
+	text := buf.String()
+
+	assert.Contains(t, text, "Translation:")
+	assert.Contains(t, text, "Quality:")
+	assert.Contains(t, text, "Analysis:")
+	assert.Contains(t, text, "Text Processing:")
+	assert.Contains(t, text, "ai-translate")
+	assert.Contains(t, text, "qa-check")
+	assert.Contains(t, text, "word-count")
+	assert.Contains(t, text, "search-replace")
+	assert.Contains(t, text, "Total: 5 tool(s)")
+}
+
+func TestToolsListOutputUncategorizedToolsInOther(t *testing.T) {
+	var buf bytes.Buffer
+	out := ToolsListOutput{
+		Tools: []ToolInfo{
+			{Name: "ai-translate", Description: "Translate with AI", Category: "translation"},
+			{Name: "span-classify", Description: "Classify spans", Category: ""},
+		},
+		Total: 2,
+	}
+	err := out.FormatText(&buf)
+	require.NoError(t, err)
+	text := buf.String()
+
+	assert.Contains(t, text, "Translation:")
+	assert.Contains(t, text, "Other:")
+	assert.Contains(t, text, "span-classify")
+}
+
+func TestToolsListOutputEmpty(t *testing.T) {
+	var buf bytes.Buffer
+	out := ToolsListOutput{Tools: nil, Total: 0}
+	err := out.FormatText(&buf)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "No tools available.")
+}
+
+func TestToolsListOutputJSON(t *testing.T) {
+	out := ToolsListOutput{
+		Tools: []ToolInfo{
+			{Name: "qa-check", Description: "Run QA", Category: "quality", Source: "builtin"},
+		},
+		Total: 1,
+	}
+	var buf bytes.Buffer
+	err := PrintTo(&buf, FormatJSON, out)
+	require.NoError(t, err)
+
+	var result ToolsListOutput
+	err = json.Unmarshal(buf.Bytes(), &result)
+	require.NoError(t, err)
+	assert.Equal(t, "quality", result.Tools[0].Category)
+}
+
 func TestVersionOutputText(t *testing.T) {
 	var buf bytes.Buffer
 	v := VersionOutput{Program: "kapi", Version: "1.0.0"}

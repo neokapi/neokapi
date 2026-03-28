@@ -189,6 +189,7 @@ type WriteResult struct {
 type ToolInfoResult struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Category    string `json:"category,omitempty"`
 }
 
 // ProcessArgs holds the arguments for the Process RPC.

@@ -11,8 +11,9 @@ import (
 // Bare invocation lists tools; "tools list" is an explicit alias.
 func (a *App) NewToolsCmd() *cobra.Command {
 	toolsCmd := &cobra.Command{
-		Use:   "tools",
-		Short: "List available processing tools",
+		Use:     "tools",
+		Short:   "List available processing tools",
+		GroupID: "management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.listTools(cmd)
 		},
@@ -39,6 +40,7 @@ func (a *App) listTools(cmd *cobra.Command) error {
 		tools = append(tools, output.ToolInfo{
 			Name:        def.Use,
 			Description: def.Short,
+			Category:    def.Category,
 			Source:      "builtin",
 		})
 		seen[def.Use] = true
