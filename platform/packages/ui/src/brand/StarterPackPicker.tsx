@@ -19,7 +19,7 @@ export function StarterPackPicker({
 }: StarterPackPickerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Choose a Starting Point</DialogTitle>
           <p className="text-sm text-muted-foreground">
@@ -27,7 +27,7 @@ export function StarterPackPicker({
           </p>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
           {starterPacks.map((pack) => (
             <StarterPackCard key={pack.name} pack={pack} onClick={onSelect} />
           ))}
@@ -38,7 +38,7 @@ export function StarterPackPicker({
             onClick={onScratch}
           >
             <div className="h-1 bg-border/50" />
-            <div className="p-4 flex flex-col items-center justify-center text-center min-h-[140px] gap-3">
+            <div className="p-5 flex flex-col items-center justify-center text-center min-h-[140px] gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
                 <Wand2 className="h-4.5 w-4.5 text-muted-foreground" />
               </div>
