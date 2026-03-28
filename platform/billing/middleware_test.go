@@ -179,3 +179,108 @@ func TestQuotaGuard_RetryAfterHeader(t *testing.T) {
 	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
 	assert.NotEmpty(t, rec.Header().Get("Retry-After"))
 }
+
+func TestQuotaGuard_OnBlockCallbackFired(t *testing.T) {
+	store := &mockBillingStore{remaining: 0}
+
+	var capturedEvent string
+	var capturedWsID string
+	var capturedProps map[string]any
+	onBlock := func(event string, wsID string, props map[string]any) {
+		capturedEvent = event
+		capturedWsID = wsID
+		capturedProps = props
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/test-path", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set(contextKeyWorkspacePlan, "pro")
+	c.Set("workspace_id", "ws-456")
+
+	handler := QuotaGuard(store, onBlock)(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusTooManyRequests, rec.Code)
+	assert.Equal(t, "billing.credits_exhausted", capturedEvent)
+	assert.Equal(t, "ws-456", capturedWsID)
+	assert.Equal(t, "pro", capturedProps["plan"])
+}
+
+func TestQuotaGuard_OnBlockNotFiredWhenAllowed(t *testing.T) {
+	store := &mockBillingStore{remaining: 10000}
+
+	fired := false
+	onBlock := func(event string, wsID string, props map[string]any) {
+		fired = true
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set(contextKeyWorkspacePlan, "pro")
+	c.Set("workspace_id", "ws-456")
+
+	handler := QuotaGuard(store, onBlock)(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.False(t, fired)
+}
+
+func TestPlanGuard_OnBlockCallbackFired(t *testing.T) {
+	var capturedEvent string
+	var capturedWsID string
+	onBlock := func(event string, wsID string, props map[string]any) {
+		capturedEvent = event
+		capturedWsID = wsID
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set(contextKeyWorkspacePlan, "free")
+	c.Set("workspace_id", "ws-789")
+
+	handler := PlanGuard(FeatureConnectorsGit, onBlock)(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+	assert.Equal(t, "billing.feature_gate_hit", capturedEvent)
+	assert.Equal(t, "ws-789", capturedWsID)
+}
+
+func TestPlanGuard_OnBlockNotFiredWhenAllowed(t *testing.T) {
+	fired := false
+	onBlock := func(event string, wsID string, props map[string]any) {
+		fired = true
+	}
+
+	e := echo.New()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+	c.Set(contextKeyWorkspacePlan, "pro")
+	c.Set("workspace_id", "ws-789")
+
+	handler := PlanGuard(FeatureConnectorsGit, onBlock)(func(c echo.Context) error {
+		return c.String(http.StatusOK, "ok")
+	})
+
+	err := handler(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.False(t, fired)
+}

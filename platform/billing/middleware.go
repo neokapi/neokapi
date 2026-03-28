@@ -16,7 +16,7 @@ const contextKeyWorkspacePlan = "workspace_plan"
 // plan does not include the required feature. It reads the plan from
 // the echo context (set by workspace access middleware) and checks overrides.
 // When billing is not configured (plan is empty), all features are allowed.
-func PlanGuard(feature Feature) echo.MiddlewareFunc {
+func PlanGuard(feature Feature, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			planStr, _ := c.Get(contextKeyWorkspacePlan).(string)
@@ -37,6 +37,15 @@ func PlanGuard(feature Feature) echo.MiddlewareFunc {
 				return next(c)
 			}
 
+			if len(onBlock) > 0 && onBlock[0] != nil {
+				wsID, _ := c.Get("workspace_id").(string)
+				onBlock[0]("billing.feature_gate_hit", wsID, map[string]any{
+					"feature":      string(feature),
+					"plan":         planStr,
+					"minimum_plan": string(MinimumPlanFor(feature)),
+				})
+			}
+
 			return c.JSON(http.StatusForbidden, map[string]any{
 				"error":        "upgrade_required",
 				"feature":      feature,
@@ -46,10 +55,14 @@ func PlanGuard(feature Feature) echo.MiddlewareFunc {
 	}
 }
 
+// GuardEventFunc is an optional callback fired when PlanGuard or QuotaGuard
+// blocks a request. Used for analytics (e.g. PostHog).
+type GuardEventFunc func(event string, workspaceID string, props map[string]any)
+
 // QuotaGuard returns Echo middleware that rejects requests when weekly credits
 // are exhausted. Returns 429 with Retry-After header set to next Monday 00:00 UTC.
 // When billing is not configured (store is nil or plan is empty), all requests pass.
-func QuotaGuard(store BillingStore) echo.MiddlewareFunc {
+func QuotaGuard(store BillingStore, onBlock ...GuardEventFunc) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			// When billing is not configured, allow all.
@@ -83,6 +96,12 @@ func QuotaGuard(store BillingStore) echo.MiddlewareFunc {
 			if remaining <= 0 {
 				retryAfter := WeekEnd(time.Now().UTC())
 				c.Response().Header().Set("Retry-After", retryAfter.Format(time.RFC1123))
+				if len(onBlock) > 0 && onBlock[0] != nil {
+					onBlock[0]("billing.credits_exhausted", workspaceID, map[string]any{
+						"plan": string(plan),
+						"path": c.Path(),
+					})
+				}
 				return c.JSON(http.StatusTooManyRequests, map[string]any{
 					"error":       "credits_exhausted",
 					"resets_at":   retryAfter.Format(time.RFC3339),

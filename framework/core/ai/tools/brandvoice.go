@@ -15,6 +15,7 @@ import (
 // BrandVoiceCheckTool uses an LLM to check text against brand voice guidelines.
 type BrandVoiceCheckTool struct {
 	tool.BaseTool
+	usageAccumulator
 	provider provider.LLMProvider
 	profile  *brand.VoiceProfile
 	resolver brand.ProfileResolver  // optional: lazy profile resolution
@@ -135,6 +136,7 @@ func (t *BrandVoiceCheckTool) handleBlock(part *model.Part) (*model.Part, error)
 	if err != nil {
 		return nil, fmt.Errorf("brand-voice-check: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	var result brandVoiceLLMResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {

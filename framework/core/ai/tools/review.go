@@ -12,6 +12,7 @@ import (
 // AIReviewTool reviews translations with explanations using an LLM.
 type AIReviewTool struct {
 	tool.BaseTool
+	usageAccumulator
 	provider     provider.LLMProvider
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
@@ -69,6 +70,7 @@ Suggestion: <improved translation if needed, or "none">`,
 	if err != nil {
 		return nil, fmt.Errorf("ai-review: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	if block.Properties == nil {
 		block.Properties = make(map[string]string)

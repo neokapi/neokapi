@@ -18,3 +18,6 @@ export type { UpgradePromptProps } from "./UpgradePrompt";
 
 export { CreditLedger } from "./CreditLedger";
 export type { CreditLedgerProps } from "./CreditLedger";
+
+export { ModelUsageTable } from "./ModelUsageTable";
+export type { ModelUsageTableProps } from "./ModelUsageTable";

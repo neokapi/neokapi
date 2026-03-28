@@ -537,12 +537,12 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return err
 	}
 
-	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req, s.CredentialStore)
+	wsID, _ := c.Get("workspace_id").(string)
+	stats, err := editorAITranslate(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname, req, s.CredentialStore, s.BillingHooks, wsID)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
-	wsID, _ := c.Get("workspace_id").(string)
 	s.invalidateDashboardCache(wsID, pid)
 	return c.JSON(http.StatusOK, stats)
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/billing"
+	"github.com/neokapi/neokapi/bowrain/jobs"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 )
 
@@ -102,6 +103,46 @@ func (s *Server) HandleGetBillingUsage(c echo.Context) error {
 		"from":               from,
 		"to":                 to,
 		"entries":            entries,
+	})
+}
+
+// HandleGetBillingModelUsage returns token usage grouped by model and operation.
+// GET /api/v1/workspaces/:ws/billing/model-usage
+func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
+	if s.QuotaStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "usage tracking not configured"})
+	}
+
+	ws := c.Param("ws")
+	now := time.Now().UTC()
+	from := billing.WeekStart(now)
+	to := now
+
+	if v := c.QueryParam("from"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			from = t
+		}
+	}
+	if v := c.QueryParam("to"); v != "" {
+		if t, err := time.Parse(time.RFC3339, v); err == nil {
+			to = t
+		}
+	}
+
+	pgStore, ok := s.QuotaStore.(*jobs.PgQuotaStore)
+	if !ok {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "model usage not available"})
+	}
+
+	usage, err := pgStore.GetUsageByModel(c.Request().Context(), ws, from, to)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"model_usage": usage,
+		"from":        from,
+		"to":          to,
 	})
 }
 
