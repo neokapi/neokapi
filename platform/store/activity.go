@@ -290,3 +290,62 @@ func scanActivity(row scanner) (*Activity, error) {
 
 	return &a, nil
 }
+
+// GetActivitySeenAt returns when the user last viewed the activity feed.
+// Returns zero time if never viewed.
+func (s *ActivityStore) GetActivitySeenAt(ctx context.Context, userID, workspaceID string) (time.Time, error) {
+	var ts string
+	err := s.db.QueryRowContext(ctx,
+		s.q(`SELECT last_seen_at FROM activity_state WHERE user_id = ? AND workspace_id = ?`),
+		userID, workspaceID).Scan(&ts)
+	if err != nil {
+		return time.Time{}, nil // never seen
+	}
+	t, _ := parseTime(ts)
+	return t, nil
+}
+
+// SetActivitySeenAt records when the user last viewed the activity feed.
+func (s *ActivityStore) SetActivitySeenAt(ctx context.Context, userID, workspaceID string, seenAt time.Time) error {
+	var tsVal string
+	if s.dialect == DialectPostgres {
+		tsVal = seenAt.UTC().Format(time.RFC3339Nano)
+	} else {
+		tsVal = seenAt.UTC().Format(time.RFC3339)
+	}
+
+	if s.dialect == DialectPostgres {
+		_, err := s.db.ExecContext(ctx,
+			`INSERT INTO activity_state (user_id, workspace_id, last_seen_at)
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT (user_id, workspace_id) DO UPDATE SET last_seen_at = $3`,
+			userID, workspaceID, tsVal)
+		return err
+	}
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO activity_state (user_id, workspace_id, last_seen_at)
+		 VALUES (?, ?, ?)
+		 ON CONFLICT (user_id, workspace_id) DO UPDATE SET last_seen_at = excluded.last_seen_at`,
+		userID, workspaceID, tsVal)
+	return err
+}
+
+// CountNewActivities returns the number of activities newer than the user's last seen timestamp.
+func (s *ActivityStore) CountNewActivities(ctx context.Context, userID, workspaceID string) (int, error) {
+	seenAt, _ := s.GetActivitySeenAt(ctx, userID, workspaceID)
+	var tsVal string
+	if seenAt.IsZero() {
+		return 0, nil // never viewed = no indicator (avoid showing dot on first visit)
+	}
+	if s.dialect == DialectPostgres {
+		tsVal = seenAt.UTC().Format(time.RFC3339Nano)
+	} else {
+		tsVal = seenAt.UTC().Format(time.RFC3339)
+	}
+
+	var count int
+	err := s.db.QueryRowContext(ctx,
+		s.q(`SELECT COUNT(*) FROM activities WHERE workspace_id = ? AND created_at > ?`),
+		workspaceID, tsVal).Scan(&count)
+	return count, err
+}

@@ -481,6 +481,14 @@ var storeMigrationsPg = []storage.Migration{
 				actor      TEXT NOT NULL DEFAULT '',
 				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+
+			-- Activity read state (cross-device sync)
+			CREATE TABLE activity_state (
+				user_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+				PRIMARY KEY (user_id, workspace_id)
+			);
 		`,
 	},
 }

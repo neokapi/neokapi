@@ -1100,6 +1100,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// Activities (workspace-scoped, AD-027)
 	g.GET("/activities", s.HandleListActivities)
+	g.POST("/activities/seen", s.HandleMarkActivitiesSeen)
 
 	// Tasks (workspace-scoped, AD-027)
 	g.GET("/tasks", s.HandleListTasks)

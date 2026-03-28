@@ -28,8 +28,10 @@ export interface TopBarProps {
   onDeleteNotification?: (id: string) => void;
   onNotificationClick?: (notification: NotificationInfo) => void;
   activities?: ActivityInfo[];
+  newActivityCount?: number;
   onActivityClick?: (activity: ActivityInfo) => void;
   onViewAllActivities?: () => void;
+  onMarkActivitiesSeen?: () => void;
   myTasks?: TaskInfo[];
   onTaskClick?: (task: TaskInfo) => void;
   onCompleteTask?: (taskId: string) => void;
@@ -88,8 +90,10 @@ export function TopBar({
   onDeleteNotification,
   onNotificationClick,
   activities,
+  newActivityCount,
   onActivityClick,
   onViewAllActivities,
+  onMarkActivitiesSeen,
   myTasks,
   onTaskClick,
   onCompleteTask,
@@ -117,8 +121,10 @@ export function TopBar({
       {activities && (
         <ActivityIndicator
           activities={activities}
+          newCount={newActivityCount}
           onActivityClick={onActivityClick}
           onViewAll={onViewAllActivities}
+          onMarkSeen={onMarkActivitiesSeen}
         />
       )}
 

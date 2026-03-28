@@ -776,4 +776,16 @@ var storeMigrations = []storage.Migration{
 			);
 		`,
 	},
+	{
+		Version:     33,
+		Description: "create activity_state table for server-side read tracking",
+		SQL: `
+			CREATE TABLE activity_state (
+				user_id      TEXT NOT NULL,
+				workspace_id TEXT NOT NULL,
+				last_seen_at TEXT NOT NULL DEFAULT (datetime('now')),
+				PRIMARY KEY (user_id, workspace_id)
+			);
+		`,
+	},
 }
