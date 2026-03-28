@@ -113,11 +113,11 @@ The `bowrain` CLI shares TM and termbase commands with `kapi`. See the [Kapi CLI
 # Import terms from CSV
 bowrain termbase import glossary.csv --name product-terms --format csv -s en -t fr
 
-# Leverage TM in a translation flow
-bowrain flow run tm-leverage -i input.html -o output.html \
+# Leverage TM
+bowrain tm-leverage -i input.html -o output.html \
   --source-lang en --target-lang fr --tm project-tm
 
 # Run QA with terminology enforcement
-bowrain flow run qa-check -i translated.json -o qa_report.json \
+bowrain qa-check -i translated.json -o qa_report.json \
   --source-lang en --target-lang fr --termbase product-terms
 ```

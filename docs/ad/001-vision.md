@@ -199,9 +199,9 @@ merging with the following precedence (highest to lowest):
 5. **Code defaults** — sensible zero-config behavior
 
 Both CLIs use [Cobra](https://github.com/spf13/cobra) for hierarchical
-subcommands. Kapi operates directly on files (`kapi flow run pseudo-translate
+subcommands. Kapi operates directly on files (`kapi pseudo-translate
 -i file.json`). Bowrain CLI operates within a project context
-(`bowrain flow run pseudo`). Viper's automatic env binding means
+(`bowrain pseudo-translate`). Viper's automatic env binding means
 `BOWRAIN_TOOLS_AI_TRANSLATION_MODEL` overrides the nested YAML path
 `tools.ai-translation.model`.
 
@@ -276,5 +276,5 @@ All subsystems validate locale codes at their boundaries:
   shows friendly display names. No silent propagation of invalid codes.
 
 - **Progressive scalability** — The same content model and tool chain works
-  for a solo developer running `kapi flow run` on local files and a team
+  for a solo developer running `kapi pseudo-translate` on local files and a team
   using Bowrain with connectors, automation, and collaborative editing.

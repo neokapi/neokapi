@@ -273,7 +273,7 @@ Your task today: {task_description}
 
 **Capabilities:**
 
-- Run QA flows (`bowrain flow run qa-check`)
+- Run QA checks (`bowrain qa-check`)
 - Brand compliance checking (API)
 - Placeholder verification
 - Character limit checks

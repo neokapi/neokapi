@@ -29,7 +29,7 @@ kapi pseudo-translate messages.json --target-lang qps
 kapi word-count content/*.md
 
 # Translate with AI
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
 # List supported formats
 kapi formats

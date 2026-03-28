@@ -227,13 +227,13 @@ Use environment variables in flow configs:
 
 ```bash
 # List all flows (built-in + custom)
-bowrain flow list
+bowrain flows
 
 # Run your custom flow
-bowrain flow run my-flow
+bowrain run my-flow
 
 # Run with verbose output
-bowrain flow run my-flow --verbose
+bowrain run my-flow --verbose
 ```
 
 ## Best Practices
@@ -249,6 +249,6 @@ bowrain flow run my-flow --verbose
 ## Next Steps
 
 - [Flow Hooks](/bowrain/cli/flows/hooks)
-- [Flow Command](/bowrain/cli/commands/flow)
+- [Run Command](/bowrain/cli/commands/run)
 - [Available Formats](/docs/features/formats)
 - [AI Translation](/docs/features/ai-translation)

@@ -50,7 +50,7 @@ export default function TraceSelector({
       <button
         className={`${styles.traceButton} ${loadedFileName ? styles.traceButtonActive : ''}`}
         onClick={() => fileInputRef.current?.click()}
-        title="Load a trace JSON file from kapi flow run --trace"
+        title="Load a trace JSON file generated with --trace"
       >
         {loadedFileName ?? 'Load file\u2026'}
       </button>

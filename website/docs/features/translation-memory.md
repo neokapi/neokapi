@@ -71,11 +71,11 @@ kapi tm list
 
 ## Pipeline Integration
 
-The `tm-leverage` flow queries the TM for each Block's source segments and applies matches:
+The `tm-leverage` tool queries the TM for each Block's source segments and applies matches:
 
 ```bash
 # Use a named TM from KAPI_HOME
-kapi flow run ai-translate -i input.html -o output.html -s en -t fr \
+kapi ai-translate -i input.html -o output.html -s en -t fr \
   --tm project-tm
 
 # TM leverage is automatic when --tm is specified

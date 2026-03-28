@@ -25,13 +25,13 @@ Run quality checks directly on source files without any server connection:
 
 ```bash
 # Run QA checks on source content
-bowrain flow run qa-check -i src/locales/en/ --source-lang en
+bowrain qa-check -i src/locales/en/ --source-lang en
 
 # Check terminology consistency
-bowrain flow run term-check -i src/locales/en/ --termbase glossary.tbx
+bowrain term-check -i src/locales/en/ --termbase glossary.tbx
 
 # Validate XML/HTML structure in source strings
-bowrain flow run xml-validation -i src/locales/en/
+bowrain xml-validation -i src/locales/en/
 ```
 
 ### Built-In QA Rules
@@ -80,7 +80,7 @@ steps:
 Run it:
 
 ```bash
-bowrain flow run source-qa
+bowrain run source-qa
 ```
 
 ### Scoping and Word Count
@@ -89,13 +89,13 @@ Before starting a translation project, analyze the source content:
 
 ```bash
 # Word count across all source files
-bowrain flow run word-count -i src/locales/en/
+bowrain word-count -i src/locales/en/
 
 # Detailed scoping report
-bowrain flow run scoping-report -i src/locales/en/
+bowrain scoping-report -i src/locales/en/
 
 # Repetition analysis (find reusable segments)
-bowrain flow run repetition-analysis -i src/locales/en/
+bowrain repetition-analysis -i src/locales/en/
 ```
 
 ### Source Cleanup
@@ -163,10 +163,10 @@ jobs:
           token: ${{ secrets.NEOKAPI_REGISTRY_TOKEN }}
 
       - name: Run source QA
-        run: bowrain flow run source-qa
+        run: bowrain run source-qa
 
       - name: Word count report
-        run: bowrain flow run word-count -i src/locales/en/ --json
+        run: bowrain word-count -i src/locales/en/ --json
 ```
 
 This catches source-language issues at the PR stage, before they propagate to translations.

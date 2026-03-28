@@ -15,7 +15,7 @@ kapi tools
 
 ## Description
 
-Lists all processing tools available for use in flows. Tools are the building blocks of translation pipelines.
+Lists all processing tools. Each tool is available as a top-level kapi command (e.g., `kapi ai-translate`, `kapi pseudo-translate`, `kapi qa-check`). Tools can also be composed into multi-tool flows executed via `kapi run`.
 
 ## Example
 
@@ -96,4 +96,4 @@ kapi tools
 | `span-classify` | Reclassify markup spans into semantic types |
 | `layer-processor` | Apply format-specific tool chains to child layers |
 
-Tools are used in flows via `kapi flow run`. See [flow command](/docs/kapi-cli/commands/flow) for usage.
+Each tool runs as a top-level command (e.g., `kapi pseudo-translate`, `kapi qa-check`). For composed multi-tool pipelines, see [kapi run](/docs/kapi-cli/commands/flow).

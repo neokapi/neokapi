@@ -50,16 +50,17 @@ mappings:
     format: json
 ```
 
-## Step 2: Run Translation Flows
+## Step 2: Run Translation Tools and Flows
 
 Execute translation workflows from the CLI:
 
 ```bash
-# List available flows
-bowrain flow list
+# List available tools and flows
+bowrain tools
+bowrain flows
 
-# Run AI translation flow
-bowrain flow run ai-translate
+# Run AI translation (top-level tool command)
+bowrain ai-translate
 
 # Or create a custom flow with QA checks
 # .bowrain/flows/translate-website.yaml:
@@ -73,20 +74,19 @@ bowrain flow run ai-translate
 #   - tool: qa-check
 #   - tool: term-enforce
 
-bowrain flow run translate-website
+bowrain run translate-website
 ```
 
-### Flow-Based Translation
+### Tools and Flows
 
-Bowrain CLI flows are composable pipelines that run on your local files:
+Bowrain CLI tools and flows are composable pipelines that run on your local files:
 
-- **ai-translate**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
-- **tm-leverage**: Pre-fill translations from translation memory
-- **qa-check**: Rule-based quality checks (whitespace, punctuation, placeholders)
-- **term-enforce**: Validate terminology compliance
-- **segmentation**: Split source text into sentences
+- **`bowrain ai-translate`**: Use LLMs (Anthropic, OpenAI, Ollama) for machine translation
+- **`bowrain tm-leverage`**: Pre-fill translations from translation memory
+- **`bowrain qa-check`**: Rule-based quality checks (whitespace, punctuation, placeholders)
+- **`bowrain run <flow>`**: Execute a composed or custom multi-tool flow
 
-Flows automatically process all files matching your `.bowrain/config.yaml` mappings.
+Tools and flows automatically process all files matching your `.bowrain/config.yaml` mappings.
 
 ## Step 3: Review in Bowrain (Optional)
 
@@ -155,9 +155,9 @@ Bowrain CLI uses content-addressed blocks for efficient incremental sync — onl
 
 - **Initialize projects with `bowrain init`** to set up `.bowrain/` configuration
 - **Define custom flows** in `.bowrain/flows/` for your specific translation workflow
-- **Use `tm-leverage` flow** to auto-fill translations from translation memory
+- **Use `bowrain tm-leverage`** to auto-fill translations from translation memory
 - **Import terminology** as `.bowrain/termbase.tbx` and add `term-lookup` to your flow
-- **Run `pseudo-translate` flow** first to identify potential UI truncation issues
+- **Run `bowrain pseudo-translate`** first to identify potential UI truncation issues
 - **Use pre-push hooks** to enforce quality gates before pushing to server
 - **Commit `.bowrain/config.yaml`** to git, but not `.bowrain/.sync-cache` (auto-gitignored)
 - **Check `bowrain status`** before pushing to see what changed
@@ -166,6 +166,6 @@ Bowrain CLI uses content-addressed blocks for efficient incremental sync — onl
 
 - [Walkthrough](/bowrain/walkthrough)
 - [bowrain init](/bowrain/cli/commands/init)
-- [bowrain flow](/bowrain/cli/commands/flow)
+- [bowrain run](/bowrain/cli/commands/run)
 - [bowrain push](/bowrain/cli/commands/push) and [bowrain pull](/bowrain/cli/commands/pull)
 - [Bowrain Walkthroughs](/bowrain/desktop/walkthroughs)

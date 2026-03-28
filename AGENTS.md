@@ -177,7 +177,7 @@ kapi init                    # Create .kapi/ project
 kapi status                  # Show sync state (like git status)
 kapi pull                    # Fetch from Bowrain Server → update local files
 kapi push                    # Send local files → update Bowrain Server
-kapi flow run <flow-name>    # Execute flow from .kapi/flows/
+kapi run <flow-name>         # Execute flow from .kapi/flows/
 kapi serve                   # Start local dashboard (web UI)
 ```
 

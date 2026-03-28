@@ -109,7 +109,7 @@ type VocabularyRules struct {
 
 **Module placement:** `core/brand/` in the framework module — brand voice is a content concern, not a platform concern. The profile is a pure data type with JSON serialization, no database dependency. Storage backends (SQLite/PostgreSQL) live in `cli/storage/brand/` and `bowrain/brand/`.
 
-**Why framework, not platform:** Kapi needs brand voice checking for standalone file processing (monolingual use case). A marketing writer using `kapi flow run brand-check -i draft.md --profile marketing.yaml` should work without a Bowrain server.
+**Why framework, not platform:** Kapi needs brand voice checking for standalone file processing (monolingual use case). A marketing writer using `kapi brand-check draft.md --profile marketing.yaml` should work without a Bowrain server.
 
 ### 1.2 Terminology enforcement as brand vocabulary
 

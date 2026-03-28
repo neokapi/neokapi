@@ -201,7 +201,7 @@ bowrain init                    # Create .bowrain/ project
 bowrain status                  # Show sync state (like git status)
 bowrain pull                    # Fetch from Bowrain Server → update local files
 bowrain push                    # Send local files → update Bowrain Server
-bowrain flow run <flow-name>    # Execute flow from .bowrain/flows/
+bowrain run <flow-name>         # Execute flow from .bowrain/flows/
 bowrain serve                   # Start local dashboard (web UI)
 ```
 
@@ -209,16 +209,20 @@ bowrain serve                   # Start local dashboard (web UI)
 
 **Key kapi CLI commands (standalone, no project needed):**
 ```bash
+kapi ai-translate -i file.xliff --target-lang fr    # Translate with AI
+kapi pseudo-translate -i file.json --target-lang qps # Pseudo-translate for testing
+kapi word-count file.json                            # Count words
+kapi run ai-translate-qa -i file.xliff --target-lang fr  # Run composed flow
 kapi formats list             # List available formats
-kapi flow run pseudo-translate -i file.json --target-lang qps   # Process files directly
+kapi tools                    # List available tools
+kapi flows                    # List available flows
 kapi plugins list             # List installed plugins
-kapi presets list             # List available presets
 ```
 
 **Role Separation:**
 - **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
 - **Bowrain CLI** (`bowrain` binary) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
-- **Shared CLI base** (`cli/`) = common commands (formats, plugins, tools, flows, presets, termbase, version) used by both kapi and bowrain
+- **Shared CLI base** (`cli/`) = common commands (run, flows, tools, formats, plugins, presets, termbase, version) and top-level tool commands used by both kapi and bowrain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)
 
 ### Streaming Pipeline

@@ -26,20 +26,23 @@ Bowrain CLI is to Bowrain Server as **git is to GitHub** — a local-first proje
 - **flows/** — custom YAML flow definitions
 - **.sync-cache** — sync cache (gitignored, local only)
 
-### Translation Flows
+### Translation Tools and Flows
 
-Composable pipelines that process files through tools:
+Built-in tools run as top-level commands, and composed flows run via `bowrain run`:
 
 ```bash
-# Run built-in AI translation flow
-bowrain flow run ai-translate
+# Run built-in AI translation tool
+bowrain ai-translate
+
+# Run a composed multi-tool flow
+bowrain run ai-translate-qa
 
 # Create custom flows in .bowrain/flows/my-flow.yaml
 # Run custom flow
-bowrain flow run my-flow
+bowrain run my-flow
 ```
 
-Flows automatically process all files matching `.bowrain/config.yaml` mappings.
+Tools and flows automatically process all files matching `.bowrain/config.yaml` mappings.
 
 ### Server Sync
 
@@ -101,8 +104,8 @@ brew install neokapi/tap/bowrain-cli
 cd my-app/
 bowrain init --name "My App" --source en-US --targets fr-FR,de-DE
 
-# Run translation flow
-bowrain flow run ai-translate
+# Run AI translation
+bowrain ai-translate
 
 # Check status
 bowrain status

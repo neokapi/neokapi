@@ -27,10 +27,10 @@ kapi word-count messages.json
 
 ## Translate with AI
 
-Run an AI translation flow:
+Translate a file using AI:
 
 ```bash
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Explore Formats and Tools
@@ -43,7 +43,7 @@ kapi formats
 kapi tools
 
 # List available flows
-kapi flow list
+kapi flows
 
 # List presets
 kapi presets list
@@ -63,6 +63,6 @@ kapi termbase lookup "authentication module" -s en -t fr
 
 - [Kapi CLI Overview](/docs/kapi-cli/overview) — full command reference
 - [Formats](/docs/kapi-cli/commands/formats) — supported file formats
-- [Flows](/docs/kapi-cli/commands/flow) — translation pipelines
+- [Run Command](/docs/kapi-cli/commands/flow) — composed flows and tool commands
 - [Features](/docs/features/formats) — detailed feature documentation
 - [Bowrain Platform](/bowrain/introduction) — team collaboration with project management and server sync
