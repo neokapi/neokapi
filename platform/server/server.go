@@ -852,6 +852,8 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.GET("/workspaces/:id/notes", s.HandleAdminGetNotes)
 		adminGroup.POST("/workspaces/:id/notes", s.HandleAdminAddNote)
 		adminGroup.GET("/workspaces/:id/ledger", s.HandleAdminGetLedger)
+		adminGroup.POST("/workspaces/:id/impersonate", s.HandleAdminImpersonate)
+		adminGroup.POST("/workspaces/:id/members", s.HandleAdminAddMember)
 		adminGroup.GET("/users", s.HandleAdminListUsers)
 		adminGroup.GET("/users/:id", s.HandleAdminGetUser)
 		adminGroup.GET("/metrics", s.HandleAdminGetMetrics)

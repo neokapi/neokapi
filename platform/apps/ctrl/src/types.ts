@@ -140,6 +140,12 @@ export type UpsellSignal =
   | "trial_expiring"
   | "dormant_paid";
 
+export interface ImpersonateResponse {
+  url: string;
+  token: string;
+  expires_at: string;
+}
+
 export interface LedgerEntry {
   id: string;
   workspace_id: string;

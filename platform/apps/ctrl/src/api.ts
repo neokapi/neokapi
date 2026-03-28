@@ -14,6 +14,7 @@ import type {
   BillingEvent,
   UpsellOpportunity,
   LedgerEntry,
+  ImpersonateResponse,
 } from "./types";
 
 function resolveApiBaseUrl(): string {
@@ -229,4 +230,29 @@ export async function getUpsells(): Promise<UpsellOpportunity[]> {
 
 export function getLedger(workspaceId: string): Promise<LedgerEntry[]> {
   return request(`/workspaces/${encodeURIComponent(workspaceId)}/ledger`);
+}
+
+// ---------------------------------------------------------------------------
+// Impersonation
+// ---------------------------------------------------------------------------
+
+export function impersonateWorkspace(workspaceId: string): Promise<ImpersonateResponse> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/impersonate`, {
+    method: "POST",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Member management
+// ---------------------------------------------------------------------------
+
+export function addMemberToWorkspace(
+  workspaceId: string,
+  userId: string,
+  role: string,
+): Promise<void> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/members`, {
+    method: "POST",
+    body: JSON.stringify({ user_id: userId, role }),
+  });
 }

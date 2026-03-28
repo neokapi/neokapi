@@ -1,9 +1,11 @@
 package server
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -620,6 +622,148 @@ func (s *Server) HandleAdminListOverrides(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{
 		"overrides": overrides,
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Impersonation
+// ---------------------------------------------------------------------------
+
+// HandleAdminImpersonate creates a short-lived API token for viewing a workspace
+// as a customer. Records an audit note with the admin's identity.
+// POST /api/admin/workspaces/:id/impersonate
+func (s *Server) HandleAdminImpersonate(c echo.Context) error {
+	if s.AuthStore == nil || s.Services == nil || s.Services.Auth == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
+
+	wsID := c.Param("id")
+	ctx := c.Request().Context()
+	adminEmail, _ := c.Get("admin_email").(string)
+
+	// Look up workspace.
+	ws, err := s.AuthStore.GetWorkspace(ctx, wsID)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "workspace not found"})
+	}
+
+	// Find the workspace owner to impersonate as.
+	members, err := s.AuthStore.ListMembers(ctx, wsID)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to list members"})
+	}
+	var ownerID string
+	for _, m := range members {
+		if m.Role == platauth.RoleOwner {
+			ownerID = m.UserID
+			break
+		}
+	}
+	if ownerID == "" && len(members) > 0 {
+		ownerID = members[0].UserID // fallback to first member
+	}
+	if ownerID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "workspace has no members"})
+	}
+
+	// Create a 1-hour API token.
+	expiresAt := time.Now().Add(1 * time.Hour)
+	token, plaintext, err := s.Services.Auth.CreateAPIToken(
+		ctx, ownerID, wsID, "admin-impersonation", `["*"]`, &expiresAt,
+	)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to create token"})
+	}
+
+	// Record audit note.
+	if s.BillingStore != nil {
+		_ = s.BillingStore.AddNote(ctx, &billing.WorkspaceNote{
+			WorkspaceID: wsID,
+			AuthorEmail: adminEmail,
+			Content:     fmt.Sprintf("Admin impersonation by %s — token %s expires %s", adminEmail, token.TokenPrefix, expiresAt.Format(time.RFC3339)),
+		})
+	}
+
+	// Derive app URL from request origin.
+	appURL := deriveAppURL(c.Request().Header.Get("Origin"))
+
+	return c.JSON(http.StatusOK, map[string]any{
+		"url":        fmt.Sprintf("%s/%s", appURL, ws.Slug),
+		"token":      plaintext,
+		"expires_at": expiresAt.Format(time.RFC3339),
+	})
+}
+
+// deriveAppURL converts a ctrl origin to the customer app URL.
+// "https://ctrl.dev.bowrain.cloud" → "https://dev.bowrain.cloud"
+// "https://ctrl.bowrain.cloud" → "https://bowrain.cloud"
+// fallback: "https://dev.bowrain.cloud"
+func deriveAppURL(origin string) string {
+	if origin == "" {
+		return "https://dev.bowrain.cloud"
+	}
+	// Strip scheme.
+	host := origin
+	if idx := strings.Index(host, "://"); idx >= 0 {
+		host = host[idx+3:]
+	}
+	// Remove "ctrl." prefix.
+	if strings.HasPrefix(host, "ctrl.") {
+		host = host[5:]
+	}
+	return "https://" + host
+}
+
+// ---------------------------------------------------------------------------
+// Member management
+// ---------------------------------------------------------------------------
+
+// HandleAdminAddMember adds a user to a workspace.
+// POST /api/admin/workspaces/:id/members
+func (s *Server) HandleAdminAddMember(c echo.Context) error {
+	if s.AuthStore == nil {
+		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "auth not configured"})
+	}
+
+	wsID := c.Param("id")
+	ctx := c.Request().Context()
+
+	var req struct {
+		UserID string `json:"user_id"`
+		Role   string `json:"role"`
+	}
+	if err := c.Bind(&req); err != nil {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	}
+	if req.UserID == "" {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "user_id is required"})
+	}
+
+	role := platauth.Role(req.Role)
+	if !platauth.ValidRoles[role] {
+		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid role: " + req.Role})
+	}
+
+	// Verify user exists.
+	if _, err := s.AuthStore.GetUser(ctx, req.UserID); err != nil {
+		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "user not found"})
+	}
+
+	// Add member.
+	if err := s.AuthStore.AddMember(ctx, wsID, req.UserID, role); err != nil {
+		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	}
+
+	// Record audit note.
+	adminEmail, _ := c.Get("admin_email").(string)
+	if s.BillingStore != nil {
+		_ = s.BillingStore.AddNote(ctx, &billing.WorkspaceNote{
+			WorkspaceID: wsID,
+			AuthorEmail: adminEmail,
+			Content:     fmt.Sprintf("Admin %s added user %s as %s", adminEmail, req.UserID, req.Role),
+		})
+	}
+
+	return c.NoContent(http.StatusOK)
 }
 
 // nilIfEmpty returns nil for empty strings, otherwise the string value.
