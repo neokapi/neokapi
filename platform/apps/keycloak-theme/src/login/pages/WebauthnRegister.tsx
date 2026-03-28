@@ -4,7 +4,7 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
 import { Button } from "@neokapi/ui/components/ui/button";
 import { Label } from "@neokapi/ui/components/ui/label";
-import { useScript } from "keycloakify/login/pages/WebauthnRegister.useScript";
+import { useWebauthnRegisterScript } from "../useWebauthnRegister";
 
 export default function WebauthnRegister(props: {
   kcContext: Extract<KcContext, { pageId: "webauthn-register.ftl" }>;
@@ -15,7 +15,7 @@ export default function WebauthnRegister(props: {
   const { msg, msgStr } = i18n;
 
   const authButtonId = "authenticateWebAuthnButton";
-  useScript({ authButtonId, kcContext, i18n });
+  useWebauthnRegisterScript({ authButtonId, kcContext, i18n });
 
   return (
     <div className="w-full max-w-md px-4">
