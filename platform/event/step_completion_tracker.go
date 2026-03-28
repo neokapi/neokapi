@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/jobs"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
@@ -16,6 +17,8 @@ type StepCompletionTracker struct {
 	runStore     *bstore.AutomationRunStore
 	jobStore     jobs.JobStore
 	extractStore jobs.ExtractionJobStore
+	quotaStore   *jobs.PgQuotaStore       // optional; nil disables runner usage recording
+	billingHooks *billing.UsageHooks      // optional; nil disables billing credit deduction
 
 	mu           sync.Mutex
 	pending      map[string]*pendingStep // stepID → state
@@ -26,6 +29,9 @@ type StepCompletionTracker struct {
 type pendingStep struct {
 	runID        string
 	isExtraction bool
+	workspaceID  string
+	projectID    string
+	actionType   string // e.g. "auto_translate", "auto_extract"
 	registeredAt time.Time
 }
 
@@ -52,13 +58,43 @@ func (t *StepCompletionTracker) Close() {
 	close(t.done)
 }
 
+// SetBillingHooks configures billing integration for runner time deduction.
+func (t *StepCompletionTracker) SetBillingHooks(hooks *billing.UsageHooks) {
+	t.billingHooks = hooks
+}
+
+// SetQuotaStore configures runner usage recording.
+func (t *StepCompletionTracker) SetQuotaStore(store *jobs.PgQuotaStore) {
+	t.quotaStore = store
+}
+
+// StepTrackingInfo carries context for billing when a step completes.
+type StepTrackingInfo struct {
+	StepID      string
+	RunID       string
+	Extraction  bool
+	WorkspaceID string
+	ProjectID   string
+	ActionType  string
+}
+
 // TrackStep registers a step for completion tracking.
 func (t *StepCompletionTracker) TrackStep(stepID, runID string, isExtraction bool) {
+	t.TrackStepWithInfo(StepTrackingInfo{
+		StepID: stepID, RunID: runID, Extraction: isExtraction,
+	})
+}
+
+// TrackStepWithInfo registers a step with full billing context.
+func (t *StepCompletionTracker) TrackStepWithInfo(info StepTrackingInfo) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.pending[stepID] = &pendingStep{
-		runID:        runID,
-		isExtraction: isExtraction,
+	t.pending[info.StepID] = &pendingStep{
+		runID:        info.RunID,
+		isExtraction: info.Extraction,
+		workspaceID:  info.WorkspaceID,
+		projectID:    info.ProjectID,
+		actionType:   info.ActionType,
 		registeredAt: time.Now(),
 	}
 }
@@ -163,11 +199,40 @@ func (t *StepCompletionTracker) checkJobsByIDs(ctx context.Context, jobIDs []str
 }
 
 func (t *StepCompletionTracker) completeStep(ctx context.Context, stepID, runID string, status bstore.StepStatus, errMsg string) {
+	// Read step to calculate duration before marking complete.
+	var durationSec float64
+	if step, err := t.runStore.GetStep(ctx, stepID); err == nil && !step.StartedAt.IsZero() {
+		durationSec = time.Since(step.StartedAt).Seconds()
+	}
+
 	if err := t.runStore.UpdateStepStatus(ctx, stepID, status, errMsg); err != nil {
 		log.Printf("step-tracker: failed to update step %s: %v", stepID, err)
 	}
 	if err := t.runStore.IncrementDoneCount(ctx, runID); err != nil {
 		log.Printf("step-tracker: failed to increment done count for run %s: %v", runID, err)
+	}
+
+	// Record runner usage and deduct billing credits.
+	t.mu.Lock()
+	ps := t.pending[stepID]
+	t.mu.Unlock()
+	if ps != nil && ps.workspaceID != "" && durationSec > 0 {
+		op := ps.actionType
+		if op == "" {
+			op = "automation"
+		}
+		if t.quotaStore != nil {
+			_ = t.quotaStore.RecordRunnerUsage(ctx, jobs.RunnerUsageRecord{
+				WorkspaceID: ps.workspaceID,
+				ProjectID:   ps.projectID,
+				Operation:   op,
+				DurationSec: durationSec,
+				ReferenceID: stepID,
+			})
+		}
+		if t.billingHooks != nil {
+			t.billingHooks.DeductContainerTime(ctx, ps.workspaceID, time.Duration(durationSec*float64(time.Second)), stepID)
+		}
 	}
 
 	_ = t.runStore.AppendLogs(ctx, []bstore.AutomationLog{{

@@ -361,6 +361,7 @@ export type {
   BillingUsageBreakdown,
   ModelUsage,
   ModelUsageResponse,
+  RunnerUsage,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 

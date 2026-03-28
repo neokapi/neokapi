@@ -134,15 +134,26 @@ func (s *Server) HandleGetBillingModelUsage(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "model usage not available"})
 	}
 
-	usage, err := pgStore.GetUsageByModel(c.Request().Context(), ws, from, to)
+	ctx := c.Request().Context()
+	usage, err := pgStore.GetUsageByModel(ctx, ws, from, to)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
 	}
 
+	// Also fetch runner/container time usage.
+	// Use workspace_id from context (more reliable than slug for runner_usage table).
+	wsID, _ := c.Get("workspace_id").(string)
+	runnerKey := wsID
+	if runnerKey == "" {
+		runnerKey = ws
+	}
+	runnerUsage, _ := pgStore.GetRunnerUsage(ctx, runnerKey, from, to)
+
 	return c.JSON(http.StatusOK, map[string]any{
-		"model_usage": usage,
-		"from":        from,
-		"to":          to,
+		"model_usage":  usage,
+		"runner_usage": runnerUsage,
+		"from":         from,
+		"to":           to,
 	})
 }
 

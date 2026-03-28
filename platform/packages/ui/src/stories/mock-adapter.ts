@@ -752,6 +752,10 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
           call_count: 25,
         },
       ],
+      runner_usage: [
+        { operation: "bravo_container", total_seconds: 1_842, count: 47 },
+        { operation: "auto_translate", total_seconds: 623, count: 12 },
+      ],
       from: new Date(Date.now() - 7 * 86400_000).toISOString(),
       to: new Date().toISOString(),
     }),

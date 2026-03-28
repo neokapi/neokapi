@@ -1079,9 +1079,17 @@ export interface ModelUsage {
   call_count: number;
 }
 
+/** Runner/container time usage for a specific operation */
+export interface RunnerUsage {
+  operation: string;
+  total_seconds: number;
+  count: number;
+}
+
 /** Response from the /billing/model-usage endpoint */
 export interface ModelUsageResponse {
   model_usage: ModelUsage[];
+  runner_usage?: RunnerUsage[];
   from: string;
   to: string;
 }
