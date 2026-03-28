@@ -580,7 +580,9 @@ export interface ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{ activities: ActivityInfo[]; next_cursor: string }>;
+  ): Promise<{ activities: ActivityInfo[]; next_cursor: string; new_count?: number }>;
+
+  markActivitiesSeen(workspaceSlug: string): Promise<void>;
 
   // Tasks (AD-027)
   listTasks(

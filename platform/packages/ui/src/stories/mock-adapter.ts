@@ -588,7 +588,8 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
 
     // --- Activities (AD-027) ------------------------------------------------
-    listActivities: async () => ({ activities: [], next_cursor: "" }),
+    listActivities: async () => ({ activities: [], next_cursor: "", new_count: 0 }),
+    markActivitiesSeen: async () => {},
 
     // --- Tasks (AD-027) -----------------------------------------------------
     listTasks: async () => ({ tasks: [], next_cursor: "" }),

@@ -1585,7 +1585,7 @@ export class RestApiAdapter implements ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{ activities: ActivityInfo[]; next_cursor: string }> {
+  ): Promise<{ activities: ActivityInfo[]; next_cursor: string; new_count?: number }> {
     const params = new URLSearchParams();
     if (query?.project_id) params.set("project_id", query.project_id);
     if (query?.stream) params.set("stream", query.stream);
@@ -1595,6 +1595,12 @@ export class RestApiAdapter implements ApiAdapter {
     if (query?.limit) params.set("limit", String(query.limit));
     const qs = params.toString();
     return this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/activities${qs ? `?${qs}` : ""}`);
+  }
+
+  async markActivitiesSeen(workspaceSlug: string): Promise<void> {
+    await this.fetchJSON(`/api/v1/workspaces/${workspaceSlug}/activities/seen`, {
+      method: "POST",
+    });
   }
 
   // ── Tasks (AD-027) ────────────────────────────────────────────────────

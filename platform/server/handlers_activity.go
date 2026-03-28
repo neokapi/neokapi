@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
@@ -40,5 +41,41 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 		result.Activities = []bstore.Activity{}
 	}
 
-	return c.JSON(http.StatusOK, result)
+	// Include new activity count for the indicator badge.
+	resp := map[string]any{
+		"activities":  result.Activities,
+		"next_cursor": result.NextCursor,
+	}
+	userID, _ := c.Get("user_id").(string)
+	if userID != "" {
+		if wsObj, err := s.AuthStore.GetWorkspaceBySlug(ctx, ws); err == nil {
+			newCount, _ := s.ActivityStore.CountNewActivities(ctx, userID, wsObj.ID)
+			resp["new_count"] = newCount
+		}
+	}
+
+	return c.JSON(http.StatusOK, resp)
+}
+
+// HandleMarkActivitiesSeen records that the user has viewed the activity feed.
+// POST /api/v1/workspaces/:ws/activities/seen
+func (s *Server) HandleMarkActivitiesSeen(c echo.Context) error {
+	if s.ActivityStore == nil {
+		return c.NoContent(http.StatusNoContent)
+	}
+
+	ws := c.Param("ws")
+	userID, _ := c.Get("user_id").(string)
+	if userID == "" {
+		return c.NoContent(http.StatusNoContent)
+	}
+
+	ctx := c.Request().Context()
+	wsObj, err := s.AuthStore.GetWorkspaceBySlug(ctx, ws)
+	if err != nil {
+		return c.NoContent(http.StatusNoContent)
+	}
+
+	_ = s.ActivityStore.SetActivitySeenAt(ctx, userID, wsObj.ID, time.Now())
+	return c.NoContent(http.StatusNoContent)
 }

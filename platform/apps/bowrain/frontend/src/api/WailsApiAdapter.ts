@@ -631,9 +631,11 @@ export class WailsApiAdapter implements ApiAdapter {
       cursor?: string;
       limit?: number;
     },
-  ): Promise<{ activities: ActivityInfo[]; next_cursor: string }> {
-    return { activities: [], next_cursor: "" };
+  ): Promise<{ activities: ActivityInfo[]; next_cursor: string; new_count?: number }> {
+    return { activities: [], next_cursor: "", new_count: 0 };
   }
+
+  async markActivitiesSeen(_ws: string): Promise<void> {}
 
   // --- Tasks (AD-027, not yet supported in desktop) ---
   async listTasks(

@@ -55,6 +55,20 @@ func (m *mockAuthStore) ListWorkspaces(_ context.Context, userID string) ([]*pla
 	return nil, nil
 }
 
+func (m *mockAuthStore) SearchUsers(_ context.Context, query string, limit int) ([]*platauth.User, error) {
+	var results []*platauth.User
+	for _, u := range m.emails {
+		if strings.Contains(strings.ToLower(u.Email), strings.ToLower(query)) ||
+			strings.Contains(strings.ToLower(u.Name), strings.ToLower(query)) {
+			results = append(results, u)
+		}
+	}
+	if len(results) > limit {
+		results = results[:limit]
+	}
+	return results, nil
+}
+
 func (m *mockAuthStore) ListUsers(_ context.Context, limit, offset int) ([]*platauth.User, error) {
 	if offset >= len(m.allUsers) {
 		return nil, nil

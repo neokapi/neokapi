@@ -66,24 +66,25 @@ function activityColor(type: string): string {
 
 export interface ActivityIndicatorProps {
   activities: ActivityInfo[];
+  newCount?: number;
   onActivityClick?: (activity: ActivityInfo) => void;
   onViewAll?: () => void;
+  onMarkSeen?: () => void;
 }
-
-const ACTIVITY_SEEN_KEY = "bowrain_activity_seen_at";
 
 export function ActivityIndicator({
   activities,
+  newCount = 0,
   onActivityClick,
   onViewAll,
+  onMarkSeen,
 }: ActivityIndicatorProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close);
 
-  const seenAt = localStorage.getItem(ACTIVITY_SEEN_KEY) ?? "";
-  const hasNew = activities.some((a) => a.created_at > seenAt);
+  const hasNew = newCount > 0;
 
   return (
     <div ref={ref} className="relative">
@@ -92,8 +93,8 @@ export function ActivityIndicator({
         title="Recent activity"
         onClick={() => {
           setOpen((prev) => {
-            if (!prev && activities.length > 0) {
-              localStorage.setItem(ACTIVITY_SEEN_KEY, activities[0].created_at);
+            if (!prev && hasNew) {
+              onMarkSeen?.();
             }
             return !prev;
           });

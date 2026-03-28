@@ -99,9 +99,16 @@ function ConnectedTopBar({
   onCompleteTask?: (taskId: string) => void;
 }) {
   const api = useApi();
+  const queryClient = useQueryClient();
 
   const { data: activitiesData } = useQuery(activitiesQueryOptions(api, workspaceSlug));
   const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
+
+  const markSeen = useCallback(() => {
+    api.markActivitiesSeen(workspaceSlug).then(() => {
+      void queryClient.invalidateQueries({ queryKey: ["activities", workspaceSlug] });
+    });
+  }, [api, workspaceSlug, queryClient]);
 
   return (
     <TopBar
@@ -111,8 +118,10 @@ function ConnectedTopBar({
       leftSlot={leftSlot}
       beforeAvatarSlot={beforeAvatarSlot}
       activities={activitiesData?.activities}
+      newActivityCount={activitiesData?.new_count}
       myTasks={myTasksData?.tasks}
       onViewAllActivities={onViewAllActivities}
+      onMarkActivitiesSeen={markSeen}
       onViewAllTasks={onViewAllTasks}
       onTaskClick={onTaskClick}
       onCompleteTask={onCompleteTask}
