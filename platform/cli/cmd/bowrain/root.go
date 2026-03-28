@@ -45,15 +45,19 @@ run quality checks, and manage terminology.`,
 func init() {
 	app.AddPersistentFlags(rootCmd)
 
-	// Shared commands.
-	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{
+	// Primary commands.
+	rootCmd.AddCommand(app.NewRunCmd(cli.RunCmdOptions{
 		FallbackRunE: projectFlowFallback,
-		ExtraFlows:   listProjectFlows,
 	}))
+
+	// Management commands.
+	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{
+		ExtraFlows: listProjectFlows,
+	}))
+	rootCmd.AddCommand(app.NewToolsCmd())
 	rootCmd.AddCommand(app.NewFormatsCmd())
 	rootCmd.AddCommand(app.NewPluginsCmd())
 	rootCmd.AddCommand(app.NewRegistryCmd())
-	rootCmd.AddCommand(app.NewToolsCmd())
 
 	// Shared presets command + Bowrain CLI-specific validate subcommand.
 	presetsCmd := app.NewPresetsCmd()
@@ -64,9 +68,16 @@ func init() {
 	rootCmd.AddCommand(app.NewTMCmd())
 	rootCmd.AddCommand(app.NewVersionCmd("bowrain"))
 
+	// Top-level tool commands (declarative opt-in via BuiltinToolCommands).
 	for _, cmd := range app.NewToolCommands() {
 		rootCmd.AddCommand(cmd)
 	}
+
+	// Deprecated "flow" command (hidden, functional for backward compat).
+	rootCmd.AddCommand(app.NewFlowCmd(cli.FlowCmdOptions{
+		FallbackRunE: projectFlowFallback,
+		ExtraFlows:   listProjectFlows,
+	}))
 }
 
 // projectFlowFallback is called when a flow name doesn't match a built-in

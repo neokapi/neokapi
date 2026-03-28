@@ -2,11 +2,14 @@ package cli
 
 import (
 	"context"
+	"fmt"
 
+	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
+	provider "github.com/neokapi/neokapi/providers/ai"
 	"github.com/spf13/cobra"
 )
 
@@ -17,22 +20,40 @@ type ToolCommandDef struct {
 	Short             string
 	WritesOutput      bool
 	DefaultTargetLang string
-	NewTool           func(targetLang string, expansion int) (tool.Tool, error)
-	NewCollector      func() flow.Collector
+
+	// NewTool creates the tool. It receives the resolved target language and
+	// the cobra command so it can read tool-specific flags.
+	NewTool func(cmd *cobra.Command, targetLang string) (tool.Tool, error)
+
+	// NewCollector optionally creates a streaming collector for aggregation tools.
+	NewCollector func() flow.Collector
+
+	// AddFlags registers tool-specific flags on the cobra command.
+	AddFlags func(cmd *cobra.Command)
 }
 
-// BuiltinToolCommands lists all tools exposed as top-level commands.
+// BuiltinToolCommands lists all tools exposed as top-level CLI commands.
+// Internal pipeline tools (layer-processor, span-classify, etc.) are excluded.
 var BuiltinToolCommands = []ToolCommandDef{
+	// ── Translation ─────────────────────────────────────────────────
+
 	{
-		Use:     "word-count",
-		Aliases: []string{"wc"},
-		Short:   "Count words in source and target text",
-		NewTool: func(targetLang string, expansion int) (tool.Tool, error) {
-			return libtools.NewWordCountTool(&libtools.WordCountConfig{}), nil
+		Use:          "ai-translate",
+		Aliases:      []string{"translate"},
+		Short:        "Translate content using AI/LLM",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			p, err := providerFromFlags(cmd)
+			if err != nil {
+				return nil, err
+			}
+			sourceLang, _ := cmd.Flags().GetString("source-lang")
+			return aitools.NewAITranslateTool(p, aitools.AITranslateConfig{
+				SourceLocale: model.LocaleID(sourceLang),
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
 		},
-		NewCollector: func() flow.Collector {
-			return libtools.NewStreamingWordCountCollector()
-		},
+		AddFlags: addProviderFlags,
 	},
 	{
 		Use:               "pseudo-translate",
@@ -40,17 +61,281 @@ var BuiltinToolCommands = []ToolCommandDef{
 		Short:             "Generate pseudo-translations for localization testing",
 		WritesOutput:      true,
 		DefaultTargetLang: "qps",
-		NewTool: func(targetLang string, expansion int) (tool.Tool, error) {
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			lang := targetLang
 			if lang == "" {
 				lang = "qps"
 			}
+			expansion, _ := cmd.Flags().GetInt("expansion")
 			return libtools.NewPseudoTranslateTool(&libtools.PseudoConfig{
 				TargetLocale:     model.LocaleID(lang),
 				ExpansionPercent: expansion,
 			}), nil
 		},
+		AddFlags: func(cmd *cobra.Command) {
+			cmd.Flags().Int("expansion", 0, "text expansion percentage (0 = none)")
+		},
 	},
+	{
+		Use:          "tm-leverage",
+		Short:        "Pre-fill translations from translation memory",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			sourceLang, _ := cmd.Flags().GetString("source-lang")
+			return libtools.NewTMLeverageTool(&libtools.TMLeverageConfig{
+				SourceLocale:   model.LocaleID(sourceLang),
+				TargetLocale:   model.LocaleID(targetLang),
+				FuzzyThreshold: 70,
+				Provider:       libtools.NullTMProvider{},
+			}), nil
+		},
+		AddFlags: func(cmd *cobra.Command) {
+			cmd.Flags().String("tm", "", "named TM for leverage (resolves from KAPI_HOME)")
+		},
+	},
+	{
+		Use:          "diff-leverage",
+		Short:        "Leverage translations from previous versions using diff analysis",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewDiffLeverageTool(&libtools.DiffLeverageConfig{
+				TargetLocale:  model.LocaleID(targetLang),
+				CaseSensitive: true,
+				PreviousTexts: map[string]libtools.PreviousBlock{},
+			}), nil
+		},
+	},
+
+	// ── Quality ─────────────────────────────────────────────────────
+
+	{
+		Use:          "qa-check",
+		Aliases:      []string{"qa"},
+		Short:        "Run rule-based quality checks on translations",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(targetLang))), nil
+		},
+	},
+	{
+		Use:          "ai-qa",
+		Short:        "Check translation quality using AI/LLM",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			p, err := providerFromFlags(cmd)
+			if err != nil {
+				return nil, err
+			}
+			sourceLang, _ := cmd.Flags().GetString("source-lang")
+			return aitools.NewAIQACheckTool(p, aitools.AIQAConfig{
+				SourceLocale: model.LocaleID(sourceLang),
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+		AddFlags: addProviderFlags,
+	},
+	{
+		Use:          "ai-review",
+		Short:        "Review translations with scoring using AI/LLM",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			p, err := providerFromFlags(cmd)
+			if err != nil {
+				return nil, err
+			}
+			sourceLang, _ := cmd.Flags().GetString("source-lang")
+			return aitools.NewAIReviewTool(p, aitools.AIReviewConfig{
+				SourceLocale: model.LocaleID(sourceLang),
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+		AddFlags: addProviderFlags,
+	},
+	{
+		Use:   "term-check",
+		Short: "Check terminology consistency across content",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewTermCheckTool(&libtools.TermCheckConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+	},
+	{
+		Use:   "inconsistency-check",
+		Short: "Detect inconsistent translations of identical source strings",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewInconsistencyCheckTool(libtools.NewInconsistencyCheckConfig(model.LocaleID(targetLang))), nil
+		},
+	},
+	{
+		Use:   "length-check",
+		Short: "Validate string length against configured limits",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewLengthCheckTool(&libtools.LengthCheckConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+	},
+	{
+		Use:   "chars-check",
+		Short: "Check for invalid or unexpected Unicode characters",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewCharsCheckTool(libtools.NewCharsCheckConfig(model.LocaleID(targetLang))), nil
+		},
+	},
+	{
+		Use:   "pattern-check",
+		Short: "Validate content against custom regex patterns",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewPatternCheckTool(&libtools.PatternCheckConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+	},
+
+	// ── Analysis ────────────────────────────────────────────────────
+
+	{
+		Use:     "word-count",
+		Aliases: []string{"wc"},
+		Short:   "Count words in source and target text",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewWordCountTool(&libtools.WordCountConfig{}), nil
+		},
+		NewCollector: func() flow.Collector {
+			return libtools.NewStreamingWordCountCollector()
+		},
+	},
+	{
+		Use:   "char-count",
+		Short: "Count characters in source and target text",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewCharCountTool(&libtools.CharCountConfig{}), nil
+		},
+	},
+	{
+		Use:   "segment-count",
+		Short: "Count translatable segments",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewSegCountTool(&libtools.SegCountConfig{}), nil
+		},
+	},
+	{
+		Use:   "scoping-report",
+		Short: "Generate detailed scoping report (word counts, repetitions, file breakdown)",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewScopingReportTool(&libtools.ScopingReportConfig{}), nil
+		},
+	},
+	{
+		Use:   "repetition-analysis",
+		Short: "Identify repeated segments across files for TM leverage",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewRepetitionAnalysisTool(&libtools.RepetitionAnalysisConfig{CaseSensitive: true}), nil
+		},
+	},
+	{
+		Use:   "chars-listing",
+		Short: "List all distinct characters used in source and/or target",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewCharsListingTool(&libtools.CharsListingConfig{
+				IncludeSource: true,
+				IncludeTarget: true,
+				TargetLocale:  model.LocaleID(targetLang),
+			}).Tool(), nil
+		},
+	},
+	{
+		Use:   "translation-comparison",
+		Short: "Compare translations across locales or versions",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewTranslationComparisonTool(&libtools.TranslationComparisonConfig{}), nil
+		},
+	},
+	{
+		Use:   "encoding-detect",
+		Short: "Detect character encoding of source files",
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewEncodingDetectTool(&libtools.EncodingDetectConfig{}), nil
+		},
+	},
+
+	// ── Text Processing ─────────────────────────────────────────────
+
+	{
+		Use:          "search-replace",
+		Short:        "Find and replace patterns (literal or regex)",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewSearchReplaceTool(&libtools.SearchReplaceConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+	},
+	{
+		Use:          "case-transform",
+		Short:        "Transform text case (upper, lower, title)",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			mode, _ := cmd.Flags().GetString("mode")
+			cfg := &libtools.CaseTransformConfig{
+				ApplySource:  true,
+				TargetLocale: model.LocaleID(targetLang),
+			}
+			switch mode {
+			case "upper":
+				cfg.Mode = libtools.CaseUpper
+			case "title":
+				cfg.Mode = libtools.CaseTitle
+			default:
+				cfg.Mode = libtools.CaseLower
+			}
+			return libtools.NewCaseTransformTool(cfg), nil
+		},
+		AddFlags: func(cmd *cobra.Command) {
+			cmd.Flags().String("mode", "lower", "case mode: upper, lower, title")
+		},
+	},
+	{
+		Use:          "segmentation",
+		Short:        "Split source text into sentence-level segments",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			return libtools.NewSegmentationTool(&libtools.SegmentationConfig{
+				TargetLocale: model.LocaleID(targetLang),
+			}), nil
+		},
+	},
+}
+
+// addProviderFlags registers AI provider flags on a cobra command.
+func addProviderFlags(cmd *cobra.Command) {
+	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	cmd.Flags().String("api-key", "", "API key for the AI provider")
+	cmd.Flags().String("model", "", "AI model name")
+}
+
+// providerFromFlags creates an LLM provider from command flags.
+func providerFromFlags(cmd *cobra.Command) (provider.LLMProvider, error) {
+	providerName, _ := cmd.Flags().GetString("provider")
+	apiKey, _ := cmd.Flags().GetString("api-key")
+	modelName, _ := cmd.Flags().GetString("model")
+
+	cfg := provider.Config{
+		APIKey: apiKey,
+		Model:  modelName,
+	}
+
+	switch providerName {
+	case "anthropic":
+		return provider.NewAnthropicProvider(cfg), nil
+	case "openai":
+		return provider.NewOpenAIProvider(cfg), nil
+	case "ollama":
+		return provider.NewOllamaProvider(cfg), nil
+	default:
+		return nil, fmt.Errorf("unknown AI provider: %s (supported: anthropic, openai, ollama)", providerName)
+	}
 }
 
 // NewToolCommands creates cobra commands for all builtin tool definitions.
@@ -59,7 +344,6 @@ func (a *App) NewToolCommands() []*cobra.Command {
 
 	for _, def := range BuiltinToolCommands {
 		d := def // capture loop variable
-		var pseudoExpansion int
 		var formatMaps []string
 
 		cmd := &cobra.Command{
@@ -111,7 +395,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					TracePath:      tracePath,
 					ParallelBlocks: parallelBlocks,
 					NewTool: func() (tool.Tool, error) {
-						return d.NewTool(effectiveLang, pseudoExpansion)
+						return d.NewTool(cmd, effectiveLang)
 					},
 					NewCollector: d.NewCollector,
 				})
@@ -128,8 +412,8 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		if d.WritesOutput {
 			cmd.Flags().StringP("output", "o", "", "output path template (variables: {name}, {ext}, {lang})")
 		}
-		if d.Use == "pseudo-translate" {
-			cmd.Flags().IntVar(&pseudoExpansion, "expansion", 0, "text expansion percentage (0 = none)")
+		if d.AddFlags != nil {
+			d.AddFlags(cmd)
 		}
 		cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")
 		cmd.Flags().Int("parallel-blocks", 0, "fan out block processing across N goroutines (0 = off)")
