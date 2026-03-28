@@ -1,15 +1,16 @@
 import { useState } from "react";
 import { useParams } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button } from "@neokapi/ui";
 import { SubscriptionBadge, CreditLedger, cn, useSetBreadcrumb } from "@neokapi/ui";
 import type { BillingPlan, BillingStatus, CreditLedgerEntry } from "@neokapi/ui";
-import { ExternalLink } from "lucide-react";
-import { getWorkspace, getFeatureOverrides, getNotes, getLedger } from "../api";
+import { ExternalLink, UserPlus } from "lucide-react";
+import { getWorkspace, getFeatureOverrides, getNotes, getLedger, impersonateWorkspace } from "../api";
 import { ChangePlanDialog } from "../components/ChangePlanDialog";
 import { GrantCreditsDialog } from "../components/GrantCreditsDialog";
 import { FeatureOverrideDialog } from "../components/FeatureOverrideDialog";
 import { AddNoteDialog } from "../components/AddNoteDialog";
+import { AddMemberDialog } from "../components/AddMemberDialog";
 
 function CreditBar({ used, total }: { used: number; total: number }) {
   const pct = total > 0 ? Math.min((used / total) * 100, 100) : 0;
@@ -56,6 +57,15 @@ export function WorkspaceDetailRoute() {
   const [showGrantCredits, setShowGrantCredits] = useState(false);
   const [showFeatureOverride, setShowFeatureOverride] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+
+  const impersonate = useMutation({
+    mutationFn: () => impersonateWorkspace(workspaceId!),
+    onSuccess: (data) => {
+      void navigator.clipboard.writeText(data.token);
+      window.open(data.url, "_blank");
+    },
+  });
 
   const { data: workspace, isLoading } = useQuery({
     queryKey: ["admin", "workspace", workspaceId],
@@ -95,8 +105,6 @@ export function WorkspaceDetailRoute() {
     ? `https://dashboard.stripe.com/customers/${workspace.stripe_customer_id}`
     : null;
 
-  const customerUrl = `https://app.bowrain.cloud/${workspace.slug}`;
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -115,13 +123,24 @@ export function WorkspaceDetailRoute() {
               </a>
             </Button>
           )}
-          <Button variant="outline" size="sm" asChild>
-            <a href={customerUrl} target="_blank" rel="noopener noreferrer">
-              View as customer <ExternalLink className="ml-1 h-3 w-3" />
-            </a>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => impersonate.mutate()}
+            disabled={impersonate.isPending}
+          >
+            {impersonate.isPending ? "Creating token..." : "View as customer"}
+            {!impersonate.isPending && <ExternalLink className="ml-1 h-3 w-3" />}
           </Button>
         </div>
       </div>
+      {impersonate.isSuccess && (
+        <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-800 dark:bg-blue-950">
+          Token copied to clipboard. Expires{" "}
+          {new Date(impersonate.data.expires_at).toLocaleTimeString()}.
+          Use as <code className="text-xs bg-muted px-1 rounded">Authorization: Bearer {impersonate.data.token.slice(0, 12)}...</code>
+        </div>
+      )}
 
       <div className="grid grid-cols-4 gap-4">
         <div className="rounded-lg border p-4 space-y-1">
@@ -158,8 +177,11 @@ export function WorkspaceDetailRoute() {
 
         <TabsContent value="overview" className="mt-4 space-y-4">
           <div className="rounded-lg border">
-            <div className="p-4 border-b">
+            <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-sm font-medium">Members</h3>
+              <Button variant="outline" size="sm" onClick={() => setShowAddMember(true)}>
+                <UserPlus className="mr-1 h-3 w-3" /> Add Member
+              </Button>
             </div>
             <div className="divide-y">
               {(workspace.members ?? []).map((member) => (
@@ -282,6 +304,11 @@ export function WorkspaceDetailRoute() {
         workspaceId={workspace.id}
       />
       <AddNoteDialog open={showAddNote} onOpenChange={setShowAddNote} workspaceId={workspace.id} />
+      <AddMemberDialog
+        open={showAddMember}
+        onOpenChange={setShowAddMember}
+        workspaceId={workspace.id}
+      />
     </div>
   );
 }
