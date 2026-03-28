@@ -176,7 +176,7 @@ i18n setup. Pseudo-translation replaces characters with accented variants and ad
 padding to catch truncation bugs:
 
 ```bash
-bowrain flow run pseudo-translate
+bowrain pseudo-translate
 ```
 
 The result:
@@ -475,7 +475,7 @@ pulled back — all automatically.
 | -------------------- | --------------------------------- | --------------------------------------- |
 | 1. Initialize        | Create Bowrain project            | `bowrain init --anonymous`              |
 | 2. Configure         | File mappings + automation rules  | `.bowrain/config.yaml`                  |
-| 3. Pseudo-translate  | Validate i18n setup               | `bowrain flow run pseudo-translate`     |
+| 3. Pseudo-translate  | Validate i18n setup               | `bowrain pseudo-translate`              |
 | 4. Sync              | Push, translate, pull in one step | `bowrain sync --timeout 2m`             |
 | 5. Claim + token     | Own the project, create CI token  | Claim URL + `bowrain auth token create` |
 | 6. Server automation | Auto-translate on push            | Server-side automation rules            |

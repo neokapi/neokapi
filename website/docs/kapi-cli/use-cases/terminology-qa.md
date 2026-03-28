@@ -68,7 +68,7 @@ kapi termbase search "connect" --name product-terms -s en -t fr
 Now run the `qa-check` flow with your termbase attached. The `--termbase` flag tells kapi to include terminology enforcement in the QA pipeline:
 
 ```bash
-kapi flow run qa-check \
+kapi qa-check \
   -i messages_fr.json \
   -o qa-report.json \
   --source-lang en \
@@ -96,7 +96,7 @@ Terms marked as `preferred` or `approved` are enforced by default. `Deprecated` 
 For larger deliveries, pass multiple input files:
 
 ```bash
-kapi flow run qa-check \
+kapi qa-check \
   -i translations/fr/*.json \
   -o qa-output/ \
   --source-lang en \
@@ -135,6 +135,6 @@ kapi termbase export --name product-terms --format json -o glossary-backup.json
 ## Related
 
 - [kapi termbase](/docs/kapi-cli/commands/termbase) — full command reference
-- [kapi flow](/docs/kapi-cli/commands/flow) — flow command reference
+- [kapi run](/docs/kapi-cli/commands/flow) — run command reference
 - [Terminology Management](/docs/features/terminology) — how the terminology system works
 - [Terminology-Assisted Pre-Translation](/docs/kapi-cli/use-cases/terminology-pretranslation) — using your termbase to guide AI translation

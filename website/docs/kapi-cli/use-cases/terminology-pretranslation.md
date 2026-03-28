@@ -48,7 +48,7 @@ kapi tm stats --name project-tm
 Start by filling in segments that have exact or fuzzy matches in your translation memory. This reuses proven translations and reduces the volume that needs fresh translation:
 
 ```bash
-kapi flow run tm-leverage \
+kapi tm-leverage \
   -i messages_en.json \
   -o messages_fr_step1.json \
   --source-lang en \
@@ -63,7 +63,7 @@ Segments with exact matches get their previous translations applied automaticall
 Now translate the segments that the TM didn't cover. The `--termbase` flag provides your glossary as context to the AI translator, so it uses "mot de passe" instead of inventing its own translation for "password":
 
 ```bash
-kapi flow run ai-translate \
+kapi ai-translate \
   -i messages_fr_step1.json \
   -o messages_fr.json \
   --source-lang en \
@@ -78,7 +78,7 @@ The AI translator receives your approved terms as additional context. When it en
 Even with terminology-guided translation, it's worth running a final QA pass to confirm everything landed correctly:
 
 ```bash
-kapi flow run qa-check \
+kapi qa-check \
   -i messages_fr.json \
   -o qa-report.json \
   --source-lang en \
@@ -98,19 +98,19 @@ kapi termbase import glossary.csv --name product-terms --format csv -s en -t fr
 kapi tm import project.tmx --name project-tm -s en -t fr
 
 # 2. Leverage translation memory
-kapi flow run tm-leverage \
+kapi tm-leverage \
   -i messages_en.json -o messages_fr_tm.json \
   --source-lang en --target-lang fr \
   --tm project-tm
 
 # 3. AI-translate remaining segments with terminology guidance
-kapi flow run ai-translate \
+kapi ai-translate \
   -i messages_fr_tm.json -o messages_fr.json \
   --source-lang en --target-lang fr \
   --termbase product-terms
 
 # 4. Run terminology QA
-kapi flow run qa-check \
+kapi qa-check \
   -i messages_fr.json -o messages_fr_qa.json \
   --source-lang en --target-lang fr \
   --termbase product-terms
@@ -125,7 +125,7 @@ The same glossary can contain terms in multiple languages. When expanding to add
 kapi termbase import glossary_de.csv --name product-terms --format csv -s en -t de
 
 # Translate to German
-kapi flow run ai-translate \
+kapi ai-translate \
   -i messages_en.json -o messages_de.json \
   --source-lang en --target-lang de \
   --termbase product-terms
@@ -142,13 +142,13 @@ This workflow works best when you have:
 - **Multiple target languages** — terminology consistency becomes harder to maintain manually as you add languages. A shared termbase keeps all languages aligned.
 - **A mix of new and updated content** — TM leverage handles the recycled segments, and terminology-guided AI handles the rest.
 
-For one-off translations of short documents, `kapi flow run ai-translate` without a termbase may be sufficient. The termbase adds the most value when consistency across files, releases, or languages matters.
+For one-off translations of short documents, `kapi ai-translate` without a termbase may be sufficient. The termbase adds the most value when consistency across files, releases, or languages matters.
 
 ## Related
 
 - [Terminology QA](/docs/kapi-cli/use-cases/terminology-qa) — validating terminology compliance in translated files
 - [kapi termbase](/docs/kapi-cli/commands/termbase) — full command reference
 - [kapi tm](/docs/kapi-cli/commands/tm) — translation memory command reference
-- [kapi flow](/docs/kapi-cli/commands/flow) — flow command reference
+- [kapi run](/docs/kapi-cli/commands/flow) — run command reference
 - [Terminology Management](/docs/features/terminology) — how the terminology system works
 - [Translation Memory](/docs/features/translation-memory) — how TM matching works

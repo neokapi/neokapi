@@ -65,7 +65,7 @@ bowrain init --server https://bowrain.example.com --project abc123
 6. Optionally creates a project on the Bowrain Server and configures the connection
 
 After initialization, the directory becomes a Bowrain project. You can run `bowrain status`,
-`bowrain flow run`, and other commands from anywhere within the project tree.
+`bowrain ai-translate`, `bowrain run <flow>`, and other commands from anywhere within the project tree.
 
 ## Options
 
@@ -183,5 +183,5 @@ After initialization:
 
 1. **Edit mappings** in `.bowrain/config.yaml` to match your file structure
 2. **Create flows** in `.bowrain/flows/` for your translation workflows
-3. **Run flows**: `bowrain flow list` and `bowrain flow run <flow-name>`
+3. **Run tools and flows**: `bowrain tools`, `bowrain flows`, `bowrain ai-translate`, `bowrain run <flow-name>`
 4. **Connect to server**: `bowrain pull` and `bowrain push` (if server configured)

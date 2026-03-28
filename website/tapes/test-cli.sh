@@ -108,8 +108,8 @@ test_cmd "termbase stats" "kapi termbase stats --name product-terms" "7"
 test_cmd "termbase lookup" "kapi termbase lookup password --name product-terms -s en -t fr" "mot de passe"
 test_cmd "termbase search" "kapi termbase search encrypt --name product-terms -s en" "encryption"
 rm -rf out && mkdir -p out
-test_cmd "pseudo-translate en→fr" "kapi flow run pseudo-translate -i samples/messages_en.json -o out/pseudo_fr.json --target-lang fr" ""
-test_cmd "qa-check with termbase" "kapi flow run qa-check -i out/pseudo_fr.json -o out/qa_report.json --source-lang en --target-lang fr --termbase product-terms" ""
+test_cmd "pseudo-translate en→fr" "kapi pseudo-translate samples/messages_en.json -o out/pseudo_fr.json --target-lang fr" ""
+test_cmd "qa-check with termbase" "kapi qa-check out/pseudo_fr.json -o out/qa_report.json --source-lang en --target-lang fr --termbase product-terms" ""
 rm -rf out
 echo ""
 
@@ -119,9 +119,9 @@ printf "  Checking: %-40s" "samples/project.tmx"
 if [ -f "samples/project.tmx" ]; then echo -e "${GREEN}✓${NC}"; passed=$((passed + 1)); else echo -e "${RED}✗${NC}"; failed=$((failed + 1)); fi
 test_cmd "tm import tmx" "kapi tm import samples/project.tmx --name project-tm -s en -t fr" ""
 rm -rf out && mkdir -p out
-test_cmd "tm-leverage" "kapi flow run tm-leverage -i samples/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm" ""
-test_cmd "pseudo-translate step2" "kapi flow run pseudo-translate -i out/step1_tm.json -o out/step2_translated.json --target-lang fr" ""
-test_cmd "qa-check pipeline" "kapi flow run qa-check -i out/step2_translated.json -o out/step3_qa.json --source-lang en --target-lang fr --termbase product-terms" ""
+test_cmd "tm-leverage" "kapi tm-leverage samples/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm" ""
+test_cmd "pseudo-translate step2" "kapi pseudo-translate out/step1_tm.json -o out/step2_translated.json --target-lang fr" ""
+test_cmd "qa-check pipeline" "kapi qa-check out/step2_translated.json -o out/step3_qa.json --source-lang en --target-lang fr --termbase product-terms" ""
 rm -rf out
 echo ""
 

@@ -67,7 +67,7 @@ kapi termbase lookup password --name product-terms -s en -t fr
 kapi termbase search encrypt --name product-terms -s en
 
 # Run QA with terminology enforcement
-kapi flow run qa-check -i translated.json -o qa_report.json \
+kapi qa-check -i translated.json -o qa_report.json \
   --source-lang en --target-lang fr --termbase product-terms
 ```
 
@@ -85,13 +85,13 @@ kapi termbase import glossary.csv --name product-terms --format csv -s en -t fr
 kapi tm import project.tmx --name project-tm -s en -t fr
 
 # Step 1: Leverage translation memory
-kapi flow run tm-leverage -i messages_en.json -o step1_tm.json \
+kapi tm-leverage -i messages_en.json -o step1_tm.json \
   --source-lang en --target-lang fr --tm project-tm
 
 # Step 2: Translate remaining segments
-kapi flow run pseudo-translate -i step1_tm.json -o step2_translated.json --target-lang fr
+kapi pseudo-translate -i step1_tm.json -o step2_translated.json --target-lang fr
 
 # Step 3: Verify terminology compliance
-kapi flow run qa-check -i step2_translated.json -o step3_qa.json \
+kapi qa-check -i step2_translated.json -o step3_qa.json \
   --source-lang en --target-lang fr --termbase product-terms
 ```

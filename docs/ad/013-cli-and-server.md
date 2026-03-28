@@ -22,7 +22,7 @@ The CLI reflects the **project-based architecture** ([AD-016](./016-kapi-project
 
 ### Bowrain CLI: Project-Based Commands
 
-The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommands. **All commands require a `.bowrain/` project directory** (discovered by searching upward from the current directory, like git). Commands include `init`, `config`, `ls`, `add`, `rm`, `status`, `diff`, `pull`, `push`, `flow`, `serve`, `auth`, `termbase`, `formats`, `tools`, `plugins`, and `registry`.
+The CLI uses [Cobra](https://github.com/spf13/cobra) for hierarchical subcommands. **All commands require a `.bowrain/` project directory** (discovered by searching upward from the current directory, like git). Commands include `init`, `config`, `ls`, `add`, `rm`, `status`, `diff`, `pull`, `push`, `run`, `serve`, `auth`, `termbase`, `formats`, `tools`, `flows`, `plugins`, and `registry`. Tools run as top-level commands (e.g., `bowrain pseudo-translate`), while composed flows run via `bowrain run <flow-name>`.
 
 See [CLI Commands Reference](/docs/notes/cli-commands-reference) for the full command tree, `bowrain init` workflows, `bowrain pull/push` algorithms, and all command details.
 
@@ -54,11 +54,14 @@ Kapi (`kapi` binary) is a separate CLI that demonstrates the neokapi open-source
 
 ```bash
 kapi formats list                                              # List available formats
-kapi flow run pseudo-translate -i file.json --target-lang qps  # Process files directly
+kapi pseudo-translate -i file.json --target-lang qps           # Run a tool directly
+kapi run ai-translate-qa -i file.json --target-lang fr         # Run a composed flow
+kapi tools                                                     # List available tools
+kapi flows                                                     # List available flows
 kapi plugins list                                              # List installed plugins
 ```
 
-Kapi and Bowrain CLI share a common command base (`cli/` module) for format, plugin, tool, flow, preset, termbase, and version commands. Each CLI selects which commands to register and extends them with CLI-specific behavior.
+Kapi and Bowrain CLI share a common command base (`cli/` module) for format, plugin, tool, flow, preset, termbase, and version commands. Each CLI registers tools as top-level commands (e.g., `kapi pseudo-translate`, `bowrain ai-translate`) and composed flows under `run` (e.g., `kapi run ai-translate-qa`). Each CLI selects which commands to register and extends them with CLI-specific behavior.
 
 ## Alternatives Considered
 
@@ -84,7 +87,7 @@ Kapi and Bowrain CLI share a common command base (`cli/` module) for format, plu
 
 - **`bowrain status/diff`** show sync state without modifying files, enabling safe inspection before pull/push.
 
-- **Flow system** in Bowrain CLI — flows run on local files, defined in `.bowrain/flows/*.yaml`, with optional server interaction.
+- **Flow system** in Bowrain CLI — tools run as top-level commands (`bowrain pseudo-translate`), composed flows run via `bowrain run <name>`, defined in `.bowrain/flows/*.yaml`, with optional server interaction.
 
 - **`bowrain serve`** becomes a project dashboard showing local + remote state.
 

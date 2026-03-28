@@ -36,17 +36,21 @@ Bowrain CLI includes several built-in flows:
 | `tm-leverage`      | Pre-fill translations from translation memory                     |
 | `segmentation`     | Split source text into sentence segments                          |
 
-### Running Built-In Flows
+### Running Built-In Tools and Flows
 
 ```bash
-# List available flows
-bowrain flow list
+# List available tools and flows
+bowrain tools
+bowrain flows
 
-# Run a flow (project-based)
-bowrain flow run ai-translate
+# Run a tool directly (top-level command)
+bowrain ai-translate
 
 # Standalone mode (without .bowrain/ project)
-bowrain flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+bowrain ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+
+# Run a composed flow
+bowrain run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Custom Flows
@@ -89,7 +93,7 @@ steps:
 Run with:
 
 ```bash
-bowrain flow run translate-with-qa
+bowrain run translate-with-qa
 ```
 
 ## Tool Catalog (46+ Tools)
@@ -229,5 +233,5 @@ Benefits:
 - [Create Custom Flows](/bowrain/cli/flows/custom-flows)
 - [Configure Hooks](/bowrain/cli/flows/hooks)
 - [Available Formats](/docs/features/formats)
-- [Flow Command Reference](/bowrain/cli/commands/flow)
+- [Run Command Reference](/bowrain/cli/commands/run)
 - [Server-Side Flows](/bowrain/server/flows)

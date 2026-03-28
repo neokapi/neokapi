@@ -41,8 +41,8 @@ automations:
 | `post-push` | After `bowrain push` completes successfully          |
 | `pre-pull`  | Before `bowrain pull` fetches blocks from the server |
 | `post-pull` | After `bowrain pull` writes files locally            |
-| `pre-flow`  | Before `bowrain flow run` executes a flow            |
-| `post-flow` | After `bowrain flow run` completes                   |
+| `pre-flow`  | Before `bowrain run` executes a flow                 |
+| `post-flow` | After `bowrain run` completes                        |
 
 ### Local Action Types
 

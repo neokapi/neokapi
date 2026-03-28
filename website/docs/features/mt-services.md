@@ -36,10 +36,10 @@ mt:
 
 ## Usage
 
-MT services are available as pipeline tools via `kapi flow run`. Configure the desired service in `neokapi.yaml` and use flows to translate documents:
+MT services are available as top-level tool commands. Configure the desired service in `neokapi.yaml` and translate documents directly:
 
 ```bash
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang de
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang de
 ```
 
 The MT provider is selected based on your configuration.
