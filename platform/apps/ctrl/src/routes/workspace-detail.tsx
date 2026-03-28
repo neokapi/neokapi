@@ -2,10 +2,23 @@ import { useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button } from "@neokapi/ui";
-import { SubscriptionBadge, CreditLedger, ModelUsageTable, cn, useSetBreadcrumb } from "@neokapi/ui";
+import {
+  SubscriptionBadge,
+  CreditLedger,
+  ModelUsageTable,
+  cn,
+  useSetBreadcrumb,
+} from "@neokapi/ui";
 import type { BillingPlan, BillingStatus, CreditLedgerEntry } from "@neokapi/ui";
 import { ExternalLink, UserPlus } from "lucide-react";
-import { getWorkspace, getFeatureOverrides, getNotes, getLedger, getModelUsage, impersonateWorkspace } from "../api";
+import {
+  getWorkspace,
+  getFeatureOverrides,
+  getNotes,
+  getLedger,
+  getModelUsage,
+  impersonateWorkspace,
+} from "../api";
 import { ChangePlanDialog } from "../components/ChangePlanDialog";
 import { GrantCreditsDialog } from "../components/GrantCreditsDialog";
 import { FeatureOverrideDialog } from "../components/FeatureOverrideDialog";
@@ -143,8 +156,10 @@ export function WorkspaceDetailRoute() {
       {impersonate.isSuccess && (
         <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-800 dark:bg-blue-950">
           Token copied to clipboard. Expires{" "}
-          {new Date(impersonate.data.expires_at).toLocaleTimeString()}.
-          Use as <code className="text-xs bg-muted px-1 rounded">Authorization: Bearer {impersonate.data.token.slice(0, 12)}...</code>
+          {new Date(impersonate.data.expires_at).toLocaleTimeString()}. Use as{" "}
+          <code className="text-xs bg-muted px-1 rounded">
+            Authorization: Bearer {impersonate.data.token.slice(0, 12)}...
+          </code>
         </div>
       )}
 

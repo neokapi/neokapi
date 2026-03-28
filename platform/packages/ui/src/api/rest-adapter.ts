@@ -1976,7 +1976,11 @@ export class RestApiAdapter implements ApiAdapter {
     return this.fetchJSON(`${this.billingEp(workspaceSlug)}/usage`);
   }
 
-  async billingGetModelUsage(workspaceSlug: string, from?: string, to?: string): Promise<ModelUsageResponse> {
+  async billingGetModelUsage(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<ModelUsageResponse> {
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to) params.set("to", to);
