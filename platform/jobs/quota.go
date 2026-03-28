@@ -105,7 +105,11 @@ func NewPgQuotaStore(db *storage.PgDB) (*PgQuotaStore, error) {
 	if err := storage.MigratePostgresNS(db, "quota_schema_migrations", pgQuotaMigrations); err != nil {
 		return nil, fmt.Errorf("migrate quota schema: %w", err)
 	}
-	return &PgQuotaStore{db: db}, nil
+	s := &PgQuotaStore{db: db}
+	if err := s.initRunnerSchema(); err != nil {
+		return nil, fmt.Errorf("migrate runner schema: %w", err)
+	}
+	return s, nil
 }
 
 func (s *PgQuotaStore) CheckQuota(ctx context.Context, workspaceSlug string) (int64, error) {
@@ -213,6 +217,88 @@ func (s *PgQuotaStore) GetUsageByModel(ctx context.Context, workspaceID string, 
 			return nil, fmt.Errorf("scan model usage: %w", err)
 		}
 		result = append(result, mu)
+	}
+	return result, rows.Err()
+}
+
+// RunnerUsageRecord represents a single runner/container duration record.
+type RunnerUsageRecord struct {
+	WorkspaceID string
+	ProjectID   string  // empty for agent containers
+	Operation   string  // "bravo_container", "auto_translate", "auto_extract"
+	DurationSec float64 // wall-clock seconds
+	ReferenceID string  // step ID, conversation ID, etc.
+}
+
+// pgRunnerMigrations extends the quota schema with runner usage.
+var pgRunnerMigrations = []storage.Migration{
+	{
+		Version:     1,
+		Description: "create runner_usage table",
+		SQL: `
+			CREATE TABLE IF NOT EXISTS runner_usage (
+				id              BIGSERIAL PRIMARY KEY,
+				workspace_id    TEXT NOT NULL,
+				project_id      TEXT NOT NULL DEFAULT '',
+				operation       TEXT NOT NULL,
+				duration_sec    REAL NOT NULL DEFAULT 0,
+				reference_id    TEXT NOT NULL DEFAULT '',
+				created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
+			CREATE INDEX IF NOT EXISTS idx_runner_usage_workspace
+				ON runner_usage(workspace_id, created_at);
+		`,
+	},
+}
+
+// initRunnerSchema runs runner_usage migrations (separate namespace from ai_usage).
+func (s *PgQuotaStore) initRunnerSchema() error {
+	return storage.MigratePostgresNS(s.db, "runner_schema_migrations", pgRunnerMigrations)
+}
+
+// RecordRunnerUsage records a runner/container duration.
+func (s *PgQuotaStore) RecordRunnerUsage(ctx context.Context, usage RunnerUsageRecord) error {
+	_, err := s.db.ExecContext(ctx,
+		`INSERT INTO runner_usage
+			(workspace_id, project_id, operation, duration_sec, reference_id)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		usage.WorkspaceID, usage.ProjectID, usage.Operation, usage.DurationSec, usage.ReferenceID)
+	if err != nil {
+		return fmt.Errorf("record runner usage: %w", err)
+	}
+	return nil
+}
+
+// RunnerUsageSummary summarizes runner time for a specific operation.
+type RunnerUsageSummary struct {
+	Operation    string  `json:"operation"`
+	TotalSeconds float64 `json:"total_seconds"`
+	Count        int64   `json:"count"`
+}
+
+// GetRunnerUsage returns runner time grouped by operation for a workspace.
+func (s *PgQuotaStore) GetRunnerUsage(ctx context.Context, workspaceID string, from, to time.Time) ([]RunnerUsageSummary, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT operation,
+			COALESCE(SUM(duration_sec), 0),
+			COUNT(*)
+		 FROM runner_usage
+		 WHERE workspace_id = $1 AND created_at >= $2 AND created_at < $3
+		 GROUP BY operation
+		 ORDER BY SUM(duration_sec) DESC`,
+		workspaceID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("query runner usage: %w", err)
+	}
+	defer rows.Close()
+
+	var result []RunnerUsageSummary
+	for rows.Next() {
+		var ru RunnerUsageSummary
+		if err := rows.Scan(&ru.Operation, &ru.TotalSeconds, &ru.Count); err != nil {
+			return nil, fmt.Errorf("scan runner usage: %w", err)
+		}
+		result = append(result, ru)
 	}
 	return result, rows.Err()
 }

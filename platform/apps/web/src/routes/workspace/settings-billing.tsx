@@ -16,6 +16,7 @@ import {
   type BillingUsageBreakdown,
   type CreditLedgerEntry,
   type ModelUsage,
+  type RunnerUsage,
   ModelUsageTable,
 } from "@neokapi/ui";
 
@@ -43,6 +44,7 @@ export function SettingsBillingRoute() {
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [usage, setUsage] = useState<BillingUsageBreakdown | null>(null);
   const [modelUsage, setModelUsage] = useState<ModelUsage[]>([]);
+  const [runnerUsage, setRunnerUsage] = useState<RunnerUsage[]>([]);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -69,7 +71,10 @@ export function SettingsBillingRoute() {
       .catch(() => {});
     void api
       .billingGetModelUsage(ws)
-      .then((r) => setModelUsage(r.model_usage ?? []))
+      .then((r) => {
+        setModelUsage(r.model_usage ?? []);
+        setRunnerUsage(r.runner_usage ?? []);
+      })
       .catch(() => {});
   }, [api, ws]);
 
@@ -212,14 +217,14 @@ export function SettingsBillingRoute() {
       )}
 
       {/* Token Usage by Model */}
-      {modelUsage.length > 0 && (
+      {(modelUsage.length > 0 || runnerUsage.length > 0) && (
         <Card>
           <CardHeader>
             <CardTitle>Usage by Model</CardTitle>
             <CardDescription>Token consumption per AI model this week</CardDescription>
           </CardHeader>
           <CardContent>
-            <ModelUsageTable entries={modelUsage} />
+            <ModelUsageTable entries={modelUsage} runnerEntries={runnerUsage} />
           </CardContent>
         </Card>
       )}

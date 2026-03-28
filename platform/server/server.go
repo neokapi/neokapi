@@ -455,6 +455,12 @@ func NewServer(cfg ServerConfig) *Server {
 		s.stepCompletionTracker = event.NewStepCompletionTracker(
 			s.AutomationRunStore, s.JobStore, s.ExtractionJobStore,
 		)
+		if s.BillingHooks != nil {
+			s.stepCompletionTracker.SetBillingHooks(s.BillingHooks)
+		}
+		if pgQuota, ok := s.QuotaStore.(*jobs.PgQuotaStore); ok {
+			s.stepCompletionTracker.SetQuotaStore(pgQuota)
+		}
 	}
 
 	// Wire up run retention cleaner (AD-035): delete runs older than 30 days, check daily.

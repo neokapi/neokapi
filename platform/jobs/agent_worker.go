@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/service"
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	platauth "github.com/neokapi/neokapi/platform/auth"
@@ -14,11 +15,13 @@ import (
 
 // AgentWorkerDeps holds dependencies for the agent job worker.
 type AgentWorkerDeps struct {
-	Queue      Queue                // Service Bus queue for bravo-jobs
-	AgentStore platagent.AgentStore // conversations + messages
-	Pool       *service.AgentPool   // container lifecycle
-	PubSub     *service.AgentPubSub // Redis pub/sub for SSE relay
-	JWTSecret  string               // Bowrain JWT secret for creating MCP auth tokens
+	Queue        Queue                // Service Bus queue for bravo-jobs
+	AgentStore   platagent.AgentStore // conversations + messages
+	Pool         *service.AgentPool   // container lifecycle
+	PubSub       *service.AgentPubSub // Redis pub/sub for SSE relay
+	JWTSecret    string               // Bowrain JWT secret for creating MCP auth tokens
+	BillingHooks *billing.UsageHooks  // optional; nil disables billing credit deduction
+	QuotaStore   *PgQuotaStore        // optional; nil disables runner usage recording
 }
 
 // RunAgentWorker runs the agent job processing loop.
@@ -71,6 +74,7 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 	}
 
 	// Acquire a container from the pool.
+	containerStart := time.Now()
 	container, err := deps.Pool.Acquire(ctx, service.ContainerConfig{
 		ConversationID: job.ConversationID,
 		WorkspaceID:    job.WorkspaceID,
@@ -89,8 +93,22 @@ func processAgentJob(ctx context.Context, deps *AgentWorkerDeps, rawMessage stri
 	}
 
 	result, err := service.StreamFromGateway(ctx, container, deps.AgentStore, job.ConversationID, job.UserID, job.Content, job.Mode, nil, sink)
+	containerDuration := time.Since(containerStart)
 	if err != nil {
 		return fmt.Errorf("gateway stream: %w", err)
+	}
+
+	// Record container time usage and deduct billing credits.
+	if deps.QuotaStore != nil && job.WorkspaceID != "" {
+		_ = deps.QuotaStore.RecordRunnerUsage(ctx, RunnerUsageRecord{
+			WorkspaceID: job.WorkspaceID,
+			Operation:   "bravo_container",
+			DurationSec: containerDuration.Seconds(),
+			ReferenceID: job.ConversationID,
+		})
+	}
+	if deps.BillingHooks != nil && job.WorkspaceID != "" {
+		deps.BillingHooks.DeductContainerTime(ctx, job.WorkspaceID, containerDuration, job.ConversationID)
 	}
 
 	// Record token usage.
