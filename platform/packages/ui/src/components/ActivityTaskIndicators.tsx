@@ -70,18 +70,20 @@ export interface ActivityIndicatorProps {
   onViewAll?: () => void;
 }
 
+const ACTIVITY_SEEN_KEY = "bowrain_activity_seen_at";
+
 export function ActivityIndicator({
   activities,
   onActivityClick,
   onViewAll,
 }: ActivityIndicatorProps) {
   const [open, setOpen] = useState(false);
-  const [seenCount, setSeenCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
   useClickOutside(ref, close);
 
-  const hasNew = activities.length > seenCount;
+  const seenAt = localStorage.getItem(ACTIVITY_SEEN_KEY) ?? "";
+  const hasNew = activities.some((a) => a.created_at > seenAt);
 
   return (
     <div ref={ref} className="relative">
@@ -90,7 +92,9 @@ export function ActivityIndicator({
         title="Recent activity"
         onClick={() => {
           setOpen((prev) => {
-            if (!prev) setSeenCount(activities.length);
+            if (!prev && activities.length > 0) {
+              localStorage.setItem(ACTIVITY_SEEN_KEY, activities[0].created_at);
+            }
             return !prev;
           });
         }}
