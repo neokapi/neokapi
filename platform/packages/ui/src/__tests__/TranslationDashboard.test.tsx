@@ -43,9 +43,9 @@ describe("TranslationDashboard", () => {
 
   it("renders file progress table with all items", () => {
     render(<TranslationDashboard stats={sampleDashboardStats} />);
-    expect(screen.getByText("messages.json")).toBeInTheDocument();
-    expect(screen.getByText("ui-strings.xliff")).toBeInTheDocument();
-    expect(screen.getByText("landing-page.html")).toBeInTheDocument();
+    expect(screen.getByText("messages")).toBeInTheDocument();
+    expect(screen.getByText("ui-strings")).toBeInTheDocument();
+    expect(screen.getByText("landing-page")).toBeInTheDocument();
   });
 
   it("renders collection heatmap", () => {
@@ -103,6 +103,6 @@ describe("TranslationDashboard", () => {
 
     // In desc order: ui-strings.xliff > messages.json > landing-page.html
     const rows = within(fileProgressCard).getAllByRole("row");
-    expect(within(rows[1]).getByText("ui-strings.xliff")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("ui-strings")).toBeInTheDocument();
   });
 });

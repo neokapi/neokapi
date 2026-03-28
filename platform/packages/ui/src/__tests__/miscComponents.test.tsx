@@ -233,8 +233,8 @@ describe("FileProgressTable", () => {
       makeItemStat({ item_name: "errors.json", item_id: "i2" }),
     ];
     render(<FileProgressTable itemStats={items} locales={["fr-FR", "de-DE"]} />);
-    expect(screen.getByText("strings.json")).toBeInTheDocument();
-    expect(screen.getByText("errors.json")).toBeInTheDocument();
+    expect(screen.getByText("strings")).toBeInTheDocument();
+    expect(screen.getByText("errors")).toBeInTheDocument();
     // LanguageLabel renders display names with variant="short" and hideCode
     expect(screen.getByText("French")).toBeInTheDocument();
     expect(screen.getByText("German")).toBeInTheDocument();
@@ -257,13 +257,13 @@ describe("FileProgressTable", () => {
     // Default sort is by name asc — alpha should come first
     const rows = screen.getAllByRole("row");
     // Row 0 is the header, row 1 is first data row
-    expect(within(rows[1]).getByText("alpha.json")).toBeInTheDocument();
+    expect(within(rows[1]).getByText("alpha")).toBeInTheDocument();
 
     // Click File column header to toggle to desc
     const fileHeader = screen.getByRole("columnheader", { name: /^File/ });
     await userEvent.click(fileHeader);
     const rowsAfter = screen.getAllByRole("row");
-    expect(within(rowsAfter[1]).getByText("beta.json")).toBeInTheDocument();
+    expect(within(rowsAfter[1]).getByText("beta")).toBeInTheDocument();
   });
 });
 
