@@ -7,6 +7,15 @@ export { BrandProfileEditor } from "./BrandProfileEditor";
 export { BrandProfileList } from "./BrandProfileList";
 export { BrandDashboard } from "./BrandDashboard";
 export { BrandMCPGuide } from "./BrandMCPGuide";
+export { BrandProfileWizard } from "./BrandProfileWizard";
+export { StarterPackPicker } from "./StarterPackPicker";
+export { StarterPackCard } from "./StarterPackCard";
+export { ToneSpectrumSelector } from "./ToneSpectrumSelector";
+export { PersonalityTagPicker } from "./PersonalityTagPicker";
+export { BrandVoicePreview } from "./BrandVoicePreview";
+export { PatternListEditor } from "./PatternListEditor";
+export { VocabularyEditor } from "./VocabularyEditor";
+export { ExamplesEditor } from "./ExamplesEditor";
 export type {
   VoiceProfile,
   ToneProfile,
@@ -27,3 +36,5 @@ export type {
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
 } from "./types";
+export type { StarterPackMeta } from "./data/starter-packs";
+export { starterPacks } from "./data/starter-packs";

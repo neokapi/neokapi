@@ -565,6 +565,12 @@ export interface ApiAdapter {
   deleteBrandProfile(workspaceSlug: string, profileId: string): Promise<void>;
   getBrandScores(workspaceSlug: string, projectId: string): Promise<StoredScore[]>;
   getBrandTrends(workspaceSlug: string, projectId: string): Promise<ScoreTrend[]>;
+  listStarterPacks(): Promise<{ name: string; description: string }[]>;
+  createProfileFromStarter(
+    workspaceSlug: string,
+    pack: string,
+    name?: string,
+  ): Promise<VoiceProfile>;
 
   // Audit log
   listWorkspaceAuditLog(workspaceSlug: string, query?: AuditQuery): Promise<AuditEntry[]>;
