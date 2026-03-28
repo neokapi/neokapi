@@ -53,7 +53,9 @@ export function useUpdateBrandProfile() {
     mutationFn: (data: UpdateVoiceProfileRequest) => api.updateBrandProfile(ws, data),
     onSuccess: (_result, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["brand-profiles", ws] });
-      void queryClient.invalidateQueries({ queryKey: ["brand-profile", ws, variables.id] });
+      void queryClient.invalidateQueries({
+        queryKey: ["brand-profile", ws, variables.id],
+      });
     },
   });
 }
@@ -95,5 +97,30 @@ export function useBrandTrends(projectId: string) {
     queryFn: () => api.getBrandTrends(ws, projectId),
     enabled: !!ws && !!projectId,
     staleTime: 60_000,
+  });
+}
+
+export function useStarterPacks() {
+  const api = useApi();
+
+  return useQuery({
+    queryKey: ["brand-starter-packs"],
+    queryFn: () => api.listStarterPacks(),
+    staleTime: 300_000,
+  });
+}
+
+export function useCreateFromStarter() {
+  const api = useApi();
+  const { activeWorkspace } = useWorkspace();
+  const ws = activeWorkspace?.slug ?? "";
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (params: { pack: string; name?: string }) =>
+      api.createProfileFromStarter(ws, params.pack, params.name),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["brand-profiles", ws] });
+    },
   });
 }

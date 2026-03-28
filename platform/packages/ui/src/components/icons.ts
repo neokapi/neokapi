@@ -73,4 +73,9 @@ export {
   Tag,
   Flag,
   Unlock,
+  Briefcase,
+  Heart,
+  Headset,
+  FileCode2,
+  Wand2,
 } from "lucide-react";

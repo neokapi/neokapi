@@ -372,6 +372,16 @@ export {
   BrandProfileList,
   BrandDashboard,
   BrandMCPGuide,
+  BrandProfileWizard,
+  StarterPackPicker,
+  StarterPackCard,
+  ToneSpectrumSelector,
+  PersonalityTagPicker,
+  BrandVoicePreview,
+  PatternListEditor,
+  VocabularyEditor,
+  ExamplesEditor,
+  starterPacks,
 } from "./brand";
 export type {
   VoiceProfile,
@@ -392,6 +402,7 @@ export type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  StarterPackMeta,
 } from "./brand";
 
 // Brand voice hooks
@@ -403,6 +414,8 @@ export {
   useDeleteBrandProfile,
   useBrandScores,
   useBrandTrends,
+  useStarterPacks,
+  useCreateFromStarter,
 } from "./hooks/useBrandApi";
 
 // Bravo (@bravo agent) — assistant-ui powered components

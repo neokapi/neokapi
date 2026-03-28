@@ -1573,6 +1573,21 @@ export class RestApiAdapter implements ApiAdapter {
     );
   }
 
+  async listStarterPacks(): Promise<{ name: string; description: string }[]> {
+    return this.fetchJSON("/api/v1/brand-voice/starter-packs");
+  }
+
+  async createProfileFromStarter(
+    workspaceSlug: string,
+    pack: string,
+    name?: string,
+  ): Promise<VoiceProfile> {
+    return this.fetchJSON(this.brandEp(workspaceSlug) + "/from-starter", {
+      method: "POST",
+      body: JSON.stringify({ pack, ...(name ? { name } : {}) }),
+    });
+  }
+
   // ── Activities (AD-027) ─────────────────────────────────────────────────
 
   async listActivities(
