@@ -689,7 +689,11 @@ export interface ApiAdapter {
   // Billing
   billingGetOverview(workspaceSlug: string): Promise<BillingOverview>;
   billingGetUsage(workspaceSlug: string): Promise<BillingUsageBreakdown>;
-  billingGetModelUsage(workspaceSlug: string, from?: string, to?: string): Promise<ModelUsageResponse>;
+  billingGetModelUsage(
+    workspaceSlug: string,
+    from?: string,
+    to?: string,
+  ): Promise<ModelUsageResponse>;
   billingCreateCheckout(
     workspaceSlug: string,
     priceId: string,

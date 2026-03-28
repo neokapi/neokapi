@@ -727,9 +727,30 @@ export function createMockAdapter(blocks?: BlockInfo[]): ApiAdapter {
     }),
     billingGetModelUsage: async () => ({
       model_usage: [
-        { model: "claude-sonnet-4-20250514", operation: "translate", prompt_tokens: 60_000, output_tokens: 20_000, total_tokens: 80_000, call_count: 150 },
-        { model: "gpt-4o", operation: "translate", prompt_tokens: 10_000, output_tokens: 5_000, total_tokens: 15_000, call_count: 30 },
-        { model: "claude-sonnet-4-20250514", operation: "qa_check", prompt_tokens: 12_000, output_tokens: 3_000, total_tokens: 15_000, call_count: 25 },
+        {
+          model: "claude-sonnet-4-20250514",
+          operation: "translate",
+          prompt_tokens: 60_000,
+          output_tokens: 20_000,
+          total_tokens: 80_000,
+          call_count: 150,
+        },
+        {
+          model: "gpt-4o",
+          operation: "translate",
+          prompt_tokens: 10_000,
+          output_tokens: 5_000,
+          total_tokens: 15_000,
+          call_count: 30,
+        },
+        {
+          model: "claude-sonnet-4-20250514",
+          operation: "qa_check",
+          prompt_tokens: 12_000,
+          output_tokens: 3_000,
+          total_tokens: 15_000,
+          call_count: 25,
+        },
       ],
       from: new Date(Date.now() - 7 * 86400_000).toISOString(),
       to: new Date().toISOString(),
