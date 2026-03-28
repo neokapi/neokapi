@@ -33,10 +33,10 @@ This creates `.bowrain/config.yaml` with project settings and flow definitions.
 
 ## Translate Files
 
-Run the built-in AI translation flow:
+Run the built-in AI translation tool:
 
 ```bash
-bowrain flow run ai-translate
+bowrain ai-translate
 ```
 
 Bowrain CLI automatically:
@@ -81,25 +81,29 @@ steps:
 Run it:
 
 ```bash
-bowrain flow run my-flow
+bowrain run my-flow
 ```
 
 ## Key Commands
 
-| Command             | Description               |
-| ------------------- | ------------------------- |
-| `bowrain init`      | Initialize a project      |
-| `bowrain status`    | Show sync state           |
-| `bowrain flow run`  | Execute a workflow        |
-| `bowrain flow list` | List available flows      |
-| `bowrain push`      | Upload to server          |
-| `bowrain pull`      | Fetch from server         |
-| `bowrain config`    | View or set configuration |
-| `bowrain serve`     | Open local web editor     |
+| Command                    | Description                        |
+| -------------------------- | ---------------------------------- |
+| `bowrain init`             | Initialize a project               |
+| `bowrain status`           | Show sync state                    |
+| `bowrain ai-translate`     | Translate with AI                  |
+| `bowrain pseudo-translate` | Generate pseudo-translations       |
+| `bowrain qa-check`         | Run quality checks                 |
+| `bowrain run <flow>`       | Execute a composed or custom flow  |
+| `bowrain flows`            | List available flows               |
+| `bowrain tools`            | List available tools               |
+| `bowrain push`             | Upload to server                   |
+| `bowrain pull`             | Fetch from server                  |
+| `bowrain config`           | View or set configuration          |
+| `bowrain serve`            | Open local web editor              |
 
 ## Next Steps
 
 - **Full walkthrough**: See [Walkthrough](/bowrain/walkthrough)
 - **Connect to server**: Use interactive `bowrain init` and choose "Sign in to Bowrain"
-- **Explore flows**: `bowrain flow list`
+- **Explore flows and tools**: `bowrain flows` and `bowrain tools`
 - **CLI reference**: [Bowrain CLI](/bowrain/cli/commands/init)

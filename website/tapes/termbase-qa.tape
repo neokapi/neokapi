@@ -66,11 +66,11 @@ Type "# Run QA with terminology enforcement"
 Enter
 Sleep 500ms
 
-Type "kapi flow run pseudo-translate -i samples/messages_en.json -o out/pseudo_fr.json --target-lang fr"
+Type "kapi pseudo-translate -i samples/messages_en.json -o out/pseudo_fr.json --target-lang fr"
 Enter
 Sleep 1500ms
 
-Type "kapi flow run qa-check -i out/pseudo_fr.json -o out/qa_report.json --source-lang en --target-lang fr --termbase product-terms"
+Type "kapi qa-check -i out/pseudo_fr.json -o out/qa_report.json --source-lang en --target-lang fr --termbase product-terms"
 Enter
 Sleep 2s
 

@@ -33,17 +33,16 @@ bowrain
 |   +-- logout       # Remove stored token
 |   +-- status       # Show current user, server URL
 |   +-- claim        # Claim anonymous project
-+-- flow             # Flow management
-|   +-- run FLOW     # Execute a flow from .bowrain/flows/ or built-in
-|   +-- list         # List available flows
++-- run FLOW         # Execute a composed flow from .bowrain/flows/ or built-in
++-- <tool>           # Run a tool directly (pseudo-translate, ai-translate, qa-check, etc.)
++-- flows            # List available flows
++-- tools            # List available tools
 +-- sync             # Sync operations (push + translate + pull)
 +-- ui               # Open project in Bowrain web UI
 +-- termbase         # Terminology management
 |   +-- list         # List terminology entries
 +-- formats          # Format listing
 |   +-- list         # List available formats (built-in + plugin)
-+-- tools            # Tool listing
-|   +-- list         # List available tools
 +-- plugins          # Plugin management
 |   +-- list         # List installed plugins
 +-- presets          # Preset management
@@ -57,13 +56,12 @@ bowrain
 
 ```
 kapi
-+-- flow             # Flow management
-|   +-- run FLOW     # Execute built-in flows (pseudo-translate, qa-check, etc.)
-|   +-- list         # List available flows
++-- <tool>           # Run a tool directly (pseudo-translate, ai-translate, qa-check, etc.)
++-- run FLOW         # Execute a composed multi-tool flow (ai-translate-qa, etc.)
++-- tools            # List available tools
++-- flows            # List available flows
 +-- formats          # Format listing
 |   +-- list         # List available formats (built-in + plugin)
-+-- tools            # Tool listing
-|   +-- list         # List available tools
 +-- plugins          # Plugin management
 |   +-- list         # List installed plugins
 +-- presets          # Preset management
@@ -287,8 +285,8 @@ gRPC and REST are multiplexed on the same port via h2c (HTTP/2 cleartext). gRPC 
     BOWRAIN_AUTH_TOKEN: $\{{ secrets.BOWRAIN_TOKEN }}
     BOWRAIN_SERVER_URL: $\{{ secrets.BOWRAIN_SERVER }}
 
-- name: Run pseudo-translation flow
-  run: bowrain flow run pseudo
+- name: Run pseudo-translation
+  run: bowrain pseudo-translate
 
 - name: Push changes if tests pass
   run: bowrain push

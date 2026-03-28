@@ -42,7 +42,7 @@ Type "# Step 1: Leverage translation memory"
 Enter
 Sleep 500ms
 
-Type "kapi flow run tm-leverage -i samples/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm"
+Type "kapi tm-leverage -i samples/messages_en.json -o out/step1_tm.json --source-lang en --target-lang fr --tm project-tm"
 Enter
 Sleep 2s
 
@@ -54,7 +54,7 @@ Type "# Step 2: Translate remaining segments"
 Enter
 Sleep 500ms
 
-Type "kapi flow run pseudo-translate -i out/step1_tm.json -o out/step2_translated.json --target-lang fr"
+Type "kapi pseudo-translate -i out/step1_tm.json -o out/step2_translated.json --target-lang fr"
 Enter
 Sleep 1500ms
 
@@ -66,7 +66,7 @@ Type "# Step 3: Verify terminology compliance"
 Enter
 Sleep 500ms
 
-Type "kapi flow run qa-check -i out/step2_translated.json -o out/step3_qa.json --source-lang en --target-lang fr --termbase product-terms"
+Type "kapi qa-check -i out/step2_translated.json -o out/step3_qa.json --source-lang en --target-lang fr --termbase product-terms"
 Enter
 Sleep 2s
 

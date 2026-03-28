@@ -221,12 +221,12 @@ Kapi MCP uses the same infrastructure as the CLI commands — `FormatRegistry` f
 No server process, ports, or authentication needed. Your AI tool launches `kapi mcp` as a child process, communicates over stdin/stdout, and shuts it down when the session ends.
 
 :::note
-AI-powered flows like `ai-translate` require API keys and are not available through MCP. Use the CLI directly for those: `kapi flow run ai-translate -i file.json --target-lang fr`.
+AI-powered tools like `ai-translate` require API keys and are not available through MCP. Use the CLI directly for those: `kapi ai-translate -i file.json --target-lang fr`.
 :::
 
 ## Related
 
 - [Kapi CLI Overview](/docs/kapi-cli/overview)
-- [Flow Command](/docs/kapi-cli/commands/flow)
+- [Run Command](/docs/kapi-cli/commands/flow)
 - [Formats](/docs/kapi-cli/commands/formats)
 - [Bowrain CLI MCP Server](/bowrain/cli/mcp) — for project-based workflows

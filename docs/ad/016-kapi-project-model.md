@@ -155,7 +155,7 @@ steps:
 
 **Flow execution:**
 ```bash
-bowrain flow run pseudo
+bowrain run pseudo
 ```
 
 Flows use the same tool system as the server pipeline ([AD-006](./006-tool-system.md)) but operate on local files.
@@ -220,8 +220,11 @@ bowrain push --message "Update source strings"
 # → Pushing 2 changed files...
 # → Pushed: src/locales/en-US.json (12 blocks)
 
-# Run a flow
-bowrain flow run pseudo
+# Run a tool directly
+bowrain pseudo-translate
+
+# Run a composed flow
+bowrain run pseudo
 
 # List project contents
 bowrain ls

@@ -9,7 +9,7 @@ title: "AD-017: CLI Output Format Flags"
 
 Both Kapi and Bowrain CLIs output information in various formats across different commands. The shared CLI base (`cli/output/`) provides consistent output formatting:
 
-- Some commands (`flow run`, tool commands) support `--json` flags
+- Some commands (tool commands, `run`) support `--json` flags
 - Most commands default to human-readable text with no format option
 - CI/CD pipelines need machine-readable output for scripting
 - The existing `formatOutput()` helper in `output.go` handles JSON vs table formatting but is only used by a few commands
@@ -223,12 +223,13 @@ All commands producing output should be updated:
 | `status` | Text table | Project state, changes, conflicts |
 | `diff` | Text diff | Array of diffs per file |
 | `formats list` | Text table | Array of format objects |
-| `tools list` | Text table | Array of tool objects |
 | `plugins list` | Text table | Array of plugin objects |
 | `plugins search` | Text table | Array of search results |
 | `auth status` | Text lines | Auth state object |
-| `flow list` | Text table | Array of flow definitions |
-| `flow run` | Progress + result | Flow execution result |
+| `flows` | Text table | Array of flow definitions |
+| `tools` | Text table | Array of tool objects |
+| `run <flow>` | Progress + result | Flow execution result |
+| `<tool>` (e.g., `pseudo-translate`) | Progress + result | Tool execution result |
 | `termbase stats` | Text table | Statistics object |
 | `termbase lookup` | Text entries | Array of term matches |
 | `version` | Text line | Version object |

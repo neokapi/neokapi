@@ -49,13 +49,13 @@ export ANTHROPIC_API_KEY=sk-...
 ### Translate a file
 
 ```bash
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ### Translate and quality-check
 
 ```bash
-kapi flow run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 ```
 
 ## Prompt Engineering

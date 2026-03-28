@@ -28,11 +28,15 @@ kapi word-count messages.json
 # Pseudo-translate for UI testing
 kapi pseudo-translate messages.json --target-lang fr
 
-# Run a translation flow
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+# Translate with AI
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
 
-# List available tools
+# Run a composed multi-tool flow
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
+
+# List available tools and flows
 kapi tools
+kapi flows
 
 # Manage terminology
 kapi termbase import terms.csv --format csv -s en -t fr
@@ -75,7 +79,7 @@ go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
 ## Next Steps
 
 - [Formats](/docs/kapi-cli/commands/formats)
-- [Flow Command](/docs/kapi-cli/commands/flow)
+- [Run Command](/docs/kapi-cli/commands/flow)
 - [Pseudo-Translation](/docs/kapi-cli/commands/pseudo-translate)
 - [Word Count](/docs/kapi-cli/commands/word-count)
 - [Terminology](/docs/kapi-cli/commands/termbase)

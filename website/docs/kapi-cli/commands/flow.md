@@ -1,24 +1,24 @@
 ---
 sidebar_position: 1
-title: flow
+title: run
 ---
 
-# kapi flow
+# kapi run
 
-Run multi-step processing flows on files.
+Run composed multi-tool flows on files.
 
 ## Synopsis
 
 ```bash
-kapi flow run <flow-name> [flags]
-kapi flow list
+kapi run <flow-name> [flags]
+kapi flows
 ```
 
 ## Description
 
-The `flow run` command executes a named processing pipeline. Documents are read, streamed through each tool in the flow, and written to the output. Multiple input files can be processed in parallel.
+The `kapi run` command executes a composed pipeline that chains multiple tools together. For single-tool operations, use the tool directly as a top-level command (e.g., `kapi ai-translate`, `kapi pseudo-translate`, `kapi qa-check`).
 
-Use `flow list` to see available flows.
+Use `kapi flows` to see available composed flows.
 
 :::note
 For project-based flows with automatic file mappings and locale configuration, see [Bowrain CLI flow command](/bowrain/cli/commands/flow).
@@ -27,29 +27,35 @@ For project-based flows with automatic file mappings and locale configuration, s
 ## Examples
 
 ```bash
-# Translate with AI
-kapi flow run ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+# Translate then quality-check (composed flow)
+kapi run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
 
-# Translate then quality-check
-kapi flow run ai-translate-qa -i input.html -o output.html --source-lang en --target-lang fr
-
-# Pseudo-translate for testing
-kapi flow run pseudo-translate -i input.html -o output.html --target-lang fr
-
-# Process multiple files in parallel
-kapi flow run ai-translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
-
-# Leverage translation memory
-kapi flow run tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
-
-# Run quality checks
-kapi flow run qa-check -i translations.html -o qa-report.html --target-lang fr
-
-# List available flows
-kapi flow list
+# List available composed flows
+kapi flows
 ```
 
-## Flags (flow run)
+### Single-Tool Commands
+
+Single-tool operations run directly as top-level commands:
+
+```bash
+# Translate with AI
+kapi ai-translate -i input.html -o output.html --source-lang en --target-lang fr
+
+# Pseudo-translate for testing
+kapi pseudo-translate -i input.html -o output.html --target-lang fr
+
+# Process multiple files in parallel
+kapi ai-translate -i file1.html -i file2.html --source-lang en --target-lang fr -j 4
+
+# Leverage translation memory
+kapi tm-leverage -i input.html -o output.html --source-lang en --target-lang fr
+
+# Run quality checks
+kapi qa-check -i translations.html -o qa-report.html --target-lang fr
+```
+
+## Flags
 
 | Flag | Short | Description |
 |------|-------|-------------|
@@ -67,20 +73,28 @@ kapi flow list
 | `--termbase` | | Named termbase for terminology lookup/enforcement (resolves from KAPI_HOME) |
 
 :::note
-The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags are
-specific to `flow run` and tool commands. They are not global flags.
+The `--format`, `--encoding`, `--source-lang`, and `--target-lang` flags apply to
+both `kapi run` and top-level tool commands. They are not global flags.
 :::
 
-## Built-in Flows
+## Built-in Composed Flows
 
 | Flow | Description |
 |------|-------------|
-| `ai-translate` | Translate content using AI/LLM |
 | `ai-translate-qa` | Translate then quality check using AI/LLM |
-| `pseudo-translate` | Generate pseudo-translations for testing |
-| `qa-check` | Run rule-based quality checks on translations |
-| `tm-leverage` | Pre-fill translations from translation memory |
-| `segmentation` | Split source text into sentence segments |
+
+## Built-in Tool Commands
+
+Single-tool operations are available as top-level commands. See [tools](/docs/kapi-cli/commands/tools) for the full list.
+
+| Command | Description |
+|---------|-------------|
+| `kapi ai-translate` | Translate content using AI/LLM |
+| `kapi pseudo-translate` | Generate pseudo-translations for testing |
+| `kapi qa-check` | Run rule-based quality checks on translations |
+| `kapi tm-leverage` | Pre-fill translations from translation memory |
+| `kapi segmentation` | Split source text into sentence segments |
+| `kapi word-count` | Count words and characters per locale |
 
 ## Use Cases
 

@@ -96,17 +96,17 @@ List all named TMs in KAPI_HOME:
 kapi tm list
 ```
 
-## Use in Flows
+## Use in Tool Commands
 
-TM leverage can be integrated into translation flows using the `--tm` flag:
+TM leverage can be integrated into translation commands using the `--tm` flag:
 
 ```bash
 # Use a named TM for pre-filling translations
-kapi flow run tm-leverage -i input.html -o output.html -s en -t fr \
+kapi tm-leverage -i input.html -o output.html -s en -t fr \
   --tm project-tm
 
 # Combine TM + AI translation
-kapi flow run ai-translate -i input.html -o output.html -s en -t fr \
+kapi ai-translate -i input.html -o output.html -s en -t fr \
   --tm project-tm --termbase project-terms
 ```
 

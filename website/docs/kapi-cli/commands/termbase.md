@@ -102,12 +102,12 @@ List all named termbases in KAPI_HOME:
 kapi termbase list
 ```
 
-## Use in Flows
+## Use in Tool Commands
 
-Terminology can be integrated into translation flows using the `--termbase` flag:
+Terminology can be integrated into translation commands using the `--termbase` flag:
 
 ```bash
-kapi flow run ai-translate -i input.html -o output.html -s en -t fr \
+kapi ai-translate -i input.html -o output.html -s en -t fr \
   --termbase project-terms
 ```
 

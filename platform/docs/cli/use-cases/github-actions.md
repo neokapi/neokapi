@@ -133,10 +133,10 @@ jobs:
       - name: Run translation flow
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bowrain flow run ai-translate
+        run: bowrain ai-translate
 
       - name: Run QA checks
-        run: bowrain flow run qa-check
+        run: bowrain qa-check
 ```
 
 ## Example: Server Sync on Push to Main
@@ -194,7 +194,7 @@ jobs:
       - name: Run translation flow
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: bowrain flow run ai-translate
+        run: bowrain ai-translate
 
       - name: Commit translations
         run: |
