@@ -143,6 +143,7 @@ type ToolInfo struct {
 	Name        string `json:"name"`
 	DisplayName string `json:"display_name,omitempty"`
 	Description string `json:"description,omitempty"`
+	Category    string `json:"category,omitempty"`
 	Source      string `json:"source,omitempty"`
 }
 
@@ -152,31 +153,58 @@ type ToolsListOutput struct {
 	Total int        `json:"total"`
 }
 
+// categoryOrder defines the display order for tool categories.
+var categoryOrder = []string{"translation", "quality", "analysis", "text-processing"}
+
+// categoryTitles maps category IDs to display titles.
+var categoryTitles = map[string]string{
+	"translation":     "Translation",
+	"quality":         "Quality",
+	"analysis":        "Analysis",
+	"text-processing": "Text Processing",
+}
+
 func (t ToolsListOutput) FormatText(w io.Writer) error {
 	if len(t.Tools) == 0 {
 		fmt.Fprintln(w, "No tools available.")
 		return nil
 	}
 
-	fmt.Fprintln(w, "Available tools:")
-	fmt.Fprintln(w)
-	fmt.Fprintf(w, "  %-24s %-24s %-12s %s\n",
-		"NAME", "DISPLAY NAME", "SOURCE", "DESCRIPTION")
-	fmt.Fprintf(w, "  %-24s %-24s %-12s %s\n",
-		"----", "------------", "------", "-----------")
-
+	// Group tools by category, preserving order within each group.
+	grouped := make(map[string][]ToolInfo)
 	for _, tool := range t.Tools {
-		desc := tool.Description
-		if len(desc) > 40 {
-			desc = desc[:37] + "..."
+		cat := tool.Category
+		if cat == "" {
+			cat = "other"
 		}
-		displayName := tool.DisplayName
-		if len(displayName) > 22 {
-			displayName = displayName[:19] + "..."
-		}
-		fmt.Fprintf(w, "  %-24s %-24s %-12s %s\n",
-			tool.Name, displayName, tool.Source, desc)
+		grouped[cat] = append(grouped[cat], tool)
 	}
+
+	fmt.Fprintln(w, "Available tools:")
+
+	for _, cat := range categoryOrder {
+		tools := grouped[cat]
+		if len(tools) == 0 {
+			continue
+		}
+		title := categoryTitles[cat]
+		fmt.Fprintf(w, "\n%s:\n", title)
+		for _, tool := range tools {
+			fmt.Fprintf(w, "  %-24s %s\n", tool.Name, tool.Description)
+		}
+	}
+
+	// Print any tools in unknown categories.
+	for cat, tools := range grouped {
+		if categoryTitles[cat] != "" {
+			continue
+		}
+		fmt.Fprintf(w, "\nOther:\n")
+		for _, tool := range tools {
+			fmt.Fprintf(w, "  %-24s %s\n", tool.Name, tool.Description)
+		}
+	}
+
 	fmt.Fprintf(w, "\nTotal: %d tool(s)\n", t.Total)
 	return nil
 }

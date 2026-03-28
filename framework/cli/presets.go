@@ -12,8 +12,9 @@ import (
 // NewPresetsCmd creates the presets command group (presets list, presets show).
 func (a *App) NewPresetsCmd() *cobra.Command {
 	presetsCmd := &cobra.Command{
-		Use:   "presets",
-		Short: "Manage format and framework presets",
+		Use:     "presets",
+		Short:   "Manage format and framework presets",
+		GroupID: "management",
 	}
 
 	var (

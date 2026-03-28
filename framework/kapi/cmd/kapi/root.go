@@ -25,9 +25,12 @@ translate with AI, and run quality checks across a wide range of file types.`,
 
 func init() {
 	app.AddPersistentFlags(rootCmd)
+	app.AddCommandGroups(rootCmd)
 
 	// Primary commands.
-	rootCmd.AddCommand(app.NewRunCmd(cli.RunCmdOptions{}))
+	runCmd := app.NewRunCmd(cli.RunCmdOptions{})
+	runCmd.GroupID = "processing"
+	rootCmd.AddCommand(runCmd)
 
 	// Management commands.
 	rootCmd.AddCommand(app.NewFlowsCmd(cli.FlowCmdOptions{}))
@@ -45,5 +48,7 @@ func init() {
 		rootCmd.AddCommand(cmd)
 	}
 
-	rootCmd.AddCommand(newMCPCmd())
+	mcpCmd := newMCPCmd()
+	mcpCmd.GroupID = "processing"
+	rootCmd.AddCommand(mcpCmd)
 }

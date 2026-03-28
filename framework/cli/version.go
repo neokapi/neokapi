@@ -9,8 +9,9 @@ import (
 // NewVersionCmd creates a version command for the named program.
 func (a *App) NewVersionCmd(program string) *cobra.Command {
 	return &cobra.Command{
-		Use:   "version",
-		Short: "Show version information",
+		Use:     "version",
+		Short:   "Show version information",
+		GroupID: "management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			out := output.VersionOutput{
 				Program:   program,
