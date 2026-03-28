@@ -747,9 +747,18 @@ func (s *Server) HandleAdminAddMember(c echo.Context) error {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: "user not found"})
 	}
 
-	// Add member.
-	if err := s.AuthStore.AddMember(ctx, wsID, req.UserID, role); err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+	// Check if already a member — update role instead.
+	if existing, err := s.AuthStore.GetMembership(ctx, wsID, req.UserID); err == nil && existing != nil {
+		if existing.Role == role {
+			return c.JSON(http.StatusConflict, ErrorResponse{Error: "user is already a member with this role"})
+		}
+		if err := s.AuthStore.UpdateRole(ctx, wsID, req.UserID, role); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
+	} else {
+		if err := s.AuthStore.AddMember(ctx, wsID, req.UserID, role); err != nil {
+			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
+		}
 	}
 
 	// Record audit note.
