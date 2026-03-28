@@ -81,28 +81,25 @@ func (r *FormatRegistry) triggerOnMiss() bool {
 	return true
 }
 
-// RegisterReader registers a DataFormatReader factory and its detection signature.
-func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory) {
+// RegisterReader registers a DataFormatReader factory with static metadata.
+// The signature and display name are provided directly — no reader instance
+// is created during registration, keeping startup fast.
+func (r *FormatRegistry) RegisterReader(name string, factory FormatReaderFactory, sig format.FormatSignature, displayName string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.readers[name] = factory
 
-	// Register the format signature for detection and populate format info.
-	reader := factory()
-	sig := reader.Signature()
 	r.detector.Register(name, sig)
 
 	info := r.getOrCreateInfo(name)
 	info.HasReader = true
-	info.DisplayName = reader.DisplayName()
+	info.DisplayName = displayName
 	if len(sig.MIMETypes) > 0 {
 		info.MimeTypes = sig.MIMETypes
 	}
 	if len(sig.Extensions) > 0 {
 		info.Extensions = sig.Extensions
 	}
-	// Ensure detector priority matches the info priority (which may have
-	// been set before registration, e.g. via SetFormatPriority).
 	if info.Priority != 0 {
 		r.detector.SetPriority(name, info.Priority)
 	} else {

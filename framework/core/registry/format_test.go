@@ -63,11 +63,23 @@ func newStubWriter(name string) *stubWriter {
 
 func (s *stubWriter) Write(_ context.Context, _ <-chan *model.Part) error { return nil }
 
+// regStub registers a stub reader with an empty signature.
+func regStub(reg *FormatRegistry, name string) {
+	reg.RegisterReader(name, func() format.DataFormatReader {
+		return newStubReader(name)
+	}, format.FormatSignature{}, "")
+}
+
+// regStubSig registers a stub reader with the given signature and display name.
+func regStubSig(reg *FormatRegistry, name, displayName string, mimes, exts []string) {
+	reg.RegisterReader(name, func() format.DataFormatReader {
+		return newStubReaderWithSig(name, displayName, mimes, exts)
+	}, format.FormatSignature{MIMETypes: mimes, Extensions: exts}, displayName)
+}
+
 func TestNewReaderExact(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("csv", func() format.DataFormatReader {
-		return newStubReader("csv")
-	})
+	regStub(reg, "csv")
 
 	r, err := reg.NewReader("csv")
 	require.NoError(t, err)
@@ -85,7 +97,7 @@ func TestNewReaderVersionedExact(t *testing.T) {
 	reg := NewFormatRegistry()
 	reg.RegisterReader("okapi-html@1.46.0", func() format.DataFormatReader {
 		return newStubReader("okapi-html@1.46.0")
-	})
+	}, format.FormatSignature{}, "")
 
 	r, err := reg.NewReader("okapi-html@1.46.0")
 	require.NoError(t, err)
@@ -94,16 +106,15 @@ func TestNewReaderVersionedExact(t *testing.T) {
 
 func TestNewReaderVersionedFallback(t *testing.T) {
 	reg := NewFormatRegistry()
-	// Register versioned entries only (no bare name).
 	reg.RegisterReader("okapi-html@1.46.0", func() format.DataFormatReader {
 		return newStubReader("okapi-html@1.46.0")
-	})
+	}, format.FormatSignature{}, "")
 	reg.RegisterReader("okapi-html@1.47.0", func() format.DataFormatReader {
 		return newStubReader("okapi-html@1.47.0")
-	})
+	}, format.FormatSignature{}, "")
 	reg.RegisterReader("okapi-html@1.45.0", func() format.DataFormatReader {
 		return newStubReader("okapi-html@1.45.0")
-	})
+	}, format.FormatSignature{}, "")
 
 	// Requesting bare name should fall back to latest version.
 	r, err := reg.NewReader("okapi-html")
@@ -113,13 +124,12 @@ func TestNewReaderVersionedFallback(t *testing.T) {
 
 func TestNewReaderBareNamePreferred(t *testing.T) {
 	reg := NewFormatRegistry()
-	// Register both bare name and versioned entries.
 	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
 		return newStubReader("okapi-html-bare")
-	})
+	}, format.FormatSignature{}, "")
 	reg.RegisterReader("okapi-html@1.46.0", func() format.DataFormatReader {
 		return newStubReader("okapi-html@1.46.0")
-	})
+	}, format.FormatSignature{}, "")
 
 	// Bare name should match directly, not fall through to versioned.
 	r, err := reg.NewReader("okapi-html")
@@ -157,9 +167,7 @@ func TestInternalCompareSemver(t *testing.T) {
 
 func TestFormatInfosBuiltIn(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html", ".htm"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html", ".htm"})
 	reg.RegisterWriter("html", func() format.DataFormatWriter {
 		return newStubWriter("html")
 	})
@@ -177,9 +185,7 @@ func TestFormatInfosBuiltIn(t *testing.T) {
 
 func TestFormatInfosPluginSource(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
-		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("okapi-html", "okapi")
 
 	infos := reg.FormatInfos()
@@ -189,15 +195,9 @@ func TestFormatInfosPluginSource(t *testing.T) {
 
 func TestFormatInfosSorted(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("yaml", func() format.DataFormatReader {
-		return newStubReader("yaml")
-	})
-	reg.RegisterReader("csv", func() format.DataFormatReader {
-		return newStubReader("csv")
-	})
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReader("html")
-	})
+	regStub(reg, "yaml")
+	regStub(reg, "csv")
+	regStub(reg, "html")
 
 	infos := reg.FormatInfos()
 	require.Len(t, infos, 3)
@@ -208,9 +208,7 @@ func TestFormatInfosSorted(t *testing.T) {
 
 func TestFormatInfoSingleLookup(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("html", "built-in")
 
 	info := reg.FormatInfo("html")
@@ -238,9 +236,7 @@ func TestFormatInfoWriterOnly(t *testing.T) {
 
 func TestDefaultPriorityBuiltIn(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 
 	info := reg.FormatInfo("html")
 	require.NotNil(t, info)
@@ -249,9 +245,7 @@ func TestDefaultPriorityBuiltIn(t *testing.T) {
 
 func TestSetFormatSourceSetsPluginPriority(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
-		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("okapi-html", "okapi")
 
 	info := reg.FormatInfo("okapi-html")
@@ -261,9 +255,7 @@ func TestSetFormatSourceSetsPluginPriority(t *testing.T) {
 
 func TestSetFormatSourceBuiltInKeepsDefaultPriority(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("html", "built-in")
 
 	info := reg.FormatInfo("html")
@@ -273,9 +265,7 @@ func TestSetFormatSourceBuiltInKeepsDefaultPriority(t *testing.T) {
 
 func TestSetFormatPriority(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 
 	reg.SetFormatPriority("html", 200)
 
@@ -286,9 +276,7 @@ func TestSetFormatPriority(t *testing.T) {
 
 func TestSetFormatPriorityOverridesPluginDefault(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
-		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("okapi-html", "okapi")
 
 	// Priority should now be plugin default.
@@ -305,12 +293,8 @@ func TestSetFormatPriorityOverridesPluginDefault(t *testing.T) {
 
 func TestResolveFormatWithPriority(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
-	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
-		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
+	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("okapi-html", "okapi")
 
 	// Plugin format should win by default (priority 100 > 50).
@@ -320,12 +304,8 @@ func TestResolveFormatWithPriority(t *testing.T) {
 
 func TestResolveFormatConfigOverride(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
-	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
-		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
+	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatSource("okapi-html", "okapi")
 
 	// Override built-in to have higher priority.
@@ -343,9 +323,7 @@ func TestResolveFormatNoMatch(t *testing.T) {
 
 func TestFormatInfoIncludesPriority(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 	reg.SetFormatPriority("html", 150)
 
 	infos := reg.FormatInfos()
@@ -362,9 +340,7 @@ func TestSetFormatPriorityBeforeRegister(t *testing.T) {
 	// Set priority before registering the reader.
 	reg.SetFormatPriority("html", 300)
 
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 
 	info := reg.FormatInfo("html")
 	require.NotNil(t, info)
@@ -374,9 +350,7 @@ func TestSetFormatPriorityBeforeRegister(t *testing.T) {
 
 func TestDetectorUsedByResolveFormat(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("json", func() format.DataFormatReader {
-		return newStubReaderWithSig("json", "JSON", []string{"application/json"}, []string{".json"})
-	})
+	regStubSig(reg, "json", "JSON", []string{"application/json"}, []string{".json"})
 
 	name := reg.ResolveFormat("application/json")
 	assert.Equal(t, "json", name)
@@ -384,9 +358,7 @@ func TestDetectorUsedByResolveFormat(t *testing.T) {
 
 func TestSetFormatSourceDoesNotDowngradeExplicitPriority(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("okapi-html", func() format.DataFormatReader {
-		return newStubReaderWithSig("okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "okapi-html", "Okapi HTML", []string{"text/html"}, []string{".html"})
 	// Explicitly set a high priority first.
 	reg.SetFormatPriority("okapi-html", 500)
 	// Now set the source — should NOT downgrade to DefaultPluginPriority.
@@ -420,7 +392,7 @@ func TestRegisterFormatInfo(t *testing.T) {
 	// Registering a reader later should update the existing info.
 	reg.RegisterReader("okapi-html@1.46.0", func() format.DataFormatReader {
 		return newStubReaderWithSig("okapi-html", "HTML Filter", []string{"text/html"}, []string{".html"})
-	})
+	}, format.FormatSignature{MIMETypes: []string{"text/html"}, Extensions: []string{".html"}}, "HTML Filter")
 	info = reg.FormatInfo("okapi-html@1.46.0")
 	require.NotNil(t, info)
 	assert.True(t, info.HasReader)
@@ -442,17 +414,13 @@ func TestRegisterFormatInfoAppearsInList(t *testing.T) {
 
 func TestOnMissTriggeredOnReaderMiss(t *testing.T) {
 	reg := NewFormatRegistry()
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReader("html")
-	})
+	regStub(reg, "html")
 
 	var called bool
 	reg.SetOnMiss(func() {
 		called = true
 		// Simulate lazy-loading a bridge format.
-		reg.RegisterReader("okf_docx", func() format.DataFormatReader {
-			return newStubReader("okf_docx")
-		})
+		regStub(reg, "okf_docx")
 	})
 
 	// Built-in format — no onMiss.
@@ -488,9 +456,7 @@ func TestOnMissConcurrentCallersBlock(t *testing.T) {
 		callCount++
 		// Simulate slow bridge loading.
 		time.Sleep(50 * time.Millisecond)
-		reg.RegisterReader("okf_openxml", func() format.DataFormatReader {
-			return newStubReader("okf_openxml")
-		})
+		regStub(reg, "okf_openxml")
 	})
 
 	// Launch concurrent readers — all should block until onMiss completes.
@@ -564,9 +530,7 @@ func TestRegisterFormatInfoPriorityInDetection(t *testing.T) {
 	reg := NewFormatRegistry()
 
 	// Built-in HTML at default priority (50).
-	reg.RegisterReader("html", func() format.DataFormatReader {
-		return newStubReaderWithSig("html", "HTML", []string{"text/html"}, []string{".html"})
-	})
+	regStubSig(reg, "html", "HTML", []string{"text/html"}, []string{".html"})
 
 	// Bridge HTML registered via metadata only — gets plugin priority (100).
 	reg.RegisterFormatInfo("okf_html@1.46.0", FormatInfo{
@@ -598,16 +562,13 @@ func TestDetectByExtensionTriggersOnMiss(t *testing.T) {
 	reg.SetOnMiss(func() {
 		called = true
 		// Simulate bridge loading registering a format with .docx extension.
-		// RegisterReader also registers the format signature for detection.
 		reg.RegisterReader("okf_openxml", func() format.DataFormatReader {
 			return newStubReaderWithSig("okf_openxml", "OpenXML", nil, []string{".docx", ".docm"})
-		})
+		}, format.FormatSignature{Extensions: []string{".docx", ".docm"}}, "OpenXML")
 	})
 
 	// Built-in extension — no onMiss needed.
-	reg.RegisterReader("json", func() format.DataFormatReader {
-		return newStubReaderWithSig("json", "JSON", nil, []string{".json"})
-	})
+	regStubSig(reg, "json", "JSON", nil, []string{".json"})
 
 	name, err := reg.DetectByExtension(".json")
 	require.NoError(t, err)
