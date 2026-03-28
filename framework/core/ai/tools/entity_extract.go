@@ -18,6 +18,7 @@ import (
 // fast entity detection. Follows the hybrid extraction approach from AD-022.
 type AIEntityExtractTool struct {
 	tool.BaseTool
+	usageAccumulator
 	llm         provider.LLMProvider
 	nerProvider ner.Provider // optional; nil means LLM-only
 	locale      model.LocaleID
@@ -392,6 +393,7 @@ func (t *AIEntityExtractTool) extractWithLLM(ctx context.Context, entries []extr
 	if err != nil {
 		return nil, err
 	}
+	t.addUsage(resp.Usage)
 
 	var result llmExtractionResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {

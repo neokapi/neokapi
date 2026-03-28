@@ -14,6 +14,7 @@ import (
 // AITerminologyTool extracts terminology from Blocks using an LLM.
 type AITerminologyTool struct {
 	tool.BaseTool
+	usageAccumulator
 	provider provider.LLMProvider
 	locale   model.LocaleID
 	domain   string // e.g., "medical", "legal", "technology"
@@ -107,6 +108,7 @@ func (t *AITerminologyTool) handleBlock(part *model.Part) (*model.Part, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ai-terminology: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	var result terminologyResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {

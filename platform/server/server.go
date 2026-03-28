@@ -199,6 +199,10 @@ type Server struct {
 	// Nil when POSTHOG_API_KEY is not set.
 	PostHogClient *analytics.PostHogClient
 
+	// BillingHooks provides billing integration points for AI operations.
+	// Nil-safe: all methods are no-ops on a nil receiver.
+	BillingHooks *billing.UsageHooks
+
 	// WebhookHandler processes Stripe webhook events (AD-030).
 	// Nil when Stripe is not configured.
 	WebhookHandler *billing.WebhookHandler
@@ -602,6 +606,8 @@ func NewServer(cfg ServerConfig) *Server {
 			billingHooks.GetOwnerEmail = resolver.GetOwnerEmail
 		}
 
+		s.BillingHooks = billingHooks
+
 		if s.AgentService != nil {
 			s.AgentService.SetBillingHooks(billingHooks)
 		}
@@ -723,6 +729,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		wsSpecific.Use(AuthMiddleware(s.Config.JWTSecret, s.AuthStore))
 		if s.AuthStore != nil {
 			wsSpecific.Use(WorkspaceAccessMiddleware(s.AuthStore))
+			wsSpecific.Use(WeeklyAllocationMiddleware(s.BillingStore))
 		}
 		wsSpecific.GET("", s.HandleGetWorkspace)
 		wsSpecific.PUT("", s.HandleUpdateWorkspace)
@@ -760,6 +767,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		billingGroup := wsSpecific.Group("/billing")
 		billingGroup.GET("", s.HandleGetBilling)
 		billingGroup.GET("/usage", s.HandleGetBillingUsage)
+		billingGroup.GET("/model-usage", s.HandleGetBillingModelUsage)
 		billingGroup.POST("/checkout", s.HandleCreateCheckout)
 		billingGroup.POST("/portal", s.HandleCreatePortal)
 		billingGroup.GET("/invoices", s.HandleGetInvoices)
@@ -793,6 +801,7 @@ func (s *Server) SetupRoutes(e *echo.Echo) {
 		adminGroup.GET("/workspaces/:id/notes", s.HandleAdminGetNotes)
 		adminGroup.POST("/workspaces/:id/notes", s.HandleAdminAddNote)
 		adminGroup.GET("/workspaces/:id/ledger", s.HandleAdminGetLedger)
+		adminGroup.GET("/workspaces/:id/model-usage", s.HandleAdminGetModelUsage)
 		adminGroup.POST("/workspaces/:id/impersonate", s.HandleAdminImpersonate)
 		adminGroup.POST("/workspaces/:id/members", s.HandleAdminAddMember)
 		adminGroup.GET("/users", s.HandleAdminListUsers)
@@ -1059,7 +1068,7 @@ func (s *Server) registerWorkspaceContentRoutes(g *echo.Group) {
 
 	// Actions — AD-040: /:ws/:id/actions/:ref/<verb>
 	g.POST("/:id/actions/:ref/pseudo-translate", s.HandlePseudoTranslate)
-	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate)
+	g.POST("/:id/actions/:ref/ai-translate", s.HandleAITranslate, billing.QuotaGuard(s.BillingStore, s.billingGuardEvent()))
 	g.POST("/:id/actions/:ref/tm-translate", s.HandleTMTranslate)
 	g.POST("/:id/actions/:ref/export", s.HandleExportTranslatedFile)
 	g.POST("/:id/actions/:ref/qa-check", s.HandleQACheckFile)

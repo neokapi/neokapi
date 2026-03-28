@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/billing"
 	platauth "github.com/neokapi/neokapi/platform/auth"
 	platev "github.com/neokapi/neokapi/platform/event"
 )
@@ -225,6 +226,28 @@ func WorkspaceAccessMiddleware(authStore auth.AuthStore) echo.MiddlewareFunc {
 			c.Set("workspace_role", m.Role)
 			c.Set("workspace_plan", w.Plan)
 			c.Set("workspace_stripe_customer_id", w.StripeCustomerID)
+			return next(c)
+		}
+	}
+}
+
+// WeeklyAllocationMiddleware lazily ensures a weekly credit allocation exists
+// for the current workspace. It reads the plan from context (set by
+// WorkspaceAccessMiddleware) and calls EnsureWeeklyAllocation once per week.
+// When billing is not configured (store is nil or plan is empty), this is a no-op.
+func WeeklyAllocationMiddleware(store billing.BillingStore) echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if store == nil {
+				return next(c)
+			}
+			wsID, _ := c.Get("workspace_id").(string)
+			planStr, _ := c.Get("workspace_plan").(string)
+			if wsID == "" || planStr == "" {
+				return next(c)
+			}
+			// Fire and forget — allocation is idempotent and fast.
+			_, _ = billing.EnsureWeeklyAllocation(c.Request().Context(), store, wsID, billing.Plan(planStr))
 			return next(c)
 		}
 	}

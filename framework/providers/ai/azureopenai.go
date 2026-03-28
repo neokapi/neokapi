@@ -97,6 +97,7 @@ func (p *AzureOpenAIProvider) Translate(ctx context.Context, req TranslateReques
 		Translation: resp.Content,
 		Confidence:  0.85,
 		Model:       resp.Model,
+		Usage:       resp.Usage,
 	}, nil
 }
 
@@ -169,6 +170,7 @@ func (p *AzureOpenAIProvider) Chat(ctx context.Context, messages []Message) (*Ch
 	return &ChatResponse{
 		Content: apiResp.Choices[0].Message.Content,
 		Model:   apiResp.Model,
+		Usage:   apiResp.Usage.toTokenUsage(),
 	}, nil
 }
 
@@ -247,6 +249,7 @@ func (p *AzureOpenAIProvider) ChatStructured(ctx context.Context, messages []Mes
 	return &ChatResponse{
 		Content: apiResp.Choices[0].Message.Content,
 		Model:   apiResp.Model,
+		Usage:   apiResp.Usage.toTokenUsage(),
 	}, nil
 }
 

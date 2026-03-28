@@ -50,6 +50,7 @@ func (p *OllamaProvider) Translate(ctx context.Context, req TranslateRequest) (*
 		Translation: resp.Content,
 		Confidence:  0.7,
 		Model:       resp.Model,
+		Usage:       resp.Usage,
 	}, nil
 }
 
@@ -99,6 +100,10 @@ func (p *OllamaProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	return &ChatResponse{
 		Content: apiResp.Message.Content,
 		Model:   apiResp.Model,
+		Usage: TokenUsage{
+			InputTokens:  apiResp.PromptEvalCount,
+			OutputTokens: apiResp.EvalCount,
+		},
 	}, nil
 }
 
@@ -149,6 +154,10 @@ func (p *OllamaProvider) ChatStructured(ctx context.Context, messages []Message,
 	return &ChatResponse{
 		Content: apiResp.Message.Content,
 		Model:   apiResp.Model,
+		Usage: TokenUsage{
+			InputTokens:  apiResp.PromptEvalCount,
+			OutputTokens: apiResp.EvalCount,
+		},
 	}, nil
 }
 
@@ -168,6 +177,8 @@ type ollamaChatRequest struct {
 }
 
 type ollamaChatResponse struct {
-	Model   string        `json:"model"`
-	Message ollamaMessage `json:"message"`
+	Model          string        `json:"model"`
+	Message        ollamaMessage `json:"message"`
+	PromptEvalCount int          `json:"prompt_eval_count"`
+	EvalCount       int          `json:"eval_count"`
 }

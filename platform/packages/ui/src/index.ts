@@ -359,6 +359,8 @@ export type {
   BillingOverview,
   CreditLedgerEntry,
   BillingUsageBreakdown,
+  ModelUsage,
+  ModelUsageResponse,
 } from "./types/api";
 export type { View, NavItem } from "./components/AppSidebar";
 
@@ -463,6 +465,7 @@ export {
   PlanComparisonTable,
   UpgradePrompt,
   CreditLedger,
+  ModelUsageTable,
 } from "./components/billing";
 export type {
   SubscriptionBadgeProps,
@@ -474,6 +477,7 @@ export type {
   ComparisonFeature,
   UpgradePromptProps,
   CreditLedgerProps,
+  ModelUsageTableProps,
 } from "./components/billing";
 
 // Filter config editor

@@ -15,15 +15,18 @@ import {
   type BillingOverview,
   type BillingUsageBreakdown,
   type CreditLedgerEntry,
+  type ModelUsage,
+  ModelUsageTable,
 } from "@neokapi/ui";
 
+function formatTokens(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
+  return String(value);
+}
+
 function UsageBreakdownRow({ label, value }: { label: string; value: number }) {
-  const formatted =
-    value >= 1_000_000
-      ? `${(value / 1_000_000).toFixed(1)}M`
-      : value >= 1_000
-        ? `${(value / 1_000).toFixed(0)}K`
-        : String(value);
+  const formatted = formatTokens(value);
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-border/50 last:border-b-0">
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -39,6 +42,7 @@ export function SettingsBillingRoute() {
 
   const [overview, setOverview] = useState<BillingOverview | null>(null);
   const [usage, setUsage] = useState<BillingUsageBreakdown | null>(null);
+  const [modelUsage, setModelUsage] = useState<ModelUsage[]>([]);
   const [ledger, setLedger] = useState<CreditLedgerEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -62,6 +66,10 @@ export function SettingsBillingRoute() {
     void api
       .billingGetLedger(ws)
       .then(setLedger)
+      .catch(() => {});
+    void api
+      .billingGetModelUsage(ws)
+      .then((r) => setModelUsage(r.model_usage ?? []))
       .catch(() => {});
   }, [api, ws]);
 
@@ -199,6 +207,19 @@ export function SettingsBillingRoute() {
                 </span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Token Usage by Model */}
+      {modelUsage.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Usage by Model</CardTitle>
+            <CardDescription>Token consumption per AI model this week</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ModelUsageTable entries={modelUsage} />
           </CardContent>
         </Card>
       )}

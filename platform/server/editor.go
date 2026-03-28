@@ -13,6 +13,7 @@ import (
 
 	"github.com/labstack/echo/v4"
 
+	"github.com/neokapi/neokapi/bowrain/billing"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	sqltm "github.com/neokapi/neokapi/bowrain/sievepen"
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -724,7 +725,7 @@ func editorPseudoTranslate(ctx context.Context, cs store.ContentStore, projectID
 }
 
 // editorAITranslate translates blocks using an AI provider.
-func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, req TranslateRequest, credStore *credentials.Store) (*TranslationStatsResponse, error) {
+func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, stream, itemName string, req TranslateRequest, credStore *credentials.Store, billingHooks *billing.UsageHooks, workspaceID string) (*TranslationStatsResponse, error) {
 	proj, err := cs.GetProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -761,6 +762,11 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, st
 	outParts, err := runToolOnParts(ctx, translateTool, parts)
 	if err != nil {
 		return nil, fmt.Errorf("AI translate: %w", err)
+	}
+
+	// Deduct billing credits based on actual token usage from the provider.
+	if usage := translateTool.TotalUsage(); usage.TotalTokens() > 0 {
+		billingHooks.DeductTokens(ctx, workspaceID, usage.TotalTokens(), "ai_translation", projectID)
 	}
 
 	blocks := partsToBlocks(outParts)

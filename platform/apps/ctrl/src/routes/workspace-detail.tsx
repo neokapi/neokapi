@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useParams } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Tabs, TabsList, TabsTrigger, TabsContent, Badge, Button } from "@neokapi/ui";
-import { SubscriptionBadge, CreditLedger, cn, useSetBreadcrumb } from "@neokapi/ui";
+import { SubscriptionBadge, CreditLedger, ModelUsageTable, cn, useSetBreadcrumb } from "@neokapi/ui";
 import type { BillingPlan, BillingStatus, CreditLedgerEntry } from "@neokapi/ui";
 import { ExternalLink, UserPlus } from "lucide-react";
-import { getWorkspace, getFeatureOverrides, getNotes, getLedger, impersonateWorkspace } from "../api";
+import { getWorkspace, getFeatureOverrides, getNotes, getLedger, getModelUsage, impersonateWorkspace } from "../api";
 import { ChangePlanDialog } from "../components/ChangePlanDialog";
 import { GrantCreditsDialog } from "../components/GrantCreditsDialog";
 import { FeatureOverrideDialog } from "../components/FeatureOverrideDialog";
@@ -91,6 +91,12 @@ export function WorkspaceDetailRoute() {
     enabled: !!workspaceId,
   });
 
+  const { data: modelUsageData } = useQuery({
+    queryKey: ["admin", "workspace", workspaceId, "model-usage"],
+    queryFn: () => getModelUsage(workspaceId!),
+    enabled: !!workspaceId,
+  });
+
   useSetBreadcrumb(workspace?.name ?? "Workspace");
 
   if (isLoading || !workspace) {
@@ -171,6 +177,7 @@ export function WorkspaceDetailRoute() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="credits">Credits</TabsTrigger>
+          <TabsTrigger value="usage">Model Usage</TabsTrigger>
           <TabsTrigger value="overrides">Overrides</TabsTrigger>
           <TabsTrigger value="notes">Notes</TabsTrigger>
         </TabsList>
@@ -223,6 +230,11 @@ export function WorkspaceDetailRoute() {
             </Button>
           </div>
           <CreditLedger entries={toLedgerEntries(ledger ?? [])} />
+        </TabsContent>
+
+        <TabsContent value="usage" className="mt-4 space-y-4">
+          <h3 className="text-sm font-medium">Token Usage by Model</h3>
+          <ModelUsageTable entries={modelUsageData?.model_usage ?? []} />
         </TabsContent>
 
         <TabsContent value="overrides" className="mt-4 space-y-4">

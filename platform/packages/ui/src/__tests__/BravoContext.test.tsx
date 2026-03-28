@@ -209,6 +209,7 @@ function createMockAdapter(overrides: Partial<ApiAdapter> = {}): ApiAdapter {
     // Billing
     billingGetOverview: vi.fn(),
     billingGetUsage: vi.fn(),
+    billingGetModelUsage: vi.fn(),
     billingCreateCheckout: vi.fn(),
     billingCreatePortal: vi.fn(),
     billingGetLedger: vi.fn(),

@@ -14,6 +14,7 @@ import (
 // AIQACheckTool checks translation quality using an LLM provider.
 type AIQACheckTool struct {
 	tool.BaseTool
+	usageAccumulator
 	provider     provider.LLMProvider
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
@@ -107,6 +108,7 @@ func (t *AIQACheckTool) handleBlock(part *model.Part) (*model.Part, error) {
 	if err != nil {
 		return nil, fmt.Errorf("ai-qa: %w", err)
 	}
+	t.addUsage(resp.Usage)
 
 	var result qaResult
 	if err := json.Unmarshal([]byte(resp.Content), &result); err != nil {

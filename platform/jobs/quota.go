@@ -25,9 +25,11 @@ type QuotaStore interface {
 // AIUsageRecord represents a single AI API call's token usage.
 type AIUsageRecord struct {
 	WorkspaceSlug string
+	WorkspaceID   string // preferred; aligns with billing system
 	ProjectID     string
 	JobID         string
 	Model         string
+	Operation     string // e.g., "translate", "qa_check", "review", "entity_extract"
 	PromptTokens  int
 	OutputTokens  int
 	TotalTokens   int
@@ -70,6 +72,25 @@ var pgQuotaMigrations = []storage.Migration{
 				monthly_limit   BIGINT NOT NULL DEFAULT 10000000,
 				updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 			);
+		`,
+	},
+	{
+		Version:     2,
+		Description: "add operation column to ai_usage",
+		SQL: `
+			ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS operation TEXT NOT NULL DEFAULT '';
+			CREATE INDEX IF NOT EXISTS idx_ai_usage_operation
+				ON ai_usage(workspace_slug, operation, created_at);
+		`,
+	},
+	{
+		Version:     3,
+		Description: "add workspace_id column to ai_usage for billing alignment",
+		SQL: `
+			ALTER TABLE ai_usage ADD COLUMN IF NOT EXISTS workspace_id TEXT NOT NULL DEFAULT '';
+			CREATE INDEX IF NOT EXISTS idx_ai_usage_workspace_id
+				ON ai_usage(workspace_id, created_at);
+			ALTER TABLE ai_quotas ADD COLUMN IF NOT EXISTS workspace_id TEXT NOT NULL DEFAULT '';
 		`,
 	},
 }
@@ -116,9 +137,9 @@ func (s *PgQuotaStore) CheckQuota(ctx context.Context, workspaceSlug string) (in
 func (s *PgQuotaStore) RecordUsage(ctx context.Context, usage AIUsageRecord) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO ai_usage
-			(workspace_slug, project_id, job_id, model, prompt_tokens, output_tokens, total_tokens)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		usage.WorkspaceSlug, usage.ProjectID, usage.JobID, usage.Model,
+			(workspace_slug, workspace_id, project_id, job_id, model, operation, prompt_tokens, output_tokens, total_tokens)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		usage.WorkspaceSlug, usage.WorkspaceID, usage.ProjectID, usage.JobID, usage.Model, usage.Operation,
 		usage.PromptTokens, usage.OutputTokens, usage.TotalTokens)
 	if err != nil {
 		return fmt.Errorf("record usage: %w", err)
@@ -154,6 +175,46 @@ func (s *PgQuotaStore) GetUsageSummary(ctx context.Context, workspaceSlug string
 		RemainingTokens: limit - used,
 		PeriodStart:     periodStart,
 	}, nil
+}
+
+// ModelUsage summarizes token usage for a specific model and operation.
+type ModelUsage struct {
+	Model        string `json:"model"`
+	Operation    string `json:"operation"`
+	PromptTokens int64  `json:"prompt_tokens"`
+	OutputTokens int64  `json:"output_tokens"`
+	TotalTokens  int64  `json:"total_tokens"`
+	CallCount    int64  `json:"call_count"`
+}
+
+// GetUsageByModel returns token usage grouped by model and operation for a workspace.
+// Uses workspace_id (aligned with billing system) with fallback to workspace_slug.
+func (s *PgQuotaStore) GetUsageByModel(ctx context.Context, workspaceID string, from, to time.Time) ([]ModelUsage, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT model, operation,
+			COALESCE(SUM(prompt_tokens), 0),
+			COALESCE(SUM(output_tokens), 0),
+			COALESCE(SUM(total_tokens), 0),
+			COUNT(*)
+		 FROM ai_usage
+		 WHERE (workspace_id = $1 OR workspace_slug = $1) AND created_at >= $2 AND created_at < $3
+		 GROUP BY model, operation
+		 ORDER BY SUM(total_tokens) DESC`,
+		workspaceID, from, to)
+	if err != nil {
+		return nil, fmt.Errorf("query model usage: %w", err)
+	}
+	defer rows.Close()
+
+	var result []ModelUsage
+	for rows.Next() {
+		var mu ModelUsage
+		if err := rows.Scan(&mu.Model, &mu.Operation, &mu.PromptTokens, &mu.OutputTokens, &mu.TotalTokens, &mu.CallCount); err != nil {
+			return nil, fmt.Errorf("scan model usage: %w", err)
+		}
+		result = append(result, mu)
+	}
+	return result, rows.Err()
 }
 
 // currentPeriodStart returns the start of the current billing month (1st of month, UTC).

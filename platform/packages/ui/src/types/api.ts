@@ -1069,6 +1069,23 @@ export interface BillingUsageBreakdown {
   total: number;
 }
 
+/** Token usage for a specific model and operation */
+export interface ModelUsage {
+  model: string;
+  operation: string;
+  prompt_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  call_count: number;
+}
+
+/** Response from the /billing/model-usage endpoint */
+export interface ModelUsageResponse {
+  model_usage: ModelUsage[];
+  from: string;
+  to: string;
+}
+
 // ---------------------------------------------------------------------------
 // Role Templates & Project Membership
 // ---------------------------------------------------------------------------

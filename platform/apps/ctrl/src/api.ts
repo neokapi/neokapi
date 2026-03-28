@@ -233,6 +233,23 @@ export function getLedger(workspaceId: string): Promise<LedgerEntry[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Model Usage
+// ---------------------------------------------------------------------------
+
+export interface ModelUsageEntry {
+  model: string;
+  operation: string;
+  prompt_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  call_count: number;
+}
+
+export function getModelUsage(workspaceId: string): Promise<{ model_usage: ModelUsageEntry[] }> {
+  return request(`/workspaces/${encodeURIComponent(workspaceId)}/model-usage`);
+}
+
+// ---------------------------------------------------------------------------
 // Impersonation
 // ---------------------------------------------------------------------------
 

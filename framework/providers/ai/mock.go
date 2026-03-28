@@ -44,6 +44,7 @@ func (p *MockProvider) Translate(ctx context.Context, req TranslateRequest) (*Tr
 		Translation: fmt.Sprintf("[%s] %s", req.TargetLocale, req.Source),
 		Confidence:  0.95,
 		Model:       "mock-model",
+		Usage:       TokenUsage{InputTokens: 10, OutputTokens: 20},
 	}, nil
 }
 
@@ -64,6 +65,7 @@ func (p *MockProvider) Chat(ctx context.Context, messages []Message) (*ChatRespo
 	return &ChatResponse{
 		Content: "Mock response to: " + truncate(lastMsg, 50),
 		Model:   "mock-model",
+		Usage:   TokenUsage{InputTokens: 10, OutputTokens: 20},
 	}, nil
 }
 
@@ -97,6 +99,7 @@ func (p *MockProvider) ChatStructured(ctx context.Context, messages []Message, s
 	return &ChatResponse{
 		Content: content,
 		Model:   "mock-model",
+		Usage:   TokenUsage{InputTokens: 10, OutputTokens: 20},
 	}, nil
 }
 

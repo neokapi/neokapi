@@ -62,6 +62,7 @@ func (p *AnthropicProvider) Translate(ctx context.Context, req TranslateRequest)
 		Translation: resp.Content,
 		Confidence:  0.85,
 		Model:       resp.Model,
+		Usage:       resp.Usage,
 	}, nil
 }
 
@@ -121,6 +122,7 @@ func (p *AnthropicProvider) Chat(ctx context.Context, messages []Message) (*Chat
 	return &ChatResponse{
 		Content: content.String(),
 		Model:   apiResp.Model,
+		Usage:   apiResp.Usage.toTokenUsage(),
 	}, nil
 }
 
@@ -184,6 +186,8 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 		return nil, fmt.Errorf("anthropic: unmarshal response: %w", err)
 	}
 
+	usage := apiResp.Usage.toTokenUsage()
+
 	// Extract the tool_use input as JSON.
 	for _, block := range apiResp.Content {
 		if block.Type == "tool_use" && block.Name == toolName {
@@ -194,6 +198,7 @@ func (p *AnthropicProvider) ChatStructured(ctx context.Context, messages []Messa
 			return &ChatResponse{
 				Content: string(inputJSON),
 				Model:   apiResp.Model,
+				Usage:   usage,
 			}, nil
 		}
 	}
@@ -231,6 +236,23 @@ type anthropicToolChoice struct {
 type anthropicResponse struct {
 	Content []anthropicContentBlock `json:"content"`
 	Model   string                  `json:"model"`
+	Usage   anthropicUsage          `json:"usage"`
+}
+
+type anthropicUsage struct {
+	InputTokens              int `json:"input_tokens"`
+	OutputTokens             int `json:"output_tokens"`
+	CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+}
+
+func (u anthropicUsage) toTokenUsage() TokenUsage {
+	return TokenUsage{
+		InputTokens:         u.InputTokens,
+		OutputTokens:        u.OutputTokens,
+		CacheCreationTokens: u.CacheCreationInputTokens,
+		CacheReadTokens:     u.CacheReadInputTokens,
+	}
 }
 
 type anthropicContentBlock struct {
