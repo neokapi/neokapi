@@ -21,8 +21,7 @@ const config: StorybookConfig = {
   stories: [
     "../src/**/*.stories.@(ts|tsx)",
     "../../../emails/src/**/*.stories.@(ts|tsx)",
-    // Keycloak theme stories excluded — they require keycloakify which is not
-    // available in the UI workspace. Build them via the keycloak-theme app.
+    "../../../apps/keycloak-theme/src/**/*.stories.@(ts|tsx)",
     "../../../apps/web/src/auth/**/*.stories.@(ts|tsx)",
   ],
   addons: [getAbsolutePath("@storybook/addon-themes"), getAbsolutePath("@storybook/addon-docs")],
