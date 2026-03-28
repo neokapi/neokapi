@@ -40,13 +40,6 @@ export function BrandProfilesRoute() {
     });
   }, [navigate, workspace]);
 
-  const handleCreateFromStarter = useCallback(() => {
-    void navigate({
-      to: "/$workspace/brand/$profileId",
-      params: { workspace: workspace ?? "", profileId: "new" },
-    });
-  }, [navigate, workspace]);
-
   const handleDelete = useCallback(
     async (profileId: string) => {
       await deleteMutation.mutateAsync(profileId);
@@ -63,7 +56,6 @@ export function BrandProfilesRoute() {
       profiles={profiles ?? []}
       onSelect={handleSelect}
       onCreate={handleCreate}
-      onCreateFromStarter={handleCreateFromStarter}
       onDelete={handleDelete}
     />
   );

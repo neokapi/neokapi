@@ -10,14 +10,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "../components/ui/dialog";
-import { Plus, Sparkles, Search } from "../components/icons";
+import { Plus, Search } from "../components/icons";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 
 interface BrandProfileListProps {
   profiles: VoiceProfile[];
   onSelect: (profile: VoiceProfile) => void;
   onCreate: () => void;
-  onCreateFromStarter: () => void;
   onDelete: (profileId: string) => Promise<void>;
 }
 
@@ -25,7 +24,6 @@ export function BrandProfileList({
   profiles,
   onSelect,
   onCreate,
-  onCreateFromStarter,
   onDelete,
 }: BrandProfileListProps) {
   useSetBreadcrumb(null);
@@ -58,14 +56,9 @@ export function BrandProfileList({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Brand Voice Profiles</h1>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={onCreateFromStarter}>
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" /> From Starter
-          </Button>
-          <Button size="sm" onClick={onCreate}>
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
-          </Button>
-        </div>
+        <Button size="sm" onClick={onCreate}>
+          <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
+        </Button>
       </div>
 
       {/* Search — only shown when there are profiles to search through */}
@@ -86,14 +79,9 @@ export function BrandProfileList({
           <p className="text-sm text-muted-foreground">
             No brand voice profiles yet. Create one to define your brand's writing style.
           </p>
-          <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={onCreateFromStarter}>
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" /> Start from a template
-            </Button>
-            <Button onClick={onCreate}>
-              <Plus className="w-3.5 h-3.5 mr-1.5" /> Create from scratch
-            </Button>
-          </div>
+          <Button onClick={onCreate}>
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> New Profile
+          </Button>
         </div>
       ) : filteredProfiles.length === 0 ? (
         <div className="text-center py-12">

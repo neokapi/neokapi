@@ -267,7 +267,6 @@ describe("BrandProfileList", () => {
   const defaultProps = {
     onSelect: vi.fn(),
     onCreate: vi.fn(),
-    onCreateFromStarter: vi.fn(),
     onDelete: vi.fn().mockResolvedValue(undefined),
   };
 

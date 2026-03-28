@@ -19,7 +19,7 @@ export function StarterPackPicker({
 }: StarterPackPickerProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-w-5xl">
         <DialogHeader>
           <DialogTitle>Choose a Starting Point</DialogTitle>
           <p className="text-sm text-muted-foreground">
@@ -27,7 +27,7 @@ export function StarterPackPicker({
           </p>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
           {starterPacks.map((pack) => (
             <StarterPackCard key={pack.name} pack={pack} onClick={onSelect} />
           ))}
