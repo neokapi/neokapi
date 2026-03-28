@@ -16,6 +16,7 @@ type AuthStore interface {
 	GetUserByOIDCSub(ctx context.Context, sub string) (*platauth.User, error)
 	UpdateUser(ctx context.Context, u *platauth.User) error
 	ListUsers(ctx context.Context, limit, offset int) ([]*platauth.User, error)
+	SearchUsers(ctx context.Context, query string, limit int) ([]*platauth.User, error)
 
 	// Workspaces
 	CreateWorkspace(ctx context.Context, w *platauth.Workspace) error
