@@ -29,7 +29,7 @@ const sidebars: SidebarsConfig = {
             'cli/commands/pull',
             'cli/commands/push',
             'cli/commands/sync',
-            'cli/commands/flow',
+            'cli/commands/run',
             'cli/commands/serve',
             'cli/commands/auth',
             'cli/commands/plugins',

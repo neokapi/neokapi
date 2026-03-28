@@ -21,7 +21,7 @@ The `kapi run` command executes a composed pipeline that chains multiple tools t
 Use `kapi flows` to see available composed flows.
 
 :::note
-For project-based flows with automatic file mappings and locale configuration, see [Bowrain CLI flow command](/bowrain/cli/commands/flow).
+For project-based flows with automatic file mappings and locale configuration, see [Bowrain CLI run command](/bowrain/cli/commands/run).
 :::
 
 ## Examples
