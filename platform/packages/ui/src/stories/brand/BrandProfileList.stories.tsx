@@ -27,7 +27,6 @@ export const Empty: Story = {
     profiles: [],
     onSelect: fn(),
     onCreate: fn(),
-    onCreateFromStarter: fn(),
     onDelete: fn(),
   },
 };
@@ -38,7 +37,6 @@ export const SingleProfile: Story = {
     profiles: [sampleProfile],
     onSelect: fn(),
     onCreate: fn(),
-    onCreateFromStarter: fn(),
     onDelete: fn(),
   },
 };
@@ -49,7 +47,6 @@ export const MultipleProfiles: Story = {
     profiles: [sampleProfile, casualProfile, technicalProfile],
     onSelect: fn(),
     onCreate: fn(),
-    onCreateFromStarter: fn(),
     onDelete: fn(),
   },
 };
@@ -67,7 +64,6 @@ export const ManyProfiles: Story = {
     ],
     onSelect: fn(),
     onCreate: fn(),
-    onCreateFromStarter: fn(),
     onDelete: fn(),
   },
 };
