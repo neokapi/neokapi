@@ -16,18 +16,11 @@ import {
 } from "./ui/dropdown-menu";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionTabs } from "./CollectionTabs";
+import { FormattedFileName } from "./FormattedFileName";
 import {
   ArrowLeft,
   ArrowRight,
-  Globe,
-  FileCode,
-  FileJson,
-  FileText,
-  FileType,
-  MessageSquare,
-  FileSpreadsheet,
   X,
-  Lock,
   Package,
   Plug,
   Upload,
@@ -169,24 +162,6 @@ export function ProjectView({
     },
     [onUploadFiles, onUploadToCollection, effectiveCollectionId],
   );
-
-  const formatIcon = (format: string) => {
-    const cls = "w-4 h-4 inline-block align-text-bottom";
-    const icons: Record<string, React.ReactNode> = {
-      html: <Globe className={cls} />,
-      xml: <FileCode className={cls} />,
-      json: <FileJson className={cls} />,
-      yaml: <FileText className={cls} />,
-      plaintext: <FileType className={cls} />,
-      po: <MessageSquare className={cls} />,
-      properties: <Lock className={cls} />,
-      markdown: <FileText className={cls} />,
-      csv: <FileSpreadsheet className={cls} />,
-      xliff: <ArrowRight className={cls} />,
-      xliff2: <ArrowRight className={cls} />,
-    };
-    return icons[format] || <FileCode className={cls} />;
-  };
 
   return (
     <div className="flex-1 min-h-0 overflow-auto">
@@ -447,7 +422,7 @@ export function ProjectView({
                         className="bg-transparent border-none text-primary cursor-pointer text-sm p-0 hover:underline inline-flex items-center gap-1.5 text-left break-all"
                         data-testid={`open-file-${f.name}`}
                       >
-                        {formatIcon(f.format)} {f.name}
+                        <FormattedFileName name={f.name} format={f.format} />
                       </button>
                     </td>
                     {!isMobile && (
