@@ -21,8 +21,9 @@ import (
 // NewPluginsCmd creates the plugins command group (list, install, update, remove, search).
 func (a *App) NewPluginsCmd() *cobra.Command {
 	pluginsCmd := &cobra.Command{
-		Use:   "plugins",
-		Short: "Manage plugins and bundles",
+		Use:     "plugins",
+		Short:   "Manage plugins and bundles",
+		GroupID: "management",
 	}
 	pluginsCmd.PersistentFlags().String("channel", "", "use a registry channel (e.g., snapshot)")
 	pluginsCmd.PersistentFlags().String("registry", "", "use a specific named registry")

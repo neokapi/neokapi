@@ -8,8 +8,9 @@ import (
 // Bare invocation lists flows; "flows list" is an explicit alias.
 func (a *App) NewFlowsCmd(opts FlowCmdOptions) *cobra.Command {
 	flowsCmd := &cobra.Command{
-		Use:   "flows",
-		Short: "List available flows",
+		Use:     "flows",
+		Short:   "List available flows",
+		GroupID: "management",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.listFlows(cmd, opts)
 		},

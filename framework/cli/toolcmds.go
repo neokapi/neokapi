@@ -18,6 +18,7 @@ type ToolCommandDef struct {
 	Use               string
 	Aliases           []string
 	Short             string
+	Category          string // e.g. "translation", "quality", "analysis", "text-processing"
 	WritesOutput      bool
 	DefaultTargetLang string
 
@@ -41,6 +42,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 		Use:          "ai-translate",
 		Aliases:      []string{"translate"},
 		Short:        "Translate content using AI/LLM",
+		Category:     "translation",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			p, err := providerFromFlags(cmd)
@@ -59,6 +61,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 		Use:               "pseudo-translate",
 		Aliases:           []string{"pseudo"},
 		Short:             "Generate pseudo-translations for localization testing",
+		Category:          "translation",
 		WritesOutput:      true,
 		DefaultTargetLang: "qps",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
@@ -79,6 +82,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "tm-leverage",
 		Short:        "Pre-fill translations from translation memory",
+		Category:     "translation",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			sourceLang, _ := cmd.Flags().GetString("source-lang")
@@ -96,6 +100,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "diff-leverage",
 		Short:        "Leverage translations from previous versions using diff analysis",
+		Category:     "translation",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewDiffLeverageTool(&libtools.DiffLeverageConfig{
@@ -112,6 +117,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 		Use:          "qa-check",
 		Aliases:      []string{"qa"},
 		Short:        "Run rule-based quality checks on translations",
+		Category:     "quality",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewQACheckTool(libtools.NewQACheckConfig(model.LocaleID(targetLang))), nil
@@ -120,6 +126,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "ai-qa",
 		Short:        "Check translation quality using AI/LLM",
+		Category:     "quality",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			p, err := providerFromFlags(cmd)
@@ -137,6 +144,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "ai-review",
 		Short:        "Review translations with scoring using AI/LLM",
+		Category:     "quality",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			p, err := providerFromFlags(cmd)
@@ -152,8 +160,9 @@ var BuiltinToolCommands = []ToolCommandDef{
 		AddFlags: addProviderFlags,
 	},
 	{
-		Use:   "term-check",
-		Short: "Check terminology consistency across content",
+		Use:      "term-check",
+		Short:    "Check terminology consistency across content",
+		Category: "quality",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewTermCheckTool(&libtools.TermCheckConfig{
 				TargetLocale: model.LocaleID(targetLang),
@@ -161,15 +170,17 @@ var BuiltinToolCommands = []ToolCommandDef{
 		},
 	},
 	{
-		Use:   "inconsistency-check",
-		Short: "Detect inconsistent translations of identical source strings",
+		Use:      "inconsistency-check",
+		Short:    "Detect inconsistent translations of identical source strings",
+		Category: "quality",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewInconsistencyCheckTool(libtools.NewInconsistencyCheckConfig(model.LocaleID(targetLang))), nil
 		},
 	},
 	{
-		Use:   "length-check",
-		Short: "Validate string length against configured limits",
+		Use:      "length-check",
+		Short:    "Validate string length against configured limits",
+		Category: "quality",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewLengthCheckTool(&libtools.LengthCheckConfig{
 				TargetLocale: model.LocaleID(targetLang),
@@ -177,15 +188,17 @@ var BuiltinToolCommands = []ToolCommandDef{
 		},
 	},
 	{
-		Use:   "chars-check",
-		Short: "Check for invalid or unexpected Unicode characters",
+		Use:      "chars-check",
+		Short:    "Check for invalid or unexpected Unicode characters",
+		Category: "quality",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewCharsCheckTool(libtools.NewCharsCheckConfig(model.LocaleID(targetLang))), nil
 		},
 	},
 	{
-		Use:   "pattern-check",
-		Short: "Validate content against custom regex patterns",
+		Use:      "pattern-check",
+		Short:    "Validate content against custom regex patterns",
+		Category: "quality",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewPatternCheckTool(&libtools.PatternCheckConfig{
 				TargetLocale: model.LocaleID(targetLang),
@@ -196,9 +209,10 @@ var BuiltinToolCommands = []ToolCommandDef{
 	// ── Analysis ────────────────────────────────────────────────────
 
 	{
-		Use:     "word-count",
-		Aliases: []string{"wc"},
-		Short:   "Count words in source and target text",
+		Use:      "word-count",
+		Aliases:  []string{"wc"},
+		Short:    "Count words in source and target text",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewWordCountTool(&libtools.WordCountConfig{}), nil
 		},
@@ -207,36 +221,41 @@ var BuiltinToolCommands = []ToolCommandDef{
 		},
 	},
 	{
-		Use:   "char-count",
-		Short: "Count characters in source and target text",
+		Use:      "char-count",
+		Short:    "Count characters in source and target text",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewCharCountTool(&libtools.CharCountConfig{}), nil
 		},
 	},
 	{
-		Use:   "segment-count",
-		Short: "Count translatable segments",
+		Use:      "segment-count",
+		Short:    "Count translatable segments",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewSegCountTool(&libtools.SegCountConfig{}), nil
 		},
 	},
 	{
-		Use:   "scoping-report",
-		Short: "Generate detailed scoping report (word counts, repetitions, file breakdown)",
+		Use:      "scoping-report",
+		Short:    "Generate detailed scoping report (word counts, repetitions, file breakdown)",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewScopingReportTool(&libtools.ScopingReportConfig{}), nil
 		},
 	},
 	{
-		Use:   "repetition-analysis",
-		Short: "Identify repeated segments across files for TM leverage",
+		Use:      "repetition-analysis",
+		Short:    "Identify repeated segments across files for TM leverage",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewRepetitionAnalysisTool(&libtools.RepetitionAnalysisConfig{CaseSensitive: true}), nil
 		},
 	},
 	{
-		Use:   "chars-listing",
-		Short: "List all distinct characters used in source and/or target",
+		Use:      "chars-listing",
+		Short:    "List all distinct characters used in source and/or target",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewCharsListingTool(&libtools.CharsListingConfig{
 				IncludeSource: true,
@@ -246,15 +265,17 @@ var BuiltinToolCommands = []ToolCommandDef{
 		},
 	},
 	{
-		Use:   "translation-comparison",
-		Short: "Compare translations across locales or versions",
+		Use:      "translation-comparison",
+		Short:    "Compare translations across locales or versions",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewTranslationComparisonTool(&libtools.TranslationComparisonConfig{}), nil
 		},
 	},
 	{
-		Use:   "encoding-detect",
-		Short: "Detect character encoding of source files",
+		Use:      "encoding-detect",
+		Short:    "Detect character encoding of source files",
+		Category: "analysis",
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewEncodingDetectTool(&libtools.EncodingDetectConfig{}), nil
 		},
@@ -265,6 +286,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "search-replace",
 		Short:        "Find and replace patterns (literal or regex)",
+		Category:     "text-processing",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewSearchReplaceTool(&libtools.SearchReplaceConfig{
@@ -275,6 +297,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "case-transform",
 		Short:        "Transform text case (upper, lower, title)",
+		Category:     "text-processing",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			mode, _ := cmd.Flags().GetString("mode")
@@ -299,6 +322,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "segmentation",
 		Short:        "Split source text into sentence-level segments",
+		Category:     "text-processing",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			return libtools.NewSegmentationTool(&libtools.SegmentationConfig{
@@ -350,6 +374,7 @@ func (a *App) NewToolCommands() []*cobra.Command {
 			Use:     d.Use + " [files...]",
 			Aliases: d.Aliases,
 			Short:   d.Short,
+			GroupID: d.Category,
 			Args:    cobra.MinimumNArgs(1),
 			RunE: func(cmd *cobra.Command, args []string) error {
 				jsonOut, _ := cmd.Flags().GetBool("json")

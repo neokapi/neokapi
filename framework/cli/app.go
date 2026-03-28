@@ -203,6 +203,20 @@ func (a *App) disabledPluginSet() map[string]bool {
 	return set
 }
 
+// AddCommandGroups registers Cobra command groups on the root command for
+// sectioned --help output. Group IDs match the Category field on ToolCommandDef
+// and plugin metadata.
+func (a *App) AddCommandGroups(cmd *cobra.Command) {
+	cmd.AddGroup(
+		&cobra.Group{ID: "processing", Title: "Processing:"},
+		&cobra.Group{ID: "translation", Title: "Translation:"},
+		&cobra.Group{ID: "quality", Title: "Quality:"},
+		&cobra.Group{ID: "analysis", Title: "Analysis:"},
+		&cobra.Group{ID: "text-processing", Title: "Text Processing:"},
+		&cobra.Group{ID: "management", Title: "Info & Management:"},
+	)
+}
+
 // Shutdown cleans up plugin resources (stops bridge processes, etc.).
 // Must be called before the process exits — typically from main() after
 // Execute() returns, to ensure cleanup runs even when RunE returns an error.

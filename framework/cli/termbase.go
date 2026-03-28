@@ -14,8 +14,9 @@ import (
 // NewTermbaseCmd creates the termbase command group.
 func (a *App) NewTermbaseCmd() *cobra.Command {
 	tbCmd := &cobra.Command{
-		Use:   "termbase",
-		Short: "Manage terminology",
+		Use:     "termbase",
+		Short:   "Manage terminology",
+		GroupID: "management",
 		Long: `Manage project terminology.
 
 A termbase is a glossary of approved terms stored as a SQLite database.
