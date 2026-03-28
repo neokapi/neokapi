@@ -5,11 +5,13 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/config"
 	"github.com/neokapi/neokapi/cli/output"
+	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
@@ -60,6 +62,9 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 					continue
 				}
 
+				// Rebuild plugin cache after successful install.
+				_ = plugincache.RebuildAndWrite(a.PluginLoader.Dir(), nil)
+
 				out := output.PluginInstallOutput{
 					Name:        result.Name,
 					Version:     result.Version,
@@ -92,6 +97,7 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 						lastErr = err
 						continue
 					}
+					_ = plugincache.RebuildAndWrite(a.PluginLoader.Dir(), nil)
 					out := output.PluginUpdateOutput{
 						Updated: []output.PluginUpdateEntry{
 							{Name: result.Name, NewVersion: result.Version},
@@ -155,6 +161,11 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 				}
 			}
 
+			// Rebuild cache once after all updates complete.
+			if len(entries) > 0 {
+				_ = plugincache.RebuildAndWrite(a.PluginLoader.Dir(), nil)
+			}
+
 			out := output.PluginUpdateOutput{Updated: entries}
 			return output.Print(cmd, out)
 		},
@@ -179,6 +190,9 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 			if err := reg.RemovePlugin(ref); err != nil {
 				return fmt.Errorf("removing %s: %w", ref, err)
 			}
+
+			// Rebuild plugin cache after successful removal.
+			_ = plugincache.RebuildAndWrite(a.PluginLoader.Dir(), nil)
 
 			out := output.PluginRemoveOutput{
 				Name:    ref.Name,
@@ -270,11 +284,30 @@ func (a *App) NewPluginsCmd() *cobra.Command {
 	pluginsSearchCmd.Flags().BoolVar(&searchFormat, "format", false, "show only plugins providing format capabilities")
 	pluginsSearchCmd.Flags().BoolVar(&searchTool, "tool", false, "show only plugins providing tool capabilities")
 
+	pluginsRebuildCacheCmd := &cobra.Command{
+		Use:   "rebuild-cache",
+		Short: "Rebuild the plugin cache file",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := a.PluginLoader.Dir()
+			if dir == "" {
+				return fmt.Errorf("no plugin directory configured")
+			}
+			if err := plugincache.RebuildAndWrite(dir, nil); err != nil {
+				return fmt.Errorf("rebuilding plugin cache: %w", err)
+			}
+			if !a.Quiet {
+				fmt.Fprintf(os.Stderr, "Plugin cache rebuilt: %s\n", filepath.Join(dir, "plugin-cache.json"))
+			}
+			return nil
+		},
+	}
+
 	pluginsCmd.AddCommand(pluginsListCmd)
 	pluginsCmd.AddCommand(pluginsInstallCmd)
 	pluginsCmd.AddCommand(pluginsUpdateCmd)
 	pluginsCmd.AddCommand(pluginsRemoveCmd)
 	pluginsCmd.AddCommand(pluginsSearchCmd)
+	pluginsCmd.AddCommand(pluginsRebuildCacheCmd)
 
 	return pluginsCmd
 }

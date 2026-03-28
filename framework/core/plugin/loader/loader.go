@@ -19,6 +19,7 @@ import (
 
 	"github.com/neokapi/neokapi/core/format"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
+	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/plugin/host"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
@@ -109,12 +110,12 @@ func (l *PluginLoader) SetDisabledPlugins(names map[string]bool) {
 	l.disabledPlugins = names
 }
 
-// ScanMetadata discovers plugins from the configured directory and reads their
-// metadata (manifests, schemas, presets) without starting any external processes.
-// Bridge plugins are recorded for deferred loading via LoadBridges.
-// If formatReg is non-nil, format metadata from manifest capabilities is
-// registered so that "formats list" can show bridge-provided formats before
-// the bridge process is started.
+// ScanMetadata reads plugin metadata from the pre-computed cache file
+// ({plugin_dir}/plugin-cache.json). If the cache is missing or corrupt,
+// it falls back to a full directory scan and rebuilds the cache for next time.
+//
+// No external processes are started. Bridge plugins are recorded for
+// deferred loading via LoadBridges.
 func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error {
 	var fmtReg *registry.FormatRegistry
 	if len(formatReg) > 0 {
@@ -137,10 +138,104 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 		return fmt.Errorf("plugin path is not a directory: %s", l.dir)
 	}
 
+	// Try the pre-computed cache first (single file read, no directory scanning).
+	cached, err := plugincache.Read(l.dir)
+	if err == nil {
+		l.logf("loaded plugin cache (%d plugins)", len(cached.Plugins))
+		l.loadFromCache(cached, fmtReg)
+		l.scanned = true
+		return nil
+	}
+	l.logf("plugin cache miss: %v; falling back to full scan", err)
+
+	// Fallback: full directory scan + rebuild cache for next time.
+	if err := l.scanFromDisk(fmtReg); err != nil {
+		return err
+	}
+	// Best-effort cache rebuild so next startup is fast.
+	if rebuildErr := plugincache.RebuildAndWrite(l.dir, l.logger); rebuildErr != nil {
+		l.logf("rebuilding plugin cache: %v", rebuildErr)
+	}
+	l.scanned = true
+	return nil
+}
+
+// loadFromCache populates the loader state from a pre-computed cache.
+// Zero directory scanning, zero file parsing.
+func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registry.FormatRegistry) {
+	// Populate schemas.
+	for id, s := range c.Schemas {
+		l.schemas.RegisterSchema(id, s)
+	}
+
+	// Populate presets.
+	for format, presets := range c.Presets.FormatPresets {
+		for name, p := range presets {
+			l.presets.RegisterFormatPreset(format, name, p)
+		}
+	}
+	for name, p := range c.Presets.FrameworkPresets {
+		l.presets.RegisterFrameworkPreset(name, p)
+	}
+
+	for _, cp := range c.Plugins {
+		if l.disabledPlugins[cp.Name] {
+			l.logf("skipping disabled plugin: %s", cp.Name)
+			continue
+		}
+
+		var formats []string
+		for _, cf := range cp.Formats {
+			formats = append(formats, cf.VersionedName)
+		}
+
+		l.plugins = append(l.plugins, PluginInfo{
+			Name:             cp.Name,
+			Version:          cp.Version,
+			FrameworkVersion: cp.FrameworkVersion,
+			Type:             cp.InstallType,
+			Source:           cp.Dir,
+			Formats:          formats,
+		})
+
+		switch cp.InstallType {
+		case "bridge":
+			if cp.Manifest != nil {
+				fmtVersion := cp.FrameworkVersion
+				if fmtVersion == "" {
+					fmtVersion = cp.Version
+				}
+				l.pendingBridges = append(l.pendingBridges, pendingBridge{
+					manifest: cp.Manifest,
+					dir:      cp.Dir,
+					version:  fmtVersion,
+				})
+			}
+		case "binary":
+			l.pendingBinaryDirs = append(l.pendingBinaryDirs, cp.Dir)
+		}
+
+		// Register format metadata with the format registry.
+		if fmtReg != nil {
+			for _, cf := range cp.Formats {
+				fmtReg.RegisterFormatInfo(cf.VersionedName, registry.FormatInfo{
+					DisplayName: cf.DisplayName,
+					MimeTypes:   cf.MimeTypes,
+					Extensions:  cf.Extensions,
+					Source:      cf.Source,
+					HasReader:   cf.HasReader,
+					HasWriter:   cf.HasWriter,
+				})
+			}
+		}
+	}
+}
+
+// scanFromDisk performs the full directory scan (fallback when cache is missing).
+func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 	all, err := pluginreg.ListAllInstalled(l.dir)
 	if err != nil {
 		l.logf("scanning versioned plugins: %v", err)
-		l.scanned = true
 		return nil
 	}
 
@@ -174,7 +269,6 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 					continue
 				}
 
-				// Load schemas (NO Java needed).
 				schemasDir := filepath.Join(vDir, "schemas")
 				idsBefore := l.schemas.FilterIDSet()
 				if err := l.schemas.LoadFromDirectory(schemasDir); err != nil {
@@ -182,18 +276,13 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 				}
 				idsAfter := l.schemas.FilterIDSet()
 
-				// Compute which filter IDs were added by this plugin's schemas.
 				var newFilterIDs []string
 				for id := range idsAfter {
 					if _, existed := idsBefore[id]; !existed {
 						newFilterIDs = append(newFilterIDs, id)
 					}
 				}
-				if len(newFilterIDs) > 0 {
-					l.logf("loaded %d filter schemas from %s", len(newFilterIDs), schemasDir)
-				}
 
-				// Build a lookup from capability filter ID to capability metadata.
 				capByID := make(map[string]*pluginreg.Capability, len(manifest.Capabilities))
 				for i := range manifest.Capabilities {
 					cap := &manifest.Capabilities[i]
@@ -205,14 +294,8 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 					}
 				}
 
-				// Use framework_version for format version suffix when available
-				// (e.g., "1.47.0" for the underlying Okapi Framework version),
-				// falling back to the plugin version (e.g., "2.12.0").
 				fmtVersion := iv.FormatVersion()
 
-				// Derive format names from schemas (preferred) or manifest capabilities.
-				// Schemas carry the natural Okapi filter ID (e.g., "okf_html")
-				// which is more useful than the synthesized "okapi-bridge-html".
 				var formats []string
 				if len(newFilterIDs) > 0 {
 					sort.Strings(newFilterIDs)
@@ -246,7 +329,6 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 						})
 					}
 				} else {
-					// Fallback: use manifest capabilities when no schemas available.
 					for _, cap := range manifest.Capabilities {
 						if cap.Type != "format" {
 							continue
@@ -301,8 +383,6 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 		}
 	}
 
-	// Register bare-name format info aliases pointing to the latest version.
-	// E.g., "okf_html" → same info as "okf_html@2.8.0" (the latest).
 	if fmtReg != nil {
 		for baseName, candidates := range bareNameCandidates {
 			best := candidates[0]
@@ -317,10 +397,8 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 		}
 	}
 
-	// Extract bridge configuration presets from loaded schemas.
 	l.schemas.ExtractPresets(l.presets)
 
-	// Scan version directories for presets.yaml files.
 	for _, versions := range all {
 		for _, iv := range versions {
 			presetsPath := filepath.Join(iv.Dir, "presets.yaml")
@@ -332,7 +410,6 @@ func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error
 		}
 	}
 
-	l.scanned = true
 	return nil
 }
 
@@ -409,7 +486,16 @@ func (l *PluginLoader) LoadBridges(formatReg *registry.FormatRegistry, toolReg *
 			}
 			if !formatReg.HasReader(baseName) {
 				if rf := formatReg.ReaderFactory(best.name); rf != nil {
-					formatReg.RegisterReader(baseName, rf)
+					var sig format.FormatSignature
+					var displayName string
+					if info := formatReg.FormatInfo(best.name); info != nil {
+						sig = format.FormatSignature{
+							MIMETypes:  info.MimeTypes,
+							Extensions: info.Extensions,
+						}
+						displayName = info.DisplayName
+					}
+					formatReg.RegisterReader(baseName, rf, sig, displayName)
 					if info := formatReg.FormatInfo(best.name); info != nil {
 						formatReg.SetFormatSource(baseName, info.Source)
 					}
@@ -580,7 +666,7 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 
 			formatReg.RegisterReader(versionedName, func() format.DataFormatReader {
 				return bridge.NewBridgeFormatReader(sharedRegistry, bridgeCfg, filterClass, sig)
-			})
+			}, sig, "")
 			// No separate writer registration — bridge formats use BridgeProcessor
 			// for the single-pass pipeline (Go acts as an Okapi step).
 			formatReg.SetFormatSource(versionedName, manifest.Name)
