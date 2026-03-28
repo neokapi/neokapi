@@ -84,7 +84,7 @@ func (h *notificationHub) notifyUser(userID string, notification *bstore.Notific
 }
 
 // HandleNotificationWebSocket handles WebSocket connections for real-time notifications.
-// Route: GET /api/v1/workspaces/:ws/notifications/ws
+// Route: GET /api/v1/:ws/notifications/ws
 func (s *Server) HandleNotificationWebSocket(c echo.Context) error {
 	userID := getUserID(c)
 	if userID == "" {

@@ -407,7 +407,13 @@ func (r SaveProviderConfigRequest) toCredentials() credentials.ProviderConfig {
 // streamParam extracts the active stream from the request.
 // It checks the URL path param first (stream-scoped routes), then falls back
 // to a query param, then defaults to "main".
-func streamParam(c echo.Context) string {
+// refParam extracts the ref (stream or tag) from the request.
+// AD-040: resource-first ref pattern — ref comes from :ref path param.
+// Falls back to :stream (legacy) and ?stream= query param for backward compat.
+func refParam(c echo.Context) string {
+	if s := c.Param("ref"); s != "" {
+		return s
+	}
 	if s := c.Param("stream"); s != "" {
 		return s
 	}
@@ -417,9 +423,17 @@ func streamParam(c echo.Context) string {
 	return "main"
 }
 
-// streamParamWithProject extracts the active stream from the request,
+// streamParam is an alias for refParam (backward compatibility).
+func streamParam(c echo.Context) string {
+	return refParam(c)
+}
+
+// refParamWithProject extracts the ref from the request,
 // falling back to the project's configured default stream before "main".
-func streamParamWithProject(c echo.Context, p *store.Project) string {
+func refParamWithProject(c echo.Context, p *store.Project) string {
+	if s := c.Param("ref"); s != "" {
+		return s
+	}
 	if s := c.Param("stream"); s != "" {
 		return s
 	}
@@ -430,6 +444,31 @@ func streamParamWithProject(c echo.Context, p *store.Project) string {
 		return p.DefaultStream
 	}
 	return "main"
+}
+
+// streamParamWithProject is an alias for refParamWithProject (backward compatibility).
+func streamParamWithProject(c echo.Context, p *store.Project) string {
+	return refParamWithProject(c, p)
+}
+
+// itemParam extracts the item path from the ?item= query parameter.
+// AD-040: item paths use query params instead of wildcard suffixes.
+// Falls back to wildcard path param (*) for backward compatibility.
+func itemParam(c echo.Context) string {
+	if item := c.QueryParam("item"); item != "" {
+		return item
+	}
+	// Legacy wildcard fallback.
+	return c.Param("*")
+}
+
+// projectParam extracts the project ID from either :id or :pid path parameter.
+// AD-040 uses :id consistently, but some handlers historically use :pid.
+func projectParam(c echo.Context) string {
+	if id := c.Param("id"); id != "" {
+		return id
+	}
+	return c.Param("pid")
 }
 
 // ---------------------------------------------------------------------------
@@ -962,9 +1001,12 @@ func buildStreamChain(ctx context.Context, cs store.ContentStore, projectID, str
 // Helpers
 // ---------------------------------------------------------------------------
 
-// fileParam extracts the filename from an Echo wildcard (*) route parameter.
-// Wildcard params include a leading slash, so we trim it.
+// fileParam extracts the item/file path from the request.
+// AD-040: uses ?item= query param. Falls back to wildcard (*) for legacy routes.
 func fileParam(c echo.Context) string {
+	if item := c.QueryParam("item"); item != "" {
+		return item
+	}
 	return strings.TrimPrefix(c.Param("*"), "/")
 }
 

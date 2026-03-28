@@ -50,7 +50,7 @@ func (s *Server) HandleGetEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	ctx := c.Request().Context()
 
 	proj, err := s.ContentStore.GetProject(ctx, pid)
@@ -118,7 +118,7 @@ func (s *Server) HandleUpdateEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	ctx := c.Request().Context()
 
 	proj, err := s.ContentStore.GetProject(ctx, pid)
@@ -221,7 +221,7 @@ func (s *Server) HandleDeleteEditorProject(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	if err := s.ContentStore.ArchiveProject(c.Request().Context(), pid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -239,7 +239,7 @@ func (s *Server) HandleRestoreProject(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	if err := s.ContentStore.RestoreProject(c.Request().Context(), pid); err != nil {
 		return c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	}
@@ -299,7 +299,7 @@ func (s *Server) HandlePermanentlyDeleteProject(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	ctx := c.Request().Context()
 
 	// Only allow permanent deletion of archived projects.
@@ -328,7 +328,7 @@ func (s *Server) HandleUploadFiles(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 
 	form, err := c.MultipartForm()
 	if err != nil {
@@ -373,7 +373,7 @@ func (s *Server) HandleRemoveFile(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 
 	info, err := editorRemoveFile(c.Request().Context(), s.ContentStore, pid, streamParam(c), fname)
@@ -392,7 +392,7 @@ func (s *Server) HandleGetFileBlocks(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 	ctx := c.Request().Context()
 
@@ -425,7 +425,7 @@ func (s *Server) HandleUpdateBlockTarget(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 
 	var req UpdateBlockTargetRequest
@@ -463,7 +463,7 @@ func (s *Server) HandleUpdateBlockTargetCoded(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 
 	var req UpdateBlockTargetCodedRequest
@@ -493,7 +493,7 @@ func (s *Server) HandlePseudoTranslate(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 
 	var req struct {
@@ -526,7 +526,7 @@ func (s *Server) HandleAITranslate(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 
 	var req TranslateRequest
@@ -558,7 +558,7 @@ func (s *Server) HandleTMTranslate(c echo.Context) error {
 	}
 
 	ws := c.Param("ws")
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 
 	var req struct {
@@ -587,7 +587,7 @@ func (s *Server) HandleGetWordCount(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 	ctx := c.Request().Context()
 
@@ -615,7 +615,7 @@ func (s *Server) HandleExportTranslatedFile(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 
 	var req struct {
@@ -641,7 +641,7 @@ func (s *Server) HandleLookupTMForBlock(c echo.Context) error {
 	}
 
 	ws := c.Param("ws")
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 	targetLocale := c.QueryParam("target_locale")
 
@@ -663,7 +663,7 @@ func (s *Server) HandleLookupTermsForBlock(c echo.Context) error {
 	}
 
 	ws := c.Param("ws")
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 	targetLocale := c.QueryParam("target_locale")
 
@@ -1172,7 +1172,7 @@ func (s *Server) HandleGetBlockHistory(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 	locale := c.QueryParam("locale")
 	if locale == "" {
@@ -1204,7 +1204,7 @@ func (s *Server) HandleGetTranslationDashboard(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	stream := streamParam(c)
 	wsID, _ := c.Get("workspace_id").(string)
 	ctx := c.Request().Context()

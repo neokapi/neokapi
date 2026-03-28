@@ -58,7 +58,7 @@ func (s *Server) HandleListActivities(c echo.Context) error {
 }
 
 // HandleMarkActivitiesSeen records that the user has viewed the activity feed.
-// POST /api/v1/workspaces/:ws/activities/seen
+// POST /api/v1/:ws/activities/seen
 func (s *Server) HandleMarkActivitiesSeen(c echo.Context) error {
 	if s.ActivityStore == nil {
 		return c.NoContent(http.StatusNoContent)

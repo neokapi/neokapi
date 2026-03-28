@@ -265,35 +265,3 @@ func (s *Server) HandleCancelTask(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
 
-// HandleListMyTasks returns tasks assigned to the current user across all projects.
-func (s *Server) HandleListMyTasks(c echo.Context) error {
-	if s.TaskStore == nil {
-		return c.JSON(http.StatusOK, map[string]any{"tasks": []any{}, "next_cursor": ""})
-	}
-
-	ws := c.Param("ws")
-	userID, _ := c.Get("user_id").(string)
-
-	q := bstore.TaskQuery{
-		WorkspaceID: ws,
-		AssigneeID:  userID,
-		Status:      c.QueryParam("status"),
-		Cursor:      c.QueryParam("cursor"),
-	}
-
-	if l := c.QueryParam("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
-			q.Limit = parsed
-		}
-	}
-
-	result, err := s.TaskStore.List(c.Request().Context(), q)
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()})
-	}
-	if result.Tasks == nil {
-		result.Tasks = []bstore.Task{}
-	}
-
-	return c.JSON(http.StatusOK, result)
-}

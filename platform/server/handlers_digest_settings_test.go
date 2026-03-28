@@ -31,7 +31,7 @@ func TestHandleGetDigestSettings_Default(t *testing.T) {
 	srv := setupDigestTestServer(t)
 	e := srv.GetEcho()
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/ws-1/digest-settings", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws-1/digest-settings", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws")
@@ -57,7 +57,7 @@ func TestHandleGetDigestSettings_NilStore(t *testing.T) {
 	// DigestStore is nil by default.
 
 	e := srv.GetEcho()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/ws-1/digest-settings", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/ws-1/digest-settings", nil)
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
 	c.SetParamNames("ws")
@@ -78,7 +78,7 @@ func TestHandleUpdateDigestSettings_Valid(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"frequency":"weekly","timezone":"America/New_York","quiet_start":"22:00","quiet_end":"08:00"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/ws-1/digest-settings", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/ws-1/digest-settings", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -105,7 +105,7 @@ func TestHandleUpdateDigestSettings_InvalidFrequency(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"frequency":"hourly"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/ws-1/digest-settings", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/ws-1/digest-settings", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -126,7 +126,7 @@ func TestHandleUpdateDigestSettings_Off(t *testing.T) {
 	e := srv.GetEcho()
 
 	body := `{"frequency":"off"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/ws-1/digest-settings", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/ws-1/digest-settings", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -151,7 +151,7 @@ func TestHandleUpdateDigestSettings_NilStore(t *testing.T) {
 
 	e := srv.GetEcho()
 	body := `{"frequency":"daily"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/ws-1/digest-settings", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/ws-1/digest-settings", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -173,7 +173,7 @@ func TestHandleUpdateDigestSettings_Roundtrip(t *testing.T) {
 
 	// Update settings.
 	body := `{"frequency":"weekly","timezone":"Europe/Berlin","quiet_start":"23:00","quiet_end":"07:00"}`
-	req := httptest.NewRequest(http.MethodPut, "/api/v1/workspaces/ws-1/digest-settings", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/ws-1/digest-settings", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
@@ -186,7 +186,7 @@ func TestHandleUpdateDigestSettings_Roundtrip(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	// Read back via GET.
-	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/workspaces/ws-1/digest-settings", nil)
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/ws-1/digest-settings", nil)
 	rec2 := httptest.NewRecorder()
 	c2 := e.NewContext(req2, rec2)
 	c2.SetParamNames("ws")

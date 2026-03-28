@@ -63,7 +63,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     if (!enableWebSocket || !ws) return;
 
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const url = `${protocol}//${window.location.host}/api/v1/workspaces/${ws}/notifications/ws`;
+    const url = `${protocol}//${window.location.host}/api/v1/${ws}/notifications/ws`;
 
     let socket: WebSocket;
     try {

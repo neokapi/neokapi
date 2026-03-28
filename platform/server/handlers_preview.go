@@ -23,7 +23,7 @@ func (s *Server) HandleRenderDocumentPreview(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 	ctx := c.Request().Context()
 
@@ -76,7 +76,7 @@ func (s *Server) HandleRenderBlockHTML(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 	targetLocale := c.QueryParam("locale")
 	stream := streamParam(c)

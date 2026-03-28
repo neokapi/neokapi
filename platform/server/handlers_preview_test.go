@@ -18,10 +18,10 @@ func TestRenderDocumentPreview_PreviewHTMLFallback(t *testing.T) {
 	pid := createProject(t, srv, token)
 	ctx := context.Background()
 
-	// Preview routes are workspace-scoped: /api/v1/workspaces/:ws/editor/projects/:pid/file-preview/*
+	// Preview routes are workspace-scoped: /api/v1/:ws/:pid/preview/main?item=...
 	// The test workspace slug is "test" (created by newTestServer).
 	previewURL := func(filename string) string {
-		return "/api/v1/workspaces/test/editor/projects/" + pid + "/file-preview/" + filename
+		return "/api/v1/test/" + pid + "/preview/main?item=" + filename
 	}
 
 	t.Run("returns PreviewHTML directly when set", func(t *testing.T) {

@@ -16,7 +16,7 @@ type ProjectMemberRequest struct {
 
 // HandleListProjectMembers returns all members of a project.
 func (s *Server) HandleListProjectMembers(c echo.Context) error {
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	ctx := c.Request().Context()
 
 	members, err := s.AuthStore.ListProjectMembers(ctx, projectID)
@@ -41,7 +41,7 @@ func (s *Server) HandleAddProjectMember(c echo.Context) error {
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 
 	// Verify the role template exists in this workspace.
 	if _, err := s.AuthStore.GetRoleTemplate(c.Request().Context(), workspaceID, req.RoleID); err != nil {
@@ -75,7 +75,7 @@ func (s *Server) HandleUpdateProjectMember(c echo.Context) error {
 	}
 
 	workspaceID, _ := c.Get("workspace_id").(string)
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	userID := c.Param("uid")
 
 	if req.RoleID != "" {
@@ -105,7 +105,7 @@ func (s *Server) HandleRemoveProjectMember(c echo.Context) error {
 		return err
 	}
 
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	userID := c.Param("uid")
 
 	if err := s.AuthStore.RemoveProjectMember(c.Request().Context(), projectID, userID); err != nil {

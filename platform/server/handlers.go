@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
+	"github.com/neokapi/neokapi/core/locale"
 	"github.com/neokapi/neokapi/core/version"
 )
 
@@ -26,11 +27,22 @@ type ConfigResponse struct {
 	BuildDate string `json:"build_date"`
 }
 
-// InfoResponse returns detailed build information.
+// InfoResponse returns server info including mode, build metadata, and reference data.
 type InfoResponse struct {
-	Version   string `json:"version"`
-	Commit    string `json:"commit"`
-	BuildDate string `json:"build_date"`
+	Mode           string              `json:"mode"` // "standalone" or "server"
+	Version        string              `json:"version"`
+	Commit         string              `json:"commit"`
+	BuildDate      string              `json:"build_date"`
+	Formats        []FormatInfo        `json:"formats"`
+	Tools          []ToolInfo          `json:"tools"`
+	Locales        []locale.LocaleInfo `json:"locales"`
+	ConnectorTypes []ConnectorTypeInfo `json:"connector_types,omitempty"`
+}
+
+// ConnectorTypeInfo describes an available connector type.
+type ConnectorTypeInfo struct {
+	Name     string `json:"name"`
+	Category string `json:"category"`
 }
 
 // FormatInfo describes a registered format.
@@ -229,12 +241,66 @@ func (s *Server) HandleConfig(c echo.Context) error {
 	})
 }
 
-// HandleInfo returns detailed build information.
+// HandleInfo returns server info: mode, build metadata, and all reference data
+// (formats, tools, locales, connector types). This consolidates the former
+// /config, /formats, /tools, /locales, and /connectors/types endpoints.
 func (s *Server) HandleInfo(c echo.Context) error {
+	mode := "server"
+	if s.Config.JWTSecret == "" {
+		mode = "standalone"
+	}
+
+	// Formats.
+	nameSet := make(map[string]struct{})
+	for _, name := range s.FormatRegistry.ReaderNames() {
+		nameSet[name] = struct{}{}
+	}
+	for _, name := range s.FormatRegistry.WriterNames() {
+		nameSet[name] = struct{}{}
+	}
+	var formats []FormatInfo
+	for name := range nameSet {
+		formats = append(formats, FormatInfo{
+			Name:      name,
+			HasReader: s.FormatRegistry.HasReader(name),
+			HasWriter: s.FormatRegistry.HasWriter(name),
+		})
+	}
+	sort.Slice(formats, func(i, j int) bool {
+		return formats[i].Name < formats[j].Name
+	})
+
+	// Tools.
+	toolNames := s.ToolRegistry.Names()
+	sort.Strings(toolNames)
+	tools := make([]ToolInfo, len(toolNames))
+	for i, name := range toolNames {
+		tools[i] = ToolInfo{Name: name}
+	}
+
+	// Locales.
+	locales := locale.WellKnownLocales()
+
+	// Connector types.
+	var connectorTypes []ConnectorTypeInfo
+	if s.Services != nil {
+		for _, ct := range s.Services.Connector.ListConnectorTypes() {
+			connectorTypes = append(connectorTypes, ConnectorTypeInfo{
+				Name:     ct.Name,
+				Category: string(ct.Category),
+			})
+		}
+	}
+
 	return c.JSON(http.StatusOK, InfoResponse{
-		Version:   version.Version,
-		Commit:    version.Commit,
-		BuildDate: version.BuildDate,
+		Mode:           mode,
+		Version:        version.Version,
+		Commit:         version.Commit,
+		BuildDate:      version.BuildDate,
+		Formats:        formats,
+		Tools:          tools,
+		Locales:        locales,
+		ConnectorTypes: connectorTypes,
 	})
 }
 

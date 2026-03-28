@@ -316,10 +316,10 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 	}
 
 	projectID := c.Param("id")
-	streamName := c.Param("stream")
 
 	var req struct {
 		Name     string            `json:"name"`
+		Stream   string            `json:"stream"` // AD-040: stream specified in body, not URL
 		Kind     string            `json:"kind"`
 		Metadata map[string]string `json:"metadata"`
 	}
@@ -328,6 +328,15 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 	}
 	if req.Name == "" {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "tag name is required"})
+	}
+	// AD-040: stream comes from body (tags are project-level peers to streams).
+	// Fall back to :stream param for backward compat with old nested routes.
+	streamName := req.Stream
+	if streamName == "" {
+		streamName = c.Param("stream")
+	}
+	if streamName == "" {
+		streamName = "main"
 	}
 
 	kind := store.TagKindCustom
@@ -362,14 +371,14 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 }
 
 // HandleGetStreamTag returns a single tag.
-// GET /api/v1/projects/:id/streams/:stream/tags/:tag
+// AD-040: GET /:ws/:id/tags/:tag (project-level, no stream in URL)
 func (s *Server) HandleGetStreamTag(c echo.Context) error {
 	if s.ContentStore == nil {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
 	projectID := c.Param("id")
-	streamName := c.Param("stream")
+	streamName := c.Param("stream") // empty for new routes, present for legacy
 	tagName := c.Param("tag")
 
 	tag, err := s.ContentStore.GetStreamTag(c.Request().Context(), projectID, streamName, tagName)
@@ -381,7 +390,7 @@ func (s *Server) HandleGetStreamTag(c echo.Context) error {
 }
 
 // HandleDeleteStreamTag removes a tag.
-// DELETE /api/v1/projects/:id/streams/:stream/tags/:tag
+// AD-040: DELETE /:ws/:id/tags/:tag (project-level, no stream in URL)
 func (s *Server) HandleDeleteStreamTag(c echo.Context) error {
 	if err := s.requirePermission(c, platauth.PermManageStreams); err != nil {
 		return err
@@ -392,7 +401,7 @@ func (s *Server) HandleDeleteStreamTag(c echo.Context) error {
 	}
 
 	projectID := c.Param("id")
-	streamName := c.Param("stream")
+	streamName := c.Param("stream") // empty for new routes, present for legacy
 	tagName := c.Param("tag")
 
 	if err := s.ContentStore.DeleteStreamTag(c.Request().Context(), projectID, streamName, tagName); err != nil {

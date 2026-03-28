@@ -45,7 +45,7 @@ func CreateToken(serverURL, token, workspace, name string, expireDays int) (*Cre
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	u := fmt.Sprintf("%s/api/v1/workspaces/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
+	u := fmt.Sprintf("%s/api/v1/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
 	req, err := http.NewRequest(http.MethodPost, u, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -73,7 +73,7 @@ func CreateToken(serverURL, token, workspace, name string, expireDays int) (*Cre
 
 // ListTokens returns all API tokens for the given workspace.
 func ListTokens(serverURL, token, workspace string) ([]TokenInfo, error) {
-	u := fmt.Sprintf("%s/api/v1/workspaces/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
+	u := fmt.Sprintf("%s/api/v1/%s/tokens", strings.TrimRight(serverURL, "/"), workspace)
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
@@ -100,7 +100,7 @@ func ListTokens(serverURL, token, workspace string) ([]TokenInfo, error) {
 
 // DeleteToken deletes an API token by ID.
 func DeleteToken(serverURL, token, workspace, tokenID string) error {
-	u := fmt.Sprintf("%s/api/v1/workspaces/%s/tokens/%s", strings.TrimRight(serverURL, "/"), workspace, tokenID)
+	u := fmt.Sprintf("%s/api/v1/%s/tokens/%s", strings.TrimRight(serverURL, "/"), workspace, tokenID)
 	req, err := http.NewRequest(http.MethodDelete, u, nil)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)

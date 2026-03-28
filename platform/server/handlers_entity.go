@@ -38,7 +38,7 @@ func (s *Server) HandleCreateEntity(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	itemName := c.QueryParam("item")
 
@@ -98,7 +98,7 @@ func (s *Server) HandleUpdateEntity(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	entityKey := "entity:" + c.Param("idx")
 	itemName := c.QueryParam("item")
@@ -149,7 +149,7 @@ func (s *Server) HandleDeleteEntity(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	entityKey := "entity:" + c.Param("idx")
 	itemName := c.QueryParam("item")
@@ -182,7 +182,7 @@ func (s *Server) HandlePromoteEntity(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	projectID := c.Param("pid")
+	projectID := projectParam(c)
 	blockID := c.Param("bid")
 	entityKey := "entity:" + c.Param("idx")
 	itemName := c.QueryParam("item")

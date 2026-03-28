@@ -35,7 +35,7 @@ func (s *Server) HandleQACheckBlock(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	bid := c.Param("bid")
 	locale := c.QueryParam("locale")
 	if locale == "" {
@@ -62,7 +62,7 @@ func (s *Server) HandleQACheckFile(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	fname := fileParam(c)
 	locale := c.QueryParam("locale")
 	if locale == "" {

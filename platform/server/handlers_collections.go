@@ -56,7 +56,7 @@ func (s *Server) HandleListCollections(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	stream := streamParam(c)
 	ctx := c.Request().Context()
 
@@ -91,7 +91,7 @@ func (s *Server) HandleCreateCollection(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	var req CreateCollectionRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
@@ -128,7 +128,7 @@ func (s *Server) HandleGetCollection(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	cid := c.Param("cid")
 
 	coll, err := s.ContentStore.GetCollection(c.Request().Context(), pid, cid)
@@ -149,7 +149,7 @@ func (s *Server) HandleUpdateCollection(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	cid := c.Param("cid")
 	ctx := c.Request().Context()
 
@@ -194,7 +194,7 @@ func (s *Server) HandleDeleteCollection(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "store not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	cid := c.Param("cid")
 
 	if err := s.ContentStore.DeleteCollection(c.Request().Context(), pid, cid); err != nil {
@@ -215,7 +215,7 @@ func (s *Server) HandleUploadToCollection(c echo.Context) error {
 		return c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "editor not configured"})
 	}
 
-	pid := c.Param("pid")
+	pid := projectParam(c)
 	cid := c.Param("cid")
 	ctx := c.Request().Context()
 

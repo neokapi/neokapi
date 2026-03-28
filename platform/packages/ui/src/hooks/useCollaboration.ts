@@ -102,7 +102,7 @@ export function useCollaboration(options: UseCollaborationOptions) {
 
     // Build WebSocket URL for the collab endpoint.
     const wsBase = serverUrl.replace(/^http/, "ws");
-    const wsUrl = `${wsBase}/api/v1/workspaces/${workspace}/editor/projects/${projectId}/collab/${encodeURIComponent(fileName)}?locale=${encodeURIComponent(locale)}`;
+    const wsUrl = `${wsBase}/api/v1/${workspace}/${encodeURIComponent(projectId)}/collab/main?item=${encodeURIComponent(fileName)}&locale=${encodeURIComponent(locale)}`;
 
     // Room name used by y-websocket protocol.
     const roomName = `${workspace}:${projectId}:${fileName}:${locale}`;
