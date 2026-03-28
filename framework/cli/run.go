@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 )
@@ -16,20 +15,8 @@ type RunCmdOptions struct {
 }
 
 // builtinComposedFlowNames lists flows that are genuinely composed (multi-tool).
-// These are the primary targets of "kapi run".
 var builtinComposedFlowNames = map[string]bool{
 	"ai-translate-qa": true,
-}
-
-// builtinSingleToolFlowNames lists flow names that map to a single tool.
-// These are accepted by "kapi run" for backward compatibility but the
-// preferred invocation is as a top-level tool command (e.g. "kapi ai-translate").
-var builtinSingleToolFlowNames = map[string]bool{
-	"ai-translate":     true,
-	"pseudo-translate": true,
-	"qa-check":         true,
-	"tm-leverage":      true,
-	"segmentation":     true,
 }
 
 // NewRunCmd creates the "run" command for executing composed flows.
@@ -58,12 +45,6 @@ Custom flows can be defined in .bowrain/flows/ as YAML files.`,
 
 			// Built-in composed flow — run directly.
 			if builtinComposedFlowNames[flowName] {
-				return a.RunFlow(context.Background(), cmd, flowName, flowOpts)
-			}
-
-			// Single-tool flow name — still works but suggest the tool command.
-			if builtinSingleToolFlowNames[flowName] {
-				fmt.Fprintf(os.Stderr, "Hint: \"%s\" is a single tool — you can run it directly as \"kapi %s\"\n", flowName, flowName)
 				return a.RunFlow(context.Background(), cmd, flowName, flowOpts)
 			}
 
