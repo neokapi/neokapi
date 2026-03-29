@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
   FolderOpen,
   Workflow,
@@ -6,7 +5,6 @@ import {
   Settings,
 } from "lucide-react";
 import type { View } from "../types/api";
-import { api } from "../hooks/useApi";
 
 interface SidebarProps {
   activeView: View;
@@ -23,14 +21,6 @@ export function Sidebar({
   activeView,
   onViewChange,
 }: SidebarProps) {
-  const [version, setVersion] = useState("v0.1.0");
-
-  useEffect(() => {
-    api.getVersion().then((v) => {
-      if (v) setVersion(v);
-    });
-  }, []);
-
   return (
     <aside className="flex w-52 flex-col border-r border-border bg-sidebar pt-2">
       {/* Project navigation */}
@@ -64,9 +54,6 @@ export function Sidebar({
           <Settings size={18} />
           Settings
         </button>
-        <span className="mt-1 block px-2.5 text-xs text-muted-foreground">
-          Kapi Desktop {version}
-        </span>
       </div>
     </aside>
   );
