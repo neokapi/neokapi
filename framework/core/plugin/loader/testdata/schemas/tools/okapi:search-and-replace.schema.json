@@ -1,0 +1,57 @@
+{
+  "$id": "okapi:search-and-replace",
+  "title": "Search and Replace",
+  "type": "object",
+  "x-component": {
+    "id": "okapi:search-and-replace",
+    "type": "step",
+    "displayName": "Search and Replace",
+    "description": "Performs search and replace on the entire file or the text units. Expects raw document or filter events. Sends back: raw document or filter events."
+  },
+  "properties": {
+    "regEx": {
+      "type": "boolean",
+      "default": false
+    },
+    "dotAll": {
+      "type": "boolean",
+      "default": false
+    },
+    "ignoreCase": {
+      "type": "boolean",
+      "default": false
+    },
+    "multiLine": {
+      "type": "boolean",
+      "default": false
+    },
+    "target": {
+      "type": "boolean",
+      "default": true
+    },
+    "source": {
+      "type": "boolean",
+      "default": false
+    },
+    "replaceALL": {
+      "type": "boolean",
+      "default": true
+    },
+    "replacementsPath": {
+      "type": "string",
+      "default": ""
+    },
+    "logPath": {
+      "type": "string",
+      "default": "${rootDir}/replacementsLog.txt"
+    },
+    "saveLog": {
+      "type": "boolean",
+      "default": false
+    },
+    "count": {
+      "type": "integer",
+      "default": 0
+    }
+  }
+}
