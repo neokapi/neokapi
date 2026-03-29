@@ -61,6 +61,7 @@ export const api = {
     call<TabInfo>("NewProject", name, sourceLang, targetLangs, savePath ?? ""),
   openProject: (path: string) => call<TabInfo>("OpenProject", path),
   openProjectDialog: () => call<TabInfo>("OpenProjectDialog"),
+  browseProjectLocation: () => call<string>("BrowseProjectLocation"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
   saveProject: (tabID: string) => call<void>("SaveProject", tabID),

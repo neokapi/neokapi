@@ -74,3 +74,20 @@ func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 
 	return &TabInfo{ID: tabID, Name: op.Project.Name, Path: path}, nil
 }
+
+// BrowseProjectLocation shows a native directory picker and returns the selected path.
+// Used during "New Project" to choose where to save the project.
+func (a *App) BrowseProjectLocation() string {
+	if a.app == nil {
+		return ""
+	}
+
+	path, err := a.app.Dialog.OpenFile().
+		CanChooseDirectories(true).
+		CanChooseFiles(false).
+		PromptForSingleSelection()
+	if err != nil || path == "" {
+		return ""
+	}
+	return path
+}

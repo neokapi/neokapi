@@ -12,7 +12,7 @@ import { api } from "../hooks/useApi";
 
 interface WelcomePageProps {
   onOpen: (tab: TabInfo) => void;
-  onNew: (project: KapiProject) => void;
+  onNew: (project: KapiProject, savePath?: string) => void;
   onSettings?: () => void;
 }
 
@@ -39,10 +39,21 @@ const GET_STARTED = [
   },
 ];
 
+// Characters not allowed in directory names.
+const INVALID_DIR_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
+
+function isValidDirName(name: string): boolean {
+  if (!name.trim()) return false;
+  if (INVALID_DIR_CHARS.test(name)) return false;
+  if (name === "." || name === "..") return false;
+  return true;
+}
+
 export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   const [error, setError] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState("");
+  const [customPath, setCustomPath] = useState("");
   const [creating, setCreating] = useState(false);
   const [recentFiles, setRecentFiles] = useState<
     Array<{ path: string; name: string; opened_at: string }>
@@ -54,15 +65,30 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
     });
   }, []);
 
+  const nameValid = isValidDirName(newName);
+  const savePath = customPath || (nameValid ? `~/KapiProjects/${newName.trim()}` : "");
+
   const handleNew = useCallback(() => {
     setShowNewForm(true);
     setNewName("");
+    setCustomPath("");
     setError(null);
+  }, []);
+
+  const handleBrowse = useCallback(async () => {
+    try {
+      const dir = await api.browseProjectLocation();
+      if (dir) {
+        setCustomPath(shortenHome(dir));
+      }
+    } catch (e) {
+      setError(String(e));
+    }
   }, []);
 
   const handleCreateProject = useCallback(async () => {
     const name = newName.trim();
-    if (!name) return;
+    if (!name || !nameValid) return;
     setCreating(true);
     setError(null);
     try {
@@ -73,14 +99,16 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
         target_languages: [],
         flows: {},
       };
-      onNew(proj);
+      // If custom path is set, save to {customPath}/project.kapi
+      const path = customPath ? `${customPath}/project.kapi` : undefined;
+      onNew(proj, path);
       setShowNewForm(false);
     } catch (e) {
       setError(String(e));
     } finally {
       setCreating(false);
     }
-  }, [newName, onNew]);
+  }, [newName, nameValid, onNew]);
 
   const handleOpen = useCallback(async () => {
     setError(null);
@@ -149,19 +177,40 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateProject(); }}
+                    onKeyDown={(e) => { if (e.key === "Enter" && nameValid) handleCreateProject(); }}
                     placeholder="My App"
                     autoFocus
-                    className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    className={`w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
+                      newName && !nameValid ? "border-destructive" : "border-input"
+                    }`}
                   />
-                  <p className="mt-1 text-left text-xs text-muted-foreground">
-                    Saved to ~/KapiProjects/{newName.trim() || "..."}/project.kapi
-                  </p>
+                  {newName && !nameValid && (
+                    <p className="mt-1 text-left text-xs text-destructive">
+                      Name contains invalid characters for a directory
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="mb-1 block text-left text-xs text-muted-foreground">
+                    Location
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <span className="flex-1 truncate rounded-lg border border-input bg-transparent px-3 py-2 text-xs text-muted-foreground">
+                      {savePath ? `${savePath}/project.kapi` : "Choose a name first"}
+                    </span>
+                    <button
+                      onClick={handleBrowse}
+                      className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs hover:bg-accent"
+                      aria-label="Browse for location"
+                    >
+                      Browse
+                    </button>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleCreateProject}
-                    disabled={!newName.trim() || creating}
+                    disabled={!nameValid || creating}
                     className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {creating ? "Creating..." : "Create Project"}

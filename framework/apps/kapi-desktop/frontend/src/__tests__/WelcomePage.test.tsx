@@ -40,6 +40,7 @@ describe("WelcomePage", () => {
     await userEvent.click(screen.getByText("Create Project"));
     expect(onNew).toHaveBeenCalledWith(
       expect.objectContaining({ name: "Test App" }),
+      undefined, // no custom path
     );
   });
 

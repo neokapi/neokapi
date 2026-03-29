@@ -38,15 +38,16 @@ export default function App() {
   );
 
   const handleNewProject = useCallback(
-    async (proj: KapiProject) => {
+    async (proj: KapiProject, savePath?: string) => {
       const tab = await api.newProject(
         proj.name,
         proj.source_language ?? "en-US",
         proj.target_languages ?? [],
-        "", // empty savePath → defaults to ~/KapiProjects/{name}/project.kapi
+        savePath,
       );
       if (tab) {
-        addTab(tab, proj);
+        const saved = await api.getProject(tab.id);
+        addTab(tab, saved ?? proj);
       }
     },
     [addTab],
