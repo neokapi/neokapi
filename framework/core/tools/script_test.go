@@ -123,7 +123,7 @@ func TestScriptLog(t *testing.T) {
 	os.Stderr = oldStderr
 
 	var buf bytes.Buffer
-	buf.ReadFrom(r)
+	_, _ = buf.ReadFrom(r)
 	assert.Contains(t, buf.String(), "test message")
 }
 

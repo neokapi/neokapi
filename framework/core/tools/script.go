@@ -189,12 +189,12 @@ func partTypeString(pt model.PartType) string {
 // partToJS converts a Part into a JS-friendly goja object.
 func partToJS(vm *goja.Runtime, part *model.Part) *goja.Object {
 	obj := vm.NewObject()
-	obj.Set("type", partTypeString(part.Type))
+	_ = obj.Set("type", partTypeString(part.Type))
 
 	if part.Type == model.PartBlock {
 		block, ok := part.Resource.(*model.Block)
 		if ok {
-			obj.Set("block", blockToJS(vm, block))
+			_ = obj.Set("block", blockToJS(vm, block))
 		}
 	}
 	return obj
@@ -203,19 +203,19 @@ func partToJS(vm *goja.Runtime, part *model.Part) *goja.Object {
 // blockToJS converts a Block into a JS-friendly goja object.
 func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 	obj := vm.NewObject()
-	obj.Set("id", block.ID)
-	obj.Set("translatable", block.Translatable)
+	_ = obj.Set("id", block.ID)
+	_ = obj.Set("translatable", block.Translatable)
 
 	// Source segments as array of {content: {text: "..."}}
 	source := make([]any, 0, len(block.Source))
 	for _, seg := range block.Source {
 		segObj := vm.NewObject()
 		contentObj := vm.NewObject()
-		contentObj.Set("text", seg.Content.Text())
-		segObj.Set("content", contentObj)
+		_ = contentObj.Set("text", seg.Content.Text())
+		_ = segObj.Set("content", contentObj)
 		source = append(source, segObj)
 	}
-	obj.Set("source", source)
+	_ = obj.Set("source", source)
 
 	// Targets as map of locale -> [{content: {text: "..."}}]
 	targets := vm.NewObject()
@@ -224,13 +224,13 @@ func blockToJS(vm *goja.Runtime, block *model.Block) *goja.Object {
 		for _, seg := range segs {
 			segObj := vm.NewObject()
 			contentObj := vm.NewObject()
-			contentObj.Set("text", seg.Content.Text())
-			segObj.Set("content", contentObj)
+			_ = contentObj.Set("text", seg.Content.Text())
+			_ = segObj.Set("content", contentObj)
 			localeSegs = append(localeSegs, segObj)
 		}
-		targets.Set(string(locale), localeSegs)
+		_ = targets.Set(string(locale), localeSegs)
 	}
-	obj.Set("targets", targets)
+	_ = obj.Set("targets", targets)
 
 	return obj
 }
