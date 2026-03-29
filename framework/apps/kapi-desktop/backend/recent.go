@@ -66,8 +66,20 @@ func (s *recentStore) add(path, name string) {
 func (s *recentStore) list() []RecentFile {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]RecentFile, len(s.files))
-	copy(out, s.files)
+	var out []RecentFile
+	changed := false
+	for _, f := range s.files {
+		if _, err := os.Stat(f.Path); err == nil {
+			out = append(out, f)
+		} else {
+			changed = true
+		}
+	}
+	// Prune deleted entries from the persisted list.
+	if changed {
+		s.files = out
+		s.save()
+	}
 	return out
 }
 

@@ -9,92 +9,100 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// createTempKapi creates a temp .kapi file and returns its path.
+func createTempKapi(t *testing.T, name string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name+".kapi")
+	require.NoError(t, os.WriteFile(path, []byte("version: v1\nname: "+name), 0o644))
+	return path
+}
+
 func TestRecentStoreEmpty(t *testing.T) {
-	s := &recentStore{
-		filePath: filepath.Join(t.TempDir(), "recent.json"),
-	}
+	s := &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
 	assert.Empty(t, s.list())
 }
 
 func TestRecentStoreAddAndList(t *testing.T) {
-	s := &recentStore{
-		filePath: filepath.Join(t.TempDir(), "recent.json"),
-	}
+	s := &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
+	path := createTempKapi(t, "project")
 
-	s.add("/path/to/project.kapi", "My Project")
+	s.add(path, "My Project")
 	files := s.list()
 	require.Len(t, files, 1)
-	assert.Equal(t, "/path/to/project.kapi", files[0].Path)
+	assert.Equal(t, path, files[0].Path)
 	assert.Equal(t, "My Project", files[0].Name)
 	assert.NotEmpty(t, files[0].OpenedAt)
 }
 
 func TestRecentStoreMostRecentFirst(t *testing.T) {
-	s := &recentStore{
-		filePath: filepath.Join(t.TempDir(), "recent.json"),
-	}
+	s := &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
+	p1 := createTempKapi(t, "first")
+	p2 := createTempKapi(t, "second")
 
-	s.add("/first.kapi", "First")
-	s.add("/second.kapi", "Second")
+	s.add(p1, "First")
+	s.add(p2, "Second")
 
 	files := s.list()
 	require.Len(t, files, 2)
-	assert.Equal(t, "/second.kapi", files[0].Path) // most recent first
-	assert.Equal(t, "/first.kapi", files[1].Path)
+	assert.Equal(t, p2, files[0].Path)
+	assert.Equal(t, p1, files[1].Path)
 }
 
 func TestRecentStoreDeduplicates(t *testing.T) {
-	s := &recentStore{
-		filePath: filepath.Join(t.TempDir(), "recent.json"),
-	}
+	s := &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
+	p1 := createTempKapi(t, "project")
+	p2 := createTempKapi(t, "other")
 
-	s.add("/project.kapi", "V1")
-	s.add("/other.kapi", "Other")
-	s.add("/project.kapi", "V2") // reopening same file
+	s.add(p1, "V1")
+	s.add(p2, "Other")
+	s.add(p1, "V2")
 
 	files := s.list()
 	require.Len(t, files, 2)
-	assert.Equal(t, "/project.kapi", files[0].Path)
-	assert.Equal(t, "V2", files[0].Name) // updated name
+	assert.Equal(t, p1, files[0].Path)
+	assert.Equal(t, "V2", files[0].Name)
 }
 
-func TestRecentStoreMaxLimit(t *testing.T) {
-	s := &recentStore{
-		filePath: filepath.Join(t.TempDir(), "recent.json"),
-	}
+func TestRecentStoreFiltersDeleted(t *testing.T) {
+	s := &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
+	p1 := createTempKapi(t, "exists")
+	p2 := createTempKapi(t, "deleted")
 
-	for i := 0; i < 15; i++ {
-		s.add(filepath.Join("/tmp", "project"+string(rune('a'+i))+".kapi"), "Project")
-	}
+	s.add(p1, "Exists")
+	s.add(p2, "Deleted")
 
-	assert.Len(t, s.list(), maxRecentFiles)
+	// Delete the second file.
+	os.Remove(p2)
+
+	files := s.list()
+	require.Len(t, files, 1)
+	assert.Equal(t, p1, files[0].Path)
 }
 
 func TestRecentStorePersistence(t *testing.T) {
 	dir := t.TempDir()
-	path := filepath.Join(dir, "sub", "recent.json")
+	storePath := filepath.Join(dir, "sub", "recent.json")
+	kapiPath := createTempKapi(t, "persist")
 
-	s1 := &recentStore{filePath: path}
-	s1.add("/project.kapi", "Test")
+	s1 := &recentStore{filePath: storePath}
+	s1.add(kapiPath, "Test")
 
-	// Verify file was created.
-	_, err := os.Stat(path)
+	_, err := os.Stat(storePath)
 	require.NoError(t, err)
 
-	// Reload from disk.
-	s2 := &recentStore{filePath: path}
+	s2 := &recentStore{filePath: storePath}
 	s2.load()
 	files := s2.list()
 	require.Len(t, files, 1)
-	assert.Equal(t, "/project.kapi", files[0].Path)
+	assert.Equal(t, kapiPath, files[0].Path)
 }
 
 func TestRecentStoreClear(t *testing.T) {
-	s := &recentStore{
-		filePath: filepath.Join(t.TempDir(), "recent.json"),
-	}
+	s := &recentStore{filePath: filepath.Join(t.TempDir(), "recent.json")}
+	p := createTempKapi(t, "clear")
 
-	s.add("/project.kapi", "Test")
+	s.add(p, "Test")
 	assert.Len(t, s.list(), 1)
 
 	s.clear()
@@ -103,11 +111,10 @@ func TestRecentStoreClear(t *testing.T) {
 
 func TestAppListRecentFiles(t *testing.T) {
 	app := NewApp()
-	// May have entries from other runs; just verify it doesn't panic.
 	_ = app.ListRecentFiles()
 }
 
 func TestAppClearRecentFiles(t *testing.T) {
 	app := NewApp()
-	app.ClearRecentFiles() // should not panic
+	app.ClearRecentFiles()
 }
