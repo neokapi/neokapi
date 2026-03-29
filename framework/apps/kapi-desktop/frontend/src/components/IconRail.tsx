@@ -48,7 +48,7 @@ export function IconRail({ active, onChange, projectActive, settingsActive }: Ic
               key={section}
               onClick={() => onChange(section)}
               className={`relative rounded-lg p-2 transition-colors ${
-                active === section
+                active === section && !settingsActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               }`}
