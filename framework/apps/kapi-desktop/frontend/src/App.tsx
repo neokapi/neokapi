@@ -384,7 +384,12 @@ function NewProjectDialog({
   const [customPath, setCustomPath] = useState("");
   const INVALID_DIR_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
   const valid = name.trim().length > 0 && !INVALID_DIR_CHARS.test(name) && name !== "." && name !== "..";
-  const savePath = customPath || (valid ? `~/KapiProjects/${name.trim()}` : "");
+  const trimmedName = name.trim();
+  const saveDir = customPath
+    ? `${customPath}/${trimmedName}`
+    : valid
+      ? `~/KapiProjects/${trimmedName}`
+      : "";
 
   const handleBrowse = async () => {
     const dir = await api.browseProjectLocation();
@@ -403,7 +408,7 @@ function NewProjectDialog({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && valid) onCreate(name.trim(), customPath ? `${customPath}/project.kapi` : undefined); }}
+                onKeyDown={(e) => { if (e.key === "Enter" && valid) onCreate(trimmedName, saveDir ? `${saveDir}/project.kapi` : undefined); }}
                 placeholder="My App"
                 autoFocus
                 className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
@@ -421,13 +426,13 @@ function NewProjectDialog({
             </div>
             {name && !valid ? (
               <p className="mt-1 text-xs text-destructive">Invalid directory name</p>
-            ) : savePath ? (
-              <p className="mt-1 text-xs text-muted-foreground">Saved to {savePath}</p>
+            ) : saveDir ? (
+              <p className="mt-1 text-xs text-muted-foreground">Saved to {saveDir}</p>
             ) : null}
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => onCreate(name.trim(), customPath ? `${customPath}/project.kapi` : undefined)}
+              onClick={() => onCreate(trimmedName, saveDir ? `${saveDir}/project.kapi` : undefined)}
               disabled={!valid}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
