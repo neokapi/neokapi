@@ -17,8 +17,12 @@ export default defineConfig({
         __dirname,
         "../../../../packages/flow-editor/src",
       ),
+      // Force all packages to use the same React instance (prevents
+      // duplicate React from packages/flow-editor/node_modules/).
+      "react": path.resolve(__dirname, "node_modules/react"),
+      "react-dom": path.resolve(__dirname, "node_modules/react-dom"),
     },
-    dedupe: ["react", "react-dom"],
+    dedupe: ["react", "react-dom", "@xyflow/react", "@xyflow/system"],
   },
   build: {
     outDir: "dist",

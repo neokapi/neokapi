@@ -41,13 +41,13 @@ describe("FlowPage", () => {
       />,
     );
 
-    await userEvent.click(screen.getByTitle("New flow"));
+    await userEvent.click(screen.getByLabelText("New flow"));
     expect(onUpdate).toHaveBeenCalledOnce();
     const updated = onUpdate.mock.calls[0][0];
     expect(Object.keys(updated.flows)).toHaveLength(1);
   });
 
-  it("shows steps editor when flow is selected", async () => {
+  it("shows visual flow editor when flow is selected", async () => {
     render(
       <FlowPage
         project={{
@@ -58,11 +58,12 @@ describe("FlowPage", () => {
           },
         }}
         onUpdate={vi.fn()}
+        onRunFlow={vi.fn()}
       />,
     );
 
     await userEvent.click(screen.getByText("translate"));
-    expect(screen.getByDisplayValue("ai-translate")).toBeInTheDocument();
-    expect(screen.getByText("Run")).toBeInTheDocument();
+    // The FlowEditor renders with a Run button and tool palette.
+    expect(screen.getByLabelText("Run flow")).toBeInTheDocument();
   });
 });

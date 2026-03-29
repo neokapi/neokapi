@@ -1,6 +1,9 @@
-import { useState } from "react";
-import { Plus, Play, Trash2 } from "lucide-react";
-import type { KapiProject, FlowSpec, FlowStep } from "../types/api";
+import { useState, useEffect } from "react";
+import { Plus, Trash2 } from "lucide-react";
+import type { KapiProject, FlowSpec } from "../types/api";
+import { FlowEditor } from "@neokapi/flow-editor";
+import type { ToolInfo } from "@neokapi/flow-editor";
+import { api } from "../hooks/useApi";
 
 interface FlowPageProps {
   project: KapiProject;
@@ -10,10 +13,24 @@ interface FlowPageProps {
 
 export function FlowPage({ project, onUpdate, onRunFlow }: FlowPageProps) {
   const [selectedFlow, setSelectedFlow] = useState<string | null>(null);
+  const [tools, setTools] = useState<ToolInfo[]>([]);
   const flowNames = Object.keys(project.flows ?? {});
 
+  useEffect(() => {
+    api.listTools().then((result) => {
+      if (result) {
+        setTools(
+          result.map((t) => ({
+            name: t.name,
+            description: t.description,
+            category: t.category,
+          })),
+        );
+      }
+    });
+  }, []);
+
   const handleAddFlow = () => {
-    // Find a unique name to avoid overwriting existing flows.
     let counter = flowNames.length + 1;
     let name = `flow-${counter}`;
     while (project.flows?.[name]) {
@@ -37,30 +54,10 @@ export function FlowPage({ project, onUpdate, onRunFlow }: FlowPageProps) {
     if (selectedFlow === name) setSelectedFlow(null);
   };
 
-  const handleUpdateStep = (
-    flowName: string,
-    stepIndex: number,
-    step: FlowStep,
-  ) => {
-    const flow = project.flows?.[flowName];
-    if (!flow) return;
-    const steps = [...flow.steps];
-    steps[stepIndex] = step;
+  const handleFlowChange = (flowName: string, spec: FlowSpec) => {
     onUpdate({
       ...project,
-      flows: { ...project.flows, [flowName]: { ...flow, steps } },
-    });
-  };
-
-  const handleAddStep = (flowName: string) => {
-    const flow = project.flows?.[flowName];
-    if (!flow) return;
-    onUpdate({
-      ...project,
-      flows: {
-        ...project.flows,
-        [flowName]: { ...flow, steps: [...flow.steps, { tool: "" }] },
-      },
+      flows: { ...project.flows, [flowName]: spec },
     });
   };
 
@@ -69,13 +66,13 @@ export function FlowPage({ project, onUpdate, onRunFlow }: FlowPageProps) {
   return (
     <div className="flex h-full">
       {/* Flow list sidebar */}
-      <div className="w-56 shrink-0 border-r border-border p-3">
+      <div className="w-48 shrink-0 border-r border-border p-3">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-medium">Flows</h2>
           <button
             onClick={handleAddFlow}
             className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="New flow"
+            aria-label="New flow"
           >
             <Plus size={14} />
           </button>
@@ -84,7 +81,7 @@ export function FlowPage({ project, onUpdate, onRunFlow }: FlowPageProps) {
           {flowNames.map((name) => (
             <div
               key={name}
-              className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm ${
+              className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm ${
                 selectedFlow === name
                   ? "bg-accent text-accent-foreground"
                   : "text-muted-foreground hover:bg-accent/50"
@@ -98,9 +95,8 @@ export function FlowPage({ project, onUpdate, onRunFlow }: FlowPageProps) {
               </button>
               <button
                 onClick={() => handleDeleteFlow(name)}
-                className="rounded p-0.5 opacity-0 hover:bg-destructive/10 hover:text-destructive group-hover:opacity-100"
-                style={{ opacity: selectedFlow === name ? 1 : undefined }}
-                title="Delete flow"
+                className="rounded p-0.5 opacity-0 hover:text-destructive group-hover:opacity-100"
+                aria-label={`Delete flow ${name}`}
               >
                 <Trash2 size={12} />
               </button>
@@ -114,56 +110,15 @@ export function FlowPage({ project, onUpdate, onRunFlow }: FlowPageProps) {
         </div>
       </div>
 
-      {/* Flow editor area */}
-      <div className="flex-1 p-6">
+      {/* Visual flow editor */}
+      <div className="flex-1">
         {selectedSpec && selectedFlow ? (
-          <div>
-            <div className="mb-4 flex items-center gap-3">
-              <h2 className="text-lg font-medium">{selectedFlow}</h2>
-              <button
-                onClick={() => onRunFlow?.(selectedFlow, selectedSpec)}
-                className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                aria-label={`Run flow ${selectedFlow}`}
-              >
-                <Play size={12} />
-                Run
-              </button>
-            </div>
-
-            {/* Steps editor */}
-            <div className="space-y-2">
-              {selectedSpec.steps.map((step, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 rounded-lg border border-border p-3"
-                >
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
-                    {i + 1}
-                  </span>
-                  <input
-                    type="text"
-                    value={step.tool}
-                    onChange={(e) =>
-                      handleUpdateStep(selectedFlow, i, {
-                        ...step,
-                        tool: e.target.value,
-                      })
-                    }
-                    placeholder="Tool name"
-                    className="flex-1 rounded border border-input bg-transparent px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => handleAddStep(selectedFlow)}
-              className="mt-3 flex items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary hover:text-primary"
-            >
-              <Plus size={12} />
-              Add step
-            </button>
-          </div>
+          <FlowEditor
+            flow={selectedSpec}
+            tools={tools}
+            onChange={(updated) => handleFlowChange(selectedFlow, updated)}
+            onRun={onRunFlow ? (spec) => onRunFlow(selectedFlow, spec) : undefined}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <p className="text-sm">Select a flow or create a new one</p>
