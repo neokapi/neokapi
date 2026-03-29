@@ -88,6 +88,24 @@ export const Empty: Story = {
   },
 };
 
+export const RunnerOnly: Story = {
+  args: {
+    entries: [],
+    runnerEntries: [
+      { operation: "bravo_container", total_seconds: 7_200, count: 120 },
+      { operation: "auto_translate", total_seconds: 3_600, count: 45 },
+      { operation: "auto_extract", total_seconds: 180, count: 6 },
+    ],
+  },
+};
+
+export const TokensAndRunner: Story = {
+  args: {
+    entries: sampleEntries,
+    runnerEntries: sampleRunnerEntries,
+  },
+};
+
 export const HighVolume: Story = {
   args: {
     entries: [
