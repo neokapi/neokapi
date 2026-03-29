@@ -42,9 +42,17 @@ export default function App() {
 
   const handleModeChange = useCallback((m: AppMode) => {
     setMode(m);
-    setView("home");
-    if (m === "adhoc") setActiveTabID(null);
-    else if (tabs.length > 0) setActiveTabID(tabs[0].info.id);
+    if (m === "adhoc") {
+      setActiveTabID(null);
+      setView("home");
+    } else {
+      if (tabs.length > 0) {
+        setActiveTabID(tabs[0].info.id);
+        setView("project-home");
+      } else {
+        setView("home");
+      }
+    }
   }, [tabs]);
 
   const handleViewChange = useCallback((v: string) => {
@@ -59,7 +67,7 @@ export default function App() {
     });
     setActiveTabID(tab.id);
     setMode("projects");
-    setView("home");
+    setView("project-home");
   }, []);
 
   const handleNewProject = useCallback(async (name: string, savePath?: string) => {
@@ -172,8 +180,8 @@ export default function App() {
 
         {/* Content */}
         <main className="flex-1 overflow-auto">
-          {/* Home — shared between modes, shown when no project tab is active */}
-          {view === "home" && !(mode === "projects" && activeTab) && (
+          {/* Home — always the global home page in both modes */}
+          {view === "home" && (
             <AppHome recentFiles={recentFiles} onOpenRecent={handleOpenRecent}
               onNewProject={() => { setMode("projects"); setShowNewProjectForm(true); }}
               onOpenProject={handleOpenProject}
@@ -193,7 +201,7 @@ export default function App() {
           {mode === "adhoc" && view === "formats" && <FormatsPage />}
 
           {/* Project views (only when a project tab is active) */}
-          {mode === "projects" && activeTab && view === "home" && (
+          {mode === "projects" && activeTab && view === "project-home" && (
             <HomePage project={activeTab.project} onNavigate={handleViewChange} />
           )}
           {mode === "projects" && activeTab && view === "content" && (

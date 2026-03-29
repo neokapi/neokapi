@@ -1,5 +1,6 @@
 import {
   Home,
+  FolderKanban,
   BookOpen,
   Database,
   Workflow,
@@ -10,28 +11,34 @@ import {
 
 const SW = 1.5;
 
+type SidebarItem =
+  | { type: "item"; view: string; icon: React.ReactNode; label: string; alwaysEnabled?: boolean }
+  | { type: "separator" };
+
 interface IconSidebarProps {
   mode: "adhoc" | "projects";
   active: string;
   onChange: (view: string) => void;
-  /** When true, project items (except home) are grayed out and not clickable. */
   projectDisabled?: boolean;
 }
 
-const adhocItems = [
-  { view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home" },
-  { view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
-  { view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
-  { view: "termbases", icon: <BookOpen size={20} strokeWidth={SW} />, label: "Termbases" },
-  { view: "memories", icon: <Database size={20} strokeWidth={SW} />, label: "Translation Memories" },
-  { view: "formats", icon: <FileText size={20} strokeWidth={SW} />, label: "Formats" },
+const adhocItems: SidebarItem[] = [
+  { type: "item", view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home" },
+  { type: "separator" },
+  { type: "item", view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
+  { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
+  { type: "item", view: "termbases", icon: <BookOpen size={20} strokeWidth={SW} />, label: "Termbases" },
+  { type: "item", view: "memories", icon: <Database size={20} strokeWidth={SW} />, label: "Translation Memories" },
+  { type: "item", view: "formats", icon: <FileText size={20} strokeWidth={SW} />, label: "Formats" },
 ];
 
-const projectItems = [
-  { view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home", alwaysEnabled: true },
-  { view: "content", icon: <FileText size={20} strokeWidth={SW} />, label: "Content", alwaysEnabled: false },
-  { view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows", alwaysEnabled: false },
-  { view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools", alwaysEnabled: false },
+const projectItems: SidebarItem[] = [
+  { type: "item", view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home", alwaysEnabled: true },
+  { type: "separator" },
+  { type: "item", view: "project-home", icon: <FolderKanban size={20} strokeWidth={SW} />, label: "Project" },
+  { type: "item", view: "content", icon: <FileText size={20} strokeWidth={SW} />, label: "Content" },
+  { type: "item", view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
+  { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
 ];
 
 export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSidebarProps) {
@@ -40,8 +47,11 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
   return (
     <aside className="flex w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
-        {items.map((item) => {
-          const disabled = mode === "projects" && projectDisabled && !("alwaysEnabled" in item && item.alwaysEnabled);
+        {items.map((item, i) => {
+          if (item.type === "separator") {
+            return <div key={`sep-${i}`} className="my-1 h-px w-6 bg-border" />;
+          }
+          const disabled = mode === "projects" && projectDisabled && !item.alwaysEnabled;
           return (
             <button
               key={item.view}
@@ -63,18 +73,22 @@ export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSid
         })}
       </nav>
 
-      <button
-        onClick={() => onChange("settings")}
-        className={`rounded-lg p-2 transition-colors ${
-          active === "settings"
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:bg-accent hover:text-foreground"
-        }`}
-        aria-label="Settings"
-        title="Settings"
-      >
-        <Settings size={20} strokeWidth={SW} />
-      </button>
+      {/* Separator + Settings */}
+      <div className="flex flex-col items-center gap-1">
+        <div className="my-1 h-px w-6 bg-border" />
+        <button
+          onClick={() => onChange("settings")}
+          className={`rounded-lg p-2 transition-colors ${
+            active === "settings"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          }`}
+          aria-label="Settings"
+          title="Settings"
+        >
+          <Settings size={20} strokeWidth={SW} />
+        </button>
+      </div>
     </aside>
   );
 }
