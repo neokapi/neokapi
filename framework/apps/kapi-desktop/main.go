@@ -68,7 +68,8 @@ func main() {
 		if home != "" && strings.HasPrefix(dir, home) {
 			dir = "~" + dir[len(home):]
 		}
-		recentMenu.Add(dir).
+		label := r.Name + " — " + dir
+		recentMenu.Add(label).
 			SetTooltip(r.Path).
 			OnClick(func(ctx *application.Context) {
 				app.Event.Emit("menu:open-recent", r.Path)
