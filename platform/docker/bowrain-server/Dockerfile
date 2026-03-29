@@ -13,6 +13,7 @@ COPY go.work ./
 COPY framework/go.mod framework/go.sum ./framework/
 COPY framework/cli/go.mod framework/cli/go.sum ./framework/cli/
 COPY framework/kapi/go.mod framework/kapi/go.sum ./framework/kapi/
+COPY framework/apps/kapi-desktop/go.mod framework/apps/kapi-desktop/go.sum ./framework/apps/kapi-desktop/
 COPY platform/go.mod platform/go.sum ./platform/
 COPY platform/core/go.mod platform/core/go.sum ./platform/core/
 COPY platform/cli/go.mod platform/cli/go.sum ./platform/cli/
