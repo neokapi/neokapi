@@ -57,8 +57,8 @@ export async function call<T>(method: string, ...args: unknown[]): Promise<T | n
 
 export const api = {
   // Project (multi-tab)
-  newProject: (name: string, sourceLang: string, targetLangs: string[]) =>
-    call<TabInfo>("NewProject", name, sourceLang, targetLangs),
+  newProject: (name: string, sourceLang: string, targetLangs: string[], savePath?: string) =>
+    call<TabInfo>("NewProject", name, sourceLang, targetLangs, savePath ?? ""),
   openProject: (path: string) => call<TabInfo>("OpenProject", path),
   openProjectDialog: () => call<TabInfo>("OpenProjectDialog"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),

@@ -43,6 +43,7 @@ export default function App() {
         proj.name,
         proj.source_language ?? "en-US",
         proj.target_languages ?? [],
+        "", // empty savePath → defaults to ~/KapiProjects/{name}/project.kapi
       );
       if (tab) {
         addTab(tab, proj);
@@ -116,14 +117,13 @@ export default function App() {
     import("@wailsio/runtime")
       .then(({ Events }) => {
         cleanups.push(
-          Events.On("menu:new-project", () => {
-            handleNewProject({
-              version: "v1",
-              name: "Untitled Project",
-              source_language: "en-US",
-              target_languages: [],
-              flows: {},
-            });
+          Events.On("menu:new-project", async () => {
+            // Create a new project with a default name.
+            const tab = await api.newProject("New Project", "en-US", []);
+            if (tab) {
+              const proj = await api.getProject(tab.id);
+              if (proj) addTab(tab, proj);
+            }
           }),
         );
 

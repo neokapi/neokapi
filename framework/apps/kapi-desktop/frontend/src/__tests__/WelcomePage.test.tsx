@@ -25,14 +25,21 @@ describe("WelcomePage", () => {
     expect(screen.getByText("Open a Kapi project")).toBeInTheDocument();
   });
 
-  it("calls onNew when clicking New Project", async () => {
+  it("shows name form when clicking New Project", async () => {
+    render(<WelcomePage onOpen={vi.fn()} onNew={vi.fn()} />);
+    await userEvent.click(screen.getByText("New Project"));
+    expect(screen.getByPlaceholderText("My App")).toBeInTheDocument();
+    expect(screen.getByText("Create Project")).toBeInTheDocument();
+  });
+
+  it("calls onNew with the entered name", async () => {
     const onNew = vi.fn();
     render(<WelcomePage onOpen={vi.fn()} onNew={onNew} />);
-
     await userEvent.click(screen.getByText("New Project"));
-    expect(onNew).toHaveBeenCalledOnce();
+    await userEvent.type(screen.getByPlaceholderText("My App"), "Test App");
+    await userEvent.click(screen.getByText("Create Project"));
     expect(onNew).toHaveBeenCalledWith(
-      expect.objectContaining({ version: "v1", name: "Untitled Project" }),
+      expect.objectContaining({ name: "Test App" }),
     );
   });
 

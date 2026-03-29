@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/neokapi/neokapi/core/flow"
@@ -110,8 +111,32 @@ type TabInfo struct {
 	Path string `json:"path"`
 }
 
-// NewProject creates a new empty project and returns its tab ID.
-func (a *App) NewProject(name, sourceLang string, targetLangs []string) (*TabInfo, error) {
+// NewProject creates a new project, saves it to disk, and opens it as a tab.
+// If savePath is empty, defaults to ~/KapiProjects/{name}/project.kapi.
+func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath string) (*TabInfo, error) {
+	if name == "" {
+		return nil, fmt.Errorf("project name is required")
+	}
+
+	// Default save location: ~/KapiProjects/{name}/project.kapi
+	if savePath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return nil, fmt.Errorf("cannot determine home directory: %w", err)
+		}
+		savePath = filepath.Join(home, "KapiProjects", name, "project.kapi")
+	}
+
+	// Ensure .kapi extension.
+	if !strings.HasSuffix(strings.ToLower(savePath), ".kapi") {
+		savePath += ".kapi"
+	}
+
+	// Create parent directory.
+	if err := os.MkdirAll(filepath.Dir(savePath), 0o755); err != nil {
+		return nil, fmt.Errorf("create project directory: %w", err)
+	}
+
 	proj := &project.KapiProject{
 		Version:         project.CurrentVersion,
 		Name:            name,
@@ -119,13 +144,18 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string) (*TabInf
 		TargetLanguages: targetLangs,
 		Flows:           make(map[string]*flow.StepsSpec),
 	}
-	tabID := id.New()
 
+	if err := project.Save(savePath, proj); err != nil {
+		return nil, fmt.Errorf("save project: %w", err)
+	}
+
+	tabID := id.New()
 	a.mu.Lock()
-	a.projects[tabID] = &openProject{ID: tabID, Project: proj}
+	a.projects[tabID] = &openProject{ID: tabID, Path: savePath, Project: proj}
 	a.mu.Unlock()
 
-	return &TabInfo{ID: tabID, Name: name}, nil
+	a.recent.add(savePath, name)
+	return &TabInfo{ID: tabID, Name: name, Path: savePath}, nil
 }
 
 // OpenProject loads a .kapi file from disk and returns its tab ID.

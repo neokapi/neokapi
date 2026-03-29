@@ -41,6 +41,9 @@ const GET_STARTED = [
 
 export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   const [error, setError] = useState<string | null>(null);
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
   const [recentFiles, setRecentFiles] = useState<
     Array<{ path: string; name: string; opened_at: string }>
   >([]);
@@ -52,15 +55,32 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   }, []);
 
   const handleNew = useCallback(() => {
-    const proj: KapiProject = {
-      version: "v1",
-      name: "Untitled Project",
-      source_language: "en-US",
-      target_languages: [],
-      flows: {},
-    };
-    onNew(proj);
-  }, [onNew]);
+    setShowNewForm(true);
+    setNewName("");
+    setError(null);
+  }, []);
+
+  const handleCreateProject = useCallback(async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const proj: KapiProject = {
+        version: "v1",
+        name,
+        source_language: "en-US",
+        target_languages: [],
+        flows: {},
+      };
+      onNew(proj);
+      setShowNewForm(false);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setCreating(false);
+    }
+  }, [newName, onNew]);
 
   const handleOpen = useCallback(async () => {
     setError(null);
@@ -119,23 +139,60 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
               Localization plumbing and glue for people and agents.
             </p>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleNew}
-                className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-              >
-                <FilePlus size={16} />
-                New Project
-              </button>
-              <button
-                onClick={handleOpen}
-                className="flex items-center gap-2 rounded-lg border border-border bg-background px-6 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
-                aria-label="Open a Kapi project"
-              >
-                <FolderOpen size={16} />
-                Open a Kapi project
-              </button>
-            </div>
+            {showNewForm ? (
+              <div className="w-full max-w-sm space-y-3">
+                <div>
+                  <label className="mb-1 block text-left text-xs text-muted-foreground">
+                    Project Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateProject(); }}
+                    placeholder="My App"
+                    autoFocus
+                    className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <p className="mt-1 text-left text-xs text-muted-foreground">
+                    Saved to ~/KapiProjects/{newName.trim() || "..."}/project.kapi
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCreateProject}
+                    disabled={!newName.trim() || creating}
+                    className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {creating ? "Creating..." : "Create Project"}
+                  </button>
+                  <button
+                    onClick={() => setShowNewForm(false)}
+                    className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-3">
+                <button
+                  onClick={handleNew}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                >
+                  <FilePlus size={16} />
+                  New Project
+                </button>
+                <button
+                  onClick={handleOpen}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-6 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
+                  aria-label="Open a Kapi project"
+                >
+                  <FolderOpen size={16} />
+                  Open a Kapi project
+                </button>
+              </div>
+            )}
 
             {error && (
               <p className="mt-3 text-sm text-destructive" role="alert">

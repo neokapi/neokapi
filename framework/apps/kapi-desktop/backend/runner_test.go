@@ -17,7 +17,7 @@ func TestRunFlowBadTab(t *testing.T) {
 
 func TestRunFlowNotFound(t *testing.T) {
 	app := NewApp()
-	tab, _ := app.NewProject("Test", "en", nil)
+	tab := newTestProject(t, app, "RunTest")
 
 	err := app.RunFlow(tab.ID, "nonexistent", []string{"file.json"}, "fr")
 	require.Error(t, err)
@@ -26,7 +26,7 @@ func TestRunFlowNotFound(t *testing.T) {
 
 func TestRunFlowNoInputs(t *testing.T) {
 	app := NewApp()
-	tab, _ := app.NewProject("Test", "en", nil)
+	tab := newTestProject(t, app, "RunTest2")
 	_ = app.SaveFlow(tab.ID, "qa", &flow.StepsSpec{
 		Steps: []flow.FlowStep{{Tool: "qa-check"}},
 	})
@@ -43,7 +43,6 @@ func TestGetRunStateIdle(t *testing.T) {
 
 func TestCancelRunNoOp(t *testing.T) {
 	app := NewApp()
-	// Should not panic when no run is active.
 	app.CancelRun()
 }
 
@@ -54,14 +53,12 @@ func TestRunnerState(t *testing.T) {
 }
 
 func TestRunEventTypes(t *testing.T) {
-	// Verify RunEvent can represent all event types.
 	events := []RunEvent{
 		{Type: "state", FlowID: "test", Message: "running"},
 		{Type: "progress", FlowID: "test", FileIndex: 0, FileCount: 3, FilePath: "a.json"},
 		{Type: "error", FlowID: "test", Message: "something failed"},
 		{Type: "complete", FlowID: "test", DurationMs: 1234, FilesProcessed: 5},
 	}
-
 	for _, e := range events {
 		assert.NotEmpty(t, e.Type)
 		assert.NotEmpty(t, e.FlowID)
