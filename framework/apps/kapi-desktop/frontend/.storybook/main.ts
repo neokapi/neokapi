@@ -13,7 +13,7 @@ function getAbsolutePath(value: string): string {
 const config: StorybookConfig = {
   stories: [
     "../src/**/*.stories.@(ts|tsx)",
-    "../../../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
+    "../../../../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
   ],
   addons: [
     getAbsolutePath("@storybook/addon-themes"),
@@ -30,8 +30,8 @@ const config: StorybookConfig = {
     config.resolve = config.resolve || {};
     config.resolve.alias = {
       ...config.resolve.alias,
-      "@neokapi/ui-primitives": path.resolve(__dirname, "../../../../packages/ui/src"),
-      "@neokapi/flow-editor": path.resolve(__dirname, "../../../../packages/flow-editor/src"),
+      "@neokapi/ui-primitives": path.resolve(__dirname, "../../../../../packages/ui/src"),
+      "@neokapi/flow-editor": path.resolve(__dirname, "../../../../../packages/flow-editor/src"),
     };
 
     return config;
