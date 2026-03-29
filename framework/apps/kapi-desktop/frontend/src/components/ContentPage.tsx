@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Globe, FileText, FolderOpen, RefreshCw, Loader2 } from "lucide-react";
+import { Plus, Trash2, Globe, FileText, FolderOpen, RefreshCw, Loader2, X } from "lucide-react";
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
 
@@ -83,11 +83,6 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
     });
   };
 
-  const handleUpdateTargets = (value: string) => {
-    const targets = value.split(",").map((s) => s.trim()).filter(Boolean);
-    onUpdate({ ...project, target_languages: targets });
-  };
-
   return (
     <div className="p-6">
       <h1 className="mb-6 text-xl font-semibold">Content</h1>
@@ -113,17 +108,49 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground" htmlFor="target-langs">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Target Languages
             </label>
-            <input
-              id="target-langs"
-              type="text"
-              value={project.target_languages?.join(", ") ?? ""}
-              onChange={(e) => handleUpdateTargets(e.target.value)}
-              placeholder="fr-FR, de-DE, ja-JP"
-              className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            />
+            <div className="flex flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
+              {(project.target_languages ?? []).map((lang) => (
+                <span
+                  key={lang}
+                  className="flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs"
+                >
+                  {lang}
+                  <button
+                    onClick={() =>
+                      onUpdate({
+                        ...project,
+                        target_languages: project.target_languages?.filter((l) => l !== lang),
+                      })
+                    }
+                    className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                    aria-label={`Remove ${lang}`}
+                  >
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                placeholder={project.target_languages?.length ? "" : "Add language (e.g. fr-FR)"}
+                className="min-w-[80px] flex-1 bg-transparent text-sm outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === ",") {
+                    e.preventDefault();
+                    const val = e.currentTarget.value.trim();
+                    if (val && !project.target_languages?.includes(val)) {
+                      onUpdate({
+                        ...project,
+                        target_languages: [...(project.target_languages ?? []), val],
+                      });
+                      e.currentTarget.value = "";
+                    }
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
       </section>
