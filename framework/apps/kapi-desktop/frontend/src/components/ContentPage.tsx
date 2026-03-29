@@ -34,8 +34,16 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
   const [matches, setMatches] = useState<FileMatch[]>([]);
   const [basePath, setBasePath] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [presets, setPresets] = useState<Array<{ name: string; description: string }>>([]);
+  const [formats, setFormats] = useState<string[]>([]);
 
   const content = project.content ?? [];
+
+  // Load available presets and formats on mount.
+  useEffect(() => {
+    api.listPresets().then((p) => { if (p) setPresets(p); });
+    api.listFormats().then((f) => { if (f) setFormats(f.map((x) => x.name)); });
+  }, []);
 
   // Fetch base path on mount and when project changes.
   useEffect(() => {
@@ -86,6 +94,41 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
   return (
     <div className="p-6">
       <h1 className="mb-6 text-xl font-semibold">Content</h1>
+
+      {/* Framework preset */}
+      {presets.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Preset
+          </h2>
+          <div className="flex max-w-lg items-center gap-2">
+            <select
+              value={project.preset ?? ""}
+              onChange={async (e) => {
+                const name = e.target.value;
+                if (name) {
+                  const updated = await api.applyPreset(tabID, name);
+                  if (updated) onUpdate(updated);
+                } else {
+                  onUpdate({ ...project, preset: undefined });
+                }
+              }}
+              className="flex-1 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              aria-label="Framework preset"
+            >
+              <option value="">None (custom)</option>
+              {presets.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name} — {p.description}
+                </option>
+              ))}
+            </select>
+            {project.preset && (
+              <span className="rounded bg-accent px-2 py-0.5 text-xs">{project.preset}</span>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Languages */}
       <section className="mb-6">
@@ -207,13 +250,16 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                   </div>
                   <div>
                     <label className="mb-0.5 block text-xs text-muted-foreground">Format</label>
-                    <input
-                      type="text"
+                    <select
                       value={entry.format ?? ""}
                       onChange={(e) => handleUpdateEntry(i, { ...entry, format: e.target.value || undefined })}
-                      placeholder="auto-detect"
                       className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
-                    />
+                    >
+                      <option value="">auto-detect</option>
+                      {formats.map((f) => (
+                        <option key={f} value={f}>{f}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex items-end gap-1">
                     <div className="flex-1">

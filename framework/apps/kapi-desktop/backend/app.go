@@ -16,6 +16,7 @@ import (
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/plugin/loader"
+	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
 	"github.com/neokapi/neokapi/core/schema"
@@ -347,6 +348,111 @@ func (a *App) ListFormats() []FormatInfo {
 	var infos []FormatInfo
 	for _, name := range a.formatReg.ReaderNames() {
 		infos = append(infos, FormatInfo{Name: name})
+	}
+	return infos
+}
+
+// --- Preset operations ---
+
+// PresetInfo is the frontend-facing framework preset summary.
+type PresetInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+// FormatPresetInfo is the frontend-facing format preset summary.
+type FormatPresetInfo struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Format      string         `json:"format"`
+	Config      map[string]any `json:"config,omitempty"`
+}
+
+// ListPresets returns all available framework presets.
+func (a *App) ListPresets() []PresetInfo {
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+	var infos []PresetInfo
+	for _, p := range reg.ListFrameworkPresets() {
+		infos = append(infos, PresetInfo{
+			Name:        p.Name,
+			Description: p.Description,
+		})
+	}
+	return infos
+}
+
+// GetPresetDetails returns the full details of a framework preset.
+func (a *App) GetPresetDetails(name string) map[string]any {
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+	for _, p := range reg.ListFrameworkPresets() {
+		if p.Name == name {
+			return map[string]any{
+				"name":           p.Name,
+				"description":    p.Description,
+				"mappings":       p.Mappings,
+				"exclude":        p.Exclude,
+				"format_presets": p.FormatPresets,
+				"flows":          p.Flows,
+			}
+		}
+	}
+	return nil
+}
+
+// ApplyPreset applies a framework preset to a project tab,
+// setting content mappings, exclude patterns, and format presets.
+func (a *App) ApplyPreset(tabID, presetName string) (*project.KapiProject, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	op := a.projects[tabID]
+	if op == nil {
+		return nil, fmt.Errorf("tab %q not found", tabID)
+	}
+
+	reg := preset.NewPresetRegistry()
+	preset.RegisterBuiltins(reg)
+
+	var fp *preset.FrameworkPreset
+	for _, p := range reg.ListFrameworkPresets() {
+		if p.Name == presetName {
+			fp = p
+			break
+		}
+	}
+	if fp == nil {
+		return nil, fmt.Errorf("preset %q not found", presetName)
+	}
+
+	// Apply mappings as content entries.
+	var entries []project.ContentEntry
+	for _, m := range fp.Mappings {
+		entries = append(entries, project.ContentEntry{
+			Path:   m.Local,
+			Format: m.Format,
+			Target: m.TargetPath,
+		})
+	}
+	op.Project.Content = entries
+	op.Project.Preset = presetName
+
+	return op.Project, nil
+}
+
+// ListFormatPresets returns format presets for a specific format.
+func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
+	reg := a.pluginLoader.Presets()
+	preset.RegisterBuiltins(reg)
+	var infos []FormatPresetInfo
+	for _, p := range reg.ListFormatPresets(format) {
+		infos = append(infos, FormatPresetInfo{
+			Name:        p.Name,
+			Description: p.Description,
+			Format:      p.Format,
+			Config:      p.Config,
+		})
 	}
 	return infos
 }

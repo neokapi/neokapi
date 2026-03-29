@@ -89,6 +89,14 @@ export const api = {
   listFormats: () => call<FormatInfo[]>("ListFormats"),
   detectFormat: (path: string) => call<string>("DetectFormat", path),
 
+  // Presets
+  listPresets: () =>
+    call<Array<{ name: string; description: string }>>("ListPresets"),
+  applyPreset: (tabID: string, presetName: string) =>
+    call<KapiProject>("ApplyPreset", tabID, presetName),
+  listFormatPresets: (format: string) =>
+    call<Array<{ name: string; description: string; format: string }>>("ListFormatPresets", format),
+
   // Plugins
   listPlugins: () => call<PluginInfo[]>("ListPlugins"),
   searchPlugins: (query: string) => call<unknown[]>("SearchPlugins", query),
