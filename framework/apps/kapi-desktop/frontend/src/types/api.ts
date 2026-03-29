@@ -71,6 +71,12 @@ export interface ProviderConfig {
   base_url?: string;
 }
 
+export interface TabInfo {
+  id: string;
+  name: string;
+  path: string;
+}
+
 export type View =
   | "welcome"
   | "project"

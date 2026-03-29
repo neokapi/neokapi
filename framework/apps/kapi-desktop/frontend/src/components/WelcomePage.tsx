@@ -6,11 +6,11 @@ import {
   Wrench,
   Puzzle,
 } from "lucide-react";
-import type { KapiProject } from "../types/api";
+import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 
 interface WelcomePageProps {
-  onOpen: (project: KapiProject, path: string) => void;
+  onOpen: (tab: TabInfo) => void;
   onNew: (project: KapiProject) => void;
 }
 
@@ -63,11 +63,8 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
   const handleOpen = useCallback(async () => {
     setError(null);
     try {
-      const result = await api.openProjectDialog();
-      if (result) {
-        const path = (await api.getProjectPath()) ?? "";
-        onOpen(result, path);
-      }
+      const tab = await api.openProjectDialog();
+      if (tab) onOpen(tab);
     } catch (e) {
       setError(String(e));
     }
@@ -77,10 +74,8 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
     async (path: string) => {
       setError(null);
       try {
-        const result = await api.openProject(path);
-        if (result) {
-          onOpen(result, path);
-        }
+        const tab = await api.openProject(path);
+        if (tab) onOpen(tab);
       } catch (e) {
         setError(`Failed to open ${path}: ${e}`);
       }

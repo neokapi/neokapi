@@ -8,30 +8,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRunFlowNoProject(t *testing.T) {
+func TestRunFlowBadTab(t *testing.T) {
 	app := NewApp()
-	err := app.RunFlow("test", []string{"file.json"}, "fr")
+	err := app.RunFlow("bad-tab", "test", []string{"file.json"}, "fr")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no project open")
+	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestRunFlowNotFound(t *testing.T) {
 	app := NewApp()
-	_, _ = app.NewProject("Test", "en", nil)
+	tab, _ := app.NewProject("Test", "en", nil)
 
-	err := app.RunFlow("nonexistent", []string{"file.json"}, "fr")
+	err := app.RunFlow(tab.ID, "nonexistent", []string{"file.json"}, "fr")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found")
 }
 
 func TestRunFlowNoInputs(t *testing.T) {
 	app := NewApp()
-	_, _ = app.NewProject("Test", "en", nil)
-	_ = app.SaveFlow("qa", &flow.StepsSpec{
+	tab, _ := app.NewProject("Test", "en", nil)
+	_ = app.SaveFlow(tab.ID, "qa", &flow.StepsSpec{
 		Steps: []flow.FlowStep{{Tool: "qa-check"}},
 	})
 
-	err := app.RunFlow("qa", nil, "fr")
+	err := app.RunFlow(tab.ID, "qa", nil, "fr")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no input files")
 }

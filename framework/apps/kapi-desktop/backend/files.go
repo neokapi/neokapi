@@ -15,14 +15,12 @@ type FileMatch struct {
 
 // MatchContent resolves content patterns from the current project against the filesystem.
 // The basePath is the directory to resolve relative globs from (typically the .kapi file's directory).
-func (a *App) MatchContent(basePath string) ([]FileMatch, error) {
-	a.mu.RLock()
-	proj := a.project
-	a.mu.RUnlock()
-
-	if proj == nil {
+func (a *App) MatchContent(tabID, basePath string) ([]FileMatch, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
 		return nil, nil
 	}
+	proj := op.Project
 
 	var matches []FileMatch
 	for _, entry := range proj.Content {

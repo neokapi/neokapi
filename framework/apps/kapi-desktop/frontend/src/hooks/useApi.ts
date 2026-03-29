@@ -7,6 +7,7 @@
 
 import type {
   KapiProject,
+  TabInfo,
   FlowInfo,
   FlowSpec,
   ToolInfo,
@@ -55,26 +56,28 @@ export async function call<T>(method: string, ...args: unknown[]): Promise<T | n
 // --- Typed API functions ---
 
 export const api = {
-  // Project
+  // Project (multi-tab)
   newProject: (name: string, sourceLang: string, targetLangs: string[]) =>
-    call<KapiProject>("NewProject", name, sourceLang, targetLangs),
-  openProject: (path: string) => call<KapiProject>("OpenProject", path),
-  openProjectDialog: () => call<KapiProject>("OpenProjectDialog"),
-  saveProject: () => call<void>("SaveProject"),
-  saveProjectAs: (path: string) => call<void>("SaveProjectAs", path),
-  saveProjectDialog: () => call<void>("SaveProjectDialog"),
-  getProject: () => call<KapiProject>("GetProject"),
-  getProjectPath: () => call<string>("GetProjectPath"),
+    call<TabInfo>("NewProject", name, sourceLang, targetLangs),
+  openProject: (path: string) => call<TabInfo>("OpenProject", path),
+  openProjectDialog: () => call<TabInfo>("OpenProjectDialog"),
+  closeProject: (tabID: string) => call<void>("CloseProject", tabID),
+  listTabs: () => call<TabInfo[]>("ListTabs"),
+  saveProject: (tabID: string) => call<void>("SaveProject", tabID),
+  saveProjectAs: (tabID: string, path: string) => call<void>("SaveProjectAs", tabID, path),
+  saveProjectDialog: (tabID: string) => call<void>("SaveProjectDialog", tabID),
+  getProject: (tabID: string) => call<KapiProject>("GetProject", tabID),
+  getProjectPath: (tabID: string) => call<string>("GetProjectPath", tabID),
 
-  // Flows
-  listFlows: () => call<FlowInfo[]>("ListFlows"),
-  getFlow: (name: string) => call<FlowSpec>("GetFlow", name),
-  saveFlow: (name: string, spec: FlowSpec) => call<void>("SaveFlow", name, spec),
-  deleteFlow: (name: string) => call<void>("DeleteFlow", name),
+  // Flows (scoped to tab)
+  listFlows: (tabID: string) => call<FlowInfo[]>("ListFlows", tabID),
+  getFlow: (tabID: string, name: string) => call<FlowSpec>("GetFlow", tabID, name),
+  saveFlow: (tabID: string, name: string, spec: FlowSpec) => call<void>("SaveFlow", tabID, name, spec),
+  deleteFlow: (tabID: string, name: string) => call<void>("DeleteFlow", tabID, name),
 
-  // Runner
-  runFlow: (name: string, inputPaths: string[], targetLang: string) =>
-    call<void>("RunFlow", name, inputPaths, targetLang),
+  // Runner (scoped to tab)
+  runFlow: (tabID: string, name: string, inputPaths: string[], targetLang: string) =>
+    call<void>("RunFlow", tabID, name, inputPaths, targetLang),
   cancelRun: () => call<void>("CancelRun"),
   getRunState: () => call<string>("GetRunState"),
 

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import type { View, KapiProject } from "./types/api";
+import type { View, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
 import { WelcomePage } from "./components/WelcomePage";
 import { ProjectPage } from "./components/ProjectPage";
@@ -8,36 +8,107 @@ import { ToolRunnerPage } from "./components/ToolRunnerPage";
 import { PluginManager } from "./components/PluginManager";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
+import { TabBar } from "./components/TabBar";
+
+interface TabState {
+  info: TabInfo;
+  project: KapiProject;
+  view: View;
+}
 
 export default function App() {
-  const [view, setView] = useState<View>("welcome");
-  const [project, setProject] = useState<KapiProject | null>(null);
-  const [projectPath, setProjectPath] = useState<string>("");
+  const [tabs, setTabs] = useState<TabState[]>([]);
+  const [activeTabID, setActiveTabID] = useState<string | null>(null);
 
-  const handleOpenProject = useCallback(
-    (proj: KapiProject, path: string) => {
-      setProject(proj);
-      setProjectPath(path);
-      setView("project");
+  const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
+
+  const addTab = useCallback(
+    (tab: TabInfo, project: KapiProject) => {
+      setTabs((prev) => {
+        if (prev.some((t) => t.info.id === tab.id)) return prev;
+        return [...prev, { info: tab, project, view: "project" }];
+      });
+      setActiveTabID(tab.id);
     },
     [],
   );
 
-  const handleNewProject = useCallback((proj: KapiProject) => {
-    setProject(proj);
-    setProjectPath("");
-    setView("project");
-  }, []);
+  const handleNewProject = useCallback(
+    async (proj: KapiProject) => {
+      const tab = await api.newProject(
+        proj.name,
+        proj.source_language ?? "en-US",
+        proj.target_languages ?? [],
+      );
+      if (tab) {
+        addTab(tab, proj);
+      }
+    },
+    [addTab],
+  );
 
-  const handleCloseProject = useCallback(() => {
-    setProject(null);
-    setProjectPath("");
-    setView("welcome");
-  }, []);
+  const handleOpenTab = useCallback(
+    async (tab: TabInfo) => {
+      const proj = await api.getProject(tab.id);
+      if (proj) addTab(tab, proj);
+    },
+    [addTab],
+  );
 
-  // Listen for native menu events from the Go backend.
+  const handleCloseTab = useCallback(
+    (tabID: string) => {
+      api.closeProject(tabID);
+      setTabs((prev) => {
+        const remaining = prev.filter((t) => t.info.id !== tabID);
+        setActiveTabID((cur) => {
+          if (cur !== tabID) return cur;
+          return remaining.length > 0
+            ? remaining[remaining.length - 1].info.id
+            : null;
+        });
+        return remaining;
+      });
+    },
+    [],
+  );
+
+  const setActiveView = useCallback(
+    (view: View) => {
+      if (!activeTabID) return;
+      setTabs((prev) =>
+        prev.map((t) => (t.info.id === activeTabID ? { ...t, view } : t)),
+      );
+    },
+    [activeTabID],
+  );
+
+  const updateActiveProject = useCallback(
+    (project: KapiProject) => {
+      if (!activeTabID) return;
+      setTabs((prev) =>
+        prev.map((t) => (t.info.id === activeTabID ? { ...t, project } : t)),
+      );
+    },
+    [activeTabID],
+  );
+
+  const updateActiveTabPath = useCallback(
+    (path: string) => {
+      if (!activeTabID) return;
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.info.id === activeTabID
+            ? { ...t, info: { ...t.info, path } }
+            : t,
+        ),
+      );
+    },
+    [activeTabID],
+  );
+
+  // Listen for native menu events.
   useEffect(() => {
-    let cleanups: Array<() => void> = [];
+    const cleanups: Array<() => void> = [];
 
     import("@wailsio/runtime")
       .then(({ Events }) => {
@@ -55,75 +126,101 @@ export default function App() {
 
         cleanups.push(
           Events.On("menu:open-project", async () => {
-            const result = await api.openProjectDialog();
-            if (result) {
-              const path = (await api.getProjectPath()) ?? "";
-              handleOpenProject(result, path);
-            }
+            const tab = await api.openProjectDialog();
+            if (tab) await handleOpenTab(tab);
           }),
         );
 
         cleanups.push(
           Events.On("menu:save-project", async () => {
-            if (projectPath) {
-              await api.saveProject();
+            if (!activeTabID) return;
+            const path = await api.getProjectPath(activeTabID);
+            if (path) {
+              await api.saveProject(activeTabID);
             } else {
-              await api.saveProjectDialog();
-              const path = await api.getProjectPath();
-              if (path) setProjectPath(path);
+              await api.saveProjectDialog(activeTabID);
+              const newPath = await api.getProjectPath(activeTabID);
+              if (newPath) updateActiveTabPath(newPath);
             }
+          }),
+        );
+
+        // Handle files opened from OS (double-click, drag to dock icon).
+        cleanups.push(
+          Events.On("open-project-tab", async (event: { data: unknown }) => {
+            const tab = event.data as TabInfo;
+            if (tab?.id) await handleOpenTab(tab);
           }),
         );
 
         cleanups.push(
           Events.On("menu:save-project-as", async () => {
-            await api.saveProjectDialog();
-            const path = await api.getProjectPath();
-            if (path) setProjectPath(path);
+            if (!activeTabID) return;
+            await api.saveProjectDialog(activeTabID);
+            const newPath = await api.getProjectPath(activeTabID);
+            if (newPath) updateActiveTabPath(newPath);
           }),
         );
       })
-      .catch(() => {
-        // Not in Wails runtime (Storybook, tests).
-      });
+      .catch(() => {});
 
-    return () => {
-      cleanups.forEach((fn) => fn());
-    };
-  }, [handleNewProject, handleOpenProject, projectPath]);
+    return () => cleanups.forEach((fn) => fn());
+  }, [activeTabID, handleNewProject, handleOpenTab, updateActiveTabPath]);
 
-  if (view === "welcome" && !project) {
+  // No tabs → welcome page.
+  if (tabs.length === 0) {
     return (
       <WelcomePage
-        onOpen={handleOpenProject}
+        onOpen={async (tab) => await handleOpenTab(tab)}
         onNew={handleNewProject}
       />
     );
   }
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <Sidebar
-        activeView={view}
-        onViewChange={setView}
-        projectName={project?.name}
-        onCloseProject={handleCloseProject}
+    <div className="flex h-screen flex-col bg-background text-foreground">
+      {/* macOS title bar drag region */}
+      <div
+        className="h-12 shrink-0"
+        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       />
-      <main className="flex-1 overflow-auto">
-        {view === "project" && project && (
-          <ProjectPage
-            project={project}
-            projectPath={projectPath}
-            onSaved={setProjectPath}
-          />
-        )}
-        {view === "flows" && project && (
-          <FlowPage project={project} onUpdate={setProject} />
-        )}
-        {view === "tools" && <ToolRunnerPage />}
-        {view === "plugins" && <PluginManager />}
-        {view === "settings" && <SettingsPage />}
-      </main>
+
+      {/* Tab bar */}
+      <TabBar
+        tabs={tabs.map((t) => t.info)}
+        activeTabID={activeTabID}
+        onSelect={setActiveTabID}
+        onClose={handleCloseTab}
+      />
+
+      {/* Main content */}
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          activeView={activeTab?.view ?? "project"}
+          onViewChange={setActiveView}
+          projectName={activeTab?.project.name}
+          onCloseProject={() => activeTabID && handleCloseTab(activeTabID)}
+        />
+        <main className="flex-1 overflow-auto">
+          {activeTab?.view === "project" && (
+            <ProjectPage
+              project={activeTab.project}
+              projectPath={activeTab.info.path}
+              onSaved={updateActiveTabPath}
+              tabID={activeTab.info.id}
+            />
+          )}
+          {activeTab?.view === "flows" && (
+            <FlowPage
+              project={activeTab.project}
+              onUpdate={updateActiveProject}
+            />
+          )}
+          {activeTab?.view === "tools" && <ToolRunnerPage />}
+          {activeTab?.view === "plugins" && <PluginManager />}
+          {activeTab?.view === "settings" && <SettingsPage />}
+        </main>
+      </div>
     </div>
   );
 }

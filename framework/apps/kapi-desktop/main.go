@@ -99,6 +99,29 @@ func main() {
 		app.Event.Emit("files-dropped", files)
 	})
 
+	// Handle .kapi files opened from Finder (double-click, or second instance).
+	// macOS sends the file path(s) to the running instance via this event.
+	app.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(event *application.ApplicationEvent) {
+		files := event.Context().OpenedFiles()
+		if len(files) == 0 {
+			return
+		}
+		// Bring window to front and open each file as a new tab.
+		application.InvokeSync(func() {
+			win.Focus()
+		})
+		for _, filePath := range files {
+			go func(path string) {
+				tab, err := appService.OpenProject(path)
+				if err != nil {
+					log.Printf("open file: %v", err)
+					return
+				}
+				app.Event.Emit("open-project-tab", tab)
+			}(filePath)
+		}
+	})
+
 	// Load plugins in the background after the window is ready.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
 		go appService.LoadPlugins()

@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/id"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
@@ -31,10 +32,9 @@ type App struct {
 	schemaReg    *fmtschema.SchemaRegistry
 	pluginLoader *loader.PluginLoader
 
-	// Current open project
-	mu          sync.RWMutex
-	project     *project.KapiProject
-	projectPath string
+	// Open projects (multiple tabs)
+	mu       sync.RWMutex
+	projects map[string]*openProject // keyed by tab ID
 
 	// Flow runner
 	runState *runner
@@ -72,11 +72,19 @@ func NewApp() *App {
 		toolReg:      toolReg,
 		schemaReg:    schemaReg,
 		pluginLoader: pluginLoader,
+		projects:     make(map[string]*openProject),
 		credentials:  NewCredentialStore(DefaultCredentialPath()),
 		recent:       newRecentStore(),
 		settings:     newSettingsStore(),
 		logger:       logger,
 	}
+}
+
+// openProject holds the state for a single open project tab.
+type openProject struct {
+	ID      string
+	Path    string
+	Project *project.KapiProject
 }
 
 // SetApplication stores the Wails app reference for dialogs and events.
@@ -92,10 +100,17 @@ func (a *App) LoadPlugins() {
 	a.emitEvent("plugins-loaded", nil)
 }
 
-// --- Project operations ---
+// --- Project operations (multi-tab) ---
 
-// NewProject creates a new empty .kapi project in memory.
-func (a *App) NewProject(name, sourceLang string, targetLangs []string) (*project.KapiProject, error) {
+// TabInfo is returned to the frontend to describe an open tab.
+type TabInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+// NewProject creates a new empty project and returns its tab ID.
+func (a *App) NewProject(name, sourceLang string, targetLangs []string) (*TabInfo, error) {
 	proj := &project.KapiProject{
 		Version:         project.CurrentVersion,
 		Name:            name,
@@ -103,71 +118,116 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string) (*projec
 		TargetLanguages: targetLangs,
 		Flows:           make(map[string]*flow.StepsSpec),
 	}
+	tabID := id.New()
+
 	a.mu.Lock()
-	a.project = proj
-	a.projectPath = ""
+	a.projects[tabID] = &openProject{ID: tabID, Project: proj}
 	a.mu.Unlock()
-	return proj, nil
+
+	return &TabInfo{ID: tabID, Name: name}, nil
 }
 
-// OpenProject loads a .kapi file from disk.
-func (a *App) OpenProject(path string) (*project.KapiProject, error) {
+// OpenProject loads a .kapi file from disk and returns its tab ID.
+// If the file is already open in another tab, returns that tab's ID.
+func (a *App) OpenProject(path string) (*TabInfo, error) {
+	// Check if already open.
+	a.mu.RLock()
+	for _, op := range a.projects {
+		if op.Path == path {
+			a.mu.RUnlock()
+			return &TabInfo{ID: op.ID, Name: op.Project.Name, Path: op.Path}, nil
+		}
+	}
+	a.mu.RUnlock()
+
 	proj, err := project.Load(path)
 	if err != nil {
 		return nil, err
 	}
+	tabID := id.New()
+
 	a.mu.Lock()
-	a.project = proj
-	a.projectPath = path
+	a.projects[tabID] = &openProject{ID: tabID, Path: path, Project: proj}
 	a.mu.Unlock()
 
 	a.recent.add(path, proj.Name)
-	return proj, nil
+	return &TabInfo{ID: tabID, Name: proj.Name, Path: path}, nil
 }
 
-// SaveProject writes the current project to its file path.
-func (a *App) SaveProject() error {
+// CloseProject removes a project tab.
+func (a *App) CloseProject(tabID string) {
+	a.mu.Lock()
+	delete(a.projects, tabID)
+	a.mu.Unlock()
+}
+
+// ListTabs returns all open project tabs.
+func (a *App) ListTabs() []TabInfo {
 	a.mu.RLock()
-	proj := a.project
-	path := a.projectPath
+	defer a.mu.RUnlock()
+	var tabs []TabInfo
+	for _, op := range a.projects {
+		tabs = append(tabs, TabInfo{ID: op.ID, Name: op.Project.Name, Path: op.Path})
+	}
+	return tabs
+}
+
+// SaveProject writes a project to its file path.
+func (a *App) SaveProject(tabID string) error {
+	a.mu.RLock()
+	op := a.projects[tabID]
 	a.mu.RUnlock()
 
-	if proj == nil {
-		return fmt.Errorf("no project open")
+	if op == nil {
+		return fmt.Errorf("tab %q not found", tabID)
 	}
-	if path == "" {
+	if op.Path == "" {
 		return fmt.Errorf("project has no file path (use SaveProjectAs)")
 	}
-	return project.Save(path, proj)
+	return project.Save(op.Path, op.Project)
 }
 
-// SaveProjectAs writes the current project to a new file path.
-func (a *App) SaveProjectAs(path string) error {
+// SaveProjectAs writes a project to a new file path.
+func (a *App) SaveProjectAs(tabID, path string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.project == nil {
-		return fmt.Errorf("no project open")
+	op := a.projects[tabID]
+	if op == nil {
+		return fmt.Errorf("tab %q not found", tabID)
 	}
-	if err := project.Save(path, a.project); err != nil {
+	if err := project.Save(path, op.Project); err != nil {
 		return err
 	}
-	a.projectPath = path
+	op.Path = path
 	return nil
 }
 
-// GetProject returns the currently open project, or nil.
-func (a *App) GetProject() *project.KapiProject {
+// GetProject returns the project for a tab.
+func (a *App) GetProject(tabID string) *project.KapiProject {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.project
+	if op := a.projects[tabID]; op != nil {
+		return op.Project
+	}
+	return nil
 }
 
-// GetProjectPath returns the file path of the open project.
-func (a *App) GetProjectPath() string {
+// GetProjectPath returns the file path for a tab.
+func (a *App) GetProjectPath(tabID string) string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.projectPath
+	if op := a.projects[tabID]; op != nil {
+		return op.Path
+	}
+	return ""
+}
+
+// getOpenProject is a helper to get an open project by tab ID (caller must not hold mu).
+func (a *App) getOpenProject(tabID string) *openProject {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.projects[tabID]
 }
 
 // --- Flow operations ---
@@ -179,18 +239,15 @@ type FlowInfo struct {
 	StepCount   int    `json:"step_count"`
 }
 
-// ListFlows returns all flows in the current project.
-func (a *App) ListFlows() []FlowInfo {
-	a.mu.RLock()
-	proj := a.project
-	a.mu.RUnlock()
-
-	if proj == nil {
+// ListFlows returns all flows in a project tab.
+func (a *App) ListFlows(tabID string) []FlowInfo {
+	op := a.getOpenProject(tabID)
+	if op == nil {
 		return nil
 	}
 
 	var infos []FlowInfo
-	for name, spec := range proj.Flows {
+	for name, spec := range op.Project.Flows {
 		infos = append(infos, FlowInfo{
 			Name:      name,
 			StepCount: len(spec.Steps),
@@ -200,41 +257,40 @@ func (a *App) ListFlows() []FlowInfo {
 }
 
 // GetFlow returns a flow's StepsSpec by name.
-func (a *App) GetFlow(name string) *flow.StepsSpec {
-	a.mu.RLock()
-	proj := a.project
-	a.mu.RUnlock()
-
-	if proj == nil {
+func (a *App) GetFlow(tabID, name string) *flow.StepsSpec {
+	op := a.getOpenProject(tabID)
+	if op == nil {
 		return nil
 	}
-	return proj.GetFlow(name)
+	return op.Project.GetFlow(name)
 }
 
-// SaveFlow saves or updates a flow in the current project.
-func (a *App) SaveFlow(name string, spec *flow.StepsSpec) error {
+// SaveFlow saves or updates a flow in a project tab.
+func (a *App) SaveFlow(tabID, name string, spec *flow.StepsSpec) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.project == nil {
-		return fmt.Errorf("no project open")
+	op := a.projects[tabID]
+	if op == nil {
+		return fmt.Errorf("tab %q not found", tabID)
 	}
-	if a.project.Flows == nil {
-		a.project.Flows = make(map[string]*flow.StepsSpec)
+	if op.Project.Flows == nil {
+		op.Project.Flows = make(map[string]*flow.StepsSpec)
 	}
-	a.project.Flows[name] = spec
+	op.Project.Flows[name] = spec
 	return nil
 }
 
-// DeleteFlow removes a flow from the current project.
-func (a *App) DeleteFlow(name string) error {
+// DeleteFlow removes a flow from a project tab.
+func (a *App) DeleteFlow(tabID, name string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if a.project == nil {
-		return fmt.Errorf("no project open")
+	op := a.projects[tabID]
+	if op == nil {
+		return fmt.Errorf("tab %q not found", tabID)
 	}
-	delete(a.project.Flows, name)
+	delete(op.Project.Flows, name)
 	return nil
 }
 

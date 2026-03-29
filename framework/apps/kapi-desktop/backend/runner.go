@@ -56,16 +56,13 @@ func newRunner() *runner {
 
 // RunFlow executes a flow by name from the current project.
 // Events are streamed to the frontend via Wails events.
-func (a *App) RunFlow(flowName string, inputPaths []string, targetLang string) error {
-	a.mu.RLock()
-	proj := a.project
-	a.mu.RUnlock()
-
-	if proj == nil {
-		return fmt.Errorf("no project open")
+func (a *App) RunFlow(tabID, flowName string, inputPaths []string, targetLang string) error {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return fmt.Errorf("tab %q not found", tabID)
 	}
 
-	spec := proj.GetFlow(flowName)
+	spec := op.Project.GetFlow(flowName)
 	if spec == nil {
 		return fmt.Errorf("flow %q not found", flowName)
 	}

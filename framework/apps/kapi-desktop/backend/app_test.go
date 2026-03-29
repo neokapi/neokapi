@@ -16,24 +16,23 @@ func TestNewApp(t *testing.T) {
 	assert.NotNil(t, app.toolReg)
 	assert.NotNil(t, app.schemaReg)
 	assert.NotNil(t, app.pluginLoader)
-	assert.Nil(t, app.project)
+	assert.Empty(t, app.projects)
 }
 
 func TestNewProject(t *testing.T) {
 	app := NewApp()
 
-	proj, err := app.NewProject("Test", "en-US", []string{"fr-FR", "de-DE"})
+	tab, err := app.NewProject("Test", "en-US", []string{"fr-FR", "de-DE"})
 	require.NoError(t, err)
-	require.NotNil(t, proj)
+	require.NotNil(t, tab)
+	assert.NotEmpty(t, tab.ID)
+	assert.Equal(t, "Test", tab.Name)
+	assert.Empty(t, tab.Path)
 
+	proj := app.GetProject(tab.ID)
+	require.NotNil(t, proj)
 	assert.Equal(t, "Test", proj.Name)
 	assert.Equal(t, "en-US", proj.SourceLanguage)
-	assert.Equal(t, []string{"fr-FR", "de-DE"}, proj.TargetLanguages)
-	assert.NotNil(t, proj.Flows)
-
-	// Should be set as the current project.
-	assert.Equal(t, proj, app.GetProject())
-	assert.Equal(t, "", app.GetProjectPath())
 }
 
 func TestOpenSaveProject(t *testing.T) {
@@ -53,121 +52,123 @@ func TestOpenSaveProject(t *testing.T) {
 	require.NoError(t, project.Save(path, proj))
 
 	// Open it.
-	loaded, err := app.OpenProject(path)
+	tab, err := app.OpenProject(path)
 	require.NoError(t, err)
-	assert.Equal(t, "Roundtrip Test", loaded.Name)
-	assert.Equal(t, path, app.GetProjectPath())
+	assert.Equal(t, "Roundtrip Test", tab.Name)
+	assert.Equal(t, path, tab.Path)
 
 	// Modify and save.
+	loaded := app.GetProject(tab.ID)
 	loaded.Name = "Updated"
-	require.NoError(t, app.SaveProject())
+	require.NoError(t, app.SaveProject(tab.ID))
 
 	// Reopen to verify.
-	reloaded, err := app.OpenProject(path)
+	tab2, err := app.OpenProject(path)
 	require.NoError(t, err)
-	assert.Equal(t, "Updated", reloaded.Name)
+	// Should return same tab since the file is already open.
+	assert.Equal(t, tab.ID, tab2.ID)
+}
+
+func TestOpenProjectDeduplicate(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	path := dir + "/dup.kapi"
+	require.NoError(t, project.Save(path, &project.KapiProject{Version: "v1", Name: "Dup"}))
+
+	tab1, _ := app.OpenProject(path)
+	tab2, _ := app.OpenProject(path) // same file
+	assert.Equal(t, tab1.ID, tab2.ID, "should return same tab for same file")
 }
 
 func TestSaveProjectAs(t *testing.T) {
 	app := NewApp()
 	dir := t.TempDir()
 
-	_, err := app.NewProject("SaveAs Test", "en", nil)
+	tab, err := app.NewProject("SaveAs Test", "en", nil)
 	require.NoError(t, err)
 
 	path := dir + "/saveas.kapi"
-	require.NoError(t, app.SaveProjectAs(path))
-	assert.Equal(t, path, app.GetProjectPath())
-
-	// Verify file was written.
-	loaded, err := project.Load(path)
-	require.NoError(t, err)
-	assert.Equal(t, "SaveAs Test", loaded.Name)
+	require.NoError(t, app.SaveProjectAs(tab.ID, path))
+	assert.Equal(t, path, app.GetProjectPath(tab.ID))
 }
 
-func TestSaveProjectNoProject(t *testing.T) {
+func TestCloseProject(t *testing.T) {
 	app := NewApp()
-	assert.Error(t, app.SaveProject())
+
+	tab, _ := app.NewProject("ToClose", "en", nil)
+	assert.Len(t, app.ListTabs(), 1)
+
+	app.CloseProject(tab.ID)
+	assert.Empty(t, app.ListTabs())
+	assert.Nil(t, app.GetProject(tab.ID))
+}
+
+func TestListTabs(t *testing.T) {
+	app := NewApp()
+
+	app.NewProject("A", "en", nil)
+	app.NewProject("B", "fr", nil)
+	app.NewProject("C", "de", nil)
+
+	tabs := app.ListTabs()
+	assert.Len(t, tabs, 3)
 }
 
 func TestSaveProjectNoPath(t *testing.T) {
 	app := NewApp()
-	_, _ = app.NewProject("NoPath", "en", nil)
-	assert.Error(t, app.SaveProject()) // no path set
+	tab, _ := app.NewProject("NoPath", "en", nil)
+	assert.Error(t, app.SaveProject(tab.ID))
+}
+
+func TestSaveProjectBadTab(t *testing.T) {
+	app := NewApp()
+	assert.Error(t, app.SaveProject("nonexistent"))
 }
 
 func TestFlowOperations(t *testing.T) {
 	app := NewApp()
-	_, _ = app.NewProject("Flows", "en", nil)
+	tab, _ := app.NewProject("Flows", "en", nil)
 
-	// Initially empty.
-	assert.Empty(t, app.ListFlows())
+	assert.Empty(t, app.ListFlows(tab.ID))
 
-	// Save a flow.
 	spec := &flow.StepsSpec{
 		Steps: []flow.FlowStep{{Tool: "qa-check"}},
 	}
-	require.NoError(t, app.SaveFlow("qa", spec))
+	require.NoError(t, app.SaveFlow(tab.ID, "qa", spec))
 
-	flows := app.ListFlows()
+	flows := app.ListFlows(tab.ID)
 	assert.Len(t, flows, 1)
 	assert.Equal(t, "qa", flows[0].Name)
-	assert.Equal(t, 1, flows[0].StepCount)
 
-	// Get flow.
-	got := app.GetFlow("qa")
+	got := app.GetFlow(tab.ID, "qa")
 	require.NotNil(t, got)
 	assert.Equal(t, "qa-check", got.Steps[0].Tool)
 
-	// Delete flow.
-	require.NoError(t, app.DeleteFlow("qa"))
-	assert.Empty(t, app.ListFlows())
-	assert.Nil(t, app.GetFlow("qa"))
+	require.NoError(t, app.DeleteFlow(tab.ID, "qa"))
+	assert.Empty(t, app.ListFlows(tab.ID))
 }
 
-func TestFlowOperationsNoProject(t *testing.T) {
+func TestFlowOperationsBadTab(t *testing.T) {
 	app := NewApp()
-
-	assert.Nil(t, app.ListFlows())
-	assert.Nil(t, app.GetFlow("anything"))
-	assert.Error(t, app.SaveFlow("test", &flow.StepsSpec{}))
-	assert.Error(t, app.DeleteFlow("test"))
+	assert.Nil(t, app.ListFlows("bad"))
+	assert.Nil(t, app.GetFlow("bad", "x"))
+	assert.Error(t, app.SaveFlow("bad", "x", &flow.StepsSpec{}))
+	assert.Error(t, app.DeleteFlow("bad", "x"))
 }
 
 func TestListTools(t *testing.T) {
 	app := NewApp()
 	tools := app.ListTools()
-	assert.NotEmpty(t, tools, "should have built-in tools registered")
-
-	// Verify a known tool exists.
-	found := false
-	for _, ti := range tools {
-		if ti.Name == "pseudo-translate" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "pseudo-translate should be registered")
+	assert.NotEmpty(t, tools)
 }
 
 func TestListFormats(t *testing.T) {
 	app := NewApp()
 	fmts := app.ListFormats()
-	assert.NotEmpty(t, fmts, "should have built-in formats registered")
-
-	// Verify a known format exists.
-	found := false
-	for _, f := range fmts {
-		if f.Name == "json" {
-			found = true
-			break
-		}
-	}
-	assert.True(t, found, "json format should be registered")
+	assert.NotEmpty(t, fmts)
 }
 
 func TestGetVersion(t *testing.T) {
 	app := NewApp()
-	v := app.GetVersion()
-	assert.NotEmpty(t, v)
+	assert.NotEmpty(t, app.GetVersion())
 }

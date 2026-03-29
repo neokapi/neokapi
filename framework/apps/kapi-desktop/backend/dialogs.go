@@ -1,17 +1,12 @@
 package backend
 
-import (
-	"github.com/neokapi/neokapi/core/project"
-)
-
 // OpenProjectDialog shows a native file-open dialog for Kapi project files,
-// opens the selected file, and returns the project.
-func (a *App) OpenProjectDialog() (*project.KapiProject, error) {
+// opens the selected file, and returns the tab info.
+func (a *App) OpenProjectDialog() (*TabInfo, error) {
 	if a.app == nil {
 		return nil, nil
 	}
 
-	// PromptForSingleSelection internally dispatches to the main thread.
 	path, err := a.app.Dialog.OpenFile().
 		AddFilter("Kapi Projects", "*.kapi").
 		AddFilter("All Files", "*").
@@ -26,23 +21,20 @@ func (a *App) OpenProjectDialog() (*project.KapiProject, error) {
 	return a.OpenProject(path)
 }
 
-// SaveProjectDialog shows a native file-save dialog for Kapi project files.
-func (a *App) SaveProjectDialog() error {
+// SaveProjectDialog shows a native file-save dialog for a project tab.
+func (a *App) SaveProjectDialog(tabID string) error {
 	if a.app == nil {
 		return nil
 	}
 
-	a.mu.RLock()
-	proj := a.project
-	a.mu.RUnlock()
-
-	if proj == nil {
+	op := a.getOpenProject(tabID)
+	if op == nil {
 		return nil
 	}
 
 	path, err := a.app.Dialog.SaveFile().
 		AddFilter("Kapi Projects", "*.kapi").
-		SetFilename(proj.Name + ".kapi").
+		SetFilename(op.Project.Name + ".kapi").
 		PromptForSingleSelection()
 	if err != nil {
 		return err
@@ -51,5 +43,5 @@ func (a *App) SaveProjectDialog() error {
 		return nil // user canceled
 	}
 
-	return a.SaveProjectAs(path)
+	return a.SaveProjectAs(tabID, path)
 }

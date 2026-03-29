@@ -7,19 +7,20 @@ interface ProjectPageProps {
   project: KapiProject;
   projectPath: string;
   onSaved?: (path: string) => void;
+  tabID: string;
 }
 
-export function ProjectPage({ project, projectPath, onSaved }: ProjectPageProps) {
+export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPageProps) {
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       if (projectPath) {
-        await api.saveProject();
+        await api.saveProject(tabID);
       } else {
-        await api.saveProjectDialog();
-        const path = await api.getProjectPath();
+        await api.saveProjectDialog(tabID);
+        const path = await api.getProjectPath(tabID);
         if (path) onSaved?.(path);
       }
     } finally {

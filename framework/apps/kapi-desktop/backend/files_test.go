@@ -10,9 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMatchContentNoProject(t *testing.T) {
+func TestMatchContentBadTab(t *testing.T) {
 	app := NewApp()
-	matches, err := app.MatchContent("/tmp")
+	matches, err := app.MatchContent("bad", "/tmp")
 	require.NoError(t, err)
 	assert.Nil(t, matches)
 }
@@ -27,12 +27,13 @@ func TestMatchContentFindsFiles(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("hi"), 0o644))
 
 	app := NewApp()
-	_, _ = app.NewProject("Test", "en", nil)
-	app.project.Content = []project.ContentEntry{
+	tab, _ := app.NewProject("Test", "en", nil)
+	op := app.getOpenProject(tab.ID)
+	op.Project.Content = []project.ContentEntry{
 		{Path: "locales/*.json", Format: "json"},
 	}
 
-	matches, err := app.MatchContent(dir)
+	matches, err := app.MatchContent(tab.ID, dir)
 	require.NoError(t, err)
 	assert.Len(t, matches, 2)
 
@@ -47,12 +48,13 @@ func TestMatchContentAutoDetectFormat(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "test.xliff"), []byte(`<?xml?>`), 0o644))
 
 	app := NewApp()
-	_, _ = app.NewProject("Test", "en", nil)
-	app.project.Content = []project.ContentEntry{
+	tab, _ := app.NewProject("Test", "en", nil)
+	op := app.getOpenProject(tab.ID)
+	op.Project.Content = []project.ContentEntry{
 		{Path: "*.xliff"}, // no format specified
 	}
 
-	matches, err := app.MatchContent(dir)
+	matches, err := app.MatchContent(tab.ID, dir)
 	require.NoError(t, err)
 	require.Len(t, matches, 1)
 	assert.Equal(t, "xliff", matches[0].Format)
