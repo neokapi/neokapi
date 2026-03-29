@@ -680,7 +680,7 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 
 	l.bridges = append(l.bridges, mb)
 
-	// Register step tools from schemas/tools/ directory if present.
+	// Register step tools from schemas/steps/ directory.
 	var tReg *registry.ToolRegistry
 	if len(toolReg) > 0 {
 		tReg = toolReg[0]
@@ -720,15 +720,10 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 // The mapping to neokapi tool names (e.g., "okapi:search-and-replace") happens here
 // at the bridge integration layer.
 func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.BridgeRegistry, cfg bridge.BridgeConfig, toolReg *registry.ToolRegistry, source string) {
-	// Try schemas/steps/ first (new structure), fall back to schemas/tools/ (legacy)
 	stepsDir := filepath.Join(versionDir, "schemas", "steps")
 	entries, err := os.ReadDir(stepsDir)
 	if err != nil {
-		stepsDir = filepath.Join(versionDir, "schemas", "tools")
-		entries, err = os.ReadDir(stepsDir)
-		if err != nil {
-			return
-		}
+		return
 	}
 
 	for _, entry := range entries {
@@ -752,19 +747,14 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			continue
 		}
 
-		// The step class is in x-step.class (enriched schemas) or falls back to
-		// x-component.id. Extraction keeps Okapi names; we add the "okapi:" prefix
-		// here for the neokapi tool namespace.
+		// Extraction preserves Okapi naming. We add the "okapi:" prefix here
+		// to place bridge-provided tools in the neokapi tool namespace.
 		stepClass := cs.Meta.ID
 		okapiStepID := cs.ID
 		if okapiStepID == "" {
 			okapiStepID = cs.Meta.ID
 		}
-
-		// Map Okapi step ID to neokapi tool name: "search-and-replace" -> "okapi:search-and-replace"
-		// Strip any existing "okapi:" prefix to avoid double-prefixing legacy schemas.
-		cleanID := strings.TrimPrefix(okapiStepID, "okapi:")
-		toolName := "okapi:" + cleanID
+		toolName := "okapi:" + okapiStepID
 
 		// Capture for closure.
 		schemaRef := &cs

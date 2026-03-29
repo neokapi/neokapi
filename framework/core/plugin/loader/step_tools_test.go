@@ -16,161 +16,83 @@ import (
 func TestLoadBridgeStepTools_LoadsFromDirectory(t *testing.T) {
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
-
-	// Use testdata/ which contains schemas/steps/ (new) and schemas/tools/ (legacy)
-	testDir := filepath.Join("testdata")
-
-	// Create a dummy bridge registry and config (won't actually connect)
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
-	cfg := bridge.BridgeConfig{}
 
-	loader.loadBridgeStepTools(testDir, bridgeReg, cfg, toolReg, "test")
+	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
-	// Verify tools were registered
 	names := toolReg.Names()
 	assert.NotEmpty(t, names, "expected step tools to be registered")
-
-	// Verify specific tools from our test fixtures
-	assert.True(t, toolReg.Has("okapi:search-and-replace"), "expected okapi:search-and-replace tool")
-	assert.True(t, toolReg.Has("okapi:segmentation"), "expected okapi:segmentation tool")
-	assert.True(t, toolReg.Has("okapi:quality-check"), "expected okapi:quality-check tool")
+	assert.True(t, toolReg.Has("okapi:search-and-replace"))
+	assert.True(t, toolReg.Has("okapi:segmentation"))
+	assert.True(t, toolReg.Has("okapi:quality-check"))
 }
 
 func TestLoadBridgeStepTools_SchemaMetadata(t *testing.T) {
-	toolReg := registry.NewToolRegistry()
-	loader := &PluginLoader{}
-
-	testDir := filepath.Join("testdata")
-	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
-	cfg := bridge.BridgeConfig{}
-
-	loader.loadBridgeStepTools(testDir, bridgeReg, cfg, toolReg, "test")
-
-	// Check the search-and-replace schema
-	s := toolReg.GetSchema("okapi:search-and-replace")
-	require.NotNil(t, s, "expected schema for okapi:search-and-replace")
-
-	// Schema $id preserves Okapi naming (no okapi: prefix)
-	assert.Equal(t, "search-and-replace", s.ID)
-	assert.Equal(t, "Search and Replace", s.Title)
-	assert.Equal(t, "step", s.Meta.Type)
-	assert.NotEmpty(t, s.Properties)
-
-	// Verify properties have correct types
-	regEx, ok := s.Properties["regEx"]
-	assert.True(t, ok, "expected regEx property")
-	assert.Equal(t, "boolean", regEx.Type)
-
-	target, ok := s.Properties["target"]
-	assert.True(t, ok, "expected target property")
-	assert.Equal(t, "boolean", target.Type)
-}
-
-func TestLoadBridgeStepTools_CreatesWorkingTool(t *testing.T) {
-	toolReg := registry.NewToolRegistry()
-	loader := &PluginLoader{}
-
-	testDir := filepath.Join("testdata")
-	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
-	cfg := bridge.BridgeConfig{}
-
-	loader.loadBridgeStepTools(testDir, bridgeReg, cfg, toolReg, "test")
-
-	// Create a tool instance from the factory
-	tl, err := toolReg.NewTool("okapi:search-and-replace")
-	require.NoError(t, err)
-	require.NotNil(t, tl)
-
-	assert.Equal(t, "okapi:search-and-replace", tl.Name())
-
-	// Verify it implements SchemaProvider
-	sp, ok := tl.(interface{ Schema() *schema.ComponentSchema })
-	if ok {
-		assert.NotNil(t, sp.Schema())
-	}
-}
-
-func TestLoadBridgeStepTools_MapsOkapiNameToNeokapi(t *testing.T) {
-	// Verify that Okapi step IDs (no prefix) get mapped to neokapi tool names (okapi: prefix)
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
 	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
-	// Schema uses Okapi naming: "search-and-replace"
 	s := toolReg.GetSchema("okapi:search-and-replace")
 	require.NotNil(t, s)
-	assert.Equal(t, "search-and-replace", s.ID, "schema $id should use Okapi naming")
-	assert.Equal(t, "search-and-replace", s.Meta.ID, "x-component.id should use Okapi naming")
 
-	// Tool is registered with neokapi naming: "okapi:search-and-replace"
-	tl, err := toolReg.NewTool("okapi:search-and-replace")
-	require.NoError(t, err)
-	assert.Equal(t, "okapi:search-and-replace", tl.Name(), "tool name should use neokapi naming")
+	// Schema $id preserves Okapi naming (no okapi: prefix)
+	assert.Equal(t, "search-and-replace", s.ID)
+	assert.Equal(t, "Search and Replace", s.Title)
+	assert.Equal(t, "step", s.Meta.Type)
+	assert.NotEmpty(t, s.Properties)
+	assert.Equal(t, "boolean", s.Properties["regEx"].Type)
+	assert.Equal(t, "boolean", s.Properties["target"].Type)
 }
 
-func TestLoadBridgeStepTools_FallsBackToLegacyDir(t *testing.T) {
-	// Create a temp dir with only schemas/tools/ (legacy layout)
-	tmpDir := t.TempDir()
-	legacyDir := filepath.Join(tmpDir, "schemas", "tools")
-	require.NoError(t, os.MkdirAll(legacyDir, 0o755))
-
-	stepSchema := schema.ComponentSchema{
-		ID:    "legacy-step",
-		Title: "Legacy Step",
-		Meta:  schema.ComponentMeta{ID: "legacy-step", Type: "step"},
-		Properties: map[string]schema.PropertySchema{
-			"enabled": {Type: "boolean"},
-		},
-	}
-	data, _ := json.Marshal(stepSchema)
-	require.NoError(t, os.WriteFile(filepath.Join(legacyDir, "legacy-step.schema.json"), data, 0o644))
-
+func TestLoadBridgeStepTools_MapsOkapiNameToNeokapi(t *testing.T) {
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
-	loader.loadBridgeStepTools(tmpDir, bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
-	// Should find the tool via legacy directory fallback
-	assert.True(t, toolReg.Has("okapi:legacy-step"))
+	// Schema preserves Okapi naming
+	s := toolReg.GetSchema("okapi:search-and-replace")
+	require.NotNil(t, s)
+	assert.Equal(t, "search-and-replace", s.ID)
+	assert.Equal(t, "search-and-replace", s.Meta.ID)
+
+	// Tool registered with neokapi namespace
+	tl, err := toolReg.NewTool("okapi:search-and-replace")
+	require.NoError(t, err)
+	assert.Equal(t, "okapi:search-and-replace", tl.Name())
 }
 
 func TestLoadBridgeStepTools_SkipsNonStepSchemas(t *testing.T) {
-	// Create a temp dir with a non-step schema
 	tmpDir := t.TempDir()
-	toolsDir := filepath.Join(tmpDir, "schemas", "tools")
-	require.NoError(t, os.MkdirAll(toolsDir, 0o755))
+	stepsDir := filepath.Join(tmpDir, "schemas", "steps")
+	require.NoError(t, os.MkdirAll(stepsDir, 0o755))
 
-	// Write a schema with type != "step"
 	filterSchema := schema.ComponentSchema{
 		ID:    "some-filter",
 		Title: "Some Filter",
 		Meta:  schema.ComponentMeta{ID: "some-filter", Type: "format"},
 	}
 	data, _ := json.Marshal(filterSchema)
-	require.NoError(t, os.WriteFile(filepath.Join(toolsDir, "some-filter.schema.json"), data, 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(stepsDir, "some-filter.schema.json"), data, 0o644))
 
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
 	loader.loadBridgeStepTools(tmpDir, bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
-
-	// Should not register non-step schemas
-	assert.False(t, toolReg.Has("some-filter"))
+	assert.False(t, toolReg.Has("okapi:some-filter"))
 }
 
-func TestLoadBridgeStepTools_EmptyDirectory(t *testing.T) {
+func TestLoadBridgeStepTools_MissingDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
-	// Don't create schemas/tools/ — should return silently
 
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
-	// Should not panic or error
 	loader.loadBridgeStepTools(tmpDir, bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 	assert.Empty(t, toolReg.Names())
 }
@@ -178,22 +100,18 @@ func TestLoadBridgeStepTools_EmptyDirectory(t *testing.T) {
 func TestLoadBridgeStepTools_ToolInfoMetadata(t *testing.T) {
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
-
-	testDir := filepath.Join("testdata")
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
-	cfg := bridge.BridgeConfig{}
 
-	loader.loadBridgeStepTools(testDir, bridgeReg, cfg, toolReg, "test-plugin")
+	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
-	// Check tool info includes schema status
 	infos := toolReg.ListWithSchemas()
-	var searchReplace *registry.ToolInfo
+	var found *registry.ToolInfo
 	for i := range infos {
 		if infos[i].Name == "okapi:search-and-replace" {
-			searchReplace = &infos[i]
+			found = &infos[i]
 			break
 		}
 	}
-	require.NotNil(t, searchReplace)
-	assert.True(t, searchReplace.HasSchema)
+	require.NotNil(t, found)
+	assert.True(t, found.HasSchema)
 }
