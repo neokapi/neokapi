@@ -13,6 +13,13 @@ runs:
     - uses: actions/setup-go@v6
       with:
         go-version: ${{ inputs.go-version }}
+        cache-dependency-path: |
+          framework/go.sum
+          framework/cli/go.sum
+          framework/kapi/go.sum
+          platform/go.sum
+          platform/core/go.sum
+          platform/cli/go.sum
 
     - name: Download modules
       shell: bash

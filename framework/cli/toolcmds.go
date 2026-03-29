@@ -346,6 +346,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 	{
 		Use:          "script",
 		Short:        "Run a JavaScript processing script on each part",
+		Category:     "text-processing",
 		WritesOutput: true,
 		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
 			code, _ := cmd.Flags().GetString("code")
