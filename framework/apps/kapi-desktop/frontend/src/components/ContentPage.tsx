@@ -139,7 +139,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             type="text"
             value={project.base_path ?? ""}
             onChange={(e) => onUpdate({ ...project, base_path: e.target.value || undefined })}
-            placeholder={basePath ? shortenHome(basePath) : "Loading..."}
+            placeholder={shortenHome(basePath) || "Set project base path"}
             className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             aria-label="Project base path"
           />
