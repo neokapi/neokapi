@@ -39,6 +39,12 @@ const GET_STARTED = [
   },
 ];
 
+function shortenHome(path: string): string {
+  const match = path.match(/^(\/Users\/[^/]+|\/home\/[^/]+)(\/.*)?$/);
+  if (match) return "~" + (match[2] ?? "");
+  return path;
+}
+
 // Characters not allowed in directory names.
 const INVALID_DIR_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
 
