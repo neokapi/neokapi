@@ -178,7 +178,7 @@ export default function App() {
     <div className="flex h-screen flex-col bg-background text-foreground">
       {/* Title bar with tab bar — draggable region with non-draggable tabs */}
       <div
-        className="flex shrink-0 items-end border-b border-border bg-sidebar pt-8"
+        className="flex shrink-0 items-end border-b border-border bg-sidebar pt-10"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
         <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
