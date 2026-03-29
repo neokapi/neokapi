@@ -173,39 +173,36 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                   <label className="mb-1 block text-left text-xs text-muted-foreground">
                     Project Name
                   </label>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && nameValid) handleCreateProject(); }}
-                    placeholder="My App"
-                    autoFocus
-                    className={`w-full rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
-                      newName && !nameValid ? "border-destructive" : "border-input"
-                    }`}
-                  />
-                  {newName && !nameValid && (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && nameValid) handleCreateProject(); }}
+                      placeholder="My App"
+                      autoFocus
+                      className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
+                        newName && !nameValid ? "border-destructive" : "border-input"
+                      }`}
+                    />
+                    <button
+                      onClick={handleBrowse}
+                      className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                      aria-label="Browse for location"
+                      title="Choose location"
+                    >
+                      <FolderOpen size={16} />
+                    </button>
+                  </div>
+                  {newName && !nameValid ? (
                     <p className="mt-1 text-left text-xs text-destructive">
                       Name contains invalid characters for a directory
                     </p>
-                  )}
-                </div>
-                <div>
-                  <label className="mb-1 block text-left text-xs text-muted-foreground">
-                    Location
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <span className="flex-1 truncate rounded-lg border border-input bg-transparent px-3 py-2 text-xs text-muted-foreground">
-                      {savePath ? `${savePath}/project.kapi` : "Choose a name first"}
-                    </span>
-                    <button
-                      onClick={handleBrowse}
-                      className="shrink-0 rounded-lg border border-border px-3 py-2 text-xs hover:bg-accent"
-                      aria-label="Browse for location"
-                    >
-                      Browse
-                    </button>
-                  </div>
+                  ) : savePath ? (
+                    <p className="mt-1 text-left text-xs text-muted-foreground">
+                      Saved to {savePath}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="flex gap-2">
                   <button
