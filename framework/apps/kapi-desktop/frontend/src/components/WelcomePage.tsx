@@ -6,7 +6,6 @@ import {
   Languages,
   Wrench,
   Puzzle,
-  ArrowRight,
 } from "lucide-react";
 import type { KapiProject } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -16,48 +15,42 @@ interface WelcomePageProps {
   onNew: (project: KapiProject) => void;
 }
 
-const GETTING_STARTED_STEPS = [
+const GET_STARTED = [
   {
     icon: <FilePlus size={18} />,
     title: "Create a project",
-    description:
-      "Start a new Kapi project to organize your localization workflow. Define source and target languages, pick a framework preset, and map your content files.",
+    description: "Define languages, map content files, and save as a portable Kapi project.",
+    action: "new-project" as const,
+  },
+  {
+    icon: <Languages size={18} />,
+    title: "AI Translate a file",
+    description: "Translate a single file using Claude, GPT, or Ollama.",
+    action: "new-project" as const,
   },
   {
     icon: <Workflow size={18} />,
     title: "Build a flow",
-    description:
-      "Compose tools into reusable pipelines. Chain AI translation, quality checks, pseudo-translation, and more into flows you can run with one click.",
+    description: "Chain AI translation, quality checks, and more into reusable pipelines.",
+    action: "new-project" as const,
   },
   {
     icon: <Wrench size={18} />,
-    title: "Run tools",
-    description:
-      "Execute individual tools or full flows on your files. Watch progress in real time with per-file status and live block counts.",
+    title: "Pseudo-translate for testing",
+    description: "Generate pseudo-translations to verify UI layout and string expansion.",
+    action: "new-project" as const,
   },
   {
     icon: <Puzzle size={18} />,
     title: "Add plugins",
-    description:
-      "Install the Okapi Bridge plugin for plugging into Okapi's filters and steps, or browse the registry for community-contributed plugins.",
-  },
-];
-
-const QUICK_ACTIONS = [
-  {
-    icon: <Languages size={16} />,
-    label: "AI Translate a file",
-    description: "Translate a single file using Claude, GPT, or Ollama",
+    description: "Install the Okapi Bridge for plugging into Okapi's filters and steps.",
+    action: "new-project" as const,
   },
   {
-    icon: <Wrench size={16} />,
-    label: "Pseudo-translate for testing",
-    description: "Generate pseudo-translations to test UI layout",
-  },
-  {
-    icon: <Wrench size={16} />,
-    label: "Run a quality check",
-    description: "Validate translations against rule-based QA checks",
+    icon: <Wrench size={18} />,
+    title: "Run a quality check",
+    description: "Validate translations against rule-based QA checks.",
+    action: "new-project" as const,
   },
 ];
 
@@ -160,57 +153,28 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
             )}
           </div>
 
-          {/* Getting started */}
+          {/* Get started */}
           <section className="mb-12">
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Getting Started
+              Get Started
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {GETTING_STARTED_STEPS.map((step) => (
-                <div
-                  key={step.title}
-                  className="rounded-xl border border-border p-4"
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {GET_STARTED.map((item) => (
+                <button
+                  key={item.title}
+                  onClick={handleNew}
+                  className="group rounded-xl border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+                  aria-label={item.title}
                 >
                   <div className="mb-2 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      {step.icon}
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      {item.icon}
                     </div>
-                    <h3 className="text-sm font-medium">{step.title}</h3>
+                    <h3 className="text-sm font-medium">{item.title}</h3>
                   </div>
                   <p className="text-xs leading-relaxed text-muted-foreground">
-                    {step.description}
+                    {item.description}
                   </p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Quick actions */}
-          <section className="mb-12">
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-              Quick Actions
-            </h2>
-            <div className="space-y-2">
-              {QUICK_ACTIONS.map((action) => (
-                <button
-                  key={action.label}
-                  onClick={handleNew}
-                  className="group flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
-                  aria-label={action.label}
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    {action.icon}
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{action.label}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {action.description}
-                    </div>
-                  </div>
-                  <ArrowRight
-                    size={14}
-                    className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
-                  />
                 </button>
               ))}
             </div>

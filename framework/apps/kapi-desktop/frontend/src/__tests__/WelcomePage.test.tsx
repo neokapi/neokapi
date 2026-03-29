@@ -36,22 +36,14 @@ describe("WelcomePage", () => {
     );
   });
 
-  it("shows Getting Started section with all steps", () => {
+  it("shows Get Started section with all items", () => {
     render(<WelcomePage onOpen={vi.fn()} onNew={vi.fn()} />);
-    expect(screen.getByText("Getting Started")).toBeInTheDocument();
+    expect(screen.getByText("Get Started")).toBeInTheDocument();
     expect(screen.getByText("Create a project")).toBeInTheDocument();
-    expect(screen.getByText("Build a flow")).toBeInTheDocument();
-    expect(screen.getByText("Run tools")).toBeInTheDocument();
-    expect(screen.getByText("Add plugins")).toBeInTheDocument();
-  });
-
-  it("shows Quick Actions section", () => {
-    render(<WelcomePage onOpen={vi.fn()} onNew={vi.fn()} />);
-    expect(screen.getByText("Quick Actions")).toBeInTheDocument();
     expect(screen.getByText("AI Translate a file")).toBeInTheDocument();
-    expect(
-      screen.getByText("Pseudo-translate for testing"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Build a flow")).toBeInTheDocument();
+    expect(screen.getByText("Pseudo-translate for testing")).toBeInTheDocument();
+    expect(screen.getByText("Add plugins")).toBeInTheDocument();
     expect(screen.getByText("Run a quality check")).toBeInTheDocument();
   });
 
