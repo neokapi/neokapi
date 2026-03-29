@@ -57,7 +57,7 @@ function backend() {
 export async function call<T>(method: string, ...args: unknown[]): Promise<T | null> {
   const b = await backend();
   if (!b || !(method in b)) {
-    console.warn(`[useApi] Backend method "${method}" not available (not in Wails runtime)`);
+    // Expected when running outside Wails (Storybook, vitest, browser dev).
     return null;
   }
   return b[method](...args) as Promise<T>;
@@ -70,8 +70,10 @@ export const api = {
   newProject: (name: string, sourceLang: string, targetLangs: string[]) =>
     call<KapiProject>("NewProject", name, sourceLang, targetLangs),
   openProject: (path: string) => call<KapiProject>("OpenProject", path),
+  openProjectDialog: () => call<KapiProject>("OpenProjectDialog"),
   saveProject: () => call<void>("SaveProject"),
   saveProjectAs: (path: string) => call<void>("SaveProjectAs", path),
+  saveProjectDialog: () => call<void>("SaveProjectDialog"),
   getProject: () => call<KapiProject>("GetProject"),
   getProjectPath: () => call<string>("GetProjectPath"),
 

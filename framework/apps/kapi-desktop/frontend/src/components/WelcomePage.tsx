@@ -87,7 +87,7 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
   const handleOpen = useCallback(async () => {
     setError(null);
     try {
-      const result = await api.openProject("");
+      const result = await api.openProjectDialog();
       if (result) {
         const path = (await api.getProjectPath()) ?? "";
         onOpen(result, path);

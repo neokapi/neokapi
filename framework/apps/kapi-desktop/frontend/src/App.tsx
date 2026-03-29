@@ -5,7 +5,6 @@ import { ProjectPage } from "./components/ProjectPage";
 import { FlowPage } from "./components/FlowPage";
 import { ToolRunnerPage } from "./components/ToolRunnerPage";
 import { PluginManager } from "./components/PluginManager";
-import { CredentialsPage } from "./components/CredentialsPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
 
@@ -64,7 +63,6 @@ export default function App() {
         )}
         {view === "tools" && <ToolRunnerPage />}
         {view === "plugins" && <PluginManager />}
-        {view === "credentials" && <CredentialsPage />}
         {view === "settings" && <SettingsPage />}
       </main>
     </div>

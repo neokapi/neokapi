@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { Sun, Moon, FolderCog, Loader2 } from "lucide-react";
 import { api } from "../hooks/useApi";
+import { CredentialsPage } from "./CredentialsPage";
 
 export function SettingsPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [pluginDir, setPluginDir] = useState("");
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"general" | "credentials">("general");
 
   useEffect(() => {
     api.getSettings().then((settings) => {
@@ -38,47 +40,80 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="p-6">
-      <h1 className="mb-6 text-xl font-semibold">Settings</h1>
+    <div className="flex h-full flex-col">
+      {/* Tabs */}
+      <div className="flex border-b border-border">
+        <button
+          onClick={() => setActiveTab("general")}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "general"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          General
+        </button>
+        <button
+          onClick={() => setActiveTab("credentials")}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "credentials"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          AI Credentials
+        </button>
+      </div>
 
-      <div className="max-w-lg space-y-6">
-        <div className="flex items-center justify-between rounded-lg border border-border p-4">
-          <div className="flex items-center gap-3">
-            {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
-            <div>
-              <div className="text-sm font-medium">Theme</div>
-              <div className="text-xs text-muted-foreground">
-                {theme === "dark" ? "Dark mode" : "Light mode"}
+      {/* Tab content */}
+      <div className="flex-1 overflow-auto">
+        {activeTab === "general" && (
+          <div className="p-6">
+            <h1 className="mb-6 text-xl font-semibold">Settings</h1>
+
+            <div className="max-w-lg space-y-6">
+              <div className="flex items-center justify-between rounded-lg border border-border p-4">
+                <div className="flex items-center gap-3">
+                  {theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+                  <div>
+                    <div className="text-sm font-medium">Theme</div>
+                    <div className="text-xs text-muted-foreground">
+                      {theme === "dark" ? "Dark mode" : "Light mode"}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={toggleTheme}
+                  className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
+                  aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+                >
+                  Switch to {theme === "dark" ? "light" : "dark"}
+                </button>
+              </div>
+
+              <div className="rounded-lg border border-border p-4">
+                <div className="mb-3 flex items-center gap-3">
+                  <FolderCog size={18} />
+                  <div className="text-sm font-medium">Plugin Directory</div>
+                </div>
+                <input
+                  type="text"
+                  value={pluginDir}
+                  onChange={(e) => setPluginDir(e.target.value)}
+                  onBlur={handleSavePluginDir}
+                  placeholder="~/.config/kapi/plugins"
+                  className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  aria-label="Plugin directory path"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Override with KAPI_PLUGIN_DIR environment variable
+                </p>
               </div>
             </div>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
-            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-          >
-            Switch to {theme === "dark" ? "light" : "dark"}
-          </button>
-        </div>
+        )}
 
-        <div className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex items-center gap-3">
-            <FolderCog size={18} />
-            <div className="text-sm font-medium">Plugin Directory</div>
-          </div>
-          <input
-            type="text"
-            value={pluginDir}
-            onChange={(e) => setPluginDir(e.target.value)}
-            onBlur={handleSavePluginDir}
-            placeholder="~/.config/kapi/plugins"
-            className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            aria-label="Plugin directory path"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Override with KAPI_PLUGIN_DIR environment variable
-          </p>
-        </div>
+        {activeTab === "credentials" && <CredentialsPage />}
       </div>
     </div>
   );

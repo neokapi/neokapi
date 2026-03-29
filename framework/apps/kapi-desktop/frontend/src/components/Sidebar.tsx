@@ -4,7 +4,6 @@ import {
   Workflow,
   Wrench,
   Puzzle,
-  KeyRound,
   Settings,
   X,
 } from "lucide-react";
@@ -23,7 +22,6 @@ const navItems: { view: View; label: string; icon: React.ReactNode }[] = [
   { view: "flows", label: "Flows", icon: <Workflow size={18} /> },
   { view: "tools", label: "Tools", icon: <Wrench size={18} /> },
   { view: "plugins", label: "Plugins", icon: <Puzzle size={18} /> },
-  { view: "credentials", label: "Credentials", icon: <KeyRound size={18} /> },
   { view: "settings", label: "Settings", icon: <Settings size={18} /> },
 ];
 

@@ -77,5 +77,4 @@ export type View =
   | "flows"
   | "tools"
   | "plugins"
-  | "credentials"
   | "settings";

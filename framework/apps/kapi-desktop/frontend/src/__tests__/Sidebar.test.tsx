@@ -16,7 +16,6 @@ describe("Sidebar", () => {
     expect(screen.getByText("Flows")).toBeInTheDocument();
     expect(screen.getByText("Tools")).toBeInTheDocument();
     expect(screen.getByText("Plugins")).toBeInTheDocument();
-    expect(screen.getByText("Credentials")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
