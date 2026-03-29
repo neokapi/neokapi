@@ -132,9 +132,7 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
               Kapi Desktop
             </h1>
             <p className="mb-6 max-w-md text-base text-muted-foreground">
-              The open-source localization toolkit for developers.
-              Format-aware parsing, AI translation, quality checks, and
-              pluggable pipelines &mdash; all from your desktop.
+              Localization plumbing and glue for people and agents.
             </p>
 
             <div className="flex gap-3">

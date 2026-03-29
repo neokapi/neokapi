@@ -8,7 +8,7 @@ describe("WelcomePage", () => {
     render(<WelcomePage onOpen={vi.fn()} onNew={vi.fn()} />);
     expect(screen.getByText("Kapi Desktop")).toBeInTheDocument();
     expect(
-      screen.getByText(/open-source localization toolkit/),
+      screen.getByText(/plumbing and glue/),
     ).toBeInTheDocument();
   });
 
