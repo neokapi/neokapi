@@ -1,6 +1,5 @@
 import {
   Home,
-  FolderKanban,
   BookOpen,
   Database,
   Workflow,
@@ -29,7 +28,7 @@ const adhocItems = [
 ];
 
 const projectItems = [
-  { view: "home", icon: <FolderKanban size={20} strokeWidth={SW} />, label: "Projects", alwaysEnabled: true },
+  { view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home", alwaysEnabled: true },
   { view: "content", icon: <FileText size={20} strokeWidth={SW} />, label: "Content", alwaysEnabled: false },
   { view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows", alwaysEnabled: false },
   { view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools", alwaysEnabled: false },
