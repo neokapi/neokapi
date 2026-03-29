@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Play, Globe, Workflow, Wrench, Loader2 } from "lucide-react";
-import type { KapiProject, FlowSpec } from "../types/api";
+import type { KapiProject, FlowSpec, ProjectView } from "../types/api";
 
 interface HomePageProps {
   project: KapiProject;
   onRunFlow?: (flowName: string, flow: FlowSpec) => void;
-  onNavigate: (view: "content" | "flows" | "tools") => void;
+  onNavigate: (view: ProjectView) => void;
 }
 
 export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
@@ -51,7 +51,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
           </div>
         </button>
         <button
-          onClick={() => onNavigate("flows")}
+          onClick={() => onNavigate("project-flows")}
           className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Flows</div>
@@ -62,7 +62,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
           </div>
         </button>
         <button
-          onClick={() => onNavigate("tools")}
+          onClick={() => onNavigate("project-tools")}
           className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Tools</div>
@@ -129,7 +129,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
           <p className="text-sm text-muted-foreground">
             No flows defined yet.{" "}
             <button
-              onClick={() => onNavigate("flows")}
+              onClick={() => onNavigate("project-flows")}
               className="text-primary hover:underline"
             >
               Create your first flow

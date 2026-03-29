@@ -77,9 +77,23 @@ export interface TabInfo {
   path: string;
 }
 
-export type View =
-  | "welcome"
+// App-level navigation (icon rail)
+export type AppSection =
   | "home"
-  | "content"
+  | "projects"
+  | "termbases"
+  | "memories"
   | "flows"
-  | "tools";
+  | "tools"
+  | "formats"
+  | "settings";
+
+// Project-level navigation (secondary sidebar when a project is open)
+export type ProjectView =
+  | "project-home"
+  | "content"
+  | "project-flows"
+  | "project-tools";
+
+// Legacy alias
+export type View = AppSection;
