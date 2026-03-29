@@ -744,12 +744,9 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			continue
 		}
 
-		// The step class is stored in x-component.class or derived from the ID.
+		// The step class is stored in x-component metadata or derived from the ID.
 		// Convention: the schema $id is "okapi:{step-id}" and x-component has the class.
 		stepClass := cs.Meta.ID
-		if cs.Meta.Description != "" {
-			// If description contains the Java class (a common convention), use it.
-		}
 
 		toolName := cs.ID
 		if toolName == "" {
