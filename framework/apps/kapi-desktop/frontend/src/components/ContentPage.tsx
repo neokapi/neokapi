@@ -16,11 +16,6 @@ function shortenHome(path: string): string {
   return path;
 }
 
-function pathDir(path: string): string {
-  const i = path.lastIndexOf("/");
-  return i > 0 ? path.slice(0, i) : path;
-}
-
 interface FileMatch {
   path: string;
   format: string;
@@ -41,6 +36,15 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
   const [scanning, setScanning] = useState(false);
 
   const content = project.content ?? [];
+
+  // Fetch base path on mount and when project changes.
+  useEffect(() => {
+    api.updateProject(tabID, project).then(() => {
+      api.getBasePath(tabID).then((base) => {
+        if (base) setBasePath(base);
+      });
+    });
+  }, [tabID, project.base_path, projectPath]);
 
   const rescanFiles = useCallback(async () => {
     setScanning(true);
@@ -135,7 +139,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             type="text"
             value={project.base_path ?? ""}
             onChange={(e) => onUpdate({ ...project, base_path: e.target.value || undefined })}
-            placeholder={shortenHome(basePath || (projectPath ? pathDir(projectPath) : "") || "~/KapiProjects")}
+            placeholder={basePath ? shortenHome(basePath) : "Loading..."}
             className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             aria-label="Project base path"
           />
