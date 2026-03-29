@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+/*
+ * Tailwind v4 removed automatic cursor:pointer from interactive elements.
+ * Restore it globally for buttons, links, and other clickable elements.
+ */
+@layer base {
+  a,
+  button,
+  select,
+  summary,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"] {
+    cursor: pointer;
+  }
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @source "../../../../../packages/ui/src";

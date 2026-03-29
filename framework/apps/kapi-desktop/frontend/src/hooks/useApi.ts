@@ -26,16 +26,16 @@ let backendLoaded = false;
  * Returns null when bindings aren't available (Storybook, vitest).
  */
 async function getBackend(): Promise<Backend | null> {
-  if (backendLoaded) return backendModule;
-  backendLoaded = true;
+  if (backendModule) return backendModule;
+  if (backendLoaded) return null; // Already tried and failed (Storybook/vitest).
 
   try {
-    // Wails v3 generates bindings at this path via `wails3 generate bindings`.
-    // The variable prevents Vite from statically resolving the import.
     const path = "../../bindings/github.com/neokapi/neokapi/kapi-desktop/backend/app.js";
     backendModule = (await import(/* @vite-ignore */ path)) as Backend;
+    backendLoaded = true;
   } catch {
-    // Expected in Storybook/vitest — no Wails runtime available.
+    // In Storybook/vitest — mark as permanently failed.
+    backendLoaded = true;
     backendModule = null;
   }
 
