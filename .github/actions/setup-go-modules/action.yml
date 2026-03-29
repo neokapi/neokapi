@@ -27,7 +27,8 @@ runs:
         cd framework && go mod download && go mod verify
         cd cli && go mod download && go mod verify
         cd ../kapi && go mod download && go mod verify
-        cd ../../platform/core && go mod download && go mod verify
+        cd ../apps/kapi-desktop && go mod download && go mod verify
+        cd ../../../platform/core && go mod download && go mod verify
         cd ../cli && go mod download && go mod verify
         cd .. && go mod download && go mod verify
 
@@ -36,3 +37,4 @@ runs:
       run: |
         mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
         mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
+        mkdir -p framework/apps/kapi-desktop/frontend/dist && echo placeholder > framework/apps/kapi-desktop/frontend/dist/index.html

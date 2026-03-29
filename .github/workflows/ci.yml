@@ -141,11 +141,13 @@ jobs:
         working-directory: framework/apps/kapi-desktop/frontend
         run: npx storybook build -o storybook-static
 
-      - name: Run Kapi Desktop Go backend tests
+      - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: "1.26.0"
-      - working-directory: framework/apps/kapi-desktop
+
+      - name: Run Kapi Desktop Go backend tests
+        working-directory: framework/apps/kapi-desktop
         run: go test ./backend/... -count=1 -timeout 60s
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
@@ -565,6 +567,7 @@ jobs:
       - name: Create embed placeholders
         run: |
           mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
+          mkdir -p framework/apps/kapi-desktop/frontend/dist && echo placeholder > framework/apps/kapi-desktop/frontend/dist/index.html
 
       - name: Build kapi CLI
         run: cd framework/kapi && go build -o ../../bin/kapi ./cmd/kapi
