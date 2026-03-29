@@ -3,6 +3,24 @@ import { Plus, Trash2, Globe, FileText, FolderOpen, RefreshCw, Loader2 } from "l
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
 
+function shortenHome(path: string): string {
+  const home = typeof process !== "undefined" ? process.env.HOME : undefined;
+  if (home && path.startsWith(home)) {
+    return "~" + path.slice(home.length);
+  }
+  // Client-side fallback: detect /Users/xxx or /home/xxx pattern.
+  const match = path.match(/^(\/Users\/[^/]+|\/home\/[^/]+)(\/.*)?$/);
+  if (match) {
+    return "~" + (match[2] ?? "");
+  }
+  return path;
+}
+
+function pathDir(path: string): string {
+  const i = path.lastIndexOf("/");
+  return i > 0 ? path.slice(0, i) : path;
+}
+
 interface FileMatch {
   path: string;
   format: string;
@@ -115,15 +133,13 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             type="text"
             value={project.base_path ?? ""}
             onChange={(e) => onUpdate({ ...project, base_path: e.target.value || undefined })}
-            placeholder={basePath || "Defaults to project file directory"}
+            placeholder="Defaults to project file directory"
             className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             aria-label="Project base path"
           />
-          {basePath && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Resolved: {basePath}
-            </p>
-          )}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {shortenHome(basePath || projectPath ? pathDir(projectPath) : "")}
+          </p>
         </div>
       </section>
 
