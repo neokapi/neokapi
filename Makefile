@@ -78,11 +78,23 @@ build-server build-worker build-bowrain-cli build-bowrain build-headless install
 
 KAPI_DESKTOP_DIR := framework/apps/kapi-desktop
 
+build-kapi-desktop: kapi-desktop-frontend-build ## Build the Kapi Desktop app
+	cd $(KAPI_DESKTOP_DIR) && wails3 build
+
+kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (hot reload)
+	cd $(KAPI_DESKTOP_DIR) && wails3 dev
+
 kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GO) test ./backend/... -count=1
 
 kapi-desktop-frontend-deps: ## Install Kapi Desktop frontend dependencies
 	cd $(KAPI_DESKTOP_DIR)/frontend && npm install
+
+kapi-desktop-frontend-dev: kapi-desktop-frontend-deps ## Start Kapi Desktop frontend dev server
+	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp dev --port 5174 --strictPort
+
+kapi-desktop-frontend-build: kapi-desktop-frontend-deps ## Build Kapi Desktop frontend for production
+	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp build
 
 kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop frontend tests
 	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp test
@@ -90,7 +102,7 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp check
 
-kapi-desktop-storybook: kapi-desktop-frontend-deps ## Run Kapi Desktop Storybook
+kapi-desktop-storybook: kapi-desktop-frontend-deps ## Run Kapi Desktop Storybook (port 6007)
 	cd $(KAPI_DESKTOP_DIR)/frontend && npx storybook dev -p 6007
 
 kapi-desktop-storybook-build: kapi-desktop-frontend-deps ## Build Kapi Desktop Storybook
@@ -261,8 +273,10 @@ help: ## Show this help
         build build-all build-server build-worker build-bowrain-cli build-bowrain build-headless \
         install install-bowrain-cli \
         frontend-check-all \
-        kapi-desktop-test kapi-desktop-frontend-deps kapi-desktop-frontend-test \
-        kapi-desktop-frontend-check kapi-desktop-storybook kapi-desktop-storybook-build \
+        build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
+        kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
+        kapi-desktop-frontend-test kapi-desktop-frontend-check \
+        kapi-desktop-storybook kapi-desktop-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \
         bench bench-build bench-generate bench-run bench-run-bridge bench-run-collection bench-run-all bench-versions \
