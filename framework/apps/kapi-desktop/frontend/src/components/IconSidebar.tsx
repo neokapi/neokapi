@@ -15,6 +15,8 @@ interface IconSidebarProps {
   mode: "adhoc" | "projects";
   active: string;
   onChange: (view: string) => void;
+  /** When true, project items (except home) are grayed out and not clickable. */
+  projectDisabled?: boolean;
 }
 
 const adhocItems = [
@@ -27,33 +29,39 @@ const adhocItems = [
 ];
 
 const projectItems = [
-  { view: "home", icon: <FolderKanban size={20} strokeWidth={SW} />, label: "Project Home" },
-  { view: "content", icon: <FileText size={20} strokeWidth={SW} />, label: "Content" },
-  { view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
-  { view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
+  { view: "home", icon: <FolderKanban size={20} strokeWidth={SW} />, label: "Projects", alwaysEnabled: true },
+  { view: "content", icon: <FileText size={20} strokeWidth={SW} />, label: "Content", alwaysEnabled: false },
+  { view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows", alwaysEnabled: false },
+  { view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools", alwaysEnabled: false },
 ];
 
-export function IconSidebar({ mode, active, onChange }: IconSidebarProps) {
+export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSidebarProps) {
   const items = mode === "adhoc" ? adhocItems : projectItems;
 
   return (
     <aside className="flex w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
-        {items.map(({ view, icon, label }) => (
-          <button
-            key={view}
-            onClick={() => onChange(view)}
-            className={`rounded-lg p-2 transition-colors ${
-              active === view
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
-            aria-label={label}
-            title={label}
-          >
-            {icon}
-          </button>
-        ))}
+        {items.map((item) => {
+          const disabled = mode === "projects" && projectDisabled && !("alwaysEnabled" in item && item.alwaysEnabled);
+          return (
+            <button
+              key={item.view}
+              onClick={() => !disabled && onChange(item.view)}
+              disabled={disabled}
+              className={`rounded-lg p-2 transition-colors ${
+                active === item.view
+                  ? "bg-primary text-primary-foreground"
+                  : disabled
+                    ? "text-muted-foreground/30 cursor-not-allowed"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+              aria-label={item.label}
+              title={disabled ? `${item.label} (open a project first)` : item.label}
+            >
+              {item.icon}
+            </button>
+          );
+        })}
       </nav>
 
       <button

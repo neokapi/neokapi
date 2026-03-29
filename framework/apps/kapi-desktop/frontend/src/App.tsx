@@ -137,7 +137,7 @@ export default function App() {
       <div className="flex shrink-0 flex-col bg-sidebar">
         <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
         <div className="flex-1 border-r border-border">
-          <IconSidebar mode={mode} active={view} onChange={handleViewChange} />
+          <IconSidebar mode={mode} active={view} onChange={handleViewChange} projectDisabled={mode === "projects" && !activeTab} />
         </div>
       </div>
 
@@ -150,13 +150,28 @@ export default function App() {
         >
           {/* Tabs or spacer */}
           <div className="flex-1 pl-16" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-            {mode === "projects" && tabs.length > 0 && (
+            {mode === "projects" && (
               <TabBar
-                tabs={tabs.map((t) => t.info)}
-                activeTabID={activeTabID}
-                onSelect={setActiveTabID}
-                onClose={handleCloseTab}
+                tabs={[
+                  { id: "__home__", name: "Home", path: "" },
+                  ...tabs.map((t) => t.info),
+                ]}
+                activeTabID={activeTabID ?? "__home__"}
+                onSelect={(id) => {
+                  if (id === "__home__") {
+                    setActiveTabID(null);
+                    setView("home");
+                  } else {
+                    setActiveTabID(id);
+                    if (view === "home") setView("home"); // stay on project home
+                  }
+                }}
+                onClose={(id) => {
+                  if (id === "__home__") return; // can't close Home
+                  handleCloseTab(id);
+                }}
                 onRename={(id, name) => {
+                  if (id === "__home__") return;
                   setTabs((prev) => prev.map((t) =>
                     t.info.id === id ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } } : t
                   ));
@@ -188,13 +203,12 @@ export default function App() {
           {mode === "adhoc" && view === "memories" && <MemoriesPage />}
           {mode === "adhoc" && view === "formats" && <FormatsPage />}
 
-          {mode === "projects" && view === "home" && (
-            activeTab ? (
-              <HomePage project={activeTab.project} onNavigate={handleViewChange} />
-            ) : (
-              <ProjectsPage tabs={tabs.map((t) => t.info)} onSelectTab={setActiveTabID}
-                onNewProject={() => setShowNewProjectForm(true)} onOpenProject={handleOpenProject} />
-            )
+          {mode === "projects" && !activeTab && (
+            <ProjectsPage tabs={tabs.map((t) => t.info)} onSelectTab={setActiveTabID}
+              onNewProject={() => setShowNewProjectForm(true)} onOpenProject={handleOpenProject} />
+          )}
+          {mode === "projects" && view === "home" && activeTab && (
+            <HomePage project={activeTab.project} onNavigate={handleViewChange} />
           )}
           {mode === "projects" && view === "content" && activeTab && (
             <ContentPage project={activeTab.project} projectPath={activeTab.info.path}

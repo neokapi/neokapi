@@ -16,7 +16,7 @@ export function ModeToggle({ mode, onChange }: ModeToggleProps) {
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
-        Ad-Hoc
+        Ad-hoc
       </button>
       <button
         onClick={() => onChange("projects")}
@@ -26,7 +26,7 @@ export function ModeToggle({ mode, onChange }: ModeToggleProps) {
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
-        Projects
+        Project
       </button>
     </div>
   );
