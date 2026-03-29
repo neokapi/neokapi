@@ -1,6 +1,14 @@
-import { useState } from "react";
-import { Plus, Trash2, Globe, FileText } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Trash2, Globe, FileText, FolderOpen, RefreshCw, Loader2 } from "lucide-react";
 import type { KapiProject, ContentEntry } from "../types/api";
+import { api } from "../hooks/useApi";
+
+interface FileMatch {
+  path: string;
+  format: string;
+  relative: string;
+  pattern: string;
+}
 
 interface ContentPageProps {
   project: KapiProject;
@@ -9,18 +17,33 @@ interface ContentPageProps {
   tabID: string;
 }
 
-export function ContentPage({ project, onUpdate }: ContentPageProps) {
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPageProps) {
+  const [matches, setMatches] = useState<FileMatch[]>([]);
+  const [basePath, setBasePath] = useState("");
+  const [scanning, setScanning] = useState(false);
 
   const content = project.content ?? [];
 
+  const rescanFiles = useCallback(async () => {
+    setScanning(true);
+    const [files, base] = await Promise.all([
+      api.matchContent(tabID),
+      api.getBasePath(tabID),
+    ]);
+    setMatches(files ?? []);
+    setBasePath(base ?? "");
+    setScanning(false);
+  }, [tabID]);
+
+  useEffect(() => {
+    rescanFiles();
+  }, [rescanFiles, content.length]);
+
   const handleAddEntry = () => {
-    const entry: ContentEntry = { path: "" };
     onUpdate({
       ...project,
-      content: [...content, entry],
+      content: [...content, { path: "" }],
     });
-    setEditingIndex(content.length);
   };
 
   const handleUpdateEntry = (index: number, entry: ContentEntry) => {
@@ -30,20 +53,14 @@ export function ContentPage({ project, onUpdate }: ContentPageProps) {
   };
 
   const handleDeleteEntry = (index: number) => {
-    const updated = content.filter((_, i) => i !== index);
-    onUpdate({ ...project, content: updated });
-    setEditingIndex(null);
-  };
-
-  const handleUpdateLanguage = (field: "source_language", value: string) => {
-    onUpdate({ ...project, [field]: value });
+    onUpdate({
+      ...project,
+      content: content.filter((_, i) => i !== index),
+    });
   };
 
   const handleUpdateTargets = (value: string) => {
-    const targets = value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const targets = value.split(",").map((s) => s.trim()).filter(Boolean);
     onUpdate({ ...project, target_languages: targets });
   };
 
@@ -52,7 +69,7 @@ export function ContentPage({ project, onUpdate }: ContentPageProps) {
       <h1 className="mb-6 text-xl font-semibold">Content</h1>
 
       {/* Languages */}
-      <section className="mb-8">
+      <section className="mb-6">
         <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
           <Globe size={14} />
           Languages
@@ -66,7 +83,7 @@ export function ContentPage({ project, onUpdate }: ContentPageProps) {
               id="source-lang"
               type="text"
               value={project.source_language ?? ""}
-              onChange={(e) => handleUpdateLanguage("source_language", e.target.value)}
+              onChange={(e) => onUpdate({ ...project, source_language: e.target.value })}
               placeholder="en-US"
               className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
@@ -87,8 +104,31 @@ export function ContentPage({ project, onUpdate }: ContentPageProps) {
         </div>
       </section>
 
+      {/* Base path */}
+      <section className="mb-6">
+        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          <FolderOpen size={14} />
+          Base Path
+        </h2>
+        <div className="max-w-lg">
+          <input
+            type="text"
+            value={project.base_path ?? ""}
+            onChange={(e) => onUpdate({ ...project, base_path: e.target.value || undefined })}
+            placeholder={basePath || "Defaults to project file directory"}
+            className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+            aria-label="Project base path"
+          />
+          {basePath && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Resolved: {basePath}
+            </p>
+          )}
+        </div>
+      </section>
+
       {/* File patterns */}
-      <section>
+      <section className="mb-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             <FileText size={14} />
@@ -107,51 +147,35 @@ export function ContentPage({ project, onUpdate }: ContentPageProps) {
         {content.length > 0 ? (
           <div className="space-y-2">
             {content.map((entry, i) => (
-              <div
-                key={i}
-                className="group rounded-lg border border-border p-3"
-              >
+              <div key={i} className="group rounded-lg border border-border p-3">
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="mb-0.5 block text-xs text-muted-foreground">
-                      Path pattern
-                    </label>
+                    <label className="mb-0.5 block text-xs text-muted-foreground">Path pattern</label>
                     <input
                       type="text"
                       value={entry.path}
-                      onChange={(e) =>
-                        handleUpdateEntry(i, { ...entry, path: e.target.value })
-                      }
-                      onFocus={() => setEditingIndex(i)}
+                      onChange={(e) => handleUpdateEntry(i, { ...entry, path: e.target.value })}
                       placeholder="src/locales/en/*.json"
                       className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                   <div>
-                    <label className="mb-0.5 block text-xs text-muted-foreground">
-                      Format
-                    </label>
+                    <label className="mb-0.5 block text-xs text-muted-foreground">Format</label>
                     <input
                       type="text"
                       value={entry.format ?? ""}
-                      onChange={(e) =>
-                        handleUpdateEntry(i, { ...entry, format: e.target.value || undefined })
-                      }
+                      onChange={(e) => handleUpdateEntry(i, { ...entry, format: e.target.value || undefined })}
                       placeholder="auto-detect"
                       className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
                     />
                   </div>
                   <div className="flex items-end gap-1">
                     <div className="flex-1">
-                      <label className="mb-0.5 block text-xs text-muted-foreground">
-                        Target path
-                      </label>
+                      <label className="mb-0.5 block text-xs text-muted-foreground">Target path</label>
                       <input
                         type="text"
                         value={entry.target ?? ""}
-                        onChange={(e) =>
-                          handleUpdateEntry(i, { ...entry, target: e.target.value || undefined })
-                        }
+                        onChange={(e) => handleUpdateEntry(i, { ...entry, target: e.target.value || undefined })}
                         placeholder="src/locales/{lang}/*.json"
                         className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
                       />
@@ -169,13 +193,60 @@ export function ContentPage({ project, onUpdate }: ContentPageProps) {
             ))}
           </div>
         ) : (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center">
-            <FileText size={24} className="mx-auto mb-2 text-muted-foreground/50" />
+          <div className="rounded-lg border border-dashed border-border p-6 text-center">
+            <FileText size={20} className="mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
-              No content patterns configured. Add a pattern to map your source files.
+              No content patterns. Add a pattern to map your source files.
             </p>
           </div>
         )}
+      </section>
+
+      {/* Matched files */}
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Matched Files ({matches.length})
+          </h2>
+          <button
+            onClick={rescanFiles}
+            disabled={scanning}
+            className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
+            aria-label="Rescan files"
+          >
+            {scanning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            Rescan
+          </button>
+        </div>
+
+        {matches.length > 0 ? (
+          <div className="rounded-lg border border-border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border text-left text-muted-foreground">
+                  <th className="px-3 py-2 font-medium">File</th>
+                  <th className="px-3 py-2 font-medium">Format</th>
+                  <th className="px-3 py-2 font-medium">Pattern</th>
+                </tr>
+              </thead>
+              <tbody>
+                {matches.map((m, i) => (
+                  <tr key={i} className="border-b border-border last:border-0 hover:bg-accent/30">
+                    <td className="px-3 py-1.5 font-mono">{m.relative}</td>
+                    <td className="px-3 py-1.5">
+                      <span className="rounded bg-accent px-1.5 py-0.5">{m.format || "unknown"}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : content.length > 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {scanning ? "Scanning..." : "No files matched the configured patterns."}
+          </p>
+        ) : null}
       </section>
     </div>
   );

@@ -11,19 +11,49 @@ type FileMatch struct {
 	Path     string `json:"path"`
 	Format   string `json:"format,omitempty"`
 	Relative string `json:"relative"`
+	Pattern  string `json:"pattern"` // which content entry matched
 }
 
-// MatchContent resolves content patterns from the current project against the filesystem.
-// The basePath is the directory to resolve relative globs from (typically the .kapi file's directory).
-func (a *App) MatchContent(tabID, basePath string) ([]FileMatch, error) {
+// GetBasePath returns the effective base path for a project tab.
+// Uses the project's BasePath if set, otherwise the .kapi file's parent directory.
+func (a *App) GetBasePath(tabID string) string {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return ""
+	}
+	if op.Project.BasePath != "" {
+		if filepath.IsAbs(op.Project.BasePath) {
+			return op.Project.BasePath
+		}
+		// Relative base_path: resolve against the .kapi file's directory.
+		if op.Path != "" {
+			return filepath.Join(filepath.Dir(op.Path), op.Project.BasePath)
+		}
+	}
+	// Default: .kapi file's directory, or working directory if unsaved.
+	if op.Path != "" {
+		return filepath.Dir(op.Path)
+	}
+	wd, _ := os.Getwd()
+	return wd
+}
+
+// MatchContent resolves content patterns against the filesystem.
+// Uses GetBasePath to determine the root directory for glob resolution.
+func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return nil, nil
 	}
-	proj := op.Project
 
+	basePath := a.GetBasePath(tabID)
 	var matches []FileMatch
-	for _, entry := range proj.Content {
+
+	for _, entry := range op.Project.Content {
+		if entry.Path == "" {
+			continue
+		}
+
 		pattern := entry.Path
 		if !filepath.IsAbs(pattern) {
 			pattern = filepath.Join(basePath, pattern)
@@ -49,6 +79,7 @@ func (a *App) MatchContent(tabID, basePath string) ([]FileMatch, error) {
 				Path:     f,
 				Format:   format,
 				Relative: rel,
+				Pattern:  entry.Path,
 			})
 		}
 	}

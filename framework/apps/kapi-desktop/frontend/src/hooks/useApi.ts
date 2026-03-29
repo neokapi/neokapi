@@ -103,7 +103,8 @@ export const api = {
   testProvider: (id: string) => call<boolean>("TestProvider", id),
 
   // Files
-  matchContent: (basePath: string) => call<unknown[]>("MatchContent", basePath),
+  matchContent: (tabID: string) => call<Array<{ path: string; format: string; relative: string; pattern: string }>>("MatchContent", tabID),
+  getBasePath: (tabID: string) => call<string>("GetBasePath", tabID),
 
   // Recent files
   listRecentFiles: () =>

@@ -23,15 +23,16 @@ const CurrentVersion = "v1"
 
 // KapiProject is the root type for a .kapi project file.
 type KapiProject struct {
-	Version         string                `yaml:"version"`
-	Name            string                `yaml:"name"`
-	SourceLanguage  string                `yaml:"source_language,omitempty"`
-	TargetLanguages []string              `yaml:"target_languages,omitempty"`
-	Content         []ContentEntry        `yaml:"content,omitempty"`
-	Preset          string                `yaml:"preset,omitempty"`
-	Plugins         []string              `yaml:"plugins,omitempty"`
+	Version         string                     `yaml:"version"`
+	Name            string                     `yaml:"name"`
+	BasePath        string                     `yaml:"base_path,omitempty"` // Project root; defaults to .kapi file's directory
+	SourceLanguage  string                     `yaml:"source_language,omitempty"`
+	TargetLanguages []string                   `yaml:"target_languages,omitempty"`
+	Content         []ContentEntry             `yaml:"content,omitempty"`
+	Preset          string                     `yaml:"preset,omitempty"`
+	Plugins         []string                   `yaml:"plugins,omitempty"`
 	Flows           map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
-	Defaults        Defaults              `yaml:"defaults,omitempty"`
+	Defaults        Defaults                   `yaml:"defaults,omitempty"`
 }
 
 // ContentEntry maps local files to format and target path patterns.
