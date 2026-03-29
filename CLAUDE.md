@@ -133,7 +133,6 @@ neokapi/
 ├── cli/
 │   ├── go.mod             # module github.com/neokapi/neokapi/cli (framework only)
 │   ├── config/            # Viper-based app configuration (~/.config/kapi/)
-│   ├── credentials/       # OS keychain credential store (go-keyring)
 │   ├── output/            # Shared output formatting + types (used by kapi & bowrain)
 │   └── storage/           # SQLite-backed termbase and TM for CLI workflows
 │

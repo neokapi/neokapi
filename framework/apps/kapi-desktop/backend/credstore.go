@@ -1,11 +1,4 @@
-// Package credentials manages AI provider configurations on disk
-// and API keys in the OS keychain.
-//
-// Provider configs (name, type, model, base URL) are stored as JSON at
-// ~/.config/kapi/providers.json. API keys are stored separately in the
-// OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-// and never written to disk.
-package credentials
+package backend
 
 import (
 	"encoding/json"
@@ -36,8 +29,8 @@ type ProviderConfigWithKey struct {
 	APIKey string `json:"api_key"`
 }
 
-// Store manages provider configurations on disk and API keys in the OS keychain.
-type Store struct {
+// CredentialStore manages provider configurations on disk and API keys in the OS keychain.
+type CredentialStore struct {
 	mu       sync.RWMutex
 	filePath string
 	configs  []ProviderConfig
@@ -45,14 +38,14 @@ type Store struct {
 
 // NewStore creates a Store backed by the given JSON file path.
 // If the file does not exist, the store starts empty.
-func NewStore(filePath string) *Store {
-	s := &Store{filePath: filePath}
+func NewCredentialStore(filePath string) *CredentialStore {
+	s := &CredentialStore{filePath: filePath}
 	s.load()
 	return s
 }
 
 // DefaultPath returns the default config file path (~/.config/kapi/providers.json).
-func DefaultPath() string {
+func DefaultCredentialPath() string {
 	configDir, err := os.UserConfigDir()
 	if err != nil {
 		configDir = filepath.Join(os.Getenv("HOME"), ".config")
@@ -61,7 +54,7 @@ func DefaultPath() string {
 }
 
 // List returns all stored provider configs.
-func (s *Store) List() []ProviderConfig {
+func (s *CredentialStore) List() []ProviderConfig {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]ProviderConfig, len(s.configs))
@@ -70,7 +63,7 @@ func (s *Store) List() []ProviderConfig {
 }
 
 // Get returns a provider config by ID.
-func (s *Store) Get(configID string) (ProviderConfig, error) {
+func (s *CredentialStore) Get(configID string) (ProviderConfig, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, c := range s.configs {
@@ -82,7 +75,7 @@ func (s *Store) Get(configID string) (ProviderConfig, error) {
 }
 
 // Upsert inserts or updates a provider config. If cfg.ID is empty, a new ID is assigned.
-func (s *Store) Upsert(cfg ProviderConfig) ProviderConfig {
+func (s *CredentialStore) Upsert(cfg ProviderConfig) ProviderConfig {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -104,7 +97,7 @@ func (s *Store) Upsert(cfg ProviderConfig) ProviderConfig {
 }
 
 // Remove deletes a provider config by ID.
-func (s *Store) Remove(configID string) error {
+func (s *CredentialStore) Remove(configID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -119,21 +112,21 @@ func (s *Store) Remove(configID string) error {
 }
 
 // SetAPIKey stores an API key in the OS keychain.
-func (s *Store) SetAPIKey(configID, key string) error {
+func (s *CredentialStore) SetAPIKey(configID, key string) error {
 	return keyring.Set(keyringService, configID, key)
 }
 
 // GetAPIKey retrieves an API key from the OS keychain.
-func (s *Store) GetAPIKey(configID string) (string, error) {
+func (s *CredentialStore) GetAPIKey(configID string) (string, error) {
 	return keyring.Get(keyringService, configID)
 }
 
 // DeleteAPIKey removes an API key from the OS keychain.
-func (s *Store) DeleteAPIKey(configID string) error {
+func (s *CredentialStore) DeleteAPIKey(configID string) error {
 	return keyring.Delete(keyringService, configID)
 }
 
-func (s *Store) load() {
+func (s *CredentialStore) load() {
 	data, err := os.ReadFile(s.filePath)
 	if err != nil {
 		s.configs = nil
@@ -147,7 +140,7 @@ func (s *Store) load() {
 	s.configs = configs
 }
 
-func (s *Store) save() {
+func (s *CredentialStore) save() {
 	data, err := json.MarshalIndent(s.configs, "", "  ")
 	if err != nil {
 		return

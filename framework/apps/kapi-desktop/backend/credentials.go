@@ -2,8 +2,6 @@ package backend
 
 import (
 	"fmt"
-
-	"github.com/neokapi/neokapi/cli/credentials"
 )
 
 // ProviderInfo is the frontend-facing provider summary (no API key).
@@ -49,7 +47,7 @@ func (a *App) SaveProvider(req ProviderSaveRequest) (*ProviderInfo, error) {
 		return nil, fmt.Errorf("credential store not initialized")
 	}
 
-	cfg := a.credentials.Upsert(credentials.ProviderConfig{
+	cfg := a.credentials.Upsert(ProviderConfig{
 		ID:           req.ID,
 		Name:         req.Name,
 		ProviderType: req.ProviderType,

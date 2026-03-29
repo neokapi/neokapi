@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/neokapi/neokapi/cli/credentials"
 	"github.com/neokapi/neokapi/core/flow"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
@@ -45,7 +44,7 @@ type App struct {
 	registry   *pluginreg.RemoteRegistry
 
 	// Persistence
-	credentials *credentials.Store
+	credentials *CredentialStore
 	recent      *recentStore
 	settings    *settingsStore
 
@@ -73,7 +72,7 @@ func NewApp() *App {
 		toolReg:      toolReg,
 		schemaReg:    schemaReg,
 		pluginLoader: pluginLoader,
-		credentials:  credentials.NewStore(credentials.DefaultPath()),
+		credentials:  NewCredentialStore(DefaultCredentialPath()),
 		recent:       newRecentStore(),
 		settings:     newSettingsStore(),
 		logger:       logger,
