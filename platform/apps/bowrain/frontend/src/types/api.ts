@@ -39,16 +39,19 @@ export interface ToolSchema {
     collapsed?: boolean;
     fields: string[];
   }>;
-  properties: Record<string, {
-    type: string;
-    description?: string;
-    default?: unknown;
-    enum?: string[];
-    "x-widget"?: string;
-    "x-placeholder"?: string;
-    properties?: Record<string, unknown>;
-    items?: { type: string; properties?: Record<string, unknown> };
-  }>;
+  properties: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+      default?: unknown;
+      enum?: string[];
+      "x-widget"?: string;
+      "x-placeholder"?: string;
+      properties?: Record<string, unknown>;
+      items?: { type: string; properties?: Record<string, unknown> };
+    }
+  >;
 }
 
 /** Flow descriptor */

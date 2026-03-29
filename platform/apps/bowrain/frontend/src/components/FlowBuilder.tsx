@@ -285,9 +285,7 @@ function ToolConfigPanel({
   const { schema, loading } = useToolSchema(toolName);
 
   if (loading) {
-    return (
-      <div className="p-4 text-sm text-muted-foreground">Loading schema...</div>
-    );
+    return <div className="p-4 text-sm text-muted-foreground">Loading schema...</div>;
   }
 
   if (!schema || !schema.properties || Object.keys(schema.properties).length === 0) {
@@ -491,11 +489,7 @@ export function FlowBuilder() {
     (config: Record<string, unknown>) => {
       if (!selectedToolNode) return;
       setNodes((prev) =>
-        prev.map((n) =>
-          n.id === selectedToolNode.id
-            ? { ...n, data: { ...n.data, config } }
-            : n,
-        ),
+        prev.map((n) => (n.id === selectedToolNode.id ? { ...n, data: { ...n.data, config } } : n)),
       );
       setDirty(true);
     },

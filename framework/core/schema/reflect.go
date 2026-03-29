@@ -323,12 +323,16 @@ func parseDefault(s string, propType string) any {
 		return s == "true"
 	case "integer":
 		var n int
-		fmt.Sscanf(s, "%d", &n)
-		return n
+		if _, err := fmt.Sscanf(s, "%d", &n); err == nil {
+			return n
+		}
+		return 0
 	case "number":
 		var f float64
-		fmt.Sscanf(s, "%f", &f)
-		return f
+		if _, err := fmt.Sscanf(s, "%f", &f); err == nil {
+			return f
+		}
+		return 0.0
 	default:
 		return s
 	}

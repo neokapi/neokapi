@@ -1,6 +1,12 @@
 import { useState, useCallback, useMemo } from "react";
 import { cn } from "../../lib/utils";
-import { ComponentSchema, FilterSchema, ParameterGroup, PropertySchema, FilterParamsValue } from "./types";
+import {
+  ComponentSchema,
+  FilterSchema,
+  ParameterGroup,
+  PropertySchema,
+  FilterParamsValue,
+} from "./types";
 
 // UI components from the ui directory
 import { Button } from "../ui/button";

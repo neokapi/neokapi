@@ -121,13 +121,13 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 	}
 
 	jsObj := partToJS(s.vm, part)
-	s.vm.Set("part", jsObj)
+	_ = s.vm.Set("part", jsObj)
 
 	var emitted []*model.Part
 	skipped := false
 	emitCalled := false
 
-	s.vm.Set("emit", func(call goja.FunctionCall) goja.Value {
+	_ = s.vm.Set("emit", func(call goja.FunctionCall) goja.Value {
 		emitCalled = true
 		arg := call.Argument(0)
 		if arg == nil || goja.IsUndefined(arg) || goja.IsNull(arg) {
@@ -139,12 +139,12 @@ func (s *ScriptTool) runScript(part *model.Part) ([]*model.Part, error) {
 		return goja.Undefined()
 	})
 
-	s.vm.Set("skip", func(call goja.FunctionCall) goja.Value {
+	_ = s.vm.Set("skip", func(call goja.FunctionCall) goja.Value {
 		skipped = true
 		return goja.Undefined()
 	})
 
-	s.vm.Set("log", func(call goja.FunctionCall) goja.Value {
+	_ = s.vm.Set("log", func(call goja.FunctionCall) goja.Value {
 		msg := call.Argument(0).String()
 		fmt.Fprintln(os.Stderr, msg)
 		return goja.Undefined()
