@@ -42,23 +42,18 @@ export default function App() {
   // Refresh when tabs change.
   useEffect(() => { refreshRecent(); }, [refreshRecent, tabs.length]);
 
-  // On mount, retry until the backend is connected.
+  // Load initial data when Wails signals all services are ready.
+  // Per Wails v3 docs: common:ApplicationStarted fires after all
+  // ServiceStartup hooks complete — data is guaranteed available.
   useEffect(() => {
-    let cancelled = false;
-    const attempt = (n: number) => {
-      if (cancelled || n > 5) return;
-      api.listRecentFiles().then((f) => {
-        if (cancelled) return;
-        if (f !== null) {
-          setRecentFiles(f);
-        } else {
-          setTimeout(() => attempt(n + 1), 200 * n);
-        }
-      });
-    };
-    attempt(1);
-    return () => { cancelled = true; };
-  }, []);
+    let cleanup: (() => void) | null = null;
+    import("@wailsio/runtime").then(({ Events }) => {
+      cleanup = Events.On("common:ApplicationStarted", () => refreshRecent());
+      // Also call immediately — event may have already fired during import.
+      refreshRecent();
+    }).catch(() => {});
+    return () => { cleanup?.(); };
+  }, [refreshRecent]);
 
   const handleModeChange = useCallback((m: AppMode) => {
     setMode(m);

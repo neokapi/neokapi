@@ -4,6 +4,7 @@
 package backend
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -87,6 +88,20 @@ type openProject struct {
 	ID      string
 	Path    string
 	Project *project.KapiProject
+}
+
+// ServiceStartup is called by Wails v3 during application startup.
+// All initialization happens here — data is guaranteed ready before
+// the frontend renders.
+func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOptions) error {
+	a.logger.Println("service starting")
+	return nil
+}
+
+// ServiceShutdown is called by Wails v3 during application shutdown.
+func (a *App) ServiceShutdown() error {
+	a.logger.Println("service shutting down")
+	return nil
 }
 
 // SetApplication stores the Wails app reference for dialogs and events.

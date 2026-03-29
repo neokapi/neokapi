@@ -153,9 +153,8 @@ func main() {
 		}
 	})
 
-	// Signal the frontend that the backend is ready, then load plugins.
+	// Load plugins in the background after all services have started.
 	app.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(event *application.ApplicationEvent) {
-		app.Event.Emit("app-ready", nil)
 		go appService.LoadPlugins()
 	})
 
