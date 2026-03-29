@@ -88,7 +88,7 @@ export default function App() {
       setActiveTabID((cur) => {
         if (cur !== tabID) return cur;
         if (remaining.length > 0) return remaining[remaining.length - 1].info.id;
-        setMode("adhoc"); setView("home");
+        setView("home");
         return null;
       });
       return remaining;
