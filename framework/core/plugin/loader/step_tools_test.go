@@ -17,7 +17,7 @@ func TestLoadBridgeStepTools_LoadsFromDirectory(t *testing.T) {
 	toolReg := registry.NewToolRegistry()
 	loader := &PluginLoader{}
 
-	// Use testdata/schemas/tools/ which contains real schemas from okapi-bridge
+	// Use testdata/ which contains schemas/steps/ (new) and schemas/tools/ (legacy)
 	testDir := filepath.Join("testdata")
 
 	// Create a dummy bridge registry and config (won't actually connect)
@@ -50,7 +50,8 @@ func TestLoadBridgeStepTools_SchemaMetadata(t *testing.T) {
 	s := toolReg.GetSchema("okapi:search-and-replace")
 	require.NotNil(t, s, "expected schema for okapi:search-and-replace")
 
-	assert.Equal(t, "okapi:search-and-replace", s.ID)
+	// Schema $id preserves Okapi naming (no okapi: prefix)
+	assert.Equal(t, "search-and-replace", s.ID)
 	assert.Equal(t, "Search and Replace", s.Title)
 	assert.Equal(t, "step", s.Meta.Type)
 	assert.NotEmpty(t, s.Properties)
@@ -87,6 +88,53 @@ func TestLoadBridgeStepTools_CreatesWorkingTool(t *testing.T) {
 	if ok {
 		assert.NotNil(t, sp.Schema())
 	}
+}
+
+func TestLoadBridgeStepTools_MapsOkapiNameToNeokapi(t *testing.T) {
+	// Verify that Okapi step IDs (no prefix) get mapped to neokapi tool names (okapi: prefix)
+	toolReg := registry.NewToolRegistry()
+	loader := &PluginLoader{}
+	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
+
+	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+
+	// Schema uses Okapi naming: "search-and-replace"
+	s := toolReg.GetSchema("okapi:search-and-replace")
+	require.NotNil(t, s)
+	assert.Equal(t, "search-and-replace", s.ID, "schema $id should use Okapi naming")
+	assert.Equal(t, "search-and-replace", s.Meta.ID, "x-component.id should use Okapi naming")
+
+	// Tool is registered with neokapi naming: "okapi:search-and-replace"
+	tl, err := toolReg.NewTool("okapi:search-and-replace")
+	require.NoError(t, err)
+	assert.Equal(t, "okapi:search-and-replace", tl.Name(), "tool name should use neokapi naming")
+}
+
+func TestLoadBridgeStepTools_FallsBackToLegacyDir(t *testing.T) {
+	// Create a temp dir with only schemas/tools/ (legacy layout)
+	tmpDir := t.TempDir()
+	legacyDir := filepath.Join(tmpDir, "schemas", "tools")
+	require.NoError(t, os.MkdirAll(legacyDir, 0o755))
+
+	stepSchema := schema.ComponentSchema{
+		ID:    "legacy-step",
+		Title: "Legacy Step",
+		Meta:  schema.ComponentMeta{ID: "legacy-step", Type: "step"},
+		Properties: map[string]schema.PropertySchema{
+			"enabled": {Type: "boolean"},
+		},
+	}
+	data, _ := json.Marshal(stepSchema)
+	require.NoError(t, os.WriteFile(filepath.Join(legacyDir, "legacy-step.schema.json"), data, 0o644))
+
+	toolReg := registry.NewToolRegistry()
+	loader := &PluginLoader{}
+	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
+
+	loader.loadBridgeStepTools(tmpDir, bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
+
+	// Should find the tool via legacy directory fallback
+	assert.True(t, toolReg.Has("okapi:legacy-step"))
 }
 
 func TestLoadBridgeStepTools_SkipsNonStepSchemas(t *testing.T) {
