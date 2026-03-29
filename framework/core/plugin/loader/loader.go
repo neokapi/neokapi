@@ -713,14 +713,22 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 	return formats, nil
 }
 
-// loadBridgeStepTools scans schemas/tools/ within a bridge plugin directory
+// loadBridgeStepTools scans schemas/steps/ within a bridge plugin directory
 // for step schema JSON files and registers each as a tool.Tool.
+//
+// Schema extraction preserves Okapi naming (e.g., step ID "search-and-replace").
+// The mapping to neokapi tool names (e.g., "okapi:search-and-replace") happens here
+// at the bridge integration layer.
 func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.BridgeRegistry, cfg bridge.BridgeConfig, toolReg *registry.ToolRegistry, source string) {
-	toolsDir := filepath.Join(versionDir, "schemas", "tools")
-	entries, err := os.ReadDir(toolsDir)
+	// Try schemas/steps/ first (new structure), fall back to schemas/tools/ (legacy)
+	stepsDir := filepath.Join(versionDir, "schemas", "steps")
+	entries, err := os.ReadDir(stepsDir)
 	if err != nil {
-		// No tools directory — this is normal for plugins without steps.
-		return
+		stepsDir = filepath.Join(versionDir, "schemas", "tools")
+		entries, err = os.ReadDir(stepsDir)
+		if err != nil {
+			return
+		}
 	}
 
 	for _, entry := range entries {
@@ -728,7 +736,7 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			continue
 		}
 
-		data, err := os.ReadFile(filepath.Join(toolsDir, entry.Name()))
+		data, err := os.ReadFile(filepath.Join(stepsDir, entry.Name()))
 		if err != nil {
 			l.logf("reading step schema %s: %v", entry.Name(), err)
 			continue
@@ -744,22 +752,31 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			continue
 		}
 
-		// The step class is stored in x-component metadata or derived from the ID.
-		// Convention: the schema $id is "okapi:{step-id}" and x-component has the class.
+		// The step class is in x-step.class (enriched schemas) or falls back to
+		// x-component.id. Extraction keeps Okapi names; we add the "okapi:" prefix
+		// here for the neokapi tool namespace.
 		stepClass := cs.Meta.ID
-
-		toolName := cs.ID
-		if toolName == "" {
-			toolName = cs.Meta.ID
+		okapiStepID := cs.ID
+		if okapiStepID == "" {
+			okapiStepID = cs.Meta.ID
 		}
+
+		// Map Okapi step ID to neokapi tool name: "search-and-replace" -> "okapi:search-and-replace"
+		// Strip any existing "okapi:" prefix to avoid double-prefixing legacy schemas.
+		cleanID := strings.TrimPrefix(okapiStepID, "okapi:")
+		toolName := "okapi:" + cleanID
 
 		// Capture for closure.
 		schemaRef := &cs
 		stepClassRef := stepClass
 		cfgRef := cfg
+		desc := cs.Description
+		if desc == "" {
+			desc = cs.Meta.Description
+		}
 
 		toolReg.RegisterWithSchema(toolName, func() tool.Tool {
-			return bridge.NewBridgeStepTool(reg, cfgRef, stepClassRef, toolName, cs.Description, schemaRef)
+			return bridge.NewBridgeStepTool(reg, cfgRef, stepClassRef, toolName, desc, schemaRef)
 		}, schemaRef)
 
 		l.logf("registered bridge step tool: %s (source: %s)", toolName, source)
