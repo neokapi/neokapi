@@ -65,7 +65,7 @@ export const api = {
   listTabs: () => call<TabInfo[]>("ListTabs"),
   saveProject: (tabID: string) => call<void>("SaveProject", tabID),
   saveProjectAs: (tabID: string, path: string) => call<void>("SaveProjectAs", tabID, path),
-  saveProjectDialog: (tabID: string) => call<void>("SaveProjectDialog", tabID),
+  saveProjectDialog: (tabID: string) => call<TabInfo>("SaveProjectDialog", tabID),
   getProject: (tabID: string) => call<KapiProject>("GetProject", tabID),
   getProjectPath: (tabID: string) => call<string>("GetProjectPath", tabID),
 

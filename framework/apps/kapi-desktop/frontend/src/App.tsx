@@ -92,18 +92,17 @@ export default function App() {
     [activeTabID],
   );
 
-  const updateActiveTabPath = useCallback(
-    (path: string) => {
-      if (!activeTabID) return;
+  const updateActiveTab = useCallback(
+    (updated: TabInfo) => {
       setTabs((prev) =>
         prev.map((t) =>
-          t.info.id === activeTabID
-            ? { ...t, info: { ...t.info, path } }
+          t.info.id === updated.id
+            ? { ...t, info: updated, project: { ...t.project, name: updated.name } }
             : t,
         ),
       );
     },
-    [activeTabID],
+    [],
   );
 
   // Listen for native menu events.
@@ -138,9 +137,8 @@ export default function App() {
             if (path) {
               await api.saveProject(activeTabID);
             } else {
-              await api.saveProjectDialog(activeTabID);
-              const newPath = await api.getProjectPath(activeTabID);
-              if (newPath) updateActiveTabPath(newPath);
+              const updated = await api.saveProjectDialog(activeTabID);
+              if (updated) updateActiveTab(updated);
             }
           }),
         );
@@ -156,16 +154,15 @@ export default function App() {
         cleanups.push(
           Events.On("menu:save-project-as", async () => {
             if (!activeTabID) return;
-            await api.saveProjectDialog(activeTabID);
-            const newPath = await api.getProjectPath(activeTabID);
-            if (newPath) updateActiveTabPath(newPath);
+            const updated = await api.saveProjectDialog(activeTabID);
+            if (updated) updateActiveTab(updated);
           }),
         );
       })
       .catch(() => {});
 
     return () => cleanups.forEach((fn) => fn());
-  }, [activeTabID, handleNewProject, handleOpenTab, updateActiveTabPath]);
+  }, [activeTabID, handleNewProject, handleOpenTab, updateActiveTab]);
 
   // No tabs → welcome page.
   if (tabs.length === 0) {
@@ -206,7 +203,7 @@ export default function App() {
             <ProjectPage
               project={activeTab.project}
               projectPath={activeTab.info.path}
-              onSaved={updateActiveTabPath}
+              onSaved={updateActiveTab}
               tabID={activeTab.info.id}
             />
           )}

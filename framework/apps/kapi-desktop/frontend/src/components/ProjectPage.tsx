@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Globe, FileText, Workflow, Save, Loader2 } from "lucide-react";
-import type { KapiProject } from "../types/api";
+import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 
 interface ProjectPageProps {
   project: KapiProject;
   projectPath: string;
-  onSaved?: (path: string) => void;
+  onSaved?: (tab: TabInfo) => void;
   tabID: string;
 }
 
@@ -19,9 +19,8 @@ export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPag
       if (projectPath) {
         await api.saveProject(tabID);
       } else {
-        await api.saveProjectDialog(tabID);
-        const path = await api.getProjectPath(tabID);
-        if (path) onSaved?.(path);
+        const updated = await api.saveProjectDialog(tabID);
+        if (updated) onSaved?.(updated);
       }
     } finally {
       setSaving(false);

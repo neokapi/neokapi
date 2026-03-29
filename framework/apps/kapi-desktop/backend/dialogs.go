@@ -1,5 +1,10 @@
 package backend
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 // OpenProjectDialog shows a native file-open dialog for Kapi project files,
 // opens the selected file, and returns the tab info.
 func (a *App) OpenProjectDialog() (*TabInfo, error) {
@@ -22,14 +27,16 @@ func (a *App) OpenProjectDialog() (*TabInfo, error) {
 }
 
 // SaveProjectDialog shows a native file-save dialog for a project tab.
-func (a *App) SaveProjectDialog(tabID string) error {
+// Ensures the .kapi extension is appended and updates the project name
+// to match the filename.
+func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 	if a.app == nil {
-		return nil
+		return nil, nil
 	}
 
 	op := a.getOpenProject(tabID)
 	if op == nil {
-		return nil
+		return nil, nil
 	}
 
 	path, err := a.app.Dialog.SaveFile().
@@ -37,11 +44,27 @@ func (a *App) SaveProjectDialog(tabID string) error {
 		SetFilename(op.Project.Name + ".kapi").
 		PromptForSingleSelection()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if path == "" {
-		return nil // user canceled
+		return nil, nil // user canceled
 	}
 
-	return a.SaveProjectAs(tabID, path)
+	// Ensure .kapi extension.
+	if !strings.HasSuffix(strings.ToLower(path), ".kapi") {
+		path += ".kapi"
+	}
+
+	// Update the project name to match the filename (without extension).
+	base := filepath.Base(path)
+	name := strings.TrimSuffix(base, filepath.Ext(base))
+	if name != "" {
+		op.Project.Name = name
+	}
+
+	if err := a.SaveProjectAs(tabID, path); err != nil {
+		return nil, err
+	}
+
+	return &TabInfo{ID: tabID, Name: op.Project.Name, Path: path}, nil
 }
