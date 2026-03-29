@@ -212,7 +212,7 @@ export default function App() {
     <div className="flex h-screen flex-col bg-background text-foreground">
       {/* Title bar with optional tab bar */}
       <div
-        className="flex shrink-0 items-end border-b border-border bg-sidebar pt-8"
+        className="flex shrink-0 items-end border-b border-border bg-sidebar pt-12"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
         <div className="w-12 shrink-0" /> {/* space for icon rail */}
