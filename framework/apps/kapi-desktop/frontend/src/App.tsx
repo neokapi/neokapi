@@ -38,12 +38,19 @@ export default function App() {
   const refreshRecent = useCallback(() => {
     api.listRecentFiles().then((f) => { if (f) setRecentFiles(f); });
   }, []);
+
+  // Load data when backend signals ready, and refresh when tabs change.
   useEffect(() => {
     refreshRecent();
-    // Retry after bindings are likely ready (first load may miss).
-    const timer = setTimeout(refreshRecent, 500);
-    return () => clearTimeout(timer);
   }, [refreshRecent, tabs.length]);
+
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    import("@wailsio/runtime").then(({ Events }) => {
+      cleanup = Events.On("app-ready", () => refreshRecent());
+    }).catch(() => {});
+    return () => { cleanup?.(); };
+  }, [refreshRecent]);
 
   const handleModeChange = useCallback((m: AppMode) => {
     setMode(m);
