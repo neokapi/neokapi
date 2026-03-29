@@ -88,7 +88,7 @@ export default function App() {
       setActiveTabID((cur) => {
         if (cur !== tabID) return cur;
         if (remaining.length > 0) return remaining[remaining.length - 1].info.id;
-        setView("home");
+        setView("home"); // back to shared Home
         return null;
       });
       return remaining;
@@ -150,28 +150,13 @@ export default function App() {
         >
           {/* Tabs or spacer */}
           <div className="flex-1 pl-16" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
-            {mode === "projects" && (
+            {mode === "projects" && tabs.length > 0 && (
               <TabBar
-                tabs={[
-                  { id: "__home__", name: "Home", path: "" },
-                  ...tabs.map((t) => t.info),
-                ]}
-                activeTabID={activeTabID ?? "__home__"}
-                onSelect={(id) => {
-                  if (id === "__home__") {
-                    setActiveTabID(null);
-                    setView("home");
-                  } else {
-                    setActiveTabID(id);
-                    if (view === "home") setView("home"); // stay on project home
-                  }
-                }}
-                onClose={(id) => {
-                  if (id === "__home__") return; // can't close Home
-                  handleCloseTab(id);
-                }}
+                tabs={tabs.map((t) => t.info)}
+                activeTabID={activeTabID}
+                onSelect={setActiveTabID}
+                onClose={handleCloseTab}
                 onRename={(id, name) => {
-                  if (id === "__home__") return;
                   setTabs((prev) => prev.map((t) =>
                     t.info.id === id ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } } : t
                   ));
@@ -187,11 +172,15 @@ export default function App() {
 
         {/* Content */}
         <main className="flex-1 overflow-auto">
-          {mode === "adhoc" && view === "home" && (
+          {/* Home — shared between modes, shown when no project tab is active */}
+          {view === "home" && !(mode === "projects" && activeTab) && (
             <AppHome recentFiles={recentFiles} onOpenRecent={handleOpenRecent}
               onNewProject={() => { setMode("projects"); setShowNewProjectForm(true); }}
+              onOpenProject={handleOpenProject}
               onNavigate={handleViewChange} />
           )}
+
+          {/* Ad-hoc views */}
           {mode === "adhoc" && view === "flows" && (
             <div className="p-6">
               <h1 className="mb-4 text-xl font-semibold">Flows</h1>
@@ -203,18 +192,15 @@ export default function App() {
           {mode === "adhoc" && view === "memories" && <MemoriesPage />}
           {mode === "adhoc" && view === "formats" && <FormatsPage />}
 
-          {mode === "projects" && !activeTab && (
-            <ProjectsPage tabs={tabs.map((t) => t.info)} onSelectTab={setActiveTabID}
-              onNewProject={() => setShowNewProjectForm(true)} onOpenProject={handleOpenProject} />
-          )}
-          {mode === "projects" && view === "home" && activeTab && (
+          {/* Project views (only when a project tab is active) */}
+          {mode === "projects" && activeTab && view === "home" && (
             <HomePage project={activeTab.project} onNavigate={handleViewChange} />
           )}
-          {mode === "projects" && view === "content" && activeTab && (
+          {mode === "projects" && activeTab && view === "content" && (
             <ContentPage project={activeTab.project} projectPath={activeTab.info.path}
               onUpdate={updateActiveProject} tabID={activeTab.info.id} />
           )}
-          {mode === "projects" && view === "flows" && activeTab && (
+          {mode === "projects" && activeTab && view === "flows" && (
             <div className="p-6">
               <h1 className="mb-4 text-xl font-semibold">Project Flows</h1>
               <p className="text-sm text-muted-foreground">
@@ -222,7 +208,7 @@ export default function App() {
               </p>
             </div>
           )}
-          {mode === "projects" && view === "tools" && <ToolRunnerPage />}
+          {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
 
           {view === "settings" && <SettingsPage />}
         </main>

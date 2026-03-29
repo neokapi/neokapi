@@ -1,12 +1,14 @@
-import { FolderKanban, Workflow, Wrench } from "lucide-react";
+import { FolderKanban, FolderOpen, Workflow, Wrench } from "lucide-react";
+
 interface AppHomeProps {
   recentFiles: Array<{ path: string; name: string; opened_at: string }>;
   onOpenRecent: (path: string) => void;
   onNewProject: () => void;
+  onOpenProject: () => void;
   onNavigate: (view: string) => void;
 }
 
-export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }: AppHomeProps) {
+export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject, onNavigate }: AppHomeProps) {
   return (
     <div className="p-6">
       <div className="mb-8">
@@ -17,7 +19,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }:
       </div>
 
       {/* Quick actions */}
-      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <button
           onClick={onNewProject}
           className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
@@ -25,7 +27,17 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }:
           <FolderKanban size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">New Project</div>
           <div className="text-xs text-muted-foreground">
-            Create a Kapi project with content, flows, and config
+            Create a Kapi project
+          </div>
+        </button>
+        <button
+          onClick={onOpenProject}
+          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+        >
+          <FolderOpen size={18} className="mb-2 text-primary" />
+          <div className="text-sm font-medium">Open a Project</div>
+          <div className="text-xs text-muted-foreground">
+            Open an existing Kapi project
           </div>
         </button>
         <button
@@ -35,7 +47,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }:
           <Workflow size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Design a Flow</div>
           <div className="text-xs text-muted-foreground">
-            Build and run tool pipelines on ad-hoc files
+            Build tool pipelines
           </div>
         </button>
         <button
@@ -45,17 +57,17 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }:
           <Wrench size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Run a Tool</div>
           <div className="text-xs text-muted-foreground">
-            Execute a single tool on files
+            Execute a tool on files
           </div>
         </button>
       </div>
 
       {/* Recent projects */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          Recent Projects
-        </h2>
-        {recentFiles.length > 0 ? (
+      {recentFiles.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+            Recent Projects
+          </h2>
           <div className="space-y-1">
             {recentFiles.map((file) => (
               <button
@@ -71,10 +83,8 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }:
               </button>
             ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">No recent projects</p>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }

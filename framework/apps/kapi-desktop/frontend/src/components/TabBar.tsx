@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X, Home } from "lucide-react";
+import { X } from "lucide-react";
 import type { TabInfo } from "../types/api";
 
 interface TabBarProps {
@@ -40,27 +40,16 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
     <div className="flex items-end gap-px overflow-x-auto px-1">
       {tabs.map((tab) => {
         const isActive = activeTabID === tab.id;
-        const isHome = tab.id === "__home__";
         return (
           <div
             key={tab.id}
-            className={`group flex items-center justify-between gap-1.5 rounded-t-lg py-1.5 text-xs transition-all ${
-              isHome ? "px-2" : "min-w-[160px] max-w-[240px] px-3"
-            } ${
+            className={`group flex min-w-[160px] max-w-[240px] items-center justify-between gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
               isActive
                 ? "bg-border text-foreground font-semibold"
                 : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
             }`}
           >
-            {isHome ? (
-              <button
-                onClick={() => onSelect(tab.id)}
-                aria-label="Home"
-                title="Home"
-              >
-                <Home size={14} strokeWidth={1.5} />
-              </button>
-            ) : editingID === tab.id ? (
+            {editingID === tab.id ? (
               <input
                 ref={inputRef}
                 value={editValue}
@@ -83,8 +72,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
                 {tab.name}
               </button>
             )}
-            {tab.id !== "__home__" && (
-              <button
+            <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose(tab.id);
@@ -94,7 +82,6 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
               >
                 <X size={10} />
               </button>
-            )}
           </div>
         );
       })}
