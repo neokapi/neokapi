@@ -39,7 +39,7 @@ const GETTING_STARTED_STEPS = [
     icon: <Puzzle size={18} />,
     title: "Add plugins",
     description:
-      "Install the Okapi Bridge plugin for 57+ file format filters, or browse the registry for community-contributed tools and formats.",
+      "Install the Okapi Bridge plugin for plugging into Okapi's filters and steps, or browse the registry for community-contributed plugins.",
   },
 ];
 

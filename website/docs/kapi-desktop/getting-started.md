@@ -78,7 +78,7 @@ Save your project as a `.kapi` file (e.g., `translation.kapi`). You can:
 
 ## 8. Install Plugins (Optional)
 
-Go to **Plugins** to browse the plugin registry. Install the **Okapi Bridge** plugin for 57+ additional file formats (DOCX, XLSX, HTML, IDML, etc.):
+Go to **Plugins** to browse the plugin registry. Install the **Okapi Bridge** plugin for plugging into Okapi's filters and steps:
 
 1. Search for "okapi"
 2. Click **Install**

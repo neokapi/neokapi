@@ -21,7 +21,7 @@ interface Plugin {
 }
 
 const REGISTRY_PLUGINS: Plugin[] = [
-  { name: "okapi", version: "1.47.0", description: "Okapi Framework bridge — 57+ file format filters (DOCX, XLSX, HTML, IDML, PO, etc.)", type: "bridge", installed: true },
+  { name: "okapi", version: "1.47.0", description: "Okapi Framework bridge — plugs into Okapi's filters and steps", type: "bridge", installed: true },
   { name: "deepl", version: "0.3.0", description: "DeepL MT provider for machine translation", type: "tool", installed: false },
   { name: "memoq-xliff", version: "1.2.0", description: "memoQ XLIFF format with custom extensions", type: "format", installed: false },
   { name: "sdl-trados", version: "0.9.0", description: "SDL Trados Studio package format support", type: "format", installed: false },
