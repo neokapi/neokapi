@@ -77,23 +77,13 @@ export interface TabInfo {
   path: string;
 }
 
-// App-level navigation (icon rail)
-export type AppSection =
-  | "home"
-  | "projects"
-  | "termbases"
-  | "memories"
-  | "flows"
-  | "tools"
-  | "formats"
-  | "settings";
+export type AppMode = "adhoc" | "projects";
 
-// Project-level navigation (secondary sidebar when a project is open)
-export type ProjectView =
-  | "project-home"
-  | "content"
-  | "project-flows"
-  | "project-tools";
+// Sidebar items for Ad-Hoc mode
+export type AdhocView = "home" | "flows" | "tools" | "termbases" | "memories" | "formats" | "settings";
 
-// Legacy alias
-export type View = AppSection;
+// Sidebar items for Projects mode
+export type ProjectView = "home" | "content" | "flows" | "tools" | "settings";
+
+// Union for convenience
+export type View = AdhocView | ProjectView;

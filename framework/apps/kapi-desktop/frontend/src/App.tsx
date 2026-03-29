@@ -1,9 +1,9 @@
 import { useState, useCallback, useEffect } from "react";
-import type { AppSection, ProjectView, KapiProject, TabInfo } from "./types/api";
+import type { AppMode, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
-import { IconRail } from "./components/IconRail";
+import { ModeToggle } from "./components/ModeToggle";
+import { AppSidebar } from "./components/AppSidebar";
 import { TabBar } from "./components/TabBar";
-import { ProjectSidebar } from "./components/ProjectSidebar";
 import { AppHome } from "./components/AppHome";
 import { ProjectsPage } from "./components/ProjectsPage";
 import { TermbasesPage } from "./components/TermbasesPage";
@@ -19,14 +19,13 @@ import { useShortenHome } from "./hooks/useShortenHome";
 interface TabState {
   info: TabInfo;
   project: KapiProject;
-  view: ProjectView;
 }
 
 export default function App() {
-  const [section, setSection] = useState<AppSection>("home");
+  const [mode, setMode] = useState<AppMode>("adhoc");
+  const [view, setView] = useState<string>("home");
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<string | null>(null);
   const [recentFiles, setRecentFiles] = useState<
     Array<{ path: string; name: string; opened_at: string }>
@@ -36,42 +35,48 @@ export default function App() {
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
-  // Load recent files on mount and whenever tabs change.
+  // Refresh recent files.
   const refreshRecent = useCallback(() => {
     api.listRecentFiles().then((files) => {
       if (files) setRecentFiles(files);
     });
   }, []);
 
-  useEffect(() => {
-    refreshRecent();
-  }, [refreshRecent, tabs.length]);
+  useEffect(() => { refreshRecent(); }, [refreshRecent, tabs.length]);
+
+  // --- Mode switching ---
+  const handleModeChange = useCallback((m: AppMode) => {
+    setMode(m);
+    setView("home");
+    if (m === "adhoc") setActiveTabID(null);
+    else if (tabs.length > 0) setActiveTabID(tabs[0].info.id);
+  }, [tabs]);
+
+  // --- View change ---
+  const handleViewChange = useCallback((v: string) => {
+    setView(v);
+    if (v !== "flows") setSelectedFlow(null);
+  }, []);
 
   // --- Tab management ---
+  const addTab = useCallback((tab: TabInfo, project: KapiProject) => {
+    setTabs((prev) => {
+      if (prev.some((t) => t.info.id === tab.id)) return prev;
+      return [...prev, { info: tab, project }];
+    });
+    setActiveTabID(tab.id);
+    setMode("projects");
+    setView("home");
+  }, []);
 
-  const addTab = useCallback(
-    (tab: TabInfo, project: KapiProject) => {
-      setTabs((prev) => {
-        if (prev.some((t) => t.info.id === tab.id)) return prev;
-        return [...prev, { info: tab, project, view: "project-home" }];
-      });
-      setActiveTabID(tab.id);
-      setSection("projects");
-    },
-    [],
-  );
-
-  const handleNewProject = useCallback(
-    async (name: string, savePath?: string) => {
-      const tab = await api.newProject(name, "en-US", [], savePath);
-      if (tab) {
-        const proj = await api.getProject(tab.id);
-        addTab(tab, proj ?? { version: "v1", name });
-      }
-      setShowNewProjectForm(false);
-    },
-    [addTab],
-  );
+  const handleNewProject = useCallback(async (name: string, savePath?: string) => {
+    const tab = await api.newProject(name, "en-US", [], savePath);
+    if (tab) {
+      const proj = await api.getProject(tab.id);
+      addTab(tab, proj ?? { version: "v1", name });
+    }
+    setShowNewProjectForm(false);
+  }, [addTab]);
 
   const handleOpenProject = useCallback(async () => {
     const tab = await api.openProjectDialog();
@@ -81,171 +86,134 @@ export default function App() {
     }
   }, [addTab]);
 
-  const handleOpenRecent = useCallback(
-    async (path: string) => {
-      const tab = await api.openProject(path);
-      if (tab) {
-        const proj = await api.getProject(tab.id);
-        if (proj) addTab(tab, proj);
-      }
-    },
-    [addTab],
-  );
+  const handleOpenRecent = useCallback(async (path: string) => {
+    const tab = await api.openProject(path);
+    if (tab) {
+      const proj = await api.getProject(tab.id);
+      if (proj) addTab(tab, proj);
+    }
+  }, [addTab]);
 
-  const handleCloseTab = useCallback(
-    (tabID: string) => {
-      api.closeProject(tabID);
-      setTabs((prev) => {
-        const remaining = prev.filter((t) => t.info.id !== tabID);
-        setActiveTabID((cur) => {
-          if (cur !== tabID) return cur;
-          return remaining.length > 0
-            ? remaining[remaining.length - 1].info.id
-            : null;
-        });
-        return remaining;
+  const handleCloseTab = useCallback((tabID: string) => {
+    api.closeProject(tabID);
+    setTabs((prev) => {
+      const remaining = prev.filter((t) => t.info.id !== tabID);
+      setActiveTabID((cur) => {
+        if (cur !== tabID) return cur;
+        if (remaining.length > 0) return remaining[remaining.length - 1].info.id;
+        setMode("adhoc");
+        setView("home");
+        return null;
       });
-    },
-    [],
-  );
+      return remaining;
+    });
+  }, []);
 
-  const setProjectView = useCallback(
-    (view: ProjectView) => {
-      if (!activeTabID) return;
-      setTabs((prev) =>
-        prev.map((t) => (t.info.id === activeTabID ? { ...t, view } : t)),
-      );
-      if (view !== "project-flows") setSelectedFlow(null);
-    },
-    [activeTabID],
-  );
+  const updateActiveProject = useCallback((project: KapiProject) => {
+    if (!activeTabID) return;
+    setTabs((prev) => prev.map((t) =>
+      t.info.id === activeTabID ? { ...t, project } : t
+    ));
+  }, [activeTabID]);
 
-  const updateActiveProject = useCallback(
-    (project: KapiProject) => {
-      if (!activeTabID) return;
-      setTabs((prev) =>
-        prev.map((t) => (t.info.id === activeTabID ? { ...t, project } : t)),
-      );
-    },
-    [activeTabID],
-  );
-
-  const updateActiveTab = useCallback(
-    (updated: TabInfo) => {
-      setTabs((prev) =>
-        prev.map((t) =>
-          t.info.id === updated.id
-            ? { ...t, info: updated, project: { ...t.project, name: updated.name } }
-            : t,
-        ),
-      );
-    },
-    [],
-  );
+  const updateActiveTab = useCallback((updated: TabInfo) => {
+    setTabs((prev) => prev.map((t) =>
+      t.info.id === updated.id
+        ? { ...t, info: updated, project: { ...t.project, name: updated.name } }
+        : t
+    ));
+  }, []);
 
   // --- Menu events ---
-
   useEffect(() => {
     const cleanups: Array<() => void> = [];
-    import("@wailsio/runtime")
-      .then(({ Events }) => {
-        cleanups.push(
-          Events.On("menu:new-project", async () => {
-            setSection("projects");
-            setShowNewProjectForm(true);
-          }),
-        );
-        cleanups.push(
-          Events.On("menu:open-project", async () => {
-            await handleOpenProject();
-          }),
-        );
-        cleanups.push(
-          Events.On("menu:open-recent", async (event: { data: unknown }) => {
-            const path = event.data as string;
-            if (path) await handleOpenRecent(path);
-          }),
-        );
-        cleanups.push(
-          Events.On("menu:save-project", async () => {
-            if (!activeTabID) return;
-            const path = await api.getProjectPath(activeTabID);
-            if (path) {
-              await api.saveProject(activeTabID);
-            } else {
-              const updated = await api.saveProjectDialog(activeTabID);
-              if (updated) updateActiveTab(updated);
-            }
-          }),
-        );
-        cleanups.push(
-          Events.On("menu:save-project-as", async () => {
-            if (!activeTabID) return;
-            const updated = await api.saveProjectDialog(activeTabID);
-            if (updated) updateActiveTab(updated);
-          }),
-        );
-        cleanups.push(
-          Events.On("open-project-tab", async (event: { data: unknown }) => {
-            const tab = event.data as TabInfo;
-            if (tab?.id) {
-              const proj = await api.getProject(tab.id);
-              if (proj) addTab(tab, proj);
-            }
-          }),
-        );
-      })
-      .catch(() => {});
+    import("@wailsio/runtime").then(({ Events }) => {
+      cleanups.push(Events.On("menu:new-project", () => {
+        setMode("projects");
+        setShowNewProjectForm(true);
+      }));
+      cleanups.push(Events.On("menu:open-project", () => handleOpenProject()));
+      cleanups.push(Events.On("menu:open-recent", (e: { data: unknown }) => {
+        const path = e.data as string;
+        if (path) handleOpenRecent(path);
+      }));
+      cleanups.push(Events.On("menu:save-project", async () => {
+        if (!activeTabID) return;
+        const path = await api.getProjectPath(activeTabID);
+        if (path) await api.saveProject(activeTabID);
+        else {
+          const updated = await api.saveProjectDialog(activeTabID);
+          if (updated) updateActiveTab(updated);
+        }
+      }));
+      cleanups.push(Events.On("menu:save-project-as", async () => {
+        if (!activeTabID) return;
+        const updated = await api.saveProjectDialog(activeTabID);
+        if (updated) updateActiveTab(updated);
+      }));
+      cleanups.push(Events.On("open-project-tab", async (e: { data: unknown }) => {
+        const tab = e.data as TabInfo;
+        if (tab?.id) {
+          const proj = await api.getProject(tab.id);
+          if (proj) addTab(tab, proj);
+        }
+      }));
+    }).catch(() => {});
     return () => cleanups.forEach((fn) => fn());
-  }, [activeTabID, handleOpenProject, addTab, updateActiveTab]);
-
-  // --- Section change ---
-
-  const handleSectionChange = useCallback(
-    (s: AppSection) => {
-      if (s === "settings") {
-        // Toggle settings overlay without changing section or project context.
-        setShowSettings((v) => !v);
-        return;
-      }
-      setShowSettings(false);
-      setSection(s);
-      if (s !== "projects") {
-        setActiveTabID(null);
-      } else if (tabs.length > 0 && !activeTabID) {
-        setActiveTabID(tabs[0].info.id);
-      }
-    },
-    [tabs, activeTabID],
-  );
+  }, [activeTabID, handleOpenProject, handleOpenRecent, addTab, updateActiveTab]);
 
   // --- Render ---
-
-  const isProjectActive = section === "projects" && activeTab !== null;
-
   return (
     <div className="flex h-screen bg-background text-foreground">
-      {/* Icon rail — full height, extends into title bar */}
-      <div className="flex shrink-0 flex-col bg-sidebar">
-        {/* Traffic light spacer — no border here */}
+      {/* Sidebar */}
+      <div className="flex shrink-0 flex-col bg-sidebar border-r border-border">
+        {/* Title bar drag region + mode toggle */}
         <div
-          className="h-12 shrink-0"
-          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-        />
-        {/* Rail with border starts below traffic lights */}
-        <div className="flex-1 border-r border-border">
-          <IconRail active={section} onChange={handleSectionChange} projectActive={isProjectActive} settingsActive={showSettings} />
-        </div>
-      </div>
-
-      {/* Right side: tab bar + content */}
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Title bar / tab bar area — h-12 matches icon rail spacer so borders meet */}
-        <div
-          className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar pl-16"
+          className="flex shrink-0 items-center justify-center px-2 pt-10 pb-2"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
-          {section === "projects" && tabs.length > 0 ? (
+          <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+            <ModeToggle mode={mode} onChange={handleModeChange} />
+          </div>
+        </div>
+
+        <AppSidebar
+          mode={mode}
+          activeView={view}
+          onViewChange={handleViewChange}
+          flowNames={activeTab ? Object.keys(activeTab.project.flows ?? {}) : []}
+          selectedFlow={selectedFlow}
+          onSelectFlow={setSelectedFlow}
+          onAddFlow={() => {
+            if (!activeTab) return;
+            const flows = activeTab.project.flows ?? {};
+            let c = Object.keys(flows).length + 1;
+            let name = `flow-${c}`;
+            while (flows[name]) { c++; name = `flow-${c}`; }
+            updateActiveProject({
+              ...activeTab.project,
+              flows: { ...flows, [name]: { steps: [{ tool: "pseudo-translate" }] } },
+            });
+            setSelectedFlow(name);
+          }}
+          onDeleteFlow={(name) => {
+            if (!activeTab) return;
+            const flows = { ...activeTab.project.flows };
+            delete flows[name];
+            updateActiveProject({ ...activeTab.project, flows });
+            if (selectedFlow === name) setSelectedFlow(null);
+          }}
+        />
+      </div>
+
+      {/* Right side */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Tab bar (projects mode only) */}
+        {mode === "projects" && tabs.length > 0 && (
+          <div
+            className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar pl-2"
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+          >
             <div
               className="flex-1"
               style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
@@ -253,90 +221,40 @@ export default function App() {
               <TabBar
                 tabs={tabs.map((t) => t.info)}
                 activeTabID={activeTabID}
-                onSelect={(id) => {
-                  setActiveTabID(id);
-                  setSection("projects");
-                }}
+                onSelect={setActiveTabID}
                 onClose={handleCloseTab}
                 onRename={(tabID, name) => {
-                  setTabs((prev) =>
-                    prev.map((t) =>
-                      t.info.id === tabID
-                        ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
-                        : t,
-                    ),
-                  );
+                  setTabs((prev) => prev.map((t) =>
+                    t.info.id === tabID
+                      ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
+                      : t
+                  ));
                 }}
               />
             </div>
-          ) : (
-            <div className="h-6" />
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Main layout */}
-        <div className="flex flex-1 overflow-hidden">
-
-        {/* Project secondary sidebar (only when project tab is active and settings is not open) */}
-        {isProjectActive && activeTab && !showSettings && (
-          <ProjectSidebar
-            activeView={activeTab.view}
-            onViewChange={setProjectView}
-            projectName={activeTab.project.name}
-            flowNames={Object.keys(activeTab.project.flows ?? {})}
-            selectedFlow={selectedFlow}
-            onSelectFlow={setSelectedFlow}
-            onAddFlow={() => {
-              const flows = activeTab.project.flows ?? {};
-              let counter = Object.keys(flows).length + 1;
-              let name = `flow-${counter}`;
-              while (flows[name]) { counter++; name = `flow-${counter}`; }
-              updateActiveProject({
-                ...activeTab.project,
-                flows: { ...flows, [name]: { steps: [{ tool: "pseudo-translate" }] } },
-              });
-              setSelectedFlow(name);
-            }}
-            onDeleteFlow={(name) => {
-              const flows = { ...activeTab.project.flows };
-              delete flows[name];
-              updateActiveProject({ ...activeTab.project, flows });
-              if (selectedFlow === name) setSelectedFlow(null);
-            }}
+        {/* Drag area when no tab bar */}
+        {(mode === "adhoc" || tabs.length === 0) && (
+          <div
+            className="h-12 shrink-0"
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
           />
         )}
 
         {/* Main content */}
         <main className="flex-1 overflow-auto">
-          {/* Settings overlay — replaces content when active */}
-          {showSettings && <SettingsPage />}
-
-          {/* App-level views (hidden when settings is open) */}
-          {!showSettings && section === "home" && (
+          {/* Ad-Hoc views */}
+          {mode === "adhoc" && view === "home" && (
             <AppHome
               recentFiles={recentFiles}
               onOpenRecent={handleOpenRecent}
-              onNewProject={() => {
-                setSection("projects");
-                setShowNewProjectForm(true);
-              }}
-              onNavigate={handleSectionChange}
+              onNewProject={() => { setMode("projects"); setShowNewProjectForm(true); }}
+              onNavigate={handleViewChange}
             />
           )}
-
-          {!showSettings && section === "projects" && !isProjectActive && (
-            <ProjectsPage
-              tabs={tabs.map((t) => t.info)}
-              onSelectTab={(id) => setActiveTabID(id)}
-              onNewProject={() => setShowNewProjectForm(true)}
-              onOpenProject={handleOpenProject}
-            />
-          )}
-
-          {!showSettings && section === "termbases" && <TermbasesPage />}
-          {!showSettings && section === "memories" && <MemoriesPage />}
-
-          {!showSettings && section === "flows" && (
+          {mode === "adhoc" && view === "flows" && (
             <div className="p-6">
               <h1 className="mb-4 text-xl font-semibold">Flows</h1>
               <p className="text-sm text-muted-foreground">
@@ -344,49 +262,57 @@ export default function App() {
               </p>
             </div>
           )}
+          {mode === "adhoc" && view === "tools" && <ToolRunnerPage />}
+          {mode === "adhoc" && view === "termbases" && <TermbasesPage />}
+          {mode === "adhoc" && view === "memories" && <MemoriesPage />}
+          {mode === "adhoc" && view === "formats" && <FormatsPage />}
 
-          {!showSettings && section === "tools" && <ToolRunnerPage />}
-          {!showSettings && section === "formats" && <FormatsPage />}
-
-          {/* Project-level views */}
-          {!showSettings && isProjectActive && activeTab && (
-            <>
-              {activeTab.view === "project-home" && (
-                <HomePage
-                  project={activeTab.project}
-                  onNavigate={(view) => setProjectView(view as ProjectView)}
-                />
-              )}
-              {activeTab.view === "content" && (
-                <ContentPage
-                  project={activeTab.project}
-                  projectPath={activeTab.info.path}
-                  onUpdate={updateActiveProject}
-                  tabID={activeTab.info.id}
-                />
-              )}
-              {activeTab.view === "project-flows" && selectedFlow && activeTab.project.flows?.[selectedFlow] && (
-                <FlowPage
-                  flowName={selectedFlow}
-                  flow={activeTab.project.flows[selectedFlow]}
-                  onChange={(spec) => {
-                    updateActiveProject({
-                      ...activeTab.project,
-                      flows: { ...activeTab.project.flows, [selectedFlow]: spec },
-                    });
-                  }}
-                />
-              )}
-              {activeTab.view === "project-flows" && !selectedFlow && (
-                <div className="flex h-full items-center justify-center text-muted-foreground">
-                  <p className="text-sm">Select a flow or create a new one</p>
-                </div>
-              )}
-              {activeTab.view === "project-tools" && <ToolRunnerPage />}
-            </>
+          {/* Projects views */}
+          {mode === "projects" && view === "home" && (
+            activeTab ? (
+              <HomePage
+                project={activeTab.project}
+                onNavigate={(v) => handleViewChange(v)}
+              />
+            ) : (
+              <ProjectsPage
+                tabs={tabs.map((t) => t.info)}
+                onSelectTab={setActiveTabID}
+                onNewProject={() => setShowNewProjectForm(true)}
+                onOpenProject={handleOpenProject}
+              />
+            )
           )}
+          {mode === "projects" && view === "content" && activeTab && (
+            <ContentPage
+              project={activeTab.project}
+              projectPath={activeTab.info.path}
+              onUpdate={updateActiveProject}
+              tabID={activeTab.info.id}
+            />
+          )}
+          {mode === "projects" && view === "flows" && activeTab && selectedFlow && activeTab.project.flows?.[selectedFlow] && (
+            <FlowPage
+              flowName={selectedFlow}
+              flow={activeTab.project.flows[selectedFlow]}
+              onChange={(spec) => {
+                updateActiveProject({
+                  ...activeTab.project,
+                  flows: { ...activeTab.project.flows, [selectedFlow]: spec },
+                });
+              }}
+            />
+          )}
+          {mode === "projects" && view === "flows" && activeTab && !selectedFlow && (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <p className="text-sm">Select a flow or create a new one</p>
+            </div>
+          )}
+          {mode === "projects" && view === "tools" && <ToolRunnerPage />}
+
+          {/* Settings (both modes) */}
+          {view === "settings" && <SettingsPage />}
         </main>
-        </div>
       </div>
 
       {/* New project modal */}
@@ -414,18 +340,19 @@ function NewProjectDialog({
 }) {
   const [name, setName] = useState("");
   const [customPath, setCustomPath] = useState("");
-  const INVALID_DIR_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
-  const valid = name.trim().length > 0 && !INVALID_DIR_CHARS.test(name) && name !== "." && name !== "..";
-  const trimmedName = name.trim();
-  const saveDir = customPath
-    ? `${customPath}/${trimmedName}`
-    : valid
-      ? `~/KapiProjects/${trimmedName}`
-      : "";
+  const INVALID = /[<>:"/\\|?*\x00-\x1f]/;
+  const valid = name.trim().length > 0 && !INVALID.test(name) && name !== "." && name !== "..";
+  const trimmed = name.trim();
+  const saveDir = customPath ? `${customPath}/${trimmed}` : valid ? `~/KapiProjects/${trimmed}` : "";
 
   const handleBrowse = async () => {
     const dir = await api.browseProjectLocation();
     if (dir) setCustomPath(shortenHome(dir));
+  };
+
+  const handleCreate = () => {
+    if (!valid) return;
+    onCreate(trimmed, saveDir ? `${saveDir}/project.kapi` : undefined);
   };
 
   return (
@@ -440,7 +367,7 @@ function NewProjectDialog({
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && valid) onCreate(trimmedName, saveDir ? `${saveDir}/project.kapi` : undefined); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
                 placeholder="My App"
                 autoFocus
                 className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
@@ -453,7 +380,7 @@ function NewProjectDialog({
                 aria-label="Choose location"
                 title="Choose location"
               >
-                <FolderOpenIcon />
+                <FolderIcon />
               </button>
             </div>
             {name && !valid ? (
@@ -463,15 +390,12 @@ function NewProjectDialog({
             ) : null}
           </div>
           <div className="flex gap-2">
-            <button
-              onClick={() => onCreate(trimmedName, saveDir ? `${saveDir}/project.kapi` : undefined)}
-              disabled={!valid}
+            <button onClick={handleCreate} disabled={!valid}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               Create Project
             </button>
-            <button
-              onClick={onCancel}
+            <button onClick={onCancel}
               className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
             >
               Cancel
@@ -483,9 +407,9 @@ function NewProjectDialog({
   );
 }
 
-function FolderOpenIcon() {
+function FolderIcon() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>
     </svg>
   );

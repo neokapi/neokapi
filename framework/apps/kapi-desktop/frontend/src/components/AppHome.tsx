@@ -1,11 +1,9 @@
 import { FolderKanban, Workflow, Wrench } from "lucide-react";
-import type { AppSection, TabInfo } from "../types/api";
-
 interface AppHomeProps {
   recentFiles: Array<{ path: string; name: string; opened_at: string }>;
   onOpenRecent: (path: string) => void;
   onNewProject: () => void;
-  onNavigate: (section: AppSection) => void;
+  onNavigate: (view: string) => void;
 }
 
 export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }: AppHomeProps) {
