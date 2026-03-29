@@ -12,7 +12,6 @@ import { api } from "../hooks/useApi";
 interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
-  projectName?: string;
 }
 
 const navItems: { view: View; label: string; icon: React.ReactNode }[] = [
@@ -26,7 +25,6 @@ const navItems: { view: View; label: string; icon: React.ReactNode }[] = [
 export function Sidebar({
   activeView,
   onViewChange,
-  projectName,
 }: SidebarProps) {
   const [version, setVersion] = useState("v0.1.0");
 
@@ -37,14 +35,7 @@ export function Sidebar({
   }, []);
 
   return (
-    <aside className="flex w-52 flex-col border-r border-border bg-sidebar">
-      {/* Project name */}
-      {projectName && (
-        <div className="px-3 py-2">
-          <span className="truncate text-sm font-medium">{projectName}</span>
-        </div>
-      )}
-
+    <aside className="flex w-52 flex-col border-r border-border bg-sidebar pt-2">
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 px-2">
         {navItems.map(({ view, label, icon }) => (

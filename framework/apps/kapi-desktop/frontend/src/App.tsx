@@ -187,6 +187,15 @@ export default function App() {
             activeTabID={activeTabID}
             onSelect={setActiveTabID}
             onClose={handleCloseTab}
+            onRename={(tabID, name) => {
+              setTabs((prev) =>
+                prev.map((t) =>
+                  t.info.id === tabID
+                    ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
+                    : t,
+                ),
+              );
+            }}
           />
         </div>
       </div>
@@ -196,7 +205,6 @@ export default function App() {
         <Sidebar
           activeView={activeTab?.view ?? "project"}
           onViewChange={setActiveView}
-          projectName={activeTab?.project.name}
         />
         <main className="flex-1 overflow-auto">
           {activeTab?.view === "project" && (

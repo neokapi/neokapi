@@ -15,15 +15,12 @@ describe("Sidebar", () => {
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
-  it("displays project name when provided", () => {
+  it("renders without project name (shown in tab bar instead)", () => {
     render(
-      <Sidebar
-        activeView="project"
-        onViewChange={vi.fn()}
-        projectName="My Project"
-      />,
+      <Sidebar activeView="project" onViewChange={vi.fn()} />,
     );
-    expect(screen.getByText("My Project")).toBeInTheDocument();
+    // Project name is in the tab bar, not the sidebar.
+    expect(screen.getByText("Project")).toBeInTheDocument();
   });
 
   it("calls onViewChange when clicking nav item", async () => {
