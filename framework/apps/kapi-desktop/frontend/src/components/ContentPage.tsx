@@ -44,6 +44,8 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
 
   const rescanFiles = useCallback(async () => {
     setScanning(true);
+    // Sync current project state to backend before scanning.
+    await api.updateProject(tabID, project);
     const [files, base] = await Promise.all([
       api.matchContent(tabID),
       api.getBasePath(tabID),
@@ -51,7 +53,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
     setMatches(files ?? []);
     setBasePath(base ?? "");
     setScanning(false);
-  }, [tabID]);
+  }, [tabID, project]);
 
   useEffect(() => {
     rescanFiles();

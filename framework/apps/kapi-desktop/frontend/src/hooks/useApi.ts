@@ -67,6 +67,8 @@ export const api = {
   saveProjectAs: (tabID: string, path: string) => call<void>("SaveProjectAs", tabID, path),
   saveProjectDialog: (tabID: string) => call<TabInfo>("SaveProjectDialog", tabID),
   getProject: (tabID: string) => call<KapiProject>("GetProject", tabID),
+  updateProject: (tabID: string, project: KapiProject) =>
+    call<void>("UpdateProject", tabID, project),
   getProjectPath: (tabID: string) => call<string>("GetProjectPath", tabID),
 
   // Flows (scoped to tab)

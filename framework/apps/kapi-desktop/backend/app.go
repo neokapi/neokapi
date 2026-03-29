@@ -154,6 +154,20 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 	return &TabInfo{ID: tabID, Name: proj.Name, Path: path}, nil
 }
 
+// UpdateProject replaces the in-memory project state for a tab.
+// Called by the frontend to sync edits (content patterns, languages, etc.)
+// back to the backend before operations like MatchContent.
+func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	op := a.projects[tabID]
+	if op == nil {
+		return fmt.Errorf("tab %q not found", tabID)
+	}
+	op.Project = proj
+	return nil
+}
+
 // CloseProject removes a project tab.
 func (a *App) CloseProject(tabID string) {
 	a.mu.Lock()
