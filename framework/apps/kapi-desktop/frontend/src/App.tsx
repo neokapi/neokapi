@@ -20,6 +20,7 @@ export default function App() {
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [selectedFlow, setSelectedFlow] = useState<string | null>(null);
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
@@ -251,6 +252,29 @@ export default function App() {
               onViewChange={(view) => {
                 setShowSettings(false);
                 setActiveView(view);
+                if (view !== "flows") setSelectedFlow(null);
+              }}
+              flowNames={Object.keys(activeTab?.project.flows ?? {})}
+              selectedFlow={selectedFlow}
+              onSelectFlow={setSelectedFlow}
+              onAddFlow={() => {
+                if (!activeTab) return;
+                const flows = activeTab.project.flows ?? {};
+                let counter = Object.keys(flows).length + 1;
+                let name = `flow-${counter}`;
+                while (flows[name]) { counter++; name = `flow-${counter}`; }
+                updateActiveProject({
+                  ...activeTab.project,
+                  flows: { ...flows, [name]: { steps: [{ tool: "pseudo-translate" }] } },
+                });
+                setSelectedFlow(name);
+              }}
+              onDeleteFlow={(name) => {
+                if (!activeTab) return;
+                const flows = { ...activeTab.project.flows };
+                delete flows[name];
+                updateActiveProject({ ...activeTab.project, flows });
+                if (selectedFlow === name) setSelectedFlow(null);
               }}
             />
             <main className="flex-1 overflow-auto">
@@ -262,11 +286,22 @@ export default function App() {
                   tabID={activeTab.info.id}
                 />
               )}
-              {activeTab?.view === "flows" && (
+              {activeTab?.view === "flows" && selectedFlow && activeTab.project.flows?.[selectedFlow] && (
                 <FlowPage
-                  project={activeTab.project}
-                  onUpdate={updateActiveProject}
+                  flowName={selectedFlow}
+                  flow={activeTab.project.flows[selectedFlow]}
+                  onChange={(spec) => {
+                    updateActiveProject({
+                      ...activeTab.project,
+                      flows: { ...activeTab.project.flows, [selectedFlow]: spec },
+                    });
+                  }}
                 />
+              )}
+              {activeTab?.view === "flows" && !selectedFlow && (
+                <div className="flex h-full items-center justify-center text-muted-foreground">
+                  <p className="text-sm">Select a flow or create a new one</p>
+                </div>
               )}
               {activeTab?.view === "tools" && <ToolRunnerPage />}
             </main>
