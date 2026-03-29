@@ -4,16 +4,17 @@ import { describe, it, expect, vi } from "vitest";
 import { Sidebar } from "../components/Sidebar";
 
 describe("Sidebar", () => {
-  it("renders project navigation items", () => {
-    render(<Sidebar activeView="project" onViewChange={vi.fn()} />);
-    expect(screen.getByText("Project")).toBeInTheDocument();
+  it("renders navigation items", () => {
+    render(<Sidebar activeView="home" onViewChange={vi.fn()} />);
+    expect(screen.getByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("Content")).toBeInTheDocument();
     expect(screen.getByText("Flows")).toBeInTheDocument();
     expect(screen.getByText("Tools")).toBeInTheDocument();
   });
 
   it("calls onViewChange when clicking nav item", async () => {
     const onViewChange = vi.fn();
-    render(<Sidebar activeView="project" onViewChange={onViewChange} />);
+    render(<Sidebar activeView="home" onViewChange={onViewChange} />);
     await userEvent.click(screen.getByText("Flows"));
     expect(onViewChange).toHaveBeenCalledWith("flows");
   });
@@ -37,7 +38,7 @@ describe("Sidebar", () => {
   it("does not show flow list when project view is active", () => {
     render(
       <Sidebar
-        activeView="project"
+        activeView="home"
         onViewChange={vi.fn()}
         flowNames={["translate"]}
       />,

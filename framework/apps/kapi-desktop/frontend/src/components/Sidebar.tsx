@@ -1,5 +1,6 @@
 import {
-  FolderOpen,
+  Home,
+  FileText,
   Workflow,
   Wrench,
   Plus,
@@ -18,7 +19,8 @@ interface SidebarProps {
 }
 
 const navItems: { view: View; label: string; icon: React.ReactNode }[] = [
-  { view: "project", label: "Project", icon: <FolderOpen size={18} /> },
+  { view: "home", label: "Home", icon: <Home size={18} /> },
+  { view: "content", label: "Content", icon: <FileText size={18} /> },
   { view: "flows", label: "Flows", icon: <Workflow size={18} /> },
   { view: "tools", label: "Tools", icon: <Wrench size={18} /> },
 ];

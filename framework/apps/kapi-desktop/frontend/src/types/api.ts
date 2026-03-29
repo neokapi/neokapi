@@ -79,6 +79,7 @@ export interface TabInfo {
 
 export type View =
   | "welcome"
-  | "project"
+  | "home"
+  | "content"
   | "flows"
   | "tools";

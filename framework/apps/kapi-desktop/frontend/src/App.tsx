@@ -3,6 +3,8 @@ import { Settings } from "lucide-react";
 import type { View, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
 import { WelcomePage } from "./components/WelcomePage";
+import { HomePage } from "./components/HomePage";
+import { ContentPage } from "./components/ContentPage";
 import { ProjectPage } from "./components/ProjectPage";
 import { FlowPage } from "./components/FlowPage";
 import { ToolRunnerPage } from "./components/ToolRunnerPage";
@@ -28,7 +30,7 @@ export default function App() {
     (tab: TabInfo, project: KapiProject) => {
       setTabs((prev) => {
         if (prev.some((t) => t.info.id === tab.id)) return prev;
-        return [...prev, { info: tab, project, view: "project" }];
+        return [...prev, { info: tab, project, view: "home" }];
       });
       setActiveTabID(tab.id);
     },
@@ -248,7 +250,7 @@ export default function App() {
         ) : (
           <>
             <Sidebar
-              activeView={activeTab?.view ?? "project"}
+              activeView={activeTab?.view ?? "home"}
               onViewChange={(view) => {
                 setShowSettings(false);
                 setActiveView(view);
@@ -278,11 +280,19 @@ export default function App() {
               }}
             />
             <main className="flex-1 overflow-auto">
-              {activeTab?.view === "project" && (
-                <ProjectPage
+              {activeTab?.view === "home" && (
+                <HomePage
+                  project={activeTab.project}
+                  onNavigate={(view) => {
+                    setActiveView(view);
+                  }}
+                />
+              )}
+              {activeTab?.view === "content" && (
+                <ContentPage
                   project={activeTab.project}
                   projectPath={activeTab.info.path}
-                  onSaved={updateActiveTab}
+                  onUpdate={updateActiveProject}
                   tabID={activeTab.info.id}
                 />
               )}
