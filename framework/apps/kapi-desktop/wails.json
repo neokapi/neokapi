@@ -1,0 +1,14 @@
+{
+  "name": "kapi-desktop",
+  "outputfilename": "KapiDesktop",
+  "frontend": {
+    "dir": "frontend",
+    "install": "npm install",
+    "build": "npm run build",
+    "dev": "npm run dev",
+    "devServerUrl": "http://localhost:5174"
+  },
+  "author": {
+    "name": "neokapi"
+  }
+}

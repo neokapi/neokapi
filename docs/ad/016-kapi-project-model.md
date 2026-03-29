@@ -326,3 +326,12 @@ Triggers include `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, a
 - The project model positions Bowrain CLI as **the file connector** for Bowrain Server — it handles files, the server handles integrations with CMS, design tools, etc. ([AD-005](./005-connector-system.md)).
 
 - Kapi remains a standalone tool without a project requirement, while Bowrain CLI owns the project-based workflow.
+
+### Relationship to .kapi Project Files
+
+Kapi introduces `.kapi` project files — standalone YAML documents for local file processing workflows ([AD-041](./041-kapi-desktop.md)). These are complementary to `.bowrain/` projects:
+
+- **`.kapi` files** are portable, single-file, framework-level, no server — for standalone kapi workflows
+- **`.bowrain/` directories** are stateful, server-connected, platform-level — for managed bowrain workflows
+
+Both formats use the same flow steps format ([flow-steps-format](../notes/flow-steps-format.md)) and tool system ([AD-006](./006-tool-system.md)). A `.bowrain/` project can coexist with `.kapi` files in the same directory. The upgrade path from kapi to bowrain is about adopting server-side features (sync, automation, collaboration), not migrating project files.

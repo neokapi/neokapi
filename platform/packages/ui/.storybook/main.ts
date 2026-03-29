@@ -23,6 +23,7 @@ const config: StorybookConfig = {
     "../../../emails/src/**/*.stories.@(ts|tsx)",
     "../../../apps/keycloak-theme/src/**/*.stories.@(ts|tsx)",
     "../../../apps/web/src/auth/**/*.stories.@(ts|tsx)",
+    "../../../apps/bowrain/frontend/src/**/*.stories.@(ts|tsx)",
   ],
   addons: [getAbsolutePath("@storybook/addon-themes"), getAbsolutePath("@storybook/addon-docs")],
   framework: {
