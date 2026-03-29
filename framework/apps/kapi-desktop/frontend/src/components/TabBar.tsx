@@ -43,16 +43,11 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
         return (
           <div
             key={tab.id}
-            className={`group relative flex items-center gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
+            className={`group flex items-center gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
               isActive
-                ? "z-10 bg-background text-foreground shadow-[0_-1px_3px_rgba(0,0,0,0.06)]"
+                ? "bg-border text-foreground font-semibold"
                 : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
             }`}
-            style={isActive ? {
-              // Active tab clips into the border below, creating the "connected" look.
-              marginBottom: "-1px",
-              paddingBottom: "calc(0.375rem + 1px)",
-            } : undefined}
           >
             {editingID === tab.id ? (
               <input

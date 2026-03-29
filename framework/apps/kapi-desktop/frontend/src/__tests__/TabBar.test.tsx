@@ -45,7 +45,7 @@ describe("TabBar", () => {
   it("highlights active tab", () => {
     render(<TabBar tabs={tabs} activeTabID="2" {...defaultProps} />);
     const activeTab = screen.getByText("Project B").closest("div");
-    expect(activeTab?.className).toContain("bg-background");
+    expect(activeTab?.className).toContain("font-semibold");
   });
 
   it("enters edit mode on double-click", async () => {
