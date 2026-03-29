@@ -38,13 +38,6 @@ export function ProjectSidebar({
 }: ProjectSidebarProps) {
   return (
     <aside className="flex w-44 flex-col border-r border-border bg-sidebar">
-      {/* Project name */}
-      <div className="border-b border-border px-3 py-2">
-        <span className="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {projectName}
-        </span>
-      </div>
-
       {/* Navigation */}
       <nav className="space-y-0.5 px-2 pt-2">
         {navItems.map(({ view, label, icon }) => (
