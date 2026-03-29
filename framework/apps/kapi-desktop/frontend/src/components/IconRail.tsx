@@ -1,5 +1,6 @@
 import {
   Home,
+  ArrowLeft,
   FolderKanban,
   BookOpen,
   Database,
@@ -39,21 +40,24 @@ export function IconRail({ active, onChange, projectActive }: IconRailProps) {
   return (
     <aside className="flex w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
-        {visibleItems.map(({ section, icon, label }) => (
-          <button
-            key={section}
-            onClick={() => onChange(section)}
-            className={`relative rounded-lg p-2 transition-colors ${
-              active === section
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
-            aria-label={label}
-            title={label}
-          >
-            {icon}
-          </button>
-        ))}
+        {visibleItems.map(({ section, icon, label }) => {
+          const isBack = projectActive && section === "home";
+          return (
+            <button
+              key={section}
+              onClick={() => onChange(section)}
+              className={`relative rounded-lg p-2 transition-colors ${
+                active === section
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              }`}
+              aria-label={isBack ? "Back" : label}
+              title={isBack ? "Back" : label}
+            >
+              {isBack ? <ArrowLeft size={20} strokeWidth={SW} /> : icon}
+            </button>
+          );
+        })}
       </nav>
 
       <button
