@@ -27,7 +27,7 @@ const topItems: { section: AppSection; icon: React.ReactNode; label: string }[] 
 
 export function IconRail({ active, onChange }: IconRailProps) {
   return (
-    <aside className="flex w-12 flex-col items-center border-r border-border bg-sidebar py-2">
+    <aside className="flex w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
         {topItems.map(({ section, icon, label }) => (
           <button

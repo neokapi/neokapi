@@ -209,44 +209,55 @@ export default function App() {
   const isProjectActive = section === "projects" && activeTab !== null;
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground">
-      {/* Title bar with optional tab bar */}
-      <div
-        className="flex shrink-0 items-end border-b border-border bg-sidebar pt-12"
-        style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      >
-        <div className="w-12 shrink-0" /> {/* space for icon rail */}
-        {section === "projects" && tabs.length > 0 && (
-          <div
-            className="flex-1"
-            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
-          >
-            <TabBar
-              tabs={tabs.map((t) => t.info)}
-              activeTabID={activeTabID}
-              onSelect={(id) => {
-                setActiveTabID(id);
-                setSection("projects");
-              }}
-              onClose={handleCloseTab}
-              onRename={(tabID, name) => {
-                setTabs((prev) =>
-                  prev.map((t) =>
-                    t.info.id === tabID
-                      ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
-                      : t,
-                  ),
-                );
-              }}
-            />
-          </div>
-        )}
+    <div className="flex h-screen bg-background text-foreground">
+      {/* Icon rail — full height, extends into title bar */}
+      <div className="flex shrink-0 flex-col border-r border-border bg-sidebar">
+        {/* Traffic light spacer */}
+        <div
+          className="h-12 shrink-0"
+          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+        />
+        <IconRail active={section} onChange={handleSectionChange} />
       </div>
 
-      {/* Main layout */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Icon rail */}
-        <IconRail active={section} onChange={handleSectionChange} />
+      {/* Right side: tab bar + content */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Title bar / tab bar area */}
+        <div
+          className="flex shrink-0 items-end border-b border-border bg-sidebar pt-1"
+          style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+        >
+          {section === "projects" && tabs.length > 0 ? (
+            <div
+              className="flex-1"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            >
+              <TabBar
+                tabs={tabs.map((t) => t.info)}
+                activeTabID={activeTabID}
+                onSelect={(id) => {
+                  setActiveTabID(id);
+                  setSection("projects");
+                }}
+                onClose={handleCloseTab}
+                onRename={(tabID, name) => {
+                  setTabs((prev) =>
+                    prev.map((t) =>
+                      t.info.id === tabID
+                        ? { ...t, info: { ...t.info, name }, project: { ...t.project, name } }
+                        : t,
+                    ),
+                  );
+                }}
+              />
+            </div>
+          ) : (
+            <div className="h-6" />
+          )}
+        </div>
+
+        {/* Main layout */}
+        <div className="flex flex-1 overflow-hidden">
 
         {/* Project secondary sidebar (only when project tab is active) */}
         {isProjectActive && activeTab && (
@@ -355,6 +366,7 @@ export default function App() {
             </>
           )}
         </main>
+        </div>
       </div>
 
       {/* New project modal */}
