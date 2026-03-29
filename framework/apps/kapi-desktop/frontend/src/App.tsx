@@ -18,6 +18,7 @@ interface TabState {
 export default function App() {
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
@@ -163,12 +164,33 @@ export default function App() {
     return () => cleanups.forEach((fn) => fn());
   }, [activeTabID, handleNewProject, handleOpenTab, updateActiveTab]);
 
-  // No tabs → welcome page.
+  // No tabs → welcome page or standalone settings.
   if (tabs.length === 0) {
+    if (showSettings) {
+      return (
+        <div className="flex h-screen flex-col bg-background text-foreground">
+          <div
+            className="flex shrink-0 items-center justify-between border-b border-border bg-sidebar px-4 pt-10 pb-2"
+            style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
+          >
+            <button
+              onClick={() => setShowSettings(false)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+              style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            >
+              &larr; Back
+            </button>
+          </div>
+          <SettingsPage />
+        </div>
+      );
+    }
+
     return (
       <WelcomePage
         onOpen={async (tab) => await handleOpenTab(tab)}
         onNew={handleNewProject}
+        onSettings={() => setShowSettings(true)}
       />
     );
   }

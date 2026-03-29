@@ -5,6 +5,7 @@ import {
   Workflow,
   Wrench,
   Puzzle,
+  Settings,
 } from "lucide-react";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -12,6 +13,7 @@ import { api } from "../hooks/useApi";
 interface WelcomePageProps {
   onOpen: (tab: TabInfo) => void;
   onNew: (project: KapiProject) => void;
+  onSettings?: () => void;
 }
 
 const GET_STARTED = [
@@ -37,7 +39,7 @@ const GET_STARTED = [
   },
 ];
 
-export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
+export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   const [error, setError] = useState<string | null>(null);
   const [recentFiles, setRecentFiles] = useState<
     Array<{ path: string; name: string; opened_at: string }>
@@ -86,9 +88,20 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
   return (
     <div className="flex h-screen flex-col bg-background">
       <div
-        className="fixed inset-x-0 top-0 z-10 h-12"
+        className="fixed inset-x-0 top-0 z-10 flex h-12 items-center justify-end px-4"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      />
+      >
+        {onSettings && (
+          <button
+            onClick={onSettings}
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+            aria-label="Settings"
+          >
+            <Settings size={16} />
+          </button>
+        )}
+      </div>
 
       <div className="flex-1 overflow-auto">
         <div className="mx-auto max-w-3xl px-8 pb-12 pt-20">
