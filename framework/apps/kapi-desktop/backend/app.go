@@ -127,6 +127,14 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		savePath = filepath.Join(home, "KapiProjects", name, "project.kapi")
 	}
 
+	// Expand ~ to the actual home directory (frontend may send ~/... paths).
+	if strings.HasPrefix(savePath, "~/") || savePath == "~" {
+		home, err := os.UserHomeDir()
+		if err == nil {
+			savePath = filepath.Join(home, savePath[2:])
+		}
+	}
+
 	// Ensure .kapi extension.
 	if !strings.HasSuffix(strings.ToLower(savePath), ".kapi") {
 		savePath += ".kapi"
