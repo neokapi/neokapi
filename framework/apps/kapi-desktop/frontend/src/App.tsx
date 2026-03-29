@@ -39,18 +39,26 @@ export default function App() {
     api.listRecentFiles().then((f) => { if (f) setRecentFiles(f); });
   }, []);
 
-  // Load data when backend signals ready, and refresh when tabs change.
-  useEffect(() => {
-    refreshRecent();
-  }, [refreshRecent, tabs.length]);
+  // Refresh when tabs change.
+  useEffect(() => { refreshRecent(); }, [refreshRecent, tabs.length]);
 
+  // On mount, retry until the backend is connected.
   useEffect(() => {
-    let cleanup: (() => void) | null = null;
-    import("@wailsio/runtime").then(({ Events }) => {
-      cleanup = Events.On("app-ready", () => refreshRecent());
-    }).catch(() => {});
-    return () => { cleanup?.(); };
-  }, [refreshRecent]);
+    let cancelled = false;
+    const attempt = (n: number) => {
+      if (cancelled || n > 5) return;
+      api.listRecentFiles().then((f) => {
+        if (cancelled) return;
+        if (f !== null) {
+          setRecentFiles(f);
+        } else {
+          setTimeout(() => attempt(n + 1), 200 * n);
+        }
+      });
+    };
+    attempt(1);
+    return () => { cancelled = true; };
+  }, []);
 
   const handleModeChange = useCallback((m: AppMode) => {
     setMode(m);
