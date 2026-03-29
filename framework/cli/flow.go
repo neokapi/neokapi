@@ -811,6 +811,12 @@ func expandOutputTemplate(tmpl, name, lang, ext, dir string) string {
 // Callers must defer cleanup() after checking err.
 func (a *App) buildFlowTools(flowName string, cmd ...*cobra.Command) ([]tool.Tool, func(), error) {
 	noop := func() {}
+
+	// If project flow tools are set (via runProjectSteps), use them directly.
+	if a.projectFlowTools != nil {
+		return a.projectFlowTools, noop, nil
+	}
+
 	switch flowName {
 	case "ai-translate":
 		p := a.getProvider()
@@ -989,4 +995,72 @@ func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func()
 		return nil, nil, fmt.Errorf("open termbase %q: %w", tbValue, err)
 	}
 	return tb, func() { tb.Close() }, nil
+}
+
+// runProjectSteps executes a flow defined in a .kapi project file.
+// It resolves tools by name from the registry, applying per-step configs,
+// and runs the flow using the standard single/multi-file execution path.
+func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec) error {
+	inputPaths, _ := cmd.Flags().GetStringSlice("input")
+	concurrency, _ := cmd.Flags().GetInt("concurrency")
+
+	if a.TargetLang == "" {
+		return fmt.Errorf("--target-lang is required")
+	}
+
+	// Build tools from step definitions using the tool registry + BuiltinToolCommands.
+	var projectTools []tool.Tool
+	for _, step := range spec.Steps {
+		t, err := a.toolFromStep(step, cmd)
+		if err != nil {
+			return fmt.Errorf("flow %q: %w", flowName, err)
+		}
+		projectTools = append(projectTools, t)
+	}
+
+	// Store original buildFlowTools and temporarily replace it.
+	origBuild := a.projectFlowTools
+	a.projectFlowTools = projectTools
+	defer func() { a.projectFlowTools = origBuild }()
+
+	if len(inputPaths) == 1 {
+		return a.runSingleFile(ctx, cmd, flowName, inputPaths[0])
+	}
+	outputFlag, _ := cmd.Flags().GetString("output")
+	return a.runMultipleFiles(ctx, cmd, flowName, inputPaths, concurrency, outputFlag)
+}
+
+// toolFromStep creates a tool.Tool from a flow step definition.
+// It first checks BuiltinToolCommands for NewToolFromConfig support,
+// then falls back to the tool registry.
+func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command) (tool.Tool, error) {
+	// Check if a BuiltinToolCommand has NewToolFromConfig for this tool.
+	for _, def := range BuiltinToolCommands {
+		if def.Use == step.Tool {
+			if def.NewToolFromConfig != nil {
+				return def.NewToolFromConfig(step.Config, a.TargetLang)
+			}
+			if def.NewTool != nil {
+				return def.NewTool(cmd, a.TargetLang)
+			}
+		}
+		// Check aliases too.
+		for _, alias := range def.Aliases {
+			if alias == step.Tool {
+				if def.NewToolFromConfig != nil {
+					return def.NewToolFromConfig(step.Config, a.TargetLang)
+				}
+				if def.NewTool != nil {
+					return def.NewTool(cmd, a.TargetLang)
+				}
+			}
+		}
+	}
+
+	// Fall back to tool registry (handles plugin tools).
+	t, err := a.ToolReg.NewTool(step.Tool)
+	if err != nil {
+		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
+	}
+	return t, nil
 }
