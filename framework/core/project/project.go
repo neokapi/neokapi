@@ -23,30 +23,30 @@ const CurrentVersion = "v1"
 
 // KapiProject is the root type for a .kapi project file.
 type KapiProject struct {
-	Version         string                     `yaml:"version"`
-	Name            string                     `yaml:"name"`
-	BasePath        string                     `yaml:"base_path,omitempty"` // Project root; defaults to .kapi file's directory
-	SourceLanguage  string                     `yaml:"source_language,omitempty"`
-	TargetLanguages []string                   `yaml:"target_languages,omitempty"`
-	Content         []ContentEntry             `yaml:"content,omitempty"`
-	Preset          string                     `yaml:"preset,omitempty"`
-	Plugins         []string                   `yaml:"plugins,omitempty"`
-	Flows           map[string]*flow.StepsSpec `yaml:"flows,omitempty"`
-	Defaults        Defaults                   `yaml:"defaults,omitempty"`
+	Version         string                     `yaml:"version" json:"version"`
+	Name            string                     `yaml:"name" json:"name"`
+	BasePath        string                     `yaml:"base_path,omitempty" json:"base_path,omitempty"`
+	SourceLanguage  string                     `yaml:"source_language,omitempty" json:"source_language,omitempty"`
+	TargetLanguages []string                   `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
+	Content         []ContentEntry             `yaml:"content,omitempty" json:"content,omitempty"`
+	Preset          string                     `yaml:"preset,omitempty" json:"preset,omitempty"`
+	Plugins         []string                   `yaml:"plugins,omitempty" json:"plugins,omitempty"`
+	Flows           map[string]*flow.StepsSpec `yaml:"flows,omitempty" json:"flows,omitempty"`
+	Defaults        Defaults                   `yaml:"defaults,omitempty" json:"defaults,omitempty"`
 }
 
 // ContentEntry maps local files to format and target path patterns.
 type ContentEntry struct {
-	Path   string `yaml:"path"`             // Glob pattern for source files
-	Format string `yaml:"format,omitempty"` // Format ID; auto-detect if empty
-	Target string `yaml:"target,omitempty"` // Output path pattern with {lang} placeholder
+	Path   string `yaml:"path" json:"path"`
+	Format string `yaml:"format,omitempty" json:"format,omitempty"`
+	Target string `yaml:"target,omitempty" json:"target,omitempty"`
 }
 
 // Defaults holds project-wide processing defaults.
 type Defaults struct {
-	Concurrency    int    `yaml:"concurrency,omitempty"`
-	ParallelBlocks int    `yaml:"parallel_blocks,omitempty"`
-	Encoding       string `yaml:"encoding,omitempty"`
+	Concurrency    int    `yaml:"concurrency,omitempty" json:"concurrency,omitempty"`
+	ParallelBlocks int    `yaml:"parallel_blocks,omitempty" json:"parallel_blocks,omitempty"`
+	Encoding       string `yaml:"encoding,omitempty" json:"encoding,omitempty"`
 }
 
 // Load reads a .kapi project file from the given path.
