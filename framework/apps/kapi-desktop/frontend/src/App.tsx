@@ -211,20 +211,23 @@ export default function App() {
   return (
     <div className="flex h-screen bg-background text-foreground">
       {/* Icon rail — full height, extends into title bar */}
-      <div className="flex shrink-0 flex-col border-r border-border bg-sidebar">
-        {/* Traffic light spacer */}
+      <div className="flex shrink-0 flex-col bg-sidebar">
+        {/* Traffic light spacer — no border here */}
         <div
           className="h-12 shrink-0"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         />
-        <IconRail active={section} onChange={handleSectionChange} />
+        {/* Rail with border starts below traffic lights */}
+        <div className="flex-1 border-r border-border">
+          <IconRail active={section} onChange={handleSectionChange} />
+        </div>
       </div>
 
       {/* Right side: tab bar + content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Title bar / tab bar area */}
+        {/* Title bar / tab bar area — pl-16 clears macOS traffic lights */}
         <div
-          className="flex shrink-0 items-end border-b border-border bg-sidebar pt-1"
+          className="flex shrink-0 items-end border-b border-border bg-sidebar pl-16 pt-1"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
           {section === "projects" && tabs.length > 0 ? (
