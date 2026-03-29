@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { Sun, Moon, FolderCog, Loader2 } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { CredentialsPage } from "./CredentialsPage";
+import { PluginManager } from "./PluginManager";
 
 export function SettingsPage() {
   const [theme, setTheme] = useState<"light" | "dark">("dark");
   const [pluginDir, setPluginDir] = useState("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"general" | "credentials">("general");
+  const [activeTab, setActiveTab] = useState<"general" | "credentials" | "plugins">("general");
 
   useEffect(() => {
     api.getSettings().then((settings) => {
@@ -63,6 +64,16 @@ export function SettingsPage() {
         >
           AI Credentials
         </button>
+        <button
+          onClick={() => setActiveTab("plugins")}
+          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
+            activeTab === "plugins"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Plugins
+        </button>
       </div>
 
       {/* Tab content */}
@@ -114,6 +125,7 @@ export function SettingsPage() {
         )}
 
         {activeTab === "credentials" && <CredentialsPage />}
+        {activeTab === "plugins" && <PluginManager />}
       </div>
     </div>
   );

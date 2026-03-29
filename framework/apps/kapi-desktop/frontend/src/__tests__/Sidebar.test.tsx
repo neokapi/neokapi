@@ -11,7 +11,6 @@ describe("Sidebar", () => {
     expect(screen.getByText("Project")).toBeInTheDocument();
     expect(screen.getByText("Flows")).toBeInTheDocument();
     expect(screen.getByText("Tools")).toBeInTheDocument();
-    expect(screen.getByText("Plugins")).toBeInTheDocument();
     expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 

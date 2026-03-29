@@ -5,7 +5,6 @@ import { WelcomePage } from "./components/WelcomePage";
 import { ProjectPage } from "./components/ProjectPage";
 import { FlowPage } from "./components/FlowPage";
 import { ToolRunnerPage } from "./components/ToolRunnerPage";
-import { PluginManager } from "./components/PluginManager";
 import { SettingsPage } from "./components/SettingsPage";
 import { Sidebar } from "./components/Sidebar";
 import { TabBar } from "./components/TabBar";
@@ -222,7 +221,6 @@ export default function App() {
             />
           )}
           {activeTab?.view === "tools" && <ToolRunnerPage />}
-          {activeTab?.view === "plugins" && <PluginManager />}
           {activeTab?.view === "settings" && <SettingsPage />}
         </main>
       </div>
