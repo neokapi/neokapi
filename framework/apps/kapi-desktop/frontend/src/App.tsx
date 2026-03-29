@@ -26,6 +26,7 @@ export default function App() {
   const [section, setSection] = useState<AppSection>("home");
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
   const [selectedFlow, setSelectedFlow] = useState<string | null>(null);
   const [recentFiles, setRecentFiles] = useState<
     Array<{ path: string; name: string; opened_at: string }>
@@ -202,9 +203,13 @@ export default function App() {
 
   const handleSectionChange = useCallback(
     (s: AppSection) => {
+      if (s === "settings") {
+        // Toggle settings overlay without changing section or project context.
+        setShowSettings((v) => !v);
+        return;
+      }
+      setShowSettings(false);
       setSection(s);
-      // When switching to projects and there's an active tab, keep it.
-      // When switching away from projects, deselect tab.
       if (s !== "projects") {
         setActiveTabID(null);
       } else if (tabs.length > 0 && !activeTabID) {
@@ -229,7 +234,7 @@ export default function App() {
         />
         {/* Rail with border starts below traffic lights */}
         <div className="flex-1 border-r border-border">
-          <IconRail active={section} onChange={handleSectionChange} projectActive={isProjectActive} />
+          <IconRail active={section} onChange={handleSectionChange} projectActive={isProjectActive} settingsActive={showSettings} />
         </div>
       </div>
 
@@ -272,8 +277,8 @@ export default function App() {
         {/* Main layout */}
         <div className="flex flex-1 overflow-hidden">
 
-        {/* Project secondary sidebar (only when project tab is active) */}
-        {isProjectActive && activeTab && (
+        {/* Project secondary sidebar (only when project tab is active and settings is not open) */}
+        {isProjectActive && activeTab && !showSettings && (
           <ProjectSidebar
             activeView={activeTab.view}
             onViewChange={setProjectView}
@@ -303,8 +308,11 @@ export default function App() {
 
         {/* Main content */}
         <main className="flex-1 overflow-auto">
-          {/* App-level views */}
-          {section === "home" && (
+          {/* Settings overlay — replaces content when active */}
+          {showSettings && <SettingsPage />}
+
+          {/* App-level views (hidden when settings is open) */}
+          {!showSettings && section === "home" && (
             <AppHome
               recentFiles={recentFiles}
               onOpenRecent={handleOpenRecent}
@@ -316,7 +324,7 @@ export default function App() {
             />
           )}
 
-          {section === "projects" && !isProjectActive && (
+          {!showSettings && section === "projects" && !isProjectActive && (
             <ProjectsPage
               tabs={tabs.map((t) => t.info)}
               onSelectTab={(id) => setActiveTabID(id)}
@@ -325,10 +333,10 @@ export default function App() {
             />
           )}
 
-          {section === "termbases" && <TermbasesPage />}
-          {section === "memories" && <MemoriesPage />}
+          {!showSettings && section === "termbases" && <TermbasesPage />}
+          {!showSettings && section === "memories" && <MemoriesPage />}
 
-          {section === "flows" && (
+          {!showSettings && section === "flows" && (
             <div className="p-6">
               <h1 className="mb-4 text-xl font-semibold">Flows</h1>
               <p className="text-sm text-muted-foreground">
@@ -337,12 +345,11 @@ export default function App() {
             </div>
           )}
 
-          {section === "tools" && <ToolRunnerPage />}
-          {section === "formats" && <FormatsPage />}
-          {section === "settings" && <SettingsPage />}
+          {!showSettings && section === "tools" && <ToolRunnerPage />}
+          {!showSettings && section === "formats" && <FormatsPage />}
 
           {/* Project-level views */}
-          {isProjectActive && activeTab && (
+          {!showSettings && isProjectActive && activeTab && (
             <>
               {activeTab.view === "project-home" && (
                 <HomePage

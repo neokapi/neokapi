@@ -15,6 +15,7 @@ interface IconRailProps {
   active: AppSection;
   onChange: (section: AppSection) => void;
   projectActive?: boolean;
+  settingsActive?: boolean;
 }
 
 const SW = 1.5; // stroke width for all icons
@@ -32,7 +33,7 @@ const topItems: { section: AppSection; icon: React.ReactNode; label: string }[] 
 // When a project is active, only show Home and Projects.
 const projectOnlyItems = new Set<AppSection>(["home", "projects"]);
 
-export function IconRail({ active, onChange, projectActive }: IconRailProps) {
+export function IconRail({ active, onChange, projectActive, settingsActive }: IconRailProps) {
   const visibleItems = projectActive
     ? topItems.filter((i) => projectOnlyItems.has(i.section))
     : topItems;
@@ -63,7 +64,7 @@ export function IconRail({ active, onChange, projectActive }: IconRailProps) {
       <button
         onClick={() => onChange("settings")}
         className={`rounded-lg p-2 transition-colors ${
-          active === "settings"
+          settingsActive
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
         }`}
