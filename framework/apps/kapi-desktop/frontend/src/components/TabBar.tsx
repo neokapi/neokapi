@@ -43,7 +43,8 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
         return (
           <div
             key={tab.id}
-            className={`group flex min-w-[160px] max-w-[240px] items-center justify-between gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
+            onClick={() => onSelect(tab.id)}
+            className={`group flex min-w-[160px] max-w-[240px] cursor-pointer items-center justify-between gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
               isActive
                 ? "bg-border text-foreground font-semibold"
                 : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
@@ -63,14 +64,13 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
                 aria-label="Rename project"
               />
             ) : (
-              <button
-                onClick={() => onSelect(tab.id)}
+              <span
                 onDoubleClick={() => startEditing(tab)}
                 className="max-w-[140px] truncate"
                 title={tab.path ? `${tab.name} — ${tab.path}` : tab.name}
               >
                 {tab.name}
-              </button>
+              </span>
             )}
             <button
                 onClick={(e) => {
