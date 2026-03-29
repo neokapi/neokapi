@@ -148,10 +148,10 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
               <button
                 onClick={handleOpen}
                 className="flex items-center gap-2 rounded-lg border border-border bg-background px-6 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
-                aria-label="Open .kapi project file"
+                aria-label="Open a Kapi project"
               >
                 <FolderOpen size={16} />
-                Open .kapi File
+                Open a Kapi project
               </button>
             </div>
 

@@ -22,7 +22,7 @@ describe("WelcomePage", () => {
   it("renders primary action buttons", () => {
     render(<WelcomePage onOpen={vi.fn()} onNew={vi.fn()} />);
     expect(screen.getByText("New Project")).toBeInTheDocument();
-    expect(screen.getByText("Open .kapi File")).toBeInTheDocument();
+    expect(screen.getByText("Open a Kapi project")).toBeInTheDocument();
   });
 
   it("calls onNew when clicking New Project", async () => {
