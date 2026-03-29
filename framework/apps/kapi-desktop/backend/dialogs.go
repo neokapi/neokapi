@@ -39,10 +39,16 @@ func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 		return nil, nil
 	}
 
-	path, err := a.app.Dialog.SaveFile().
+	dlg := a.app.Dialog.SaveFile().
 		AddFilter("Kapi Projects", "*.kapi").
-		SetFilename(op.Project.Name + ".kapi").
-		PromptForSingleSelection()
+		SetFilename(op.Project.Name + ".kapi")
+
+	// Default to base path directory for the save dialog.
+	if dir := a.GetBasePath(tabID); dir != "" {
+		dlg.SetDirectory(dir)
+	}
+
+	path, err := dlg.PromptForSingleSelection()
 	if err != nil {
 		return nil, err
 	}

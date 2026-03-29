@@ -30,12 +30,17 @@ func (a *App) GetBasePath(tabID string) string {
 			return filepath.Join(filepath.Dir(op.Path), op.Project.BasePath)
 		}
 	}
-	// Default: .kapi file's directory, or working directory if unsaved.
+	// Default: .kapi file's directory.
 	if op.Path != "" {
 		return filepath.Dir(op.Path)
 	}
-	wd, _ := os.Getwd()
-	return wd
+	// Unsaved project: use ~/KapiProjects as a sensible default.
+	home, err := os.UserHomeDir()
+	if err != nil {
+		wd, _ := os.Getwd()
+		return wd
+	}
+	return filepath.Join(home, "KapiProjects")
 }
 
 // MatchContent resolves content patterns against the filesystem.
