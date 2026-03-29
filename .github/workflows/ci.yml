@@ -23,6 +23,7 @@ jobs:
       bowrain_cli: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain_cli }}
       bowrain: ${{ github.event_name == 'push' || steps.filter.outputs.bowrain }}
       frontend: ${{ github.event_name == 'push' || steps.filter.outputs.frontend }}
+      kapi_desktop: ${{ github.event_name == 'push' || steps.filter.outputs.kapi_desktop }}
       workflows: ${{ github.event_name == 'push' || steps.filter.outputs.workflows }}
       any_go: ${{ github.event_name == 'push' || steps.filter.outputs.framework || steps.filter.outputs.cli || steps.filter.outputs.platform || steps.filter.outputs.kapi || steps.filter.outputs.bowrain_cli || steps.filter.outputs.bowrain }}
     steps:
@@ -67,6 +68,7 @@ jobs:
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
           check_paths frontend  '^platform/apps/(web|bowrain/frontend)/' '^platform/packages/ui/'
+          check_paths kapi_desktop '^framework/apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
@@ -102,6 +104,49 @@ jobs:
       - name: Check Bowrain frontend (oxlint + oxfmt)
         working-directory: platform/apps/bowrain/frontend
         run: npx vp check
+
+  # ── Kapi Desktop frontend ───────────────────────────────────────────────
+  kapi-desktop:
+    name: Kapi Desktop
+    runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.kapi_desktop == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install shared UI dependencies
+        working-directory: packages/ui
+        run: npm install
+
+      - name: Install flow-editor dependencies
+        working-directory: packages/flow-editor
+        run: npm install
+
+      - name: Run flow-editor tests
+        working-directory: packages/flow-editor
+        run: npx vitest run
+
+      - name: Install Kapi Desktop frontend dependencies
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npm install
+
+      - name: Run Kapi Desktop frontend tests
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npx vp test
+
+      - name: Build Kapi Desktop Storybook
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npx storybook build -o storybook-static
+
+      - name: Run Kapi Desktop Go backend tests
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+      - working-directory: framework/apps/kapi-desktop
+        run: go test ./backend/... -count=1 -timeout 60s
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
   test-framework:

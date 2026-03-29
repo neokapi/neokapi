@@ -1,0 +1,150 @@
+name: Kapi Desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      skip_signing:
+        description: "Skip code signing (for testing)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos
+            runner: macos-latest
+            goos: darwin
+            goarch: arm64
+          - os: macos-amd64
+            runner: macos-13
+            goos: darwin
+            goarch: amd64
+          - os: linux
+            runner: ubuntu-latest
+            goos: linux
+            goarch: amd64
+          - os: windows
+            runner: windows-latest
+            goos: windows
+            goarch: amd64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install Wails v3
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Install frontend dependencies
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npx vp test
+
+      - name: Run backend tests
+        working-directory: framework/apps/kapi-desktop
+        run: go test ./backend/... -count=1 -timeout 60s
+
+      - name: Create frontend placeholder for binding generation
+        run: mkdir -p framework/apps/kapi-desktop/frontend/dist && echo placeholder > framework/apps/kapi-desktop/frontend/dist/index.html
+
+      - name: Build Kapi Desktop
+        working-directory: framework/apps/kapi-desktop
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "1"
+        run: wails3 build
+
+      - name: Create macOS DMG
+        if: startsWith(matrix.os, 'macos')
+        working-directory: framework/apps/kapi-desktop
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+          ARCH: ${{ matrix.goarch }}
+        run: |
+          APP_NAME="Kapi Desktop"
+          DMG_NAME="KapiDesktop-${TAG_NAME}-${ARCH}.dmg"
+          if [ -d "bin/${APP_NAME}.app" ]; then
+            hdiutil create -volname "$APP_NAME" -srcfolder "bin/${APP_NAME}.app" -ov -format UDZO "$DMG_NAME"
+          fi
+
+      - name: Package Linux binary
+        if: matrix.os == 'linux'
+        working-directory: framework/apps/kapi-desktop
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          BIN_NAME="KapiDesktop-${TAG_NAME}-linux-amd64"
+          if [ -f "bin/KapiDesktop" ]; then
+            mv bin/KapiDesktop "$BIN_NAME"
+          fi
+
+      - name: Package Windows binary
+        if: matrix.os == 'windows'
+        working-directory: framework/apps/kapi-desktop
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          if (Test-Path "bin\KapiDesktop.exe") {
+            Compress-Archive -Path "bin\KapiDesktop.exe" -DestinationPath "KapiDesktop-${env:TAG_NAME}-windows-amd64.zip"
+          }
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kapi-desktop-${{ matrix.os }}
+          path: |
+            framework/apps/kapi-desktop/*.dmg
+            framework/apps/kapi-desktop/KapiDesktop-*
+          if-no-files-found: ignore
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          append_body: true
+          body: |
+            ## Kapi Desktop
+
+            Download the Kapi Desktop app for your platform:
+
+            **macOS:**
+            ```
+            brew install --cask neokapi/tap/kapi-desktop
+            ```
+
+            **Or download directly from the assets below.**

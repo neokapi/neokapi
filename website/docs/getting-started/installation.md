@@ -41,6 +41,16 @@ make build       # Build kapi CLI → bin/kapi
 kapi version
 ```
 
+## Kapi Desktop
+
+For a visual interface, install Kapi Desktop alongside the CLI:
+
+```bash
+brew install --cask neokapi/tap/kapi-desktop
+```
+
+Or download the DMG/ZIP from [GitHub Releases](https://github.com/neokapi/neokapi/releases). See the [Kapi Desktop overview](/docs/kapi-desktop/overview) for details.
+
 ## Bowrain Platform
 
 For the Bowrain platform (Bowrain CLI, desktop app, server), see [Bowrain Installation](/bowrain/installation).

@@ -16,6 +16,7 @@ import (
 	"github.com/neokapi/neokapi/core/formats"
 	"github.com/neokapi/neokapi/core/plugin/loader"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/spf13/cobra"
 )
@@ -45,6 +46,10 @@ type App struct {
 	// RegistryResolver is an optional hook for resolving plugin registries.
 	// When set, it is called before falling back to the config-based registries.
 	RegistryResolver func() []config.RegistryEntry
+
+	// projectFlowTools is set temporarily by runProjectSteps to override
+	// buildFlowTools for project-defined flows.
+	projectFlowTools []tool.Tool
 }
 
 // AddPersistentFlags registers global flags on the root command.

@@ -62,6 +62,8 @@ Use Kapi CLI when you:
 - **Run in CI/CD** for automated file processing
 - **Evaluate formats** — list supported formats, check file compatibility
 
+For a visual interface, use [Kapi Desktop](/docs/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
+
 For project management, server sync, and team collaboration, use the [Bowrain CLI](/bowrain/cli/overview) instead.
 
 ## Installation
@@ -74,6 +76,36 @@ brew install neokapi/tap/kapi
 go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
 
 # Binary downloads: https://github.com/neokapi/neokapi/releases
+```
+
+## Project Files
+
+Kapi can optionally use `.kapi` project files to save workflow configurations. Use `-p` to reference a project:
+
+```bash
+# Run a flow defined in a .kapi file
+kapi run translate -p myproject.kapi
+
+# Override project defaults with CLI flags
+kapi run translate -p myproject.kapi --target-lang de
+```
+
+See [.kapi Project Files](/docs/kapi-desktop/project-file) for the full format reference.
+
+## Kapi Desktop
+
+[Kapi Desktop](/docs/kapi-desktop/overview) is the GUI companion for kapi. It provides:
+
+- Visual flow editor for building tool pipelines
+- Live flow execution with progress visualization
+- Plugin browser and installer
+- AI credential management with OS keychain storage
+- File browser with format auto-detection
+
+Install via Homebrew:
+
+```bash
+brew install --cask neokapi/tap/kapi-desktop
 ```
 
 ## Next Steps
