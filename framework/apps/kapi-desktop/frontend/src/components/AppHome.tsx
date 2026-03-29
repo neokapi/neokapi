@@ -14,7 +14,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onNavigate }:
       <div className="mb-8">
         <h1 className="text-xl font-semibold">Welcome to Kapi Desktop</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Localization plumbing and glue for people and agents.
+          Localization plumbing and glue for people, elves, and agents.
         </p>
       </div>
 

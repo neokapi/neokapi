@@ -166,7 +166,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
               Kapi Desktop
             </h1>
             <p className="mb-6 max-w-md text-base text-muted-foreground">
-              Localization plumbing and glue for people and agents.
+              Localization plumbing and glue for people, elves, and agents.
             </p>
 
             {showNewForm ? (
