@@ -52,7 +52,8 @@ jobs:
           cd framework && go mod download && go mod verify
           cd cli && go mod download && go mod verify
           cd ../kapi && go mod download && go mod verify
-          cd ../../platform/core && go mod download && go mod verify
+          cd ../apps/kapi-desktop && go mod download && go mod verify
+          cd ../../../platform/core && go mod download && go mod verify
           cd ../cli && go mod download && go mod verify
           cd .. && go mod download && go mod verify
 
@@ -483,28 +484,286 @@ jobs:
         with:
           files: "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
 
-  update-bowrain-cask:
-    name: Update Bowrain Cask
+  build-kapi-desktop:
+    name: Build Kapi Desktop (${{ matrix.build.platform }})
+    needs: goreleaser
+    strategy:
+      fail-fast: false
+      matrix:
+        build:
+          - { platform: linux/amd64, os: ubuntu-latest, arch: amd64 }
+          - { platform: linux/arm64, os: ubuntu-24.04-arm, arch: arm64 }
+          - { platform: windows/amd64, os: windows-latest, arch: amd64 }
+          - { platform: windows/arm64, os: windows-latest, arch: arm64 }
+          - { platform: darwin/universal, os: macos-latest, arch: universal }
+    runs-on: ${{ matrix.build.os }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.0"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Compute build metadata
+        id: meta
+        shell: bash
+        env:
+          GH_SHA: ${{ github.sha }}
+        run: |
+          {
+            echo "VERSION=${GITHUB_REF_NAME#v}"
+            echo "COMMIT=${GH_SHA::7}"
+            echo "BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "LDFLAGS=-w -s -X github.com/neokapi/neokapi/core/version.Version=${GITHUB_REF_NAME#v} -X github.com/neokapi/neokapi/core/version.Commit=${GH_SHA::7} -X github.com/neokapi/neokapi/core/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+
+      - name: Install wails3 CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
+
+      - name: Install shared package dependencies
+        run: |
+          cd packages/ui && npm install
+          cd ../../packages/flow-editor && npm install
+
+      - name: Install Kapi Desktop frontend dependencies
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npm install
+
+      - name: Generate Wails bindings
+        working-directory: framework/apps/kapi-desktop
+        shell: bash
+        env:
+          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
+        run: |
+          go mod tidy
+          wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
+
+      - name: Build Kapi Desktop frontend
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npm run build
+
+      - name: Generate icons
+        working-directory: framework/apps/kapi-desktop/build
+        run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+
+      - name: Generate Windows resources
+        if: runner.os == 'Windows'
+        working-directory: framework/apps/kapi-desktop
+        shell: bash
+        run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
+
+      - name: Build Kapi Desktop (Linux)
+        if: runner.os == 'Linux'
+        working-directory: framework/apps/kapi-desktop
+        env:
+          GOOS: linux
+          CGO_ENABLED: "1"
+          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
+        run: go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi
+
+      - name: Build Kapi Desktop (Windows)
+        if: runner.os == 'Windows'
+        working-directory: framework/apps/kapi-desktop
+        shell: bash
+        env:
+          GOOS: windows
+          GOARCH: ${{ matrix.build.arch }}
+          CGO_ENABLED: "0"
+          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
+        run: |
+          go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS} -H windowsgui" -o bin/Kapi.exe
+          rm -f ./*.syso
+
+      - name: Build Kapi Desktop (macOS universal)
+        if: runner.os == 'macOS'
+        working-directory: framework/apps/kapi-desktop
+        env:
+          CGO_ENABLED: "1"
+          CGO_CFLAGS: "-mmacosx-version-min=10.15"
+          CGO_LDFLAGS: "-mmacosx-version-min=10.15"
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
+          BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi-arm64
+          GOOS=darwin GOARCH=amd64 go build -tags production -trimpath -buildvcs=false -ldflags="${BUILD_LDFLAGS}" -o bin/Kapi-amd64
+          lipo -create -output bin/Kapi bin/Kapi-amd64 bin/Kapi-arm64
+          rm bin/Kapi-amd64 bin/Kapi-arm64
+
+      - name: Create macOS .app bundle
+        if: runner.os == 'macOS'
+        working-directory: framework/apps/kapi-desktop
+        run: |
+          mkdir -p bin/Kapi.app/Contents/MacOS
+          mkdir -p bin/Kapi.app/Contents/Resources
+          cp build/darwin/icons.icns bin/Kapi.app/Contents/Resources
+          cp bin/Kapi bin/Kapi.app/Contents/MacOS
+          cp build/darwin/Info.plist bin/Kapi.app/Contents
+
+      - name: Extract version
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE_BASE64" ]; then
+            echo "No signing certificate configured — will use ad-hoc signing"
+            exit 0
+          fi
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > /tmp/certificate.p12
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -hex 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import /tmp/certificate.p12 -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+          rm /tmp/certificate.p12
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+
+      - name: Sign macOS app bundle
+        if: runner.os == 'macOS'
+        working-directory: framework/apps/kapi-desktop
+        env:
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+        run: |
+          if [ -n "$APPLE_SIGN_IDENTITY" ]; then
+            echo "Signing with Developer ID: $APPLE_SIGN_IDENTITY"
+            codesign --force --deep --options runtime \
+              --entitlements build/darwin/entitlements.plist \
+              --sign "$APPLE_SIGN_IDENTITY" \
+              bin/Kapi.app
+          else
+            echo "No APPLE_SIGN_IDENTITY set — using ad-hoc signing"
+            codesign --force --deep --sign - bin/Kapi.app
+          fi
+
+      - name: Create DMG
+        if: runner.os == 'macOS'
+        working-directory: framework/apps/kapi-desktop
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          mkdir -p dmg
+          cp -R bin/Kapi.app dmg/
+          ln -s /Applications dmg/Applications
+          hdiutil create \
+            -volname "Kapi v${VERSION}" \
+            -srcfolder dmg \
+            -ov \
+            -format UDZO \
+            "../../../kapi-desktop-${VERSION}-macOS-universal.dmg"
+
+      - name: Sign DMG
+        if: runner.os == 'macOS'
+        env:
+          APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          DMG="kapi-desktop-${VERSION}-macOS-universal.dmg"
+          if [ -n "$APPLE_SIGN_IDENTITY" ]; then
+            codesign --force --sign "$APPLE_SIGN_IDENTITY" "$DMG"
+          fi
+
+      - name: Notarize DMG
+        if: runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          if [ -z "$APPLE_ID" ]; then
+            echo "No APPLE_ID set — skipping notarization"
+            exit 0
+          fi
+          DMG="kapi-desktop-${VERSION}-macOS-universal.dmg"
+          echo "Submitting $DMG for notarization..."
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 10m
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "$DMG"
+
+      - name: Clean up signing keychain
+        if: always() && runner.os == 'macOS'
+        env:
+          KEYCHAIN_PATH: ${{ env.KEYCHAIN_PATH }}
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
+
+      - name: Upload DMG to release
+        if: runner.os == 'macOS'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-macOS-universal.dmg"
+
+      - name: Create ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "framework/apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+
+      - name: Upload ZIP to release
+        if: runner.os == 'Windows'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+
+      - name: Create tarball
+        if: runner.os == 'Linux'
+        run: |
+          tar -czf "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
+            -C framework/apps/kapi-desktop/bin Kapi
+
+      - name: Upload tarball to release
+        if: runner.os == 'Linux'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz"
+
+  update-casks:
+    name: Update Homebrew Casks
     runs-on: ubuntu-latest
-    needs: build-bowrain
+    needs: [build-bowrain, build-kapi-desktop]
     steps:
       - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
-      - name: Download Bowrain DMG
+      - name: Download DMGs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release download "${{ github.ref_name }}" \
             --repo "${{ github.repository }}" \
-            --pattern "bowrain-*-macOS-universal.dmg"
+            --pattern "*-macOS-universal.dmg"
 
-      - name: Compute checksum
+      - name: Compute checksums
         id: checksum
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
           echo "BOWRAIN_DMG=$(sha256sum bowrain-${VERSION}-macOS-universal.dmg | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "KAPI_DMG=$(sha256sum kapi-desktop-${VERSION}-macOS-universal.dmg | awk '{print $1}')" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
         uses: actions/checkout@v6
@@ -557,14 +816,60 @@ jobs:
           end
           CASK
 
+      - name: Update kapi-desktop cask
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          SHA_KAPI: ${{ steps.checksum.outputs.KAPI_DMG }}
+        run: |
+          mkdir -p homebrew-tap/Casks
+          cat > homebrew-tap/Casks/kapi-desktop.rb << CASK
+          # Use absolute tap path so the require works even when Homebrew loads
+          # the cask from its metadata cache during upgrades.
+          require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"
+
+          cask "kapi-desktop" do
+            version "${VERSION}"
+            sha256 "${SHA_KAPI}"
+
+            url "https://github.com/neokapi/neokapi/releases/download/v#{version}/kapi-desktop-#{version}-macOS-universal.dmg",
+                using: GitHubPrivateRepositoryReleaseDownloadStrategy
+            name "Kapi"
+            desc "Localization toolkit - powered by neokapi"
+            homepage "https://github.com/neokapi/neokapi"
+
+            depends_on formula: "neokapi/tap/kapi"
+
+            app "Kapi.app"
+
+            postflight do
+              system_command "/usr/bin/xattr",
+                            args: ["-dr", "com.apple.quarantine", "#{appdir}/Kapi.app"],
+                            sudo: false
+            end
+
+            caveats <<~EOS
+              The kapi CLI is provided by the kapi formula (installed
+              automatically). Run "kapi" for command-line usage.
+            EOS
+
+            zap trash: [
+              "~/Library/Application Support/Kapi",
+              "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
+              "~/Library/Caches/Kapi",
+            ]
+          end
+          CASK
+
       - name: Commit and push
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/bowrain.rb
+          git add Casks/bowrain.rb Casks/kapi-desktop.rb
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update bowrain cask to ${{ steps.version.outputs.VERSION }}" && git push
+            git commit -m "Update casks to ${VERSION}" && git push
           fi

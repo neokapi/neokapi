@@ -59,7 +59,7 @@ kapi run translate -p myproject.kapi
 | Automation | Local flows | Server-side hooks + automation |
 | Install | `brew install --cask kapi-desktop` | `brew install --cask bowrain` |
 
-Kapi is for developers who want powerful localization tools without a server. When you need team collaboration, connector integrations, or server-side automation, upgrade to [Bowrain](/bowrain/getting-started/introduction).
+Kapi is for developers who want powerful localization tools without a server. When you need team collaboration, connector integrations, or server-side automation, upgrade to [Bowrain](/bowrain/introduction).
 
 ## Next Steps
 

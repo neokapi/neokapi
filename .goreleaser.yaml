@@ -4,12 +4,14 @@ project_name: kapi
 
 before:
   hooks:
-    # Create placeholder so platform/apps/platform/main.go's //go:embed all:frontend/dist succeeds
-    # without a real frontend build (bowrain is built separately in the release workflow).
+    # Create placeholders so //go:embed all:frontend/dist succeeds
+    # without real frontend builds (desktop apps are built separately).
     - mkdir -p platform/apps/bowrain/frontend/dist && touch platform/apps/bowrain/frontend/dist/placeholder
+    - mkdir -p framework/apps/kapi-desktop/frontend/dist && touch framework/apps/kapi-desktop/frontend/dist/placeholder
     # Tests are already run by the release workflow before GoReleaser.
     - bash -c "cd framework && go mod tidy"
     - bash -c "cd framework/cli && go mod tidy"
+    - bash -c "cd framework/apps/kapi-desktop && go mod tidy"
     - bash -c "cd platform/core && go mod tidy"
     - bash -c "cd framework/kapi && go mod tidy"
     - bash -c "cd platform/cli && go mod tidy"
@@ -139,6 +141,11 @@ release:
     brew install neokapi/tap/bowrain-cli
     ```
 
+    **Homebrew (Kapi desktop app, macOS):**
+    ```
+    brew install --cask neokapi/tap/kapi-desktop
+    ```
+
     **Homebrew (Bowrain desktop app, macOS):**
     ```
     brew install --cask neokapi/tap/bowrain
@@ -155,5 +162,6 @@ release:
     |-----------|:-----------:|:-----------:|:------------------:|:-------------:|:-------------:|
     | kapi CLI | ✓ | ✓ | ✓ | ✓ | ✓ |
     | bowrain CLI | ✓ | ✓ | ✓ | ✓ | ✓ |
+    | Kapi Desktop | ✓ | ✓ | ✓ | ✓ | ✓ |
     | Bowrain Desktop | ✓ | ✓ | ✓ | ✓ | ✓ |
     | Docker (server) | ✓ | ✓ | — | — | — |
