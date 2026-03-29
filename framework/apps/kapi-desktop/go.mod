@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/neokapi/neokapi v0.0.0
 	github.com/stretchr/testify v1.11.1
-	github.com/wailsapp/wails/v3 v3.0.0-alpha.73
+	github.com/wailsapp/wails/v3 v3.0.0-alpha.74
 	github.com/zalando/go-keyring v0.2.6
 )
 
