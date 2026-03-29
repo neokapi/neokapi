@@ -1,0 +1,65 @@
+{
+  "$id": "okapi:segmentation",
+  "title": "Segmentation",
+  "type": "object",
+  "x-component": {
+    "id": "okapi:segmentation",
+    "type": "step",
+    "displayName": "Segmentation",
+    "description": "Apply SRX segmentation to the text units content of a document. Expects: filter events. Sends back: filter events."
+  },
+  "properties": {
+    "segmentSource": {
+      "type": "boolean",
+      "default": true
+    },
+    "segmentTarget": {
+      "type": "boolean",
+      "default": false
+    },
+    "renumberCodes": {
+      "type": "boolean",
+      "default": false
+    },
+    "checkSegments": {
+      "type": "boolean",
+      "default": true
+    },
+    "trimSrcLeadingWS": {
+      "type": "integer",
+      "default": -1
+    },
+    "trimSrcTrailingWS": {
+      "type": "integer",
+      "default": -1
+    },
+    "trimTrgLeadingWS": {
+      "type": "integer",
+      "default": -1
+    },
+    "trimTrgTrailingWS": {
+      "type": "integer",
+      "default": -1
+    },
+    "forceSegmentedOutput": {
+      "type": "boolean",
+      "default": true
+    },
+    "overwriteSegmentation": {
+      "type": "boolean",
+      "default": false
+    },
+    "deepenSegmentation": {
+      "type": "boolean",
+      "default": false
+    },
+    "treatIsolatedCodesAsWhitespace": {
+      "type": "boolean",
+      "default": false
+    },
+    "doNotSegmentIfHasTarget": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
