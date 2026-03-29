@@ -129,8 +129,9 @@ export const api = {
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
 
-  // Version
+  // System
   getVersion: () => call<string>("GetVersion"),
+  getHomeDir: () => call<string>("GetHomeDir"),
 } as const;
 
 export type Api = typeof api;

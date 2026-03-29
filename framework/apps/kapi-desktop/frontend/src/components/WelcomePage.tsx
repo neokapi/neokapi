@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
+import { useShortenHome } from "../hooks/useShortenHome";
 
 interface WelcomePageProps {
   onOpen: (tab: TabInfo) => void;
@@ -39,12 +40,6 @@ const GET_STARTED = [
   },
 ];
 
-function shortenHome(path: string): string {
-  const match = path.match(/^(\/Users\/[^/]+|\/home\/[^/]+)(\/.*)?$/);
-  if (match) return "~" + (match[2] ?? "");
-  return path;
-}
-
 // Characters not allowed in directory names.
 const INVALID_DIR_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
 
@@ -56,6 +51,7 @@ function isValidDirName(name: string): boolean {
 }
 
 export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
+  const shortenHome = useShortenHome();
   const [error, setError] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState("");

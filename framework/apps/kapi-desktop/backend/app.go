@@ -516,6 +516,12 @@ func (a *App) GetVersion() string {
 	return version.Version
 }
 
+// GetHomeDir returns the user's home directory path.
+func (a *App) GetHomeDir() string {
+	home, _ := os.UserHomeDir()
+	return home
+}
+
 func (a *App) emitEvent(name string, data any) {
 	if a.app != nil {
 		a.app.Event.Emit(name, data)

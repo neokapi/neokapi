@@ -2,19 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Globe, FileText, RefreshCw, Loader2, X } from "lucide-react";
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
-
-function shortenHome(path: string): string {
-  const home = typeof process !== "undefined" ? process.env.HOME : undefined;
-  if (home && path.startsWith(home)) {
-    return "~" + path.slice(home.length);
-  }
-  // Client-side fallback: detect /Users/xxx or /home/xxx pattern.
-  const match = path.match(/^(\/Users\/[^/]+|\/home\/[^/]+)(\/.*)?$/);
-  if (match) {
-    return "~" + (match[2] ?? "");
-  }
-  return path;
-}
+import { useShortenHome } from "../hooks/useShortenHome";
 
 interface FileMatch {
   path: string;
@@ -31,6 +19,7 @@ interface ContentPageProps {
 }
 
 export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPageProps) {
+  const shortenHome = useShortenHome();
   const [matches, setMatches] = useState<FileMatch[]>([]);
   const [basePath, setBasePath] = useState("");
   const [scanning, setScanning] = useState(false);
