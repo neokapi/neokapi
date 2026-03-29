@@ -84,11 +84,7 @@ const groupedSchema: ComponentSchema = {
     {
       id: "whitespace",
       label: "Whitespace Checks",
-      fields: [
-        "checkLeadingWhitespace",
-        "checkTrailingWhitespace",
-        "checkDoubleSpaces",
-      ],
+      fields: ["checkLeadingWhitespace", "checkTrailingWhitespace", "checkDoubleSpaces"],
     },
     {
       id: "content",
