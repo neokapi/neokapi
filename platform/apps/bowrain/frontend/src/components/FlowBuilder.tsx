@@ -28,8 +28,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  FilterConfigEditor,
 } from "@neokapi/ui";
-import { useFlowDefinitions, useFlowDefinitionApi, useTools } from "../hooks/useApi";
+import { useFlowDefinitions, useFlowDefinitionApi, useTools, useToolSchema } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
 
 // --- Custom Node Components ---
@@ -149,6 +150,7 @@ function defToReactFlow(def: FlowDefinitionInfo): { nodes: Node[]; edges: Edge[]
       toolName: n.name,
       formatName: n.name === "auto" ? "Auto-detect" : n.name,
       nodeId: n.id,
+      config: n.config || {},
     },
   }));
   const edges: Edge[] = def.edges.map((e: FlowEdgeInfo) => ({
@@ -179,6 +181,7 @@ function reactFlowToDef(
       type: (n.type || "tool") as "tool" | "reader" | "writer",
       name: (n.data.toolName as string) || n.id,
       label: (n.data.label as string) || "",
+      config: (n.data.config as Record<string, unknown>) || undefined,
       position: { x: n.position.x, y: n.position.y },
     })),
     edges: edges.map((e) => ({
@@ -268,6 +271,51 @@ function FlowList({
   );
 }
 
+// --- Tool Config Panel ---
+
+function ToolConfigPanel({
+  toolName,
+  config,
+  onChange,
+}: {
+  toolName: string;
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+}) {
+  const { schema, loading } = useToolSchema(toolName);
+
+  if (loading) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground">Loading schema...</div>
+    );
+  }
+
+  if (!schema || !schema.properties || Object.keys(schema.properties).length === 0) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground">
+        No configurable parameters for <span className="font-mono">{toolName}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-4">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">{schema.title || toolName}</h3>
+        {schema.description && (
+          <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
+        )}
+      </div>
+      <FilterConfigEditor
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        schema={schema as any}
+        value={config}
+        onChange={onChange}
+      />
+    </div>
+  );
+}
+
 // --- Main FlowBuilder Component ---
 
 export function FlowBuilder() {
@@ -282,10 +330,18 @@ export function FlowBuilder() {
   const [showNewFlowDialog, setShowNewFlowDialog] = useState(false);
   const [newFlowName, setNewFlowName] = useState("");
   const [newFlowDescription, setNewFlowDescription] = useState("");
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const nodeCounter = useRef(0);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  // Track the currently selected tool node
+  const selectedToolNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    const node = nodes.find((n) => n.id === selectedNodeId);
+    return node?.type === "tool" ? node : null;
+  }, [selectedNodeId, nodes]);
 
   const isBuiltIn = activeDef?.source === "built-in";
 
@@ -422,6 +478,29 @@ export function FlowBuilder() {
       console.error("Delete flow failed:", e);
     }
   }, [activeDef, isBuiltIn, deleteFlowDefinition, setNodes, setEdges, refresh]);
+
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
+  const handlePaneClick = useCallback(() => {
+    setSelectedNodeId(null);
+  }, []);
+
+  const handleToolConfigChange = useCallback(
+    (config: Record<string, unknown>) => {
+      if (!selectedToolNode) return;
+      setNodes((prev) =>
+        prev.map((n) =>
+          n.id === selectedToolNode.id
+            ? { ...n, data: { ...n.data, config } }
+            : n,
+        ),
+      );
+      setDirty(true);
+    },
+    [selectedToolNode, setNodes],
+  );
 
   const handleNodesChange = useCallback(
     (...args: Parameters<typeof onNodesChange>) => {
@@ -561,32 +640,49 @@ export function FlowBuilder() {
             </div>
             {/* Tool palette (only for editable flows) */}
             {!isBuiltIn && <ToolPalette tools={tools} onAddTool={handleAddTool} />}
-            {/* React Flow canvas */}
-            <div className="flex-1 min-h-0">
-              <ReactFlow
-                nodes={nodes}
-                edges={edges}
-                onNodesChange={handleNodesChange}
-                onEdgesChange={handleEdgesChange}
-                onConnect={onConnect}
-                nodeTypes={nodeTypes}
-                fitView
-                nodesDraggable={!isBuiltIn}
-                nodesConnectable={!isBuiltIn}
-                elementsSelectable={!isBuiltIn}
-                deleteKeyCode={isBuiltIn ? null : "Backspace"}
-                proOptions={{ hideAttribution: true }}
-                className="bg-background"
-              >
-                <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#3e4047" />
-                <Controls />
-                <MiniMap
-                  nodeColor={miniMapNodeColor}
-                  className="!bg-card"
-                  style={{ height: 80 }}
-                  maskColor="rgba(0, 0, 0, 0.4)"
-                />
-              </ReactFlow>
+            {/* React Flow canvas + config panel */}
+            <div className="flex flex-1 min-h-0">
+              <div className="flex-1 min-h-0">
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={handleNodesChange}
+                  onEdgesChange={handleEdgesChange}
+                  onConnect={onConnect}
+                  onNodeClick={handleNodeClick}
+                  onPaneClick={handlePaneClick}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  nodesDraggable={!isBuiltIn}
+                  nodesConnectable={!isBuiltIn}
+                  elementsSelectable
+                  deleteKeyCode={isBuiltIn ? null : "Backspace"}
+                  proOptions={{ hideAttribution: true }}
+                  className="bg-background"
+                >
+                  <Background variant={BackgroundVariant.Dots} gap={16} size={1} color="#3e4047" />
+                  <Controls />
+                  <MiniMap
+                    nodeColor={miniMapNodeColor}
+                    className="!bg-card"
+                    style={{ height: 80 }}
+                    maskColor="rgba(0, 0, 0, 0.4)"
+                  />
+                </ReactFlow>
+              </div>
+              {/* Tool config side panel */}
+              {selectedToolNode && !isBuiltIn && (
+                <div
+                  data-testid="tool-config-panel"
+                  className="w-72 border-l border-border overflow-auto"
+                >
+                  <ToolConfigPanel
+                    toolName={selectedToolNode.data.toolName as string}
+                    config={(selectedToolNode.data.config as Record<string, unknown>) || {}}
+                    onChange={handleToolConfigChange}
+                  />
+                </div>
+              )}
             </div>
           </>
         ) : (

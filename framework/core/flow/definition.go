@@ -302,6 +302,7 @@ func parseFlowFile(data []byte, filename string) (*FlowDefinition, error) {
 }
 
 // parseFlowYAML parses a YAML flow file, supporting both envelope and bare formats.
+// Detects steps-format (spec.steps) vs graph-format (spec.nodes + spec.edges).
 func parseFlowYAML(data []byte) (*FlowDefinition, error) {
 	// Probe for envelope
 	var probe struct {
@@ -313,7 +314,17 @@ func parseFlowYAML(data []byte) (*FlowDefinition, error) {
 		return parseEnvelopedFlow(data, ".yaml")
 	}
 
-	// Bare YAML flow
+	// Probe for bare steps format
+	var stepsProbe struct {
+		Steps []any `yaml:"steps"`
+	}
+	_ = yaml.Unmarshal(data, &stepsProbe)
+
+	if len(stepsProbe.Steps) > 0 {
+		return parseStepsFromBare(data)
+	}
+
+	// Bare YAML graph flow
 	var def FlowDefinition
 	if err := yaml.Unmarshal(data, &def); err != nil {
 		return nil, err
@@ -342,6 +353,7 @@ func parseFlowJSON(data []byte) (*FlowDefinition, error) {
 }
 
 // parseEnvelopedFlow parses a flow from an envelope, extracting the spec.
+// Supports both the graph format (nodes + edges) and the steps format.
 func parseEnvelopedFlow(data []byte, ext string) (*FlowDefinition, error) {
 	env, err := config.Parse(data, ext)
 	if err != nil {
@@ -354,6 +366,11 @@ func parseEnvelopedFlow(data []byte, ext string) (*FlowDefinition, error) {
 
 	if err := config.DefaultMigrations.Upgrade(env); err != nil {
 		return nil, fmt.Errorf("migrate flow: %w", err)
+	}
+
+	// Check if spec uses the steps format
+	if _, hasSteps := env.Spec["steps"]; hasSteps {
+		return parseStepsFromSpec(env)
 	}
 
 	// Re-marshal the spec and unmarshal into FlowDefinition
@@ -375,6 +392,59 @@ func parseEnvelopedFlow(data []byte, ext string) (*FlowDefinition, error) {
 	}
 
 	return &def, nil
+}
+
+// parseStepsFromSpec compiles a steps-format spec into a FlowDefinition.
+func parseStepsFromSpec(env *config.Envelope) (*FlowDefinition, error) {
+	specData, err := yaml.Marshal(env.Spec)
+	if err != nil {
+		return nil, err
+	}
+	var spec StepsSpec
+	if err := yaml.Unmarshal(specData, &spec); err != nil {
+		return nil, fmt.Errorf("parse steps spec: %w", err)
+	}
+
+	nodes, edges, err := StepsToGraph(&spec)
+	if err != nil {
+		return nil, fmt.Errorf("compile steps: %w", err)
+	}
+
+	def := &FlowDefinition{
+		Name:  env.Metadata.Name,
+		Nodes: nodes,
+		Edges: edges,
+	}
+	if env.Metadata.Description != "" {
+		def.Description = env.Metadata.Description
+	}
+	// Derive ID from name
+	if def.Name != "" {
+		def.ID = strings.ToLower(strings.ReplaceAll(def.Name, " ", "-"))
+	}
+
+	return def, nil
+}
+
+// parseStepsFromBare compiles a bare steps-format YAML into a FlowDefinition.
+func parseStepsFromBare(data []byte) (*FlowDefinition, error) {
+	var spec StepsSpec
+	if err := yaml.Unmarshal(data, &spec); err != nil {
+		return nil, err
+	}
+	if len(spec.Steps) == 0 {
+		return nil, fmt.Errorf("no steps found")
+	}
+
+	nodes, edges, err := StepsToGraph(&spec)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FlowDefinition{
+		Nodes: nodes,
+		Edges: edges,
+	}, nil
 }
 
 // Save writes a flow definition to the store.

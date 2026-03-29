@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import type {
   FormatInfo,
   ToolInfo,
+  ToolSchema,
   FlowInfo,
   FlowDefinitionInfo,
   PluginInfo,
@@ -645,6 +646,38 @@ export function useTermsApi() {
     exportTermsJSON,
     termEnforceItem,
   };
+}
+
+// Tool schema hook
+
+export function useToolSchema(toolName: string | null) {
+  const [schema, setSchema] = useState<ToolSchema | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toolName) {
+      setSchema(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+
+    // Try to call the backend method; gracefully handle if not available
+    const fn = (Backend as Record<string, unknown>).GetToolSchema;
+    if (typeof fn === "function") {
+      (fn as (name: string) => Promise<ToolSchema | null>)(toolName)
+        .then((s) => setSchema(s))
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoading(false));
+    } else {
+      // Backend doesn't have GetToolSchema yet
+      setSchema(null);
+      setLoading(false);
+    }
+  }, [toolName]);
+
+  return { schema, loading, error };
 }
 
 // Flow definition hooks
