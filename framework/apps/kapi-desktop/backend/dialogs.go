@@ -4,15 +4,15 @@ import (
 	"github.com/neokapi/neokapi/core/project"
 )
 
-// OpenProjectDialog shows a native file-open dialog for .kapi files,
+// OpenProjectDialog shows a native file-open dialog for Kapi project files,
 // opens the selected file, and returns the project.
 func (a *App) OpenProjectDialog() (*project.KapiProject, error) {
 	if a.app == nil {
 		return nil, nil
 	}
 
+	// PromptForSingleSelection internally dispatches to the main thread.
 	path, err := a.app.Dialog.OpenFile().
-		SetTitle("Open Kapi Project").
 		AddFilter("Kapi Projects", "*.kapi").
 		AddFilter("All Files", "*").
 		PromptForSingleSelection()
@@ -26,7 +26,7 @@ func (a *App) OpenProjectDialog() (*project.KapiProject, error) {
 	return a.OpenProject(path)
 }
 
-// SaveProjectDialog shows a native file-save dialog for .kapi files.
+// SaveProjectDialog shows a native file-save dialog for Kapi project files.
 func (a *App) SaveProjectDialog() error {
 	if a.app == nil {
 		return nil
