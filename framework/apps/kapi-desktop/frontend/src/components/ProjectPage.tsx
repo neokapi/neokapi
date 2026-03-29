@@ -1,24 +1,54 @@
-import { Globe, FileText, Workflow } from "lucide-react";
+import { useState } from "react";
+import { Globe, FileText, Workflow, Save, Loader2 } from "lucide-react";
 import type { KapiProject } from "../types/api";
+import { api } from "../hooks/useApi";
 
 interface ProjectPageProps {
   project: KapiProject;
   projectPath: string;
+  onSaved?: (path: string) => void;
 }
 
-export function ProjectPage({ project, projectPath }: ProjectPageProps) {
+export function ProjectPage({ project, projectPath, onSaved }: ProjectPageProps) {
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (projectPath) {
+        await api.saveProject();
+      } else {
+        await api.saveProjectDialog();
+        const path = await api.getProjectPath();
+        if (path) onSaved?.(path);
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold">{project.name}</h1>
-        {projectPath && (
-          <p className="mt-1 text-sm text-muted-foreground">{projectPath}</p>
-        )}
-        {!projectPath && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            Unsaved project — use File &gt; Save As
-          </p>
-        )}
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{project.name}</h1>
+          {projectPath ? (
+            <p className="mt-1 text-sm text-muted-foreground">{projectPath}</p>
+          ) : (
+            <p className="mt-1 text-sm text-muted-foreground">
+              Not yet saved to disk
+            </p>
+          )}
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+          aria-label={projectPath ? "Save project" : "Save project as"}
+        >
+          {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+          {projectPath ? "Save" : "Save As..."}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

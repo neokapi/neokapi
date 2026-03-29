@@ -36,7 +36,8 @@ describe("ProjectPage", () => {
     render(
       <ProjectPage project={project} projectPath=""  />,
     );
-    expect(screen.getByText(/Unsaved project/)).toBeInTheDocument();
+    expect(screen.getByText(/Not yet saved/)).toBeInTheDocument();
+    expect(screen.getByText("Save As...")).toBeInTheDocument();
   });
 
   it("displays languages", () => {

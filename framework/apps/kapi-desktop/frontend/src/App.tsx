@@ -56,6 +56,7 @@ export default function App() {
           <ProjectPage
             project={project}
             projectPath={projectPath}
+            onSaved={setProjectPath}
           />
         )}
         {view === "flows" && project && (
