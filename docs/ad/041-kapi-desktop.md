@@ -65,7 +65,7 @@ defaults:
 - **Portable** — save anywhere, have multiple per directory (`translate.kapi`, `qa-only.kapi`), commit to git
 - **CLI-compatible** — `kapi run translate -p translation.kapi` uses the project for defaults
 
-The `.kapi` format uses the same flow steps format as `.bowrain/flows/` ([flow-steps-format](../notes/flow-steps-format.md)), ensuring compatibility between the two systems.
+The `.kapi` format uses the same flow steps format as `.bowrain/flows/` ([flow-steps-format](/docs/notes/flow-steps-format)), ensuring compatibility between the two systems.
 
 ### .kapi vs .bowrain
 

@@ -43,6 +43,11 @@ jobs:
           STORYBOOK_BASE_PATH: /bowrain/storybook/
         run: npx storybook build -o storybook-static
 
+      - name: Install shared package dependencies
+        run: |
+          cd packages/ui && npm install
+          cd ../../packages/flow-editor && npm install
+
       - name: Install Kapi Desktop frontend dependencies
         working-directory: framework/apps/kapi-desktop/frontend
         run: npm install
@@ -99,6 +104,11 @@ jobs:
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/pr-${{ github.event.pull_request.number }}/
         run: npx storybook build -o storybook-static
+
+      - name: Install shared package dependencies
+        run: |
+          cd packages/ui && npm install
+          cd ../../packages/flow-editor && npm install
 
       - name: Install Kapi Desktop frontend dependencies
         working-directory: framework/apps/kapi-desktop/frontend

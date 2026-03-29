@@ -334,4 +334,4 @@ Kapi introduces `.kapi` project files — standalone YAML documents for local fi
 - **`.kapi` files** are portable, single-file, framework-level, no server — for standalone kapi workflows
 - **`.bowrain/` directories** are stateful, server-connected, platform-level — for managed bowrain workflows
 
-Both formats use the same flow steps format ([flow-steps-format](../notes/flow-steps-format.md)) and tool system ([AD-006](./006-tool-system.md)). A `.bowrain/` project can coexist with `.kapi` files in the same directory. The upgrade path from kapi to bowrain is about adopting server-side features (sync, automation, collaboration), not migrating project files.
+Both formats use the same flow steps format ([flow-steps-format](/docs/notes/flow-steps-format)) and tool system ([AD-006](./006-tool-system.md)). A `.bowrain/` project can coexist with `.kapi` files in the same directory. The upgrade path from kapi to bowrain is about adopting server-side features (sync, automation, collaboration), not migrating project files.
