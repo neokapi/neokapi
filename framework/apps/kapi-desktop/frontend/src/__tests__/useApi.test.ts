@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { api, call } from "../hooks/useApi";
 
 describe("useApi", () => {
-  it("returns null when not in Wails runtime", async () => {
+  it("returns null when backend is not available", async () => {
     const result = await call("NonexistentMethod");
     expect(result).toBeNull();
   });
@@ -10,8 +10,10 @@ describe("useApi", () => {
   it("exposes all project methods", () => {
     expect(api.newProject).toBeDefined();
     expect(api.openProject).toBeDefined();
+    expect(api.openProjectDialog).toBeDefined();
     expect(api.saveProject).toBeDefined();
     expect(api.saveProjectAs).toBeDefined();
+    expect(api.saveProjectDialog).toBeDefined();
     expect(api.getProject).toBeDefined();
   });
 
@@ -59,8 +61,8 @@ describe("useApi", () => {
     expect(api.setTheme).toBeDefined();
   });
 
-  it("gracefully handles missing backend", async () => {
-    // All methods should return null outside Wails.
+  it("gracefully returns null when backend unavailable", async () => {
+    // In vitest, the Wails binding import fails silently — all calls return null.
     expect(await api.getVersion()).toBeNull();
     expect(await api.listPlugins()).toBeNull();
     expect(await api.listRecentFiles()).toBeNull();

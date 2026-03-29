@@ -1,13 +1,8 @@
 /**
  * API hooks that bridge the React frontend to the Wails Go backend.
  *
- * In production (Wails runtime), these call the generated bindings directly.
- * In Storybook/tests, they fall back to mock implementations.
- *
- * Usage:
- *   const { project, openProject, saveProject } = useProject();
- *   const { tools } = useTools();
- *   const { runFlow, state } = useFlowRunner();
+ * In Wails dev/production mode, imports the auto-generated bindings directly.
+ * In Storybook/vitest (no Wails runtime), methods return null gracefully.
  */
 
 import type {
@@ -18,46 +13,40 @@ import type {
   FormatInfo,
   PluginInfo,
   ProviderConfig,
-  View,
 } from "../types/api";
 
-// Check if Wails runtime is available (injected by desktop app).
-const isWails = typeof window !== "undefined" && "go" in window;
+type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
+
+let backendModule: Backend | null = null;
+let backendLoaded = false;
 
 /**
- * Dynamically import Wails-generated backend bindings.
- * Returns null when running outside Wails (Storybook, vitest).
+ * Lazily load the Wails-generated backend bindings.
+ * Returns null when bindings aren't available (Storybook, vitest).
  */
-async function getBackend(): Promise<Record<string, (...args: unknown[]) => Promise<unknown>> | null> {
-  if (!isWails) return null;
+async function getBackend(): Promise<Backend | null> {
+  if (backendLoaded) return backendModule;
+  backendLoaded = true;
+
   try {
-    // Wails v3 generates bindings at this path after `wails3 generate bindings`.
-    // The variable indirection prevents Vite from statically resolving the import.
-    const bindingPath = "../../bindings/github.com/neokapi/neokapi/kapi-desktop/backend/app.js";
-    const mod = await import(/* @vite-ignore */ bindingPath);
-    return mod as Record<string, (...args: unknown[]) => Promise<unknown>>;
+    // Wails v3 generates bindings at this path via `wails3 generate bindings`.
+    // The variable prevents Vite from statically resolving the import.
+    const path = "../../bindings/github.com/neokapi/neokapi/kapi-desktop/backend/app.js";
+    backendModule = (await import(/* @vite-ignore */ path)) as Backend;
   } catch {
-    return null;
+    // Expected in Storybook/vitest — no Wails runtime available.
+    backendModule = null;
   }
-}
 
-// Cached backend reference.
-let backendPromise: Promise<Record<string, (...args: unknown[]) => Promise<unknown>> | null> | null = null;
-
-function backend() {
-  if (!backendPromise) {
-    backendPromise = getBackend();
-  }
-  return backendPromise;
+  return backendModule;
 }
 
 /**
- * Call a Wails backend method. Falls back gracefully when not in Wails.
+ * Call a Wails backend method. Returns null when not in Wails.
  */
 export async function call<T>(method: string, ...args: unknown[]): Promise<T | null> {
-  const b = await backend();
-  if (!b || !(method in b)) {
-    // Expected when running outside Wails (Storybook, vitest, browser dev).
+  const b = await getBackend();
+  if (!b || typeof b[method] !== "function") {
     return null;
   }
   return b[method](...args) as Promise<T>;
@@ -114,12 +103,14 @@ export const api = {
   matchContent: (basePath: string) => call<unknown[]>("MatchContent", basePath),
 
   // Recent files
-  listRecentFiles: () => call<Array<{ path: string; name: string; opened_at: string }>>("ListRecentFiles"),
+  listRecentFiles: () =>
+    call<Array<{ path: string; name: string; opened_at: string }>>("ListRecentFiles"),
   clearRecentFiles: () => call<void>("ClearRecentFiles"),
 
   // Settings
   getSettings: () => call<{ theme: string; plugin_dir: string }>("GetSettings"),
-  saveSettings: (s: { theme: string; plugin_dir: string }) => call<void>("SaveSettings", s),
+  saveSettings: (s: { theme: string; plugin_dir: string }) =>
+    call<void>("SaveSettings", s),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
 
