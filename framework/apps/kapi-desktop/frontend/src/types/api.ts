@@ -81,5 +81,4 @@ export type View =
   | "welcome"
   | "project"
   | "flows"
-  | "tools"
-  | "settings";
+  | "tools";

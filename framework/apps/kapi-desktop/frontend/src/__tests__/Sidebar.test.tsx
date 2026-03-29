@@ -4,22 +4,20 @@ import { describe, it, expect, vi } from "vitest";
 import { Sidebar } from "../components/Sidebar";
 
 describe("Sidebar", () => {
-  it("renders all navigation items", () => {
+  it("renders project navigation items", () => {
     render(
       <Sidebar activeView="project" onViewChange={vi.fn()} />,
     );
     expect(screen.getByText("Project")).toBeInTheDocument();
     expect(screen.getByText("Flows")).toBeInTheDocument();
     expect(screen.getByText("Tools")).toBeInTheDocument();
-    expect(screen.getByText("Settings")).toBeInTheDocument();
   });
 
-  it("renders without project name (shown in tab bar instead)", () => {
+  it("does not render Settings (moved to title bar)", () => {
     render(
       <Sidebar activeView="project" onViewChange={vi.fn()} />,
     );
-    // Project name is in the tab bar, not the sidebar.
-    expect(screen.getByText("Project")).toBeInTheDocument();
+    expect(screen.queryByText("Settings")).not.toBeInTheDocument();
   });
 
   it("calls onViewChange when clicking nav item", async () => {

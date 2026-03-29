@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { Settings } from "lucide-react";
 import type { View, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
 import { WelcomePage } from "./components/WelcomePage";
@@ -197,12 +198,12 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      {/* Title bar with tab bar — draggable region with non-draggable tabs */}
+      {/* Title bar with tab bar + settings gear */}
       <div
         className="flex shrink-0 items-end border-b border-border bg-sidebar pt-10"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
-        <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+        <div className="flex-1" style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
           <TabBar
             tabs={tabs.map((t) => t.info)}
             activeTabID={activeTabID}
@@ -219,32 +220,58 @@ export default function App() {
             }}
           />
         </div>
+        <div
+          className="shrink-0 px-3 pb-1.5"
+          style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
+        >
+          <button
+            onClick={() => setShowSettings((v) => !v)}
+            className={`rounded-md p-1.5 transition-colors ${
+              showSettings
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            }`}
+            aria-label="Settings"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
       </div>
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          activeView={activeTab?.view ?? "project"}
-          onViewChange={setActiveView}
-        />
-        <main className="flex-1 overflow-auto">
-          {activeTab?.view === "project" && (
-            <ProjectPage
-              project={activeTab.project}
-              projectPath={activeTab.info.path}
-              onSaved={updateActiveTab}
-              tabID={activeTab.info.id}
+        {showSettings ? (
+          <main className="flex-1 overflow-auto">
+            <SettingsPage />
+          </main>
+        ) : (
+          <>
+            <Sidebar
+              activeView={activeTab?.view ?? "project"}
+              onViewChange={(view) => {
+                setShowSettings(false);
+                setActiveView(view);
+              }}
             />
-          )}
-          {activeTab?.view === "flows" && (
-            <FlowPage
-              project={activeTab.project}
-              onUpdate={updateActiveProject}
-            />
-          )}
-          {activeTab?.view === "tools" && <ToolRunnerPage />}
-          {activeTab?.view === "settings" && <SettingsPage />}
-        </main>
+            <main className="flex-1 overflow-auto">
+              {activeTab?.view === "project" && (
+                <ProjectPage
+                  project={activeTab.project}
+                  projectPath={activeTab.info.path}
+                  onSaved={updateActiveTab}
+                  tabID={activeTab.info.id}
+                />
+              )}
+              {activeTab?.view === "flows" && (
+                <FlowPage
+                  project={activeTab.project}
+                  onUpdate={updateActiveProject}
+                />
+              )}
+              {activeTab?.view === "tools" && <ToolRunnerPage />}
+            </main>
+          </>
+        )}
       </div>
     </div>
   );
