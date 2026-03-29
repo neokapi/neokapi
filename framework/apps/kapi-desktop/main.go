@@ -3,6 +3,9 @@ package main
 import (
 	"embed"
 	"log"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/neokapi/neokapi/kapi-desktop/backend"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -57,9 +60,15 @@ func main() {
 
 	// Recent Projects submenu — populated dynamically from the recent store.
 	recentMenu := fileMenu.AddSubmenu("Recent Projects")
+	home, _ := os.UserHomeDir()
 	for _, recent := range appService.ListRecentFiles() {
 		r := recent // capture
-		recentMenu.Add(r.Name).
+		// Show shortened path: ~/KapiProjects/Name
+		dir := filepath.Dir(r.Path)
+		if home != "" && strings.HasPrefix(dir, home) {
+			dir = "~" + dir[len(home):]
+		}
+		recentMenu.Add(dir).
 			SetTooltip(r.Path).
 			OnClick(func(ctx *application.Context) {
 				app.Event.Emit("menu:open-recent", r.Path)

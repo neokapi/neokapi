@@ -1,4 +1,5 @@
 import { FolderKanban, FolderOpen, Workflow, Wrench } from "lucide-react";
+import { useShortenHome } from "../hooks/useShortenHome";
 
 interface AppHomeProps {
   recentFiles: Array<{ path: string; name: string; opened_at: string }>;
@@ -9,6 +10,7 @@ interface AppHomeProps {
 }
 
 export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject, onNavigate }: AppHomeProps) {
+  const shortenHome = useShortenHome();
   return (
     <div className="p-6">
       <div className="mb-8">
@@ -78,7 +80,9 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
                 <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
                 <div className="flex-1 truncate">
                   <div className="text-sm font-medium">{file.name}</div>
-                  <div className="truncate text-xs text-muted-foreground">{file.path}</div>
+                  <div className="truncate text-xs text-muted-foreground">
+                    {shortenHome(file.path.replace(/\/[^/]+$/, ""))}
+                  </div>
                 </div>
               </button>
             ))}
