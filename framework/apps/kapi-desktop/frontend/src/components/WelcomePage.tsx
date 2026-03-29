@@ -3,7 +3,6 @@ import {
   FolderOpen,
   FilePlus,
   Workflow,
-  Languages,
   Wrench,
   Puzzle,
 } from "lucide-react";
@@ -19,38 +18,22 @@ const GET_STARTED = [
   {
     icon: <FilePlus size={18} />,
     title: "Create a project",
-    description: "Define languages, map content files, and save as a portable Kapi project.",
-    action: "new-project" as const,
-  },
-  {
-    icon: <Languages size={18} />,
-    title: "AI Translate a file",
-    description: "Translate a single file using Claude, GPT, or Ollama.",
-    action: "new-project" as const,
+    description: "Define source and target languages, map your content files, and save as a portable Kapi project.",
   },
   {
     icon: <Workflow size={18} />,
     title: "Build a flow",
-    description: "Chain AI translation, quality checks, and more into reusable pipelines.",
-    action: "new-project" as const,
+    description: "Chain tools into reusable pipelines — AI translation, quality checks, pseudo-translation, and more.",
   },
   {
     icon: <Wrench size={18} />,
-    title: "Pseudo-translate for testing",
-    description: "Generate pseudo-translations to verify UI layout and string expansion.",
-    action: "new-project" as const,
+    title: "Run tools",
+    description: "Translate files with AI, pseudo-translate for testing, run QA checks, leverage TM — all with live progress.",
   },
   {
     icon: <Puzzle size={18} />,
     title: "Add plugins",
-    description: "Install the Okapi Bridge for plugging into Okapi's filters and steps.",
-    action: "new-project" as const,
-  },
-  {
-    icon: <Wrench size={18} />,
-    title: "Run a quality check",
-    description: "Validate translations against rule-based QA checks.",
-    action: "new-project" as const,
+    description: "Install the Okapi Bridge for plugging into Okapi's filters and steps, or browse the registry.",
   },
 ];
 
@@ -158,7 +141,7 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Get Started
             </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {GET_STARTED.map((item) => (
                 <button
                   key={item.title}
