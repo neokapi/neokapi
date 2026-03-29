@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Globe, FileText, FolderOpen, RefreshCw, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Globe, FileText, RefreshCw, Loader2, X } from "lucide-react";
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
 
@@ -43,27 +43,14 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
   useEffect(() => {
     api.listPresets().then((p) => { if (p) setPresets(p); });
     api.listFormats().then((f) => { if (f) setFormats(f.map((x) => x.name)); });
-  }, []);
-
-  // Fetch base path on mount and when project changes.
-  useEffect(() => {
-    api.updateProject(tabID, project).then(() => {
-      api.getBasePath(tabID).then((base) => {
-        if (base) setBasePath(base);
-      });
-    });
-  }, [tabID, project.base_path, projectPath]);
+    api.getBasePath(tabID).then((b) => { if (b) setBasePath(b); });
+  }, [tabID]);
 
   const rescanFiles = useCallback(async () => {
     setScanning(true);
-    // Sync current project state to backend before scanning.
     await api.updateProject(tabID, project);
-    const [files, base] = await Promise.all([
-      api.matchContent(tabID),
-      api.getBasePath(tabID),
-    ]);
+    const files = await api.matchContent(tabID);
     setMatches(files ?? []);
-    setBasePath(base ?? "");
     setScanning(false);
   }, [tabID, project]);
 
@@ -198,23 +185,12 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
         </div>
       </section>
 
-      {/* Base path */}
-      <section className="mb-6">
-        <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-          <FolderOpen size={14} />
-          Base Path
-        </h2>
-        <div className="max-w-lg">
-          <input
-            type="text"
-            value={project.base_path ?? ""}
-            onChange={(e) => onUpdate({ ...project, base_path: e.target.value || undefined })}
-            placeholder={shortenHome(basePath) || "Set project base path"}
-            className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-            aria-label="Project base path"
-          />
-        </div>
-      </section>
+      {/* Project root info */}
+      {basePath && (
+        <p className="mb-6 text-xs text-muted-foreground">
+          All paths relative to {shortenHome(basePath)}
+        </p>
+      )}
 
       {/* File patterns */}
       <section className="mb-6">

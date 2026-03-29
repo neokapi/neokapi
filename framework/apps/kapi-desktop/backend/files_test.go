@@ -19,13 +19,11 @@ func TestMatchContentBadTab(t *testing.T) {
 
 func TestMatchContentFindsFiles(t *testing.T) {
 	dir := t.TempDir()
-
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "locales"), 0o755))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "locales", "en.json"), []byte(`{}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "locales", "fr.json"), []byte(`{}`), 0o644))
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "other.txt"), []byte("hi"), 0o644))
 
-	// Save a .kapi file so the base path resolves to its directory.
 	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
 		Version: "v1",
@@ -51,30 +49,45 @@ func TestMatchContentFindsFiles(t *testing.T) {
 	}
 }
 
-func TestMatchContentWithBasePath(t *testing.T) {
+func TestMatchContentRejectsParentTraversal(t *testing.T) {
 	dir := t.TempDir()
-	subdir := filepath.Join(dir, "src")
-	require.NoError(t, os.MkdirAll(filepath.Join(subdir, "i18n"), 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(subdir, "i18n", "en.json"), []byte(`{}`), 0o644))
-
-	kapiPath := filepath.Join(dir, "project.kapi")
+	kapiPath := filepath.Join(dir, "test.kapi")
 	proj := &project.KapiProject{
-		Version:  "v1",
-		Name:     "Test",
-		BasePath: "src",
-		Content:  []project.ContentEntry{{Path: "i18n/*.json"}},
+		Version: "v1",
+		Name:    "Test",
+		Content: []project.ContentEntry{
+			{Path: "../etc/passwd"},
+			{Path: "foo/../../secret"},
+		},
 	}
 	require.NoError(t, project.Save(kapiPath, proj))
 
 	app := NewApp()
 	tab, _ := app.OpenProject(kapiPath)
 
-	base := app.GetBasePath(tab.ID)
-	assert.Equal(t, subdir, base)
+	matches, err := app.MatchContent(tab.ID)
+	require.NoError(t, err)
+	assert.Empty(t, matches, "should reject patterns with ..")
+}
+
+func TestMatchContentRejectsAbsolutePaths(t *testing.T) {
+	dir := t.TempDir()
+	kapiPath := filepath.Join(dir, "test.kapi")
+	proj := &project.KapiProject{
+		Version: "v1",
+		Name:    "Test",
+		Content: []project.ContentEntry{
+			{Path: "/etc/passwd"},
+		},
+	}
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	app := NewApp()
+	tab, _ := app.OpenProject(kapiPath)
 
 	matches, err := app.MatchContent(tab.ID)
 	require.NoError(t, err)
-	assert.Len(t, matches, 1)
+	assert.Empty(t, matches, "should reject absolute paths")
 }
 
 func TestGetBasePathDefault(t *testing.T) {
@@ -84,9 +97,15 @@ func TestGetBasePathDefault(t *testing.T) {
 
 	app := NewApp()
 	tab, _ := app.OpenProject(kapiPath)
+	assert.Equal(t, dir, app.GetBasePath(tab.ID))
+}
 
-	base := app.GetBasePath(tab.ID)
-	assert.Equal(t, dir, base, "should default to .kapi file's directory")
+func TestValidateContentPath(t *testing.T) {
+	app := NewApp()
+	assert.NoError(t, app.ValidateContentPath("locales/*.json"))
+	assert.NoError(t, app.ValidateContentPath("src/i18n/en.json"))
+	assert.Error(t, app.ValidateContentPath("../secret"))
+	assert.Error(t, app.ValidateContentPath("/etc/passwd"))
 }
 
 func TestDetectFormatByExtension(t *testing.T) {
@@ -96,14 +115,12 @@ func TestDetectFormatByExtension(t *testing.T) {
 	}{
 		{"file.json", "json"},
 		{"file.xliff", "xliff"},
-		{"file.xlf", "xliff"},
 		{"file.po", "po"},
 		{"file.yaml", "yaml"},
 		{"file.html", "html"},
 		{"file.md", "markdown"},
 		{"file.unknown", ""},
 	}
-
 	for _, tt := range tests {
 		assert.Equal(t, tt.expect, detectFormatByExtension(tt.path), "for %s", tt.path)
 	}

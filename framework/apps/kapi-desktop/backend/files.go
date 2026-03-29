@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,40 +12,26 @@ type FileMatch struct {
 	Path     string `json:"path"`
 	Format   string `json:"format,omitempty"`
 	Relative string `json:"relative"`
-	Pattern  string `json:"pattern"` // which content entry matched
+	Pattern  string `json:"pattern"`
 }
 
-// GetBasePath returns the effective base path for a project tab.
-// Uses the project's BasePath if set, otherwise the .kapi file's parent directory.
+// GetBasePath returns the project root: the .kapi file's parent directory.
+// For unsaved projects, returns the user's home directory.
 func (a *App) GetBasePath(tabID string) string {
 	op := a.getOpenProject(tabID)
 	if op == nil {
 		return ""
 	}
-	if op.Project.BasePath != "" {
-		if filepath.IsAbs(op.Project.BasePath) {
-			return op.Project.BasePath
-		}
-		// Relative base_path: resolve against the .kapi file's directory.
-		if op.Path != "" {
-			return filepath.Join(filepath.Dir(op.Path), op.Project.BasePath)
-		}
-	}
-	// Default: .kapi file's directory.
 	if op.Path != "" {
 		return filepath.Dir(op.Path)
 	}
-	// Unsaved project: use ~/KapiProjects as a sensible default.
-	home, err := os.UserHomeDir()
-	if err != nil {
-		wd, _ := os.Getwd()
-		return wd
-	}
-	return filepath.Join(home, "KapiProjects")
+	home, _ := os.UserHomeDir()
+	return home
 }
 
 // MatchContent resolves content patterns against the filesystem.
-// Uses GetBasePath to determine the root directory for glob resolution.
+// All patterns are relative to the .kapi file's directory.
+// Patterns containing ".." are rejected for safety.
 func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 	op := a.getOpenProject(tabID)
 	if op == nil {
@@ -52,18 +39,27 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 	}
 
 	basePath := a.GetBasePath(tabID)
-	var matches []FileMatch
+	if basePath == "" {
+		return nil, nil
+	}
 
+	var matches []FileMatch
 	for _, entry := range op.Project.Content {
 		if entry.Path == "" {
 			continue
 		}
 
-		pattern := entry.Path
-		if !filepath.IsAbs(pattern) {
-			pattern = filepath.Join(basePath, pattern)
+		// Reject patterns that escape the project root.
+		if strings.Contains(entry.Path, "..") {
+			continue
 		}
 
+		// Reject absolute paths.
+		if filepath.IsAbs(entry.Path) {
+			continue
+		}
+
+		pattern := filepath.Join(basePath, entry.Path)
 		files, err := filepath.Glob(pattern)
 		if err != nil {
 			continue
@@ -72,6 +68,13 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 		for _, f := range files {
 			info, err := os.Stat(f)
 			if err != nil || info.IsDir() {
+				continue
+			}
+
+			// Verify the resolved file is within the project root.
+			absFile, _ := filepath.Abs(f)
+			absBase, _ := filepath.Abs(basePath)
+			if !strings.HasPrefix(absFile, absBase+string(filepath.Separator)) {
 				continue
 			}
 
@@ -91,7 +94,7 @@ func (a *App) MatchContent(tabID string) ([]FileMatch, error) {
 	return matches, nil
 }
 
-// DetectFormat returns the detected format name for a file path based on its extension.
+// DetectFormat returns the detected format name for a file path.
 func (a *App) DetectFormat(path string) string {
 	ext := filepath.Ext(path)
 	if ext == "" {
@@ -102,6 +105,17 @@ func (a *App) DetectFormat(path string) string {
 		return ""
 	}
 	return detected
+}
+
+// ValidateContentPath checks if a content path pattern is safe (no .., no absolute).
+func (a *App) ValidateContentPath(path string) error {
+	if strings.Contains(path, "..") {
+		return fmt.Errorf("path must not contain '..' — all paths are relative to the project directory")
+	}
+	if filepath.IsAbs(path) {
+		return fmt.Errorf("path must be relative to the project directory")
+	}
+	return nil
 }
 
 func detectFormatByExtension(path string) string {

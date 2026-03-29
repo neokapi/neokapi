@@ -3,7 +3,6 @@
 export interface KapiProject {
   version: string;
   name: string;
-  base_path?: string;
   source_language?: string;
   target_languages?: string[];
   content?: ContentEntry[];

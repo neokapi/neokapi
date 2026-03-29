@@ -25,7 +25,6 @@ const CurrentVersion = "v1"
 type KapiProject struct {
 	Version         string                     `yaml:"version" json:"version"`
 	Name            string                     `yaml:"name" json:"name"`
-	BasePath        string                     `yaml:"base_path,omitempty" json:"base_path,omitempty"`
 	SourceLanguage  string                     `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []string                   `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 	Content         []ContentEntry             `yaml:"content,omitempty" json:"content,omitempty"`
