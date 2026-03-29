@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { View, KapiProject } from "./types/api";
+import { api } from "./hooks/useApi";
 import { WelcomePage } from "./components/WelcomePage";
 import { ProjectPage } from "./components/ProjectPage";
 import { FlowPage } from "./components/FlowPage";
@@ -33,6 +34,63 @@ export default function App() {
     setProjectPath("");
     setView("welcome");
   }, []);
+
+  // Listen for native menu events from the Go backend.
+  useEffect(() => {
+    let cleanups: Array<() => void> = [];
+
+    import("@wailsio/runtime")
+      .then(({ Events }) => {
+        cleanups.push(
+          Events.On("menu:new-project", () => {
+            handleNewProject({
+              version: "v1",
+              name: "New Project",
+              source_language: "en-US",
+              target_languages: [],
+              flows: {},
+            });
+          }),
+        );
+
+        cleanups.push(
+          Events.On("menu:open-project", async () => {
+            const result = await api.openProjectDialog();
+            if (result) {
+              const path = (await api.getProjectPath()) ?? "";
+              handleOpenProject(result, path);
+            }
+          }),
+        );
+
+        cleanups.push(
+          Events.On("menu:save-project", async () => {
+            if (projectPath) {
+              await api.saveProject();
+            } else {
+              await api.saveProjectDialog();
+              const path = await api.getProjectPath();
+              if (path) setProjectPath(path);
+            }
+          }),
+        );
+
+        cleanups.push(
+          Events.On("menu:save-project-as", async () => {
+            await api.saveProjectDialog();
+            const path = await api.getProjectPath();
+            if (path) setProjectPath(path);
+          }),
+        );
+      })
+      .catch(() => {
+        // Not in Wails runtime (Storybook, tests).
+      });
+
+    return () => {
+      cleanups.forEach((fn) => fn());
+    };
+  }, [handleNewProject, handleOpenProject, projectPath]);
 
   if (view === "welcome" && !project) {
     return (
