@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Home } from "lucide-react";
 import type { TabInfo } from "../types/api";
 
 interface TabBarProps {
@@ -40,16 +40,27 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
     <div className="flex items-end gap-px overflow-x-auto px-1">
       {tabs.map((tab) => {
         const isActive = activeTabID === tab.id;
+        const isHome = tab.id === "__home__";
         return (
           <div
             key={tab.id}
-            className={`group flex min-w-[160px] max-w-[240px] items-center justify-between gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
+            className={`group flex items-center justify-between gap-1.5 rounded-t-lg py-1.5 text-xs transition-all ${
+              isHome ? "px-2" : "min-w-[160px] max-w-[240px] px-3"
+            } ${
               isActive
                 ? "bg-border text-foreground font-semibold"
                 : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
             }`}
           >
-            {editingID === tab.id ? (
+            {isHome ? (
+              <button
+                onClick={() => onSelect(tab.id)}
+                aria-label="Home"
+                title="Home"
+              >
+                <Home size={14} strokeWidth={1.5} />
+              </button>
+            ) : editingID === tab.id ? (
               <input
                 ref={inputRef}
                 value={editValue}
