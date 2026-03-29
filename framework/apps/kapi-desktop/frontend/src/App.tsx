@@ -229,7 +229,7 @@ export default function App() {
         />
         {/* Rail with border starts below traffic lights */}
         <div className="flex-1 border-r border-border">
-          <IconRail active={section} onChange={handleSectionChange} />
+          <IconRail active={section} onChange={handleSectionChange} projectActive={isProjectActive} />
         </div>
       </div>
 

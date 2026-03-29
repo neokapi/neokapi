@@ -13,6 +13,7 @@ import type { AppSection } from "../types/api";
 interface IconRailProps {
   active: AppSection;
   onChange: (section: AppSection) => void;
+  projectActive?: boolean;
 }
 
 const SW = 1.5; // stroke width for all icons
@@ -27,11 +28,18 @@ const topItems: { section: AppSection; icon: React.ReactNode; label: string }[] 
   { section: "formats", icon: <FileText size={20} strokeWidth={SW} />, label: "Formats" },
 ];
 
-export function IconRail({ active, onChange }: IconRailProps) {
+// When a project is active, only show Home and Projects.
+const projectOnlyItems = new Set<AppSection>(["home", "projects"]);
+
+export function IconRail({ active, onChange, projectActive }: IconRailProps) {
+  const visibleItems = projectActive
+    ? topItems.filter((i) => projectOnlyItems.has(i.section))
+    : topItems;
+
   return (
     <aside className="flex w-12 flex-col items-center py-2">
       <nav className="flex flex-1 flex-col items-center gap-1">
-        {topItems.map(({ section, icon, label }) => (
+        {visibleItems.map(({ section, icon, label }) => (
           <button
             key={section}
             onClick={() => onChange(section)}
