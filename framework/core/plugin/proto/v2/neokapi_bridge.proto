@@ -28,6 +28,11 @@ service BridgeService {
   //     Java applies and writes → Complete.
   rpc Process(stream ProcessRequest) returns (stream ProcessResponse);
 
+  // ProcessStep runs an Okapi pipeline step on a stream of parts.
+  // The client sends a StepHeader followed by PartMessages. The server
+  // feeds each part through the step and returns processed parts.
+  rpc ProcessStep(stream StepRequest) returns (stream StepResponse);
+
   // Shutdown gracefully shuts down the bridge server.
   rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
 }
@@ -309,3 +314,36 @@ message ProcessComplete {
 
 message ShutdownRequest {}
 message ShutdownResponse {}
+
+// ────────────────────────────────────────────────────────────────────────────
+// ProcessStep RPC messages
+// ────────────────────────────────────────────────────────────────────────────
+
+// StepRequest is sent by the client (Go) to the server (Java) for step processing.
+message StepRequest {
+  oneof request {
+    StepHeader header = 1;
+    PartMessage part = 2;
+  }
+}
+
+// StepHeader configures the ProcessStep RPC.
+message StepHeader {
+  string step_class = 1;              // Fully-qualified Java class name of the step
+  map<string, string> step_params = 2; // Step parameters (key-value)
+  string source_locale = 3;
+  string target_locale = 4;
+}
+
+// StepResponse is sent by the server (Java) to the client (Go).
+message StepResponse {
+  oneof response {
+    PartMessage part = 1;
+    StepComplete complete = 2;
+  }
+}
+
+// StepComplete signals that all parts have been processed by the step.
+message StepComplete {
+  int32 parts_processed = 1;
+}

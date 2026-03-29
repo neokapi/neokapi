@@ -1,2 +1,2 @@
 export * from "./types";
-export { FilterConfigEditor } from "./FilterConfigEditor";
+export { FilterConfigEditor, SchemaConfigEditor } from "./FilterConfigEditor";

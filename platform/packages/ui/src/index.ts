@@ -481,9 +481,11 @@ export type {
   ModelUsageTableProps,
 } from "./components/billing";
 
-// Filter config editor
-export { FilterConfigEditor } from "./components/filter";
+// Filter and tool config editors
+export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type {
+  ComponentSchema,
+  ComponentMeta,
   FilterSchema,
   FilterMeta,
   ParameterGroup,

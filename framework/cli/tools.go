@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/neokapi/neokapi/cli/output"
@@ -27,7 +29,16 @@ func (a *App) NewToolsCmd() *cobra.Command {
 		},
 	}
 
-	toolsCmd.AddCommand(listCmd)
+	schemaCmd := &cobra.Command{
+		Use:   "schema [tool-name]",
+		Short: "Print the JSON Schema for a tool's parameters",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return a.toolSchema(cmd, args[0])
+		},
+	}
+
+	toolsCmd.AddCommand(listCmd, schemaCmd)
 	return toolsCmd
 }
 
@@ -70,4 +81,31 @@ func (a *App) listTools(cmd *cobra.Command) error {
 		Total: len(tools),
 	}
 	return output.Print(cmd, out)
+}
+
+func (a *App) toolSchema(_ *cobra.Command, name string) error {
+	// Check ToolCommandDefs first
+	for _, def := range BuiltinToolCommands {
+		if def.Use == name && def.Schema != nil {
+			return printSchema(def.Schema)
+		}
+	}
+
+	// Check registry
+	if a.ToolReg != nil {
+		if s := a.ToolReg.GetSchema(name); s != nil {
+			return printSchema(s)
+		}
+	}
+
+	return fmt.Errorf("no schema found for tool %q", name)
+}
+
+func printSchema(s interface{}) error {
+	data, err := json.MarshalIndent(s, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(data))
+	return nil
 }

@@ -8,6 +8,7 @@
 package loader
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -24,6 +25,8 @@ import (
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/registry"
+	"github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/tool"
 )
 
 // OriginalContentSetter is an alias for format.OriginalContentSetter.
@@ -457,7 +460,7 @@ func (l *PluginLoader) LoadBridges(formatReg *registry.FormatRegistry, toolReg *
 	bareNameCandidates := make(map[string][]versionedFormat)
 
 	for _, pb := range l.pendingBridges {
-		formats, err := l.loadBridge(pb.manifest, pb.dir, pb.version, formatReg)
+		formats, err := l.loadBridge(pb.manifest, pb.dir, pb.version, formatReg, toolReg)
 		if err != nil {
 			l.logf("loading bridge %s: %v", pb.dir, err)
 			continue
@@ -591,7 +594,7 @@ func buildBridgeConfig(manifest *pluginreg.BundledManifest, versionDir string) b
 	}
 }
 
-func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDir, version string, formatReg *registry.FormatRegistry) ([]string, error) {
+func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDir, version string, formatReg *registry.FormatRegistry, toolReg ...*registry.ToolRegistry) ([]string, error) {
 	cfg := buildBridgeConfig(manifest, versionDir)
 
 	// Lazily create the shared registry on first bridge load.
@@ -677,6 +680,15 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 
 	l.bridges = append(l.bridges, mb)
 
+	// Register step tools from schemas/tools/ directory if present.
+	var tReg *registry.ToolRegistry
+	if len(toolReg) > 0 {
+		tReg = toolReg[0]
+	}
+	if tReg != nil {
+		l.loadBridgeStepTools(versionDir, sharedRegistry, bridgeCfg, tReg, manifest.Name)
+	}
+
 	// Update the existing PluginInfo entry (added by ScanMetadata) with
 	// the actual format list, or add a new entry if loadBridge was called
 	// directly via LoadAll.
@@ -699,6 +711,59 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 	}
 
 	return formats, nil
+}
+
+// loadBridgeStepTools scans schemas/tools/ within a bridge plugin directory
+// for step schema JSON files and registers each as a tool.Tool.
+func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.BridgeRegistry, cfg bridge.BridgeConfig, toolReg *registry.ToolRegistry, source string) {
+	toolsDir := filepath.Join(versionDir, "schemas", "tools")
+	entries, err := os.ReadDir(toolsDir)
+	if err != nil {
+		// No tools directory — this is normal for plugins without steps.
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+
+		data, err := os.ReadFile(filepath.Join(toolsDir, entry.Name()))
+		if err != nil {
+			l.logf("reading step schema %s: %v", entry.Name(), err)
+			continue
+		}
+
+		var cs schema.ComponentSchema
+		if err := json.Unmarshal(data, &cs); err != nil {
+			l.logf("parsing step schema %s: %v", entry.Name(), err)
+			continue
+		}
+
+		if cs.Meta.Type != "step" || cs.Meta.ID == "" {
+			continue
+		}
+
+		// The step class is stored in x-component metadata or derived from the ID.
+		// Convention: the schema $id is "okapi:{step-id}" and x-component has the class.
+		stepClass := cs.Meta.ID
+
+		toolName := cs.ID
+		if toolName == "" {
+			toolName = cs.Meta.ID
+		}
+
+		// Capture for closure.
+		schemaRef := &cs
+		stepClassRef := stepClass
+		cfgRef := cfg
+
+		toolReg.RegisterWithSchema(toolName, func() tool.Tool {
+			return bridge.NewBridgeStepTool(reg, cfgRef, stepClassRef, toolName, cs.Description, schemaRef)
+		}, schemaRef)
+
+		l.logf("registered bridge step tool: %s (source: %s)", toolName, source)
+	}
 }
 
 // Plugins returns information about all loaded plugins.
