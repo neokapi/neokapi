@@ -245,7 +245,13 @@ export interface ModelUsageEntry {
   call_count: number;
 }
 
-export function getModelUsage(workspaceId: string): Promise<{ model_usage: ModelUsageEntry[] }> {
+export interface RunnerUsageEntry {
+  operation: string;
+  total_seconds: number;
+  count: number;
+}
+
+export function getModelUsage(workspaceId: string): Promise<{ model_usage: ModelUsageEntry[]; runner_usage?: RunnerUsageEntry[] }> {
   return request(`/workspaces/${encodeURIComponent(workspaceId)}/model-usage`);
 }
 
