@@ -81,7 +81,9 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
                 <div className="flex-1 truncate">
                   <div className="text-sm font-medium">{file.name}</div>
                   <div className="truncate text-xs text-muted-foreground">
-                    {shortenHome(file.path.replace(/\/[^/]+$/, ""))}
+                    {file.path.endsWith("/project.kapi")
+                      ? shortenHome(file.path.replace(/\/project\.kapi$/, ""))
+                      : shortenHome(file.path)}
                   </div>
                 </div>
               </button>

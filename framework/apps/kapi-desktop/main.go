@@ -63,12 +63,15 @@ func main() {
 	home, _ := os.UserHomeDir()
 	for _, recent := range appService.ListRecentFiles() {
 		r := recent // capture
-		// Show shortened path: ~/KapiProjects/Name
-		dir := filepath.Dir(r.Path)
-		if home != "" && strings.HasPrefix(dir, home) {
-			dir = "~" + dir[len(home):]
+		// Show shortened path; include filename if not the default "project.kapi".
+		display := filepath.Dir(r.Path)
+		if home != "" && strings.HasPrefix(display, home) {
+			display = "~" + display[len(home):]
 		}
-		label := r.Name + " — " + dir
+		if filepath.Base(r.Path) != "project.kapi" {
+			display += "/" + filepath.Base(r.Path)
+		}
+		label := r.Name + " — " + display
 		recentMenu.Add(label).
 			SetTooltip(r.Path).
 			OnClick(func(ctx *application.Context) {
