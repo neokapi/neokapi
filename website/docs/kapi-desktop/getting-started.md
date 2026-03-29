@@ -21,7 +21,7 @@ Or download from [GitHub Releases](https://github.com/neokapi/neokapi/releases).
 
 Open Kapi Desktop. You'll see the welcome page with the neokapi logo and getting started guide.
 
-Click **New Project** to create a `.kapi` file. Set:
+Click **New Project** to create a Kapi project. Set:
 - **Name**: Your project name (e.g., "Acme App")
 - **Source Language**: `en-US`
 - **Target Languages**: Add your target locales (e.g., `fr-FR`, `de-DE`)
@@ -71,7 +71,7 @@ Select your flow, choose input files, set the target language, and click **Run**
 
 ## 7. Save and Share
 
-Save your project as a `.kapi` file (e.g., `translation.kapi`). You can:
+Save your Kapi project (e.g., `translation.kapi`). You can:
 - Commit it to git for team sharing
 - Run it from the CLI: `kapi run translate-and-qa -p translation.kapi`
 - Reopen it anytime in Kapi Desktop
@@ -86,6 +86,6 @@ Go to **Plugins** to browse the plugin registry. Install the **Okapi Bridge** pl
 
 ## What's Next
 
-- [.kapi Project Files](/docs/kapi-desktop/project-file) — Full format reference
+- [Kapi Project Files](/docs/kapi-desktop/project-file) — Full format reference
 - [Kapi CLI Commands](/docs/kapi-cli/commands/flow) — Run flows from the command line
 - [Tool Authoring](/docs/guides/tool-authoring) — Create custom tools

@@ -26,7 +26,7 @@ cask "kapi-desktop" do
   caveats <<~EOS
     The kapi CLI is provided by the kapi formula (installed automatically).
 
-    Double-click .kapi project files to open them in Kapi Desktop.
+    Double-click Kapi projects to open them in Kapi Desktop.
 
     Getting started:
       kapi-desktop    # launch the app

@@ -14,7 +14,7 @@ Kapi Desktop is the visual companion for the [kapi CLI](/docs/kapi-cli/overview)
 - **Tool runner** — Run individual tools on files with dynamic configuration forms generated from tool schemas.
 - **Plugin manager** — Browse the plugin registry, install, update, and manage plugins from a UI.
 - **Credential vault** — Store AI provider API keys (Anthropic, OpenAI, Ollama) securely in your OS keychain.
-- **Project files** — Save workflows as portable `.kapi` files you can share via git or open with double-click.
+- **Project files** — Save workflows as portable Kapi project files you can share via git or open with double-click.
 
 ## Installation
 
@@ -42,7 +42,7 @@ Download the latest release from [GitHub Releases](https://github.com/neokapi/ne
 4. Go to **Credentials** and add your AI provider API key
 5. Select your flow, pick input files, and click **Run**
 
-Your workflow is saved as a `.kapi` file that you can reopen, share, or run from the CLI:
+Your workflow is saved as a Kapi project file that you can reopen, share, or run from the CLI:
 
 ```bash
 kapi run translate -p myproject.kapi
@@ -54,8 +54,8 @@ kapi run translate -p myproject.kapi
 |---|---|---|
 | Purpose | Standalone file processing | Platform-connected editing |
 | Server | None required | Bowrain Server |
-| Projects | `.kapi` files | `.bowrain/` directories |
-| Collaboration | Share `.kapi` files via git | Real-time multi-user editing |
+| Projects | Kapi project files | `.bowrain/` directories |
+| Collaboration | Share Kapi projects via git | Real-time multi-user editing |
 | Automation | Local flows | Server-side hooks + automation |
 | Install | `brew install --cask kapi-desktop` | `brew install --cask bowrain` |
 
@@ -63,6 +63,6 @@ Kapi Desktop is for developers who want powerful localization tools without a se
 
 ## Next Steps
 
-- [.kapi Project Files](/docs/kapi-desktop/project-file) — Full format reference
+- [Kapi Project Files](/docs/kapi-desktop/project-file) — Full format reference
 - [Getting Started](/docs/kapi-desktop/getting-started) — Step-by-step walkthrough
 - [Kapi CLI](/docs/kapi-cli/overview) — Command-line reference

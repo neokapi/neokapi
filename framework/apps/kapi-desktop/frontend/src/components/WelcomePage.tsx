@@ -21,7 +21,7 @@ const GETTING_STARTED_STEPS = [
     icon: <FilePlus size={18} />,
     title: "Create a project",
     description:
-      "Start a new .kapi project file to organize your localization workflow. Define source and target languages, pick a framework preset, and map your content files.",
+      "Start a new Kapi project to organize your localization workflow. Define source and target languages, pick a framework preset, and map your content files.",
   },
   {
     icon: <Workflow size={18} />,
@@ -250,7 +250,7 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
                 />
                 <p className="text-sm text-muted-foreground">
                   No recent projects yet. Create a new project or open an
-                  existing .kapi file to get started.
+                  existing Kapi project to get started.
                 </p>
               </div>
             )}

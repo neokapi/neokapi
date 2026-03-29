@@ -1,11 +1,11 @@
 ---
 sidebar_position: 2
-title: .kapi Project Files
+title: Kapi Project Files
 ---
 
-# .kapi Project Files
+# Kapi Project Files
 
-A `.kapi` file is a YAML document that captures a localization workflow. It defines source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults.
+A Kapi project file is a YAML document that captures a localization workflow. It defines source and target languages, content file patterns, tool pipelines (flows), plugin requirements, and processing defaults.
 
 ## Format
 
@@ -119,15 +119,15 @@ flows:
 
 ## Key Properties
 
-- **No credentials** — API keys are never stored in `.kapi` files. They come from the OS keychain (Kapi Desktop) or environment variables (CLI).
-- **No state** — No sync cursors, caches, or timestamps. `.kapi` files are always clean and safe to commit.
+- **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi Desktop) or environment variables (CLI).
+- **No state** — No sync cursors, caches, or timestamps. Kapi project files are always clean and safe to commit.
 - **Portable** — Save anywhere, have multiple per directory, share via git.
 - **CLI-compatible** — `kapi run flowname -p file.kapi`
 
 ## Using with Kapi CLI
 
 ```bash
-# Run a flow from a .kapi file
+# Run a flow from a Kapi project
 kapi run translate -p translation.kapi
 
 # Override defaults with CLI flags
@@ -139,8 +139,8 @@ kapi ai-translate -i file.json --target-lang fr
 
 ## Using with Kapi Desktop
 
-- **File > Open** to load a `.kapi` file
+- **File > Open** to load a Kapi project
 - **File > New** to create one from scratch
 - **File > Save / Save As** for standard document operations
-- Double-click a `.kapi` file to open it in Kapi Desktop (macOS)
-- Drag and drop `.kapi` files onto the app window
+- Double-click a Kapi project to open it in Kapi Desktop (macOS)
+- Drag and drop Kapi projects onto the app window

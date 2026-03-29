@@ -80,17 +80,17 @@ go install github.com/neokapi/neokapi/kapi/cmd/kapi@latest
 
 ## Project Files
 
-Kapi can optionally use `.kapi` project files to save workflow configurations. Use `-p` to reference a project:
+Kapi can optionally use Kapi project files to save workflow configurations. Use `-p` to reference a project:
 
 ```bash
-# Run a flow defined in a .kapi file
+# Run a flow from a Kapi project
 kapi run translate -p myproject.kapi
 
 # Override project defaults with CLI flags
 kapi run translate -p myproject.kapi --target-lang de
 ```
 
-See [.kapi Project Files](/docs/kapi-desktop/project-file) for the full format reference.
+See [Kapi Project Files](/docs/kapi-desktop/project-file) for the full format reference.
 
 ## Kapi Desktop
 
