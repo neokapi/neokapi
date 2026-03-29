@@ -59,6 +59,15 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: 'Guides',
+      items: [
+        'guides/tool-authoring',
+        'guides/flow-authoring',
+        'guides/script-step',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Framework',
       items: [
         'developer/architecture',
