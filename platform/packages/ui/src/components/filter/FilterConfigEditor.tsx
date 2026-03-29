@@ -257,12 +257,9 @@ function BooleanField({ name, description, value, defaultValue, onChange }: Bool
   const checked = value ?? defaultValue ?? false;
   return (
     <div className="flex items-center justify-between">
-      <div>
-        <Label htmlFor={name} className="text-sm">
-          {name}
-        </Label>
-        {description && <p className="text-xs text-muted-foreground">{description}</p>}
-      </div>
+      <Label htmlFor={name} className="text-sm">
+        {description || name}
+      </Label>
       <Switch id={name} checked={checked} onCheckedChange={onChange} />
     </div>
   );
@@ -291,7 +288,7 @@ function TextField({
   return (
     <div className="space-y-1">
       <Label htmlFor={name} className="text-sm">
-        {name}
+        {description || name}
       </Label>
       <Input
         id={name}
@@ -303,7 +300,6 @@ function TextField({
           onChange(v);
         }}
       />
-      {description && <p className="text-xs text-muted-foreground">{description}</p>}
     </div>
   );
 }
@@ -332,7 +328,7 @@ function JsonField({ name, description, value, onChange }: JsonFieldProps) {
   return (
     <div className="space-y-1">
       <Label htmlFor={name} className="text-sm">
-        {name}
+        {description || name}
       </Label>
       <textarea
         id={name}
@@ -346,7 +342,6 @@ function JsonField({ name, description, value, onChange }: JsonFieldProps) {
         onBlur={handleBlur}
       />
       {error && <p className="text-xs text-destructive">{error}</p>}
-      {!error && description && <p className="text-xs text-muted-foreground">{description}</p>}
     </div>
   );
 }
@@ -417,7 +412,7 @@ function CodeFinderRulesField({
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-sm">{name}</Label>
+        <Label className="text-sm">{description || name}</Label>
         {presets && Object.keys(presets).length > 0 && (
           <div className="relative">
             <Button
@@ -445,8 +440,6 @@ function CodeFinderRulesField({
           </div>
         )}
       </div>
-
-      {description && <p className="text-xs text-muted-foreground">{description}</p>}
 
       <div className="space-y-2 ml-2">
         {rules.map((rule, index) => (
