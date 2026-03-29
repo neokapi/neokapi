@@ -116,6 +116,8 @@ All built-in tools are registered via `RegisterAll()` in `core/tools/register.go
 |---|---|
 | `layer-processor` | Apply format-specific tool chains to child layers ([AD-002](./002-content-model.md)) |
 | `external-command` | Execute an external command on block text |
+| `script` | Run user-provided JavaScript (ES5 via goja) on each part — filter, transform, or enrich |
+| `batch` | Collect blocks into configurable batches for downstream batch processing |
 
 ### AI and MT Tools
 
@@ -170,15 +172,38 @@ Annotations are attached to Blocks as typed metadata. Each tool reads the
 annotations it cares about and adds its own, keeping tools loosely coupled
 through a shared data model rather than direct dependencies.
 
+### Tool Parameter Schemas
+
+Tools declare their parameter schemas via the `tool.SchemaProvider` interface
+([AD-040](./040-tool-parameter-schemas.md)). The `core/schema/` package provides
+`ComponentSchema` — a generalized JSON Schema subset used by both tools and
+format filters:
+
+```go
+type SchemaProvider interface {
+    Schema() *schema.ComponentSchema
+}
+```
+
+`schema.FromStruct(cfg, meta)` generates schemas from Go config structs via
+reflection. The `ToolRegistry` stores schemas alongside factories via
+`RegisterWithSchema()`. All 35+ built-in tools register auto-generated schemas.
+
+Schema-driven features:
+- **CLI flags**: `cli.RegisterSchemaFlags()` auto-generates cobra flags from schemas
+- **Flow editor**: Schema-driven config panels for tool nodes in the visual editor
+- **Validation**: `ComponentSchema.Validate()` checks parameter values against the schema
+- **JSON export**: `kapi tools schema <name>` prints the schema for any tool
+
 ### Registration
 
-Tools register into a `ToolRegistry` with a name and factory function,
-mirroring the format registry pattern ([AD-004](./004-processing-engine.md)).
-The CLI and flow executor look up tools by name. `RegisterAll(reg)` in
-`core/tools/register.go` auto-registers all built-in tools with default
-configurations. AI, MT, and terminology tools are instantiated on demand
-with their respective providers and registered into the flow's tool set
-at configuration time.
+Tools register into a `ToolRegistry` with a name, factory function, and optional
+parameter schema, mirroring the format registry pattern
+([AD-004](./004-processing-engine.md)). The CLI and flow executor look up tools
+by name. `RegisterAll(reg)` in `core/tools/register.go` auto-registers all
+built-in tools with default configurations and auto-generated schemas. AI, MT,
+and terminology tools are instantiated on demand with their respective providers
+and registered into the flow's tool set at configuration time.
 
 Plugin tools ([AD-007](./007-plugin-system.md)) use the same `Tool` interface
 via gRPC translation, so plugin-provided tools and built-in tools are

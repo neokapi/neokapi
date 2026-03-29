@@ -15,7 +15,43 @@ export interface FormatInfo {
 export interface ToolInfo {
   name: string;
   description: string;
-  category: "transform" | "validate" | "enrich" | "utility";
+  category: "transform" | "validate" | "enrich" | "convert" | "pipeline" | "utility";
+  hasSchema?: boolean;
+}
+
+/** Tool parameter schema (matches Go schema.ComponentSchema) */
+export interface ToolSchema {
+  $id: string;
+  title: string;
+  description?: string;
+  type: string;
+  "x-component"?: {
+    id: string;
+    type: string;
+    category?: string;
+    displayName?: string;
+    description?: string;
+  };
+  "x-groups"?: Array<{
+    id: string;
+    label: string;
+    description?: string;
+    collapsed?: boolean;
+    fields: string[];
+  }>;
+  properties: Record<
+    string,
+    {
+      type: string;
+      description?: string;
+      default?: unknown;
+      enum?: string[];
+      "x-widget"?: string;
+      "x-placeholder"?: string;
+      properties?: Record<string, unknown>;
+      items?: { type: string; properties?: Record<string, unknown> };
+    }
+  >;
 }
 
 /** Flow descriptor */

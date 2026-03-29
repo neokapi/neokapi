@@ -219,6 +219,33 @@ Flow definitions enable visual editing in Bowrain
 graph, and JSON serialization supports import/export and version control
 of flow configurations.
 
+### Steps-Based YAML Format
+
+A human-friendly steps format is available for authoring flows in YAML
+([AD-040](./040-tool-parameter-schemas.md)):
+
+```yaml
+spec:
+  input: auto
+  output: auto
+  steps:
+    - tool: tm-leverage
+      config: { fuzzyThreshold: 75 }
+    - tool: ai-translate
+      config: { provider: anthropic }
+    - tool: qa-check
+```
+
+Steps are sequential by default. `parallel:` blocks provide fan-out. The
+parser auto-detects the format (steps vs graph) and compiles steps to
+nodes+edges via `StepsToGraph()`.
+
+### Fan-Out and Batching
+
+`tool.Tee()` copies parts to N output channels, enabling fan-out topologies
+where one node feeds multiple parallel branches. A `batch` tool collects
+blocks into configurable batches before forwarding, useful for batch MT APIs.
+
 ## Alternatives Considered
 
 - **Synchronous iterator**: simpler but no concurrency within a single

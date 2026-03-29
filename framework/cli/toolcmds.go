@@ -7,6 +7,7 @@ import (
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	provider "github.com/neokapi/neokapi/providers/ai"
@@ -26,10 +27,19 @@ type ToolCommandDef struct {
 	// the cobra command so it can read tool-specific flags.
 	NewTool func(cmd *cobra.Command, targetLang string) (tool.Tool, error)
 
+	// NewToolFromConfig creates the tool from a schema-derived config map.
+	// Used when Schema is set (schema-driven flag generation).
+	NewToolFromConfig func(config map[string]any, targetLang string) (tool.Tool, error)
+
+	// Schema optionally declares the tool's parameter schema.
+	// When set, CLI flags are auto-generated from the schema properties.
+	Schema *schema.ComponentSchema
+
 	// NewCollector optionally creates a streaming collector for aggregation tools.
 	NewCollector func() flow.Collector
 
 	// AddFlags registers tool-specific flags on the cobra command.
+	// Used for legacy tools without Schema. When Schema is set, this is ignored.
 	AddFlags func(cmd *cobra.Command)
 }
 
@@ -328,6 +338,26 @@ var BuiltinToolCommands = []ToolCommandDef{
 			return libtools.NewSegmentationTool(&libtools.SegmentationConfig{
 				TargetLocale: model.LocaleID(targetLang),
 			}), nil
+		},
+	},
+
+	// ── Scripting ──────────────────────────────────────────────────
+
+	{
+		Use:          "script",
+		Short:        "Run a JavaScript processing script on each part",
+		WritesOutput: true,
+		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
+			code, _ := cmd.Flags().GetString("code")
+			scriptFile, _ := cmd.Flags().GetString("script-file")
+			if code == "" && scriptFile == "" {
+				return nil, fmt.Errorf("either --code or --script-file is required")
+			}
+			return libtools.NewScriptTool(&libtools.ScriptConfig{Code: code, ScriptFile: scriptFile}), nil
+		},
+		AddFlags: func(cmd *cobra.Command) {
+			cmd.Flags().String("code", "", "inline JavaScript code to execute")
+			cmd.Flags().String("script-file", "", "path to .js file")
 		},
 	},
 }

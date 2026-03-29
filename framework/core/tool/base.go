@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 )
 
 // PartHandler is the function signature for handling a single Part.
@@ -16,6 +17,10 @@ type BaseTool struct {
 	ToolName        string
 	ToolDescription string
 	Cfg             ToolConfig
+
+	// SchemaFn optionally returns the tool's parameter schema.
+	// Set this to enable schema-driven CLI flags and flow editor config panels.
+	SchemaFn func() *schema.ComponentSchema
 
 	// Override these handlers in concrete tools.
 	HandleBlockFn      PartHandler
@@ -32,6 +37,14 @@ func (b *BaseTool) Name() string { return b.ToolName }
 
 // Description returns the tool's description.
 func (b *BaseTool) Description() string { return b.ToolDescription }
+
+// Schema returns the tool's parameter schema, if SchemaFn is set.
+func (b *BaseTool) Schema() *schema.ComponentSchema {
+	if b.SchemaFn != nil {
+		return b.SchemaFn()
+	}
+	return nil
+}
 
 // Config returns the current configuration.
 func (b *BaseTool) Config() ToolConfig { return b.Cfg }

@@ -1,6 +1,12 @@
 import { useState, useCallback, useMemo } from "react";
 import { cn } from "../../lib/utils";
-import { FilterSchema, ParameterGroup, PropertySchema, FilterParamsValue } from "./types";
+import {
+  ComponentSchema,
+  FilterSchema,
+  ParameterGroup,
+  PropertySchema,
+  FilterParamsValue,
+} from "./types";
 
 // UI components from the ui directory
 import { Button } from "../ui/button";
@@ -11,8 +17,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "../ui/colla
 import { ChevronDown, ChevronRight } from "../icons";
 
 interface FilterConfigEditorProps {
-  /** The filter schema loaded from the plugin */
-  schema: FilterSchema;
+  /** The filter or tool schema */
+  schema: FilterSchema | ComponentSchema;
   /** Current parameter values */
   value: FilterParamsValue;
   /** Called when any parameter changes */
@@ -22,8 +28,9 @@ interface FilterConfigEditorProps {
 }
 
 /**
- * FilterConfigEditor renders a dynamic form for filter parameters
+ * FilterConfigEditor renders a dynamic form for filter or tool parameters
  * based on the JSON Schema with x-groups and x-widget extensions.
+ * Also exported as SchemaConfigEditor for tool use cases.
  */
 export function FilterConfigEditor({
   schema,
@@ -472,5 +479,8 @@ function CodeFinderRulesField({
     </div>
   );
 }
+
+/** Alias for tool/step config editing use cases. */
+export const SchemaConfigEditor = FilterConfigEditor;
 
 export default FilterConfigEditor;
