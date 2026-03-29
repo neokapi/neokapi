@@ -54,6 +54,22 @@ func main() {
 			app.Event.Emit("menu:open-project", nil)
 		})
 	fileMenu.AddSeparator()
+
+	// Recent Projects submenu — populated dynamically from the recent store.
+	recentMenu := fileMenu.AddSubmenu("Recent Projects")
+	for _, recent := range appService.ListRecentFiles() {
+		r := recent // capture
+		recentMenu.Add(r.Name).
+			SetTooltip(r.Path).
+			OnClick(func(ctx *application.Context) {
+				app.Event.Emit("menu:open-recent", r.Path)
+			})
+	}
+	if len(appService.ListRecentFiles()) == 0 {
+		recentMenu.Add("No Recent Projects").SetEnabled(false)
+	}
+
+	fileMenu.AddSeparator()
 	fileMenu.Add("Save").
 		SetAccelerator("CmdOrCtrl+S").
 		OnClick(func(ctx *application.Context) {

@@ -35,12 +35,16 @@ export default function App() {
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
-  // Load recent files on mount.
-  useEffect(() => {
+  // Load recent files on mount and whenever tabs change.
+  const refreshRecent = useCallback(() => {
     api.listRecentFiles().then((files) => {
       if (files) setRecentFiles(files);
     });
   }, []);
+
+  useEffect(() => {
+    refreshRecent();
+  }, [refreshRecent, tabs.length]);
 
   // --- Tab management ---
 
@@ -153,6 +157,12 @@ export default function App() {
         cleanups.push(
           Events.On("menu:open-project", async () => {
             await handleOpenProject();
+          }),
+        );
+        cleanups.push(
+          Events.On("menu:open-recent", async (event: { data: unknown }) => {
+            const path = event.data as string;
+            if (path) await handleOpenRecent(path);
           }),
         );
         cleanups.push(
