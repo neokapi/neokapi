@@ -43,7 +43,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
         return (
           <div
             key={tab.id}
-            className={`group flex min-w-[160px] max-w-[240px] items-center gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
+            className={`group flex min-w-[160px] max-w-[240px] items-center justify-between gap-1.5 rounded-t-lg px-3 py-1.5 text-xs transition-all ${
               isActive
                 ? "bg-border text-foreground font-semibold"
                 : "text-muted-foreground hover:bg-accent/40 hover:text-foreground"
