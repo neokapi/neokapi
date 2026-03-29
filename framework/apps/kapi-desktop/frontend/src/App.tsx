@@ -38,7 +38,12 @@ export default function App() {
   const refreshRecent = useCallback(() => {
     api.listRecentFiles().then((f) => { if (f) setRecentFiles(f); });
   }, []);
-  useEffect(() => { refreshRecent(); }, [refreshRecent, tabs.length]);
+  useEffect(() => {
+    refreshRecent();
+    // Retry after bindings are likely ready (first load may miss).
+    const timer = setTimeout(refreshRecent, 500);
+    return () => clearTimeout(timer);
+  }, [refreshRecent, tabs.length]);
 
   const handleModeChange = useCallback((m: AppMode) => {
     setMode(m);
