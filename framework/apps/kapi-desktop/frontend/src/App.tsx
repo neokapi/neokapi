@@ -225,9 +225,9 @@ export default function App() {
 
       {/* Right side: tab bar + content */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Title bar / tab bar area — pl-16 clears macOS traffic lights */}
+        {/* Title bar / tab bar area — h-12 matches icon rail spacer so borders meet */}
         <div
-          className="flex shrink-0 items-end border-b border-border bg-sidebar pl-16 pt-1"
+          className="flex h-12 shrink-0 items-end border-b border-border bg-sidebar pl-16"
           style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
         >
           {section === "projects" && tabs.length > 0 ? (
