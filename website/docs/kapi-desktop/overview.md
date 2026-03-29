@@ -3,9 +3,9 @@ sidebar_position: 1
 title: Overview
 ---
 
-# Kapi Desktop
+# Kapi
 
-Kapi Desktop is the visual companion for the [kapi CLI](/docs/kapi-cli/overview). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
+Kapi is the visual companion for the [kapi CLI](/docs/kapi-cli/overview). It provides a native desktop interface for building localization flows, running tools, managing plugins, and storing AI credentials — all without writing YAML or remembering CLI flags.
 
 ## Features
 
@@ -36,7 +36,7 @@ Download the latest release from [GitHub Releases](https://github.com/neokapi/ne
 
 ## Quick Start
 
-1. **Launch Kapi Desktop** and click **New Project**
+1. **Launch Kapi** and click **New Project**
 2. Set your source language (e.g., `en-US`) and target languages
 3. Go to **Flows** and create a flow with the tools you need
 4. Go to **Credentials** and add your AI provider API key
@@ -48,9 +48,9 @@ Your workflow is saved as a Kapi project file that you can reopen, share, or run
 kapi run translate -p myproject.kapi
 ```
 
-## Kapi Desktop vs Bowrain Desktop
+## Kapi vs Bowrain Desktop
 
-| | Kapi Desktop | Bowrain Desktop |
+| | Kapi | Bowrain Desktop |
 |---|---|---|
 | Purpose | Standalone file processing | Platform-connected editing |
 | Server | None required | Bowrain Server |
@@ -59,7 +59,7 @@ kapi run translate -p myproject.kapi
 | Automation | Local flows | Server-side hooks + automation |
 | Install | `brew install --cask kapi-desktop` | `brew install --cask bowrain` |
 
-Kapi Desktop is for developers who want powerful localization tools without a server. When you need team collaboration, connector integrations, or server-side automation, upgrade to [Bowrain](/bowrain/).
+Kapi is for developers who want powerful localization tools without a server. When you need team collaboration, connector integrations, or server-side automation, upgrade to [Bowrain](/bowrain/).
 
 ## Next Steps
 

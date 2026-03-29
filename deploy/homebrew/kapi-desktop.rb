@@ -1,4 +1,4 @@
-# Homebrew Cask formula for Kapi Desktop.
+# Homebrew Cask formula for Kapi.
 # Copy this file to homebrew-tap/Casks/kapi-desktop.rb after release.
 
 require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"
@@ -9,24 +9,24 @@ cask "kapi-desktop" do
 
   url "https://github.com/neokapi/neokapi/releases/download/v#{version}/KapiDesktop-v#{version}-arm64.dmg",
       using: GitHubPrivateRepositoryReleaseDownloadStrategy
-  name "Kapi Desktop"
+  name "Kapi"
   desc "Desktop companion for the kapi localization CLI"
   homepage "https://github.com/neokapi/neokapi"
 
   depends_on formula: "neokapi/tap/kapi"
 
-  app "Kapi Desktop.app"
+  app "Kapi.app"
 
   postflight do
     system_command "/usr/bin/xattr",
-                  args: ["-dr", "com.apple.quarantine", "#{appdir}/Kapi Desktop.app"],
+                  args: ["-dr", "com.apple.quarantine", "#{appdir}/Kapi.app"],
                   sudo: false
   end
 
   caveats <<~EOS
     The kapi CLI is provided by the kapi formula (installed automatically).
 
-    Double-click Kapi projects to open them in Kapi Desktop.
+    Double-click Kapi projects to open them in Kapi.
 
     Getting started:
       kapi-desktop    # launch the app
@@ -34,9 +34,9 @@ cask "kapi-desktop" do
   EOS
 
   zap trash: [
-    "~/Library/Application Support/Kapi Desktop",
+    "~/Library/Application Support/Kapi",
     "~/Library/Preferences/io.github.neokapi.kapi-desktop.plist",
-    "~/Library/Caches/Kapi Desktop",
+    "~/Library/Caches/Kapi",
     "~/.config/kapi-desktop",
   ]
 end

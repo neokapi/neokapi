@@ -163,7 +163,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
               className="mb-4 h-24 w-24 drop-shadow-lg"
             />
             <h1 className="mb-1 text-3xl font-bold tracking-tight">
-              Kapi Desktop
+              Kapi
             </h1>
             <p className="mb-6 max-w-md text-base text-muted-foreground">
               Localization plumbing and glue for people, elves, and agents.
@@ -316,7 +316,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
 
           <footer className="mt-12 border-t border-border pt-4 text-center">
             <p className="text-xs text-muted-foreground">
-              Kapi Desktop is part of{" "}
+              Kapi is part of{" "}
               <span className="font-medium text-foreground">neokapi</span>, the
               open-source localization framework.
             </p>

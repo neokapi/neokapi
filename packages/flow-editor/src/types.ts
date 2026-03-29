@@ -1,4 +1,4 @@
-// Flow editor types — shared between Kapi Desktop and Bowrain Desktop.
+// Flow editor types — shared between Kapi and Bowrain Desktop.
 
 export interface FlowDefinitionInfo {
   id: string;

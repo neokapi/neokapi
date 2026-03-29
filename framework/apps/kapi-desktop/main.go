@@ -19,7 +19,7 @@ func main() {
 	appService := backend.NewApp()
 
 	app := application.New(application.Options{
-		Name: "Kapi Desktop",
+		Name: "Kapi",
 		Icon: appIcon,
 		Services: []application.Service{
 			application.NewService(appService),
@@ -98,7 +98,7 @@ func main() {
 	// --- Window ---
 
 	win := app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Title:          "Kapi Desktop",
+		Title:          "Kapi",
 		Width:          1280,
 		Height:         800,
 		EnableFileDrop: true,

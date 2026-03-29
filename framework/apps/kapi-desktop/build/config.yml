@@ -2,7 +2,7 @@ version: "3"
 
 info:
   companyName: "neokapi"
-  productName: "Kapi Desktop"
+  productName: "Kapi"
   productIdentifier: "io.github.neokapi.kapi-desktop"
   description: "Localization Toolkit - powered by neokapi"
   copyright: "(c) 2025, neokapi"

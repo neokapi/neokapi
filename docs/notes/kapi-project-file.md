@@ -54,7 +54,7 @@ Flow definitions reuse `core/flow.StepsSpec` and `core/flow.FlowStep` (see [flow
 
 The `.kapi` file references AI providers by type (e.g., `provider: anthropic`), not by key. API keys are resolved at runtime:
 
-1. Kapi Desktop: OS keychain via `cli/credentials.Store` (`~/.config/kapi/providers.json` + keyring service `"kapi"`)
+1. Kapi: OS keychain via `cli/credentials.Store` (`~/.config/kapi/providers.json` + keyring service `"kapi"`)
 2. Kapi CLI: environment variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) or `--api-key` flag
 3. The `--provider` and `--model` CLI flags override project defaults
 
@@ -72,11 +72,11 @@ kapi run translate-and-qa -p translation.kapi --target-lang de
 With `-p`:
 - Flow name is looked up in the project's `flows` map
 - `source_language` and `target_languages[0]` provide defaults (CLI flags override)
-- `--input` is still required (content pattern resolution is Kapi Desktop only)
+- `--input` is still required (content pattern resolution is Kapi only)
 
 ## Desktop Integration
 
-Kapi Desktop at `framework/apps/kapi-desktop/`:
+Kapi at `framework/apps/kapi-desktop/`:
 - Opens `.kapi` files as documents (File > Open, drag-and-drop, OS file association)
 - Edits flows inline (steps editor)
 - Resolves content patterns against the filesystem via `MatchContent(basePath)`

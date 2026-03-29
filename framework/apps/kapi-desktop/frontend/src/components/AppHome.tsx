@@ -12,7 +12,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
   return (
     <div className="p-6">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold">Welcome to Kapi Desktop</h1>
+        <h1 className="text-xl font-semibold">Welcome to Kapi</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Localization plumbing and glue for people, elves, and agents.
         </p>

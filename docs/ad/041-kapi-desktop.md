@@ -1,9 +1,9 @@
 ---
 id: 041-kapi-desktop
 sidebar_position: 41
-title: "AD-041: Kapi Desktop and .kapi Project Files"
+title: "AD-041: Kapi and .kapi Project Files"
 ---
-# AD-041: Kapi Desktop and .kapi Project Files
+# AD-041: Kapi and .kapi Project Files
 
 ## Context
 
@@ -78,13 +78,13 @@ The `.kapi` format uses the same flow steps format as `.bowrain/flows/` ([flow-s
 | Automation | Local flows only | Server-side hooks and automation rules |
 | Module | Framework (`core/project/`) | Platform (`platform/project/`) |
 | CLI | `kapi run -p file.kapi` | `bowrain run flowname` |
-| Desktop | Kapi Desktop | Bowrain Desktop |
+| Desktop | Kapi | Bowrain Desktop |
 
 The upsell path from kapi to bowrain is about **managed AI projects** — team collaboration, server-side automation, connector integrations — not technical migration. Users who outgrow standalone file processing adopt bowrain for its platform features.
 
-### Kapi Desktop App
+### Kapi App
 
-Kapi Desktop is a Wails v3 application at `framework/apps/kapi-desktop/`. It is part of the **framework** module (no platform dependencies) and provides a GUI for the same capabilities as kapi CLI.
+Kapi is a Wails v3 application at `framework/apps/kapi-desktop/`. It is part of the **framework** module (no platform dependencies) and provides a GUI for the same capabilities as kapi CLI.
 
 **Technology stack** — identical to Bowrain Desktop ([AD-012](./012-bowrain.md)):
 - Go backend with Wails v3 auto-generated TypeScript bindings
@@ -94,7 +94,7 @@ Kapi Desktop is a Wails v3 application at `framework/apps/kapi-desktop/`. It is 
 **Architecture** — significantly simpler than Bowrain Desktop:
 
 ```
-Kapi Desktop                          Bowrain Desktop
+Kapi                          Bowrain Desktop
 ─────────────                         ────────────────
 Format/tool registries    ✓           ✓
 Plugin loader             ✓           ✓
@@ -130,7 +130,7 @@ Real-time collaboration   ✗           ✓
 
 ### Module Placement
 
-Kapi Desktop lives at `framework/apps/kapi-desktop/` as a **separate Go module**. It cannot live inside `framework/kapi/` because the Makefile isolation check forbids Wails and go-keyring dependencies in that module.
+Kapi lives at `framework/apps/kapi-desktop/` as a **separate Go module**. It cannot live inside `framework/kapi/` because the Makefile isolation check forbids Wails and go-keyring dependencies in that module.
 
 ```
 go.work:
@@ -147,7 +147,7 @@ It has **zero platform dependencies** — verified by `GOWORK=off go build ./...
 
 ### Credential Store
 
-The credential store (`cli/credentials/`) was extracted from `platform/credentials/` to the framework CLI module. It stores provider configurations as JSON at `~/.config/kapi/providers.json` and API keys in the OS keychain under the `"kapi"` service name. Both Kapi Desktop and the kapi CLI share this store.
+The credential store (`cli/credentials/`) was extracted from `platform/credentials/` to the framework CLI module. It stores provider configurations as JSON at `~/.config/kapi/providers.json` and API keys in the OS keychain under the `"kapi"` service name. Both Kapi and the kapi CLI share this store.
 
 ### Distribution
 
@@ -155,7 +155,7 @@ The credential store (`cli/credentials/`) was extracted from `platform/credentia
 - **Windows**: ZIP archive via GitHub Releases
 - **Linux**: Binary via GitHub Releases
 - **CI**: GitHub Actions workflow builds all platforms on tag push
-- **File association**: `.kapi` files open in Kapi Desktop on macOS (via `CFBundleDocumentTypes` in Info.plist)
+- **File association**: `.kapi` files open in Kapi on macOS (via `CFBundleDocumentTypes` in Info.plist)
 
 ## Alternatives Considered
 
@@ -169,15 +169,15 @@ The credential store (`cli/credentials/`) was extracted from `platform/credentia
 
 ## Consequences
 
-- Kapi Desktop provides a visual GUI for all kapi CLI capabilities without requiring bowrain or a server.
+- Kapi provides a visual GUI for all kapi CLI capabilities without requiring bowrain or a server.
 
 - `.kapi` files are portable, self-contained workflow documents that can be shared via git.
 
-- The credential store is now in the framework CLI module, making OS keychain access available to both Kapi Desktop and the kapi CLI.
+- The credential store is now in the framework CLI module, making OS keychain access available to both Kapi and the kapi CLI.
 
 - `kapi run -p file.kapi` enables project-based CLI workflows without breaking the one-shot default behavior.
 
-- Kapi Desktop and Bowrain Desktop share the same technology stack (Wails v3, React 19, TailwindCSS) but are independent applications with no shared frontend code (shared flow editor extraction is planned as a follow-up).
+- Kapi and Bowrain Desktop share the same technology stack (Wails v3, React 19, TailwindCSS) but are independent applications with no shared frontend code (shared flow editor extraction is planned as a follow-up).
 
 - The `.kapi` file format uses `core/flow.StepsSpec` for flow definitions, ensuring compatibility with `.bowrain/flows/` and built-in flows.
 

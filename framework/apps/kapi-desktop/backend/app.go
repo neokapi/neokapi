@@ -1,4 +1,4 @@
-// Package backend provides the Wails v3 service for Kapi Desktop.
+// Package backend provides the Wails v3 service for Kapi.
 // It exposes format/tool registries, plugin management, credential storage,
 // .kapi project file operations, and flow execution to the React frontend.
 package backend
@@ -53,7 +53,7 @@ type App struct {
 	logger *log.Logger
 }
 
-// NewApp creates a new Kapi Desktop backend service.
+// NewApp creates a new Kapi backend service.
 // Plugins are loaded later via LoadPlugins().
 func NewApp() *App {
 	formatReg := registry.NewFormatRegistry()

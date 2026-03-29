@@ -3,14 +3,14 @@ sidebar_position: 3
 title: Getting Started
 ---
 
-# Getting Started with Kapi Desktop
+# Getting Started with Kapi
 
-This guide walks you through creating your first localization project with Kapi Desktop.
+This guide walks you through creating your first localization project with Kapi.
 
 ## 1. Install
 
 ```bash
-# Install kapi CLI + Kapi Desktop
+# Install kapi CLI + Kapi
 brew install neokapi/tap/kapi
 brew install --cask neokapi/tap/kapi-desktop
 ```
@@ -19,7 +19,7 @@ Or download from [GitHub Releases](https://github.com/neokapi/neokapi/releases).
 
 ## 2. Launch and Create a Project
 
-Open Kapi Desktop. You'll see the welcome page with the neokapi logo and getting started guide.
+Open Kapi. You'll see the welcome page with the neokapi logo and getting started guide.
 
 Click **New Project** to create a Kapi project. Set:
 - **Name**: Your project name (e.g., "Acme App")
@@ -74,7 +74,7 @@ Select your flow, choose input files, set the target language, and click **Run**
 Save your Kapi project (e.g., `translation.kapi`). You can:
 - Commit it to git for team sharing
 - Run it from the CLI: `kapi run translate-and-qa -p translation.kapi`
-- Reopen it anytime in Kapi Desktop
+- Reopen it anytime in Kapi
 
 ## 8. Install Plugins (Optional)
 

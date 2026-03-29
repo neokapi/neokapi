@@ -329,7 +329,7 @@ Triggers include `pre-push`, `post-push`, `pre-pull`, `post-pull`, `pre-flow`, a
 
 ### Relationship to .kapi Project Files
 
-Kapi Desktop introduces `.kapi` project files — standalone YAML documents for local file processing workflows ([AD-041](./041-kapi-desktop.md)). These are complementary to `.bowrain/` projects:
+Kapi introduces `.kapi` project files — standalone YAML documents for local file processing workflows ([AD-041](./041-kapi-desktop.md)). These are complementary to `.bowrain/` projects:
 
 - **`.kapi` files** are portable, single-file, framework-level, no server — for standalone kapi workflows
 - **`.bowrain/` directories** are stateful, server-connected, platform-level — for managed bowrain workflows

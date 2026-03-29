@@ -119,7 +119,7 @@ flows:
 
 ## Key Properties
 
-- **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi Desktop) or environment variables (CLI).
+- **No credentials** — API keys are never stored in Kapi project files. They come from the OS keychain (Kapi) or environment variables (CLI).
 - **No state** — No sync cursors, caches, or timestamps. Kapi project files are always clean and safe to commit.
 - **Portable** — Save anywhere, have multiple per directory, share via git.
 - **CLI-compatible** — `kapi run flowname -p file.kapi`
@@ -137,10 +137,10 @@ kapi run translate -p translation.kapi --target-lang de --provider openai
 kapi ai-translate -i file.json --target-lang fr
 ```
 
-## Using with Kapi Desktop
+## Using with Kapi
 
 - **File > Open** to load a Kapi project
 - **File > New** to create one from scratch
 - **File > Save / Save As** for standard document operations
-- Double-click a Kapi project to open it in Kapi Desktop (macOS)
+- Double-click a Kapi project to open it in Kapi (macOS)
 - Drag and drop Kapi projects onto the app window

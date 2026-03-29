@@ -6,7 +6,7 @@ import { WelcomePage } from "../components/WelcomePage";
 describe("WelcomePage", () => {
   it("renders the title and tagline", () => {
     render(<WelcomePage onOpen={vi.fn()} onNew={vi.fn()} />);
-    expect(screen.getByText("Kapi Desktop")).toBeInTheDocument();
+    expect(screen.getByText("Kapi")).toBeInTheDocument();
     expect(
       screen.getByText(/plumbing and glue/),
     ).toBeInTheDocument();

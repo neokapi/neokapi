@@ -12,13 +12,13 @@ The repository is a **multi-module monorepo** with seven Go modules:
 - **CLI** (`github.com/neokapi/neokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config, OS keychain credential store (`cli/credentials/`). Uses framework's SQLite TM/termbase from `core/sievepen/` and `core/termbase/`. Depends on framework only. No platform dependency.
 - **Platform** (`github.com/neokapi/neokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
 - **Kapi** (`github.com/neokapi/neokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Supports `.kapi` project files via `-p` flag. Depends on framework + CLI. No platform dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
-- **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows: flow editor, flow runner with live progress, plugin manager, credential vault, `.kapi` project file management. Depends on framework + CLI. No platform dependency. Separate module due to Wails/keyring dependencies.
+- **Kapi** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows: flow editor, flow runner with live progress, plugin manager, credential vault, `.kapi` project file management. Depends on framework + CLI. No platform dependency. Separate module due to Wails/keyring dependencies.
 - **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain-cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
 - **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + platform. No CLI dependency.
 
 Both **kapi** and **bowrain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., bowrain adds project flow support via a `RegistryResolver` hook).
 
-A `go.work` file at the root coordinates the seven modules for local development. CLI and platform have zero cross-dependency. Kapi and bowrain have no dependency on each other. Kapi Desktop depends on framework + CLI only (verified by isolation check).
+A `go.work` file at the root coordinates the seven modules for local development. CLI and platform have zero cross-dependency. Kapi and bowrain have no dependency on each other. Kapi depends on framework + CLI only (verified by isolation check).
 
 ## Build & Test Commands
 
@@ -48,7 +48,7 @@ make proto              # Generate gRPC code from protobuf definitions
 
 Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
-**Kapi Desktop:**
+**Kapi:**
 ```bash
 make kapi-desktop-test              # Run Go backend tests
 make kapi-desktop-frontend-deps     # Install frontend dependencies
@@ -94,7 +94,7 @@ For the multi-module structure:
 - `GOWORK=off bash -c "cd cli && go build ./..."` verifies cli isolation (no platform dep)
 - `GOWORK=off bash -c "cd platform && go build ./..."` verifies platform isolation (no cli dep)
 - `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no platform dep)
-- Kapi Desktop: `cd framework/apps/kapi-desktop && go build ./...`
+- Kapi: `cd framework/apps/kapi-desktop && go build ./...`
 - `GOWORK=off bash -c "cd framework/apps/kapi-desktop && go build ./..."` verifies kapi-desktop isolation (no platform dep)
 
 ## Architecture
@@ -155,7 +155,7 @@ neokapi/
 │   └── apps/
 │       └── kapi-web/      # kapi serve web UI
 │
-│   ── Kapi Desktop Module ───────────────
+│   ── Kapi Module ───────────────
 ├── apps/
 │   └── kapi-desktop/      # Wails v3 desktop app (Go + React/TS)
 │       ├── go.mod         # module github.com/neokapi/neokapi/kapi-desktop (framework + cli)
@@ -249,11 +249,11 @@ kapi run translate -p myproject.kapi
 kapi run translate-and-qa -p myproject.kapi --target-lang de
 ```
 
-`.kapi` files are portable YAML documents — see [AD-041](docs/ad/041-kapi-desktop.md). They work with both kapi CLI (`-p` flag) and Kapi Desktop (open/edit/save as documents).
+`.kapi` files are portable YAML documents — see [AD-041](docs/ad/041-kapi-desktop.md). They work with both kapi CLI (`-p` flag) and Kapi (open/edit/save as documents).
 
 **Role Separation:**
 - **Kapi** = standalone file-processing tool, demonstrates neokapi's power as open-source toolchain
-- **Kapi Desktop** = GUI companion for kapi — visual flow editor, runner, plugin manager, credential vault
+- **Kapi** = GUI companion for kapi — visual flow editor, runner, plugin manager, credential vault
 - **Bowrain CLI** (`bowrain` binary) = project sync companion CLI, focuses on DX and project simplicity for Bowrain
 - **Shared CLI base** (`cli/`) = common commands (run, flows, tools, formats, plugins, presets, termbase, version) and top-level tool commands used by both kapi and bowrain
 - **Bowrain Server** = integration platform (CMS connectors, automation, ContentStore)

@@ -62,7 +62,7 @@ Use Kapi CLI when you:
 - **Run in CI/CD** for automated file processing
 - **Evaluate formats** — list supported formats, check file compatibility
 
-For a visual interface, use [Kapi Desktop](/docs/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
+For a visual interface, use [Kapi](/docs/kapi-desktop/overview) — the GUI companion for building flows, managing plugins, and running tools with live progress.
 
 For project management, server sync, and team collaboration, use the [Bowrain CLI](/bowrain/cli/overview) instead.
 
@@ -92,9 +92,9 @@ kapi run translate -p myproject.kapi --target-lang de
 
 See [Kapi Project Files](/docs/kapi-desktop/project-file) for the full format reference.
 
-## Kapi Desktop
+## Kapi
 
-[Kapi Desktop](/docs/kapi-desktop/overview) is the GUI companion for kapi. It provides:
+[Kapi](/docs/kapi-desktop/overview) is the GUI companion for kapi. It provides:
 
 - Visual flow editor for building tool pipelines
 - Live flow execution with progress visualization
