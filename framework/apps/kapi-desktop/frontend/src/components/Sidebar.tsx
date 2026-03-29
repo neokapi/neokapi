@@ -5,7 +5,6 @@ import {
   Wrench,
   Puzzle,
   Settings,
-  X,
 } from "lucide-react";
 import type { View } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -14,7 +13,6 @@ interface SidebarProps {
   activeView: View;
   onViewChange: (view: View) => void;
   projectName?: string;
-  onCloseProject: () => void;
 }
 
 const navItems: { view: View; label: string; icon: React.ReactNode }[] = [
@@ -29,7 +27,6 @@ export function Sidebar({
   activeView,
   onViewChange,
   projectName,
-  onCloseProject,
 }: SidebarProps) {
   const [version, setVersion] = useState("v0.1.0");
 
@@ -41,20 +38,10 @@ export function Sidebar({
 
   return (
     <aside className="flex w-52 flex-col border-r border-border bg-sidebar">
-      {/* Drag region for macOS title bar */}
-      <div className="h-12 shrink-0" style={{ WebkitAppRegion: "drag" } as React.CSSProperties} />
-
       {/* Project name */}
       {projectName && (
-        <div className="flex items-center gap-2 px-3 pb-2">
+        <div className="px-3 py-2">
           <span className="truncate text-sm font-medium">{projectName}</span>
-          <button
-            onClick={onCloseProject}
-            className="ml-auto rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-            title="Close project"
-          >
-            <X size={14} />
-          </button>
         </div>
       )}
 

@@ -6,11 +6,7 @@ import { Sidebar } from "../components/Sidebar";
 describe("Sidebar", () => {
   it("renders all navigation items", () => {
     render(
-      <Sidebar
-        activeView="project"
-        onViewChange={vi.fn()}
-        onCloseProject={vi.fn()}
-      />,
+      <Sidebar activeView="project" onViewChange={vi.fn()} />,
     );
     expect(screen.getByText("Project")).toBeInTheDocument();
     expect(screen.getByText("Flows")).toBeInTheDocument();
@@ -25,7 +21,6 @@ describe("Sidebar", () => {
         activeView="project"
         onViewChange={vi.fn()}
         projectName="My Project"
-        onCloseProject={vi.fn()}
       />,
     );
     expect(screen.getByText("My Project")).toBeInTheDocument();
@@ -34,29 +29,10 @@ describe("Sidebar", () => {
   it("calls onViewChange when clicking nav item", async () => {
     const onViewChange = vi.fn();
     render(
-      <Sidebar
-        activeView="project"
-        onViewChange={onViewChange}
-        onCloseProject={vi.fn()}
-      />,
+      <Sidebar activeView="project" onViewChange={onViewChange} />,
     );
 
     await userEvent.click(screen.getByText("Flows"));
     expect(onViewChange).toHaveBeenCalledWith("flows");
-  });
-
-  it("calls onCloseProject when clicking close button", async () => {
-    const onClose = vi.fn();
-    render(
-      <Sidebar
-        activeView="project"
-        onViewChange={vi.fn()}
-        projectName="Test"
-        onCloseProject={onClose}
-      />,
-    );
-
-    await userEvent.click(screen.getByTitle("Close project"));
-    expect(onClose).toHaveBeenCalledOnce();
   });
 });

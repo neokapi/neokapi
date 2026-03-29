@@ -52,7 +52,7 @@ export function WelcomePage({ onOpen, onNew }: WelcomePageProps) {
   const handleNew = useCallback(() => {
     const proj: KapiProject = {
       version: "v1",
-      name: "New Project",
+      name: "Untitled Project",
       source_language: "en-US",
       target_languages: [],
       flows: {},

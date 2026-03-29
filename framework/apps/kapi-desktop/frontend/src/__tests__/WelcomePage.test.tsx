@@ -32,7 +32,7 @@ describe("WelcomePage", () => {
     await userEvent.click(screen.getByText("New Project"));
     expect(onNew).toHaveBeenCalledOnce();
     expect(onNew).toHaveBeenCalledWith(
-      expect.objectContaining({ version: "v1", name: "New Project" }),
+      expect.objectContaining({ version: "v1", name: "Untitled Project" }),
     );
   });
 

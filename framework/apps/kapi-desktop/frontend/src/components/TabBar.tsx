@@ -12,7 +12,7 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose }: TabBarProps) {
   if (tabs.length === 0) return null;
 
   return (
-    <div className="flex shrink-0 items-center gap-0.5 border-b border-border bg-sidebar px-2 overflow-x-auto">
+    <div className="flex items-center gap-0.5 px-2 overflow-x-auto">
       {tabs.map((tab) => (
         <div
           key={tab.id}

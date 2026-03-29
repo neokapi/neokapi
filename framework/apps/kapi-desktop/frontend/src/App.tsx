@@ -116,7 +116,7 @@ export default function App() {
           Events.On("menu:new-project", () => {
             handleNewProject({
               version: "v1",
-              name: "New Project",
+              name: "Untitled Project",
               source_language: "en-US",
               target_languages: [],
               flows: {},
@@ -179,19 +179,20 @@ export default function App() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      {/* macOS title bar drag region */}
+      {/* Title bar with tab bar — draggable region with non-draggable tabs */}
       <div
-        className="h-12 shrink-0"
+        className="flex shrink-0 items-end border-b border-border bg-sidebar pt-8"
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
-      />
-
-      {/* Tab bar */}
-      <TabBar
-        tabs={tabs.map((t) => t.info)}
-        activeTabID={activeTabID}
-        onSelect={setActiveTabID}
-        onClose={handleCloseTab}
-      />
+      >
+        <div style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}>
+          <TabBar
+            tabs={tabs.map((t) => t.info)}
+            activeTabID={activeTabID}
+            onSelect={setActiveTabID}
+            onClose={handleCloseTab}
+          />
+        </div>
+      </div>
 
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
@@ -199,7 +200,6 @@ export default function App() {
           activeView={activeTab?.view ?? "project"}
           onViewChange={setActiveView}
           projectName={activeTab?.project.name}
-          onCloseProject={() => activeTabID && handleCloseTab(activeTabID)}
         />
         <main className="flex-1 overflow-auto">
           {activeTab?.view === "project" && (
