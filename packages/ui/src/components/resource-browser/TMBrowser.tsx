@@ -32,6 +32,7 @@ export function TMBrowser({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState("");
@@ -72,6 +73,7 @@ export function TMBrowser({
         setTotalCount(result.total_count);
       } finally {
         setLoading(false);
+        setInitialLoadDone(true);
       }
     },
     [adapter, sourceLocale, targetLocales],
@@ -239,14 +241,19 @@ export function TMBrowser({
           </button>
         </div>
 
-        {/* Entry count */}
-        <div className="text-[12px] text-muted-foreground mb-3">
-          {totalCount} {totalCount === 1 ? "entry" : "entries"}
-          {debouncedSearch && " matching"}
+        {/* Entry count + inline loading indicator for subsequent fetches */}
+        <div className="text-[12px] text-muted-foreground mb-3 flex items-center gap-2">
+          <span>
+            {totalCount} {totalCount === 1 ? "entry" : "entries"}
+            {debouncedSearch && " matching"}
+          </span>
+          {loading && initialLoadDone && (
+            <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
+          )}
         </div>
 
-        {/* Loading skeleton */}
-        {loading && entries.length === 0 && (
+        {/* Loading skeleton — only on initial load, not on subsequent fetches */}
+        {loading && !initialLoadDone && (
           <div className="flex flex-col gap-2">
             {[0, 1, 2].map((i) => (
               <div key={i} className="rounded-md border border-border p-3 animate-pulse">
@@ -257,8 +264,8 @@ export function TMBrowser({
           </div>
         )}
 
-        {/* Empty state */}
-        {!loading && entries.length === 0 && (
+        {/* Empty state — only after initial load completes */}
+        {initialLoadDone && !loading && entries.length === 0 && (
           <div className="py-12 text-center text-muted-foreground">
             <p className="text-sm mb-1">
               {debouncedSearch ? "No entries match your search." : "No entries yet."}
