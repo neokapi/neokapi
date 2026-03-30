@@ -1,6 +1,7 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Settings2 } from "lucide-react";
 import { getCategoryStyle } from "../category";
+import { theme } from "../theme";
 
 export function ToolNode({ data, selected }: NodeProps) {
   const category = (data.category as string) || "pipeline";
@@ -18,8 +19,8 @@ export function ToolNode({ data, selected }: NodeProps) {
         overflow: "hidden",
         border: selected
           ? `2px solid ${style.color}`
-          : "2px solid oklch(0.3 0.01 260)",
-        background: "oklch(0.18 0.012 260)",
+          : `2px solid ${theme.border}`,
+        background: theme.bgCard,
         boxShadow: selected
           ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
           : "0 2px 8px oklch(0 0 0 / 0.2)",
@@ -43,7 +44,7 @@ export function ToolNode({ data, selected }: NodeProps) {
             width: 10,
             height: 10,
             background: style.color,
-            border: "2px solid oklch(0.18 0.012 260)",
+            border: `2px solid ${theme.bgCard}`,
             left: -9,
           }}
         />
@@ -72,7 +73,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           {hasConfig && (
             <Settings2
               size={10}
-              style={{ color: "oklch(0.6 0.01 260)", marginLeft: "auto" }}
+              style={{ color: theme.fgMuted, marginLeft: "auto" }}
             />
           )}
         </div>
@@ -82,7 +83,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           style={{
             fontSize: 13,
             fontWeight: 600,
-            color: "oklch(0.92 0.005 265)",
+            color: theme.fg,
             lineHeight: 1.25,
           }}
         >
@@ -94,7 +95,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           <div
             style={{
               fontSize: 10,
-              color: "oklch(0.55 0.01 260)",
+              color: theme.fgMuted,
               marginTop: 2,
               lineHeight: 1.3,
               overflow: "hidden",
@@ -114,7 +115,7 @@ export function ToolNode({ data, selected }: NodeProps) {
             width: 10,
             height: 10,
             background: style.color,
-            border: "2px solid oklch(0.18 0.012 260)",
+            border: `2px solid ${theme.bgCard}`,
             right: -9,
           }}
         />
