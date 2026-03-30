@@ -16,13 +16,7 @@ describe("CodedTextDisplay", () => {
   });
 
   it("renders plain text when spans array is empty", () => {
-    render(
-      <CodedTextDisplay
-        text="Plain text"
-        codedText="Coded\uE001text"
-        spans={[]}
-      />,
-    );
+    render(<CodedTextDisplay text="Plain text" codedText="Coded\uE001text" spans={[]} />);
     expect(screen.getByText("Plain text")).toBeInTheDocument();
   });
 
@@ -39,9 +33,7 @@ describe("CodedTextDisplay", () => {
     // codedText: "Hello " + MARKER_OPENING + " world"
     const codedText = "Hello \uE001 world";
 
-    render(
-      <CodedTextDisplay text="Hello world" codedText={codedText} spans={spans} />,
-    );
+    render(<CodedTextDisplay text="Hello world" codedText={codedText} spans={spans} />);
 
     // The tag chip should render with data-tag-chip attribute
     const chip = document.querySelector("[data-tag-chip]");
@@ -59,18 +51,14 @@ describe("CodedTextDisplay", () => {
     ];
     const codedText = "Hello \uE001bold\uE002 end";
 
-    render(
-      <CodedTextDisplay text="Hello bold end" codedText={codedText} spans={spans} />,
-    );
+    render(<CodedTextDisplay text="Hello bold end" codedText={codedText} spans={spans} />);
 
     const chips = document.querySelectorAll("[data-tag-chip]");
     expect(chips).toHaveLength(2);
   });
 
   it("applies custom className", () => {
-    const { container } = render(
-      <CodedTextDisplay text="test" className="text-red-500" />,
-    );
+    const { container } = render(<CodedTextDisplay text="test" className="text-red-500" />);
     const span = container.querySelector("span");
     expect(span?.className).toContain("text-red-500");
   });
@@ -87,9 +75,7 @@ describe("CodedTextDisplay", () => {
     ];
     const codedText = "Before \uE003 after";
 
-    render(
-      <CodedTextDisplay text="Before after" codedText={codedText} spans={spans} />,
-    );
+    render(<CodedTextDisplay text="Before after" codedText={codedText} spans={spans} />);
 
     const chip = document.querySelector("[data-tag-chip]");
     expect(chip).toBeInTheDocument();

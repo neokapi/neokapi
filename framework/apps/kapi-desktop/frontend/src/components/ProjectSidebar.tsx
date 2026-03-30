@@ -1,11 +1,4 @@
-import {
-  Home,
-  FileText,
-  Workflow,
-  Wrench,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Home, FileText, Workflow, Wrench, Plus, Trash2 } from "lucide-react";
 import type { ProjectView } from "../types/api";
 
 interface ProjectSidebarProps {
@@ -60,9 +53,7 @@ export function ProjectSidebar({
       {activeView === "project-flows" && (
         <div className="mt-2 flex-1 overflow-auto border-t border-border pt-2">
           <div className="flex items-center justify-between px-3 pb-1">
-            <span className="text-[10px] font-medium uppercase text-muted-foreground">
-              Flows
-            </span>
+            <span className="text-[10px] font-medium uppercase text-muted-foreground">Flows</span>
             <button
               onClick={onAddFlow}
               className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -81,10 +72,7 @@ export function ProjectSidebar({
                     : "text-muted-foreground hover:bg-accent/50"
                 }`}
               >
-                <button
-                  onClick={() => onSelectFlow(name)}
-                  className="flex-1 truncate text-left"
-                >
+                <button onClick={() => onSelectFlow(name)} className="flex-1 truncate text-left">
                   {name}
                 </button>
                 <button
@@ -97,9 +85,7 @@ export function ProjectSidebar({
               </div>
             ))}
             {flowNames.length === 0 && (
-              <p className="px-2 py-1 text-[10px] text-muted-foreground">
-                No flows yet
-              </p>
+              <p className="px-2 py-1 text-[10px] text-muted-foreground">No flows yet</p>
             )}
           </div>
         </div>

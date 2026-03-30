@@ -57,9 +57,7 @@ export function PluginManager() {
     }
   }, []);
 
-  const filtered = plugins.filter(
-    (p) => p.name.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = plugins.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="p-6">
@@ -88,7 +86,9 @@ export function PluginManager() {
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-muted-foreground" role="status">{error}</p>
+        <p className="mb-4 text-sm text-muted-foreground" role="status">
+          {error}
+        </p>
       )}
 
       {loading ? (
@@ -107,12 +107,8 @@ export function PluginManager() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{plugin.name}</span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                    v{plugin.version}
-                  </span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                    {plugin.type}
-                  </span>
+                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">v{plugin.version}</span>
+                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">{plugin.type}</span>
                 </div>
               </div>
               {installing === plugin.name ? (
@@ -126,9 +122,7 @@ export function PluginManager() {
             </div>
           ))}
           {filtered.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              No plugins found
-            </p>
+            <p className="py-8 text-center text-sm text-muted-foreground">No plugins found</p>
           )}
         </div>
       )}

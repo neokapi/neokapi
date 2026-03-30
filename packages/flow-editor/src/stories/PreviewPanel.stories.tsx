@@ -11,8 +11,20 @@ const mockResult: PreviewResult = {
     p1: {
       initial: { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world" },
       afterNode: {
-        "tool-0": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
-        "tool-1": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
+        "tool-0": {
+          id: "p1",
+          type: "Block",
+          summary: "Hello world",
+          sourceText: "Hello world",
+          targetText: "Bonjour le monde",
+        },
+        "tool-1": {
+          id: "p1",
+          type: "Block",
+          summary: "Hello world",
+          sourceText: "Hello world",
+          targetText: "Bonjour le monde",
+        },
       },
     },
   },

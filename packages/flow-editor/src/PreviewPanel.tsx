@@ -73,9 +73,7 @@ export function PreviewPanel({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <Eye size={12} style={{ color: theme.accent }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>
-          Preview
-        </span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Preview</span>
       </div>
 
       {/* Input area */}
@@ -120,7 +118,15 @@ export function PreviewPanel({
 
       {/* Per-node results */}
       {snapshots && (
-        <div style={{ display: "flex", gap: 0, overflowX: "auto", paddingBottom: 4, alignItems: "center" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 0,
+            overflowX: "auto",
+            paddingBottom: 4,
+            alignItems: "center",
+          }}
+        >
           {/* Initial state */}
           <PreviewCard
             label="Input"
@@ -136,13 +142,17 @@ export function PreviewPanel({
             if (!after) return null;
             const prevNodeId = result!.nodeOrder[result!.nodeOrder.indexOf(nodeId) - 1];
             const prevTarget = prevNodeId
-              ? snapshots.afterNode?.[prevNodeId]?.targetText ?? ""
+              ? (snapshots.afterNode?.[prevNodeId]?.targetText ?? "")
               : "";
             const changed = after.targetText !== prevTarget;
 
             return (
               <div key={nodeId} style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                <span style={{ fontSize: 14, color: theme.fgMuted, padding: "0 4px", flexShrink: 0 }}>&rarr;</span>
+                <span
+                  style={{ fontSize: 14, color: theme.fgMuted, padding: "0 4px", flexShrink: 0 }}
+                >
+                  &rarr;
+                </span>
                 <PreviewCard
                   label={nodeNames.get(nodeId) ?? nodeId}
                   sourceText={after.sourceText ?? ""}
@@ -190,7 +200,16 @@ function PreviewCard({
         opacity: 0,
       }}
     >
-      <div style={{ fontSize: 9, fontWeight: 600, color: theme.fgMuted, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 600,
+          color: theme.fgMuted,
+          marginBottom: 4,
+          textTransform: "uppercase",
+          letterSpacing: "0.04em",
+        }}
+      >
         {label}
       </div>
       {sourceText && (

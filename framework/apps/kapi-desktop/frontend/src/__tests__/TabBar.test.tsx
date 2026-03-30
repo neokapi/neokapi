@@ -36,9 +36,7 @@ describe("TabBar", () => {
   });
 
   it("renders nothing when no tabs", () => {
-    const { container } = render(
-      <TabBar tabs={[]} activeTabID={null} {...defaultProps} />,
-    );
+    const { container } = render(<TabBar tabs={[]} activeTabID={null} {...defaultProps} />);
     expect(container.innerHTML).toBe("");
   });
 

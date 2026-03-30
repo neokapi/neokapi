@@ -37,22 +37,19 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
     });
   }, []);
 
-  const handleGetSchema = useCallback(
-    (toolName: string): ComponentSchema | null => {
-      if (toolName in schemasRef.current) {
-        return schemasRef.current[toolName] ?? null;
-      }
-      if (fetchingRef.current.has(toolName)) return null;
-      fetchingRef.current.add(toolName);
-      api.getToolSchema(toolName).then((result) => {
-        fetchingRef.current.delete(toolName);
-        schemasRef.current[toolName] = (result as ComponentSchema) ?? null;
-        forceUpdate();
-      });
-      return null;
-    },
-    [],
-  );
+  const handleGetSchema = useCallback((toolName: string): ComponentSchema | null => {
+    if (toolName in schemasRef.current) {
+      return schemasRef.current[toolName] ?? null;
+    }
+    if (fetchingRef.current.has(toolName)) return null;
+    fetchingRef.current.add(toolName);
+    api.getToolSchema(toolName).then((result) => {
+      fetchingRef.current.delete(toolName);
+      schemasRef.current[toolName] = (result as ComponentSchema) ?? null;
+      forceUpdate();
+    });
+    return null;
+  }, []);
 
   return (
     <FlowEditor

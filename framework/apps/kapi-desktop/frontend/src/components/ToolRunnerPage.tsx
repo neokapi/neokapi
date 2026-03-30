@@ -103,7 +103,9 @@ export function ToolRunnerPage() {
             </div>
 
             {error && (
-              <p className="text-sm text-destructive" role="alert">{error}</p>
+              <p className="text-sm text-destructive" role="alert">
+                {error}
+              </p>
             )}
 
             <button
@@ -112,11 +114,7 @@ export function ToolRunnerPage() {
               className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               aria-label={`Run ${selectedTool}`}
             >
-              {running ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Play size={14} />
-              )}
+              {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               {running ? "Running..." : `Run ${selectedTool}`}
             </button>
           </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { ComponentSchema } from "../types";
+import type { ComponentSchema, PropertySchema } from "../types";
 
 // Test the SchemaForm's data model logic without React rendering.
 // The rendering tests are covered by Storybook stories.
@@ -8,9 +8,7 @@ describe("SchemaForm field derivation", () => {
   const schema: ComponentSchema = {
     title: "Test Tool",
     type: "object",
-    "x-groups": [
-      { id: "output", label: "Output", fields: ["prefix", "suffix"] },
-    ],
+    "x-groups": [{ id: "output", label: "Output", fields: ["prefix", "suffix"] }],
     properties: {
       prefix: { type: "string", default: "[" },
       suffix: { type: "string", default: "]" },
@@ -95,5 +93,82 @@ describe("formatLabel", () => {
 
   it("handles empty string", () => {
     expect(formatLabel("")).toBe("");
+  });
+});
+
+describe("x-showIf logic", () => {
+  it("hides field when condition is not met", () => {
+    const schema: PropertySchema = {
+      type: "number",
+      "x-showIf": { field: "mode", value: "advanced" },
+    };
+    const allValues: Record<string, unknown> = { mode: "simple" };
+    const showIf = schema["x-showIf"];
+    const visible = !showIf || allValues[showIf.field] === showIf.value;
+    expect(visible).toBe(false);
+  });
+
+  it("shows field when condition is met", () => {
+    const schema: PropertySchema = {
+      type: "number",
+      "x-showIf": { field: "mode", value: "advanced" },
+    };
+    const allValues: Record<string, unknown> = { mode: "advanced" };
+    const showIf = schema["x-showIf"];
+    const visible = !showIf || allValues[showIf.field] === showIf.value;
+    expect(visible).toBe(true);
+  });
+
+  it("shows field when no x-showIf is set", () => {
+    const schema: PropertySchema = { type: "string" };
+    const allValues: Record<string, unknown> = { mode: "simple" };
+    const showIf = schema["x-showIf"];
+    const visible = !showIf || allValues[showIf.field] === showIf.value;
+    expect(visible).toBe(true);
+  });
+});
+
+describe("object type classification", () => {
+  function hasAdditionalProperties(schema: PropertySchema): boolean {
+    return schema.additionalProperties != null && schema.additionalProperties !== false;
+  }
+
+  it("identifies nested object (has properties)", () => {
+    const schema: PropertySchema = {
+      type: "object",
+      properties: {
+        enabled: { type: "boolean" },
+        threshold: { type: "number" },
+      },
+    };
+    expect(schema.properties).toBeDefined();
+    expect(Object.keys(schema.properties!).length).toBe(2);
+  });
+
+  it("identifies map object (has additionalProperties)", () => {
+    const schema: PropertySchema = {
+      type: "object",
+      additionalProperties: {
+        type: "object",
+        properties: { ruleTypes: { type: "array" } },
+      },
+    };
+    expect(hasAdditionalProperties(schema)).toBe(true);
+    expect(schema.properties).toBeUndefined();
+  });
+
+  it("identifies bare object (no properties, no additionalProperties)", () => {
+    const schema: PropertySchema = { type: "object" };
+    expect(schema.properties).toBeUndefined();
+    expect(hasAdditionalProperties(schema)).toBe(false);
+  });
+
+  it("treats additionalProperties: false as not having additional", () => {
+    const schema: PropertySchema = {
+      type: "object",
+      additionalProperties: false,
+      properties: { name: { type: "string" } },
+    };
+    expect(hasAdditionalProperties(schema)).toBe(false);
   });
 });

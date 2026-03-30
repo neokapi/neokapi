@@ -77,6 +77,7 @@ build-server build-worker build-bowrain-cli build-bowrain build-headless install
 # ── Kapi Desktop ────────────────────────────────────────────────────────────
 
 KAPI_DESKTOP_DIR := framework/apps/kapi-desktop
+FRAMEWORK_NODE_OPTS := NODE_OPTIONS="--import tsx/esm"
 
 build-kapi-desktop: kapi-desktop-frontend-build ## Build the Kapi Desktop app
 	cd $(KAPI_DESKTOP_DIR) && wails3 build
@@ -87,20 +88,31 @@ kapi-desktop-dev: kapi-desktop-frontend-deps ## Run Kapi Desktop in dev mode (ho
 kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GO) test ./backend/... -count=1
 
-kapi-desktop-frontend-deps: ## Install Kapi Desktop frontend dependencies
-	cd $(KAPI_DESKTOP_DIR)/frontend && npm install
+framework-deps: ## Install framework workspace dependencies (packages + kapi-desktop frontend)
+	cd framework && npm install
+
+kapi-desktop-frontend-deps: framework-deps ## Install Kapi Desktop frontend dependencies
 
 kapi-desktop-frontend-dev: kapi-desktop-frontend-deps ## Start Kapi Desktop frontend dev server
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp dev --port 5174 --strictPort
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(FRAMEWORK_NODE_OPTS) npx vp dev --port 5174 --strictPort
 
 kapi-desktop-frontend-build: kapi-desktop-frontend-deps ## Build Kapi Desktop frontend for production
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp build
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(FRAMEWORK_NODE_OPTS) npx vp build
 
 kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop frontend tests
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp test
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(FRAMEWORK_NODE_OPTS) npx vp test
 
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp check
+	cd $(KAPI_DESKTOP_DIR)/frontend && $(FRAMEWORK_NODE_OPTS) npx vp check
+
+flow-editor-deps: ## Install flow-editor dependencies
+	cd packages/flow-editor && npm install
+
+flow-editor-check: flow-editor-deps ## Lint + format + typecheck flow-editor package
+	cd packages/flow-editor && $(FRAMEWORK_NODE_OPTS) npx vp check
+
+flow-editor-test: flow-editor-deps ## Run flow-editor tests
+	cd packages/flow-editor && $(FRAMEWORK_NODE_OPTS) npx vp test
 
 kapi-desktop-storybook: kapi-desktop-frontend-deps ## Run Kapi Desktop Storybook (port 6007)
 	cd $(KAPI_DESKTOP_DIR)/frontend && npx storybook dev -p 6007
@@ -274,8 +286,10 @@ help: ## Show this help
         install install-bowrain-cli \
         frontend-check-all \
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
+        framework-deps \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check \
+        flow-editor-deps flow-editor-check flow-editor-test \
         kapi-desktop-storybook kapi-desktop-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \

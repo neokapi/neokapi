@@ -17,9 +17,23 @@ const sampleSchemas: Record<string, ComponentSchema> = {
     properties: {
       prefix: { type: "string", default: "[", description: "Prefix added to translations" },
       suffix: { type: "string", default: "]", description: "Suffix added to translations" },
-      expansionPercent: { type: "integer", default: 30, minimum: 0, maximum: 200, description: "Expand text length %" },
-      applyAccents: { type: "boolean", default: true, description: "Apply diacritical marks to characters" },
-      padWithX: { type: "boolean", default: false, description: "Pad expansion with 'x' characters" },
+      expansionPercent: {
+        type: "integer",
+        default: 30,
+        minimum: 0,
+        maximum: 200,
+        description: "Expand text length %",
+      },
+      applyAccents: {
+        type: "boolean",
+        default: true,
+        description: "Apply diacritical marks to characters",
+      },
+      padWithX: {
+        type: "boolean",
+        default: false,
+        description: "Pad expansion with 'x' characters",
+      },
     },
   },
   "qa-check": {
@@ -27,17 +41,55 @@ const sampleSchemas: Record<string, ComponentSchema> = {
     type: "object",
     "x-component": { id: "qa-check", type: "tool", category: "validate" },
     "x-groups": [
-      { id: "checks", label: "Enabled Checks", fields: ["checkLeadingWhitespace", "checkTrailingWhitespace", "checkDoubleSpaces", "checkMissingTranslation"] },
+      {
+        id: "checks",
+        label: "Enabled Checks",
+        fields: [
+          "checkLeadingWhitespace",
+          "checkTrailingWhitespace",
+          "checkDoubleSpaces",
+          "checkMissingTranslation",
+        ],
+      },
       { id: "codes", label: "Code Checks", fields: ["checkInlineCodes", "checkPatterns"] },
     ],
     properties: {
-      checkLeadingWhitespace: { type: "boolean", default: true, description: "Check for leading whitespace mismatches" },
-      checkTrailingWhitespace: { type: "boolean", default: true, description: "Check trailing whitespace" },
-      checkDoubleSpaces: { type: "boolean", default: true, description: "Flag double spaces in target" },
-      checkMissingTranslation: { type: "boolean", default: true, description: "Flag empty translations" },
-      checkInlineCodes: { type: "boolean", default: true, description: "Verify inline codes are preserved" },
-      checkPatterns: { type: "boolean", default: false, description: "Check for pattern mismatches" },
-      severityLevel: { type: "string", default: "warning", enum: ["error", "warning", "info"], description: "Default severity" },
+      checkLeadingWhitespace: {
+        type: "boolean",
+        default: true,
+        description: "Check for leading whitespace mismatches",
+      },
+      checkTrailingWhitespace: {
+        type: "boolean",
+        default: true,
+        description: "Check trailing whitespace",
+      },
+      checkDoubleSpaces: {
+        type: "boolean",
+        default: true,
+        description: "Flag double spaces in target",
+      },
+      checkMissingTranslation: {
+        type: "boolean",
+        default: true,
+        description: "Flag empty translations",
+      },
+      checkInlineCodes: {
+        type: "boolean",
+        default: true,
+        description: "Verify inline codes are preserved",
+      },
+      checkPatterns: {
+        type: "boolean",
+        default: false,
+        description: "Check for pattern mismatches",
+      },
+      severityLevel: {
+        type: "string",
+        default: "warning",
+        enum: ["error", "warning", "info"],
+        description: "Default severity",
+      },
     },
   },
   "search-replace": {
@@ -91,10 +143,7 @@ export const SingleStep: Story = {
 export const MultiStep: Story = {
   args: {
     flow: {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
     },
     tools,
   },
@@ -139,10 +188,7 @@ export const EmptyWithTemplates: Story = {
 export const ReadOnly: Story = {
   args: {
     flow: {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
     },
     tools,
     readOnly: true,
@@ -220,15 +266,16 @@ export const WithPortVisualization: Story = {
   name: "With Port Visualization",
   args: {
     flow: {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-        { tool: "word-count" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "word-count" }],
     },
     tools: tools.map((t) => ({
       ...t,
-      inputs: t.name === "ai-translate" ? ["block"] : t.name === "qa-check" ? ["block"] : ["block", "data"],
+      inputs:
+        t.name === "ai-translate"
+          ? ["block"]
+          : t.name === "qa-check"
+            ? ["block"]
+            : ["block", "data"],
       outputs: t.name === "ai-translate" ? ["block"] : t.name === "qa-check" ? ["block"] : ["data"],
     })),
   },
@@ -238,11 +285,7 @@ export const WithTraceData: Story = {
   name: "With Trace (Completed)",
   args: {
     flow: {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-        { tool: "word-count" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "word-count" }],
     },
     tools,
     readOnly: true,
@@ -273,17 +316,53 @@ export const WithTraceData: Story = {
         p1: {
           initial: { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world" },
           afterNode: {
-            "tool-0": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
-            "tool-1": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
-            "tool-2": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
+            "tool-0": {
+              id: "p1",
+              type: "Block",
+              summary: "Hello world",
+              sourceText: "Hello world",
+              targetText: "Bonjour le monde",
+            },
+            "tool-1": {
+              id: "p1",
+              type: "Block",
+              summary: "Hello world",
+              sourceText: "Hello world",
+              targetText: "Bonjour le monde",
+            },
+            "tool-2": {
+              id: "p1",
+              type: "Block",
+              summary: "Hello world",
+              sourceText: "Hello world",
+              targetText: "Bonjour le monde",
+            },
           },
         },
         p2: {
           initial: { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here" },
           afterNode: {
-            "tool-0": { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here", targetText: "Cliquez ici" },
-            "tool-1": { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here", targetText: "Cliquez ici" },
-            "tool-2": { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here", targetText: "Cliquez ici" },
+            "tool-0": {
+              id: "p2",
+              type: "Block",
+              summary: "Click here",
+              sourceText: "Click here",
+              targetText: "Cliquez ici",
+            },
+            "tool-1": {
+              id: "p2",
+              type: "Block",
+              summary: "Click here",
+              sourceText: "Click here",
+              targetText: "Cliquez ici",
+            },
+            "tool-2": {
+              id: "p2",
+              type: "Block",
+              summary: "Click here",
+              sourceText: "Click here",
+              targetText: "Cliquez ici",
+            },
           },
         },
       },

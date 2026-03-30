@@ -79,6 +79,7 @@ export function getCategoryColor(category: string): string {
   return getCategoryStyle(category).color;
 }
 
-export const ALL_CATEGORIES = Object.entries(CATEGORIES).map(
-  ([id, style]) => ({ id: id as ToolCategory, ...style }),
-);
+export const ALL_CATEGORIES = Object.entries(CATEGORIES).map(([id, style]) => ({
+  id: id as ToolCategory,
+  ...style,
+}));

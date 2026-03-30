@@ -100,10 +100,7 @@ export function AppSidebar({
                     : "text-muted-foreground hover:bg-accent/50"
                 }`}
               >
-                <button
-                  onClick={() => onSelectFlow?.(name)}
-                  className="flex-1 truncate text-left"
-                >
+                <button onClick={() => onSelectFlow?.(name)} className="flex-1 truncate text-left">
                   {name}
                 </button>
                 {onDeleteFlow && (

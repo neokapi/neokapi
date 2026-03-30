@@ -1,14 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
-import {
-  Plus,
-  Trash2,
-  TestTube,
-  KeyRound,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-} from "lucide-react";
+import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
 
@@ -22,7 +14,12 @@ interface Provider {
 
 function SimulatedCredentials() {
   const [providers, setProviders] = useState<Provider[]>([
-    { id: "1", name: "Production Anthropic", provider_type: "anthropic", model: "claude-sonnet-4-5-20241022" },
+    {
+      id: "1",
+      name: "Production Anthropic",
+      provider_type: "anthropic",
+      model: "claude-sonnet-4-5-20241022",
+    },
   ]);
   const [editing, setEditing] = useState<Provider | null>(null);
   const [apiKey, setApiKey] = useState("");
@@ -67,9 +64,7 @@ function SimulatedCredentials() {
     const success = Math.random() > 0.3;
     setProviders((prev) =>
       prev.map((p) =>
-        p.id === id
-          ? { ...p, testResult: success ? ("success" as const) : ("error" as const) }
-          : p,
+        p.id === id ? { ...p, testResult: success ? ("success" as const) : ("error" as const) } : p,
       ),
     );
   }, []);
@@ -113,9 +108,7 @@ function SimulatedCredentials() {
                 )}
               </div>
               {provider.model && (
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  Model: {provider.model}
-                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Model: {provider.model}</p>
               )}
             </div>
             <button
@@ -164,7 +157,9 @@ function SimulatedCredentials() {
                 className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none"
               >
                 {PROVIDER_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>

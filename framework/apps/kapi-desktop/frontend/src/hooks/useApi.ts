@@ -75,7 +75,8 @@ export const api = {
   // Flows (scoped to tab)
   listFlows: (tabID: string) => call<FlowInfo[]>("ListFlows", tabID),
   getFlow: (tabID: string, name: string) => call<FlowSpec>("GetFlow", tabID, name),
-  saveFlow: (tabID: string, name: string, spec: FlowSpec) => call<void>("SaveFlow", tabID, name, spec),
+  saveFlow: (tabID: string, name: string, spec: FlowSpec) =>
+    call<void>("SaveFlow", tabID, name, spec),
   deleteFlow: (tabID: string, name: string) => call<void>("DeleteFlow", tabID, name),
 
   // User flows (ad-hoc, stored in ~/.config/kapi/flows/)
@@ -100,8 +101,7 @@ export const api = {
   detectFormat: (path: string) => call<string>("DetectFormat", path),
 
   // Presets
-  listPresets: () =>
-    call<Array<{ name: string; description: string }>>("ListPresets"),
+  listPresets: () => call<Array<{ name: string; description: string }>>("ListPresets"),
   applyPreset: (tabID: string, presetName: string) =>
     call<KapiProject>("ApplyPreset", tabID, presetName),
   listFormatPresets: (format: string) =>
@@ -123,7 +123,11 @@ export const api = {
   testProvider: (id: string) => call<boolean>("TestProvider", id),
 
   // Files
-  matchContent: (tabID: string) => call<Array<{ path: string; format: string; relative: string; pattern: string }>>("MatchContent", tabID),
+  matchContent: (tabID: string) =>
+    call<Array<{ path: string; format: string; relative: string; pattern: string }>>(
+      "MatchContent",
+      tabID,
+    ),
   getBasePath: (tabID: string) => call<string>("GetBasePath", tabID),
 
   // Recent files
@@ -133,8 +137,7 @@ export const api = {
 
   // Settings
   getSettings: () => call<{ theme: string; plugin_dir: string }>("GetSettings"),
-  saveSettings: (s: { theme: string; plugin_dir: string }) =>
-    call<void>("SaveSettings", s),
+  saveSettings: (s: { theme: string; plugin_dir: string }) => call<void>("SaveSettings", s),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
 
@@ -142,35 +145,54 @@ export const api = {
   recoverResource: (path: string) => call<string>("RecoverResource", path),
 
   // TM
-  listNamedTMs: () => call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTMs"),
+  listNamedTMs: () =>
+    call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTMs"),
   getTMStats: (handle: string) => call<{ count: number; path: string }>("GetTMStats", handle),
   openTM: (path: string) => call<string>("OpenTM", path),
   openTMDialog: () => call<string>("OpenTMDialog"),
   createTM: (path: string) => call<string>("CreateTM", path),
   createNamedTM: (name: string) => call<string>("CreateNamedTM", name),
   closeTM: (handle: string) => call<void>("CloseTM", handle),
-  searchTMEntries: (handle: string, query: string, srcLocale: string, tgtLocale: string, offset: number, limit: number) =>
-    call<unknown>("SearchTMEntries", handle, query, srcLocale, tgtLocale, offset, limit),
+  searchTMEntries: (
+    handle: string,
+    query: string,
+    srcLocale: string,
+    tgtLocale: string,
+    offset: number,
+    limit: number,
+  ) => call<unknown>("SearchTMEntries", handle, query, srcLocale, tgtLocale, offset, limit),
   getTMEntry: (handle: string, id: string) => call<unknown>("GetTMEntry", handle, id),
   addTMEntry: (handle: string, req: unknown) => call<void>("AddTMEntry", handle, req),
   updateTMEntry: (handle: string, req: unknown) => call<void>("UpdateTMEntry", handle, req),
   deleteTMEntry: (handle: string, id: string) => call<void>("DeleteTMEntry", handle, id),
   deleteTMEntries: (handle: string, ids: string[]) => call<void>("DeleteTMEntries", handle, ids),
   lookupTM: (handle: string, req: unknown) => call<unknown[]>("LookupTM", handle, req),
-  annotateEntities: (handle: string, req: unknown) => call<unknown>("AnnotateEntities", handle, req),
-  importTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) => call<{ count: number }>("ImportTMXDialog", handle, srcLocale, tgtLocale),
-  exportTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) => call<void>("ExportTMXDialog", handle, srcLocale, tgtLocale),
+  annotateEntities: (handle: string, req: unknown) =>
+    call<unknown>("AnnotateEntities", handle, req),
+  importTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) =>
+    call<{ count: number }>("ImportTMXDialog", handle, srcLocale, tgtLocale),
+  exportTMXDialog: (handle: string, srcLocale: string, tgtLocale: string) =>
+    call<void>("ExportTMXDialog", handle, srcLocale, tgtLocale),
 
   // Termbase
-  listNamedTermbases: () => call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTermbases"),
+  listNamedTermbases: () =>
+    call<Array<{ name: string; path: string; size: number; modified: string }>>(
+      "ListNamedTermbases",
+    ),
   getTermbaseStats: (handle: string) => call<{ count: number }>("GetTermbaseStats", handle),
   openTermbase: (path: string) => call<string>("OpenTermbase", path),
   openTermbaseDialog: () => call<string>("OpenTermbaseDialog"),
   createTermbase: (path: string) => call<string>("CreateTermbase", path),
   createNamedTermbase: (name: string) => call<string>("CreateNamedTermbase", name),
   closeTermbase: (handle: string) => call<void>("CloseTermbase", handle),
-  searchTerms: (handle: string, query: string, srcLocale: string, tgtLocale: string, offset: number, limit: number) =>
-    call<unknown>("SearchTerms", handle, query, srcLocale, tgtLocale, offset, limit),
+  searchTerms: (
+    handle: string,
+    query: string,
+    srcLocale: string,
+    tgtLocale: string,
+    offset: number,
+    limit: number,
+  ) => call<unknown>("SearchTerms", handle, query, srcLocale, tgtLocale, offset, limit),
   getConcept: (handle: string, id: string) => call<unknown>("GetConcept", handle, id),
   addConcept: (handle: string, req: unknown) => call<void>("AddConcept", handle, req),
   updateConcept: (handle: string, req: unknown) => call<void>("UpdateConcept", handle, req),
@@ -178,12 +200,19 @@ export const api = {
   deleteConcepts: (handle: string, ids: string[]) => call<void>("DeleteConcepts", handle, ids),
   importTermbaseCSVDialog: (handle: string, srcLocale: string, tgtLocale: string, domain: string) =>
     call<{ count: number }>("ImportTermbaseCSVDialog", handle, srcLocale, tgtLocale, domain),
-  importTermbaseJSONDialog: (handle: string) => call<{ count: number }>("ImportTermbaseJSONDialog", handle),
-  exportTermbaseJSONDialog: (handle: string, name: string) => call<void>("ExportTermbaseJSONDialog", handle, name),
+  importTermbaseJSONDialog: (handle: string) =>
+    call<{ count: number }>("ImportTermbaseJSONDialog", handle),
+  exportTermbaseJSONDialog: (handle: string, name: string) =>
+    call<void>("ExportTermbaseJSONDialog", handle, name),
 
   // Preview
-  previewFlow: (tabID: string, flowName: string, sampleText: string, sourceLang: string, targetLang: string) =>
-    call<unknown>("PreviewFlow", tabID, flowName, sampleText, sourceLang, targetLang),
+  previewFlow: (
+    tabID: string,
+    flowName: string,
+    sampleText: string,
+    sourceLang: string,
+    targetLang: string,
+  ) => call<unknown>("PreviewFlow", tabID, flowName, sampleText, sourceLang, targetLang),
 
   // Trace
   getLastTrace: () => call<unknown>("GetLastTrace"),

@@ -95,15 +95,12 @@ describe("TMBrowser", () => {
       await userEvent.type(input, "test query");
 
       // Wait for debounce (200ms) + re-render
-      await waitFor(() => {
-        expect(adapter.search).toHaveBeenCalledWith(
-          "test query",
-          "en-US",
-          "fr-FR",
-          0,
-          50,
-        );
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(adapter.search).toHaveBeenCalledWith("test query", "en-US", "fr-FR", 0, 50);
+        },
+        { timeout: 1000 },
+      );
     });
   });
 
@@ -121,7 +118,8 @@ describe("TMBrowser", () => {
       // First render with no results but with a search query active
       const emptyAdapter: TMAdapter = {
         ...createMockAdapter([]),
-        search: vi.fn()
+        search: vi
+          .fn()
           .mockResolvedValueOnce({ entries: [], total_count: 0 }) // initial load
           .mockResolvedValue({ entries: [], total_count: 0 }), // after search
       };
@@ -134,9 +132,12 @@ describe("TMBrowser", () => {
       const input = screen.getByPlaceholderText("Search translation memory...");
       await userEvent.type(input, "nonexistent");
 
-      await waitFor(() => {
-        expect(screen.getByText("No entries match your search.")).toBeInTheDocument();
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("No entries match your search.")).toBeInTheDocument();
+        },
+        { timeout: 1000 },
+      );
     });
   });
 
@@ -307,9 +308,7 @@ describe("TMBrowser", () => {
       await userEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(adapter.deleteEntries).toHaveBeenCalledWith(
-          expect.arrayContaining(["e1", "e2"]),
-        );
+        expect(adapter.deleteEntries).toHaveBeenCalledWith(expect.arrayContaining(["e1", "e2"]));
       });
     });
   });

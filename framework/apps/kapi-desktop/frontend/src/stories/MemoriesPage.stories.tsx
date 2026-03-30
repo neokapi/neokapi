@@ -1,13 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
-import {
-  Database,
-  Plus,
-  FolderOpen,
-  X,
-  Upload,
-  Download,
-} from "lucide-react";
+import { Database, Plus, FolderOpen, X, Upload, Download } from "lucide-react";
 import {
   TMBrowser,
   ResourceCard,
@@ -59,12 +52,8 @@ const SAMPLE_ENTRIES: TMEntryDTO[] = [
     target_text: " est un héros",
     source_coded: "\uE003 is a hero",
     target_coded: "\uE003 est un héros",
-    source_spans: [
-      { span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" },
-    ],
-    target_spans: [
-      { span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" },
-    ],
+    source_spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
+    target_spans: [{ span_type: "placeholder", type: "entity:person", id: "e1", data: "Bob" }],
     source_locale: "en-US",
     target_locale: "fr-FR",
     project_id: "",
@@ -107,7 +96,14 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
     },
     async updateEntry(req) {
       data = data.map((e) =>
-        e.id === req.entry_id ? { ...e, target_text: req.target, target_coded: req.target, updated_at: new Date().toISOString() } : e,
+        e.id === req.entry_id
+          ? {
+              ...e,
+              target_text: req.target,
+              target_coded: req.target,
+              updated_at: new Date().toISOString(),
+            }
+          : e,
       );
     },
     async deleteEntry(id) {
@@ -118,14 +114,27 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
       data = data.filter((e) => !idSet.has(e.id));
     },
     async annotateEntities(req) {
-      return { entries_updated: req.entry_ids.length, entities_added: req.entry_ids.length * req.patterns.length };
+      return {
+        entries_updated: req.entry_ids.length,
+        entities_added: req.entry_ids.length * req.patterns.length,
+      };
     },
     async lookup(req) {
       return SAMPLE_ENTRIES.slice(0, 2).map((e, i) => ({
         entry: e,
         score: i === 0 ? 1.0 : 0.85,
         match_type: i === 0 ? "generalized-exact" : "fuzzy",
-        entity_adaptations: i === 0 ? [{ placeholder_id: "e1", type: "entity:person", stored_value: "John", current_value: "Bob" }] : [],
+        entity_adaptations:
+          i === 0
+            ? [
+                {
+                  placeholder_id: "e1",
+                  type: "entity:person",
+                  stored_value: "John",
+                  current_value: "Bob",
+                },
+              ]
+            : [],
       }));
     },
   };
@@ -136,8 +145,18 @@ function SimulatedMemoriesPage() {
   const adapter = handle ? createMockAdapter(SAMPLE_ENTRIES) : null;
 
   const resources = [
-    { name: "my-project", path: "~/.config/kapi/tm/my-project.db", size: 524288, modified: new Date(Date.now() - 3600000).toISOString() },
-    { name: "global-tm", path: "~/.config/kapi/tm/global-tm.db", size: 1048576, modified: new Date(Date.now() - 86400000).toISOString() },
+    {
+      name: "my-project",
+      path: "~/.config/kapi/tm/my-project.db",
+      size: 524288,
+      modified: new Date(Date.now() - 3600000).toISOString(),
+    },
+    {
+      name: "global-tm",
+      path: "~/.config/kapi/tm/global-tm.db",
+      size: 1048576,
+      modified: new Date(Date.now() - 86400000).toISOString(),
+    },
   ];
 
   if (handle && adapter) {
@@ -145,7 +164,10 @@ function SimulatedMemoriesPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button onClick={() => setHandle(null)} className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setHandle(null)}
+              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            >
               <X size={16} />
             </button>
             <h1 className="text-lg font-semibold">my-project</h1>

@@ -22,9 +22,7 @@ describe("FlowTemplateLibrary data layer", () => {
   });
 
   it("filter by category returns correct subset", () => {
-    const translateTemplates = FLOW_TEMPLATES.filter(
-      (t) => t.category === "translate",
-    );
+    const translateTemplates = FLOW_TEMPLATES.filter((t) => t.category === "translate");
     expect(translateTemplates.length).toBeGreaterThan(0);
     for (const t of translateTemplates) {
       expect(t.category).toBe("translate");
@@ -32,9 +30,7 @@ describe("FlowTemplateLibrary data layer", () => {
   });
 
   it("filter by category 'validate' returns validate templates", () => {
-    const validateTemplates = FLOW_TEMPLATES.filter(
-      (t) => t.category === "validate",
-    );
+    const validateTemplates = FLOW_TEMPLATES.filter((t) => t.category === "validate");
     expect(validateTemplates.length).toBeGreaterThan(0);
     for (const t of validateTemplates) {
       expect(t.category).toBe("validate");
@@ -50,9 +46,7 @@ describe("FlowTemplateLibrary data layer", () => {
 
   it("null filter returns all templates", () => {
     const filter: string | null = null;
-    const filtered = filter
-      ? FLOW_TEMPLATES.filter((t) => t.category === filter)
-      : FLOW_TEMPLATES;
+    const filtered = filter ? FLOW_TEMPLATES.filter((t) => t.category === filter) : FLOW_TEMPLATES;
     expect(filtered.length).toBe(FLOW_TEMPLATES.length);
   });
 

@@ -42,13 +42,9 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
     return groups;
   }, [filtered]);
 
-  const toggle = (cat: string) =>
-    setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }));
+  const toggle = (cat: string) => setCollapsed((prev) => ({ ...prev, [cat]: !prev[cat] }));
 
-  const handleDragStart = (
-    e: React.DragEvent<HTMLButtonElement>,
-    toolName: string,
-  ) => {
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>, toolName: string) => {
     e.dataTransfer.setData("application/neokapi-tool", toolName);
     e.dataTransfer.effectAllowed = "copy";
   };
