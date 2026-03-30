@@ -7,14 +7,16 @@ function SchemaFormWrapper({
   schema,
   initialValues = {},
   compact = false,
+  width = 360,
 }: {
   schema: ComponentSchema;
   initialValues?: Record<string, unknown>;
   compact?: boolean;
+  width?: number;
 }) {
   const [values, setValues] = useState<Record<string, unknown>>(initialValues);
   return (
-    <div style={{ maxWidth: 360 }}>
+    <div style={{ maxWidth: width }}>
       <SchemaForm schema={schema} values={values} onChange={setValues} compact={compact} />
       <pre
         style={{
@@ -318,6 +320,151 @@ const showIfSchema: ComponentSchema = {
   },
 };
 
+// ── Deeply nested schema (3+ depth) ──
+
+const deeplyNestedSchema: ComponentSchema = {
+  title: "HTML Format",
+  type: "object",
+  "x-groups": [
+    { id: "parser", label: "Parser Settings", fields: ["preserveWhitespace"] },
+    { id: "extraction", label: "Extraction Rules", fields: ["elements", "attributes"] },
+    { id: "codes", label: "Inline Codes", fields: ["codeFinderRules", "useCodeFinder"] },
+  ],
+  properties: {
+    preserveWhitespace: { type: "boolean", default: false, description: "Preserve significant whitespace in text nodes" },
+    elements: {
+      type: "object",
+      description: "Map of element names to extraction rules",
+      additionalProperties: {
+        type: "object",
+        properties: {
+          ruleType: { type: "string", enum: ["INLINE", "GROUP", "EXCLUDE", "TEXTUNIT", "PRESERVE_WHITESPACE"], default: "INLINE" },
+          translatable: { type: "boolean", default: true },
+        },
+      } as unknown as boolean,
+    },
+    attributes: {
+      type: "object",
+      description: "Map of attribute names to extraction rules",
+      additionalProperties: { type: "string" } as unknown as boolean,
+    },
+    codeFinderRules: {
+      type: "object",
+      description: "Rules for identifying inline codes",
+      properties: {
+        useAllRulesWhenTesting: { type: "boolean", default: true },
+        includes: {
+          type: "array",
+          items: { type: "string" },
+          description: "Regex patterns to include as inline codes",
+        },
+        excludes: {
+          type: "array",
+          items: { type: "string" },
+          description: "Regex patterns to exclude from inline codes",
+        },
+      },
+    },
+    useCodeFinder: { type: "boolean", default: true, description: "Enable the inline code finder" },
+  },
+};
+
+// ── Map editor schema ──
+
+const mapEditorSchema: ComponentSchema = {
+  title: "Environment Variables",
+  type: "object",
+  "x-component": { id: "env-vars", type: "tool", category: "config" },
+  "x-groups": [
+    { id: "maps", label: "Variable Maps", fields: ["variables", "secrets", "overrides"] },
+    { id: "options", label: "Options", fields: ["expandVars", "caseSensitiveKeys"] },
+  ],
+  properties: {
+    variables: {
+      type: "object",
+      description: "Environment variables (key-value pairs)",
+      additionalProperties: { type: "string" } as unknown as boolean,
+    },
+    secrets: {
+      type: "object",
+      description: "Secret variables (masked in output)",
+      additionalProperties: { type: "string" } as unknown as boolean,
+    },
+    overrides: {
+      type: "object",
+      description: "Per-locale variable overrides",
+      additionalProperties: {
+        type: "object",
+        properties: {
+          value: { type: "string", description: "Override value" },
+          locales: { type: "string", description: "Comma-separated locale list" },
+        },
+      } as unknown as boolean,
+    },
+    expandVars: { type: "boolean", default: true, description: "Expand ${VAR} references in values" },
+    caseSensitiveKeys: { type: "boolean", default: true, description: "Treat variable names as case-sensitive" },
+  },
+};
+
+// ── Formats page config schema (wide container) ──
+
+const formatsPageSchema: ComponentSchema = {
+  title: "JSON Format",
+  type: "object",
+  "x-component": { id: "json-format", type: "format", category: "convert" },
+  "x-groups": [
+    { id: "parsing", label: "Parsing", fields: ["keyStyle", "arrayHandling", "preserveOrder"] },
+    { id: "extraction", label: "Extraction", fields: ["extractPaths", "excludePaths"] },
+    { id: "output", label: "Output", fields: ["indentation", "trailingNewline", "sortKeys"] },
+  ],
+  properties: {
+    keyStyle: {
+      type: "string",
+      default: "nested",
+      enum: ["nested", "flat", "auto"],
+      description: "How to interpret JSON key paths",
+    },
+    arrayHandling: {
+      type: "string",
+      default: "index",
+      enum: ["index", "content", "skip"],
+      description: "How to handle array elements",
+    },
+    preserveOrder: {
+      type: "boolean",
+      default: true,
+      description: "Preserve original key order in output",
+    },
+    extractPaths: {
+      type: "array",
+      items: { type: "string" },
+      description: "JSON paths to extract (empty = extract all)",
+    },
+    excludePaths: {
+      type: "array",
+      items: { type: "string" },
+      description: "JSON paths to exclude from extraction",
+    },
+    indentation: {
+      type: "integer",
+      default: 2,
+      minimum: 0,
+      maximum: 8,
+      description: "Number of spaces for indentation",
+    },
+    trailingNewline: {
+      type: "boolean",
+      default: true,
+      description: "Add trailing newline to output",
+    },
+    sortKeys: {
+      type: "boolean",
+      default: false,
+      description: "Alphabetically sort keys in output",
+    },
+  },
+};
+
 const meta: Meta<typeof SchemaFormWrapper> = {
   title: "Flow Editor/SchemaForm",
   component: SchemaFormWrapper,
@@ -421,5 +568,71 @@ export const ConditionalFieldsAdvanced: Story = {
   args: {
     schema: showIfSchema,
     initialValues: { mode: "advanced", threshold: 0.75, maxResults: 50 },
+  },
+};
+
+// ── New stories: deeply nested, map editor, formats page ──
+
+export const DeeplyNestedConfig: Story = {
+  name: "Deeply Nested Config (HTML Format)",
+  args: {
+    schema: deeplyNestedSchema,
+    initialValues: {
+      preserveWhitespace: false,
+      elements: {
+        div: { ruleType: "TEXTUNIT", translatable: true },
+        span: { ruleType: "INLINE", translatable: true },
+        script: { ruleType: "EXCLUDE", translatable: false },
+      },
+      attributes: {
+        title: "translatable",
+        alt: "translatable",
+        placeholder: "translatable",
+      },
+      codeFinderRules: {
+        useAllRulesWhenTesting: true,
+        includes: ["</?\\w[^>]*>", "\\{\\{.*?\\}\\}"],
+        excludes: ["<!--.*?-->"],
+      },
+      useCodeFinder: true,
+    },
+  },
+};
+
+export const MapEditorStory: Story = {
+  name: "Map Editor (key-value maps)",
+  args: {
+    schema: mapEditorSchema,
+    initialValues: {
+      variables: {
+        API_URL: "https://api.example.com",
+        APP_NAME: "My App",
+        VERSION: "2.1.0",
+      },
+      secrets: {
+        API_KEY: "sk-***",
+      },
+      overrides: {},
+      expandVars: true,
+      caseSensitiveKeys: true,
+    },
+  },
+};
+
+export const FormatsPageConfig: Story = {
+  name: "Formats Page Config (wide)",
+  args: {
+    schema: formatsPageSchema,
+    width: 500,
+    initialValues: {
+      keyStyle: "nested",
+      arrayHandling: "index",
+      preserveOrder: true,
+      extractPaths: ["$.messages", "$.labels"],
+      excludePaths: ["$.internal"],
+      indentation: 2,
+      trailingNewline: true,
+      sortKeys: false,
+    },
   },
 };
