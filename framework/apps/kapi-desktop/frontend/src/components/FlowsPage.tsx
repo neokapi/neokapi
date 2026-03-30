@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -108,26 +108,34 @@ export function FlowsPage({
     [tabID, isProjectMode, showError],
   );
 
+  // Debounce persistence — update local state immediately, save to backend after 500ms idle.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
   const handleFlowChange = useCallback(
-    async (spec: FlowSpec) => {
+    (spec: FlowSpec) => {
       if (!selectedId) return;
+      // Immediate local update — no async, no re-render delay.
       setSelectedSpec(spec);
-      try {
-        if (isProjectMode) {
-          await api.saveFlow(tabID!, selectedId, spec);
-          onFlowChange?.(selectedId, spec);
-        } else if (selectedSource === "user") {
-          await api.saveUserFlow({
-            id: selectedId,
-            name: selectedId,
-            description: spec.description ?? "",
-            steps: spec.steps,
-          });
+      onFlowChange?.(selectedId, spec);
+
+      // Debounced save to backend.
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        try {
+          if (isProjectMode && tabID) {
+            await api.saveFlow(tabID, selectedId, spec);
+          } else if (selectedSource === "user") {
+            await api.saveUserFlow({
+              id: selectedId,
+              name: selectedId,
+              description: spec.description ?? "",
+              steps: spec.steps,
+            });
+          }
+        } catch (err) {
+          showError("Failed to save flow", err);
         }
-        // Built-in flows are read-only — changes aren't saved.
-      } catch (err) {
-        showError("Failed to save flow", err);
-      }
+      }, 500);
     },
     [selectedId, selectedSource, tabID, isProjectMode, onFlowChange, showError],
   );
