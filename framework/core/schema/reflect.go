@@ -307,6 +307,10 @@ func applyTag(prop *PropertySchema, tag string) {
 			}
 		case "default":
 			prop.Default = parseDefault(val, prop.Type)
+		case "showIfEmpty":
+			prop.ShowIf = &ShowIfRule{Field: val, Empty: true}
+		case "showIfSet":
+			prop.ShowIf = &ShowIfRule{Field: val, Empty: false}
 		}
 	}
 }

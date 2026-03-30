@@ -200,9 +200,17 @@ function PropertyField({
   depth?: number;
 }) {
   // x-showIf conditional visibility
-  const showIf = schema["x-showIf"] as { field: string; value: unknown } | undefined;
+  const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
   if (showIf && allValues) {
-    if (allValues[showIf.field] !== showIf.value) return null;
+    const otherVal = allValues[showIf.field];
+    if (showIf.empty !== undefined) {
+      // empty=true → show when the other field is empty/unset
+      const isEmpty = otherVal === undefined || otherVal === null || otherVal === "";
+      if (showIf.empty && !isEmpty) return null;
+      if (!showIf.empty && isEmpty) return null;
+    } else if (showIf.value !== undefined) {
+      if (otherVal !== showIf.value) return null;
+    }
   }
 
   const label = schema.title || formatLabel(name);
@@ -238,17 +246,47 @@ function PropertyField({
   if (widget === "file-picker") {
     return (
       <FieldWrapper label={label} description={schema.description} compact={compact}>
-        <input
-          type="text"
-          value={String(resolved ?? "")}
-          placeholder={schema["x-placeholder"] || "/path/to/file..."}
-          onChange={(e) => onChange(e.target.value || undefined)}
-          style={{
-            ...inputStyle(compact),
-            fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-            fontSize: compact ? 10 : 11,
-          }}
-        />
+        <div style={{ display: "flex", gap: 4 }}>
+          <input
+            type="text"
+            value={String(resolved ?? "")}
+            placeholder={schema["x-placeholder"] || "/path/to/file..."}
+            onChange={(e) => onChange(e.target.value || undefined)}
+            style={{
+              ...inputStyle(compact),
+              flex: 1,
+              fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+              fontSize: compact ? 10 : 11,
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              // Trigger native file dialog via the HTML file input fallback.
+              const input = document.createElement("input");
+              input.type = "file";
+              input.accept = ".js,.mjs,.cjs";
+              input.onchange = () => {
+                const file = input.files?.[0];
+                if (file) onChange(file.name);
+              };
+              input.click();
+            }}
+            style={{
+              padding: compact ? "2px 6px" : "4px 8px",
+              borderRadius: 4,
+              border: `1px solid ${theme.border}`,
+              background: theme.bgSecondary,
+              color: theme.fgMuted,
+              fontSize: compact ? 10 : 11,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+          >
+            Browse
+          </button>
+        </div>
       </FieldWrapper>
     );
   }

@@ -86,6 +86,14 @@ type ParameterGroup struct {
 	Fields      []string `json:"fields"`
 }
 
+// ShowIfRule controls conditional visibility of a property.
+// The property is shown only when the referenced field matches the given value.
+type ShowIfRule struct {
+	Field string `json:"field"`          // name of the field to check
+	Value any    `json:"value"`          // value that makes this field visible
+	Empty bool   `json:"empty,omitempty"` // if true, show when the field is empty/unset
+}
+
 // PropertySchema represents a single parameter's schema.
 type PropertySchema struct {
 	Type        string `json:"type"`
@@ -104,6 +112,7 @@ type PropertySchema struct {
 	Widget      string         `json:"x-widget,omitempty"`
 	Placeholder string         `json:"x-placeholder,omitempty"`
 	Presets     map[string]any `json:"x-presets,omitempty"`
+	ShowIf      *ShowIfRule    `json:"x-showIf,omitempty"`
 
 	// Nested properties for object types
 	Properties map[string]PropertySchema `json:"properties,omitempty"`

@@ -11,9 +11,10 @@ import (
 )
 
 // ScriptConfig holds configuration for the script tool.
+// Code and ScriptFile are mutually exclusive.
 type ScriptConfig struct {
-	Code       string `schema:"description=Inline ES5 JavaScript code,widget=code-editor,placeholder=// Access block via part.block\nvar text = part.block.source[0].content.text;\nlog(text);"`
-	ScriptFile string `schema:"description=Path to a .js file (alternative to inline code),widget=file-picker"`
+	Code       string `schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIfEmpty=scriptFile"`
+	ScriptFile string `schema:"description=Path to a .js file (alternative to inline code),widget=file-picker,showIfEmpty=code"`
 }
 
 // ToolName returns the tool name this config applies to.

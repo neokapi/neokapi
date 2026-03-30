@@ -95,7 +95,7 @@ export interface PropertySchema {
   "x-widget"?: string;
   "x-placeholder"?: string;
   "x-presets"?: Record<string, unknown>;
-  "x-showIf"?: { field: string; value: unknown };
+  "x-showIf"?: { field: string; value?: unknown; empty?: boolean };
   properties?: Record<string, PropertySchema>;
   additionalProperties?: PropertySchema | boolean;
   items?: PropertySchema;
