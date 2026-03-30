@@ -129,6 +129,9 @@ export const api = {
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
 
+  // Recovery
+  recoverResource: (path: string) => call<string>("RecoverResource", path),
+
   // TM
   listNamedTMs: () => call<Array<{ name: string; path: string; size: number; modified: string }>>("ListNamedTMs"),
   getTMStats: (handle: string) => call<{ count: number; path: string }>("GetTMStats", handle),

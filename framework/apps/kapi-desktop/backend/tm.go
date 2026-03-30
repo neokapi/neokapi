@@ -232,6 +232,20 @@ func namedResourceDir(kind string) string {
 	return filepath.Join(cfgDir, "kapi", kind)
 }
 
+// --- Recovery ---
+
+// RecoverResource backs up a corrupt .db file to .db.bak and returns the backup path.
+// The caller should then create a fresh resource at the original path.
+func (a *App) RecoverResource(path string) (string, error) {
+	bakPath := path + ".bak"
+	// Remove existing backup if present.
+	_ = os.Remove(bakPath)
+	if err := os.Rename(path, bakPath); err != nil {
+		return "", fmt.Errorf("backup %q: %w", path, err)
+	}
+	return bakPath, nil
+}
+
 // --- Lifecycle ---
 
 // OpenTM opens a SQLite TM file and returns a handle ID.
