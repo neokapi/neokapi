@@ -14,6 +14,7 @@ interface TMBrowserProps {
   sourceLocale?: string;
   targetLocales?: string[];
   showLookup?: boolean;
+  onError?: (message: string, details?: unknown) => void;
 }
 
 const PAGE_SIZE = 50;
@@ -23,6 +24,7 @@ export function TMBrowser({
   sourceLocale = "",
   targetLocales = [],
   showLookup = false,
+  onError,
 }: TMBrowserProps) {
   const [entries, setEntries] = useState<TMEntryDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -104,31 +106,39 @@ export function TMBrowser({
 
   const handleSaveEdit = useCallback(
     async (entry: TMEntryDTO) => {
-      await adapter.updateEntry({
-        entry_id: entry.id,
-        source: entry.source_text,
-        target: editTarget,
-        source_locale: entry.source_locale,
-        target_locale: entry.target_locale,
-        project_id: entry.project_id,
-      });
-      setEditingId(null);
-      void fetchEntries(debouncedSearch, page);
+      try {
+        await adapter.updateEntry({
+          entry_id: entry.id,
+          source: entry.source_text,
+          target: editTarget,
+          source_locale: entry.source_locale,
+          target_locale: entry.target_locale,
+          project_id: entry.project_id,
+        });
+        setEditingId(null);
+        void fetchEntries(debouncedSearch, page);
+      } catch (err) {
+        onError?.("Failed to save TM entry", err);
+      }
     },
-    [adapter, editTarget, fetchEntries, debouncedSearch, page],
+    [adapter, editTarget, fetchEntries, debouncedSearch, page, onError],
   );
 
   const handleDelete = useCallback(
     async (id: string) => {
-      await adapter.deleteEntry(id);
-      setSelected((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      void fetchEntries(debouncedSearch, page);
+      try {
+        await adapter.deleteEntry(id);
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        void fetchEntries(debouncedSearch, page);
+      } catch (err) {
+        onError?.("Failed to delete TM entry", err);
+      }
     },
-    [adapter, fetchEntries, debouncedSearch, page],
+    [adapter, fetchEntries, debouncedSearch, page, onError],
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -136,25 +146,33 @@ export function TMBrowser({
       setConfirmBulkDelete(true);
       return;
     }
-    const ids = [...selected];
-    await adapter.deleteEntries(ids);
-    setSelected(new Set());
-    setConfirmBulkDelete(false);
-    void fetchEntries(debouncedSearch, page);
-  }, [adapter, selected, confirmBulkDelete, fetchEntries, debouncedSearch, page]);
+    try {
+      const ids = [...selected];
+      await adapter.deleteEntries(ids);
+      setSelected(new Set());
+      setConfirmBulkDelete(false);
+      void fetchEntries(debouncedSearch, page);
+    } catch (err) {
+      onError?.("Failed to delete TM entries", err);
+    }
+  }, [adapter, selected, confirmBulkDelete, fetchEntries, debouncedSearch, page, onError]);
 
   const handleAdd = useCallback(async () => {
     if (!addSource.trim() || !addTarget.trim()) return;
-    await adapter.addEntry({
-      source: addSource,
-      target: addTarget,
-      source_locale: addSrcLocale,
-      target_locale: addTgtLocale,
-    });
-    setAddSource("");
-    setAddTarget("");
-    setShowAddForm(false);
-    void fetchEntries(debouncedSearch, page);
+    try {
+      await adapter.addEntry({
+        source: addSource,
+        target: addTarget,
+        source_locale: addSrcLocale,
+        target_locale: addTgtLocale,
+      });
+      setAddSource("");
+      setAddTarget("");
+      setShowAddForm(false);
+      void fetchEntries(debouncedSearch, page);
+    } catch (err) {
+      onError?.("Failed to add TM entry", err);
+    }
   }, [
     adapter,
     addSource,
@@ -164,6 +182,7 @@ export function TMBrowser({
     fetchEntries,
     debouncedSearch,
     page,
+    onError,
   ]);
 
   const handleAnnotateEntities = useCallback(

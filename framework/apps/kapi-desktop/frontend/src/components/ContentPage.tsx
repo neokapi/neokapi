@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Globe, FileText, RefreshCw, Loader2, X } from "lucide-react";
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
 import { useShortenHome } from "../hooks/useShortenHome";
 
 interface FileMatch {
@@ -19,6 +20,7 @@ interface ContentPageProps {
 }
 
 export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPageProps) {
+  const { showError } = useError();
   const shortenHome = useShortenHome();
   const [matches, setMatches] = useState<FileMatch[]>([]);
   const [basePath, setBasePath] = useState("");
@@ -30,18 +32,23 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
 
   // Load available presets and formats on mount.
   useEffect(() => {
-    api.listPresets().then((p) => { if (p) setPresets(p); });
-    api.listFormats().then((f) => { if (f) setFormats(f.map((x) => x.name)); });
-    api.getBasePath(tabID).then((b) => { if (b) setBasePath(b); });
-  }, [tabID]);
+    api.listPresets().then((p) => { if (p) setPresets(p); }).catch((err) => showError("Failed to load presets", err));
+    api.listFormats().then((f) => { if (f) setFormats(f.map((x) => x.name)); }).catch((err) => showError("Failed to load formats", err));
+    api.getBasePath(tabID).then((b) => { if (b) setBasePath(b); }).catch((err) => showError("Failed to get base path", err));
+  }, [tabID, showError]);
 
   const rescanFiles = useCallback(async () => {
     setScanning(true);
-    await api.updateProject(tabID, project);
-    const files = await api.matchContent(tabID);
-    setMatches(files ?? []);
-    setScanning(false);
-  }, [tabID, project]);
+    try {
+      await api.updateProject(tabID, project);
+      const files = await api.matchContent(tabID);
+      setMatches(files ?? []);
+    } catch (err) {
+      showError("Failed to scan files", err);
+    } finally {
+      setScanning(false);
+    }
+  }, [tabID, project, showError]);
 
   useEffect(() => {
     rescanFiles();

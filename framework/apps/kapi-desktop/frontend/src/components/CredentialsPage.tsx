@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
 import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
 
 const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
 
@@ -14,11 +15,18 @@ export function CredentialsPage() {
   const [testResult, setTestResult] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<string | null>(null);
 
+  const { showError } = useError();
+
   const loadProviders = useCallback(async () => {
-    const result = await api.listProviders();
-    if (result) setProviders(result);
-    setLoading(false);
-  }, []);
+    try {
+      const result = await api.listProviders();
+      if (result) setProviders(result);
+    } catch (err) {
+      showError("Failed to load AI providers", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
     loadProviders();

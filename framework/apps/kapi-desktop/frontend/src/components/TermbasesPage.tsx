@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
 import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
 import {
   TermbaseBrowser,
@@ -22,14 +23,20 @@ export function TermbasesPage() {
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
 
+  const { showError } = useError();
   const adapter = useTermbaseAdapter(handle);
 
   const refreshResources = useCallback(async () => {
     setLoading(true);
-    const list = await api.listNamedTermbases();
-    setResources(list ?? []);
-    setLoading(false);
-  }, []);
+    try {
+      const list = await api.listNamedTermbases();
+      setResources(list ?? []);
+    } catch (err) {
+      showError("Failed to load termbases", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
     void refreshResources();
@@ -62,33 +69,41 @@ export function TermbasesPage() {
       }
       setCorruptPath(null);
       setCorruptName("");
-    } catch {
-      // Recovery itself failed.
+    } catch (err) {
+      showError("Recovery failed", err);
     } finally {
       setRecovering(false);
     }
-  }, [corruptPath, corruptName]);
+  }, [corruptPath, corruptName, showError]);
 
   const handleOpenDialog = useCallback(async () => {
-    const h = await api.openTermbaseDialog();
-    if (h) {
-      setHandle(h);
-      setTbName("Termbase");
-      setTbPath("");
+    try {
+      const h = await api.openTermbaseDialog();
+      if (h) {
+        setHandle(h);
+        setTbName("Termbase");
+        setTbPath("");
+      }
+    } catch (err) {
+      showError("Failed to open termbase", err);
     }
-  }, []);
+  }, [showError]);
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
-    const h = await api.createNamedTermbase(newName.trim());
-    if (h) {
-      setHandle(h);
-      setTbName(newName.trim());
-      setTbPath("");
-      setShowCreateDialog(false);
-      setNewName("");
+    try {
+      const h = await api.createNamedTermbase(newName.trim());
+      if (h) {
+        setHandle(h);
+        setTbName(newName.trim());
+        setTbPath("");
+        setShowCreateDialog(false);
+        setNewName("");
+      }
+    } catch (err) {
+      showError("Failed to create termbase", err);
     }
-  }, [newName]);
+  }, [newName, showError]);
 
   const handleClose = useCallback(() => {
     if (handle) {
@@ -105,25 +120,33 @@ export function TermbasesPage() {
     setImporting(true);
     try {
       await api.importTermbaseCSVDialog(handle, "", "", "");
+    } catch (err) {
+      showError("Failed to import CSV", err);
     } finally {
       setImporting(false);
     }
-  }, [handle]);
+  }, [handle, showError]);
 
   const handleImportJSON = useCallback(async () => {
     if (!handle) return;
     setImporting(true);
     try {
       await api.importTermbaseJSONDialog(handle);
+    } catch (err) {
+      showError("Failed to import JSON", err);
     } finally {
       setImporting(false);
     }
-  }, [handle]);
+  }, [handle, showError]);
 
   const handleExport = useCallback(async () => {
     if (!handle) return;
-    await api.exportTermbaseJSONDialog(handle, tbName || "termbase");
-  }, [handle, tbName]);
+    try {
+      await api.exportTermbaseJSONDialog(handle, tbName || "termbase");
+    } catch (err) {
+      showError("Failed to export termbase", err);
+    }
+  }, [handle, tbName, showError]);
 
   // Browser view — termbase is open.
   if (handle && adapter) {
@@ -169,7 +192,7 @@ export function TermbasesPage() {
           </div>
         </div>
 
-        <TermbaseBrowser adapter={adapter} />
+        <TermbaseBrowser adapter={adapter} onError={showError} />
 
         <ImportProgress active={importing} />
       </div>

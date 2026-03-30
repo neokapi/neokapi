@@ -17,6 +17,8 @@ export function SettingsPage() {
         setPluginDir(settings.plugin_dir || "");
       }
       setLoading(false);
+    }).catch(() => {
+      setLoading(false);
     });
   }, []);
 
