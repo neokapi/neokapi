@@ -8,7 +8,7 @@
     "ios": "expo run:ios",
     "android": "expo run:android",
     "lint": "eslint . --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "vpx tsc --noEmit"
   },
   "dependencies": {
     "@react-navigation/native": "^7.0.0",

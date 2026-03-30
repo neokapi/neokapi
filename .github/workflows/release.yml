@@ -22,27 +22,27 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
-          cache: npm
+          cache: true
           cache-dependency-path: platform/package-lock.json
 
       - name: Install workspace dependencies
         working-directory: platform
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: npx tsc
+        run: vpx tsc
 
       - name: Run UI unit tests
         working-directory: platform/packages/ui
-        run: npm test
+        run: vp test
 
       - name: Build SaaS web UI
         working-directory: platform/apps/web
-        run: npm run build
+        run: vp run build
 
       - name: Create Bowrain frontend placeholder
         run: mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
@@ -228,9 +228,10 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
+          cache: true
 
       - name: Compute build metadata
         id: meta
@@ -254,11 +255,11 @@ jobs:
 
       - name: Install workspace dependencies
         working-directory: platform
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: npx tsc
+        run: vpx tsc
 
       # Build frontend and assets manually to avoid Wails Taskfile running
       # `npm install` which conflicts with the workspace npm ci above.
@@ -276,7 +277,7 @@ jobs:
 
       - name: Build Bowrain frontend
         working-directory: platform/apps/bowrain/frontend
-        run: npm run build
+        run: vp run build
 
       - name: Generate icons
         working-directory: platform/apps/bowrain/build
@@ -504,9 +505,10 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
+          cache: true
 
       - name: Compute build metadata
         id: meta
@@ -530,11 +532,11 @@ jobs:
 
       - name: Install flow-editor dependencies
         working-directory: packages/flow-editor
-        run: npm install
+        run: vp install
 
       - name: Install Kapi Desktop frontend dependencies
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npm install --install-strategy=nested
+        run: vp install
 
       - name: Generate Wails bindings
         working-directory: framework/apps/kapi-desktop
@@ -547,7 +549,7 @@ jobs:
 
       - name: Build Kapi Desktop frontend
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npm run build:dev
+        run: vp run build:dev
 
       - name: Generate icons
         working-directory: framework/apps/kapi-desktop/build

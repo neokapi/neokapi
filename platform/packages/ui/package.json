@@ -6,14 +6,14 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "vpx tsc --noEmit",
     "test": "vp test",
     "test:watch": "vp test watch",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
-    "storybook": "storybook dev -p 6006 --no-open",
-    "storybook:build": "storybook build -o storybook-static"
+    "storybook": "vpx storybook dev -p 6006 --no-open",
+    "storybook:build": "vpx storybook build -o storybook-static"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.12.19",

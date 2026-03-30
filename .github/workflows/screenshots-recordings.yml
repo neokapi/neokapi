@@ -38,19 +38,19 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: '22'
-          cache: npm
+          cache: true
           cache-dependency-path: platform/package-lock.json
 
       - name: Install workspace dependencies
         working-directory: platform
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: npx tsc
+        run: vpx tsc
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
@@ -60,7 +60,7 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: platform/apps/bowrain/frontend
-        run: npx playwright install --with-deps chromium
+        run: vpx playwright install --with-deps chromium
 
       # Desktop screenshots use the Vite dev server with mock backend.
       # No headless binary or Wails bindings needed — mock mode handles
@@ -68,11 +68,11 @@ jobs:
       # same UI components with real server data.
       - name: Generate screenshots
         working-directory: platform/apps/bowrain/frontend
-        run: npx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
+        run: vpx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
 
       - name: Generate recordings
         working-directory: platform/apps/bowrain/frontend
-        run: npx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
+        run: vpx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
@@ -100,10 +100,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: '22'
-          cache: npm
+          cache: true
           cache-dependency-path: platform/package-lock.json
 
       - name: Obtain auth token
@@ -114,11 +114,11 @@ jobs:
 
       - name: Install workspace dependencies
         working-directory: platform
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: npx tsc
+        run: vpx tsc
 
       - name: Cache Playwright browsers
         uses: actions/cache@v5
@@ -128,18 +128,18 @@ jobs:
 
       - name: Install Playwright
         working-directory: platform/apps/web
-        run: npx playwright install --with-deps chromium
+        run: vpx playwright install --with-deps chromium
 
       - name: Generate screenshots
         working-directory: platform/apps/web
-        run: npx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
+        run: vpx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
         env:
           BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
           BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Generate recordings
         working-directory: platform/apps/web
-        run: npx playwright test --config playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
+        run: vpx playwright test --config playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
@@ -259,9 +259,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: '22'
+          cache: true
 
       - name: Download all raw recording artifacts
         uses: actions/download-artifact@v8
@@ -298,11 +299,11 @@ jobs:
 
       - name: Install Remotion dependencies
         working-directory: website/videos
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Set up raw recording symlinks
         working-directory: website/videos
-        run: npx tsx setup-raw.ts
+        run: vpx tsx setup-raw.ts
 
       - name: Install ffmpeg
         run: |
@@ -311,7 +312,7 @@ jobs:
 
       - name: Render polished videos
         working-directory: website/videos
-        run: npx tsx render.ts
+        run: vpx tsx render.ts
         timeout-minutes: 30
 
       - name: Upload polished videos

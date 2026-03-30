@@ -46,24 +46,25 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
+          cache: true
 
       - name: Install Wails v3
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Install flow-editor dependencies
         working-directory: packages/flow-editor
-        run: npm install
+        run: vp install
 
       - name: Install Kapi Desktop frontend dependencies
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npm install --install-strategy=nested
+        run: vp install
 
       - name: Run frontend tests
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npx vp test
+        run: vp test
 
       - name: Run backend tests
         working-directory: framework/apps/kapi-desktop

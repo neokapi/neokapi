@@ -60,7 +60,7 @@ make kapi-desktop-storybook-build   # Build static Storybook
 
 **Web UI (embedded in kapi serve):**
 ```bash
-make web-deps                                 # npm install for web UI
+make web-deps                                 # vp install for web UI
 make web-build                                # Build web UI → bowrain/apps/web/dist/
 ```
 
@@ -68,14 +68,14 @@ make web-build                                # Build web UI → bowrain/apps/we
 ```bash
 cd bowrain/apps/bowrain && wails3 build       # Build native macOS/Linux/Windows app
 cd bowrain/apps/bowrain && wails3 dev         # Dev mode with hot reload
-make frontend-deps                            # npm install for frontend
+make frontend-deps                            # vp install for frontend
 make frontend-build                           # Production frontend build
 ```
 
 **Documentation site:**
 ```bash
-cd website && npm start              # Dev server with hot reload
-cd website && npm run build          # Production build → website/build/
+cd website && vp run start           # Dev server with hot reload
+cd website && vp run build           # Production build → website/build/
 ```
 
 ## Build Conventions
@@ -346,8 +346,8 @@ make recordings                  # recordings → website/static/video/bowrain/{
 # 2. Web app screenshots + recordings (needs Keycloak + local server)
 docker compose up -d --wait   # starts Keycloak + Mailpit
 make dev-server               # builds + starts bowrain-server locally
-cd bowrain/apps/web && npm run e2e:screenshots
-cd bowrain/apps/web && npm run e2e:recordings
+cd bowrain/apps/web && vp run e2e:screenshots
+cd bowrain/apps/web && vp run e2e:recordings
 THEME=dark  bash bowrain/apps/web/scripts/copy-recordings.sh
 THEME=light bash bowrain/apps/web/scripts/copy-recordings.sh
 # Ctrl-C the server, then:
@@ -395,7 +395,7 @@ All screenshots and recordings must run against real neokapi infrastructure. Spe
 Before committing any UI-related change:
 
 1. TypeScript checks pass for all 4 projects (`packages/ui`, `bowrain/apps/web`, `kapi/apps/kapi-web`, `bowrain/apps/bowrain/frontend`)
-2. All unit tests pass (`cd packages/ui && npm test`)
+2. All unit tests pass (`cd packages/ui && vp test`)
 3. All 3 frontend production builds succeed
 4. All screenshots regenerated to `website/static/img/`
 5. All recordings regenerated and copied to `website/static/video/`

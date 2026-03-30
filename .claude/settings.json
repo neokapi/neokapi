@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "npx @jonchurch/claude-code-gh"
+            "command": "vpx @jonchurch/claude-code-gh"
           }
         ]
       }
@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in */platform/packages/ui/*|*/platform/apps/*) cd \"$(echo \"$f\" | sed 's|/platform/.*|/platform/packages/ui|')\" && NODE_OPTIONS=\"--import tsx/esm\" npx vp fmt \"$f\" 2>/dev/null || true ;; esac; }",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r f; case \"$f\" in */platform/packages/ui/*|*/platform/apps/*) cd \"$(echo \"$f\" | sed 's|/platform/.*|/platform/packages/ui|')\" && vp fmt \"$f\" 2>/dev/null || true ;; */packages/flow-editor/*) cd \"$(echo \"$f\" | sed 's|/packages/flow-editor/.*|/packages/flow-editor|')\" && vp fmt \"$f\" 2>/dev/null || true ;; */framework/apps/kapi-desktop/frontend/*) cd \"$(echo \"$f\" | sed 's|/framework/apps/kapi-desktop/frontend/.*|/framework/apps/kapi-desktop/frontend|')\" && vp fmt \"$f\" 2>/dev/null || true ;; esac; }",
             "timeout": 30,
             "statusMessage": "Formatting frontend code..."
           }
