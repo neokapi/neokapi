@@ -148,11 +148,14 @@ export function FlowEditor({
   const handleAddTool = useCallback(
     (toolName: string) => {
       if (readOnly) return;
+      const newIndex = flow.steps.length;
       const updated: FlowSpec = {
         ...flow,
         steps: [...flow.steps, { tool: toolName }],
       };
       onChange(updated);
+      // Auto-select the new tool so the config panel opens immediately.
+      setSelectedNodeId(`tool-${newIndex}`);
     },
     [flow, onChange, readOnly],
   );
