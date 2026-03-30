@@ -588,6 +588,32 @@ function ConfigPanel({
   const Icon = catStyle.icon;
   const displayName = (step.tool || "").replace(/^okapi:/, "");
 
+  // Local config state — owns the values to prevent parent re-renders from
+  // resetting inputs. Syncs to parent via debounced onConfigChange.
+  const [localConfig, setLocalConfig] = useState(config);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Re-initialize when the selected tool changes (not on every config update).
+  const toolRef = useRef(step.tool);
+  if (step.tool !== toolRef.current) {
+    toolRef.current = step.tool;
+    setLocalConfig(config);
+  }
+
+  const handleLocalChange = useCallback(
+    (newConfig: Record<string, unknown>) => {
+      setLocalConfig(newConfig);
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => onConfigChange(newConfig), 300);
+    },
+    [onConfigChange],
+  );
+
+  // Flush on unmount.
+  useEffect(() => {
+    return () => clearTimeout(syncTimerRef.current);
+  }, []);
+
   return (
     <div
       style={{
@@ -704,7 +730,7 @@ function ConfigPanel({
       {/* Config form */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
         {schema ? (
-          <SchemaForm schema={schema} values={config} onChange={onConfigChange} compact />
+          <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact />
         ) : (
           <div
             style={{
