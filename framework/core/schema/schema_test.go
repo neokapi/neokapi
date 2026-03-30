@@ -70,6 +70,9 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 			Type:        "tool",
 			Category:    "transform",
 			DisplayName: "Pseudo Translate",
+			Inputs:      []string{PartTypeBlock},
+			Tags:        []string{"translation"},
+			Requires:    []string{RequiresTargetLanguage},
 		},
 		Groups: []ParameterGroup{
 			{ID: "output", Label: "Output", Fields: []string{"prefix", "suffix"}},
@@ -91,6 +94,10 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 	assert.Equal(t, s.ID, decoded.ID)
 	assert.Equal(t, s.Title, decoded.Title)
 	assert.Equal(t, s.Meta.Category, decoded.Meta.Category)
+	assert.Equal(t, []string{"block"}, decoded.Meta.Inputs)
+	assert.Empty(t, decoded.Meta.Outputs)
+	assert.Equal(t, []string{"translation"}, decoded.Meta.Tags)
+	assert.Equal(t, []string{"target-language"}, decoded.Meta.Requires)
 	assert.Len(t, decoded.Properties, 3)
 	assert.Equal(t, "integer", decoded.Properties["expansionPercent"].Type)
 }

@@ -38,6 +38,9 @@ type Capability struct {
 	// Description is a short description of the capability.
 	Description string `json:"description,omitempty"`
 
+	// Category classifies the tool (e.g., "translate", "validate", "transform").
+	Category string `json:"category,omitempty"`
+
 	// Capabilities lists what operations this format supports (e.g., ["read", "write"]).
 	Capabilities []string `json:"capabilities,omitempty"`
 
@@ -46,6 +49,18 @@ type Capability struct {
 
 	// Extensions lists file extensions handled by this capability (e.g., ".docx").
 	Extensions []string `json:"extensions,omitempty"`
+
+	// Inputs declares which part types this tool accepts.
+	Inputs []string `json:"inputs,omitempty"`
+
+	// Outputs declares which part types this tool produces/modifies.
+	Outputs []string `json:"outputs,omitempty"`
+
+	// Tags are freeform classification labels.
+	Tags []string `json:"tags,omitempty"`
+
+	// Requires declares external resources needed at runtime.
+	Requires []string `json:"requires,omitempty"`
 }
 
 // HasCapability reports whether this capability includes the named operation

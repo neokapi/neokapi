@@ -2,17 +2,22 @@
 // Uses auto-layout — no persisted positions.
 
 import type { Node, Edge } from "@xyflow/react";
-import type { FlowSpec } from "./types";
+import type { FlowSpec, ToolInfo } from "./types";
 
-const NODE_WIDTH = 180;
-const NODE_GAP = 80;
+const NODE_WIDTH = 200;
+const NODE_GAP = 60;
 const Y_CENTER = 100;
 
 /**
  * Convert a steps-based FlowSpec into React Flow nodes and edges with auto-layout.
  * Generates: reader → tool1 → tool2 → ... → writer
+ *
+ * When a tool lookup map is provided, tool nodes include category and description metadata.
  */
-export function stepsToGraph(spec: FlowSpec): { nodes: Node[]; edges: Edge[] } {
+export function stepsToGraph(
+  spec: FlowSpec,
+  toolMap?: Map<string, ToolInfo>,
+): { nodes: Node[]; edges: Edge[] } {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
@@ -31,6 +36,7 @@ export function stepsToGraph(spec: FlowSpec): { nodes: Node[]; edges: Edge[] } {
   let prevId = "reader";
   spec.steps.forEach((step, i) => {
     const id = `tool-${i}`;
+    const info = toolMap?.get(step.tool);
     nodes.push({
       id,
       type: "tool",
@@ -39,6 +45,8 @@ export function stepsToGraph(spec: FlowSpec): { nodes: Node[]; edges: Edge[] } {
         label: step.label || step.tool,
         toolName: step.tool,
         config: step.config,
+        category: info?.category || "pipeline",
+        description: info?.description,
       },
     });
     edges.push({

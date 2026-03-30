@@ -30,10 +30,52 @@ type ComponentSchema struct {
 type ComponentMeta struct {
 	ID          string `json:"id"`
 	Type        string `json:"type"`                  // "format", "tool", "step"
-	Category    string `json:"category,omitempty"`     // "transform","validate","enrich","convert","pipeline"
+	Category    string `json:"category,omitempty"`     // "translate","validate","enrich","convert","transform","pipeline"
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
+
+	// Inputs declares which part types this component accepts.
+	// Empty means the component accepts all part types (pass-through).
+	Inputs []string `json:"inputs,omitempty"` // "block","data","media","layer","group"
+
+	// Outputs declares which part types this component produces or modifies.
+	// Empty means same as inputs (in-place modification).
+	Outputs []string `json:"outputs,omitempty"`
+
+	// Tags are freeform classification labels for UI filtering and grouping.
+	Tags []string `json:"tags,omitempty"` // "ai-powered","batch","regex","configurable"
+
+	// Requires declares external resources this component needs at runtime.
+	Requires []string `json:"requires,omitempty"` // "target-language","source-language","tm","termbase","credentials"
 }
+
+// Standard part type names for Inputs/Outputs declarations.
+const (
+	PartTypeBlock = "block"
+	PartTypeData  = "data"
+	PartTypeMedia = "media"
+	PartTypeLayer = "layer"
+	PartTypeGroup = "group"
+)
+
+// Standard tool categories.
+const (
+	CategoryTranslate = "translate"
+	CategoryValidate  = "validate"
+	CategoryEnrich    = "enrich"
+	CategoryConvert   = "convert"
+	CategoryTransform = "transform"
+	CategoryPipeline  = "pipeline"
+)
+
+// Standard requirement names for the Requires field.
+const (
+	RequiresTargetLanguage = "target-language"
+	RequiresSourceLanguage = "source-language"
+	RequiresTM             = "tm"
+	RequiresTermbase       = "termbase"
+	RequiresCredentials    = "credentials"
+)
 
 // ParameterGroup defines a UI grouping of parameters.
 type ParameterGroup struct {
