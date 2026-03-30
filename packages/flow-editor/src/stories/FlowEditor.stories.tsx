@@ -128,7 +128,8 @@ export const WithOkapiTools: Story = {
   },
 };
 
-export const Empty: Story = {
+export const EmptyWithTemplates: Story = {
+  name: "Empty (Template Library)",
   args: {
     flow: { steps: [] },
     tools,
@@ -212,5 +213,63 @@ export const ParallelizationSuggestion: Story = {
       ],
     },
     tools,
+  },
+};
+
+export const WithTraceData: Story = {
+  name: "With Trace (Completed)",
+  args: {
+    flow: {
+      steps: [
+        { tool: "ai-translate" },
+        { tool: "qa-check" },
+        { tool: "word-count" },
+      ],
+    },
+    tools,
+    readOnly: true,
+    onRun: undefined,
+    traceEvents: [
+      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
+      { ts: 500, type: "exit", nodeId: "tool-0", partId: "p1" },
+      { ts: 600, type: "enter", nodeId: "tool-0", partId: "p2" },
+      { ts: 900, type: "exit", nodeId: "tool-0", partId: "p2" },
+      { ts: 550, type: "enter", nodeId: "tool-1", partId: "p1" },
+      { ts: 1200, type: "exit", nodeId: "tool-1", partId: "p1" },
+      { ts: 950, type: "enter", nodeId: "tool-1", partId: "p2" },
+      { ts: 1800, type: "exit", nodeId: "tool-1", partId: "p2" },
+      { ts: 1250, type: "enter", nodeId: "tool-2", partId: "p1" },
+      { ts: 1400, type: "exit", nodeId: "tool-2", partId: "p1" },
+      { ts: 1850, type: "enter", nodeId: "tool-2", partId: "p2" },
+      { ts: 2000, type: "exit", nodeId: "tool-2", partId: "p2" },
+    ],
+    trace: {
+      name: "translate-qa",
+      nodes: [
+        { id: "tool-0", type: "tool", name: "ai-translate" },
+        { id: "tool-1", type: "tool", name: "qa-check" },
+        { id: "tool-2", type: "tool", name: "word-count" },
+      ],
+      events: [],
+      parts: {
+        p1: {
+          initial: { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world" },
+          afterNode: {
+            "tool-0": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
+            "tool-1": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
+            "tool-2": { id: "p1", type: "Block", summary: "Hello world", sourceText: "Hello world", targetText: "Bonjour le monde" },
+          },
+        },
+        p2: {
+          initial: { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here" },
+          afterNode: {
+            "tool-0": { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here", targetText: "Cliquez ici" },
+            "tool-1": { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here", targetText: "Cliquez ici" },
+            "tool-2": { id: "p2", type: "Block", summary: "Click here", sourceText: "Click here", targetText: "Cliquez ici" },
+          },
+        },
+      },
+      durationUs: 2000,
+    },
   },
 };

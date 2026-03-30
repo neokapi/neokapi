@@ -113,6 +113,10 @@ export interface FlowEditorProps {
   readOnly?: boolean;
   /** Called to fetch a tool's config schema. Returns null if none available. */
   onGetSchema?: (toolName: string) => ComponentSchema | null;
+  /** Trace events from a running or completed flow execution. */
+  traceEvents?: import("./traceTypes").TraceEvent[];
+  /** Full trace data from a completed execution (includes part snapshots). */
+  trace?: import("./traceTypes").FlowTrace;
 }
 
 /** Tool category identifiers with display metadata. */
