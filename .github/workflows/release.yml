@@ -816,18 +816,18 @@ jobs:
           end
           CASK
 
-      - name: Update kapi-desktop cask
+      - name: Update kapi cask
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
           SHA_KAPI: ${{ steps.checksum.outputs.KAPI_DMG }}
         run: |
           mkdir -p homebrew-tap/Casks
-          cat > homebrew-tap/Casks/kapi-desktop.rb << CASK
+          cat > homebrew-tap/Casks/kapi.rb << CASK
           # Use absolute tap path so the require works even when Homebrew loads
           # the cask from its metadata cache during upgrades.
           require "#{Tap.fetch("neokapi", "tap").path}/lib/private_download_strategy"
 
-          cask "kapi-desktop" do
+          cask "kapi" do
             version "${VERSION}"
             sha256 "${SHA_KAPI}"
 
@@ -837,7 +837,7 @@ jobs:
             desc "Localization toolkit - powered by neokapi"
             homepage "https://github.com/neokapi/neokapi"
 
-            depends_on formula: "neokapi/tap/kapi"
+            depends_on formula: "neokapi/tap/kapi-cli"
 
             app "Kapi.app"
 
@@ -848,7 +848,7 @@ jobs:
             end
 
             caveats <<~EOS
-              The kapi CLI is provided by the kapi formula (installed
+              The kapi CLI is provided by the kapi-cli formula (installed
               automatically). Run "kapi" for command-line usage.
             EOS
 
@@ -860,16 +860,78 @@ jobs:
           end
           CASK
 
-      - name: Commit and push
+      - name: Remove old kapi-desktop cask if present
+        run: |
+          cd homebrew-tap
+          rm -f Casks/kapi-desktop.rb
+
+      - name: Commit and push casks
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           cd homebrew-tap
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Casks/bowrain.rb Casks/kapi-desktop.rb
+          git add -A Casks/ Formula/
+          # Remove old kapi.rb formula (now kapi-cli.rb via GoReleaser)
+          git rm -f kapi.rb 2>/dev/null || true
+          git add -A .
           if git diff --cached --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Update casks to ${VERSION}" && git push
+            git commit -m "Update casks and formulas to ${VERSION}" && git push
           fi
+
+  update-actions:
+    name: Update GitHub Actions
+    runs-on: ubuntu-latest
+    needs: goreleaser
+    steps:
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Bump setup-bowrain
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          gh api repos/neokapi/setup-bowrain/contents/action.yml --jq '.content' | \
+            base64 -d | sed "s/default: \"latest\"/default: \"${VERSION}\"/" > /tmp/action.yml
+          CURRENT_SHA=$(gh api repos/neokapi/setup-bowrain/contents/action.yml --jq '.sha')
+          gh api repos/neokapi/setup-bowrain/contents/action.yml \
+            -X PUT \
+            -f message="chore: bump default version to ${VERSION}" \
+            -f content="$(base64 -w0 /tmp/action.yml)" \
+            -f sha="${CURRENT_SHA}" || echo "setup-bowrain: no version default to update"
+
+      - name: Bump setup-kapi
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          gh api repos/neokapi/setup-kapi/contents/action.yml --jq '.content' | \
+            base64 -d | sed "s/default: \"latest\"/default: \"${VERSION}\"/" > /tmp/action.yml
+          CURRENT_SHA=$(gh api repos/neokapi/setup-kapi/contents/action.yml --jq '.sha')
+          gh api repos/neokapi/setup-kapi/contents/action.yml \
+            -X PUT \
+            -f message="chore: bump default version to ${VERSION}" \
+            -f content="$(base64 -w0 /tmp/action.yml)" \
+            -f sha="${CURRENT_SHA}" || echo "setup-kapi: no version default to update"
+
+      - name: Tag action repos
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          for repo in setup-bowrain setup-kapi bowrain-action kapi-action; do
+            MAIN_SHA=$(gh api "repos/neokapi/${repo}/git/ref/heads/main" --jq '.object.sha')
+            # Create the version tag
+            gh api "repos/neokapi/${repo}/git/refs" \
+              -f ref="refs/tags/${TAG}" \
+              -f sha="${MAIN_SHA}" 2>/dev/null || \
+            gh api "repos/neokapi/${repo}/git/refs/tags/${TAG}" \
+              -X PATCH \
+              -f sha="${MAIN_SHA}" 2>/dev/null || true
+            echo "Tagged ${repo} at ${TAG}"
+          done

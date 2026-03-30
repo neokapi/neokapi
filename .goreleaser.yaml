@@ -60,7 +60,7 @@ archives:
   - id: kapi
     ids:
       - kapi
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    name_template: "kapi-cli_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
@@ -74,7 +74,7 @@ archives:
         formats: [zip]
 
 brews:
-  - name: kapi
+  - name: kapi-cli
     ids:
       - kapi
     repository:
@@ -133,7 +133,7 @@ release:
 
     **Homebrew (kapi CLI):**
     ```
-    brew install neokapi/tap/kapi
+    brew install neokapi/tap/kapi-cli
     ```
 
     **Homebrew (bowrain CLI):**
@@ -143,7 +143,7 @@ release:
 
     **Homebrew (Kapi desktop app, macOS):**
     ```
-    brew install --cask neokapi/tap/kapi-desktop
+    brew install --cask neokapi/tap/kapi
     ```
 
     **Homebrew (Bowrain desktop app, macOS):**
