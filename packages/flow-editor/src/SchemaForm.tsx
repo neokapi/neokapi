@@ -84,6 +84,7 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
               onChange={(v) => handleChange(key, v)}
               compact={compact}
               allValues={values}
+              allProperties={properties}
             />
           ))}
         </div>
@@ -172,6 +173,7 @@ function FieldGroup({
               onChange={(v) => onChange(key, v)}
               compact={compact}
               allValues={values}
+              allProperties={properties}
             />
           ))}
         </div>
@@ -189,6 +191,7 @@ function PropertyField({
   onChange,
   compact,
   allValues,
+  allProperties,
   depth = 0,
 }: {
   name: string;
@@ -197,19 +200,22 @@ function PropertyField({
   onChange: (value: unknown) => void;
   compact: boolean;
   allValues?: Record<string, unknown>;
+  allProperties?: Record<string, PropertySchema>;
   depth?: number;
 }) {
   // x-showIf conditional visibility
   const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
   if (showIf && allValues) {
-    const otherVal = allValues[showIf.field];
+    // Resolve the other field's value, falling back to its schema default.
+    const rawVal = allValues[showIf.field];
+    const otherDefault = allProperties?.[showIf.field]?.default;
+    const otherVal = rawVal ?? otherDefault;
+
     if (showIf.empty !== undefined) {
-      // empty=true → show when the other field is empty/unset
       const isEmpty = otherVal === undefined || otherVal === null || otherVal === "";
       if (showIf.empty && !isEmpty) return null;
       if (!showIf.empty && isEmpty) return null;
     } else if (showIf.value !== undefined) {
-      // String comparison for enum/mode-selector values
       if (String(otherVal ?? "") !== String(showIf.value)) return null;
     }
   }
