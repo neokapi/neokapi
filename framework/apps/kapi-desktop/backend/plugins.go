@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 
+	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 )
 
@@ -95,6 +96,10 @@ func (a *App) InstallPlugin(name string) {
 			return
 		}
 
+		// Rebuild cache (same as CLI) so both CLI and desktop see fresh metadata.
+		if err := plugincache.RebuildAndWrite(a.pluginLoader.Dir(), nil); err != nil {
+			a.logger.Printf("rebuild cache after install: %v", err)
+		}
 		if scanErr := a.pluginLoader.ScanMetadata(); scanErr != nil {
 			a.logger.Printf("re-scan after install: %v", scanErr)
 		}
@@ -120,6 +125,10 @@ func (a *App) RemovePlugin(name string) error {
 		return fmt.Errorf("remove %s: %w", name, err)
 	}
 
+	// Rebuild cache (same as CLI) so both CLI and desktop see fresh metadata.
+	if err := plugincache.RebuildAndWrite(a.pluginLoader.Dir(), nil); err != nil {
+		a.logger.Printf("rebuild cache after remove: %v", err)
+	}
 	if scanErr := a.pluginLoader.ScanMetadata(); scanErr != nil {
 		a.logger.Printf("re-scan after remove: %v", scanErr)
 	}
