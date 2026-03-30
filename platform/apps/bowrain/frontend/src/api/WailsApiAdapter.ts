@@ -259,11 +259,7 @@ export class WailsApiAdapter implements ApiAdapter {
   }
 
   // --- Stream Tags (not yet supported in desktop) ---
-  async listStreamTags(
-    _ws: string,
-    _projectId: string,
-    _streamName: string,
-  ): Promise<StreamTag[]> {
+  async listStreamTags(_ws: string, _projectId: string, _streamName: string): Promise<StreamTag[]> {
     return [];
   }
   async createStreamTag(
@@ -719,7 +715,10 @@ export class WailsApiAdapter implements ApiAdapter {
   async getDigestSettings(_ws: string): Promise<DigestSettingsDTO> {
     throw new Error("not implemented in desktop app");
   }
-  async updateDigestSettings(_ws: string, _settings: DigestSettingsDTO): Promise<DigestSettingsDTO> {
+  async updateDigestSettings(
+    _ws: string,
+    _settings: DigestSettingsDTO,
+  ): Promise<DigestSettingsDTO> {
     throw new Error("not implemented in desktop app");
   }
 
@@ -937,11 +936,7 @@ export class WailsApiAdapter implements ApiAdapter {
   async bravoListTools(_ws: string): Promise<{ tools: BravoToolInfo[] }> {
     return { tools: [] };
   }
-  async bravoGetUsage(
-    _ws: string,
-    _from?: string,
-    _to?: string,
-  ): Promise<BravoUsageSummary> {
+  async bravoGetUsage(_ws: string, _from?: string, _to?: string): Promise<BravoUsageSummary> {
     throw new Error("not implemented in desktop app");
   }
   async bravoUpdateMode(
@@ -987,11 +982,7 @@ export class WailsApiAdapter implements ApiAdapter {
   async billingCreatePortal(_ws: string, _returnUrl: string): Promise<{ url: string }> {
     throw new Error("not implemented in desktop app");
   }
-  async billingGetLedger(
-    _ws: string,
-    _from?: string,
-    _to?: string,
-  ): Promise<CreditLedgerEntry[]> {
+  async billingGetLedger(_ws: string, _from?: string, _to?: string): Promise<CreditLedgerEntry[]> {
     return [];
   }
 

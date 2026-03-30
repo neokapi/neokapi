@@ -15,6 +15,7 @@ const meta: Meta<typeof FlowEditor> = {
   component: FlowEditor,
   tags: ["autodocs"],
   args: {
+    flow: { steps: [{ tool: "ai-translate" }, { tool: "qa-check" }] },
     tools: SAMPLE_TOOLS,
     onChange: fn(),
     onRun: fn(),
