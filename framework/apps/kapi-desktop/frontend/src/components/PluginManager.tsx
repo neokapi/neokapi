@@ -1,14 +1,19 @@
 import { useState, useEffect, useCallback } from "react";
-import { Download, RefreshCw, Search, Package, Loader2 } from "lucide-react";
+import { Download, RefreshCw, Search, Package, Loader2, Trash2 } from "lucide-react";
 import type { PluginInfo } from "../types/api";
 import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
 
 export function PluginManager() {
   const [search, setSearch] = useState("");
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [installing, setInstalling] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const { showError } = useError();
 
   const loadPlugins = useCallback(async () => {
     setLoading(true);
@@ -56,6 +61,22 @@ export function PluginManager() {
       setError(String(e));
     }
   }, []);
+
+  const handleRemove = useCallback(
+    async (name: string) => {
+      setRemoving(name);
+      setConfirmRemove(null);
+      try {
+        await api.removePlugin(name);
+        await loadPlugins();
+      } catch (e) {
+        showError("Failed to remove plugin", e);
+      } finally {
+        setRemoving(null);
+      }
+    },
+    [loadPlugins, showError],
+  );
 
   const filtered = plugins.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
@@ -111,13 +132,34 @@ export function PluginManager() {
                   <span className="rounded bg-accent px-1.5 py-0.5 text-xs">{plugin.type}</span>
                 </div>
               </div>
-              {installing === plugin.name ? (
+              {installing === plugin.name || removing === plugin.name ? (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Loader2 size={12} className="animate-spin" />
-                  Installing...
+                  {removing === plugin.name ? "Removing..." : "Installing..."}
+                </div>
+              ) : confirmRemove === plugin.name ? (
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => void handleRemove(plugin.name)}
+                    className="rounded px-2 py-0.5 text-[10px] bg-destructive text-destructive-foreground"
+                  >
+                    Remove
+                  </button>
+                  <button
+                    onClick={() => setConfirmRemove(null)}
+                    className="rounded px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel
+                  </button>
                 </div>
               ) : (
-                <span className="text-xs text-muted-foreground">Installed</span>
+                <button
+                  onClick={() => setConfirmRemove(plugin.name)}
+                  className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                  title="Uninstall plugin"
+                >
+                  <Trash2 size={12} />
+                </button>
               )}
             </div>
           ))}
