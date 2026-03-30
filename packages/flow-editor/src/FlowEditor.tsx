@@ -71,7 +71,22 @@ export function FlowEditor({
     [flow, toolMap, readOnly, dismissedSuggestions],
   );
 
-  const initial = useMemo(() => stepsToGraph(flow, toolMap), [flow, toolMap]);
+  // Topology key: only changes when the graph structure changes (tools added/removed/reordered),
+  // NOT when config changes. This prevents the graph from resetting on every config edit.
+  const topologyKey = useMemo(() => {
+    const extractTools = (steps: FlowStep[]): string => {
+      return steps.map((s) => {
+        if (s.parallel && s.parallel.length > 0) {
+          return `[${s.parallel.map((p) => p.tool).join(",")}]`;
+        }
+        return s.tool;
+      }).join("→");
+    };
+    return extractTools(flow.steps);
+  }, [flow.steps]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on topology, not flow
+  const initial = useMemo(() => stepsToGraph(flow, toolMap), [topologyKey, toolMap]);
 
   // Compute per-node trace stats for execution state overlay.
   const nodeStats = useMemo(
