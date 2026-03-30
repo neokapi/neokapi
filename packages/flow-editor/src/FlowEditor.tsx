@@ -270,24 +270,29 @@ export function FlowEditor({
     [nodes],
   );
 
-  // Config panel state
-  const selectedToolIndex = selectedNodeId
-    ? parseInt(selectedNodeId.replace("tool-", ""), 10)
+  // Config panel state — resolve from node data, not step index,
+  // because node IDs don't map 1:1 to step indices when parallel steps exist.
+  const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
+  const selectedToolName = selectedNode?.data?.toolName as string | undefined;
+  const selectedStep = selectedToolName
+    ? findStepByTool(flow.steps, selectedToolName)
+    : null;
+  const selectedStepIndex = selectedStep
+    ? findStepIndex(flow.steps, selectedToolName!)
     : NaN;
-  const selectedStep = !isNaN(selectedToolIndex) ? flow.steps[selectedToolIndex] : null;
-  const selectedToolInfo = selectedStep ? toolMap.get(selectedStep.tool) : null;
-  const selectedSchema = selectedStep && onGetSchema ? onGetSchema(selectedStep.tool) : null;
+  const selectedToolInfo = selectedToolName ? toolMap.get(selectedToolName) : null;
+  const selectedSchema = selectedToolName && onGetSchema ? onGetSchema(selectedToolName) : null;
 
   const handleConfigChange = useCallback(
     (config: Record<string, unknown>) => {
-      if (isNaN(selectedToolIndex) || readOnly) return;
+      if (isNaN(selectedStepIndex) || readOnly) return;
       const updated: FlowSpec = {
         ...flow,
-        steps: flow.steps.map((s, i) => (i === selectedToolIndex ? { ...s, config } : s)),
+        steps: flow.steps.map((s, i) => (i === selectedStepIndex ? { ...s, config } : s)),
       };
       onChange(updated);
     },
-    [selectedToolIndex, flow, onChange, readOnly],
+    [selectedStepIndex, flow, onChange, readOnly],
   );
 
   // Template library covers the full editor when shown.
@@ -520,6 +525,32 @@ export function FlowEditor({
   );
 }
 
+/** Find a step by tool name, searching into parallel branches. */
+function findStepByTool(steps: FlowStep[], toolName: string): FlowStep | null {
+  for (const s of steps) {
+    if (s.tool === toolName) return s;
+    if (s.parallel) {
+      for (const p of s.parallel) {
+        if (p.tool === toolName) return p;
+      }
+    }
+  }
+  return null;
+}
+
+/** Find the flat index of a step (or its parent parallel group) by tool name. */
+function findStepIndex(steps: FlowStep[], toolName: string): number {
+  for (let i = 0; i < steps.length; i++) {
+    if (steps[i].tool === toolName) return i;
+    if (steps[i].parallel) {
+      for (const p of steps[i].parallel!) {
+        if (p.tool === toolName) return i;
+      }
+    }
+  }
+  return NaN;
+}
+
 function ConfigPanel({
   step,
   toolInfo,
@@ -540,7 +571,7 @@ function ConfigPanel({
   const category = toolInfo?.category || "pipeline";
   const catStyle = getCategoryStyle(category);
   const Icon = catStyle.icon;
-  const displayName = step.tool.replace(/^okapi:/, "");
+  const displayName = (step.tool || "").replace(/^okapi:/, "");
 
   return (
     <div
