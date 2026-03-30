@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neokapi/neokapi/bowrain/server/agenticmcp"
+	"github.com/neokapi/neokapi/bowrain/agentic-testing/agenticmcp"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
