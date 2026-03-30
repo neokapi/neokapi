@@ -572,10 +572,15 @@ type PluginInfo struct {
 	Type    string `json:"type"`
 }
 
-// ListPlugins returns installed plugins.
+// ListPlugins returns installed plugins (deduplicated by name).
 func (a *App) ListPlugins() []PluginInfo {
+	seen := make(map[string]bool)
 	var infos []PluginInfo
 	for _, p := range a.pluginLoader.Plugins() {
+		if seen[p.Name] {
+			continue
+		}
+		seen[p.Name] = true
 		infos = append(infos, PluginInfo{
 			Name:    p.Name,
 			Version: p.Version,
