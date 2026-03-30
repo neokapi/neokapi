@@ -55,8 +55,13 @@ export interface ToolInfo {
 
 export interface FormatInfo {
   name: string;
-  description: string;
-  extensions: string[];
+  display_name?: string;
+  extensions?: string[];
+  mime_types?: string[];
+  has_reader: boolean;
+  has_writer: boolean;
+  source?: string;
+  has_schema: boolean;
 }
 
 export interface PluginInfo {

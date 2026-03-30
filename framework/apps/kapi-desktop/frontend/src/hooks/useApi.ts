@@ -98,6 +98,7 @@ export const api = {
   listTools: () => call<ToolInfo[]>("ListTools"),
   getToolSchema: (name: string) => call<unknown>("GetToolSchema", name),
   listFormats: () => call<FormatInfo[]>("ListFormats"),
+  getFormatSchema: (name: string) => call<unknown>("GetFormatSchema", name),
   detectFormat: (path: string) => call<string>("DetectFormat", path),
 
   // Presets

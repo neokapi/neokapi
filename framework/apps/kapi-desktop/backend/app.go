@@ -5,6 +5,7 @@ package backend
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -411,16 +412,50 @@ func (a *App) GetToolSchema(name string) *schema.ComponentSchema {
 
 // FormatInfo is the frontend-facing format summary.
 type FormatInfo struct {
-	Name string `json:"name"`
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name,omitempty"`
+	Extensions  []string `json:"extensions,omitempty"`
+	MimeTypes   []string `json:"mime_types,omitempty"`
+	HasReader   bool     `json:"has_reader"`
+	HasWriter   bool     `json:"has_writer"`
+	Source      string   `json:"source,omitempty"`
+	HasSchema   bool     `json:"has_schema"`
 }
 
-// ListFormats returns all registered format reader names.
+// ListFormats returns all registered formats with full metadata.
 func (a *App) ListFormats() []FormatInfo {
 	var infos []FormatInfo
-	for _, name := range a.formatReg.ReaderNames() {
-		infos = append(infos, FormatInfo{Name: name})
+	for _, fi := range a.formatReg.FormatInfos() {
+		_, hasSchema := a.schemaReg.GetSchema(fi.Name)
+		infos = append(infos, FormatInfo{
+			Name:        fi.Name,
+			DisplayName: fi.DisplayName,
+			Extensions:  fi.Extensions,
+			MimeTypes:   fi.MimeTypes,
+			HasReader:   fi.HasReader,
+			HasWriter:   fi.HasWriter,
+			Source:      fi.Source,
+			HasSchema:   hasSchema,
+		})
 	}
 	return infos
+}
+
+// GetFormatSchema returns the configuration schema for a format.
+func (a *App) GetFormatSchema(formatName string) map[string]any {
+	s, ok := a.schemaReg.GetSchema(formatName)
+	if !ok {
+		return nil
+	}
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return result
 }
 
 // --- Preset operations ---
