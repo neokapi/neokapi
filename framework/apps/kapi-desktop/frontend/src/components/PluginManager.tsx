@@ -20,7 +20,16 @@ export function PluginManager() {
     setError(null);
     try {
       const result = await api.listPlugins();
-      if (result) setPlugins(result);
+      if (result) {
+        // Deduplicate by name (plugin loader may return duplicates after re-scan).
+        const seen = new Set<string>();
+        const deduped = result.filter((p) => {
+          if (seen.has(p.name)) return false;
+          seen.add(p.name);
+          return true;
+        });
+        setPlugins(deduped);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
