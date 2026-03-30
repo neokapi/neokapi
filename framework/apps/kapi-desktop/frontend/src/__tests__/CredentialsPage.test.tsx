@@ -1,17 +1,22 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
+import { ErrorProvider } from "../components/ErrorBanner";
 import { CredentialsPage } from "../components/CredentialsPage";
+
+function renderWithProviders(ui: React.ReactElement) {
+  return render(<ErrorProvider>{ui}</ErrorProvider>);
+}
 
 describe("CredentialsPage", () => {
   it("renders title and keychain notice", async () => {
-    render(<CredentialsPage />);
+    renderWithProviders(<CredentialsPage />);
     expect(screen.getByText("AI Credentials")).toBeInTheDocument();
     expect(screen.getByText(/stored in your OS keychain/)).toBeInTheDocument();
   });
 
   it("shows empty state after loading", async () => {
-    render(<CredentialsPage />);
+    renderWithProviders(<CredentialsPage />);
     // Wait for async load to finish (api returns null outside Wails).
     await waitFor(() => {
       expect(screen.getByText(/No AI providers configured/)).toBeInTheDocument();
@@ -19,7 +24,7 @@ describe("CredentialsPage", () => {
   });
 
   it("shows add form when clicking Add Provider", async () => {
-    render(<CredentialsPage />);
+    renderWithProviders(<CredentialsPage />);
     await waitFor(() => {
       expect(screen.queryByText("Loading providers...")).not.toBeInTheDocument();
     });
@@ -30,7 +35,7 @@ describe("CredentialsPage", () => {
   });
 
   it("can cancel adding a provider", async () => {
-    render(<CredentialsPage />);
+    renderWithProviders(<CredentialsPage />);
     await waitFor(() => {
       expect(screen.queryByText("Loading providers...")).not.toBeInTheDocument();
     });

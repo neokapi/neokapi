@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import type { AppMode, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
+import { ErrorProvider, useError } from "./components/ErrorBanner";
 import { IconSidebar } from "./components/IconSidebar";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
@@ -22,6 +23,15 @@ interface TabState {
 }
 
 export default function App() {
+  return (
+    <ErrorProvider>
+      <AppInner />
+    </ErrorProvider>
+  );
+}
+
+function AppInner() {
+  const { showError } = useError();
   const [mode, setMode] = useState<AppMode>("adhoc");
   const [view, setView] = useState<string>("home");
   const [tabs, setTabs] = useState<TabState[]>([]);
@@ -86,23 +96,35 @@ export default function App() {
   }, []);
 
   const handleNewProject = useCallback(async (name: string, savePath?: string) => {
-    const tab = await api.newProject(name, "en-US", [], savePath);
-    if (tab) {
-      const proj = await api.getProject(tab.id);
-      addTab(tab, proj ?? { version: "v1", name });
+    try {
+      const tab = await api.newProject(name, "en-US", [], savePath);
+      if (tab) {
+        const proj = await api.getProject(tab.id);
+        addTab(tab, proj ?? { version: "v1", name });
+      }
+      setShowNewProjectForm(false);
+    } catch (err) {
+      showError("Failed to create project", err);
     }
-    setShowNewProjectForm(false);
-  }, [addTab]);
+  }, [addTab, showError]);
 
   const handleOpenProject = useCallback(async () => {
-    const tab = await api.openProjectDialog();
-    if (tab) { const proj = await api.getProject(tab.id); if (proj) addTab(tab, proj); }
-  }, [addTab]);
+    try {
+      const tab = await api.openProjectDialog();
+      if (tab) { const proj = await api.getProject(tab.id); if (proj) addTab(tab, proj); }
+    } catch (err) {
+      showError("Failed to open project", err);
+    }
+  }, [addTab, showError]);
 
   const handleOpenRecent = useCallback(async (path: string) => {
-    const tab = await api.openProject(path);
-    if (tab) { const proj = await api.getProject(tab.id); if (proj) addTab(tab, proj); }
-  }, [addTab]);
+    try {
+      const tab = await api.openProject(path);
+      if (tab) { const proj = await api.getProject(tab.id); if (proj) addTab(tab, proj); }
+    } catch (err) {
+      showError("Failed to open recent project", err);
+    }
+  }, [addTab, showError]);
 
   const handleCloseTab = useCallback((tabID: string) => {
     api.closeProject(tabID);
@@ -138,13 +160,21 @@ export default function App() {
       cleanups.push(Events.On("menu:open-recent", (e: { data: unknown }) => { const p = e.data as string; if (p) handleOpenRecent(p); }));
       cleanups.push(Events.On("menu:save-project", async () => {
         if (!activeTabID) return;
-        const path = await api.getProjectPath(activeTabID);
-        if (path) await api.saveProject(activeTabID);
-        else { const u = await api.saveProjectDialog(activeTabID); if (u) updateActiveTab(u); }
+        try {
+          const path = await api.getProjectPath(activeTabID);
+          if (path) await api.saveProject(activeTabID);
+          else { const u = await api.saveProjectDialog(activeTabID); if (u) updateActiveTab(u); }
+        } catch (err) {
+          showError("Failed to save project", err);
+        }
       }));
       cleanups.push(Events.On("menu:save-project-as", async () => {
         if (!activeTabID) return;
-        const u = await api.saveProjectDialog(activeTabID); if (u) updateActiveTab(u);
+        try {
+          const u = await api.saveProjectDialog(activeTabID); if (u) updateActiveTab(u);
+        } catch (err) {
+          showError("Failed to save project", err);
+        }
       }));
       cleanups.push(Events.On("open-project-tab", async (e: { data: unknown }) => {
         const tab = e.data as TabInfo;
@@ -152,7 +182,7 @@ export default function App() {
       }));
     }).catch(() => {});
     return () => cleanups.forEach((fn) => fn());
-  }, [activeTabID, handleOpenProject, handleOpenRecent, addTab, updateActiveTab]);
+  }, [activeTabID, handleOpenProject, handleOpenRecent, addTab, updateActiveTab, showError]);
 
   return (
     <div className="flex h-screen bg-background text-foreground">

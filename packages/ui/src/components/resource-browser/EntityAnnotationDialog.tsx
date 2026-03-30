@@ -58,13 +58,18 @@ export function EntityAnnotationDialog({
     [],
   );
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleApply = useCallback(async () => {
     const valid = patterns.filter((p) => p.text.trim() !== "");
     if (valid.length === 0) return;
     setApplying(true);
+    setError(null);
     try {
       const res = await onApply(valid);
       setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setApplying(false);
     }
@@ -153,6 +158,11 @@ export function EntityAnnotationDialog({
             >
               + Add pattern
             </button>
+
+            {/* Error */}
+            {error && (
+              <p className="text-xs text-destructive mb-2">{error}</p>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 pt-2 border-t border-border">

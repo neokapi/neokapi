@@ -28,16 +28,17 @@ export function PluginManager() {
   }, [loadPlugins]);
 
   const handleInstall = useCallback(
-    (name: string) => {
+    async (name: string) => {
       setInstalling(name);
       setError(null);
-      api.installPlugin(name);
-      // InstallPlugin is async on the backend — it emits events.
-      // For now, refresh after a delay. TODO: listen to plugin-installed event.
-      setTimeout(() => {
+      try {
+        await api.installPlugin(name);
+        await loadPlugins();
+      } catch (e) {
+        setError(String(e));
+      } finally {
         setInstalling(null);
-        loadPlugins();
-      }, 3000);
+      }
     },
     [loadPlugins],
   );

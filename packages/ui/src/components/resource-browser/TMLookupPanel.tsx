@@ -94,9 +94,12 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
     setEntities((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleLookup = useCallback(async () => {
     if (!text.trim()) return;
     setLoading(true);
+    setError(null);
     try {
       const result = await onLookup({
         text,
@@ -107,6 +110,8 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
         max_results: 10,
       });
       setMatches(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }
@@ -201,6 +206,11 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
           <span className="tabular-nums w-8">{Math.round(minScore * 100)}%</span>
         </div>
       </div>
+
+      {/* Error */}
+      {error && (
+        <p className="text-xs text-destructive">{error}</p>
+      )}
 
       {/* Results */}
       {matches.length > 0 && (

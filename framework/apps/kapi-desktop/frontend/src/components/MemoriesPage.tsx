@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
 import { api } from "../hooks/useApi";
+import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
 import {
   TMBrowser,
@@ -22,14 +23,20 @@ export function MemoriesPage() {
   const [corruptName, setCorruptName] = useState("");
   const [recovering, setRecovering] = useState(false);
 
+  const { showError } = useError();
   const adapter = useTMAdapter(handle);
 
   const refreshResources = useCallback(async () => {
     setLoading(true);
-    const list = await api.listNamedTMs();
-    setResources(list ?? []);
-    setLoading(false);
-  }, []);
+    try {
+      const list = await api.listNamedTMs();
+      setResources(list ?? []);
+    } catch (err) {
+      showError("Failed to load translation memories", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
 
   useEffect(() => {
     void refreshResources();
@@ -62,33 +69,41 @@ export function MemoriesPage() {
       }
       setCorruptPath(null);
       setCorruptName("");
-    } catch {
-      // Recovery itself failed — nothing more we can do.
+    } catch (err) {
+      showError("Recovery failed", err);
     } finally {
       setRecovering(false);
     }
-  }, [corruptPath, corruptName]);
+  }, [corruptPath, corruptName, showError]);
 
   const handleOpenDialog = useCallback(async () => {
-    const h = await api.openTMDialog();
-    if (h) {
-      setHandle(h);
-      setTmName("Translation Memory");
-      setTmPath("");
+    try {
+      const h = await api.openTMDialog();
+      if (h) {
+        setHandle(h);
+        setTmName("Translation Memory");
+        setTmPath("");
+      }
+    } catch (err) {
+      showError("Failed to open translation memory", err);
     }
-  }, []);
+  }, [showError]);
 
   const handleCreate = useCallback(async () => {
     if (!newName.trim()) return;
-    const h = await api.createNamedTM(newName.trim());
-    if (h) {
-      setHandle(h);
-      setTmName(newName.trim());
-      setTmPath("");
-      setShowCreateDialog(false);
-      setNewName("");
+    try {
+      const h = await api.createNamedTM(newName.trim());
+      if (h) {
+        setHandle(h);
+        setTmName(newName.trim());
+        setTmPath("");
+        setShowCreateDialog(false);
+        setNewName("");
+      }
+    } catch (err) {
+      showError("Failed to create translation memory", err);
     }
-  }, [newName]);
+  }, [newName, showError]);
 
   const handleClose = useCallback(() => {
     if (handle) {
@@ -105,15 +120,21 @@ export function MemoriesPage() {
     setImporting(true);
     try {
       await api.importTMXDialog(handle, "", "");
+    } catch (err) {
+      showError("Failed to import TMX", err);
     } finally {
       setImporting(false);
     }
-  }, [handle]);
+  }, [handle, showError]);
 
   const handleExport = useCallback(async () => {
     if (!handle) return;
-    await api.exportTMXDialog(handle, "", "");
-  }, [handle]);
+    try {
+      await api.exportTMXDialog(handle, "", "");
+    } catch (err) {
+      showError("Failed to export TMX", err);
+    }
+  }, [handle, showError]);
 
   // Browser view — TM is open.
   if (handle && adapter) {
@@ -154,7 +175,7 @@ export function MemoriesPage() {
           </div>
         </div>
 
-        <TMBrowser adapter={adapter} showLookup />
+        <TMBrowser adapter={adapter} showLookup onError={showError} />
 
         <ImportProgress active={importing} />
       </div>

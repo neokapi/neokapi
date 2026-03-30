@@ -11,6 +11,7 @@ interface TermbaseBrowserProps {
   sourceLocale?: string;
   targetLocales?: string[];
   projectId?: string;
+  onError?: (message: string, details?: unknown) => void;
 }
 
 const PAGE_SIZE = 50;
@@ -21,6 +22,7 @@ export function TermbaseBrowser({
   sourceLocale = "",
   targetLocales = [],
   projectId,
+  onError,
 }: TermbaseBrowserProps) {
   const [concepts, setConcepts] = useState<ConceptDTO[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -96,55 +98,71 @@ export function TermbaseBrowser({
 
   const handleSaveEdit = useCallback(async () => {
     if (!editConcept) return;
-    await adapter.updateConcept({
-      concept_id: editConcept.id,
-      project_id: editConcept.project_id,
-      domain: editConcept.domain,
-      definition: editConcept.definition,
-      terms: editConcept.terms,
-    });
-    setEditingId(null);
-    setEditConcept(null);
-    void fetchConcepts(debouncedSearch, page);
-  }, [adapter, editConcept, fetchConcepts, debouncedSearch, page]);
+    try {
+      await adapter.updateConcept({
+        concept_id: editConcept.id,
+        project_id: editConcept.project_id,
+        domain: editConcept.domain,
+        definition: editConcept.definition,
+        terms: editConcept.terms,
+      });
+      setEditingId(null);
+      setEditConcept(null);
+      void fetchConcepts(debouncedSearch, page);
+    } catch (err) {
+      onError?.("Failed to save concept", err);
+    }
+  }, [adapter, editConcept, fetchConcepts, debouncedSearch, page, onError]);
 
   const handleDelete = useCallback(
     async (id: string) => {
-      await adapter.deleteConcept(id);
-      setDeleteConfirmId(null);
-      setSelected((prev) => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-      void fetchConcepts(debouncedSearch, page);
+      try {
+        await adapter.deleteConcept(id);
+        setDeleteConfirmId(null);
+        setSelected((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        void fetchConcepts(debouncedSearch, page);
+      } catch (err) {
+        onError?.("Failed to delete concept", err);
+      }
     },
-    [adapter, fetchConcepts, debouncedSearch, page],
+    [adapter, fetchConcepts, debouncedSearch, page, onError],
   );
 
   const handleBulkDelete = useCallback(async () => {
-    await adapter.deleteConcepts([...selected]);
-    setSelected(new Set());
-    void fetchConcepts(debouncedSearch, page);
-  }, [adapter, selected, fetchConcepts, debouncedSearch, page]);
+    try {
+      await adapter.deleteConcepts([...selected]);
+      setSelected(new Set());
+      void fetchConcepts(debouncedSearch, page);
+    } catch (err) {
+      onError?.("Failed to delete concepts", err);
+    }
+  }, [adapter, selected, fetchConcepts, debouncedSearch, page, onError]);
 
   const handleAdd = useCallback(async () => {
     const validTerms = newTerms.filter((t) => t.text.trim());
     if (validTerms.length === 0) return;
-    await adapter.addConcept({
-      project_id: projectId,
-      domain: newDomain,
-      definition: newDefinition,
-      terms: validTerms,
-    });
-    setNewDomain("");
-    setNewDefinition("");
-    setNewTerms([
-      { text: "", locale: sourceLocale, status: "preferred" },
-      { text: "", locale: targetLocales[0] ?? "", status: "preferred" },
-    ]);
-    setShowAddForm(false);
-    void fetchConcepts(debouncedSearch, page);
+    try {
+      await adapter.addConcept({
+        project_id: projectId,
+        domain: newDomain,
+        definition: newDefinition,
+        terms: validTerms,
+      });
+      setNewDomain("");
+      setNewDefinition("");
+      setNewTerms([
+        { text: "", locale: sourceLocale, status: "preferred" },
+        { text: "", locale: targetLocales[0] ?? "", status: "preferred" },
+      ]);
+      setShowAddForm(false);
+      void fetchConcepts(debouncedSearch, page);
+    } catch (err) {
+      onError?.("Failed to add concept", err);
+    }
   }, [
     adapter,
     projectId,
@@ -156,6 +174,7 @@ export function TermbaseBrowser({
     fetchConcepts,
     debouncedSearch,
     page,
+    onError,
   ]);
 
   return (
