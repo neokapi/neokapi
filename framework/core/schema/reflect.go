@@ -307,6 +307,12 @@ func applyTag(prop *PropertySchema, tag string) {
 			}
 		case "default":
 			prop.Default = parseDefault(val, prop.Type)
+		case "showIf":
+			// Format: showIf=field:value (show when field equals value)
+			parts := strings.SplitN(val, ":", 2)
+			if len(parts) == 2 {
+				prop.ShowIf = &ShowIfRule{Field: parts[0], Value: parts[1]}
+			}
 		case "showIfEmpty":
 			prop.ShowIf = &ShowIfRule{Field: val, Empty: true}
 		case "showIfSet":
