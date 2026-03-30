@@ -125,9 +125,9 @@ jobs:
         working-directory: packages/flow-editor
         run: npx vitest run
 
-      - name: Install framework workspace dependencies
-        working-directory: framework
-        run: npm install
+      - name: Install Kapi Desktop frontend dependencies
+        working-directory: framework/apps/kapi-desktop/frontend
+        run: npm install --install-strategy=nested
 
       - name: Run Kapi Desktop frontend tests
         working-directory: framework/apps/kapi-desktop/frontend
