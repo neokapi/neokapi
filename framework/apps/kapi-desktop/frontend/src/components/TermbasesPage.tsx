@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { BookOpen, Plus, FolderOpen, X, Upload } from "lucide-react";
+import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
 import {
@@ -18,6 +18,9 @@ export function TermbasesPage() {
   const [importing, setImporting] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newName, setNewName] = useState("");
+  const [corruptPath, setCorruptPath] = useState<string | null>(null);
+  const [corruptName, setCorruptName] = useState("");
+  const [recovering, setRecovering] = useState(false);
 
   const adapter = useTermbaseAdapter(handle);
 
@@ -33,13 +36,38 @@ export function TermbasesPage() {
   }, [refreshResources]);
 
   const handleOpen = useCallback(async (path: string, name: string) => {
-    const h = await api.openTermbase(path);
-    if (h) {
-      setHandle(h);
-      setTbName(name);
-      setTbPath(path);
+    try {
+      const h = await api.openTermbase(path);
+      if (h) {
+        setHandle(h);
+        setTbName(name);
+        setTbPath(path);
+      }
+    } catch {
+      setCorruptPath(path);
+      setCorruptName(name);
     }
   }, []);
+
+  const handleRecover = useCallback(async () => {
+    if (!corruptPath) return;
+    setRecovering(true);
+    try {
+      await api.recoverResource(corruptPath);
+      const h = await api.createTermbase(corruptPath);
+      if (h) {
+        setHandle(h);
+        setTbName(corruptName);
+        setTbPath(corruptPath);
+      }
+      setCorruptPath(null);
+      setCorruptName("");
+    } catch {
+      // Recovery itself failed.
+    } finally {
+      setRecovering(false);
+    }
+  }, [corruptPath, corruptName]);
 
   const handleOpenDialog = useCallback(async () => {
     const h = await api.openTermbaseDialog();
@@ -247,6 +275,39 @@ export function TermbasesPage() {
               </button>
               <button
                 onClick={() => setShowCreateDialog(false)}
+                className="rounded-md border border-border px-4 py-2 text-xs hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Corruption recovery dialog */}
+      {corruptPath && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle size={18} className="text-destructive" />
+              <h2 className="text-base font-semibold">Corrupt Termbase</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-2">
+              <strong>{corruptName}</strong> could not be opened. The database may be corrupt.
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              The file will be renamed to <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh database created in its place.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => void handleRecover()}
+                disabled={recovering}
+                className="rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                {recovering ? "Recovering..." : "Create Fresh Termbase"}
+              </button>
+              <button
+                onClick={() => { setCorruptPath(null); setCorruptName(""); }}
                 className="rounded-md border border-border px-4 py-2 text-xs hover:bg-accent transition-colors"
               >
                 Cancel
