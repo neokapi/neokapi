@@ -477,7 +477,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
-          version-file: .golangci-lint-version
+          version: v2.9.0
           working-directory: framework
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
@@ -486,7 +486,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
-          version-file: .golangci-lint-version
+          version: v2.9.0
           working-directory: framework/cli
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
@@ -495,7 +495,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
-          version-file: .golangci-lint-version
+          version: v2.9.0
           working-directory: framework/kapi
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
@@ -525,7 +525,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
-          version-file: .golangci-lint-version
+          version: v2.9.0
           working-directory: platform/core
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
@@ -534,7 +534,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
-          version-file: .golangci-lint-version
+          version: v2.9.0
           working-directory: platform/cli
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
@@ -549,7 +549,7 @@ jobs:
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
-          version-file: .golangci-lint-version
+          version: v2.9.0
           working-directory: platform
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
