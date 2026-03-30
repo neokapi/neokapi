@@ -200,8 +200,10 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
         </div>
       )}
 
-      {/* Retry Policy section */}
-      <RetryPolicySection values={values} onChange={onChange} compact={compact} />
+      {/* Retry Policy section — only for tools, not formats */}
+      {schema["x-component"]?.type === "tool" && (
+        <RetryPolicySection values={values} onChange={onChange} compact={compact} />
+      )}
     </div>
   );
 }
