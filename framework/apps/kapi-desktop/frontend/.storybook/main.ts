@@ -14,6 +14,7 @@ const config: StorybookConfig = {
   stories: [
     "../src/**/*.stories.@(ts|tsx)",
     "../../../../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
+    "../../../../../packages/ui/src/**/*.stories.@(ts|tsx)",
   ],
   addons: [
     getAbsolutePath("@storybook/addon-themes"),

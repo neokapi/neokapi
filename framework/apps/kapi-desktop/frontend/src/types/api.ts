@@ -83,7 +83,7 @@ export type AppMode = "adhoc" | "projects";
 export type AdhocView = "home" | "flows" | "tools" | "termbases" | "memories" | "formats" | "settings";
 
 // Sidebar items for Projects mode
-export type ProjectView = "home" | "content" | "flows" | "tools" | "settings";
+export type ProjectView = "home" | "content" | "flows" | "tools" | "termbases" | "memories" | "settings";
 
 // Union for convenience
 export type View = AdhocView | ProjectView;

@@ -24,6 +24,8 @@ import (
 	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
+	"github.com/neokapi/neokapi/sievepen"
+	"github.com/neokapi/neokapi/termbase"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -45,6 +47,10 @@ type App struct {
 	// Plugin registry (lazily initialized)
 	registryMu sync.Mutex
 	registry   *pluginreg.RemoteRegistry
+
+	// TM and Termbase handles
+	tmHandles *handleStore[*sievepen.SQLiteTM]
+	tbHandles *handleStore[*termbase.SQLiteTermBase]
 
 	// Persistence
 	credentials *CredentialStore
@@ -76,6 +82,8 @@ func NewApp() *App {
 		schemaReg:    schemaReg,
 		pluginLoader: pluginLoader,
 		projects:     make(map[string]*openProject),
+		tmHandles:    newHandleStore[*sievepen.SQLiteTM](),
+		tbHandles:    newHandleStore[*termbase.SQLiteTermBase](),
 		credentials:  NewCredentialStore(DefaultCredentialPath()),
 		recent:       newRecentStore(),
 		settings:     newSettingsStore(),
@@ -101,6 +109,8 @@ func (a *App) ServiceStartup(ctx context.Context, options application.ServiceOpt
 // ServiceShutdown is called by Wails v3 during application shutdown.
 func (a *App) ServiceShutdown() error {
 	a.logger.Println("service shutting down")
+	a.tmHandles.CloseAll()
+	a.tbHandles.CloseAll()
 	return nil
 }
 
