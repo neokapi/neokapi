@@ -1,0 +1,121 @@
+{
+  "name": "common-formatting",
+  "version": "1.0",
+  "extends": null,
+  "entity_prefix": "entity:",
+  "types": {
+    "fmt:bold": {
+      "category": "formatting",
+      "label": "Bold",
+      "html": { "open": "<b>", "close": "</b>" },
+      "display": { "open": "[B]", "close": "[/B]" },
+      "chipLabel": { "open": "B>", "close": "/B", "placeholder": "B" },
+      "color": {
+        "bg": "rgba(59,130,246,0.15)",
+        "border": "rgba(59,130,246,0.5)",
+        "text": "rgb(59,130,246)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "fmt:italic": {
+      "category": "formatting",
+      "label": "Italic",
+      "html": { "open": "<i>", "close": "</i>" },
+      "display": { "open": "[I]", "close": "[/I]" },
+      "chipLabel": { "open": "I>", "close": "/I", "placeholder": "I" },
+      "color": {
+        "bg": "rgba(139,92,246,0.15)",
+        "border": "rgba(139,92,246,0.5)",
+        "text": "rgb(139,92,246)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "fmt:underline": {
+      "category": "formatting",
+      "label": "Underline",
+      "html": { "open": "<u>", "close": "</u>" },
+      "display": { "open": "[U]", "close": "[/U]" },
+      "chipLabel": { "open": "U>", "close": "/U", "placeholder": "U" },
+      "color": {
+        "bg": "rgba(16,185,129,0.15)",
+        "border": "rgba(16,185,129,0.5)",
+        "text": "rgb(16,185,129)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "fmt:code": {
+      "category": "formatting",
+      "label": "Code",
+      "html": { "open": "<code>", "close": "</code>" },
+      "display": { "open": "[CODE]", "close": "[/CODE]" },
+      "chipLabel": { "open": "code>", "close": "/code", "placeholder": "code" },
+      "color": {
+        "bg": "rgba(100,116,139,0.15)",
+        "border": "rgba(100,116,139,0.5)",
+        "text": "rgb(100,116,139)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "link:hyperlink": {
+      "category": "linking",
+      "label": "Hyperlink",
+      "html": { "open": "<a>", "close": "</a>" },
+      "display": { "open": "[A]", "close": "[/A]" },
+      "chipLabel": { "open": "a>", "close": "/a", "placeholder": "a" },
+      "color": {
+        "bg": "rgba(245,158,11,0.15)",
+        "border": "rgba(245,158,11,0.5)",
+        "text": "rgb(245,158,11)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "media:image": {
+      "category": "media",
+      "label": "Image",
+      "html": { "placeholder": "<img/>" },
+      "display": { "placeholder": "[IMG]" },
+      "chipLabel": { "placeholder": "img" },
+      "color": {
+        "bg": "rgba(236,72,153,0.15)",
+        "border": "rgba(236,72,153,0.5)",
+        "text": "rgb(236,72,153)"
+      },
+      "equiv": "",
+      "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+    },
+    "struct:break": {
+      "category": "structure",
+      "label": "Line Break",
+      "html": { "placeholder": "<br/>" },
+      "display": { "placeholder": "[BR]" },
+      "chipLabel": { "placeholder": "br" },
+      "color": {
+        "bg": "rgba(107,114,128,0.15)",
+        "border": "rgba(107,114,128,0.5)",
+        "text": "rgb(107,114,128)"
+      },
+      "equiv": "\n",
+      "constraints": { "deletable": false, "cloneable": false, "reorderable": false }
+    }
+  },
+  "fallback": {
+    "html": {
+      "open": "<span data-type=\"{type}\">",
+      "close": "</span>",
+      "placeholder": "<span data-type=\"{type}\"/>"
+    },
+    "display": { "open": "[{type}]", "close": "[/{type}]", "placeholder": "[{type}/]" },
+    "chipLabel": { "open": "?>", "close": "/?", "placeholder": "?" },
+    "color": {
+      "bg": "rgba(156,163,175,0.15)",
+      "border": "rgba(156,163,175,0.5)",
+      "text": "rgb(107,114,128)"
+    },
+    "constraints": { "deletable": true, "cloneable": true, "reorderable": true }
+  }
+}
