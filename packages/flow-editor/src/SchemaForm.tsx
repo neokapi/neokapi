@@ -220,6 +220,47 @@ function PropertyField({
 
   // ── x-widget dispatch ──
 
+  if (widget === "segmented" && schema.enum && schema.enum.length >= 2) {
+    const current = String(resolved ?? schema.enum[0]);
+    return (
+      <div style={{ display: "flex", marginBottom: compact ? 4 : 6 }}>
+        {schema.enum.map((opt, i) => {
+          const val = String(opt);
+          const isActive = current === val;
+          const isFirst = i === 0;
+          const isLast = i === schema.enum!.length - 1;
+          return (
+            <button
+              key={val}
+              onClick={() => onChange(val)}
+              style={{
+                flex: 1,
+                padding: "4px 0",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "0.03em",
+                border: `1px solid ${theme.border}`,
+                borderRight: isLast ? `1px solid ${theme.border}` : "none",
+                borderRadius: isFirst
+                  ? "4px 0 0 4px"
+                  : isLast
+                    ? "0 4px 4px 0"
+                    : "0",
+                background: isActive ? theme.accent : "transparent",
+                color: isActive ? theme.accentFg : theme.fgMuted,
+                cursor: "pointer",
+                transition: "background 120ms, color 120ms",
+                textTransform: "capitalize",
+              }}
+            >
+              {val === "inline" ? "Inline Code" : val.charAt(0).toUpperCase() + val.slice(1)}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   if (widget === "code-editor") {
     return (
       <FieldWrapper label={label} description={schema.description} compact={compact}>

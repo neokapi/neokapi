@@ -13,7 +13,7 @@ import (
 // ScriptConfig holds configuration for the script tool.
 // Source selects between inline code and file — a standard mode-selector pattern.
 type ScriptConfig struct {
-	Source     string `schema:"description=Script source mode,enum=inline|file,default=inline"`
+	Source     string `schema:"description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
 	Code       string `schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
 	ScriptFile string `schema:"description=Path to a .js file,widget=file-picker,showIf=source:file"`
 }
