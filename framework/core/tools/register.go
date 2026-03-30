@@ -25,10 +25,6 @@ func withInputs(parts ...string) func(*schema.ComponentMeta) {
 	return func(m *schema.ComponentMeta) { m.Inputs = parts }
 }
 
-func withOutputs(parts ...string) func(*schema.ComponentMeta) {
-	return func(m *schema.ComponentMeta) { m.Outputs = parts }
-}
-
 func withTags(tags ...string) func(*schema.ComponentMeta) {
 	return func(m *schema.ComponentMeta) { m.Tags = tags }
 }
