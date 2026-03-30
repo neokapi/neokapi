@@ -89,17 +89,22 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
         })}
       </div>
 
+      {/* Divider */}
+      <div style={{ width: "100%", borderTop: "1px dashed var(--border)", paddingTop: 4 }} />
+
       {/* Template cards */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(260, 1fr))",
+          gridTemplateColumns: "repeat(2, 1fr)",
           gap: 10,
           width: "100%",
+          maxWidth: 560,
+          margin: "0 auto",
         }}
       >
-        {filtered.map((tmpl) => (
-          <TemplateCard key={tmpl.id} template={tmpl} onSelect={() => onSelect(tmpl.spec)} />
+        {filtered.map((tmpl, index) => (
+          <TemplateCard key={tmpl.id} template={tmpl} index={index} onSelect={() => onSelect(tmpl.spec)} />
         ))}
       </div>
 
@@ -126,9 +131,11 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
 
 function TemplateCard({
   template,
+  index,
   onSelect,
 }: {
   template: FlowTemplate;
+  index: number;
   onSelect: () => void;
 }) {
   const catStyle = getCategoryStyle(template.category);
@@ -147,14 +154,17 @@ function TemplateCard({
         background: theme.bgCard,
         textAlign: "left",
         cursor: "pointer",
-        transition: "border-color 150ms, box-shadow 150ms",
+        transition: "transform 150ms, border-color 150ms, box-shadow 150ms",
+        animation: "cardReveal 0.25s ease-out forwards",
+        animationDelay: `${index * 60}ms`,
+        opacity: 0,
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = catStyle.color;
-        e.currentTarget.style.boxShadow = `0 2px 8px ${catStyle.color}22`;
+        e.currentTarget.style.transform = "translateY(-2px)";
+        e.currentTarget.style.boxShadow = `0 0 0 1px ${catStyle.color}, 0 4px 12px ${catStyle.color}22`;
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = theme.border;
+        e.currentTarget.style.transform = "translateY(0)";
         e.currentTarget.style.boxShadow = "none";
       }}
     >

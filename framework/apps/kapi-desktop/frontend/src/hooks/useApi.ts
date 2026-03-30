@@ -169,6 +169,10 @@ export const api = {
   importTermbaseJSONDialog: (handle: string) => call<{ count: number }>("ImportTermbaseJSONDialog", handle),
   exportTermbaseJSONDialog: (handle: string, name: string) => call<void>("ExportTermbaseJSONDialog", handle, name),
 
+  // Preview
+  previewFlow: (tabID: string, flowName: string, sampleText: string, sourceLang: string, targetLang: string) =>
+    call<unknown>("PreviewFlow", tabID, flowName, sampleText, sourceLang, targetLang),
+
   // Trace
   getLastTrace: () => call<unknown>("GetLastTrace"),
 

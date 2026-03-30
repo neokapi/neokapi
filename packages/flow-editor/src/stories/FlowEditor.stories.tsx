@@ -216,6 +216,24 @@ export const ParallelizationSuggestion: Story = {
   },
 };
 
+export const WithPortVisualization: Story = {
+  name: "With Port Visualization",
+  args: {
+    flow: {
+      steps: [
+        { tool: "ai-translate" },
+        { tool: "qa-check" },
+        { tool: "word-count" },
+      ],
+    },
+    tools: tools.map((t) => ({
+      ...t,
+      inputs: t.name === "ai-translate" ? ["block"] : t.name === "qa-check" ? ["block"] : ["block", "data"],
+      outputs: t.name === "ai-translate" ? ["block"] : t.name === "qa-check" ? ["block"] : ["data"],
+    })),
+  },
+};
+
 export const WithTraceData: Story = {
   name: "With Trace (Completed)",
   args: {

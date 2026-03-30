@@ -53,9 +53,7 @@ export function EntityAnnotationDialog({
 
   const updatePattern = useCallback(
     (idx: number, field: keyof EntityPatternRequest, value: string | boolean) => {
-      setPatterns((prev) =>
-        prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)),
-      );
+      setPatterns((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)));
     },
     [],
   );
@@ -83,9 +81,7 @@ export function EntityAnnotationDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg">
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          Annotate Entities
-        </h3>
+        <h3 className="text-base font-semibold text-foreground mb-1">Annotate Entities</h3>
         <p className="text-[12px] text-muted-foreground mb-4">
           Convert text patterns to named entities across {selectedCount} selected{" "}
           {selectedCount === 1 ? "entry" : "entries"}.
@@ -95,10 +91,8 @@ export function EntityAnnotationDialog({
           /* Result view */
           <div className="py-4">
             <div className="text-sm text-foreground mb-2">
-              Updated {result.entries_updated}{" "}
-              {result.entries_updated === 1 ? "entry" : "entries"},{" "}
-              added {result.entities_added}{" "}
-              {result.entities_added === 1 ? "entity" : "entities"}.
+              Updated {result.entries_updated} {result.entries_updated === 1 ? "entry" : "entries"},{" "}
+              added {result.entities_added} {result.entities_added === 1 ? "entity" : "entities"}.
             </div>
             <button
               onClick={handleClose}

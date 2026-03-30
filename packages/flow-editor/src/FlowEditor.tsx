@@ -1,9 +1,7 @@
 import { useMemo, useCallback, useState } from "react";
 import {
   ReactFlow,
-  Controls,
   Background,
-  MiniMap,
   BackgroundVariant,
   useNodesState,
   useEdgesState,
@@ -11,7 +9,7 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Play, X, GitBranch, Zap } from "lucide-react";
+import { Play, X, GitBranch, Zap, Eye, RefreshCw } from "lucide-react";
 
 import type { FlowEditorProps, FlowSpec, FlowStep, ToolInfo, ComponentSchema } from "./types";
 import { ReaderNode } from "./nodes/ReaderNode";
@@ -25,6 +23,7 @@ import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
 import { PartInspector } from "./PartInspector";
+import { PreviewPanel } from "./PreviewPanel";
 import { computeNodeStats } from "./traceTypes";
 import { theme } from "./theme";
 
@@ -57,6 +56,7 @@ export function FlowEditor({
 
   const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
   const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Build tool lookup map for enriching nodes with category/description
   const toolMap = useMemo(() => {
@@ -87,7 +87,24 @@ export function FlowEditor({
     return m;
   }, [initial.nodes]);
 
-  const [nodes, , onNodesChange] = useNodesState(initial.nodes);
+  // Enrich nodes with execution state from trace data.
+  const enrichedNodes = useMemo(() => {
+    if (!nodeStats) return initial.nodes;
+    return initial.nodes.map((n) => {
+      const stats = nodeStats.get(n.id);
+      if (!stats) return n;
+      return {
+        ...n,
+        data: {
+          ...n.data,
+          execState: stats.hasError ? "error" : stats.partsProcessed > 0 ? "complete" : undefined,
+          partCount: stats.partsProcessed,
+        },
+      };
+    });
+  }, [initial.nodes, nodeStats]);
+
+  const [nodes, , onNodesChange] = useNodesState(enrichedNodes);
   const [edges, , onEdgesChange] = useEdgesState(initial.edges);
 
   const handleNodesChange = useCallback(
@@ -198,6 +215,17 @@ export function FlowEditor({
     onChange(updated);
   }, [nodes, onChange]);
 
+  // Connection validation — only allow connecting compatible port types.
+  const isValidConnection = useCallback((connection: { source: string | null; target: string | null }) => {
+    const sourceNode = nodes.find((n) => n.id === connection.source);
+    const targetNode = nodes.find((n) => n.id === connection.target);
+    if (!sourceNode || !targetNode) return true;
+    const srcOutputs = sourceNode.data.outputs as string[] | undefined;
+    const tgtInputs = targetNode.data.inputs as string[] | undefined;
+    if (!srcOutputs || !tgtInputs) return true; // no metadata = allow
+    return srcOutputs.some((o) => tgtInputs.includes(o));
+  }, [nodes]);
+
   // Config panel state
   const selectedToolIndex = selectedNodeId
     ? parseInt(selectedNodeId.replace("tool-", ""), 10)
@@ -253,6 +281,27 @@ export function FlowEditor({
           </span>
 
           <div style={{ flex: 1 }} />
+
+          <button
+            onClick={() => setShowPreview((p) => !p)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "5px 10px",
+              borderRadius: 6,
+              border: `1px solid ${showPreview ? theme.accent : theme.border}`,
+              background: showPreview ? `${theme.accent}18` : "transparent",
+              color: showPreview ? theme.accent : theme.fgMuted,
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+            aria-label="Toggle preview"
+          >
+            <Eye size={12} />
+            Preview
+          </button>
 
           {onRun && (
             <button
@@ -352,6 +401,7 @@ export function FlowEditor({
             onNodeClick={handleNodeClick}
             onPaneClick={handlePaneClick}
             onNodeDragStop={handleNodeDragStop}
+            isValidConnection={isValidConnection}
             nodeTypes={nodeTypes}
             nodesDraggable={!readOnly}
             nodesConnectable={!readOnly}
@@ -363,28 +413,11 @@ export function FlowEditor({
               animated: false,
             }}
           >
-            <Controls
-              showInteractive={false}
-              style={{ background: theme.bgCard, borderColor: theme.border }}
-            />
             <Background
               variant={BackgroundVariant.Dots}
               gap={24}
               size={1}
               color={theme.border}
-            />
-            <MiniMap
-              nodeColor={(n) => {
-                if (n.type === "reader") return "oklch(0.7 0.17 145)";
-                if (n.type === "writer") return "oklch(0.7 0.13 85)";
-                const cat = (n.data?.category as string) || "pipeline";
-                return getCategoryStyle(cat).color;
-              }}
-              maskColor="oklch(0 0 0 / 0.6)"
-              style={{
-                background: theme.bg,
-                borderColor: theme.border,
-              }}
             />
           </ReactFlow>
         </div>
@@ -397,6 +430,27 @@ export function FlowEditor({
             nodeNames={nodeNames}
             totalDurationUs={trace?.durationUs}
           />
+        )}
+
+        {/* Preview panel (bottom of canvas column) */}
+        {showPreview && (
+          <div
+            style={{
+              borderTop: `1px solid ${theme.border}`,
+              background: theme.bg,
+              padding: "12px 16px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <Eye size={12} style={{ color: theme.accent }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>
+                Preview
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: theme.fgMuted, fontStyle: "italic", textAlign: "center", padding: "12px 0" }}>
+              Connect to a running project to preview
+            </div>
+          </div>
         )}
       </div>
 

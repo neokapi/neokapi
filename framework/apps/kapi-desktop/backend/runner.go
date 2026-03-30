@@ -3,6 +3,7 @@ package backend
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -135,6 +136,100 @@ func (a *App) GetLastTrace() *flow.FlowTrace {
 	a.runState.mu.Lock()
 	defer a.runState.mu.Unlock()
 	return a.runState.lastTrace
+}
+
+// PreviewResult contains trace data from a preview flow execution.
+type PreviewResult struct {
+	Nodes     []flow.TraceNode                 `json:"nodes"`
+	Events    []flow.TraceEvent                `json:"events"`
+	Parts     map[string]*flow.PartSnapshotSet `json:"parts"`
+	NodeOrder []string                         `json:"node_order"`
+}
+
+// PreviewFlow runs a flow on a single sample text block and returns trace data.
+// This enables the live preview panel in the flow editor.
+func (a *App) PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang string) (*PreviewResult, error) {
+	op := a.getOpenProject(tabID)
+	if op == nil {
+		return nil, fmt.Errorf("tab %q not found", tabID)
+	}
+
+	spec := op.Project.GetFlow(flowName)
+	if spec == nil {
+		return nil, fmt.Errorf("flow %q not found", flowName)
+	}
+
+	if sampleText == "" {
+		return nil, fmt.Errorf("sample text is required")
+	}
+
+	// Build tools from steps.
+	var tools []tool.Tool
+	for _, step := range spec.Steps {
+		t, err := a.toolReg.NewTool(step.Tool)
+		if err != nil {
+			return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
+		}
+		tools = append(tools, t)
+	}
+
+	recorder := flow.NewTraceRecorder()
+
+	// Build trace node metadata and wrap tools.
+	traceNodes := make([]flow.TraceNode, len(tools))
+	tracedTools := make([]tool.Tool, len(tools))
+	nodeOrder := make([]string, len(tools))
+	for i, t := range tools {
+		nodeID := fmt.Sprintf("tool-%d", i)
+		traceNodes[i] = flow.TraceNode{
+			ID:   nodeID,
+			Type: "tool",
+			Name: t.Name(),
+		}
+		tracedTools[i] = flow.NewTracingTool(t, nodeID, recorder)
+		nodeOrder[i] = nodeID
+	}
+
+	// Create a temporary file with sample text to use as input.
+	tmpFile, err := os.CreateTemp("", "kapi-preview-*.txt")
+	if err != nil {
+		return nil, fmt.Errorf("create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(sampleText); err != nil {
+		tmpFile.Close()
+		return nil, fmt.Errorf("write sample text: %w", err)
+	}
+	tmpFile.Close()
+
+	// Build flow and execute with the sample text file.
+	fb := flow.NewFlow(flowName)
+	for _, t := range tracedTools {
+		fb.AddTool(t)
+	}
+	f := fb.Build()
+
+	executor := flow.NewFlowExecutor()
+	item := &flow.FlowItem{
+		Input: &model.RawDocument{
+			URI:          tmpFile.Name(),
+			SourceLocale: model.LocaleID(sourceLang),
+			TargetLocale: model.LocaleID(targetLang),
+		},
+	}
+
+	ctx := context.Background()
+	if err := executor.Execute(ctx, f, []*flow.FlowItem{item}); err != nil {
+		return nil, fmt.Errorf("preview: %w", err)
+	}
+
+	return &PreviewResult{
+		Nodes:     traceNodes,
+		Events:    recorder.Events(),
+		Parts:     recorder.Snapshots(),
+		NodeOrder: nodeOrder,
+	}, nil
 }
 
 func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Tool, inputPaths []string, targetLang string) {
