@@ -58,14 +58,23 @@ export function TMBrowser({
     }, 200);
   }, []);
 
+  // Use refs for values used in fetchEntries to avoid re-creating the callback
+  // when adapter/locale props change identity but not value (e.g., default [] array).
+  const adapterRef = useRef(adapter);
+  const sourceLocaleRef = useRef(sourceLocale);
+  const targetLocaleRef = useRef(targetLocales[0] ?? "");
+  adapterRef.current = adapter;
+  sourceLocaleRef.current = sourceLocale;
+  targetLocaleRef.current = targetLocales[0] ?? "";
+
   const fetchEntries = useCallback(
     async (q: string, p: number) => {
       setLoading(true);
       try {
-        const result = await adapter.search(
+        const result = await adapterRef.current.search(
           q,
-          sourceLocale,
-          targetLocales[0] ?? "",
+          sourceLocaleRef.current,
+          targetLocaleRef.current,
           p * PAGE_SIZE,
           PAGE_SIZE,
         );
@@ -76,7 +85,7 @@ export function TMBrowser({
         setInitialLoadDone(true);
       }
     },
-    [adapter, sourceLocale, targetLocales],
+    [], // stable — reads from refs
   );
 
   useEffect(() => {
