@@ -17,9 +17,10 @@
     "noFallthroughCasesInSwitch": true,
     "paths": {
       "@neokapi/ui-primitives": ["../../../../packages/ui/src"],
-      "@neokapi/ui-primitives/*": ["../../../../packages/ui/src/*"]
+      "@neokapi/ui-primitives/*": ["../../../../packages/ui/src/*"],
+      "@neokapi/flow-editor": ["../../../../packages/flow-editor/src"],
+      "@neokapi/flow-editor/*": ["../../../../packages/flow-editor/src/*"]
     }
   },
-  "include": ["src"],
-  "references": [{ "path": "../../../../packages/ui" }]
+  "include": ["src"]
 }
