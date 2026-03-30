@@ -51,6 +51,7 @@ import type {
   ScoreTrend,
   CreateVoiceProfileRequest,
   UpdateVoiceProfileRequest,
+  ModelUsageResponse,
 } from "@neokapi/ui";
 import type {
   TranslationDashboardStats,
@@ -58,6 +59,24 @@ import type {
   TaskInfo,
   CreateTaskRequest,
   NotificationPreference,
+  RoleTemplate,
+  ProjectMembership,
+  StreamTag,
+  StreamTagKind,
+  CreateStreamTagRequest,
+  AutomationRun,
+  AutomationStep,
+  AutomationLogEntry,
+  DigestSettingsDTO,
+  BravoConversation,
+  BravoMessage,
+  BravoConfig,
+  BravoToolInfo,
+  BravoUsageSummary,
+  BravoSSEHandler,
+  BillingOverview,
+  BillingUsageBreakdown,
+  CreditLedgerEntry,
 } from "@neokapi/ui/types/api";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -147,6 +166,69 @@ export class WailsApiAdapter implements ApiAdapter {
     throw new Error("Not supported in desktop mode");
   }
 
+  // --- Role Templates (not applicable in desktop) ---
+  async listRoleTemplates(_ws: string): Promise<RoleTemplate[]> {
+    return [];
+  }
+  async createRoleTemplate(
+    _ws: string,
+    _data: {
+      name: string;
+      display_name: string;
+      description: string;
+      permissions: string[];
+      position?: number;
+    },
+  ): Promise<RoleTemplate> {
+    throw new Error("not implemented in desktop app");
+  }
+  async updateRoleTemplate(
+    _ws: string,
+    _roleId: string,
+    _data: {
+      name?: string;
+      display_name?: string;
+      description?: string;
+      permissions?: string[];
+      position?: number;
+    },
+  ): Promise<RoleTemplate> {
+    throw new Error("not implemented in desktop app");
+  }
+  async deleteRoleTemplate(_ws: string, _roleId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+
+  // --- Project Members (not applicable in desktop) ---
+  async listProjectMembers(_ws: string, _projectId: string): Promise<ProjectMembership[]> {
+    return [];
+  }
+  async addProjectMember(
+    _ws: string,
+    _projectId: string,
+    _data: {
+      user_id: string;
+      role_id: string;
+      languages?: string[];
+    },
+  ): Promise<ProjectMembership> {
+    throw new Error("not implemented in desktop app");
+  }
+  async updateProjectMember(
+    _ws: string,
+    _projectId: string,
+    _userId: string,
+    _data: {
+      role_id: string;
+      languages?: string[];
+    },
+  ): Promise<ProjectMembership> {
+    throw new Error("not implemented in desktop app");
+  }
+  async removeProjectMember(_ws: string, _projectId: string, _userId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+
   // --- Streams (desktop: single stream mode) ---
   async listStreams(): Promise<StreamInfo[]> {
     return [];
@@ -168,6 +250,52 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async mergeStream(): Promise<StreamMergeResult> {
     throw new Error("Streams not yet supported in desktop mode");
+  }
+  async lockStream(): Promise<StreamInfo> {
+    throw new Error("not implemented in desktop app");
+  }
+  async unlockStream(): Promise<StreamInfo> {
+    throw new Error("not implemented in desktop app");
+  }
+
+  // --- Stream Tags (not yet supported in desktop) ---
+  async listStreamTags(
+    _ws: string,
+    _projectId: string,
+    _streamName: string,
+  ): Promise<StreamTag[]> {
+    return [];
+  }
+  async createStreamTag(
+    _ws: string,
+    _projectId: string,
+    _streamName: string,
+    _req: CreateStreamTagRequest,
+  ): Promise<StreamTag> {
+    throw new Error("not implemented in desktop app");
+  }
+  async getStreamTag(
+    _ws: string,
+    _projectId: string,
+    _streamName: string,
+    _tagName: string,
+  ): Promise<StreamTag> {
+    throw new Error("not implemented in desktop app");
+  }
+  async deleteStreamTag(
+    _ws: string,
+    _projectId: string,
+    _streamName: string,
+    _tagName: string,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listProjectTags(
+    _ws: string,
+    _projectId: string,
+    _kind?: StreamTagKind,
+  ): Promise<StreamTag[]> {
+    return [];
   }
 
   // --- API Tokens (not applicable in desktop) ---
@@ -546,6 +674,35 @@ export class WailsApiAdapter implements ApiAdapter {
     return [];
   }
 
+  // --- Automation Runs (AD-035, not yet supported in desktop) ---
+  async listAutomationRuns(
+    _ws: string,
+    _projectId: string,
+    _status?: string,
+    _limit?: number,
+  ): Promise<AutomationRun[]> {
+    return [];
+  }
+  async getAutomationRun(
+    _ws: string,
+    _projectId: string,
+    _runId: string,
+  ): Promise<{ run: AutomationRun; steps: AutomationStep[] }> {
+    throw new Error("not implemented in desktop app");
+  }
+  async listStepLogs(
+    _ws: string,
+    _projectId: string,
+    _runId: string,
+    _stepId: string,
+    _limit?: number,
+  ): Promise<AutomationLogEntry[]> {
+    return [];
+  }
+  async cancelAutomationRun(_ws: string, _projectId: string, _runId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+
   // --- Notifications (desktop: not yet backed by Wails bindings) ---
   async listNotifications(
     _ws: string,
@@ -557,6 +714,14 @@ export class WailsApiAdapter implements ApiAdapter {
   async markNotificationRead(_ws: string, _id: string): Promise<void> {}
   async markAllNotificationsRead(_ws: string): Promise<void> {}
   async deleteNotification(_ws: string, _id: string): Promise<void> {}
+
+  // --- Digest settings (not yet supported in desktop) ---
+  async getDigestSettings(_ws: string): Promise<DigestSettingsDTO> {
+    throw new Error("not implemented in desktop app");
+  }
+  async updateDigestSettings(_ws: string, _settings: DigestSettingsDTO): Promise<DigestSettingsDTO> {
+    throw new Error("not implemented in desktop app");
+  }
 
   // --- Entity annotations (desktop: not yet backed by Wails bindings) ---
   async createEntity(
@@ -618,6 +783,16 @@ export class WailsApiAdapter implements ApiAdapter {
   }
   async getBrandTrends(_ws: string, _projectId: string): Promise<ScoreTrend[]> {
     return [];
+  }
+  async listStarterPacks(): Promise<{ name: string; description: string }[]> {
+    return [];
+  }
+  async createProfileFromStarter(
+    _ws: string,
+    _pack: string,
+    _name?: string,
+  ): Promise<VoiceProfile> {
+    throw new Error("not implemented in desktop app");
   }
 
   // --- Activities (AD-027, not yet supported in desktop) ---
@@ -695,6 +870,129 @@ export class WailsApiAdapter implements ApiAdapter {
     _preferences: NotificationPreference[],
   ): Promise<void> {
     throw new Error("Notification preferences not yet supported in desktop mode");
+  }
+
+  // --- @bravo Agent (not yet supported in desktop) ---
+  async bravoCreateConversation(
+    _ws: string,
+    _projectId?: string,
+    _title?: string,
+  ): Promise<BravoConversation> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoListConversations(
+    _ws: string,
+    _limit?: number,
+    _offset?: number,
+  ): Promise<{ conversations: BravoConversation[]; total: number }> {
+    return { conversations: [], total: 0 };
+  }
+  async bravoGetConversation(
+    _ws: string,
+    _conversationId: string,
+  ): Promise<{ conversation: BravoConversation; messages: BravoMessage[] }> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoDeleteConversation(_ws: string, _conversationId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoSendMessage(
+    _ws: string,
+    _conversationId: string,
+    _content: string,
+  ): Promise<{ user_message: BravoMessage; assistant_message: BravoMessage }> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoListMessages(
+    _ws: string,
+    _conversationId: string,
+    _limit?: number,
+    _offset?: number,
+  ): Promise<{ messages: BravoMessage[] }> {
+    return { messages: [] };
+  }
+  async bravoApproveToolCall(
+    _ws: string,
+    _conversationId: string,
+    _toolCallId: string,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoDenyToolCall(
+    _ws: string,
+    _conversationId: string,
+    _toolCallId: string,
+  ): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoCancelConversation(_ws: string, _conversationId: string): Promise<void> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoGetConfig(_ws: string): Promise<BravoConfig> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoUpdateConfig(_ws: string, _config: Partial<BravoConfig>): Promise<BravoConfig> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoListTools(_ws: string): Promise<{ tools: BravoToolInfo[] }> {
+    return { tools: [] };
+  }
+  async bravoGetUsage(
+    _ws: string,
+    _from?: string,
+    _to?: string,
+  ): Promise<BravoUsageSummary> {
+    throw new Error("not implemented in desktop app");
+  }
+  async bravoUpdateMode(
+    _ws: string,
+    _conversationId: string,
+    _mode: string,
+  ): Promise<{ mode: string; permissions: string[] }> {
+    throw new Error("not implemented in desktop app");
+  }
+  bravoSendMessageSSE(
+    _ws: string,
+    _conversationId: string,
+    _content: string,
+    _handler: BravoSSEHandler,
+    _mode?: string,
+    _context?: { projectId?: string; stream?: string; itemId?: string },
+  ): AbortController {
+    throw new Error("not implemented in desktop app");
+  }
+
+  // --- Billing (not applicable in desktop) ---
+  async billingGetOverview(_ws: string): Promise<BillingOverview> {
+    throw new Error("not implemented in desktop app");
+  }
+  async billingGetUsage(_ws: string): Promise<BillingUsageBreakdown> {
+    throw new Error("not implemented in desktop app");
+  }
+  async billingGetModelUsage(
+    _ws: string,
+    _from?: string,
+    _to?: string,
+  ): Promise<ModelUsageResponse> {
+    throw new Error("not implemented in desktop app");
+  }
+  async billingCreateCheckout(
+    _ws: string,
+    _priceId: string,
+    _successUrl: string,
+    _cancelUrl: string,
+  ): Promise<{ url: string }> {
+    throw new Error("not implemented in desktop app");
+  }
+  async billingCreatePortal(_ws: string, _returnUrl: string): Promise<{ url: string }> {
+    throw new Error("not implemented in desktop app");
+  }
+  async billingGetLedger(
+    _ws: string,
+    _from?: string,
+    _to?: string,
+  ): Promise<CreditLedgerEntry[]> {
+    return [];
   }
 
   // --- Desktop-specific helpers (not in ApiAdapter) ---
