@@ -18,10 +18,14 @@ import { ReaderNode } from "./nodes/ReaderNode";
 import { WriterNode } from "./nodes/WriterNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
+import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 import { SchemaForm } from "./SchemaForm";
 import { stepsToGraph, graphToSteps } from "./conversion";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
+import { TraceTimeline } from "./TraceTimeline";
+import { PartInspector } from "./PartInspector";
+import { computeNodeStats } from "./traceTypes";
 import { theme } from "./theme";
 
 const nodeTypes: NodeTypes = {
@@ -44,9 +48,15 @@ export function FlowEditor({
   onRun,
   onGetSchema,
   readOnly = false,
+  traceEvents,
+  trace,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
+  const [dismissedTemplates, setDismissedTemplates] = useState(false);
+
+  const showTemplates = !readOnly && !dismissedTemplates && flow.steps.length === 0;
+  const [inspectingNodeId, setInspectingNodeId] = useState<string | null>(null);
 
   // Build tool lookup map for enriching nodes with category/description
   const toolMap = useMemo(() => {
@@ -62,6 +72,21 @@ export function FlowEditor({
   );
 
   const initial = useMemo(() => stepsToGraph(flow, toolMap), [flow, toolMap]);
+
+  // Compute per-node trace stats for execution state overlay.
+  const nodeStats = useMemo(
+    () => (traceEvents ? computeNodeStats(traceEvents) : null),
+    [traceEvents],
+  );
+
+  const nodeNames = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const n of initial.nodes) {
+      if (n.type === "tool") m.set(n.id, String(n.data.toolName ?? n.data.label));
+    }
+    return m;
+  }, [initial.nodes]);
+
   const [nodes, , onNodesChange] = useNodesState(initial.nodes);
   const [edges, , onEdgesChange] = useEdgesState(initial.edges);
 
@@ -74,11 +99,25 @@ export function FlowEditor({
 
   const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id);
-  }, []);
+    // If we have trace data, also open the part inspector for this node.
+    if (trace && node.type === "tool") {
+      setInspectingNodeId(node.id);
+    }
+  }, [trace]);
 
   const handlePaneClick = useCallback(() => {
     setSelectedNodeId(null);
+    setInspectingNodeId(null);
   }, []);
+
+  const handleSelectTemplate = useCallback(
+    (spec: FlowSpec) => {
+      if (readOnly) return;
+      onChange(spec);
+      setDismissedTemplates(true);
+    },
+    [onChange, readOnly],
+  );
 
   const handleAddTool = useCallback(
     (toolName: string) => {
@@ -292,7 +331,18 @@ export function FlowEditor({
           </div>
         )}
 
+        {/* Template library (shown when flow is empty) */}
+        {showTemplates && (
+          <div style={{ flex: 1, overflow: "auto", background: theme.bg }}>
+            <FlowTemplateLibrary
+              onSelect={handleSelectTemplate}
+              onDismiss={() => setDismissedTemplates(true)}
+            />
+          </div>
+        )}
+
         {/* Graph canvas */}
+        {!showTemplates && (
         <div style={{ flex: 1 }} onDrop={handleDrop} onDragOver={handleDragOver}>
           <ReactFlow
             nodes={nodes}
@@ -338,7 +388,26 @@ export function FlowEditor({
             />
           </ReactFlow>
         </div>
+        )}
+
+        {/* Trace timeline (bottom of canvas column) */}
+        {traceEvents && traceEvents.length > 0 && (
+          <TraceTimeline
+            events={traceEvents}
+            nodeNames={nodeNames}
+            totalDurationUs={trace?.durationUs}
+          />
+        )}
       </div>
+
+      {/* Part Inspector (right, when inspecting a traced node) */}
+      {trace && inspectingNodeId && (
+        <PartInspector
+          nodeId={inspectingNodeId}
+          nodeName={nodeNames.get(inspectingNodeId) ?? inspectingNodeId}
+          parts={trace.parts}
+        />
+      )}
 
       {/* Config Panel (right) */}
       {selectedStep && (

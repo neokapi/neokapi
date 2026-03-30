@@ -169,6 +169,9 @@ export const api = {
   importTermbaseJSONDialog: (handle: string) => call<{ count: number }>("ImportTermbaseJSONDialog", handle),
   exportTermbaseJSONDialog: (handle: string, name: string) => call<void>("ExportTermbaseJSONDialog", handle, name),
 
+  // Trace
+  getLastTrace: () => call<unknown>("GetLastTrace"),
+
   // System
   getVersion: () => call<string>("GetVersion"),
   getHomeDir: () => call<string>("GetHomeDir"),

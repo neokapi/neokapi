@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Settings2, GitBranch } from "lucide-react";
+import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { getCategoryStyle } from "../category";
 import { theme } from "../theme";
 
@@ -10,6 +10,10 @@ export function ToolNode({ data, selected }: NodeProps) {
   const hasConfig =
     !!data.config && Object.keys(data.config as object).length > 0;
   const isParallel = !!data.parallel;
+  const execState = data.execState as string | undefined; // "active" | "complete" | "error"
+  const partCount = data.partCount as number | undefined;
+  const inputs = data.inputs as string[] | undefined;
+  const outputs = data.outputs as string[] | undefined;
 
   return (
     <div
@@ -18,13 +22,19 @@ export function ToolNode({ data, selected }: NodeProps) {
         minWidth: 180,
         borderRadius: 8,
         overflow: "hidden",
-        border: selected
-          ? `2px solid ${style.color}`
-          : `2px solid ${theme.border}`,
+        border: execState === "error"
+          ? `2px solid ${theme.destructive}`
+          : execState === "complete"
+            ? `2px solid oklch(0.65 0.15 145)`
+            : selected
+              ? `2px solid ${style.color}`
+              : `2px solid ${theme.border}`,
         background: theme.bgCard,
-        boxShadow: selected
-          ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
-          : "0 2px 8px oklch(0 0 0 / 0.2)",
+        boxShadow: execState === "active"
+          ? `0 0 0 3px ${theme.accent}44, 0 4px 12px oklch(0 0 0 / 0.3)`
+          : selected
+            ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
+            : "0 2px 8px oklch(0 0 0 / 0.2)",
         transition: "border-color 150ms, box-shadow 150ms",
       }}
     >
@@ -116,6 +126,55 @@ export function ToolNode({ data, selected }: NodeProps) {
           </div>
         )}
 
+        {/* Port type indicators */}
+        {(inputs?.length || outputs?.length) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 4 }}>
+            {inputs?.map((t) => (
+              <span
+                key={`in-${t}`}
+                title={`Input: ${t}`}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  background: portColor(t),
+                  opacity: 0.7,
+                }}
+              />
+            ))}
+            {inputs?.length && outputs?.length ? (
+              <span style={{ fontSize: 8, color: theme.fgMuted }}>&rarr;</span>
+            ) : null}
+            {outputs?.map((t) => (
+              <span
+                key={`out-${t}`}
+                title={`Output: ${t}`}
+                style={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: 3,
+                  background: portColor(t),
+                  opacity: 0.7,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Execution state badge */}
+        {execState && (
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
+            {execState === "active" && <Loader2 size={10} style={{ color: theme.accent, animation: "spin 1s linear infinite" }} />}
+            {execState === "complete" && <CheckCircle2 size={10} style={{ color: "oklch(0.65 0.15 145)" }} />}
+            {execState === "error" && <AlertCircle size={10} style={{ color: theme.destructive }} />}
+            {partCount !== undefined && (
+              <span style={{ fontSize: 9, color: theme.fgMuted }}>
+                {partCount} part{partCount !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+        )}
+
         <Handle
           type="source"
           position={Position.Right}
@@ -130,4 +189,15 @@ export function ToolNode({ data, selected }: NodeProps) {
       </div>
     </div>
   );
+}
+
+const PORT_COLORS: Record<string, string> = {
+  block: "oklch(0.75 0.12 85)",   // amber
+  data: "oklch(0.6 0.02 260)",    // slate
+  media: "oklch(0.7 0.12 180)",   // teal
+  layer: "oklch(0.65 0.14 300)",  // violet
+};
+
+function portColor(type: string): string {
+  return PORT_COLORS[type] ?? theme.fgMuted;
 }

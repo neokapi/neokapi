@@ -59,6 +59,8 @@ export function stepsToGraph(
             config: branch.config,
             category: info?.category || "pipeline",
             description: info?.description,
+            inputs: info?.inputs,
+            outputs: info?.outputs,
             parallel: true,
           },
         });
@@ -92,6 +94,8 @@ export function stepsToGraph(
           config: step.config,
           category: info?.category || "pipeline",
           description: info?.description,
+          inputs: info?.inputs,
+          outputs: info?.outputs,
         },
       });
 

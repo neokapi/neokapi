@@ -44,10 +44,11 @@ type RunEvent struct {
 // runner manages flow execution state with proper synchronization.
 // All fields are guarded by mu.
 type runner struct {
-	mu      sync.Mutex
-	state   RunState
-	cancel  context.CancelFunc
-	running bool
+	mu        sync.Mutex
+	state     RunState
+	cancel    context.CancelFunc
+	running   bool
+	lastTrace *flow.FlowTrace // trace from the last completed run
 }
 
 func newRunner() *runner {
@@ -126,6 +127,16 @@ func (a *App) GetRunState() string {
 	return string(a.runState.state)
 }
 
+// GetLastTrace returns the trace data from the last completed flow execution.
+func (a *App) GetLastTrace() *flow.FlowTrace {
+	if a.runState == nil {
+		return nil
+	}
+	a.runState.mu.Lock()
+	defer a.runState.mu.Unlock()
+	return a.runState.lastTrace
+}
+
 func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Tool, inputPaths []string, targetLang string) {
 	defer func() {
 		a.runState.mu.Lock()
@@ -136,10 +147,16 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 	start := time.Now()
 	recorder := flow.NewTraceRecorder()
 
-	// Wrap tools with tracing.
+	// Build trace node metadata.
+	traceNodes := make([]flow.TraceNode, len(tools))
 	tracedTools := make([]tool.Tool, len(tools))
 	for i, t := range tools {
 		nodeID := fmt.Sprintf("tool-%d", i)
+		traceNodes[i] = flow.TraceNode{
+			ID:   nodeID,
+			Type: "tool",
+			Name: t.Name(),
+		}
 		tracedTools[i] = flow.NewTracingTool(t, nodeID, recorder)
 	}
 
@@ -148,6 +165,42 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		FlowID:  flowName,
 		Message: "running",
 	})
+
+	// Stream trace events in a background goroutine by polling the recorder.
+	stopStreaming := make(chan struct{})
+	var streamWg sync.WaitGroup
+	streamWg.Add(1)
+	go func() {
+		defer streamWg.Done()
+		lastSeen := 0
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopStreaming:
+				// Flush remaining events.
+				events := recorder.Events()
+				for i := lastSeen; i < len(events); i++ {
+					a.emitEvent("flow:event", RunEvent{
+						Type:       "trace",
+						FlowID:     flowName,
+						TraceEvent: &events[i],
+					})
+				}
+				return
+			case <-ticker.C:
+				events := recorder.Events()
+				for i := lastSeen; i < len(events); i++ {
+					a.emitEvent("flow:event", RunEvent{
+						Type:       "trace",
+						FlowID:     flowName,
+						TraceEvent: &events[i],
+					})
+				}
+				lastSeen = len(events)
+			}
+		}
+	}()
 
 	filesProcessed := 0
 
@@ -179,6 +232,11 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 		}
 
 		if err := executor.Execute(ctx, f, []*flow.FlowItem{item}); err != nil {
+			// Record error in trace.
+			recorder.Record("error", "executor", "", map[string]any{
+				"error": err.Error(),
+				"file":  inputPath,
+			})
 			a.emitEvent("flow:event", RunEvent{
 				Type:    "error",
 				FlowID:  flowName,
@@ -187,15 +245,31 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 			a.runState.mu.Lock()
 			a.runState.state = RunStateError
 			a.runState.mu.Unlock()
+			close(stopStreaming)
+			streamWg.Wait()
 			return
 		}
 
 		filesProcessed++
 	}
 
+	// Stop trace streaming and flush remaining events.
+	close(stopStreaming)
+	streamWg.Wait()
+
 	duration := time.Since(start)
 
+	// Store the complete trace for later retrieval.
+	trace := &flow.FlowTrace{
+		Name:        flowName,
+		Nodes:       traceNodes,
+		Events:      recorder.Events(),
+		Parts:       recorder.Snapshots(),
+		DurationUs:  recorder.DurationUs(),
+	}
+
 	a.runState.mu.Lock()
+	a.runState.lastTrace = trace
 	if a.runState.state == RunStateRunning {
 		a.runState.state = RunStateComplete
 	}
