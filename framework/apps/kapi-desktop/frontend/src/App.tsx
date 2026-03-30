@@ -11,6 +11,7 @@ import { TermbasesPage } from "./components/TermbasesPage";
 import { MemoriesPage } from "./components/MemoriesPage";
 import { FormatsPage } from "./components/FormatsPage";
 import { FlowPage } from "./components/FlowPage";
+import { FlowsPage } from "./components/FlowsPage";
 import { ToolRunnerPage } from "./components/ToolRunnerPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { HomePage } from "./components/HomePage";
@@ -235,10 +236,7 @@ function AppInner() {
 
           {/* Ad-hoc views */}
           {mode === "adhoc" && view === "flows" && (
-            <div className="p-6">
-              <h1 className="mb-4 text-xl font-semibold">Flows</h1>
-              <p className="text-sm text-muted-foreground">Design and run flows on ad-hoc files.</p>
-            </div>
+            <FlowsPage />
           )}
           {mode === "adhoc" && view === "tools" && <ToolRunnerPage />}
           {mode === "adhoc" && view === "termbases" && <TermbasesPage />}
@@ -254,12 +252,20 @@ function AppInner() {
               onUpdate={updateActiveProject} tabID={activeTab.info.id} />
           )}
           {mode === "projects" && activeTab && view === "flows" && (
-            <div className="p-6">
-              <h1 className="mb-4 text-xl font-semibold">Project Flows</h1>
-              <p className="text-sm text-muted-foreground">
-                {Object.keys(activeTab.project.flows ?? {}).length} flow(s) defined.
-              </p>
-            </div>
+            <FlowsPage
+              tabID={activeTab.info.id}
+              projectFlows={activeTab.project.flows}
+              onFlowChange={(name, spec) => {
+                updateActiveProject({
+                  ...activeTab.project,
+                  flows: { ...activeTab.project.flows, [name]: spec },
+                });
+              }}
+              onFlowDelete={(name) => {
+                const { [name]: _, ...rest } = activeTab.project.flows ?? {};
+                updateActiveProject({ ...activeTab.project, flows: rest });
+              }}
+            />
           )}
           {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
           {mode === "projects" && activeTab && view === "termbases" && <TermbasesPage />}
