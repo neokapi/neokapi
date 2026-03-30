@@ -43,6 +43,10 @@ jobs:
           STORYBOOK_BASE_PATH: /bowrain/storybook/
         run: vpx storybook build -o storybook-static
 
+      - name: Install shared UI dependencies
+        working-directory: packages/ui
+        run: vp install
+
       - name: Install flow-editor dependencies
         working-directory: packages/flow-editor
         run: vp install
@@ -103,6 +107,10 @@ jobs:
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
+
+      - name: Install shared UI dependencies
+        working-directory: packages/ui
+        run: vp install
 
       - name: Install flow-editor dependencies
         working-directory: packages/flow-editor
