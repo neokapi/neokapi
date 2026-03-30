@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"gopkg.in/yaml.v3"
 )
 
 // UserFlowInfo is the frontend-facing flow summary.
@@ -195,6 +196,97 @@ func (a *App) CopyBuiltInFlow(builtInID, newName string) (string, error) {
 		return "", err
 	}
 	return newID, nil
+}
+
+// OpenFlowFileDialog shows a native file dialog to open a flow YAML file.
+func (a *App) OpenFlowFileDialog() (*UserFlowDetail, error) {
+	if a.app == nil {
+		return nil, nil
+	}
+	path, err := a.app.Dialog.OpenFile().
+		AddFilter("Flow Files", "*.yaml;*.yml;*.json").
+		AddFilter("All Files", "*").
+		PromptForSingleSelection()
+	if err != nil {
+		return nil, err
+	}
+	if path == "" {
+		return nil, nil
+	}
+	return a.openFlowFile(path)
+}
+
+func (a *App) openFlowFile(path string) (*UserFlowDetail, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read flow file: %w", err)
+	}
+
+	// Try JSON first.
+	var uf userFlowFile
+	if err := json.Unmarshal(data, &uf); err == nil && len(uf.Steps) > 0 {
+		return &UserFlowDetail{
+			ID:          uf.ID,
+			Name:        uf.Name,
+			Description: uf.Description,
+			Source:      "file",
+			Steps:       uf.Steps,
+		}, nil
+	}
+
+	// Try YAML (StepsSpec format).
+	var spec flow.StepsSpec
+	if err := yaml.Unmarshal(data, &spec); err == nil && len(spec.Steps) > 0 {
+		name := filepath.Base(path)
+		name = strings.TrimSuffix(name, filepath.Ext(name))
+		return &UserFlowDetail{
+			ID:          name,
+			Name:        name,
+			Source:      "file",
+			Steps:       spec.Steps,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("could not parse %q as a flow file", path)
+}
+
+// SaveFlowFileDialog shows a native save dialog and writes a flow as YAML.
+func (a *App) SaveFlowFileDialog(name string, steps []flow.FlowStep) error {
+	if a.app == nil {
+		return nil
+	}
+	path, err := a.app.Dialog.SaveFile().
+		AddFilter("YAML Files", "*.yaml").
+		AddFilter("JSON Files", "*.json").
+		SetFilename(name + ".yaml").
+		PromptForSingleSelection()
+	if err != nil {
+		return err
+	}
+	if path == "" {
+		return nil
+	}
+
+	spec := flow.StepsSpec{Steps: steps}
+
+	ext := strings.ToLower(filepath.Ext(path))
+	if ext == ".json" {
+		data, err := json.MarshalIndent(spec, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal flow: %w", err)
+		}
+		return os.WriteFile(path, data, 0o644)
+	}
+
+	// Default to YAML.
+	if ext != ".yaml" && ext != ".yml" {
+		path += ".yaml"
+	}
+	data, err := yaml.Marshal(spec)
+	if err != nil {
+		return fmt.Errorf("marshal flow: %w", err)
+	}
+	return os.WriteFile(path, data, 0o644)
 }
 
 // graphToSteps extracts tool steps from a FlowDefinition in topological order.
