@@ -8,7 +8,12 @@ interface ProjectsPageProps {
   onOpenProject: () => void;
 }
 
-export function ProjectsPage({ tabs, onSelectTab, onNewProject, onOpenProject }: ProjectsPageProps) {
+export function ProjectsPage({
+  tabs,
+  onSelectTab,
+  onNewProject,
+  onOpenProject,
+}: ProjectsPageProps) {
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">

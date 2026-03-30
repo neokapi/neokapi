@@ -56,9 +56,7 @@ describe("computeNodeStats", () => {
   });
 
   it("handles enter without exit (in-progress)", () => {
-    const events: TraceEvent[] = [
-      { ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" },
-    ];
+    const events: TraceEvent[] = [{ ts: 0, type: "enter", nodeId: "tool-0", partId: "p1" }];
     const stats = computeNodeStats(events);
     expect(stats.get("tool-0")!.partsProcessed).toBe(0);
     expect(stats.get("tool-0")!.durationUs).toBe(0);

@@ -30,9 +30,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
           <span className="flex items-center gap-1.5">
             <Globe size={14} />
             {project.source_language || "No source"} &rarr;{" "}
-            {project.target_languages?.length
-              ? project.target_languages.join(", ")
-              : "No targets"}
+            {project.target_languages?.length ? project.target_languages.join(", ") : "No targets"}
           </span>
         </div>
       </div>
@@ -66,9 +64,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
           className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Tools</div>
-          <div className="text-xs text-muted-foreground">
-            Run individual tools on files
-          </div>
+          <div className="text-xs text-muted-foreground">Run individual tools on files</div>
         </button>
       </div>
 
@@ -94,9 +90,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
                       {spec.steps.map((step, i) => (
                         <span key={i} className="flex items-center gap-1">
                           {i > 0 && <span>&rarr;</span>}
-                          <span className="rounded bg-accent px-1.5 py-0.5">
-                            {step.tool}
-                          </span>
+                          <span className="rounded bg-accent px-1.5 py-0.5">{step.tool}</span>
                         </span>
                       ))}
                     </div>
@@ -128,10 +122,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
           <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
             No flows defined yet.{" "}
-            <button
-              onClick={() => onNavigate("flows")}
-              className="text-primary hover:underline"
-            >
+            <button onClick={() => onNavigate("flows")} className="text-primary hover:underline">
               Create your first flow
             </button>{" "}
             to get started.

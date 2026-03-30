@@ -80,7 +80,8 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
   {
     id: "full-pipeline",
     name: "Full Pipeline",
-    description: "Complete workflow: TM leverage, AI translate, parallel QA + brand check, word count.",
+    description:
+      "Complete workflow: TM leverage, AI translate, parallel QA + brand check, word count.",
     category: "pipeline",
     stepCount: 5,
     hasParallel: true,

@@ -87,9 +87,7 @@ describe("MatchScoreBar", () => {
   });
 
   it("renders the progress bar with correct width", () => {
-    const { container } = render(
-      <MatchScoreBar score={0.65} matchType="fuzzy" />,
-    );
+    const { container } = render(<MatchScoreBar score={0.65} matchType="fuzzy" />);
     const bar = container.querySelector("[style*='width']");
     expect(bar).toBeInTheDocument();
     expect(bar?.getAttribute("style")).toContain("width: 65%");

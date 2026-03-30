@@ -25,11 +25,7 @@ describe("stepsToGraph", () => {
 
   it("converts multi-step flow with correct chaining", () => {
     const spec: FlowSpec = {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-        { tool: "pseudo-translate" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "pseudo-translate" }],
     };
 
     const { nodes, edges } = stepsToGraph(spec);
@@ -55,9 +51,7 @@ describe("stepsToGraph", () => {
 
   it("preserves step labels and configs", () => {
     const { nodes } = stepsToGraph({
-      steps: [
-        { tool: "ai-translate", label: "Translate", config: { provider: "anthropic" } },
-      ],
+      steps: [{ tool: "ai-translate", label: "Translate", config: { provider: "anthropic" } }],
     });
 
     const toolNode = nodes.find((n) => n.type === "tool")!;
@@ -89,10 +83,7 @@ describe("stepsToGraph", () => {
       ],
     ]);
 
-    const { nodes } = stepsToGraph(
-      { steps: [{ tool: "ai-translate" }] },
-      toolMap,
-    );
+    const { nodes } = stepsToGraph({ steps: [{ tool: "ai-translate" }] }, toolMap);
 
     const toolNode = nodes.find((n) => n.type === "tool")!;
     expect(toolNode.data.category).toBe("translate");
@@ -100,10 +91,7 @@ describe("stepsToGraph", () => {
   });
 
   it("defaults to pipeline category when tool not in toolMap", () => {
-    const { nodes } = stepsToGraph(
-      { steps: [{ tool: "unknown-tool" }] },
-      new Map(),
-    );
+    const { nodes } = stepsToGraph({ steps: [{ tool: "unknown-tool" }] }, new Map());
 
     const toolNode = nodes.find((n) => n.type === "tool")!;
     expect(toolNode.data.category).toBe("pipeline");
@@ -132,10 +120,7 @@ describe("graphToSteps", () => {
 
   it("roundtrips a flow spec", () => {
     const original: FlowSpec = {
-      steps: [
-        { tool: "ai-translate", config: { provider: "anthropic" } },
-        { tool: "qa-check" },
-      ],
+      steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }, { tool: "qa-check" }],
     };
 
     const { nodes } = stepsToGraph(original);

@@ -9,16 +9,16 @@ describe("EntityAnnotationDialog", () => {
     open: true,
     onClose: vi.fn(),
     selectedCount: 5,
-    onApply: vi.fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>().mockResolvedValue({
-      entries_updated: 3,
-      entities_added: 7,
-    }),
+    onApply: vi
+      .fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>()
+      .mockResolvedValue({
+        entries_updated: 3,
+        entities_added: 7,
+      }),
   };
 
   it("does not render when open is false", () => {
-    const { container } = render(
-      <EntityAnnotationDialog {...defaultProps} open={false} />,
-    );
+    const { container } = render(<EntityAnnotationDialog {...defaultProps} open={false} />);
     expect(container.innerHTML).toBe("");
   });
 
@@ -103,17 +103,15 @@ describe("EntityAnnotationDialog", () => {
 
   describe("apply", () => {
     it("calls onApply with patterns when clicking apply", async () => {
-      const onApply = vi.fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>().mockResolvedValue({
-        entries_updated: 3,
-        entities_added: 7,
-      });
+      const onApply = vi
+        .fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>()
+        .mockResolvedValue({
+          entries_updated: 3,
+          entities_added: 7,
+        });
 
       render(
-        <EntityAnnotationDialog
-          {...defaultProps}
-          onApply={onApply}
-          initialPattern="Acme Corp"
-        />,
+        <EntityAnnotationDialog {...defaultProps} onApply={onApply} initialPattern="Acme Corp" />,
       );
 
       await userEvent.click(screen.getByText("Apply to 5 entries"));
@@ -130,10 +128,12 @@ describe("EntityAnnotationDialog", () => {
     });
 
     it("filters out empty patterns before applying", async () => {
-      const onApply = vi.fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>().mockResolvedValue({
-        entries_updated: 1,
-        entities_added: 1,
-      });
+      const onApply = vi
+        .fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>()
+        .mockResolvedValue({
+          entries_updated: 1,
+          entities_added: 1,
+        });
 
       render(
         <EntityAnnotationDialog
@@ -150,18 +150,14 @@ describe("EntityAnnotationDialog", () => {
 
       await waitFor(() => {
         // Should only send the non-empty pattern
-        expect(onApply).toHaveBeenCalledWith([
-          expect.objectContaining({ text: "Valid Pattern" }),
-        ]);
+        expect(onApply).toHaveBeenCalledWith([expect.objectContaining({ text: "Valid Pattern" })]);
       });
     });
 
     it("does not call onApply when all patterns are empty", async () => {
       const onApply = vi.fn();
 
-      render(
-        <EntityAnnotationDialog {...defaultProps} onApply={onApply} initialPattern="" />,
-      );
+      render(<EntityAnnotationDialog {...defaultProps} onApply={onApply} initialPattern="" />);
 
       // Button should be disabled since the pattern text is empty
       const applyBtn = screen.getByText("Apply to 5 entries");
@@ -171,18 +167,14 @@ describe("EntityAnnotationDialog", () => {
 
   describe("result display", () => {
     it("shows result after successful apply", async () => {
-      const onApply = vi.fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>().mockResolvedValue({
-        entries_updated: 3,
-        entities_added: 7,
-      });
+      const onApply = vi
+        .fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>()
+        .mockResolvedValue({
+          entries_updated: 3,
+          entities_added: 7,
+        });
 
-      render(
-        <EntityAnnotationDialog
-          {...defaultProps}
-          onApply={onApply}
-          initialPattern="Acme"
-        />,
-      );
+      render(<EntityAnnotationDialog {...defaultProps} onApply={onApply} initialPattern="Acme" />);
 
       await userEvent.click(screen.getByText("Apply to 5 entries"));
 
@@ -196,18 +188,14 @@ describe("EntityAnnotationDialog", () => {
     });
 
     it("shows singular text for 1 entry and 1 entity", async () => {
-      const onApply = vi.fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>().mockResolvedValue({
-        entries_updated: 1,
-        entities_added: 1,
-      });
+      const onApply = vi
+        .fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>()
+        .mockResolvedValue({
+          entries_updated: 1,
+          entities_added: 1,
+        });
 
-      render(
-        <EntityAnnotationDialog
-          {...defaultProps}
-          onApply={onApply}
-          initialPattern="Test"
-        />,
-      );
+      render(<EntityAnnotationDialog {...defaultProps} onApply={onApply} initialPattern="Test" />);
 
       await userEvent.click(screen.getByText("Apply to 5 entries"));
 
@@ -219,10 +207,12 @@ describe("EntityAnnotationDialog", () => {
 
     it("clicking Done calls onClose", async () => {
       const onClose = vi.fn();
-      const onApply = vi.fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>().mockResolvedValue({
-        entries_updated: 1,
-        entities_added: 1,
-      });
+      const onApply = vi
+        .fn<(patterns: EntityPatternRequest[]) => Promise<AnnotateResult>>()
+        .mockResolvedValue({
+          entries_updated: 1,
+          entities_added: 1,
+        });
 
       render(
         <EntityAnnotationDialog

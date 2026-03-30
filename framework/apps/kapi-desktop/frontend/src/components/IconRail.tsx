@@ -24,7 +24,11 @@ const topItems: { section: AppSection; icon: React.ReactNode; label: string }[] 
   { section: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home" },
   { section: "projects", icon: <FolderKanban size={20} strokeWidth={SW} />, label: "Projects" },
   { section: "termbases", icon: <BookOpen size={20} strokeWidth={SW} />, label: "Termbases" },
-  { section: "memories", icon: <Database size={20} strokeWidth={SW} />, label: "Translation Memories" },
+  {
+    section: "memories",
+    icon: <Database size={20} strokeWidth={SW} />,
+    label: "Translation Memories",
+  },
   { section: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
   { section: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
   { section: "formats", icon: <FileText size={20} strokeWidth={SW} />, label: "Formats" },

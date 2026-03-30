@@ -21,9 +21,7 @@ describe("FLOW_TEMPLATES", () => {
     const parallel = FLOW_TEMPLATES.filter((t) => t.hasParallel);
     expect(parallel.length).toBeGreaterThan(0);
     for (const t of parallel) {
-      const hasParallelStep = t.spec.steps.some(
-        (s) => s.parallel && s.parallel.length > 0,
-      );
+      const hasParallelStep = t.spec.steps.some((s) => s.parallel && s.parallel.length > 0);
       expect(hasParallelStep).toBe(true);
     }
   });

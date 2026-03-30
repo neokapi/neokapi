@@ -16,19 +16,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
-          node-version: 22
-          cache: npm
+          node-version: "22"
+          cache: true
           cache-dependency-path: platform/agentic-testing/dashboard/package-lock.json
 
       - name: Install dependencies
         working-directory: platform/agentic-testing/dashboard
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Build
         working-directory: platform/agentic-testing/dashboard
-        run: npm run build
+        run: vp run build
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1

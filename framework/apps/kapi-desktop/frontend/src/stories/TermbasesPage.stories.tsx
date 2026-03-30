@@ -57,9 +57,10 @@ function createMockAdapter(concepts: ConceptDTO[]): TermbaseAdapter {
   return {
     async search(query) {
       const filtered = query
-        ? data.filter((c) =>
-            c.terms.some((t) => t.text.toLowerCase().includes(query.toLowerCase())) ||
-            c.domain.toLowerCase().includes(query.toLowerCase()),
+        ? data.filter(
+            (c) =>
+              c.terms.some((t) => t.text.toLowerCase().includes(query.toLowerCase())) ||
+              c.domain.toLowerCase().includes(query.toLowerCase()),
           )
         : data;
       return { concepts: filtered, total_count: filtered.length };
@@ -82,7 +83,13 @@ function createMockAdapter(concepts: ConceptDTO[]): TermbaseAdapter {
     async updateConcept(req) {
       data = data.map((c) =>
         c.id === req.concept_id
-          ? { ...c, domain: req.domain, definition: req.definition, terms: req.terms, updated_at: new Date().toISOString() }
+          ? {
+              ...c,
+              domain: req.domain,
+              definition: req.definition,
+              terms: req.terms,
+              updated_at: new Date().toISOString(),
+            }
           : c,
       );
     },
@@ -101,8 +108,18 @@ function SimulatedTermbasesPage() {
   const adapter = handle ? createMockAdapter(SAMPLE_CONCEPTS) : null;
 
   const resources = [
-    { name: "my-glossary", path: "~/.config/kapi/termbases/my-glossary.db", size: 262144, modified: new Date(Date.now() - 7200000).toISOString() },
-    { name: "brand-terms", path: "~/.config/kapi/termbases/brand-terms.db", size: 131072, modified: new Date(Date.now() - 172800000).toISOString() },
+    {
+      name: "my-glossary",
+      path: "~/.config/kapi/termbases/my-glossary.db",
+      size: 262144,
+      modified: new Date(Date.now() - 7200000).toISOString(),
+    },
+    {
+      name: "brand-terms",
+      path: "~/.config/kapi/termbases/brand-terms.db",
+      size: 131072,
+      modified: new Date(Date.now() - 172800000).toISOString(),
+    },
   ];
 
   if (handle && adapter) {
@@ -110,7 +127,10 @@ function SimulatedTermbasesPage() {
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button onClick={() => setHandle(null)} className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground">
+            <button
+              onClick={() => setHandle(null)}
+              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground"
+            >
               <X size={16} />
             </button>
             <h1 className="text-lg font-semibold">my-glossary</h1>

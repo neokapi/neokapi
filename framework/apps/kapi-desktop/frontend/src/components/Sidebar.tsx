@@ -1,11 +1,4 @@
-import {
-  Home,
-  FileText,
-  Workflow,
-  Wrench,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Home, FileText, Workflow, Wrench, Plus, Trash2 } from "lucide-react";
 import type { View } from "../types/api";
 
 interface SidebarProps {
@@ -97,9 +90,7 @@ export function Sidebar({
               </div>
             ))}
             {flowNames.length === 0 && (
-              <p className="px-2 py-1 text-xs text-muted-foreground">
-                No flows yet
-              </p>
+              <p className="px-2 py-1 text-xs text-muted-foreground">No flows yet</p>
             )}
           </div>
         </div>

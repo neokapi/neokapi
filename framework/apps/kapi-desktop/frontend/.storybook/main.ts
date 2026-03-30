@@ -16,10 +16,7 @@ const config: StorybookConfig = {
     "../../../../../packages/flow-editor/src/**/*.stories.@(ts|tsx)",
     "../../../../../packages/ui/src/**/*.stories.@(ts|tsx)",
   ],
-  addons: [
-    getAbsolutePath("@storybook/addon-themes"),
-    getAbsolutePath("@storybook/addon-docs"),
-  ],
+  addons: [getAbsolutePath("@storybook/addon-themes"), getAbsolutePath("@storybook/addon-docs")],
   framework: {
     name: getAbsolutePath("@storybook/react-vite") as "@storybook/react-vite",
     options: {},

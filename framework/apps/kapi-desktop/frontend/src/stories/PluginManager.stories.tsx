@@ -1,14 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
-import {
-  Download,
-  RefreshCw,
-  Search,
-  Package,
-  Loader2,
-  CheckCircle2,
-  Trash2,
-} from "lucide-react";
+import { Download, RefreshCw, Search, Package, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 
 interface Plugin {
   name: string;
@@ -21,11 +13,41 @@ interface Plugin {
 }
 
 const REGISTRY_PLUGINS: Plugin[] = [
-  { name: "okapi", version: "1.47.0", description: "Okapi Framework bridge — plugs into Okapi's filters and steps", type: "bridge", installed: true },
-  { name: "deepl", version: "0.3.0", description: "DeepL MT provider for machine translation", type: "tool", installed: false },
-  { name: "memoq-xliff", version: "1.2.0", description: "memoQ XLIFF format with custom extensions", type: "format", installed: false },
-  { name: "sdl-trados", version: "0.9.0", description: "SDL Trados Studio package format support", type: "format", installed: false },
-  { name: "google-mt", version: "1.0.0", description: "Google Cloud Translation API provider", type: "tool", installed: false },
+  {
+    name: "okapi",
+    version: "1.47.0",
+    description: "Okapi Framework bridge — plugs into Okapi's filters and steps",
+    type: "bridge",
+    installed: true,
+  },
+  {
+    name: "deepl",
+    version: "0.3.0",
+    description: "DeepL MT provider for machine translation",
+    type: "tool",
+    installed: false,
+  },
+  {
+    name: "memoq-xliff",
+    version: "1.2.0",
+    description: "memoQ XLIFF format with custom extensions",
+    type: "format",
+    installed: false,
+  },
+  {
+    name: "sdl-trados",
+    version: "0.9.0",
+    description: "SDL Trados Studio package format support",
+    type: "format",
+    installed: false,
+  },
+  {
+    name: "google-mt",
+    version: "1.0.0",
+    description: "Google Cloud Translation API provider",
+    type: "tool",
+    installed: false,
+  },
 ];
 
 function SimulatedPluginManager() {
@@ -36,9 +58,7 @@ function SimulatedPluginManager() {
 
   const handleInstall = useCallback((name: string) => {
     setPlugins((prev) =>
-      prev.map((p) =>
-        p.name === name ? { ...p, installing: true, progress: 0 } : p,
-      ),
+      prev.map((p) => (p.name === name ? { ...p, installing: true, progress: 0 } : p)),
     );
 
     // Simulate download progress
@@ -49,27 +69,19 @@ function SimulatedPluginManager() {
         clearInterval(interval);
         setPlugins((prev) =>
           prev.map((p) =>
-            p.name === name
-              ? { ...p, installing: false, installed: true, progress: undefined }
-              : p,
+            p.name === name ? { ...p, installing: false, installed: true, progress: undefined } : p,
           ),
         );
       } else {
         setPlugins((prev) =>
-          prev.map((p) =>
-            p.name === name ? { ...p, progress: Math.min(progress, 95) } : p,
-          ),
+          prev.map((p) => (p.name === name ? { ...p, progress: Math.min(progress, 95) } : p)),
         );
       }
     }, 300);
   }, []);
 
   const handleUninstall = useCallback((name: string) => {
-    setPlugins((prev) =>
-      prev.map((p) =>
-        p.name === name ? { ...p, installed: false } : p,
-      ),
-    );
+    setPlugins((prev) => prev.map((p) => (p.name === name ? { ...p, installed: false } : p)));
   }, []);
 
   const handleCheckUpdates = useCallback(async () => {
@@ -96,11 +108,7 @@ function SimulatedPluginManager() {
           className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
           aria-label="Check for updates"
         >
-          {checking ? (
-            <Loader2 size={12} className="animate-spin" />
-          ) : (
-            <RefreshCw size={12} />
-          )}
+          {checking ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           {checking ? "Checking..." : "Check Updates"}
         </button>
       </div>
@@ -125,25 +133,16 @@ function SimulatedPluginManager() {
 
       <div className="space-y-2">
         {filtered.map((plugin) => (
-          <div
-            key={plugin.name}
-            className="rounded-lg border border-border p-4"
-          >
+          <div key={plugin.name} className="rounded-lg border border-border p-4">
             <div className="flex items-center gap-3">
               <Package size={20} className="shrink-0 text-primary" />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{plugin.name}</span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                    v{plugin.version}
-                  </span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                    {plugin.type}
-                  </span>
+                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">v{plugin.version}</span>
+                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">{plugin.type}</span>
                 </div>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {plugin.description}
-                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{plugin.description}</p>
               </div>
 
               {plugin.installing ? (

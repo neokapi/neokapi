@@ -50,9 +50,7 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <Clock size={12} style={{ color: theme.fgMuted }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>
-          Trace
-        </span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Trace</span>
         {totalDurationUs !== undefined && (
           <span style={{ fontSize: 10, color: theme.fgMuted, marginLeft: "auto" }}>
             Total: {formatDuration(totalDurationUs)}
@@ -114,10 +112,26 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
               </div>
 
               {/* Stats */}
-              <span style={{ fontSize: 10, color: theme.fgMuted, width: 50, textAlign: "right", flexShrink: 0 }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: theme.fgMuted,
+                  width: 50,
+                  textAlign: "right",
+                  flexShrink: 0,
+                }}
+              >
                 {formatDuration(s.durationUs)}
               </span>
-              <span style={{ fontSize: 10, color: theme.fgMuted, width: 40, textAlign: "right", flexShrink: 0 }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: theme.fgMuted,
+                  width: 40,
+                  textAlign: "right",
+                  flexShrink: 0,
+                }}
+              >
                 {s.partsProcessed} pts
               </span>
             </div>

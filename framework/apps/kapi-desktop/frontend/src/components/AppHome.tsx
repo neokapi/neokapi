@@ -9,7 +9,13 @@ interface AppHomeProps {
   onNavigate: (view: string) => void;
 }
 
-export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject, onNavigate }: AppHomeProps) {
+export function AppHome({
+  recentFiles,
+  onOpenRecent,
+  onNewProject,
+  onOpenProject,
+  onNavigate,
+}: AppHomeProps) {
   const shortenHome = useShortenHome();
   return (
     <div className="p-6">
@@ -28,9 +34,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
         >
           <FolderKanban size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">New Project</div>
-          <div className="text-xs text-muted-foreground">
-            Create a Kapi project
-          </div>
+          <div className="text-xs text-muted-foreground">Create a Kapi project</div>
         </button>
         <button
           onClick={onOpenProject}
@@ -38,9 +42,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
         >
           <FolderOpen size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Open a Project</div>
-          <div className="text-xs text-muted-foreground">
-            Open an existing Kapi project
-          </div>
+          <div className="text-xs text-muted-foreground">Open an existing Kapi project</div>
         </button>
         <button
           onClick={() => onNavigate("flows")}
@@ -48,9 +50,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
         >
           <Workflow size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Design a Flow</div>
-          <div className="text-xs text-muted-foreground">
-            Build tool pipelines
-          </div>
+          <div className="text-xs text-muted-foreground">Build tool pipelines</div>
         </button>
         <button
           onClick={() => onNavigate("tools")}
@@ -58,9 +58,7 @@ export function AppHome({ recentFiles, onOpenRecent, onNewProject, onOpenProject
         >
           <Wrench size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Run a Tool</div>
-          <div className="text-xs text-muted-foreground">
-            Execute a tool on files
-          </div>
+          <div className="text-xs text-muted-foreground">Execute a tool on files</div>
         </button>
       </div>
 

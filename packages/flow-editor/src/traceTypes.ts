@@ -1,8 +1,8 @@
 // Trace types matching the Go flow.TraceEvent / flow.FlowTrace structures.
 
 export interface TraceEvent {
-  ts: number;       // microseconds from flow start
-  type: string;     // "enter", "exit", "error"
+  ts: number; // microseconds from flow start
+  type: string; // "enter", "exit", "error"
   nodeId: string;
   partId?: string;
   meta?: Record<string, unknown>;
@@ -10,7 +10,7 @@ export interface TraceEvent {
 
 export interface PartSnapshot {
   id: string;
-  type: string;       // "Block", "Data", "Media", etc.
+  type: string; // "Block", "Data", "Media", etc.
   summary: string;
   sourceText?: string;
   targetText?: string;

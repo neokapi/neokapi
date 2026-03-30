@@ -73,15 +73,15 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
               </span>
             )}
             <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClose(tab.id);
-                }}
-                className="rounded p-0.5 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
-                aria-label={`Close ${tab.name}`}
-              >
-                <X size={10} />
-              </button>
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose(tab.id);
+              }}
+              className="rounded p-0.5 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
+              aria-label={`Close ${tab.name}`}
+            >
+              <X size={10} />
+            </button>
           </div>
         );
       })}

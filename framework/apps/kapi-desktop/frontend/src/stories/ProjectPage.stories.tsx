@@ -5,8 +5,7 @@ const meta: Meta<typeof ProjectPage> = {
   title: "Pages/ProjectPage",
   component: ProjectPage,
   tags: ["autodocs"],
-  args: {
-  },
+  args: {},
 };
 
 export default meta;
@@ -27,9 +26,7 @@ export const WithContent: Story = {
       plugins: ["okapi@1.47.0"],
       flows: {
         translate: {
-          steps: [
-            { tool: "ai-translate", config: { provider: "anthropic" } },
-          ],
+          steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
         },
         "translate-and-qa": {
           steps: [
@@ -66,9 +63,7 @@ export const WithFlowsOnly: Story = {
           steps: [{ tool: "qa-check" }],
         },
         pseudo: {
-          steps: [
-            { tool: "pseudo-translate", config: { expansion_rate: 1.3 } },
-          ],
+          steps: [{ tool: "pseudo-translate", config: { expansion_rate: 1.3 } }],
         },
       },
     },

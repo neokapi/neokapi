@@ -93,7 +93,9 @@ describe("TermbaseBrowser", () => {
 
     it("renders singular concept count", async () => {
       const singleAdapter = createMockAdapter([concepts[0]], 1);
-      render(<TermbaseBrowser adapter={singleAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(
+        <TermbaseBrowser adapter={singleAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
+      );
 
       await waitFor(() => {
         expect(screen.getByText("1 concept")).toBeInTheDocument();
@@ -130,15 +132,12 @@ describe("TermbaseBrowser", () => {
       const input = screen.getByPlaceholderText("Search terminology...");
       await userEvent.type(input, "contract");
 
-      await waitFor(() => {
-        expect(adapter.search).toHaveBeenCalledWith(
-          "contract",
-          "en-US",
-          "fr-FR",
-          0,
-          50,
-        );
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(adapter.search).toHaveBeenCalledWith("contract", "en-US", "fr-FR", 0, 50);
+        },
+        { timeout: 1000 },
+      );
     });
   });
 
@@ -164,12 +163,15 @@ describe("TermbaseBrowser", () => {
     it("shows search empty state when search has no results", async () => {
       const emptyAdapter: TermbaseAdapter = {
         ...createMockAdapter([]),
-        search: vi.fn()
+        search: vi
+          .fn()
           .mockResolvedValueOnce({ concepts: [], total_count: 0 })
           .mockResolvedValue({ concepts: [], total_count: 0 }),
       };
 
-      render(<TermbaseBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />);
+      render(
+        <TermbaseBrowser adapter={emptyAdapter} sourceLocale="en-US" targetLocales={["fr-FR"]} />,
+      );
 
       await waitFor(() => {
         expect(screen.getByText("No concepts yet.")).toBeInTheDocument();
@@ -178,9 +180,12 @@ describe("TermbaseBrowser", () => {
       const input = screen.getByPlaceholderText("Search terminology...");
       await userEvent.type(input, "nonexistent");
 
-      await waitFor(() => {
-        expect(screen.getByText("No concepts match your search.")).toBeInTheDocument();
-      }, { timeout: 1000 });
+      await waitFor(
+        () => {
+          expect(screen.getByText("No concepts match your search.")).toBeInTheDocument();
+        },
+        { timeout: 1000 },
+      );
     });
   });
 

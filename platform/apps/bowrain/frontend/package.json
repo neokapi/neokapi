@@ -5,19 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc && vp build",
+    "build": "vpx tsc && vp build",
     "build:dev": "vp build",
     "preview": "vp preview",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
-    "test:e2e": "npx playwright test",
-    "test:e2e:headed": "npx playwright test --headed",
-    "screenshots": "npx playwright test e2e/screenshots.spec.ts",
-    "recordings": "npx playwright test --config=playwright.recordings.config.ts",
-    "recordings:headed": "npx playwright test --config=playwright.recordings.config.ts --headed",
+    "test:e2e": "vpx playwright test",
+    "test:e2e:headed": "vpx playwright test --headed",
+    "screenshots": "vpx playwright test e2e/screenshots.spec.ts",
+    "recordings": "vpx playwright test --config=playwright.recordings.config.ts",
+    "recordings:headed": "vpx playwright test --config=playwright.recordings.config.ts --headed",
     "recordings:copy": "THEME=dark ./scripts/copy-recordings.sh && THEME=light ./scripts/copy-recordings.sh",
-    "recordings:all": "npm run recordings && npm run recordings:copy"
+    "recordings:all": "vp run recordings && vp run recordings:copy"
   },
   "dependencies": {
     "@lexical/react": "^0.42.0",

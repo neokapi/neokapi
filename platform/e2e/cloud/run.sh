@@ -24,11 +24,11 @@ cd "$SCRIPT_DIR"
 # Install dependencies if needed.
 if [ ! -d node_modules ]; then
   echo "Installing dependencies..."
-  npm install
+  vp install
 fi
 
 # Ensure Playwright browsers are installed.
-npx playwright install --with-deps chromium 2>/dev/null || npx playwright install chromium
+vpx playwright install --with-deps chromium 2>/dev/null || vpx playwright install chromium
 
 echo ""
 echo "════════════════════════════════════════════════════════════════"
@@ -39,4 +39,4 @@ echo "  Keycloak: ${KEYCLOAK_URL:-<derived from BOWRAIN_URL>}"
 echo "════════════════════════════════════════════════════════════════"
 echo ""
 
-npx playwright test "$@"
+vpx playwright test "$@"

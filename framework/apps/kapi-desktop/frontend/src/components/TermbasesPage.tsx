@@ -163,9 +163,7 @@ export function TermbasesPage() {
             </button>
             <div>
               <h1 className="text-lg font-semibold">{tbName}</h1>
-              {tbPath && (
-                <p className="text-[11px] text-muted-foreground">{tbPath}</p>
-              )}
+              {tbPath && <p className="text-[11px] text-muted-foreground">{tbPath}</p>}
             </div>
           </div>
           <div className="flex gap-2">

@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc && vp build",
-    "build-keycloak-theme": "npm run build && keycloakify build",
+    "build": "vpx tsc && vp build",
+    "build-keycloak-theme": "vp run build && keycloakify build",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",
     "update-kc-gen": "keycloakify update-kc-gen",
-    "e2e": "npx playwright test --config e2e/playwright.config.ts"
+    "e2e": "vpx playwright test --config e2e/playwright.config.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",

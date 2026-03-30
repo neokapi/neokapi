@@ -35,9 +35,7 @@ export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPag
           {projectPath ? (
             <p className="mt-1 text-sm text-muted-foreground">{projectPath}</p>
           ) : (
-            <p className="mt-1 text-sm text-muted-foreground">
-              Not yet saved to disk
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">Not yet saved to disk</p>
           )}
         </div>
         <button
@@ -66,9 +64,7 @@ export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPag
             <div>
               <span className="text-muted-foreground">Targets: </span>
               <span>
-                {project.target_languages?.length
-                  ? project.target_languages.join(", ")
-                  : "None"}
+                {project.target_languages?.length ? project.target_languages.join(", ") : "None"}
               </span>
             </div>
           </div>
@@ -85,9 +81,7 @@ export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPag
               project.content.map((entry, i) => (
                 <div key={i} className="truncate text-muted-foreground">
                   {entry.path}
-                  {entry.format && (
-                    <span className="ml-1 text-xs">({entry.format})</span>
-                  )}
+                  {entry.format && <span className="ml-1 text-xs">({entry.format})</span>}
                 </div>
               ))
             ) : (
@@ -125,19 +119,14 @@ export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPag
           {project.preset && (
             <div>
               <span className="text-muted-foreground">Preset: </span>
-              <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                {project.preset}
-              </span>
+              <span className="rounded bg-accent px-1.5 py-0.5 text-xs">{project.preset}</span>
             </div>
           )}
           {project.plugins?.length ? (
             <div>
               <span className="text-muted-foreground">Plugins: </span>
               {project.plugins.map((p) => (
-                <span
-                  key={p}
-                  className="mr-1 rounded bg-accent px-1.5 py-0.5 text-xs"
-                >
+                <span key={p} className="mr-1 rounded bg-accent px-1.5 py-0.5 text-xs">
                   {p}
                 </span>
               ))}

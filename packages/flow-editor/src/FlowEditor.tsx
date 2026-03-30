@@ -123,13 +123,16 @@ export function FlowEditor({
     [onNodesChange],
   );
 
-  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    setSelectedNodeId(node.id);
-    // If we have trace data, also open the part inspector for this node.
-    if (trace && node.type === "tool") {
-      setInspectingNodeId(node.id);
-    }
-  }, [trace]);
+  const handleNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      setSelectedNodeId(node.id);
+      // If we have trace data, also open the part inspector for this node.
+      if (trace && node.type === "tool") {
+        setInspectingNodeId(node.id);
+      }
+    },
+    [trace],
+  );
 
   const handlePaneClick = useCallback(() => {
     setSelectedNodeId(null);
@@ -254,36 +257,33 @@ export function FlowEditor({
   }, [nodes, onChange]);
 
   // Connection validation — only allow connecting compatible port types.
-  const isValidConnection = useCallback((connection: { source: string | null; target: string | null }) => {
-    const sourceNode = nodes.find((n) => n.id === connection.source);
-    const targetNode = nodes.find((n) => n.id === connection.target);
-    if (!sourceNode || !targetNode) return true;
-    const srcOutputs = sourceNode.data.outputs as string[] | undefined;
-    const tgtInputs = targetNode.data.inputs as string[] | undefined;
-    if (!srcOutputs || !tgtInputs) return true; // no metadata = allow
-    return srcOutputs.some((o) => tgtInputs.includes(o));
-  }, [nodes]);
+  const isValidConnection = useCallback(
+    (connection: { source: string | null; target: string | null }) => {
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      if (!sourceNode || !targetNode) return true;
+      const srcOutputs = sourceNode.data.outputs as string[] | undefined;
+      const tgtInputs = targetNode.data.inputs as string[] | undefined;
+      if (!srcOutputs || !tgtInputs) return true; // no metadata = allow
+      return srcOutputs.some((o) => tgtInputs.includes(o));
+    },
+    [nodes],
+  );
 
   // Config panel state
   const selectedToolIndex = selectedNodeId
     ? parseInt(selectedNodeId.replace("tool-", ""), 10)
     : NaN;
-  const selectedStep = !isNaN(selectedToolIndex)
-    ? flow.steps[selectedToolIndex]
-    : null;
+  const selectedStep = !isNaN(selectedToolIndex) ? flow.steps[selectedToolIndex] : null;
   const selectedToolInfo = selectedStep ? toolMap.get(selectedStep.tool) : null;
-  const selectedSchema = selectedStep && onGetSchema
-    ? onGetSchema(selectedStep.tool)
-    : null;
+  const selectedSchema = selectedStep && onGetSchema ? onGetSchema(selectedStep.tool) : null;
 
   const handleConfigChange = useCallback(
     (config: Record<string, unknown>) => {
       if (isNaN(selectedToolIndex) || readOnly) return;
       const updated: FlowSpec = {
         ...flow,
-        steps: flow.steps.map((s, i) =>
-          i === selectedToolIndex ? { ...s, config } : s,
-        ),
+        steps: flow.steps.map((s, i) => (i === selectedToolIndex ? { ...s, config } : s)),
       };
       onChange(updated);
     },
@@ -392,8 +392,8 @@ export function FlowEditor({
           >
             <Zap size={13} style={{ color: theme.accent, flexShrink: 0 }} />
             <span style={{ color: theme.fgMuted, flex: 1 }}>
-              <strong style={{ color: theme.fg }}>{suggestions[0].toolNames.join(", ")}</strong>
-              {" "}can run in parallel &mdash; {suggestions[0].reason}
+              <strong style={{ color: theme.fg }}>{suggestions[0].toolNames.join(", ")}</strong> can
+              run in parallel &mdash; {suggestions[0].reason}
             </span>
             <button
               onClick={() => handleParallelize(suggestions[0])}
@@ -431,36 +431,31 @@ export function FlowEditor({
         )}
 
         {/* Graph canvas */}
-        {(
-        <div style={{ flex: 1 }} onDrop={handleDrop} onDragOver={handleDragOver}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={onEdgesChange}
-            onNodeClick={handleNodeClick}
-            onPaneClick={handlePaneClick}
-            onNodeDragStop={handleNodeDragStop}
-            isValidConnection={isValidConnection}
-            nodeTypes={nodeTypes}
-            nodesDraggable={!readOnly}
-            nodesConnectable={!readOnly}
-            fitView
-            fitViewOptions={{ padding: 0.3 }}
-            proOptions={{ hideAttribution: true }}
-            defaultEdgeOptions={{
-              style: { stroke: theme.fgMuted, strokeWidth: 2 },
-              animated: false,
-            }}
-          >
-            <Background
-              variant={BackgroundVariant.Dots}
-              gap={24}
-              size={1}
-              color={theme.border}
-            />
-          </ReactFlow>
-        </div>
+        {!showTemplates && (
+          <div style={{ flex: 1 }} onDrop={handleDrop} onDragOver={handleDragOver}>
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={handleNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              onPaneClick={handlePaneClick}
+              onNodeDragStop={handleNodeDragStop}
+              isValidConnection={isValidConnection}
+              nodeTypes={nodeTypes}
+              nodesDraggable={!readOnly}
+              nodesConnectable={!readOnly}
+              fitView
+              fitViewOptions={{ padding: 0.3 }}
+              proOptions={{ hideAttribution: true }}
+              defaultEdgeOptions={{
+                style: { stroke: theme.fgMuted, strokeWidth: 2 },
+                animated: false,
+              }}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color={theme.border} />
+            </ReactFlow>
+          </div>
         )}
 
         {/* Trace timeline (bottom of canvas column) */}
@@ -483,11 +478,17 @@ export function FlowEditor({
           >
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
               <Eye size={12} style={{ color: theme.accent }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>
-                Preview
-              </span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Preview</span>
             </div>
-            <div style={{ fontSize: 11, color: theme.fgMuted, fontStyle: "italic", textAlign: "center", padding: "12px 0" }}>
+            <div
+              style={{
+                fontSize: 11,
+                color: theme.fgMuted,
+                fontStyle: "italic",
+                textAlign: "center",
+                padding: "12px 0",
+              }}
+            >
               Connect to a running project to preview
             </div>
           </div>
@@ -657,12 +658,7 @@ function ConfigPanel({
       {/* Config form */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
         {schema ? (
-          <SchemaForm
-            schema={schema}
-            values={config}
-            onChange={onConfigChange}
-            compact
-          />
+          <SchemaForm schema={schema} values={config} onChange={onConfigChange} compact />
         ) : (
           <div
             style={{
@@ -673,9 +669,7 @@ function ConfigPanel({
               fontStyle: "italic",
             }}
           >
-            {toolInfo?.has_schema
-              ? "Loading configuration..."
-              : "No configurable parameters"}
+            {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
           </div>
         )}
       </div>

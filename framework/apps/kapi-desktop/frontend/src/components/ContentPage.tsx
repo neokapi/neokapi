@@ -32,9 +32,24 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
 
   // Load available presets and formats on mount.
   useEffect(() => {
-    api.listPresets().then((p) => { if (p) setPresets(p); }).catch((err) => showError("Failed to load presets", err));
-    api.listFormats().then((f) => { if (f) setFormats(f.map((x) => x.name)); }).catch((err) => showError("Failed to load formats", err));
-    api.getBasePath(tabID).then((b) => { if (b) setBasePath(b); }).catch((err) => showError("Failed to get base path", err));
+    api
+      .listPresets()
+      .then((p) => {
+        if (p) setPresets(p);
+      })
+      .catch((err) => showError("Failed to load presets", err));
+    api
+      .listFormats()
+      .then((f) => {
+        if (f) setFormats(f.map((x) => x.name));
+      })
+      .catch((err) => showError("Failed to load formats", err));
+    api
+      .getBasePath(tabID)
+      .then((b) => {
+        if (b) setBasePath(b);
+      })
+      .catch((err) => showError("Failed to get base path", err));
   }, [tabID, showError]);
 
   const rescanFiles = useCallback(async () => {
@@ -134,9 +149,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">
-              Target Languages
-            </label>
+            <label className="mb-1 block text-xs text-muted-foreground">Target Languages</label>
             <div className="flex flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
               {(project.target_languages ?? []).map((lang) => (
                 <span
@@ -211,7 +224,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
               <div key={i} className="group rounded-lg border border-border p-3">
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="mb-0.5 block text-xs text-muted-foreground">Path pattern</label>
+                    <label className="mb-0.5 block text-xs text-muted-foreground">
+                      Path pattern
+                    </label>
                     <input
                       type="text"
                       value={entry.path}
@@ -224,22 +239,30 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                     <label className="mb-0.5 block text-xs text-muted-foreground">Format</label>
                     <select
                       value={entry.format ?? ""}
-                      onChange={(e) => handleUpdateEntry(i, { ...entry, format: e.target.value || undefined })}
+                      onChange={(e) =>
+                        handleUpdateEntry(i, { ...entry, format: e.target.value || undefined })
+                      }
                       className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="">auto-detect</option>
                       {formats.map((f) => (
-                        <option key={f} value={f}>{f}</option>
+                        <option key={f} value={f}>
+                          {f}
+                        </option>
                       ))}
                     </select>
                   </div>
                   <div className="flex items-end gap-1">
                     <div className="flex-1">
-                      <label className="mb-0.5 block text-xs text-muted-foreground">Target path</label>
+                      <label className="mb-0.5 block text-xs text-muted-foreground">
+                        Target path
+                      </label>
                       <input
                         type="text"
                         value={entry.target ?? ""}
-                        onChange={(e) => handleUpdateEntry(i, { ...entry, target: e.target.value || undefined })}
+                        onChange={(e) =>
+                          handleUpdateEntry(i, { ...entry, target: e.target.value || undefined })
+                        }
                         placeholder="src/locales/{lang}/*.json"
                         className="w-full rounded border border-input bg-transparent px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-ring"
                       />
@@ -298,7 +321,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                   <tr key={i} className="border-b border-border last:border-0 hover:bg-accent/30">
                     <td className="px-3 py-1.5 font-mono">{m.relative}</td>
                     <td className="px-3 py-1.5">
-                      <span className="rounded bg-accent px-1.5 py-0.5">{m.format || "unknown"}</span>
+                      <span className="rounded bg-accent px-1.5 py-0.5">
+                        {m.format || "unknown"}
+                      </span>
                     </td>
                     <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
                   </tr>

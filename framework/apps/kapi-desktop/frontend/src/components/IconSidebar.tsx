@@ -27,20 +27,61 @@ const adhocItems: SidebarItem[] = [
   { type: "separator" },
   { type: "item", view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
   { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
-  { type: "item", view: "termbases", icon: <BookOpen size={20} strokeWidth={SW} />, label: "Termbases" },
-  { type: "item", view: "memories", icon: <Database size={20} strokeWidth={SW} />, label: "Translation Memories" },
-  { type: "item", view: "formats", icon: <FileText size={20} strokeWidth={SW} />, label: "Formats" },
+  {
+    type: "item",
+    view: "termbases",
+    icon: <BookOpen size={20} strokeWidth={SW} />,
+    label: "Termbases",
+  },
+  {
+    type: "item",
+    view: "memories",
+    icon: <Database size={20} strokeWidth={SW} />,
+    label: "Translation Memories",
+  },
+  {
+    type: "item",
+    view: "formats",
+    icon: <FileText size={20} strokeWidth={SW} />,
+    label: "Formats",
+  },
 ];
 
 const projectItems: SidebarItem[] = [
-  { type: "item", view: "home", icon: <Home size={20} strokeWidth={SW} />, label: "Home", alwaysEnabled: true },
+  {
+    type: "item",
+    view: "home",
+    icon: <Home size={20} strokeWidth={SW} />,
+    label: "Home",
+    alwaysEnabled: true,
+  },
   { type: "separator" },
-  { type: "item", view: "project-home", icon: <FolderKanban size={20} strokeWidth={SW} />, label: "Project" },
-  { type: "item", view: "content", icon: <FileText size={20} strokeWidth={SW} />, label: "Content" },
+  {
+    type: "item",
+    view: "project-home",
+    icon: <FolderKanban size={20} strokeWidth={SW} />,
+    label: "Project",
+  },
+  {
+    type: "item",
+    view: "content",
+    icon: <FileText size={20} strokeWidth={SW} />,
+    label: "Content",
+  },
   { type: "item", view: "flows", icon: <Workflow size={20} strokeWidth={SW} />, label: "Flows" },
   { type: "item", view: "tools", icon: <Wrench size={20} strokeWidth={SW} />, label: "Tools" },
-  { type: "item", view: "termbases", icon: <BookOpen size={20} strokeWidth={SW} />, label: "Termbases" },
-  { type: "item", view: "memories", icon: <Database size={20} strokeWidth={SW} />, label: "Translation Memories" },
+  {
+    type: "item",
+    view: "termbases",
+    icon: <BookOpen size={20} strokeWidth={SW} />,
+    label: "Termbases",
+  },
+  {
+    type: "item",
+    view: "memories",
+    icon: <Database size={20} strokeWidth={SW} />,
+    label: "Translation Memories",
+  },
 ];
 
 export function IconSidebar({ mode, active, onChange, projectDisabled }: IconSidebarProps) {

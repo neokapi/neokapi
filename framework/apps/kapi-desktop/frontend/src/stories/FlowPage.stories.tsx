@@ -31,20 +31,13 @@ export const WithFlows: Story = {
       name: "Test",
       flows: {
         translate: {
-          steps: [
-            { tool: "ai-translate", config: { provider: "anthropic" } },
-          ],
+          steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
         },
         "translate-and-qa": {
-          steps: [
-            { tool: "ai-translate" },
-            { tool: "qa-check" },
-          ],
+          steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
         },
         pseudo: {
-          steps: [
-            { tool: "pseudo-translate", config: { expansion_rate: 1.3 } },
-          ],
+          steps: [{ tool: "pseudo-translate", config: { expansion_rate: 1.3 } }],
         },
       },
     },

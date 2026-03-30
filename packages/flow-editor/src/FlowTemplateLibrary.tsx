@@ -104,7 +104,12 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
         }}
       >
         {filtered.map((tmpl, index) => (
-          <TemplateCard key={tmpl.id} template={tmpl} index={index} onSelect={() => onSelect(tmpl.spec)} />
+          <TemplateCard
+            key={tmpl.id}
+            template={tmpl}
+            index={index}
+            onSelect={() => onSelect(tmpl.spec)}
+          />
         ))}
       </div>
 
@@ -170,11 +175,13 @@ function TemplateCard({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <Icon size={13} style={{ color: catStyle.color }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: theme.fg }}>
-          {template.name}
-        </span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: theme.fg }}>{template.name}</span>
         {template.hasParallel && (
-          <GitBranch size={11} style={{ color: theme.accent, marginLeft: "auto" }} title="Includes parallel steps" />
+          <GitBranch
+            size={11}
+            style={{ color: theme.accent, marginLeft: "auto" }}
+            title="Includes parallel steps"
+          />
         )}
       </div>
       <p style={{ fontSize: 11, color: theme.fgMuted, lineHeight: 1.4, margin: 0 }}>

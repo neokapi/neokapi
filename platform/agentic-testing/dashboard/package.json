@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vp dev",
-    "build": "tsc -b && vp build",
+    "build": "vpx tsc -b && vp build",
     "check": "vp check",
     "lint": "vp lint",
     "fmt": "vp fmt",

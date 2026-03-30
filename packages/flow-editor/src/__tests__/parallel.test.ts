@@ -10,10 +10,7 @@ describe("stepsToGraph with parallel branches", () => {
         { tool: "ai-translate" },
         {
           tool: "",
-          parallel: [
-            { tool: "ai-qa" },
-            { tool: "tm-leverage" },
-          ],
+          parallel: [{ tool: "ai-qa" }, { tool: "tm-leverage" }],
         },
         { tool: "merge-results" },
       ],
@@ -46,10 +43,7 @@ describe("stepsToGraph with parallel branches", () => {
         { tool: "ai-translate" },
         {
           tool: "",
-          parallel: [
-            { tool: "ai-qa" },
-            { tool: "tm-leverage" },
-          ],
+          parallel: [{ tool: "ai-qa" }, { tool: "tm-leverage" }],
         },
       ],
     };
@@ -71,10 +65,7 @@ describe("stepsToGraph with parallel branches", () => {
       steps: [
         {
           tool: "",
-          parallel: [
-            { tool: "ai-qa" },
-            { tool: "tm-leverage" },
-          ],
+          parallel: [{ tool: "ai-qa" }, { tool: "tm-leverage" }],
         },
         { tool: "merge" },
       ],
@@ -92,11 +83,7 @@ describe("stepsToGraph with parallel branches", () => {
       steps: [
         {
           tool: "",
-          parallel: [
-            { tool: "a" },
-            { tool: "b" },
-            { tool: "c" },
-          ],
+          parallel: [{ tool: "a" }, { tool: "b" }, { tool: "c" }],
         },
       ],
     };
@@ -142,10 +129,7 @@ describe("graphToSteps with parallel branches", () => {
         { tool: "translate" },
         {
           tool: "",
-          parallel: [
-            { tool: "qa" },
-            { tool: "tm" },
-          ],
+          parallel: [{ tool: "qa" }, { tool: "tm" }],
         },
         { tool: "merge" },
       ],
@@ -168,10 +152,7 @@ describe("graphToSteps with parallel branches", () => {
         { tool: "ai-translate", config: { provider: "anthropic" } },
         {
           tool: "",
-          parallel: [
-            { tool: "ai-qa" },
-            { tool: "brand-check" },
-          ],
+          parallel: [{ tool: "ai-qa" }, { tool: "brand-check" }],
         },
       ],
     };
@@ -198,11 +179,7 @@ describe("suggestParallelGroups", () => {
 
   it("suggests parallelizing adjacent validate + enrich tools", () => {
     const spec: FlowSpec = {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-        { tool: "brand-check" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }, { tool: "brand-check" }],
     };
     const toolMap = makeToolMap(
       ["ai-translate", "translate"],
@@ -218,15 +195,9 @@ describe("suggestParallelGroups", () => {
 
   it("does not suggest parallelizing mutating tools", () => {
     const spec: FlowSpec = {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "pseudo-translate" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "pseudo-translate" }],
     };
-    const toolMap = makeToolMap(
-      ["ai-translate", "translate"],
-      ["pseudo-translate", "translate"],
-    );
+    const toolMap = makeToolMap(["ai-translate", "translate"], ["pseudo-translate", "translate"]);
 
     const suggestions = suggestParallelGroups(spec, toolMap);
     expect(suggestions).toHaveLength(0);
@@ -242,11 +213,7 @@ describe("suggestParallelGroups", () => {
 
   it("suggests enrich + validate mixed groups", () => {
     const spec: FlowSpec = {
-      steps: [
-        { tool: "entity-extract" },
-        { tool: "qa-check" },
-        { tool: "term-lookup" },
-      ],
+      steps: [{ tool: "entity-extract" }, { tool: "qa-check" }, { tool: "term-lookup" }],
     };
     const toolMap = makeToolMap(
       ["entity-extract", "enrich"],
@@ -264,10 +231,7 @@ describe("suggestParallelGroups", () => {
       steps: [
         {
           tool: "",
-          parallel: [
-            { tool: "qa-check" },
-            { tool: "brand-check" },
-          ],
+          parallel: [{ tool: "qa-check" }, { tool: "brand-check" }],
         },
         { tool: "term-lookup" },
       ],

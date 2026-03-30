@@ -1,12 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import {
-  FolderOpen,
-  FilePlus,
-  Workflow,
-  Wrench,
-  Puzzle,
-  Settings,
-} from "lucide-react";
+import { FolderOpen, FilePlus, Workflow, Wrench, Puzzle, Settings } from "lucide-react";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -21,22 +14,26 @@ const GET_STARTED = [
   {
     icon: <FilePlus size={18} />,
     title: "Create a project",
-    description: "Define source and target languages, map your content files, and save as a portable Kapi project.",
+    description:
+      "Define source and target languages, map your content files, and save as a portable Kapi project.",
   },
   {
     icon: <Workflow size={18} />,
     title: "Build a flow",
-    description: "Chain tools into reusable pipelines — AI translation, quality checks, pseudo-translation, and more.",
+    description:
+      "Chain tools into reusable pipelines — AI translation, quality checks, pseudo-translation, and more.",
   },
   {
     icon: <Wrench size={18} />,
     title: "Run tools",
-    description: "Translate files with AI, pseudo-translate for testing, run QA checks, leverage TM — all with live progress.",
+    description:
+      "Translate files with AI, pseudo-translate for testing, run QA checks, leverage TM — all with live progress.",
   },
   {
     icon: <Puzzle size={18} />,
     title: "Add plugins",
-    description: "Install the Okapi Bridge for plugging into Okapi's filters and steps, or browse the registry.",
+    description:
+      "Install the Okapi Bridge for plugging into Okapi's filters and steps, or browse the registry.",
   },
 ];
 
@@ -157,14 +154,8 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
         <div className="mx-auto max-w-3xl px-8 pb-12 pt-20">
           {/* Hero */}
           <div className="mb-12 flex flex-col items-center text-center">
-            <img
-              src="/neokapi-logo.png"
-              alt="neokapi"
-              className="mb-4 h-24 w-24 drop-shadow-lg"
-            />
-            <h1 className="mb-1 text-3xl font-bold tracking-tight">
-              Kapi
-            </h1>
+            <img src="/neokapi-logo.png" alt="neokapi" className="mb-4 h-24 w-24 drop-shadow-lg" />
+            <h1 className="mb-1 text-3xl font-bold tracking-tight">Kapi</h1>
             <p className="mb-6 max-w-md text-base text-muted-foreground">
               Localization plumbing and glue for people, elves, and agents.
             </p>
@@ -180,7 +171,9 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                       type="text"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && nameValid) handleCreateProject(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && nameValid) handleCreateProject();
+                      }}
                       placeholder="My App"
                       autoFocus
                       className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
@@ -293,22 +286,17 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     <FolderOpen size={16} className="shrink-0 text-muted-foreground" />
                     <div className="flex-1 truncate">
                       <div className="text-sm font-medium">{file.name}</div>
-                      <div className="truncate text-xs text-muted-foreground">
-                        {file.path}
-                      </div>
+                      <div className="truncate text-xs text-muted-foreground">{file.path}</div>
                     </div>
                   </button>
                 ))}
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-border p-8 text-center">
-                <FolderOpen
-                  size={24}
-                  className="mx-auto mb-2 text-muted-foreground/50"
-                />
+                <FolderOpen size={24} className="mx-auto mb-2 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">
-                  No recent projects yet. Create a new project or open an
-                  existing Kapi project to get started.
+                  No recent projects yet. Create a new project or open an existing Kapi project to
+                  get started.
                 </p>
               </div>
             )}
@@ -316,8 +304,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
 
           <footer className="mt-12 border-t border-border pt-4 text-center">
             <p className="text-xs text-muted-foreground">
-              Kapi is part of{" "}
-              <span className="font-medium text-foreground">neokapi</span>, the
+              Kapi is part of <span className="font-medium text-foreground">neokapi</span>, the
               open-source localization framework.
             </p>
           </footer>
