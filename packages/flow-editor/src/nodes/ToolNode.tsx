@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Settings2 } from "lucide-react";
+import { Settings2, GitBranch } from "lucide-react";
 import { getCategoryStyle } from "../category";
 import { theme } from "../theme";
 
@@ -9,6 +9,7 @@ export function ToolNode({ data, selected }: NodeProps) {
   const Icon = style.icon;
   const hasConfig =
     !!data.config && Object.keys(data.config as object).length > 0;
+  const isParallel = !!data.parallel;
 
   return (
     <div
@@ -70,7 +71,14 @@ export function ToolNode({ data, selected }: NodeProps) {
           >
             {style.label}
           </span>
-          {hasConfig && (
+          {isParallel && (
+            <GitBranch
+              size={10}
+              style={{ color: theme.accent, marginLeft: "auto" }}
+              title="Runs in parallel"
+            />
+          )}
+          {hasConfig && !isParallel && (
             <Settings2
               size={10}
               style={{ color: theme.fgMuted, marginLeft: "auto" }}

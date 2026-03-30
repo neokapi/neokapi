@@ -39,6 +39,8 @@ export interface FlowStep {
   tool: string;
   config?: Record<string, unknown>;
   label?: string;
+  /** Fan-out: run these steps in parallel instead of sequentially. */
+  parallel?: FlowStep[];
 }
 
 export interface FlowSpec {

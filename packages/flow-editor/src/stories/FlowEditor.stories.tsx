@@ -161,3 +161,56 @@ export const WithConfiguration: Story = {
     tools,
   },
 };
+
+export const ParallelBranches: Story = {
+  args: {
+    flow: {
+      steps: [
+        { tool: "ai-translate", label: "Translate" },
+        {
+          tool: "",
+          parallel: [
+            { tool: "qa-check", label: "Quality Check" },
+            { tool: "brand-vocab-check", label: "Brand Check" },
+          ],
+        },
+        { tool: "word-count", label: "Word Count" },
+      ],
+    },
+    tools,
+  },
+};
+
+export const ThreeWayParallel: Story = {
+  args: {
+    flow: {
+      steps: [
+        { tool: "tm-leverage", label: "TM Lookup" },
+        {
+          tool: "",
+          parallel: [
+            { tool: "qa-check", label: "QA" },
+            { tool: "brand-vocab-check", label: "Brand" },
+            { tool: "entity-extract", label: "Entities" },
+          ],
+        },
+      ],
+    },
+    tools,
+  },
+};
+
+export const ParallelizationSuggestion: Story = {
+  name: "Parallelization Suggestion",
+  args: {
+    flow: {
+      steps: [
+        { tool: "ai-translate" },
+        { tool: "qa-check" },
+        { tool: "brand-vocab-check" },
+        { tool: "word-count" },
+      ],
+    },
+    tools,
+  },
+};

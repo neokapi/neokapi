@@ -11,9 +11,9 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Play, X } from "lucide-react";
+import { Play, X, GitBranch, Zap } from "lucide-react";
 
-import type { FlowEditorProps, FlowSpec, ToolInfo, ComponentSchema } from "./types";
+import type { FlowEditorProps, FlowSpec, FlowStep, ToolInfo, ComponentSchema } from "./types";
 import { ReaderNode } from "./nodes/ReaderNode";
 import { WriterNode } from "./nodes/WriterNode";
 import { ToolNode } from "./nodes/ToolNode";
@@ -21,6 +21,7 @@ import { ToolPalette } from "./ToolPalette";
 import { SchemaForm } from "./SchemaForm";
 import { stepsToGraph, graphToSteps } from "./conversion";
 import { getCategoryStyle } from "./category";
+import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { theme } from "./theme";
 
 const nodeTypes: NodeTypes = {
@@ -45,6 +46,7 @@ export function FlowEditor({
   readOnly = false,
 }: FlowEditorProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [dismissedSuggestions, setDismissedSuggestions] = useState(false);
 
   // Build tool lookup map for enriching nodes with category/description
   const toolMap = useMemo(() => {
@@ -52,6 +54,12 @@ export function FlowEditor({
     for (const t of tools) m.set(t.name, t);
     return m;
   }, [tools]);
+
+  // Analyze flow for parallelization opportunities.
+  const suggestions = useMemo(
+    () => (readOnly || dismissedSuggestions ? [] : suggestParallelGroups(flow, toolMap)),
+    [flow, toolMap, readOnly, dismissedSuggestions],
+  );
 
   const initial = useMemo(() => stepsToGraph(flow, toolMap), [flow, toolMap]);
   const [nodes, , onNodesChange] = useNodesState(initial.nodes);
@@ -95,6 +103,38 @@ export function FlowEditor({
     onChange(updated);
     setSelectedNodeId(null);
   }, [selectedNodeId, flow, onChange, readOnly]);
+
+  // Parallelize: convert sequential steps at given indices into a single parallel step.
+  const handleParallelize = useCallback(
+    (suggestion: ParallelSuggestion) => {
+      if (readOnly) return;
+      const indices = new Set(suggestion.stepIndices);
+      const parallelBranches: FlowStep[] = [];
+      const newSteps: FlowStep[] = [];
+      let inserted = false;
+
+      for (let i = 0; i < flow.steps.length; i++) {
+        if (indices.has(i)) {
+          parallelBranches.push(flow.steps[i]);
+          if (!inserted) {
+            // Insert the parallel group at the position of the first branch.
+            newSteps.push({ tool: "", parallel: parallelBranches });
+            inserted = true;
+          }
+        } else {
+          newSteps.push(flow.steps[i]);
+        }
+      }
+      // Update the parallel reference (it was pushed before all branches were added).
+      if (inserted) {
+        const pStep = newSteps.find((s) => s.parallel === parallelBranches);
+        if (pStep) pStep.parallel = [...parallelBranches];
+      }
+
+      onChange({ ...flow, steps: newSteps });
+    },
+    [flow, onChange, readOnly],
+  );
 
   // Handle drag-and-drop from palette
   const handleDrop = useCallback(
@@ -198,6 +238,59 @@ export function FlowEditor({
             </button>
           )}
         </div>
+
+        {/* Parallelization suggestion banner */}
+        {suggestions.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 12px",
+              borderBottom: `1px solid ${theme.border}`,
+              background: theme.bgSecondary,
+              fontSize: 11,
+            }}
+          >
+            <Zap size={13} style={{ color: theme.accent, flexShrink: 0 }} />
+            <span style={{ color: theme.fgMuted, flex: 1 }}>
+              <strong style={{ color: theme.fg }}>{suggestions[0].toolNames.join(", ")}</strong>
+              {" "}can run in parallel &mdash; {suggestions[0].reason}
+            </span>
+            <button
+              onClick={() => handleParallelize(suggestions[0])}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "3px 10px",
+                borderRadius: 4,
+                border: "none",
+                background: theme.accent,
+                color: theme.accentFg,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              <GitBranch size={11} />
+              Parallelize
+            </button>
+            <button
+              onClick={() => setDismissedSuggestions(true)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 2,
+              }}
+              aria-label="Dismiss suggestion"
+            >
+              <X size={12} style={{ color: theme.fgMuted }} />
+            </button>
+          </div>
+        )}
 
         {/* Graph canvas */}
         <div style={{ flex: 1 }} onDrop={handleDrop} onDragOver={handleDragOver}>

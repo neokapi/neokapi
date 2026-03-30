@@ -6,6 +6,8 @@ export { ReaderNode } from "./nodes/ReaderNode";
 export { WriterNode } from "./nodes/WriterNode";
 export { ToolNode } from "./nodes/ToolNode";
 export { getCategoryStyle, getCategoryColor, ALL_CATEGORIES } from "./category";
+export { suggestParallelGroups, isCategoryParallelizable } from "./parallelChecker";
+export type { ParallelSuggestion } from "./parallelChecker";
 export type {
   FlowEditorProps,
   FlowSpec,
