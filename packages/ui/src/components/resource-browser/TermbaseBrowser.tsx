@@ -30,6 +30,7 @@ export function TermbaseBrowser({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editConcept, setEditConcept] = useState<ConceptDTO | null>(null);
@@ -61,6 +62,7 @@ export function TermbaseBrowser({
         setTotalCount(result.total_count);
       } finally {
         setLoading(false);
+        setInitialLoadDone(true);
       }
     },
     [adapter, sourceLocale, targetLocales],
@@ -211,13 +213,18 @@ export function TermbaseBrowser({
         </button>
       </div>
 
-      {/* Count */}
-      <div className="text-[12px] text-muted-foreground mb-3">
-        {totalCount} {totalCount === 1 ? "concept" : "concepts"}
+      {/* Count + inline loading indicator for subsequent fetches */}
+      <div className="text-[12px] text-muted-foreground mb-3 flex items-center gap-2">
+        <span>
+          {totalCount} {totalCount === 1 ? "concept" : "concepts"}
+        </span>
+        {loading && initialLoadDone && (
+          <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin opacity-50" />
+        )}
       </div>
 
-      {/* Loading */}
-      {loading && concepts.length === 0 && (
+      {/* Loading — only on initial load */}
+      {loading && !initialLoadDone && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className="rounded-lg border border-border p-4 animate-pulse">
@@ -229,8 +236,8 @@ export function TermbaseBrowser({
         </div>
       )}
 
-      {/* Empty */}
-      {!loading && concepts.length === 0 && (
+      {/* Empty — only after initial load */}
+      {initialLoadDone && !loading && concepts.length === 0 && (
         <div className="py-12 text-center">
           <p className="text-sm text-muted-foreground mb-1">
             {searchText ? "No concepts match your search." : "No concepts yet."}
