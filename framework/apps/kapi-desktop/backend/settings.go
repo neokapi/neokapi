@@ -9,7 +9,7 @@ import (
 
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
-	Theme     string `json:"theme"`      // "dark" or "light"
+	Theme     string `json:"theme"`      // "system", "dark", or "light"
 	PluginDir string `json:"plugin_dir"` // override plugin directory
 }
 
@@ -29,7 +29,7 @@ func newSettingsStore() *settingsStore {
 
 	s := &settingsStore{
 		filePath: path,
-		settings: AppSettings{Theme: "dark"},
+		settings: AppSettings{Theme: "system"},
 	}
 	s.load()
 	return s

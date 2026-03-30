@@ -57,7 +57,19 @@ function AppInner() {
     refreshRecent();
   }, [refreshRecent, tabs.length]);
 
-  // Load initial data when Wails signals all services are ready.
+  // Apply persisted theme on startup.
+  useEffect(() => {
+    api.getTheme().then((t) => {
+      const mode = t || "system";
+      if (mode === "system") {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", prefersDark);
+      } else {
+        document.documentElement.classList.toggle("dark", mode === "dark");
+      }
+    }).catch(() => {});
+  }, []);
+
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
   useEffect(() => {
