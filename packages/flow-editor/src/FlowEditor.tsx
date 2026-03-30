@@ -287,6 +287,18 @@ export function FlowEditor({
     [selectedToolIndex, flow, onChange, readOnly],
   );
 
+  // Template library covers the full editor when shown.
+  if (showTemplates) {
+    return (
+      <div style={{ display: "flex", height: "100%", overflow: "auto", background: theme.bg }}>
+        <FlowTemplateLibrary
+          onSelect={handleSelectTemplate}
+          onDismiss={() => setDismissedTemplates(true)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
       {/* Tool Palette (left) */}
@@ -415,18 +427,8 @@ export function FlowEditor({
           </div>
         )}
 
-        {/* Template library (shown when flow is empty) */}
-        {showTemplates && (
-          <div style={{ flex: 1, overflow: "auto", background: theme.bg }}>
-            <FlowTemplateLibrary
-              onSelect={handleSelectTemplate}
-              onDismiss={() => setDismissedTemplates(true)}
-            />
-          </div>
-        )}
-
         {/* Graph canvas */}
-        {!showTemplates && (
+        {(
         <div style={{ flex: 1 }} onDrop={handleDrop} onDragOver={handleDragOver}>
           <ReactFlow
             nodes={nodes}

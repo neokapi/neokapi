@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Workflow, Plus, Play, Trash2, Pencil, X } from "lucide-react";
+import { Workflow, Plus, Play, Trash2, Pencil, X, Save } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -153,6 +153,15 @@ export function FlowsPage({
     [tabID, onFlowDelete, selectedFlow, refreshFlows, showError],
   );
 
+  const handleSaveProject = useCallback(async () => {
+    if (!tabID) return;
+    try {
+      await api.saveProject(tabID);
+    } catch (err) {
+      showError("Failed to save project", err);
+    }
+  }, [tabID, showError]);
+
   const handleCloseEditor = useCallback(() => {
     setSelectedFlow(null);
     setSelectedSpec(null);
@@ -177,6 +186,17 @@ export function FlowsPage({
           {selectedSpec.description && (
             <span className="text-xs text-muted-foreground">{selectedSpec.description}</span>
           )}
+          <div className="ml-auto flex gap-2">
+            {tabID && (
+              <button
+                onClick={() => void handleSaveProject()}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <Save size={12} />
+                Save
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Flow editor fills remaining space */}
