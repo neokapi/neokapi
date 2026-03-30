@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock } from "lucide-react";
+import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -36,6 +36,8 @@ export function FlowsPage({
   const [selectedSpec, setSelectedSpec] = useState<FlowSpec | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("user");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importFlows, setImportFlows] = useState<FlowListItem[]>([]);
   const [newFlowName, setNewFlowName] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
@@ -173,6 +175,48 @@ export function FlowsPage({
     [tabID, isProjectMode, onFlowChange, refreshFlows, showError],
   );
 
+  const handleOpenImportDialog = useCallback(async () => {
+    try {
+      const all = await api.listUserFlows();
+      // Show built-in + user flows (everything available outside this project).
+      setImportFlows(
+        (all ?? []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          description: f.description,
+          source: f.source,
+          stepCount: f.step_count,
+        })),
+      );
+      setShowImportDialog(true);
+    } catch (err) {
+      showError("Failed to load available flows", err);
+    }
+  }, [showError]);
+
+  const handleImportFlow = useCallback(
+    async (item: FlowListItem) => {
+      if (!tabID) return;
+      try {
+        const detail = await api.getUserFlow(item.id);
+        if (detail) {
+          const name = item.id;
+          const spec: FlowSpec = { description: detail.description, steps: detail.steps as FlowSpec["steps"] };
+          await api.saveFlow(tabID, name, spec);
+          onFlowChange?.(name, spec);
+          setShowImportDialog(false);
+          setSelectedId(name);
+          setSelectedSpec(spec);
+          setSelectedSource("project");
+          void refreshFlows();
+        }
+      } catch (err) {
+        showError("Failed to import flow", err);
+      }
+    },
+    [tabID, onFlowChange, refreshFlows, showError],
+  );
+
   const handleCreateFlow = useCallback(async () => {
     const name = newFlowName.trim().replace(/\s+/g, "-").toLowerCase();
     if (!name) return;
@@ -285,13 +329,24 @@ export function FlowsPage({
         <h1 className="text-xl font-semibold">
           {isProjectMode ? "Project Flows" : "Flows"}
         </h1>
-        <button
-          onClick={() => setShowCreateDialog(true)}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-        >
-          <Plus size={12} />
-          New Flow
-        </button>
+        <div className="flex gap-2">
+          {isProjectMode && (
+            <button
+              onClick={() => void handleOpenImportDialog()}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <Import size={12} />
+              Import Flow
+            </button>
+          )}
+          <button
+            onClick={() => setShowCreateDialog(true)}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Plus size={12} />
+            New Flow
+          </button>
+        </div>
       </div>
 
       {loading && (
@@ -432,6 +487,53 @@ export function FlowsPage({
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import flow dialog (project mode) */}
+      {showImportDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Import Flow</h2>
+              <button
+                onClick={() => setShowImportDialog(false)}
+                className="p-1 rounded hover:bg-accent text-muted-foreground"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Copy a built-in or user flow into this project. The flow will be independent — changes won't affect the original.
+            </p>
+            {importFlows.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No flows available to import.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
+                {importFlows.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => void handleImportFlow(item)}
+                    className="flex items-center gap-3 w-full text-left rounded-md border border-border p-3 hover:border-primary/30 hover:bg-accent/50 transition-colors"
+                  >
+                    <Workflow size={14} className="text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold truncate">{item.name}</span>
+                        <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
+                          {item.source}
+                        </span>
+                      </div>
+                      {item.description && (
+                        <div className="text-[10px] text-muted-foreground truncate mt-0.5">{item.description}</div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{item.stepCount} steps</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
