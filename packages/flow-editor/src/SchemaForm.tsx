@@ -44,6 +44,111 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
     [values, onChange],
   );
 
+  // Drill-down navigation for deeply nested objects (depth >= 2)
+  const [drillInto, setDrillInto] = useState<{ key: string; label: string } | null>(null);
+
+  const handleDrillDown = useCallback(
+    (label: string, key: string, _schema: PropertySchema, _values: Record<string, unknown>) => {
+      setDrillInto({ key, label });
+    },
+    [],
+  );
+
+  // When drilled into a nested object, render only that object's fields
+  if (drillInto) {
+    // Walk the dot-separated key path to find the schema and value
+    const keyParts = drillInto.key.split(".");
+    let targetSchema: PropertySchema | undefined;
+    let targetValue: Record<string, unknown> = values;
+    let parentSchema: Record<string, PropertySchema> = properties;
+
+    for (const part of keyParts) {
+      targetSchema = parentSchema[part];
+      if (!targetSchema) break;
+      targetValue = (targetValue[part] as Record<string, unknown>) ?? {};
+      parentSchema = targetSchema.properties || {};
+    }
+
+    if (!targetSchema?.properties) {
+      // Fallback: reset drill if schema not found
+      setDrillInto(null);
+      return null;
+    }
+
+    const drillProperties = targetSchema.properties;
+    const drillKeys = Object.keys(drillProperties).filter((k) => !drillProperties[k].deprecated);
+
+    const handleDrillFieldChange = (fieldKey: string, fieldValue: unknown) => {
+      // Rebuild nested value back to root
+      const newDrillValue = { ...targetValue, [fieldKey]: fieldValue };
+      // Walk backwards through key parts to reconstruct
+      let result: Record<string, unknown> = newDrillValue;
+      for (let i = keyParts.length - 1; i >= 0; i--) {
+        const parentVal = i === 0 ? values : (() => {
+          let v: Record<string, unknown> = values;
+          for (let j = 0; j < i; j++) {
+            v = (v[keyParts[j]] as Record<string, unknown>) ?? {};
+          }
+          return v;
+        })();
+        result = { ...parentVal, [keyParts[i]]: result };
+      }
+      onChange(result);
+    };
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: compact ? 4 : 8 }}>
+        {/* Breadcrumb */}
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+          <button
+            onClick={() => setDrillInto(null)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              fontSize: 10,
+              color: theme.fgMuted,
+            }}
+          >
+            Root
+          </button>
+          <span style={{ fontSize: 9, color: theme.fgMuted }}>&rsaquo;</span>
+          <span
+            style={{
+              fontSize: 10,
+              color: theme.fg,
+              fontWeight: 600,
+            }}
+          >
+            {drillInto.label}
+          </span>
+        </div>
+
+        {/* Drilled-into object's fields at depth 0 */}
+        {targetSchema.description && (
+          <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>
+            {targetSchema.description}
+          </div>
+        )}
+        {drillKeys.map((key) => (
+          <PropertyField
+            key={key}
+            name={key}
+            schema={drillProperties[key]}
+            value={targetValue[key]}
+            onChange={(v) => handleDrillFieldChange(key, v)}
+            compact={compact}
+            allValues={targetValue}
+            allProperties={drillProperties}
+            depth={0}
+            onDrillDown={handleDrillDown}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: compact ? 4 : 8 }}>
       {/* Grouped fields */}
@@ -55,6 +160,7 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
           values={values}
           onChange={handleChange}
           compact={compact}
+          onDrillDown={handleDrillDown}
         />
       ))}
 
@@ -85,6 +191,7 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
               compact={compact}
               allValues={values}
               allProperties={properties}
+              onDrillDown={handleDrillDown}
             />
           ))}
         </div>
@@ -104,12 +211,14 @@ function FieldGroup({
   values,
   onChange,
   compact,
+  onDrillDown,
 }: {
   group: ParameterGroup;
   properties: Record<string, PropertySchema>;
   values: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
   compact: boolean;
+  onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
 }) {
   const [collapsed, setCollapsed] = useState(group.collapsed ?? false);
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
@@ -174,6 +283,7 @@ function FieldGroup({
               compact={compact}
               allValues={values}
               allProperties={properties}
+              onDrillDown={onDrillDown}
             />
           ))}
         </div>
@@ -193,6 +303,7 @@ function PropertyField({
   allValues,
   allProperties,
   depth = 0,
+  onDrillDown,
 }: {
   name: string;
   schema: PropertySchema;
@@ -202,6 +313,7 @@ function PropertyField({
   allValues?: Record<string, unknown>;
   allProperties?: Record<string, PropertySchema>;
   depth?: number;
+  onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
 }) {
   // x-showIf conditional visibility
   const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
@@ -512,6 +624,8 @@ function PropertyField({
           onChange={onChange}
           compact={compact}
           depth={depth}
+          name={name}
+          onDrillDown={onDrillDown}
         />
       );
     }
@@ -596,6 +710,8 @@ function NestedObjectEditor({
   onChange,
   compact,
   depth,
+  name,
+  onDrillDown,
 }: {
   label: string;
   description?: string;
@@ -604,6 +720,8 @@ function NestedObjectEditor({
   onChange: (value: unknown) => void;
   compact: boolean;
   depth: number;
+  name: string;
+  onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
 }) {
   const [collapsed, setCollapsed] = useState(depth > 0);
   const current = value ?? {};
@@ -616,6 +734,31 @@ function NestedObjectEditor({
     },
     [current, onChange],
   );
+
+  // At depth >= 2, render as a drill-down row instead of inline collapsible
+  if (depth >= 2 && onDrillDown) {
+    return (
+      <button
+        onClick={() => onDrillDown(label, name, schema, current)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          padding: "6px 8px",
+          borderRadius: 4,
+          border: `1px solid ${theme.border}`,
+          background: theme.bgCard,
+          cursor: "pointer",
+          textAlign: "left",
+        }}
+      >
+        <Braces size={11} style={{ color: theme.accent, marginRight: 6 }} />
+        <span style={{ flex: 1, fontSize: 11, color: theme.fg }}>{label}</span>
+        <span style={{ fontSize: 10, color: theme.fgMuted }}>{keys.length} fields</span>
+        <ChevronRight size={12} style={{ color: theme.fgMuted, marginLeft: 4 }} />
+      </button>
+    );
+  }
 
   return (
     <div
@@ -681,6 +824,7 @@ function NestedObjectEditor({
               compact={compact}
               allValues={current}
               depth={depth + 1}
+              onDrillDown={onDrillDown}
             />
           ))}
         </div>
@@ -869,38 +1013,37 @@ function MapEntry({
   const isComplex =
     itemSchema?.properties || itemSchema?.type === "object" || itemSchema?.type === "array";
 
-  // Simple value — inline edit
+  // Simple value — vertical card
   if (!isComplex) {
     return (
       <div
         style={{
-          display: "flex",
-          gap: 4,
-          padding: "3px 8px",
-          alignItems: "center",
+          padding: "6px 8px",
           borderBottom: `1px solid ${theme.border}`,
         }}
       >
-        <span
-          style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: theme.fgSecondary,
-            minWidth: 60,
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-          }}
-        >
-          {entryKey}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 600,
+              color: theme.accent,
+              fontFamily: "var(--font-mono, ui-monospace, monospace)",
+              letterSpacing: "0.02em",
+            }}
+          >
+            {entryKey}
+          </span>
+          <button onClick={onRemove} style={{ ...removeButtonStyle, marginLeft: "auto" }}>
+            <X size={10} />
+          </button>
+        </div>
         <input
           type="text"
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value || undefined)}
-          style={{ ...inputStyle(compact), flex: 1, fontSize: 10 }}
+          style={{ ...inputStyle(compact), fontSize: 10, width: "100%" }}
         />
-        <button onClick={onRemove} style={removeButtonStyle}>
-          <X size={10} />
-        </button>
       </div>
     );
   }
@@ -1009,6 +1152,54 @@ function ArrayEditor({
   const items = value ?? [];
   const isSimple =
     itemSchema.type === "string" || itemSchema.type === "number" || itemSchema.type === "integer";
+
+  // Simple arrays render as horizontal pill row
+  if (isSimple) {
+    return (
+      <FieldWrapper label={label} description={description} compact={compact}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, alignItems: "center" }}>
+          {items.map((item, i) => (
+            <span key={i} style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              padding: "2px 6px",
+              borderRadius: 10,
+              border: `1px solid ${theme.border}`,
+              fontSize: 10,
+              fontFamily: "var(--font-mono, ui-monospace, monospace)",
+              color: theme.fg,
+              background: theme.bgCard,
+            }}>
+              {String(item)}
+              <button onClick={() => handleRemove(i)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex" }}>
+                <X size={8} style={{ color: theme.fgMuted }} />
+              </button>
+            </span>
+          ))}
+          <input
+            placeholder="+ add"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) {
+                const val = (e.target as HTMLInputElement).value.trim();
+                onChange([...items, itemSchema.type === "number" || itemSchema.type === "integer" ? Number(val) : val]);
+                (e.target as HTMLInputElement).value = "";
+              }
+            }}
+            style={{
+              border: "none",
+              background: "transparent",
+              fontSize: 10,
+              width: 60,
+              color: theme.fgMuted,
+              outline: "none",
+              fontFamily: "var(--font-mono, ui-monospace, monospace)",
+            }}
+          />
+        </div>
+      </FieldWrapper>
+    );
+  }
 
   const handleAdd = useCallback(() => {
     const defaultVal =
