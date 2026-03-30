@@ -548,7 +548,7 @@ jobs:
 
       - name: Build Kapi Desktop frontend
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npm run build
+        run: npm run build:dev
 
       - name: Generate icons
         working-directory: framework/apps/kapi-desktop/build
