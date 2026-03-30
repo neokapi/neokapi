@@ -211,6 +211,48 @@ function PropertyField({
 
   // ── x-widget dispatch ──
 
+  if (widget === "code-editor") {
+    return (
+      <FieldWrapper label={label} description={schema.description} compact={compact}>
+        <textarea
+          value={String(resolved ?? "")}
+          placeholder={schema["x-placeholder"] || "// Enter JavaScript code..."}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          rows={compact ? 6 : 10}
+          style={{
+            ...inputStyle(compact),
+            fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+            fontSize: compact ? 10 : 11,
+            lineHeight: 1.5,
+            resize: "vertical",
+            minHeight: compact ? 80 : 120,
+            whiteSpace: "pre",
+            tabSize: 2,
+          }}
+          spellCheck={false}
+        />
+      </FieldWrapper>
+    );
+  }
+
+  if (widget === "file-picker") {
+    return (
+      <FieldWrapper label={label} description={schema.description} compact={compact}>
+        <input
+          type="text"
+          value={String(resolved ?? "")}
+          placeholder={schema["x-placeholder"] || "/path/to/file..."}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          style={{
+            ...inputStyle(compact),
+            fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+            fontSize: compact ? 10 : 11,
+          }}
+        />
+      </FieldWrapper>
+    );
+  }
+
   if (widget === "codeFinderRules") {
     return (
       <CodeFinderRulesEditor
