@@ -20,38 +20,40 @@ interface MarkedEntity extends EntityAnnotationDTO {
  * Users type text, select portions to mark as entities, then lookup.
  * Results show match scores and entity adaptation indicators.
  */
-export function TMLookupPanel({
-  sourceLocale,
-  targetLocale,
-  onLookup,
-}: TMLookupPanelProps) {
+export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookupPanelProps) {
   const [text, setText] = useState("");
   const [entities, setEntities] = useState<MarkedEntity[]>([]);
   const [minScore, setMinScore] = useState(0.7);
   const [matches, setMatches] = useState<TMMatchDTO[]>([]);
   const [loading, setLoading] = useState(false);
   const [showEntityPopover, setShowEntityPopover] = useState(false);
-  const [selectionRange, setSelectionRange] = useState<{ start: number; end: number; text: string } | null>(null);
+  const [selectionRange, setSelectionRange] = useState<{
+    start: number;
+    end: number;
+    text: string;
+  } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const entityIdRef = useRef(0);
 
-  const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newText = e.target.value;
-    const oldText = text;
-    setText(newText);
-    // Only clear entities if the text changed substantially (not just appending/minor edit).
-    // Clear if length difference is large or if entity positions would be invalid.
-    if (entities.length > 0) {
-      const valid = entities.filter((ent) => {
-        if (ent.end > newText.length) return false;
-        // Check the entity text still matches at its position.
-        return newText.substring(ent.start, ent.end) === ent.text;
-      });
-      if (valid.length !== entities.length) {
-        setEntities(valid);
+  const handleTextChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      const newText = e.target.value;
+      setText(newText);
+      // Only clear entities if the text changed substantially (not just appending/minor edit).
+      // Clear if length difference is large or if entity positions would be invalid.
+      if (entities.length > 0) {
+        const valid = entities.filter((ent) => {
+          if (ent.end > newText.length) return false;
+          // Check the entity text still matches at its position.
+          return newText.substring(ent.start, ent.end) === ent.text;
+        });
+        if (valid.length !== entities.length) {
+          setEntities(valid);
+        }
       }
-    }
-  }, [text, entities]);
+    },
+    [text, entities],
+  );
 
   const handleTextSelect = useCallback(() => {
     const el = inputRef.current;
@@ -77,12 +79,12 @@ export function TMLookupPanel({
         start: selectionRange.start,
         end: selectionRange.end,
       };
-      setEntities((prev) => [
-        ...prev.filter(
-          (e) => e.end <= newEntity.start || e.start >= newEntity.end,
-        ),
-        newEntity,
-      ].sort((a, b) => a.start - b.start));
+      setEntities((prev) =>
+        [
+          ...prev.filter((e) => e.end <= newEntity.start || e.start >= newEntity.end),
+          newEntity,
+        ].sort((a, b) => a.start - b.start),
+      );
       setShowEntityPopover(false);
     },
     [selectionRange],
