@@ -117,10 +117,6 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Install shared UI dependencies
-        working-directory: packages/ui
-        run: npm install
-
       - name: Install flow-editor dependencies
         working-directory: packages/flow-editor
         run: npm install
@@ -129,8 +125,8 @@ jobs:
         working-directory: packages/flow-editor
         run: npx vitest run
 
-      - name: Install Kapi Desktop frontend dependencies
-        working-directory: framework/apps/kapi-desktop/frontend
+      - name: Install framework workspace dependencies
+        working-directory: framework
         run: npm install
 
       - name: Run Kapi Desktop frontend tests
