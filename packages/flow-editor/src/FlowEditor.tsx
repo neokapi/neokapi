@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -104,8 +104,14 @@ export function FlowEditor({
     });
   }, [initial.nodes, nodeStats]);
 
-  const [nodes, , onNodesChange] = useNodesState(enrichedNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initial.edges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
+
+  // Sync graph when flow prop changes (e.g., tool added, template selected).
+  useEffect(() => {
+    setNodes(enrichedNodes);
+    setEdges(initial.edges);
+  }, [enrichedNodes, initial.edges, setNodes, setEdges]);
 
   const handleNodesChange = useCallback(
     (changes: Parameters<typeof onNodesChange>[0]) => {
