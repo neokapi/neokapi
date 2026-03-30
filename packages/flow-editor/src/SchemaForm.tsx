@@ -209,7 +209,8 @@ function PropertyField({
       if (showIf.empty && !isEmpty) return null;
       if (!showIf.empty && isEmpty) return null;
     } else if (showIf.value !== undefined) {
-      if (otherVal !== showIf.value) return null;
+      // String comparison for enum/mode-selector values
+      if (String(otherVal ?? "") !== String(showIf.value)) return null;
     }
   }
 

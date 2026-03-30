@@ -11,10 +11,11 @@ import (
 )
 
 // ScriptConfig holds configuration for the script tool.
-// Code and ScriptFile are mutually exclusive.
+// Source selects between inline code and file — a standard mode-selector pattern.
 type ScriptConfig struct {
-	Code       string `schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIfEmpty=scriptFile"`
-	ScriptFile string `schema:"description=Path to a .js file (alternative to inline code),widget=file-picker,showIfEmpty=code"`
+	Source     string `schema:"description=Script source mode,enum=inline|file,default=inline"`
+	Code       string `schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
+	ScriptFile string `schema:"description=Path to a .js file,widget=file-picker,showIf=source:file"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -22,17 +23,22 @@ func (c *ScriptConfig) ToolName() string { return "script" }
 
 // Reset restores default values.
 func (c *ScriptConfig) Reset() {
+	c.Source = "inline"
 	c.Code = ""
 	c.ScriptFile = ""
 }
 
 // Validate checks configuration validity.
 func (c *ScriptConfig) Validate() error {
-	if c.Code == "" && c.ScriptFile == "" {
-		return fmt.Errorf("script: either Code or ScriptFile is required")
-	}
-	if c.Code != "" && c.ScriptFile != "" {
-		return fmt.Errorf("script: Code and ScriptFile are mutually exclusive")
+	switch c.Source {
+	case "file", "File":
+		if c.ScriptFile == "" {
+			return fmt.Errorf("script: ScriptFile is required when source is 'file'")
+		}
+	default: // "inline" or empty
+		if c.Code == "" {
+			return fmt.Errorf("script: Code is required when source is 'inline'")
+		}
 	}
 	return nil
 }
