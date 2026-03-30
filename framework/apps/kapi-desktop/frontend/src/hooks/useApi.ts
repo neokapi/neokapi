@@ -78,6 +78,13 @@ export const api = {
   saveFlow: (tabID: string, name: string, spec: FlowSpec) => call<void>("SaveFlow", tabID, name, spec),
   deleteFlow: (tabID: string, name: string) => call<void>("DeleteFlow", tabID, name),
 
+  // User flows (ad-hoc, stored in ~/.config/kapi/flows/)
+  listUserFlows: () => call<Array<{ id: string; name: string; description: string; source: string; step_count: number; modified: string }>>("ListUserFlows"),
+  getUserFlow: (id: string) => call<{ id: string; name: string; description: string; source: string; steps: unknown[] }>("GetUserFlow", id),
+  saveUserFlow: (req: { id: string; name: string; description: string; steps: unknown[] }) => call<void>("SaveUserFlow", req),
+  deleteUserFlow: (id: string) => call<void>("DeleteUserFlow", id),
+  copyBuiltInFlow: (builtInID: string, newName: string) => call<string>("CopyBuiltInFlow", builtInID, newName),
+
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLang: string) =>
     call<void>("RunFlow", tabID, name, inputPaths, targetLang),
