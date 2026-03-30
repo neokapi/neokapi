@@ -5,10 +5,6 @@ import {
   RefreshCw,
   Plus,
   X,
-  GripVertical,
-  Code2,
-  Braces,
-  List,
 } from "lucide-react";
 import type { ComponentSchema, PropertySchema, ParameterGroup } from "./types";
 import { theme } from "./theme";
@@ -97,9 +93,9 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
     };
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: compact ? 4 : 8 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
         {/* Breadcrumb */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
           <button
             onClick={() => setDrillInto(null)}
             style={{
@@ -127,35 +123,38 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
 
         {/* Drilled-into object's fields at depth 0 */}
         {targetSchema.description && (
-          <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>
+          <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
             {targetSchema.description}
           </div>
         )}
-        {drillKeys.map((key) => (
-          <PropertyField
-            key={key}
-            name={key}
-            schema={drillProperties[key]}
-            value={targetValue[key]}
-            onChange={(v) => handleDrillFieldChange(key, v)}
-            compact={compact}
-            allValues={targetValue}
-            allProperties={drillProperties}
-            depth={0}
-            onDrillDown={handleDrillDown}
-          />
-        ))}
+        <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 6 }}>
+          {drillKeys.map((key) => (
+            <PropertyField
+              key={key}
+              name={key}
+              schema={drillProperties[key]}
+              value={targetValue[key]}
+              onChange={(v) => handleDrillFieldChange(key, v)}
+              compact={compact}
+              allValues={targetValue}
+              allProperties={drillProperties}
+              depth={0}
+              onDrillDown={handleDrillDown}
+            />
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: compact ? 4 : 8 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Grouped fields */}
-      {groups.map((group) => (
+      {groups.map((group, groupIndex) => (
         <FieldGroup
           key={group.id}
           group={group}
+          groupIndex={groupIndex}
           properties={properties}
           values={values}
           onChange={handleChange}
@@ -166,34 +165,38 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
 
       {/* Ungrouped fields */}
       {ungrouped.length > 0 && (
-        <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 6 }}>
+        <div style={{ marginTop: groups.length > 0 ? 20 : 0 }}>
           {groups.length > 0 && ungrouped.length > 0 && (
             <div
               style={{
-                fontSize: 10,
-                fontWeight: 600,
+                fontSize: 11,
+                fontWeight: 700,
                 color: theme.fgMuted,
                 textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                padding: "4px 0 2px",
+                letterSpacing: "0.06em",
+                borderBottom: `1px solid ${theme.border}`,
+                paddingBottom: 6,
+                marginBottom: 10,
               }}
             >
               Other
             </div>
           )}
-          {ungrouped.map((key) => (
-            <PropertyField
-              key={key}
-              name={key}
-              schema={properties[key]}
-              value={values[key]}
-              onChange={(v) => handleChange(key, v)}
-              compact={compact}
-              allValues={values}
-              allProperties={properties}
-              onDrillDown={handleDrillDown}
-            />
-          ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 6 }}>
+            {ungrouped.map((key) => (
+              <PropertyField
+                key={key}
+                name={key}
+                schema={properties[key]}
+                value={values[key]}
+                onChange={(v) => handleChange(key, v)}
+                compact={compact}
+                allValues={values}
+                allProperties={properties}
+                onDrillDown={handleDrillDown}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -207,6 +210,7 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
 
 function FieldGroup({
   group,
+  groupIndex,
   properties,
   values,
   onChange,
@@ -214,60 +218,81 @@ function FieldGroup({
   onDrillDown,
 }: {
   group: ParameterGroup;
+  groupIndex: number;
   properties: Record<string, PropertySchema>;
   values: Record<string, unknown>;
   onChange: (key: string, value: unknown) => void;
   compact: boolean;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(group.collapsed ?? false);
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
   if (fields.length === 0) return null;
 
+  // Groups with <= 4 fields: always open, no collapse
+  // Groups with 5+ fields: collapsible, first 2 groups default open, rest collapsed
+  const isSmallGroup = fields.length <= 4;
+  const defaultCollapsed = isSmallGroup ? false : (group.collapsed ?? groupIndex >= 2);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${theme.border}`,
-        overflow: "hidden",
-      }}
-    >
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          width: "100%",
-          padding: "6px 8px",
-          background: theme.bgSecondary,
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight size={12} style={{ color: theme.fgMuted }} />
-        ) : (
-          <ChevronDown size={12} style={{ color: theme.fgMuted }} />
-        )}
-        <span
+    <div style={{ marginTop: groupIndex === 0 ? 0 : 20 }}>
+      {/* Section header */}
+      {isSmallGroup ? (
+        /* Non-collapsible header */
+        <div
           style={{
             fontSize: 11,
-            fontWeight: 600,
-            color: theme.fg,
+            fontWeight: 700,
+            color: theme.fgMuted,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            borderBottom: `1px solid ${theme.border}`,
+            paddingBottom: 6,
+            marginBottom: 10,
           }}
         >
           {group.label}
-        </span>
-        <span style={{ fontSize: 10, color: theme.fgMuted, marginLeft: "auto" }}>
-          {fields.length}
-        </span>
-      </button>
+        </div>
+      ) : (
+        /* Collapsible header */
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            width: "100%",
+            padding: 0,
+            paddingBottom: 6,
+            marginBottom: collapsed ? 0 : 10,
+            background: "none",
+            border: "none",
+            borderBottom: `1px solid ${theme.border}`,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          {collapsed ? (
+            <ChevronRight size={11} style={{ color: theme.fgMuted }} />
+          ) : (
+            <ChevronDown size={11} style={{ color: theme.fgMuted }} />
+          )}
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: theme.fgMuted,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            {group.label}
+          </span>
+        </button>
+      )}
       {!collapsed && (
         <div
           style={{
-            padding: compact ? "4px 8px" : "6px 8px",
             display: "flex",
             flexDirection: "column",
             gap: compact ? 2 : 6,
@@ -613,7 +638,7 @@ function PropertyField({
   // ── Object: nested sub-form vs map vs JSON fallback ──
 
   if (schema.type === "object") {
-    // Object with defined properties → collapsible nested sub-form
+    // Object with defined properties → nested sub-form (flat at depth 0-1)
     if (schema.properties && Object.keys(schema.properties).length > 0) {
       return (
         <NestedObjectEditor
@@ -723,7 +748,6 @@ function NestedObjectEditor({
   name: string;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
 }) {
-  const [collapsed, setCollapsed] = useState(depth > 0);
   const current = value ?? {};
   const properties = schema.properties || {};
   const keys = Object.keys(properties).filter((k) => !properties[k].deprecated);
@@ -735,7 +759,7 @@ function NestedObjectEditor({
     [current, onChange],
   );
 
-  // At depth >= 2, render as a drill-down row instead of inline collapsible
+  // At depth >= 2, render as a drill-down row
   if (depth >= 2 && onDrillDown) {
     return (
       <button
@@ -752,7 +776,6 @@ function NestedObjectEditor({
           textAlign: "left",
         }}
       >
-        <Braces size={11} style={{ color: theme.accent, marginRight: 6 }} />
         <span style={{ flex: 1, fontSize: 11, color: theme.fg }}>{label}</span>
         <span style={{ fontSize: 10, color: theme.fgMuted }}>{keys.length} fields</span>
         <ChevronRight size={12} style={{ color: theme.fgMuted, marginLeft: 4 }} />
@@ -760,75 +783,39 @@ function NestedObjectEditor({
     );
   }
 
+  // Depth 0: render flat, no label (the parent group is the label)
+  // Depth 1: render flat, show a subtle sub-label if informative
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${theme.border}`,
-        overflow: "hidden",
-      }}
-    >
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          width: "100%",
-          padding: "5px 8px",
-          background: depth > 0 ? "transparent" : theme.bgSecondary,
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight size={11} style={{ color: theme.fgMuted }} />
-        ) : (
-          <ChevronDown size={11} style={{ color: theme.fgMuted }} />
-        )}
-        <Braces size={11} style={{ color: theme.accent, flexShrink: 0 }} />
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            color: theme.fg,
-            flex: 1,
-          }}
-        >
+    <div>
+      {depth === 1 && (
+        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 4 }}>
           {label}
-        </span>
-        <span style={{ fontSize: 10, color: theme.fgMuted }}>{keys.length}</span>
-      </button>
-
-      {!collapsed && (
-        <div
-          style={{
-            padding: compact ? "4px 8px" : "6px 8px",
-            display: "flex",
-            flexDirection: "column",
-            gap: compact ? 2 : 6,
-            borderTop: `1px solid ${theme.border}`,
-          }}
-        >
-          {description && (
-            <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{description}</div>
-          )}
-          {keys.map((key) => (
-            <PropertyField
-              key={key}
-              name={key}
-              schema={properties[key]}
-              value={current[key]}
-              onChange={(v) => handleFieldChange(key, v)}
-              compact={compact}
-              allValues={current}
-              depth={depth + 1}
-              onDrillDown={onDrillDown}
-            />
-          ))}
         </div>
       )}
+      {description && depth > 0 && (
+        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 4 }}>{description}</div>
+      )}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: compact ? 2 : 6,
+        }}
+      >
+        {keys.map((key) => (
+          <PropertyField
+            key={key}
+            name={key}
+            schema={properties[key]}
+            value={current[key]}
+            onChange={(v) => handleFieldChange(key, v)}
+            compact={compact}
+            allValues={current}
+            depth={depth + 1}
+            onDrillDown={onDrillDown}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -854,7 +841,6 @@ function MapEditor({
   depth: number;
   keyPlaceholder?: string;
 }) {
-  const [collapsed, setCollapsed] = useState(true);
   const [newKey, setNewKey] = useState("");
   const current = value ?? {};
   const entries = Object.entries(current);
@@ -884,110 +870,70 @@ function MapEditor({
   );
 
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${theme.border}`,
-        overflow: "hidden",
-      }}
-    >
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          width: "100%",
-          padding: "5px 8px",
-          background: depth > 0 ? "transparent" : theme.bgSecondary,
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight size={11} style={{ color: theme.fgMuted }} />
-        ) : (
-          <ChevronDown size={11} style={{ color: theme.fgMuted }} />
-        )}
-        <List size={11} style={{ color: theme.accent, flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg, flex: 1 }}>{label}</span>
-        <span style={{ fontSize: 10, color: theme.fgMuted }}>{entries.length}</span>
-      </button>
-
-      {!collapsed && (
-        <div
-          style={{
-            borderTop: `1px solid ${theme.border}`,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {description && (
-            <div style={{ fontSize: 10, color: theme.fgMuted, padding: "4px 8px 0" }}>
-              {description}
-            </div>
-          )}
-
-          {/* Entries */}
-          {entries.map(([key, val]) => (
-            <MapEntry
-              key={key}
-              entryKey={key}
-              value={val}
-              itemSchema={itemSchema}
-              onChange={(v) => handleEntryChange(key, v)}
-              onRemove={() => handleRemove(key)}
-              compact={compact}
-              depth={depth}
-            />
-          ))}
-
-          {/* Add new entry */}
-          <div
-            style={{
-              display: "flex",
-              gap: 4,
-              padding: "4px 8px 6px",
-              alignItems: "center",
-            }}
-          >
-            <input
-              type="text"
-              value={newKey}
-              placeholder={keyPlaceholder}
-              onChange={(e) => setNewKey(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleAdd();
-              }}
-              style={{
-                ...inputStyle(compact),
-                flex: 1,
-                fontSize: 10,
-              }}
-            />
-            <button
-              onClick={handleAdd}
-              disabled={!newKey.trim() || newKey.trim() in current}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 22,
-                height: 22,
-                borderRadius: 4,
-                border: `1px solid ${theme.border}`,
-                background: theme.bgSecondary,
-                cursor: newKey.trim() && !(newKey.trim() in current) ? "pointer" : "not-allowed",
-                opacity: newKey.trim() && !(newKey.trim() in current) ? 1 : 0.4,
-                color: theme.fg,
-              }}
-            >
-              <Plus size={11} />
-            </button>
-          </div>
+    <div>
+      {/* Sub-label */}
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
+      {description && (
+        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
+          {description}
         </div>
       )}
+
+      {/* Entries */}
+      {entries.map(([key, val]) => (
+        <MapEntry
+          key={key}
+          entryKey={key}
+          value={val}
+          itemSchema={itemSchema}
+          onChange={(v) => handleEntryChange(key, v)}
+          onRemove={() => handleRemove(key)}
+          compact={compact}
+          depth={depth}
+        />
+      ))}
+
+      {/* Add new entry */}
+      <div
+        style={{
+          display: "flex",
+          gap: 4,
+          padding: "4px 0",
+          alignItems: "center",
+        }}
+      >
+        <input
+          type="text"
+          value={newKey}
+          placeholder={keyPlaceholder}
+          onChange={(e) => setNewKey(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleAdd();
+          }}
+          style={{
+            ...inputStyle(compact),
+            flex: 1,
+            fontSize: 10,
+          }}
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!newKey.trim() || newKey.trim() in current}
+          style={{
+            background: "none",
+            border: "none",
+            cursor: newKey.trim() && !(newKey.trim() in current) ? "pointer" : "not-allowed",
+            padding: 0,
+            fontSize: 10,
+            color: theme.accent,
+            fontWeight: 600,
+            opacity: newKey.trim() && !(newKey.trim() in current) ? 1 : 0.4,
+            whiteSpace: "nowrap",
+          }}
+        >
+          + Add {keyPlaceholder}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1013,50 +959,51 @@ function MapEntry({
   const isComplex =
     itemSchema?.properties || itemSchema?.type === "object" || itemSchema?.type === "array";
 
-  // Simple value — vertical card
+  // Simple value — horizontal row
   if (!isComplex) {
     return (
       <div
         style={{
-          padding: "6px 8px",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
           borderBottom: `1px solid ${theme.border}`,
+          padding: "6px 0",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: theme.accent,
-              fontFamily: "var(--font-mono, ui-monospace, monospace)",
-              letterSpacing: "0.02em",
-            }}
-          >
-            {entryKey}
-          </span>
-          <button onClick={onRemove} style={{ ...removeButtonStyle, marginLeft: "auto" }}>
-            <X size={10} />
-          </button>
-        </div>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: theme.accent,
+            fontFamily: "var(--font-mono, ui-monospace, monospace)",
+            minWidth: 60,
+            flexShrink: 0,
+          }}
+        >
+          {entryKey}
+        </span>
         <input
           type="text"
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value || undefined)}
-          style={{ ...inputStyle(compact), fontSize: 10, width: "100%" }}
+          style={{ ...inputStyle(compact), flex: 1, fontSize: 10 }}
         />
+        <button onClick={onRemove} style={{ ...removeButtonStyle, opacity: 0.5 }}>
+          <X size={10} />
+        </button>
       </div>
     );
   }
 
-  // Complex value — expandable sub-form
+  // Complex value — expandable
   return (
-    <div style={{ borderBottom: `1px solid ${theme.border}` }}>
+    <div style={{ borderBottom: `1px solid ${theme.border}`, padding: "6px 0" }}>
       <div
         style={{
           display: "flex",
-          gap: 4,
-          padding: "3px 8px",
           alignItems: "center",
+          gap: 6,
         }}
       >
         <button
@@ -1080,16 +1027,16 @@ function MapEntry({
           )}
           <span
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
-              color: theme.fgSecondary,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+              color: theme.accent,
+              fontFamily: "var(--font-mono, ui-monospace, monospace)",
             }}
           >
             {entryKey}
           </span>
         </button>
-        <button onClick={onRemove} style={removeButtonStyle}>
+        <button onClick={onRemove} style={{ ...removeButtonStyle, opacity: 0.5 }}>
           <X size={10} />
         </button>
       </div>
@@ -1097,14 +1044,14 @@ function MapEntry({
       {expanded && (
         <div
           style={{
-            padding: "4px 8px 6px 16px",
+            paddingLeft: 16,
+            paddingTop: 6,
             display: "flex",
             flexDirection: "column",
             gap: compact ? 2 : 4,
           }}
         >
           {itemSchema?.properties ? (
-            // Render sub-properties
             Object.entries(itemSchema.properties)
               .filter(([, s]) => !s.deprecated)
               .map(([key, fieldSchema]) => (
@@ -1120,7 +1067,6 @@ function MapEntry({
                 />
               ))
           ) : (
-            // Fallback: JSON editor for unstructured objects
             <JsonInlineEditor value={value} onChange={onChange} />
           )}
         </div>
@@ -1148,10 +1094,50 @@ function ArrayEditor({
   compact: boolean;
   depth: number;
 }) {
-  const [collapsed, setCollapsed] = useState(depth > 0);
   const items = value ?? [];
   const isSimple =
     itemSchema.type === "string" || itemSchema.type === "number" || itemSchema.type === "integer";
+
+  const handleAdd = useCallback(() => {
+    const defaultVal =
+      itemSchema.type === "object"
+        ? {}
+        : itemSchema.type === "array"
+          ? []
+          : itemSchema.type === "boolean"
+            ? false
+            : itemSchema.type === "number" || itemSchema.type === "integer"
+              ? 0
+              : "";
+    onChange([...items, defaultVal]);
+  }, [items, itemSchema, onChange]);
+
+  const handleRemove = useCallback(
+    (index: number) => {
+      onChange(items.filter((_, i) => i !== index));
+    },
+    [items, onChange],
+  );
+
+  const handleItemChange = useCallback(
+    (index: number, itemValue: unknown) => {
+      const next = [...items];
+      next[index] = itemValue;
+      onChange(next);
+    },
+    [items, onChange],
+  );
+
+  const handleMove = useCallback(
+    (index: number, direction: -1 | 1) => {
+      const target = index + direction;
+      if (target < 0 || target >= items.length) return;
+      const next = [...items];
+      [next[index], next[target]] = [next[target], next[index]];
+      onChange(next);
+    },
+    [items, onChange],
+  );
 
   // Simple arrays render as horizontal pill row
   if (isSimple) {
@@ -1201,233 +1187,107 @@ function ArrayEditor({
     );
   }
 
-  const handleAdd = useCallback(() => {
-    const defaultVal =
-      itemSchema.type === "object"
-        ? {}
-        : itemSchema.type === "array"
-          ? []
-          : itemSchema.type === "boolean"
-            ? false
-            : itemSchema.type === "number" || itemSchema.type === "integer"
-              ? 0
-              : "";
-    onChange([...items, defaultVal]);
-  }, [items, itemSchema, onChange]);
-
-  const handleRemove = useCallback(
-    (index: number) => {
-      onChange(items.filter((_, i) => i !== index));
-    },
-    [items, onChange],
-  );
-
-  const handleItemChange = useCallback(
-    (index: number, itemValue: unknown) => {
-      const next = [...items];
-      next[index] = itemValue;
-      onChange(next);
-    },
-    [items, onChange],
-  );
-
-  const handleMove = useCallback(
-    (index: number, direction: -1 | 1) => {
-      const target = index + direction;
-      if (target < 0 || target >= items.length) return;
-      const next = [...items];
-      [next[index], next[target]] = [next[target], next[index]];
-      onChange(next);
-    },
-    [items, onChange],
-  );
-
+  // Complex arrays — flat section sub-label + list
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${theme.border}`,
-        overflow: "hidden",
-      }}
-    >
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          width: "100%",
-          padding: "5px 8px",
-          background: depth > 0 ? "transparent" : theme.bgSecondary,
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight size={11} style={{ color: theme.fgMuted }} />
-        ) : (
-          <ChevronDown size={11} style={{ color: theme.fgMuted }} />
-        )}
-        <List size={11} style={{ color: theme.accent, flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg, flex: 1 }}>{label}</span>
-        <span style={{ fontSize: 10, color: theme.fgMuted }}>{items.length}</span>
-      </button>
-
-      {!collapsed && (
-        <div
-          style={{
-            borderTop: `1px solid ${theme.border}`,
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {description && (
-            <div style={{ fontSize: 10, color: theme.fgMuted, padding: "4px 8px 0" }}>
-              {description}
-            </div>
-          )}
-
-          {items.map((item, index) => (
-            <div
-              key={index}
-              style={{
-                display: "flex",
-                gap: 4,
-                padding: isSimple ? "3px 8px" : "0",
-                alignItems: isSimple ? "center" : "stretch",
-                borderBottom: `1px solid ${theme.border}`,
-              }}
-            >
-              {/* Drag handle / index */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  padding: isSimple ? 0 : "3px 0 3px 8px",
-                  color: theme.fgMuted,
-                  flexShrink: 0,
-                }}
-              >
-                <GripVertical
-                  size={10}
-                  style={{ cursor: "grab", opacity: 0.5 }}
-                  onClick={() => handleMove(index, -1)}
-                />
-                <span style={{ fontSize: 9, fontWeight: 600, minWidth: 12, textAlign: "center" }}>
-                  {index + 1}
-                </span>
-              </div>
-
-              {isSimple ? (
-                <input
-                  type={itemSchema.type === "string" ? "text" : "number"}
-                  value={String(item ?? "")}
-                  placeholder={itemSchema["x-placeholder"]}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    handleItemChange(
-                      index,
-                      itemSchema.type === "integer"
-                        ? parseInt(v) || 0
-                        : itemSchema.type === "number"
-                          ? parseFloat(v) || 0
-                          : v,
-                    );
-                  }}
-                  style={{
-                    ...inputStyle(compact),
-                    flex: 1,
-                    fontSize: 10,
-                    fontFamily:
-                      itemSchema.type === "string"
-                        ? "ui-monospace, SFMono-Regular, Menlo, monospace"
-                        : "inherit",
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    flex: 1,
-                    padding: "4px 0",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 2,
-                  }}
-                >
-                  {itemSchema.properties ? (
-                    Object.entries(itemSchema.properties)
-                      .filter(([, s]) => !s.deprecated)
-                      .map(([key, fieldSchema]) => (
-                        <div key={key} style={{ padding: "0 4px" }}>
-                          <PropertyField
-                            name={key}
-                            schema={fieldSchema}
-                            value={(item as Record<string, unknown>)?.[key]}
-                            onChange={(v) =>
-                              handleItemChange(index, {
-                                ...(item as Record<string, unknown>),
-                                [key]: v,
-                              })
-                            }
-                            compact
-                            allValues={item as Record<string, unknown>}
-                            depth={depth + 1}
-                          />
-                        </div>
-                      ))
-                  ) : (
-                    <div style={{ padding: "0 4px" }}>
-                      <JsonInlineEditor
-                        value={item}
-                        onChange={(v) => handleItemChange(index, v)}
-                        compact={compact}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <button
-                onClick={() => handleRemove(index)}
-                style={{
-                  ...removeButtonStyle,
-                  alignSelf: isSimple ? "center" : "flex-start",
-                  marginTop: isSimple ? 0 : 3,
-                  marginRight: isSimple ? 0 : 8,
-                }}
-              >
-                <X size={10} />
-              </button>
-            </div>
-          ))}
-
-          {/* Add item button */}
-          <div style={{ padding: "4px 8px 6px" }}>
-            <button
-              onClick={handleAdd}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                borderRadius: 4,
-                border: `1px dashed ${theme.border}`,
-                background: "transparent",
-                color: theme.fgMuted,
-                cursor: "pointer",
-                fontSize: 10,
-                width: "100%",
-                justifyContent: "center",
-              }}
-            >
-              <Plus size={10} />
-              Add item
-            </button>
-          </div>
+    <div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
+      {description && (
+        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
+          {description}
         </div>
       )}
+
+      {items.map((item, index) => (
+        <div
+          key={index}
+          style={{
+            display: "flex",
+            gap: 4,
+            padding: "4px 0",
+            alignItems: "stretch",
+            borderBottom: `1px solid ${theme.border}`,
+          }}
+        >
+          {/* Index */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              color: theme.fgMuted,
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 9, fontWeight: 600, minWidth: 12, textAlign: "center" }}>
+              {index + 1}
+            </span>
+          </div>
+
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+            }}
+          >
+            {itemSchema.properties ? (
+              Object.entries(itemSchema.properties)
+                .filter(([, s]) => !s.deprecated)
+                .map(([key, fieldSchema]) => (
+                  <PropertyField
+                    key={key}
+                    name={key}
+                    schema={fieldSchema}
+                    value={(item as Record<string, unknown>)?.[key]}
+                    onChange={(v) =>
+                      handleItemChange(index, {
+                        ...(item as Record<string, unknown>),
+                        [key]: v,
+                      })
+                    }
+                    compact
+                    allValues={item as Record<string, unknown>}
+                    depth={depth + 1}
+                  />
+                ))
+            ) : (
+              <JsonInlineEditor
+                value={item}
+                onChange={(v) => handleItemChange(index, v)}
+                compact={compact}
+              />
+            )}
+          </div>
+
+          <button
+            onClick={() => handleRemove(index)}
+            style={{
+              ...removeButtonStyle,
+              alignSelf: "flex-start",
+              marginTop: 3,
+              opacity: 0.5,
+            }}
+          >
+            <X size={10} />
+          </button>
+        </div>
+      ))}
+
+      {/* Add item button */}
+      <button
+        onClick={handleAdd}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "6px 0",
+          fontSize: 10,
+          color: theme.accent,
+          fontWeight: 600,
+        }}
+      >
+        + Add item
+      </button>
     </div>
   );
 }
@@ -1449,7 +1309,6 @@ function CodeFinderRulesEditor({
   onChange: (value: unknown) => void;
   compact: boolean;
 }) {
-  const [collapsed, setCollapsed] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
   const rules = (value?.rules as Array<{ pattern: string }>) ?? [];
   const sample = (value?.sample as string) ?? "";
@@ -1487,173 +1346,129 @@ function CodeFinderRulesEditor({
   );
 
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${theme.border}`,
-        overflow: "hidden",
-      }}
-    >
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          width: "100%",
-          padding: "5px 8px",
-          background: theme.bgSecondary,
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-        }}
-      >
-        {collapsed ? (
-          <ChevronRight size={11} style={{ color: theme.fgMuted }} />
-        ) : (
-          <ChevronDown size={11} style={{ color: theme.fgMuted }} />
-        )}
-        <Code2 size={11} style={{ color: theme.accent, flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg, flex: 1 }}>{label}</span>
-        <span style={{ fontSize: 10, color: theme.fgMuted }}>{rules.length}</span>
-      </button>
+    <div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
+      {description && <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>{description}</div>}
 
-      {!collapsed && (
-        <div
-          style={{
-            borderTop: `1px solid ${theme.border}`,
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-            padding: "6px 8px",
-          }}
-        >
-          {description && <div style={{ fontSize: 10, color: theme.fgMuted }}>{description}</div>}
-
-          {/* Preset selector */}
-          {presets && Object.keys(presets).length > 0 && (
-            <div style={{ position: "relative" }}>
-              <button
-                onClick={() => setShowPresets(!showPresets)}
-                style={{
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                  border: `1px solid ${theme.border}`,
-                  background: theme.bgSecondary,
-                  color: theme.fgSecondary,
-                  cursor: "pointer",
-                  fontSize: 10,
-                  fontWeight: 500,
-                }}
-              >
-                Presets
-              </button>
-              {showPresets && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    marginTop: 2,
-                    background: theme.bgCard,
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: 4,
-                    boxShadow: "0 4px 12px oklch(0 0 0 / 0.2)",
-                    zIndex: 10,
-                    minWidth: 120,
-                    overflow: "hidden",
-                  }}
-                >
-                  {Object.keys(presets).map((name) => (
-                    <button
-                      key={name}
-                      onClick={() => handleApplyPreset(name)}
-                      style={{
-                        display: "block",
-                        width: "100%",
-                        padding: "4px 10px",
-                        textAlign: "left",
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        fontSize: 10,
-                        color: theme.fg,
-                      }}
-                    >
-                      {name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Rules list */}
-          {rules.map((rule, index) => (
-            <div
-              key={index}
-              style={{
-                display: "flex",
-                gap: 4,
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{ fontSize: 9, color: theme.fgMuted, minWidth: 12, textAlign: "center" }}
-              >
-                {index + 1}
-              </span>
-              <input
-                type="text"
-                value={rule.pattern}
-                placeholder="Regex pattern..."
-                onChange={(e) => handleRuleChange(index, e.target.value)}
-                style={{
-                  ...inputStyle(compact),
-                  flex: 1,
-                  fontSize: 10,
-                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                }}
-              />
-              <button onClick={() => handleRemoveRule(index)} style={removeButtonStyle}>
-                <X size={10} />
-              </button>
-            </div>
-          ))}
-
+      {/* Preset selector */}
+      {presets && Object.keys(presets).length > 0 && (
+        <div style={{ position: "relative", marginBottom: 6 }}>
           <button
-            onClick={handleAddRule}
+            onClick={() => setShowPresets(!showPresets)}
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 8px",
+              padding: "2px 8px",
               borderRadius: 4,
-              border: `1px dashed ${theme.border}`,
-              background: "transparent",
-              color: theme.fgMuted,
+              border: `1px solid ${theme.border}`,
+              background: theme.bgSecondary,
+              color: theme.fgSecondary,
               cursor: "pointer",
               fontSize: 10,
-              justifyContent: "center",
+              fontWeight: 500,
             }}
           >
-            <Plus size={10} />
-            Add rule
+            Presets
           </button>
-
-          {/* Sample text */}
-          <div style={{ marginTop: 2 }}>
-            <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>Sample Text</div>
-            <input
-              type="text"
-              value={sample}
-              placeholder="Text to test patterns against..."
-              onChange={(e) => onChange({ ...value, sample: e.target.value })}
-              style={{ ...inputStyle(compact), fontSize: 10 }}
-            />
-          </div>
+          {showPresets && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: 2,
+                background: theme.bgCard,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 4,
+                boxShadow: "0 4px 12px oklch(0 0 0 / 0.2)",
+                zIndex: 10,
+                minWidth: 120,
+                overflow: "hidden",
+              }}
+            >
+              {Object.keys(presets).map((name) => (
+                <button
+                  key={name}
+                  onClick={() => handleApplyPreset(name)}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "4px 10px",
+                    textAlign: "left",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 10,
+                    color: theme.fg,
+                  }}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
+
+      {/* Rules list */}
+      {rules.map((rule, index) => (
+        <div
+          key={index}
+          style={{
+            display: "flex",
+            gap: 4,
+            alignItems: "center",
+            borderBottom: `1px solid ${theme.border}`,
+            padding: "4px 0",
+          }}
+        >
+          <span
+            style={{ fontSize: 9, color: theme.fgMuted, minWidth: 12, textAlign: "center" }}
+          >
+            {index + 1}
+          </span>
+          <input
+            type="text"
+            value={rule.pattern}
+            placeholder="Regex pattern..."
+            onChange={(e) => handleRuleChange(index, e.target.value)}
+            style={{
+              ...inputStyle(compact),
+              flex: 1,
+              fontSize: 10,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+            }}
+          />
+          <button onClick={() => handleRemoveRule(index)} style={{ ...removeButtonStyle, opacity: 0.5 }}>
+            <X size={10} />
+          </button>
+        </div>
+      ))}
+
+      <button
+        onClick={handleAddRule}
+        style={{
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "6px 0",
+          fontSize: 10,
+          color: theme.accent,
+          fontWeight: 600,
+        }}
+      >
+        + Add rule
+      </button>
+
+      {/* Sample text */}
+      <div style={{ marginTop: 4 }}>
+        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>Sample Text</div>
+        <input
+          type="text"
+          value={sample}
+          placeholder="Text to test patterns against..."
+          onChange={(e) => onChange({ ...value, sample: e.target.value })}
+          style={{ ...inputStyle(compact), fontSize: 10 }}
+        />
+      </div>
     </div>
   );
 }
@@ -1688,22 +1503,17 @@ function JsonEditor({
   }, [text, onChange]);
 
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${error ? theme.destructive : theme.border}`,
-        overflow: "hidden",
-      }}
-    >
+    <div>
       <button
         onClick={() => setCollapsed(!collapsed)}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: 4,
           width: "100%",
-          padding: "5px 8px",
-          background: theme.bgSecondary,
+          padding: 0,
+          paddingBottom: 4,
+          background: "none",
           border: "none",
           cursor: "pointer",
           textAlign: "left",
@@ -1714,18 +1524,12 @@ function JsonEditor({
         ) : (
           <ChevronDown size={11} style={{ color: theme.fgMuted }} />
         )}
-        <Braces size={11} style={{ color: theme.fgMuted, flexShrink: 0 }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg, flex: 1 }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 500, color: theme.fgSecondary, flex: 1 }}>{label}</span>
         {error && <span style={{ fontSize: 9, color: theme.destructive }}>{error}</span>}
       </button>
 
       {!collapsed && (
-        <div
-          style={{
-            borderTop: `1px solid ${theme.border}`,
-            padding: "6px 8px",
-          }}
-        >
+        <div>
           {description && (
             <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 4 }}>{description}</div>
           )}
@@ -1760,9 +1564,11 @@ function JsonEditor({
 function JsonInlineEditor({
   value,
   onChange,
+  compact: _compact,
 }: {
   value: unknown;
   onChange: (value: unknown) => void;
+  compact?: boolean;
 }) {
   const [text, setText] = useState(() => JSON.stringify(value ?? {}, null, 2));
   const [error, setError] = useState<string | null>(null);
@@ -1826,38 +1632,38 @@ function RetryPolicySection({
   );
 
   return (
-    <div
-      style={{
-        borderRadius: 6,
-        border: `1px solid ${theme.border}`,
-        overflow: "hidden",
-      }}
-    >
+    <div style={{ marginTop: 20 }}>
+      {/* Section header — collapsible, flat style */}
       <button
         onClick={() => setCollapsed(!collapsed)}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: 4,
           width: "100%",
-          padding: "6px 8px",
-          background: "var(--muted)",
+          padding: 0,
+          paddingBottom: 6,
+          marginBottom: collapsed ? 0 : 10,
+          background: "none",
           border: "none",
+          borderBottom: `1px solid ${theme.border}`,
           cursor: "pointer",
           textAlign: "left",
         }}
       >
         {collapsed ? (
-          <ChevronRight size={12} style={{ color: theme.fgMuted }} />
+          <ChevronRight size={11} style={{ color: theme.fgMuted }} />
         ) : (
-          <ChevronDown size={12} style={{ color: theme.fgMuted }} />
+          <ChevronDown size={11} style={{ color: theme.fgMuted }} />
         )}
-        <RefreshCw size={11} style={{ color: theme.fgMuted }} />
+        <RefreshCw size={10} style={{ color: theme.fgMuted }} />
         <span
           style={{
             fontSize: 11,
-            fontWeight: 600,
-            color: theme.fg,
+            fontWeight: 700,
+            color: theme.fgMuted,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
           }}
         >
           Retry Policy
@@ -1866,11 +1672,9 @@ function RetryPolicySection({
       {!collapsed && (
         <div
           style={{
-            padding: compact ? "4px 8px" : "6px 8px",
             display: "flex",
             flexDirection: "column",
             gap: compact ? 2 : 6,
-            background: "var(--muted)",
           }}
         >
           <FieldWrapper label="Max Retries" compact={compact}>
@@ -1936,18 +1740,20 @@ function FieldWrapper({
   children: React.ReactNode;
 }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       <div
         style={{
-          fontSize: compact ? 11 : 12,
+          fontSize: 11,
           color: theme.fgSecondary,
           fontWeight: 500,
         }}
       >
         {label}
       </div>
-      {!compact && description && (
-        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{description}</div>
+      {description && !compact && (
+        <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.3, marginBottom: 2 }}>
+          {description}
+        </div>
       )}
       {children}
     </div>
