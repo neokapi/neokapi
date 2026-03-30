@@ -376,10 +376,14 @@ func (a *App) DeleteFlow(tabID, name string) error {
 
 // ToolInfo is the frontend-facing tool summary.
 type ToolInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Category    string `json:"category"`
-	HasSchema   bool   `json:"has_schema"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Category    string   `json:"category"`
+	HasSchema   bool     `json:"has_schema"`
+	Inputs      []string `json:"inputs,omitempty"`
+	Outputs     []string `json:"outputs,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Requires    []string `json:"requires,omitempty"`
 }
 
 // ListTools returns all registered tools.
@@ -391,6 +395,10 @@ func (a *App) ListTools() []ToolInfo {
 			Description: info.Description,
 			Category:    info.Category,
 			HasSchema:   info.HasSchema,
+			Inputs:      info.Inputs,
+			Outputs:     info.Outputs,
+			Tags:        info.Tags,
+			Requires:    info.Requires,
 		})
 	}
 	return infos
