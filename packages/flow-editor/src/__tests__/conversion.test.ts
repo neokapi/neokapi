@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { stepsToGraph, graphToSteps } from "../conversion";
-import type { FlowSpec } from "../types";
+import type { FlowSpec, ToolInfo } from "../types";
 
 describe("stepsToGraph", () => {
   it("converts single-step flow to reader → tool → writer", () => {
@@ -71,6 +71,49 @@ describe("stepsToGraph", () => {
     expect(nodes[0].type).toBe("reader");
     expect(nodes[1].type).toBe("writer");
     expect(edges).toHaveLength(1);
+  });
+
+  it("enriches tool nodes with category and description from toolMap", () => {
+    const toolMap = new Map<string, ToolInfo>([
+      [
+        "ai-translate",
+        {
+          name: "ai-translate",
+          description: "Translate with AI",
+          category: "translate",
+          has_schema: false,
+          inputs: ["block"],
+          tags: ["ai-powered"],
+          requires: ["target-language"],
+        },
+      ],
+    ]);
+
+    const { nodes } = stepsToGraph(
+      { steps: [{ tool: "ai-translate" }] },
+      toolMap,
+    );
+
+    const toolNode = nodes.find((n) => n.type === "tool")!;
+    expect(toolNode.data.category).toBe("translate");
+    expect(toolNode.data.description).toBe("Translate with AI");
+  });
+
+  it("defaults to pipeline category when tool not in toolMap", () => {
+    const { nodes } = stepsToGraph(
+      { steps: [{ tool: "unknown-tool" }] },
+      new Map(),
+    );
+
+    const toolNode = nodes.find((n) => n.type === "tool")!;
+    expect(toolNode.data.category).toBe("pipeline");
+    expect(toolNode.data.description).toBeUndefined();
+  });
+
+  it("works without toolMap (backward compatible)", () => {
+    const { nodes } = stepsToGraph({ steps: [{ tool: "a" }] });
+    const toolNode = nodes.find((n) => n.type === "tool")!;
+    expect(toolNode.data.category).toBe("pipeline");
   });
 });
 

@@ -47,6 +47,10 @@ export interface ToolInfo {
   description: string;
   category: string;
   has_schema: boolean;
+  inputs?: string[];
+  outputs?: string[];
+  tags?: string[];
+  requires?: string[];
 }
 
 export interface FormatInfo {
@@ -76,6 +80,14 @@ export interface TabInfo {
   name: string;
   path: string;
 }
+
+// Schema types — re-exported from the flow-editor package (single source of truth)
+export type {
+  ComponentSchema,
+  ComponentMeta,
+  ParameterGroup,
+  PropertySchema,
+} from "@neokapi/flow-editor";
 
 export type AppMode = "adhoc" | "projects";
 

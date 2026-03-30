@@ -25,7 +25,7 @@ import (
 const CacheFileName = "plugin-cache.json"
 
 // CacheVersion is the schema version. Increment when the cache structure changes.
-const CacheVersion = 1
+const CacheVersion = 2
 
 // PluginCache is the top-level cache structure written to plugin-cache.json.
 // It contains all metadata needed to populate format/schema/preset registries

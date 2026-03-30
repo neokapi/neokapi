@@ -13,11 +13,15 @@ type ToolFactory func() tool.Tool
 
 // ToolInfo holds metadata about a registered tool.
 type ToolInfo struct {
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Category    string `json:"category,omitempty"`
-	Source      string `json:"source,omitempty"` // "built-in", plugin name
-	HasSchema   bool   `json:"hasSchema"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Category    string   `json:"category,omitempty"`
+	Source      string   `json:"source,omitempty"` // "built-in", plugin name
+	HasSchema   bool     `json:"hasSchema"`
+	Inputs      []string `json:"inputs,omitempty"`   // part types accepted: "block","data","media","layer","group"
+	Outputs     []string `json:"outputs,omitempty"`  // part types produced/modified
+	Tags        []string `json:"tags,omitempty"`     // freeform labels: "ai-powered","regex","batch"
+	Requires    []string `json:"requires,omitempty"` // runtime requirements: "target-language","credentials","tm"
 }
 
 // ToolRegistration bundles a factory with optional schema and metadata.
@@ -60,6 +64,10 @@ func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *s
 	if s != nil {
 		info.Description = s.Description
 		info.Category = s.Meta.Category
+		info.Inputs = s.Meta.Inputs
+		info.Outputs = s.Meta.Outputs
+		info.Tags = s.Meta.Tags
+		info.Requires = s.Meta.Requires
 	}
 	r.tools[name] = &ToolRegistration{
 		Factory: factory,
