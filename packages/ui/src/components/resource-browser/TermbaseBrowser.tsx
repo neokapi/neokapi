@@ -47,14 +47,22 @@ export function TermbaseBrowser({
 
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // Use refs to avoid re-creating fetchConcepts when props change identity.
+  const adapterRef = useRef(adapter);
+  const sourceLocaleRef = useRef(sourceLocale);
+  const targetLocaleRef = useRef(targetLocales[0] ?? "");
+  adapterRef.current = adapter;
+  sourceLocaleRef.current = sourceLocale;
+  targetLocaleRef.current = targetLocales[0] ?? "";
+
   const fetchConcepts = useCallback(
     async (q: string, p: number) => {
       setLoading(true);
       try {
-        const result = await adapter.search(
+        const result = await adapterRef.current.search(
           q,
-          sourceLocale,
-          targetLocales[0] ?? "",
+          sourceLocaleRef.current,
+          targetLocaleRef.current,
           p * PAGE_SIZE,
           PAGE_SIZE,
         );
@@ -65,7 +73,7 @@ export function TermbaseBrowser({
         setInitialLoadDone(true);
       }
     },
-    [adapter, sourceLocale, targetLocales],
+    [], // stable — reads from refs
   );
 
   useEffect(() => {
