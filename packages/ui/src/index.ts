@@ -47,6 +47,86 @@ export { Skeleton } from "./components/ui/skeleton";
 export { Textarea } from "./components/ui/textarea";
 export { TooltipProvider } from "./components/ui/tooltip";
 
+// Types
+export type { SpanInfo } from "./types/span";
+
+// Vocabulary registry
+export {
+  VocabularyRegistry,
+  getDefaultRegistry,
+} from "./vocabularies";
+export type {
+  SpanTypeInfo,
+  ColorScheme,
+  SpanConstraints,
+} from "./vocabularies";
+
+// Editor primitives — inline code rendering
+export { TagChipComponent } from "./components/editor/TagChipComponent";
+export {
+  parseCodedSegments,
+  segmentsToCodedText,
+  spanLabel,
+} from "./components/editor/codedText";
+export type { CodedSegment } from "./components/editor/codedText";
+export {
+  tagColors,
+  semanticLabel,
+  semanticTooltip,
+  semanticCategory,
+  buildPairs,
+  validateTags,
+  codedTextToHtml,
+} from "./components/editor/tagSemantics";
+export type { TagColorScheme, TagValidationResult } from "./components/editor/tagSemantics";
+export {
+  resolveConstraints,
+  isDeletable,
+  isCloneable,
+} from "./components/editor/tagConstraints";
+export type { ResolvedConstraints } from "./components/editor/tagConstraints";
+
+// Resource browser — TM and Termbase management
+export {
+  TMBrowser,
+  TermbaseBrowser,
+  TMLookupPanel,
+  EntityAnnotationDialog,
+  CodedTextDisplay,
+  MatchScoreBar,
+  LocalePill,
+  TermStatusBadge,
+  BulkActionBar,
+  ResourceCard,
+  ImportProgress,
+  Pagination,
+  ENTITY_TYPES,
+} from "./components/resource-browser";
+export type {
+  TMAdapter,
+  TermbaseAdapter,
+  TMEntryDTO,
+  TMSearchResult,
+  TMStats,
+  TMMatchDTO,
+  EntityAdaptationDTO,
+  EntityAnnotationDTO,
+  LookupTMRequest,
+  AddTMEntryRequest,
+  UpdateTMEntryRequest,
+  AnnotateEntitiesRequest,
+  EntityPatternRequest,
+  AnnotateResult,
+  ConceptDTO,
+  TermDTO,
+  TermSearchResult,
+  TermbaseStats,
+  AddConceptRequest,
+  UpdateConceptRequest,
+  ImportResult,
+  ResourceInfo,
+} from "./components/resource-browser";
+
 // Filter config editor (dynamic forms from JSON schema)
 export {
   FilterConfigEditor,

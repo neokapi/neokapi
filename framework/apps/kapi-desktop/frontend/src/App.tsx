@@ -232,6 +232,8 @@ export default function App() {
             </div>
           )}
           {mode === "projects" && activeTab && view === "tools" && <ToolRunnerPage />}
+          {mode === "projects" && activeTab && view === "termbases" && <TermbasesPage />}
+          {mode === "projects" && activeTab && view === "memories" && <MemoriesPage />}
 
           {view === "settings" && <SettingsPage />}
         </main>
