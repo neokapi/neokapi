@@ -9,9 +9,10 @@ interface FlowPageProps {
   flow: FlowSpec;
   onChange: (spec: FlowSpec) => void;
   onRun?: (flowName: string, spec: FlowSpec) => void;
+  readOnly?: boolean;
 }
 
-export function FlowPage({ flowName, flow, onChange, onRun }: FlowPageProps) {
+export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPageProps) {
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
   const fetchingRef = useRef<Set<string>>(new Set());
@@ -61,6 +62,7 @@ export function FlowPage({ flowName, flow, onChange, onRun }: FlowPageProps) {
       onChange={onChange}
       onRun={onRun ? (spec) => onRun(flowName, spec) : undefined}
       onGetSchema={handleGetSchema}
+      readOnly={readOnly}
     />
   );
 }
