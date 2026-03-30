@@ -84,6 +84,8 @@ export const api = {
   saveUserFlow: (req: { id: string; name: string; description: string; steps: unknown[] }) => call<void>("SaveUserFlow", req),
   deleteUserFlow: (id: string) => call<void>("DeleteUserFlow", id),
   copyBuiltInFlow: (builtInID: string, newName: string) => call<string>("CopyBuiltInFlow", builtInID, newName),
+  openFlowFileDialog: () => call<{ id: string; name: string; description: string; source: string; steps: unknown[] }>("OpenFlowFileDialog"),
+  saveFlowFileDialog: (name: string, steps: unknown[]) => call<void>("SaveFlowFileDialog", name, steps),
 
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLang: string) =>

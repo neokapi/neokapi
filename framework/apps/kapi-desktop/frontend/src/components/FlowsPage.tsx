@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import } from "lucide-react";
+import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -261,6 +261,28 @@ export function FlowsPage({
     [tabID, isProjectMode, onFlowDelete, selectedId, refreshFlows, showError],
   );
 
+  const handleOpenFile = useCallback(async () => {
+    try {
+      const detail = await api.openFlowFileDialog();
+      if (detail) {
+        setSelectedId(detail.id);
+        setSelectedSpec({ description: detail.description, steps: detail.steps as FlowSpec["steps"] });
+        setSelectedSource("file");
+      }
+    } catch (err) {
+      showError("Failed to open flow file", err);
+    }
+  }, [showError]);
+
+  const handleSaveAs = useCallback(async () => {
+    if (!selectedId || !selectedSpec) return;
+    try {
+      await api.saveFlowFileDialog(selectedId, selectedSpec.steps);
+    } catch (err) {
+      showError("Failed to save flow file", err);
+    }
+  }, [selectedId, selectedSpec, showError]);
+
   const handleCloseEditor = useCallback(() => {
     setSelectedId(null);
     setSelectedSpec(null);
@@ -297,6 +319,15 @@ export function FlowsPage({
                 Copy to edit
               </button>
             )}
+            {!isReadOnly && (
+              <button
+                onClick={() => void handleSaveAs()}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              >
+                <Download size={12} />
+                Save As...
+              </button>
+            )}
             {tabID && !isReadOnly && (
               <button
                 onClick={() => void handleSaveProject()}
@@ -330,6 +361,15 @@ export function FlowsPage({
           {isProjectMode ? "Project Flows" : "Flows"}
         </h1>
         <div className="flex gap-2">
+          {!isProjectMode && (
+            <button
+              onClick={() => void handleOpenFile()}
+              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            >
+              <FolderOpen size={12} />
+              Open File...
+            </button>
+          )}
           {isProjectMode && (
             <button
               onClick={() => void handleOpenImportDialog()}
