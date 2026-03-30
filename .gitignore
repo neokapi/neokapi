@@ -37,11 +37,14 @@ dist/
 **/build/bin/
 **/build/darwin/
 !platform/apps/bowrain/build/darwin/
+!framework/apps/kapi-desktop/build/darwin/
 **/build/appicon.png
 !platform/apps/bowrain/build/appicon.png
+!framework/apps/kapi-desktop/build/appicon.png
 **/frontend/wailsjs/
 **/frontend/bindings/
 !platform/apps/bowrain/frontend/bindings/
+!framework/apps/kapi-desktop/frontend/bindings/
 **/frontend/package.json.md5
 **/.task/
 
