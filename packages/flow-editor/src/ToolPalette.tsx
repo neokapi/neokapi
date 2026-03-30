@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
+import { theme } from "./theme";
 
 interface ToolPaletteProps {
   tools: ToolInfo[];
@@ -58,8 +59,8 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
         width: 240,
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid oklch(0.25 0.012 260)",
-        background: "oklch(0.145 0.01 260)",
+        borderRight: `1px solid ${theme.border}`,
+        background: theme.bg,
         overflow: "hidden",
       }}
     >
@@ -72,11 +73,11 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
             gap: 6,
             padding: "5px 8px",
             borderRadius: 6,
-            border: "1px solid oklch(0.25 0.012 260)",
-            background: "oklch(0.17 0.012 260)",
+            border: `1px solid ${theme.border}`,
+            background: theme.bgCard,
           }}
         >
-          <Search size={13} style={{ color: "oklch(0.5 0.01 260)", flexShrink: 0 }} />
+          <Search size={13} style={{ color: theme.fgMuted, flexShrink: 0 }} />
           <input
             type="text"
             placeholder="Search tools..."
@@ -88,7 +89,7 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
               border: "none",
               outline: "none",
               fontSize: 12,
-              color: "oklch(0.9 0.005 265)",
+              color: theme.fg,
               fontFamily: "inherit",
             }}
           />
@@ -121,9 +122,9 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                 }}
               >
                 {isCollapsed ? (
-                  <ChevronRight size={12} style={{ color: "oklch(0.5 0.01 260)" }} />
+                  <ChevronRight size={12} style={{ color: theme.fgMuted }} />
                 ) : (
-                  <ChevronDown size={12} style={{ color: "oklch(0.5 0.01 260)" }} />
+                  <ChevronDown size={12} style={{ color: theme.fgMuted }} />
                 )}
                 <Icon size={13} style={{ color: cat.color }} />
                 <span
@@ -139,7 +140,7 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                 <span
                   style={{
                     fontSize: 10,
-                    color: "oklch(0.45 0.01 260)",
+                    color: theme.fgMuted,
                     marginLeft: "auto",
                   }}
                 >
@@ -164,7 +165,7 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                       style={{
                         padding: "4px 10px 4px 36px",
                         fontSize: 11,
-                        color: "oklch(0.4 0.01 260)",
+                        color: theme.fgMuted,
                         fontStyle: "italic",
                       }}
                     >
@@ -208,7 +209,7 @@ function ToolItem({
         gap: 6,
         width: "100%",
         padding: "5px 10px 5px 20px",
-        background: hovered ? "oklch(0.2 0.012 260)" : "none",
+        background: hovered ? theme.bgSecondary : "none",
         border: "none",
         cursor: "grab",
         textAlign: "left",
@@ -218,7 +219,7 @@ function ToolItem({
       <GripVertical
         size={11}
         style={{
-          color: "oklch(0.35 0.01 260)",
+          color: theme.border,
           marginTop: 2,
           flexShrink: 0,
         }}
@@ -228,7 +229,7 @@ function ToolItem({
           style={{
             fontSize: 11.5,
             fontWeight: 500,
-            color: "oklch(0.85 0.005 265)",
+            color: theme.fg,
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
@@ -239,7 +240,7 @@ function ToolItem({
         <div
           style={{
             fontSize: 10,
-            color: "oklch(0.48 0.01 260)",
+            color: theme.fgMuted,
             lineHeight: 1.3,
             overflow: "hidden",
             textOverflow: "ellipsis",

@@ -1,5 +1,6 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { LucideIcon } from "lucide-react";
+import { theme } from "../theme";
 
 interface TerminalNodeConfig {
   accent: string;
@@ -22,8 +23,8 @@ export function createTerminalNode(config: TerminalNodeConfig) {
           minWidth: 160,
           borderRadius: 8,
           overflow: "hidden",
-          border: "2px solid oklch(0.3 0.01 260)",
-          background: "oklch(0.18 0.012 260)",
+          border: `2px solid ${theme.border}`,
+          background: theme.bgCard,
           boxShadow: "0 2px 8px oklch(0 0 0 / 0.2)",
         }}
       >
@@ -36,7 +37,7 @@ export function createTerminalNode(config: TerminalNodeConfig) {
               width: 10,
               height: 10,
               background: accent,
-              border: "2px solid oklch(0.18 0.012 260)",
+              border: `2px solid ${theme.bgCard}`,
               ...handleSide,
             }}
           />
@@ -54,11 +55,11 @@ export function createTerminalNode(config: TerminalNodeConfig) {
               {typeLabel}
             </span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "oklch(0.92 0.005 265)" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: theme.fg }}>
             {String(data.label || defaultLabel)}
           </div>
           {!!data.formatName && (
-            <div style={{ fontSize: 10, color: "oklch(0.55 0.01 260)", marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 2 }}>
               {String(data.formatName)}
             </div>
           )}

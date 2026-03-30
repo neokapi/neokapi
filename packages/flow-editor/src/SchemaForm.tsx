@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import type { ComponentSchema, PropertySchema, ParameterGroup } from "./types";
+import { theme } from "./theme";
 
 interface SchemaFormProps {
   schema: ComponentSchema;
@@ -59,7 +60,7 @@ export function SchemaForm({
               style={{
                 fontSize: 10,
                 fontWeight: 600,
-                color: "oklch(0.55 0.01 260)",
+                color: theme.fgMuted,
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 padding: "4px 0 2px",
@@ -107,7 +108,7 @@ function FieldGroup({
     <div
       style={{
         borderRadius: 6,
-        border: "1px solid oklch(0.25 0.012 260)",
+        border: `1px solid ${theme.border}`,
         overflow: "hidden",
       }}
     >
@@ -119,27 +120,27 @@ function FieldGroup({
           gap: 6,
           width: "100%",
           padding: "6px 8px",
-          background: "oklch(0.17 0.012 260)",
+          background: theme.bgSecondary,
           border: "none",
           cursor: "pointer",
           textAlign: "left",
         }}
       >
         {collapsed ? (
-          <ChevronRight size={12} style={{ color: "oklch(0.5 0.01 260)" }} />
+          <ChevronRight size={12} style={{ color: theme.fgMuted }} />
         ) : (
-          <ChevronDown size={12} style={{ color: "oklch(0.5 0.01 260)" }} />
+          <ChevronDown size={12} style={{ color: theme.fgMuted }} />
         )}
         <span
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: "oklch(0.82 0.005 265)",
+            color: theme.fg,
           }}
         >
           {group.label}
         </span>
-        <span style={{ fontSize: 10, color: "oklch(0.45 0.01 260)", marginLeft: "auto" }}>
+        <span style={{ fontSize: 10, color: theme.fgMuted, marginLeft: "auto" }}>
           {fields.length}
         </span>
       </button>
@@ -203,14 +204,14 @@ function PropertyField({
           <div
             style={{
               fontSize: compact ? 11 : 12,
-              color: "oklch(0.85 0.005 265)",
+              color: theme.fg,
               fontWeight: 500,
             }}
           >
             {label}
           </div>
           {!compact && schema.description && (
-            <div style={{ fontSize: 10, color: "oklch(0.5 0.01 260)", marginTop: 1 }}>
+            <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 1 }}>
               {schema.description}
             </div>
           )}
@@ -291,14 +292,14 @@ function FieldWrapper({
       <div
         style={{
           fontSize: compact ? 11 : 12,
-          color: "oklch(0.75 0.005 265)",
+          color: theme.fgSecondary,
           fontWeight: 500,
         }}
       >
         {label}
       </div>
       {!compact && description && (
-        <div style={{ fontSize: 10, color: "oklch(0.5 0.01 260)", marginBottom: 2 }}>
+        <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>
           {description}
         </div>
       )}
@@ -327,9 +328,7 @@ function ToggleSwitch({
         cursor: "pointer",
         position: "relative",
         flexShrink: 0,
-        background: checked
-          ? "oklch(0.61 0.19 252)"
-          : "oklch(0.3 0.01 260)",
+        background: checked ? theme.accent : theme.bgMuted,
         transition: "background 150ms",
       }}
     >
@@ -338,7 +337,7 @@ function ToggleSwitch({
           width: 12,
           height: 12,
           borderRadius: 6,
-          background: "oklch(0.95 0 0)",
+          background: theme.primaryFg,
           position: "absolute",
           top: 2,
           left: checked ? 14 : 2,
@@ -355,9 +354,9 @@ function inputStyle(compact: boolean): React.CSSProperties {
     padding: compact ? "3px 6px" : "5px 8px",
     fontSize: compact ? 11 : 12,
     borderRadius: 4,
-    border: "1px solid oklch(0.25 0.012 260)",
-    background: "oklch(0.17 0.012 260)",
-    color: "oklch(0.9 0.005 265)",
+    border: `1px solid ${theme.border}`,
+    background: theme.bgCard,
+    color: theme.fg,
     fontFamily: "inherit",
     outline: "none",
     boxSizing: "border-box",

@@ -21,6 +21,7 @@ import { ToolPalette } from "./ToolPalette";
 import { SchemaForm } from "./SchemaForm";
 import { stepsToGraph, graphToSteps } from "./conversion";
 import { getCategoryStyle } from "./category";
+import { theme } from "./theme";
 
 const nodeTypes: NodeTypes = {
   reader: ReaderNode,
@@ -158,15 +159,15 @@ export function FlowEditor({
             alignItems: "center",
             gap: 8,
             padding: "6px 12px",
-            borderBottom: "1px solid oklch(0.25 0.012 260)",
-            background: "oklch(0.145 0.01 260)",
+            borderBottom: `1px solid ${theme.border}`,
+            background: theme.bg,
           }}
         >
           <span
             style={{
               fontSize: 12,
               fontWeight: 600,
-              color: "oklch(0.7 0.005 265)",
+              color: theme.fgMuted,
             }}
           >
             {flow.steps.length} step{flow.steps.length !== 1 ? "s" : ""}
@@ -184,8 +185,8 @@ export function FlowEditor({
                 padding: "5px 14px",
                 borderRadius: 6,
                 border: "none",
-                background: "oklch(0.61 0.19 252)",
-                color: "oklch(0.995 0 0)",
+                background: theme.accent,
+                color: theme.accentFg,
                 fontSize: 12,
                 fontWeight: 600,
                 cursor: "pointer",
@@ -215,31 +216,31 @@ export function FlowEditor({
             fitViewOptions={{ padding: 0.3 }}
             proOptions={{ hideAttribution: true }}
             defaultEdgeOptions={{
-              style: { stroke: "oklch(0.4 0.01 260)", strokeWidth: 2 },
+              style: { stroke: theme.fgMuted, strokeWidth: 2 },
               animated: false,
             }}
           >
             <Controls
               showInteractive={false}
-              style={{ background: "oklch(0.18 0.012 260)", borderColor: "oklch(0.25 0.012 260)" }}
+              style={{ background: theme.bgCard, borderColor: theme.border }}
             />
             <Background
               variant={BackgroundVariant.Dots}
               gap={24}
               size={1}
-              color="oklch(0.22 0.01 260)"
+              color={theme.border}
             />
             <MiniMap
               nodeColor={(n) => {
                 if (n.type === "reader") return "oklch(0.7 0.17 145)";
-                if (n.type === "writer") return "oklch(0.65 0.19 252)";
+                if (n.type === "writer") return "oklch(0.7 0.13 85)";
                 const cat = (n.data?.category as string) || "pipeline";
                 return getCategoryStyle(cat).color;
               }}
               maskColor="oklch(0 0 0 / 0.6)"
               style={{
-                background: "oklch(0.14 0.01 260)",
-                borderColor: "oklch(0.25 0.012 260)",
+                background: theme.bg,
+                borderColor: theme.border,
               }}
             />
           </ReactFlow>
@@ -290,8 +291,8 @@ function ConfigPanel({
         width: 280,
         display: "flex",
         flexDirection: "column",
-        borderLeft: "1px solid oklch(0.25 0.012 260)",
-        background: "oklch(0.145 0.01 260)",
+        borderLeft: `1px solid ${theme.border}`,
+        background: theme.bg,
         overflow: "hidden",
       }}
     >
@@ -299,7 +300,7 @@ function ConfigPanel({
       <div
         style={{
           padding: "10px 12px",
-          borderBottom: "1px solid oklch(0.25 0.012 260)",
+          borderBottom: `1px solid ${theme.border}`,
           display: "flex",
           flexDirection: "column",
           gap: 6,
@@ -341,7 +342,7 @@ function ConfigPanel({
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "oklch(0.92 0.005 265)",
+                color: theme.fg,
               }}
             >
               {displayName}
@@ -359,7 +360,7 @@ function ConfigPanel({
             }}
             aria-label="Close panel"
           >
-            <X size={14} style={{ color: "oklch(0.5 0.01 260)" }} />
+            <X size={14} style={{ color: theme.fgMuted }} />
           </button>
         </div>
 
@@ -367,7 +368,7 @@ function ConfigPanel({
           <div
             style={{
               fontSize: 11,
-              color: "oklch(0.55 0.01 260)",
+              color: theme.fgMuted,
               lineHeight: 1.4,
             }}
           >
@@ -385,8 +386,8 @@ function ConfigPanel({
                   fontSize: 9,
                   padding: "2px 6px",
                   borderRadius: 4,
-                  background: "oklch(0.22 0.012 260)",
-                  color: "oklch(0.65 0.01 260)",
+                  background: theme.bgSecondary,
+                  color: theme.fgMuted,
                   fontWeight: 500,
                 }}
               >
@@ -410,7 +411,7 @@ function ConfigPanel({
           <div
             style={{
               fontSize: 11,
-              color: "oklch(0.45 0.01 260)",
+              color: theme.fgMuted,
               textAlign: "center",
               padding: "20px 0",
               fontStyle: "italic",
@@ -428,7 +429,7 @@ function ConfigPanel({
         <div
           style={{
             padding: "8px 12px",
-            borderTop: "1px solid oklch(0.25 0.012 260)",
+            borderTop: `1px solid ${theme.border}`,
           }}
         >
           <button
@@ -437,9 +438,9 @@ function ConfigPanel({
               width: "100%",
               padding: "5px 0",
               borderRadius: 4,
-              border: "1px solid oklch(0.55 0.2 27 / 0.3)",
-              background: "oklch(0.55 0.2 27 / 0.1)",
-              color: "oklch(0.7 0.15 27)",
+              border: `1px solid ${theme.destructive}44`,
+              background: `${theme.destructive}18`,
+              color: theme.destructive,
               fontSize: 11,
               fontWeight: 500,
               cursor: "pointer",
