@@ -123,6 +123,25 @@
   100% { transform: translateX(400%); }
 }
 
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nodePulse {
+  0%, 100% { box-shadow: 0 0 0 3px oklch(0.8778 0.1383 86.192 / 0.27), 0 0 0 6px oklch(0.8778 0.1383 86.192 / 0.07); }
+  50%      { box-shadow: 0 0 0 4px oklch(0.8778 0.1383 86.192 / 0.14), 0 0 0 8px oklch(0.8778 0.1383 86.192 / 0.14); }
+}
+
+@keyframes barFill {
+  from { width: 0; }
+}
+
+@keyframes slideDrawer {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
 @theme inline {
   --font-sans:
     "DM Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;

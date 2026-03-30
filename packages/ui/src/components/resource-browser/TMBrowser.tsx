@@ -59,7 +59,13 @@ export function TMBrowser({
     async (q: string, p: number) => {
       setLoading(true);
       try {
-        const result = await adapter.search(q, sourceLocale, targetLocales[0] ?? "", p * PAGE_SIZE, PAGE_SIZE);
+        const result = await adapter.search(
+          q,
+          sourceLocale,
+          targetLocales[0] ?? "",
+          p * PAGE_SIZE,
+          PAGE_SIZE,
+        );
         setEntries(result.entries ?? []);
         setTotalCount(result.total_count);
       } finally {
@@ -149,7 +155,16 @@ export function TMBrowser({
     setAddTarget("");
     setShowAddForm(false);
     void fetchEntries(debouncedSearch, page);
-  }, [adapter, addSource, addTarget, addSrcLocale, addTgtLocale, fetchEntries, debouncedSearch, page]);
+  }, [
+    adapter,
+    addSource,
+    addTarget,
+    addSrcLocale,
+    addTgtLocale,
+    fetchEntries,
+    debouncedSearch,
+    page,
+  ]);
 
   const handleAnnotateEntities = useCallback(
     async (patterns: EntityPatternRequest[]) => {
@@ -178,7 +193,19 @@ export function TMBrowser({
               placeholder="Search translation memory..."
               className="w-full rounded-md border border-input bg-transparent pl-8 pr-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
           </div>
           {selected.size > 0 && selected.size < entries.length && (
             <button onClick={selectAll} className="text-[11px] text-primary hover:text-primary/80">
@@ -219,7 +246,10 @@ export function TMBrowser({
             </p>
             {debouncedSearch && (
               <button
-                onClick={() => { setSearchText(""); setDebouncedSearch(""); }}
+                onClick={() => {
+                  setSearchText("");
+                  setDebouncedSearch("");
+                }}
                 className="text-xs text-primary hover:text-primary/80"
               >
                 Clear search
@@ -253,7 +283,9 @@ export function TMBrowser({
                   <div className="flex-1 min-w-0">
                     {/* Source */}
                     <div className="flex items-start gap-2 mb-0.5">
-                      <span className="text-[10px] text-muted-foreground w-5 shrink-0 pt-0.5 select-none">src</span>
+                      <span className="text-[10px] text-muted-foreground w-5 shrink-0 pt-0.5 select-none">
+                        src
+                      </span>
                       <CodedTextDisplay
                         text={entry.source_text}
                         codedText={entry.source_coded}
@@ -265,7 +297,9 @@ export function TMBrowser({
 
                     {/* Target (or edit mode) */}
                     <div className="flex items-start gap-2">
-                      <span className="text-[10px] text-muted-foreground w-5 shrink-0 pt-0.5 select-none">tgt</span>
+                      <span className="text-[10px] text-muted-foreground w-5 shrink-0 pt-0.5 select-none">
+                        tgt
+                      </span>
                       {editingId === entry.id ? (
                         <div className="flex-1 flex gap-1">
                           <input
@@ -339,7 +373,12 @@ export function TMBrowser({
           </div>
         )}
 
-        <Pagination page={page} pageSize={PAGE_SIZE} totalCount={totalCount} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          onPageChange={setPage}
+        />
       </div>
 
       {/* Lookup panel (right side) */}
@@ -358,7 +397,9 @@ export function TMBrowser({
         selectedCount={selected.size}
         onDelete={handleBulkDelete}
         confirmDelete={confirmBulkDelete}
-        onAnnotateEntities={adapter.annotateEntities ? () => setShowAnnotateDialog(true) : undefined}
+        onAnnotateEntities={
+          adapter.annotateEntities ? () => setShowAnnotateDialog(true) : undefined
+        }
         onDeselectAll={deselectAll}
       />
 
@@ -400,18 +441,43 @@ export function TMBrowser({
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
-                  <label className="text-[12px] text-muted-foreground block mb-1">Source locale</label>
-                  <input type="text" value={addSrcLocale} onChange={(e) => setAddSrcLocale(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
+                  <label className="text-[12px] text-muted-foreground block mb-1">
+                    Source locale
+                  </label>
+                  <input
+                    type="text"
+                    value={addSrcLocale}
+                    onChange={(e) => setAddSrcLocale(e.target.value)}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[12px] text-muted-foreground block mb-1">Target locale</label>
-                  <input type="text" value={addTgtLocale} onChange={(e) => setAddTgtLocale(e.target.value)} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
+                  <label className="text-[12px] text-muted-foreground block mb-1">
+                    Target locale
+                  </label>
+                  <input
+                    type="text"
+                    value={addTgtLocale}
+                    onChange={(e) => setAddTgtLocale(e.target.value)}
+                    className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  />
                 </div>
               </div>
             </div>
             <div className="flex gap-2 mt-4 pt-3 border-t border-border">
-              <button onClick={() => void handleAdd()} disabled={!addSource.trim() || !addTarget.trim()} className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Add</button>
-              <button onClick={() => setShowAddForm(false)} className="rounded-md border border-border px-4 py-1.5 text-xs hover:bg-accent transition-colors">Cancel</button>
+              <button
+                onClick={() => void handleAdd()}
+                disabled={!addSource.trim() || !addTarget.trim()}
+                className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                Add
+              </button>
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="rounded-md border border-border px-4 py-1.5 text-xs hover:bg-accent transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

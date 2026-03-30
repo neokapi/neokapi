@@ -57,13 +57,6 @@ export const LastPage: Story = {
 export const Interactive: Story = {
   render: function InteractivePagination() {
     const [page, setPage] = useState(0);
-    return (
-      <Pagination
-        page={page}
-        pageSize={50}
-        totalCount={284}
-        onPageChange={setPage}
-      />
-    );
+    return <Pagination page={page} pageSize={50} totalCount={284} onPageChange={setPage} />;
   },
 };

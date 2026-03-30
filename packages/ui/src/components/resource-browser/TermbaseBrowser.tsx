@@ -48,7 +48,13 @@ export function TermbaseBrowser({
     async (q: string, p: number) => {
       setLoading(true);
       try {
-        const result = await adapter.search(q, sourceLocale, targetLocales[0] ?? "", p * PAGE_SIZE, PAGE_SIZE);
+        const result = await adapter.search(
+          q,
+          sourceLocale,
+          targetLocales[0] ?? "",
+          p * PAGE_SIZE,
+          PAGE_SIZE,
+        );
         setConcepts(result.concepts ?? []);
         setTotalCount(result.total_count);
       } finally {
@@ -139,7 +145,18 @@ export function TermbaseBrowser({
     ]);
     setShowAddForm(false);
     void fetchConcepts(debouncedSearch, page);
-  }, [adapter, projectId, newDomain, newDefinition, newTerms, sourceLocale, targetLocales, fetchConcepts, debouncedSearch, page]);
+  }, [
+    adapter,
+    projectId,
+    newDomain,
+    newDefinition,
+    newTerms,
+    sourceLocale,
+    targetLocales,
+    fetchConcepts,
+    debouncedSearch,
+    page,
+  ]);
 
   return (
     <div data-testid="termbase-browser">
@@ -279,14 +296,29 @@ export function TermbaseBrowser({
                         className="rounded border border-input bg-transparent px-1 py-1 text-[11px] outline-none"
                       >
                         {STATUS_OPTIONS.map((s) => (
-                          <option key={s} value={s}>{s}</option>
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
                         ))}
                       </select>
                     </div>
                   ))}
                   <div className="flex gap-1 mt-1">
-                    <button onClick={() => void handleSaveEdit()} className="text-[11px] text-primary">Save</button>
-                    <button onClick={() => { setEditingId(null); setEditConcept(null); }} className="text-[11px] text-muted-foreground">Cancel</button>
+                    <button
+                      onClick={() => void handleSaveEdit()}
+                      className="text-[11px] text-primary"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditConcept(null);
+                      }}
+                      className="text-[11px] text-muted-foreground"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
               ) : (
@@ -327,7 +359,9 @@ export function TermbaseBrowser({
                     {concept.terms.map((term, idx) => (
                       <div key={idx} className="flex items-center gap-1.5">
                         <LocalePill locale={term.locale} />
-                        <span className={`text-[12px] ${term.status === "preferred" ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+                        <span
+                          className={`text-[12px] ${term.status === "preferred" ? "font-semibold text-foreground" : "text-muted-foreground"}`}
+                        >
                           {term.text}
                         </span>
                         <TermStatusBadge status={term.status} />
@@ -450,7 +484,9 @@ export function TermbaseBrowser({
                       className="rounded border border-input bg-transparent px-1 py-1.5 text-xs outline-none"
                     >
                       {STATUS_OPTIONS.map((s) => (
-                        <option key={s} value={s}>{s}</option>
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
                       ))}
                     </select>
                     {newTerms.length > 1 && (
@@ -464,7 +500,9 @@ export function TermbaseBrowser({
                   </div>
                 ))}
                 <button
-                  onClick={() => setNewTerms([...newTerms, { text: "", locale: "", status: "approved" }])}
+                  onClick={() =>
+                    setNewTerms([...newTerms, { text: "", locale: "", status: "approved" }])
+                  }
                   className="text-xs text-primary hover:text-primary/80 mt-1"
                 >
                   + Add term

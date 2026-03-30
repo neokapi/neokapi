@@ -17,12 +17,7 @@ interface CodedTextDisplayProps {
  * Renders text with inline codes as tag chips.
  * Falls back to plain text when no spans are present.
  */
-export function CodedTextDisplay({
-  text,
-  codedText,
-  spans,
-  className,
-}: CodedTextDisplayProps) {
+export function CodedTextDisplay({ text, codedText, spans, className }: CodedTextDisplayProps) {
   if (!codedText || !spans || spans.length === 0) {
     return <span className={className}>{text}</span>;
   }

@@ -5,12 +5,12 @@ interface TermStatusBadgeProps {
 
 /** Status style keyed by [bgHue, fgHue] pairs — lightness comes from CSS custom properties for dark mode. */
 const STATUS_CONFIG: Record<string, { hue: number; label: string }> = {
-  preferred:  { hue: 160, label: "preferred" },
-  approved:   { hue: 250, label: "approved" },
-  admitted:   { hue: 260, label: "admitted" },
-  proposed:   { hue: 85,  label: "proposed" },
-  deprecated: { hue: 85,  label: "deprecated" },
-  forbidden:  { hue: 27,  label: "forbidden" },
+  preferred: { hue: 160, label: "preferred" },
+  approved: { hue: 250, label: "approved" },
+  admitted: { hue: 260, label: "admitted" },
+  proposed: { hue: 85, label: "proposed" },
+  deprecated: { hue: 85, label: "deprecated" },
+  forbidden: { hue: 27, label: "forbidden" },
 };
 
 /**

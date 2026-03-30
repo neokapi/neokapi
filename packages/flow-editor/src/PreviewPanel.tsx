@@ -120,17 +120,18 @@ export function PreviewPanel({
 
       {/* Per-node results */}
       {snapshots && (
-        <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+        <div style={{ display: "flex", gap: 0, overflowX: "auto", paddingBottom: 4, alignItems: "center" }}>
           {/* Initial state */}
           <PreviewCard
             label="Input"
             sourceText={snapshots.initial.sourceText ?? ""}
             targetText=""
             isFirst
+            index={0}
           />
 
           {/* After each node */}
-          {result!.nodeOrder.map((nodeId) => {
+          {result!.nodeOrder.map((nodeId, i) => {
             const after = snapshots.afterNode?.[nodeId];
             if (!after) return null;
             const prevNodeId = result!.nodeOrder[result!.nodeOrder.indexOf(nodeId) - 1];
@@ -140,13 +141,16 @@ export function PreviewPanel({
             const changed = after.targetText !== prevTarget;
 
             return (
-              <PreviewCard
-                key={nodeId}
-                label={nodeNames.get(nodeId) ?? nodeId}
-                sourceText={after.sourceText ?? ""}
-                targetText={after.targetText ?? ""}
-                changed={changed}
-              />
+              <div key={nodeId} style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                <span style={{ fontSize: 14, color: theme.fgMuted, padding: "0 4px", flexShrink: 0 }}>&rarr;</span>
+                <PreviewCard
+                  label={nodeNames.get(nodeId) ?? nodeId}
+                  sourceText={after.sourceText ?? ""}
+                  targetText={after.targetText ?? ""}
+                  changed={changed}
+                  index={i + 1}
+                />
+              </div>
             );
           })}
         </div>
@@ -161,12 +165,14 @@ function PreviewCard({
   targetText,
   changed,
   isFirst,
+  index = 0,
 }: {
   label: string;
   sourceText: string;
   targetText: string;
   changed?: boolean;
   isFirst?: boolean;
+  index?: number;
 }) {
   return (
     <div
@@ -176,8 +182,12 @@ function PreviewCard({
         padding: 8,
         borderRadius: 6,
         border: `1px solid ${changed ? theme.accent : theme.border}`,
+        borderLeft: changed || isFirst ? `3px solid ${theme.accent}` : `1px solid ${theme.border}`,
         background: theme.bgCard,
         flexShrink: 0,
+        animation: "cardReveal 0.25s ease-out forwards",
+        animationDelay: `${index * 60}ms`,
+        opacity: 0,
       }}
     >
       <div style={{ fontSize: 9, fontWeight: 600, color: theme.fgMuted, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.04em" }}>

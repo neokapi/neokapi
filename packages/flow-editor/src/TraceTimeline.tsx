@@ -45,6 +45,7 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
         borderTop: `1px solid ${theme.border}`,
         background: theme.bg,
         padding: "8px 12px",
+        animation: "slideDrawer 0.2s ease-out",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -106,6 +107,7 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
                     width: `${barWidth}%`,
                     borderRadius: 3,
                     background: s.hasError ? theme.destructive : theme.accent,
+                    animation: "barFill 0.3s ease-out",
                     transition: "width 300ms ease",
                   }}
                 />

@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { getCategoryStyle } from "../category";
 import { theme } from "../theme";
 
@@ -14,14 +14,16 @@ export function ToolNode({ data, selected }: NodeProps) {
   const partCount = data.partCount as number | undefined;
   const inputs = data.inputs as string[] | undefined;
   const outputs = data.outputs as string[] | undefined;
+  const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
 
   return (
     <div
       style={{
+        position: "relative",
         display: "flex",
         minWidth: 180,
         borderRadius: 8,
-        overflow: "hidden",
+        overflow: "visible",
         border: execState === "error"
           ? `2px solid ${theme.destructive}`
           : execState === "complete"
@@ -30,11 +32,10 @@ export function ToolNode({ data, selected }: NodeProps) {
               ? `2px solid ${style.color}`
               : `2px solid ${theme.border}`,
         background: theme.bgCard,
-        boxShadow: execState === "active"
-          ? `0 0 0 3px ${theme.accent}44, 0 4px 12px oklch(0 0 0 / 0.3)`
-          : selected
+        boxShadow: selected
             ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
             : "0 2px 8px oklch(0 0 0 / 0.2)",
+        animation: execState === "active" ? "nodePulse 1.5s ease-in-out infinite" : undefined,
         transition: "border-color 150ms, box-shadow 150ms",
       }}
     >
@@ -44,6 +45,7 @@ export function ToolNode({ data, selected }: NodeProps) {
           width: 4,
           background: style.color,
           flexShrink: 0,
+          borderRadius: "6px 0 0 6px",
         }}
       />
 
@@ -161,20 +163,6 @@ export function ToolNode({ data, selected }: NodeProps) {
           </div>
         )}
 
-        {/* Execution state badge */}
-        {execState && (
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-            {execState === "active" && <Loader2 size={10} style={{ color: theme.accent, animation: "spin 1s linear infinite" }} />}
-            {execState === "complete" && <CheckCircle2 size={10} style={{ color: "oklch(0.65 0.15 145)" }} />}
-            {execState === "error" && <AlertCircle size={10} style={{ color: theme.destructive }} />}
-            {partCount !== undefined && (
-              <span style={{ fontSize: 9, color: theme.fgMuted }}>
-                {partCount} part{partCount !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-        )}
-
         <Handle
           type="source"
           position={Position.Right}
@@ -187,6 +175,41 @@ export function ToolNode({ data, selected }: NodeProps) {
           }}
         />
       </div>
+
+      {/* Complete badge (top-right) */}
+      {execState === "complete" && (
+        <div style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: 7, background: "oklch(0.65 0.15 145)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+          <CheckCircle2 size={10} style={{ color: "white" }} />
+        </div>
+      )}
+
+      {/* Error badge (top-right) */}
+      {execState === "error" && (
+        <div style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: 7, background: theme.destructive, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+          <AlertCircle size={10} style={{ color: "white" }} />
+        </div>
+      )}
+
+      {/* Active spinner (top-right) */}
+      {execState === "active" && (
+        <div style={{ position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: 7, background: theme.accent, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}>
+          <Loader2 size={10} style={{ color: "white", animation: "spin 1s linear infinite" }} />
+        </div>
+      )}
+
+      {/* Part count badge (bottom-center) */}
+      {partCount !== undefined && partCount > 0 && (
+        <div style={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%)", fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 8, background: theme.bgSecondary, color: theme.fgMuted, zIndex: 1 }}>
+          {partCount} pts
+        </div>
+      )}
+
+      {/* Retry badge (bottom-left, in category rail area) */}
+      {retryConfig && (
+        <div style={{ position: "absolute", bottom: -4, left: -2, width: 14, height: 14, borderRadius: 7, background: theme.bgSecondary, display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }} title="Has retry policy">
+          <RefreshCw size={10} style={{ color: theme.fgMuted }} />
+        </div>
+      )}
     </div>
   );
 }

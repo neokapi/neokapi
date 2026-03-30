@@ -28,11 +28,7 @@ export {
   SelectItem,
 } from "./components/ui/select";
 export { Switch } from "./components/ui/switch";
-export {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "./components/ui/collapsible";
+export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
 export {
   Dialog,
   DialogTrigger,
@@ -51,23 +47,12 @@ export { TooltipProvider } from "./components/ui/tooltip";
 export type { SpanInfo } from "./types/span";
 
 // Vocabulary registry
-export {
-  VocabularyRegistry,
-  getDefaultRegistry,
-} from "./vocabularies";
-export type {
-  SpanTypeInfo,
-  ColorScheme,
-  SpanConstraints,
-} from "./vocabularies";
+export { VocabularyRegistry, getDefaultRegistry } from "./vocabularies";
+export type { SpanTypeInfo, ColorScheme, SpanConstraints } from "./vocabularies";
 
 // Editor primitives — inline code rendering
 export { TagChipComponent } from "./components/editor/TagChipComponent";
-export {
-  parseCodedSegments,
-  segmentsToCodedText,
-  spanLabel,
-} from "./components/editor/codedText";
+export { parseCodedSegments, segmentsToCodedText, spanLabel } from "./components/editor/codedText";
 export type { CodedSegment } from "./components/editor/codedText";
 export {
   tagColors,
@@ -79,11 +64,7 @@ export {
   codedTextToHtml,
 } from "./components/editor/tagSemantics";
 export type { TagColorScheme, TagValidationResult } from "./components/editor/tagSemantics";
-export {
-  resolveConstraints,
-  isDeletable,
-  isCloneable,
-} from "./components/editor/tagConstraints";
+export { resolveConstraints, isDeletable, isCloneable } from "./components/editor/tagConstraints";
 export type { ResolvedConstraints } from "./components/editor/tagConstraints";
 
 // Resource browser — TM and Termbase management
@@ -128,10 +109,7 @@ export type {
 } from "./components/resource-browser";
 
 // Filter config editor (dynamic forms from JSON schema)
-export {
-  FilterConfigEditor,
-  SchemaConfigEditor,
-} from "./components/filter";
+export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type {
   ComponentSchema,
   FilterSchema,

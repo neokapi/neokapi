@@ -8,20 +8,13 @@ interface ImportProgressProps {
 /**
  * Overlay with indeterminate progress bar during import operations.
  */
-export function ImportProgress({
-  active,
-  fileName,
-  importedCount,
-  onClose,
-}: ImportProgressProps) {
+export function ImportProgress({ active, fileName, importedCount, onClose }: ImportProgressProps) {
   if (!active) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
-        <div className="text-sm font-semibold text-foreground mb-1">
-          Importing...
-        </div>
+        <div className="text-sm font-semibold text-foreground mb-1">Importing...</div>
         {fileName && (
           <div className="text-[12px] text-muted-foreground mb-3 truncate">{fileName}</div>
         )}
@@ -35,9 +28,7 @@ export function ImportProgress({
         </div>
 
         {importedCount !== undefined && (
-          <div className="text-[11px] text-muted-foreground">
-            {importedCount} entries imported
-          </div>
+          <div className="text-[11px] text-muted-foreground">{importedCount} entries imported</div>
         )}
 
         {onClose && (
