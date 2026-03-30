@@ -1,5 +1,5 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
 import { getCategoryStyle } from "../category";
 import { theme } from "../theme";
 
@@ -10,11 +10,12 @@ export function ToolNode({ data, selected }: NodeProps) {
   const hasConfig =
     !!data.config && Object.keys(data.config as object).length > 0;
   const isParallel = !!data.parallel;
-  const execState = data.execState as string | undefined; // "active" | "complete" | "error"
+  const execState = data.execState as string | undefined;
   const partCount = data.partCount as number | undefined;
   const inputs = data.inputs as string[] | undefined;
   const outputs = data.outputs as string[] | undefined;
   const retryConfig = data.retryConfig as Record<string, unknown> | undefined;
+  const onRemove = data.onRemove as (() => void) | undefined;
 
   return (
     <div
@@ -175,6 +176,35 @@ export function ToolNode({ data, selected }: NodeProps) {
           }}
         />
       </div>
+
+      {/* Remove button (top-left, visible on hover/select) */}
+      {onRemove && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="nopan"
+          style={{
+            position: "absolute",
+            top: -6,
+            left: -6,
+            width: 16,
+            height: 16,
+            borderRadius: 8,
+            background: theme.bgSecondary,
+            border: `1px solid ${theme.border}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            opacity: selected ? 1 : 0,
+            transition: "opacity 150ms",
+            zIndex: 2,
+          }}
+          title="Remove tool (Delete)"
+          aria-label="Remove tool"
+        >
+          <X size={10} style={{ color: theme.fgMuted }} />
+        </button>
+      )}
 
       {/* Complete badge (top-right) */}
       {execState === "complete" && (

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState, useEffect } from "react";
+import { useMemo, useCallback, useState, useEffect, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -87,22 +87,25 @@ export function FlowEditor({
     return m;
   }, [initial.nodes]);
 
-  // Enrich nodes with execution state from trace data.
+  // Ref for remove handler — breaks circular dependency with enrichedNodes.
+  const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
+
+  // Enrich nodes with execution state and remove handler.
   const enrichedNodes = useMemo(() => {
-    if (!nodeStats) return initial.nodes;
     return initial.nodes.map((n) => {
-      const stats = nodeStats.get(n.id);
-      if (!stats) return n;
-      return {
-        ...n,
-        data: {
-          ...n.data,
-          execState: stats.hasError ? "error" : stats.partsProcessed > 0 ? "complete" : undefined,
-          partCount: stats.partsProcessed,
-        },
-      };
+      const stats = nodeStats?.get(n.id);
+      const extra: Record<string, unknown> = {};
+      if (stats) {
+        extra.execState = stats.hasError ? "error" : stats.partsProcessed > 0 ? "complete" : undefined;
+        extra.partCount = stats.partsProcessed;
+      }
+      if (!readOnly && n.type === "tool") {
+        extra.onRemove = () => removeNodeRef.current(n.id);
+      }
+      if (Object.keys(extra).length === 0) return n;
+      return { ...n, data: { ...n.data, ...extra } };
     });
-  }, [initial.nodes, nodeStats]);
+  }, [initial.nodes, nodeStats, readOnly]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(enrichedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges);
@@ -154,17 +157,43 @@ export function FlowEditor({
     [flow, onChange, readOnly],
   );
 
+  const handleRemoveNode = useCallback(
+    (nodeId: string) => {
+      if (readOnly) return;
+      const toolIndex = parseInt(nodeId.replace("tool-", ""), 10);
+      if (isNaN(toolIndex)) return;
+      const updated: FlowSpec = {
+        ...flow,
+        steps: flow.steps.filter((_, i) => i !== toolIndex),
+      };
+      onChange(updated);
+      if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    },
+    [flow, onChange, readOnly, selectedNodeId],
+  );
+  removeNodeRef.current = handleRemoveNode;
+
   const handleRemoveSelected = useCallback(() => {
-    if (!selectedNodeId || readOnly) return;
-    const toolIndex = parseInt(selectedNodeId.replace("tool-", ""), 10);
-    if (isNaN(toolIndex)) return;
-    const updated: FlowSpec = {
-      ...flow,
-      steps: flow.steps.filter((_, i) => i !== toolIndex),
+    if (selectedNodeId) handleRemoveNode(selectedNodeId);
+  }, [selectedNodeId, handleRemoveNode]);
+
+  // Keyboard shortcut: Delete/Backspace removes selected tool node.
+  useEffect(() => {
+    if (readOnly) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        // Don't intercept if user is typing in an input/textarea.
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (selectedNodeId?.startsWith("tool-")) {
+          e.preventDefault();
+          handleRemoveSelected();
+        }
+      }
     };
-    onChange(updated);
-    setSelectedNodeId(null);
-  }, [selectedNodeId, flow, onChange, readOnly]);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [readOnly, selectedNodeId, handleRemoveSelected]);
 
   // Parallelize: convert sequential steps at given indices into a single parallel step.
   const handleParallelize = useCallback(
