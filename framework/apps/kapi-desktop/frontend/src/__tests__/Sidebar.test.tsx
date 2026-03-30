@@ -36,13 +36,7 @@ describe("Sidebar", () => {
   });
 
   it("does not show flow list when project view is active", () => {
-    render(
-      <Sidebar
-        activeView="home"
-        onViewChange={vi.fn()}
-        flowNames={["translate"]}
-      />,
-    );
+    render(<Sidebar activeView="home" onViewChange={vi.fn()} flowNames={["translate"]} />);
     expect(screen.queryByText("translate")).not.toBeInTheDocument();
   });
 
@@ -63,12 +57,7 @@ describe("Sidebar", () => {
   it("calls onAddFlow when clicking +", async () => {
     const onAddFlow = vi.fn();
     render(
-      <Sidebar
-        activeView="flows"
-        onViewChange={vi.fn()}
-        flowNames={[]}
-        onAddFlow={onAddFlow}
-      />,
+      <Sidebar activeView="flows" onViewChange={vi.fn()} flowNames={[]} onAddFlow={onAddFlow} />,
     );
     await userEvent.click(screen.getByLabelText("New flow"));
     expect(onAddFlow).toHaveBeenCalledOnce();

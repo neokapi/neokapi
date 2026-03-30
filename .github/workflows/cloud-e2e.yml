@@ -25,18 +25,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Setup VitePlus
+        uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
+          cache: true
 
       - name: Install dependencies
         working-directory: platform/e2e/cloud
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Install Playwright Chromium
         working-directory: platform/e2e/cloud
-        run: npx playwright install --with-deps chromium
+        run: vpx playwright install --with-deps chromium
 
       - name: Run cloud E2E tests
         working-directory: platform/e2e/cloud
@@ -44,7 +45,7 @@ jobs:
           BOWRAIN_URL: https://dev.bowrain.cloud
           KEYCLOAK_ADMIN_URL: https://ca-bowrain-dev-keycloak.icyplant-d6bbb1d6.swedencentral.azurecontainerapps.io
           KEYCLOAK_ADMIN_PASSWORD: ${{ secrets.DEV_KEYCLOAK_ADMIN_PASSWORD }}
-        run: npx playwright test --reporter=list
+        run: vpx playwright test --reporter=list
         timeout-minutes: 5
 
       - name: Upload test results

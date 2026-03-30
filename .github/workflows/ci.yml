@@ -83,27 +83,27 @@ jobs:
 
       - name: Check shared UI (oxlint + oxfmt)
         working-directory: platform/packages/ui
-        run: npx vp check
+        run: vp check
 
       - name: Run UI unit tests
         working-directory: platform/packages/ui
-        run: npx vp test
+        run: vp test
 
       - name: Check web app (oxlint + oxfmt)
         working-directory: platform/apps/web
-        run: npx vp check
+        run: vp check
 
       - name: Run web unit tests
         working-directory: platform/apps/web
-        run: npx vp test
+        run: vp test
 
       - name: Build SaaS web UI
         working-directory: platform/apps/web
-        run: npx vp build
+        run: vp build
 
       - name: Check Bowrain frontend (oxlint + oxfmt)
         working-directory: platform/apps/bowrain/frontend
-        run: npx vp check
+        run: vp check
 
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
   kapi-desktop:
@@ -113,33 +113,34 @@ jobs:
     if: needs.changes.outputs.kapi_desktop == 'true'
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
+          cache: true
 
       - name: Install shared UI dependencies
         working-directory: packages/ui
-        run: npm install
+        run: vp install
 
       - name: Install flow-editor dependencies
         working-directory: packages/flow-editor
-        run: npm install
+        run: vp install
 
       - name: Run flow-editor tests
         working-directory: packages/flow-editor
-        run: npx vitest run
+        run: vp test
 
       - name: Install Kapi Desktop frontend dependencies
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npm install
+        run: vp install
 
       - name: Run Kapi Desktop frontend tests
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npx vp test
+        run: vp test
 
       - name: Build Kapi Desktop Storybook
         working-directory: framework/apps/kapi-desktop/frontend
-        run: npx storybook build -o storybook-static
+        run: vpx storybook build -o storybook-static
 
       - name: Set up Go
         uses: actions/setup-go@v6

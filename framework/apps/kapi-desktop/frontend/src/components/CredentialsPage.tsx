@@ -100,7 +100,9 @@ export function CredentialsPage() {
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-destructive" role="alert">{error}</p>
+        <p className="mb-4 text-sm text-destructive" role="alert">
+          {error}
+        </p>
       )}
 
       {loading ? (
@@ -122,14 +124,10 @@ export function CredentialsPage() {
                   <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
                     {provider.provider_type}
                   </span>
-                  {testResult[provider.id] && (
-                    <CheckCircle2 size={14} className="text-green-500" />
-                  )}
+                  {testResult[provider.id] && <CheckCircle2 size={14} className="text-green-500" />}
                 </div>
                 {provider.model && (
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Model: {provider.model}
-                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">Model: {provider.model}</p>
                 )}
               </div>
               <button
@@ -189,7 +187,9 @@ export function CredentialsPage() {
                 className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
               >
                 {PROVIDER_TYPES.map((t) => (
-                  <option key={t} value={t}>{t}</option>
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
                 ))}
               </select>
             </div>
@@ -230,7 +230,11 @@ export function CredentialsPage() {
               {saving ? "Saving..." : "Save"}
             </button>
             <button
-              onClick={() => { setEditing(null); setApiKey(""); setError(null); }}
+              onClick={() => {
+                setEditing(null);
+                setApiKey("");
+                setError(null);
+              }}
               className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
             >
               Cancel

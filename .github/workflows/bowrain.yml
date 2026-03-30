@@ -23,9 +23,10 @@ jobs:
         with:
           go-version: "1.26.0"
 
-      - uses: actions/setup-node@v6
+      - uses: voidzero-dev/setup-vp@v1
         with:
           node-version: "22"
+          cache: true
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -36,15 +37,15 @@ jobs:
 
       - name: Install workspace dependencies
         working-directory: platform
-        run: npm ci
+        run: vp install --frozen-lockfile
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: npx tsc
+        run: vpx tsc
 
       - name: Install frontend dependencies
         working-directory: platform/apps/bowrain/frontend
-        run: npm install
+        run: vp install
 
       - name: Build Bowrain
         working-directory: platform/apps/bowrain

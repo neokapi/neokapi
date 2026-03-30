@@ -15,7 +15,14 @@ export { PreviewPanel } from "./PreviewPanel";
 export type { PreviewResult } from "./PreviewPanel";
 export { PartInspector } from "./PartInspector";
 export { computeNodeStats } from "./traceTypes";
-export type { TraceEvent, FlowTrace, PartSnapshot, PartSnapshotSet, NodeTraceStats, TraceNode } from "./traceTypes";
+export type {
+  TraceEvent,
+  FlowTrace,
+  PartSnapshot,
+  PartSnapshotSet,
+  NodeTraceStats,
+  TraceNode,
+} from "./traceTypes";
 export type { ParallelSuggestion } from "./parallelChecker";
 export type {
   FlowEditorProps,

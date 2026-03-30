@@ -46,11 +46,11 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: platform/apps/bowrain/frontend
-        run: npx playwright install --with-deps chromium
+        run: vpx playwright install --with-deps chromium
 
       - name: Run Playwright tests
         working-directory: platform/apps/bowrain/frontend
-        run: npx playwright test
+        run: vpx playwright test
 
       - name: Upload test results
         uses: actions/upload-artifact@v7
@@ -188,11 +188,11 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: platform/apps/web
-        run: npx playwright install --with-deps chromium
+        run: vpx playwright install --with-deps chromium
 
       - name: Run web app E2E tests
         working-directory: platform/apps/web
-        run: npx playwright test --config playwright.e2e.config.ts
+        run: vpx playwright test --config playwright.e2e.config.ts
         timeout-minutes: 5
 
       - name: Tear down E2E stack

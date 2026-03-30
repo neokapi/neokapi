@@ -6,7 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "vpx tsc --noEmit"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.4",

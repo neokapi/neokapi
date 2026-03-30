@@ -4,7 +4,7 @@
   "description": "Standalone MCP server for agent email via Mailpit SMTP/API",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "vpx tsc",
     "start": "node dist/index.js"
   },
   "dependencies": {

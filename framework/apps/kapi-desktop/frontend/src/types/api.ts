@@ -92,10 +92,24 @@ export type {
 export type AppMode = "adhoc" | "projects";
 
 // Sidebar items for Ad-Hoc mode
-export type AdhocView = "home" | "flows" | "tools" | "termbases" | "memories" | "formats" | "settings";
+export type AdhocView =
+  | "home"
+  | "flows"
+  | "tools"
+  | "termbases"
+  | "memories"
+  | "formats"
+  | "settings";
 
 // Sidebar items for Projects mode
-export type ProjectView = "home" | "content" | "flows" | "tools" | "termbases" | "memories" | "settings";
+export type ProjectView =
+  | "home"
+  | "content"
+  | "flows"
+  | "tools"
+  | "termbases"
+  | "memories"
+  | "settings";
 
 // Union for convenience
 export type View = AdhocView | ProjectView;

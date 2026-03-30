@@ -36,32 +36,34 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
     // In Wails runtime, listen to "flow:event" events.
     // Outside Wails, this is a no-op.
     if (typeof window !== "undefined" && "go" in window) {
-      import("@wailsio/runtime").then(({ Events }) => {
-        const cancel = Events.On("flow:event", (event: { data: unknown }) => {
-          const e = event.data as RunEvent;
-          setEvents((prev) => [...prev, e]);
+      import("@wailsio/runtime")
+        .then(({ Events }) => {
+          const cancel = Events.On("flow:event", (event: { data: unknown }) => {
+            const e = event.data as RunEvent;
+            setEvents((prev) => [...prev, e]);
 
-          switch (e.type) {
-            case "progress":
-              setProgress({
-                current: (e.file_index ?? 0) + 1,
-                total: e.file_count ?? 0,
-              });
-              break;
-            case "complete":
-              setState("complete");
-              setProgress((prev) => ({ ...prev, current: prev.total }));
-              break;
-            case "error":
-              setState("error");
-              setError(e.message ?? "Flow execution failed");
-              break;
-          }
+            switch (e.type) {
+              case "progress":
+                setProgress({
+                  current: (e.file_index ?? 0) + 1,
+                  total: e.file_count ?? 0,
+                });
+                break;
+              case "complete":
+                setState("complete");
+                setProgress((prev) => ({ ...prev, current: prev.total }));
+                break;
+              case "error":
+                setState("error");
+                setError(e.message ?? "Flow execution failed");
+                break;
+            }
+          });
+          eventCleanupRef.current = cancel;
+        })
+        .catch(() => {
+          // Not in Wails runtime — no event listening available.
         });
-        eventCleanupRef.current = cancel;
-      }).catch(() => {
-        // Not in Wails runtime — no event listening available.
-      });
     }
 
     return () => {
@@ -127,9 +129,7 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
           {flow.steps.map((step, i) => (
             <div key={i} className="flex items-center gap-2">
               {i > 0 && <span className="text-muted-foreground">&rarr;</span>}
-              <span className="rounded bg-accent px-2 py-0.5 text-xs font-medium">
-                {step.tool}
-              </span>
+              <span className="rounded bg-accent px-2 py-0.5 text-xs font-medium">{step.tool}</span>
             </div>
           ))}
         </div>
@@ -148,9 +148,7 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
               aria-label="Select input files for flow"
             >
               <FileText size={16} />
-              {inputFiles.length > 0
-                ? `${inputFiles.length} file(s) selected`
-                : "Select files..."}
+              {inputFiles.length > 0 ? `${inputFiles.length} file(s) selected` : "Select files..."}
             </button>
           </div>
           <div>
@@ -196,19 +194,27 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
 
       {/* Error */}
       {error && (
-        <p className="mb-4 text-sm text-destructive" role="alert">{error}</p>
+        <p className="mb-4 text-sm text-destructive" role="alert">
+          {error}
+        </p>
       )}
 
       {/* Progress bar */}
       {(state === "running" || state === "complete") && progress.total > 0 && (
         <div className="mb-4">
           <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-            <span>{progress.current} / {progress.total} files</span>
             <span>
-              {Math.round((progress.current / progress.total) * 100)}%
+              {progress.current} / {progress.total} files
             </span>
+            <span>{Math.round((progress.current / progress.total) * 100)}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-accent" role="progressbar" aria-valuenow={progress.current} aria-valuemin={0} aria-valuemax={progress.total}>
+          <div
+            className="h-2 overflow-hidden rounded-full bg-accent"
+            role="progressbar"
+            aria-valuenow={progress.current}
+            aria-valuemin={0}
+            aria-valuemax={progress.total}
+          >
             <div
               className="h-full rounded-full bg-primary transition-all duration-300"
               style={{

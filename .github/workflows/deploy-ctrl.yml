@@ -26,7 +26,7 @@ jobs:
 
       - name: Build ctrl app
         working-directory: platform/apps/ctrl
-        run: npm run build
+        run: vp run build
 
       - name: Upload ctrl artifacts
         uses: actions/upload-artifact@v7

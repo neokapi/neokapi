@@ -60,6 +60,7 @@ export interface PropertySchema {
 
   // Nested object properties
   properties?: Record<string, PropertySchema>;
+  additionalProperties?: PropertySchema | boolean;
   items?: PropertySchema;
   required?: string[];
 

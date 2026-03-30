@@ -28,9 +28,7 @@ export const Default: Story = {
       ],
       flows: {
         translate: {
-          steps: [
-            { tool: "ai-translate", config: { provider: "anthropic" } },
-          ],
+          steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
         },
         "translate-and-qa": {
           steps: [
@@ -50,9 +48,7 @@ export const NoFlows: Story = {
       name: "Starter Project",
       source_language: "en-US",
       target_languages: ["fr-FR"],
-      content: [
-        { path: "src/locales/en.json", format: "json" },
-      ],
+      content: [{ path: "src/locales/en.json", format: "json" }],
     },
   },
 };

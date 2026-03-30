@@ -1,14 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn, within, userEvent, waitFor, expect } from "storybook/test";
 import { useState, useEffect, useCallback } from "react";
-import {
-  Play,
-  Square,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-  FileText,
-} from "lucide-react";
+import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
 import type { FlowSpec } from "../types/api";
 
 // Simulated RunnerPage that demonstrates the full execution lifecycle
@@ -34,17 +27,12 @@ function SimulatedRunner({
   const [progress, setProgress] = useState({ current: 0, total: fileCount });
   const [currentFile, setCurrentFile] = useState("");
   const [activeStep, setActiveStep] = useState(-1);
-  const [events, setEvents] = useState<
-    Array<{ type: string; message: string; ts: number }>
-  >([]);
+  const [events, setEvents] = useState<Array<{ type: string; message: string; ts: number }>>([]);
   const [elapsed, setElapsed] = useState(0);
 
-  const addEvent = useCallback(
-    (type: string, message: string) => {
-      setEvents((prev) => [...prev, { type, message, ts: Date.now() }]);
-    },
-    [],
-  );
+  const addEvent = useCallback((type: string, message: string) => {
+    setEvents((prev) => [...prev, { type, message, ts: Date.now() }]);
+  }, []);
 
   const runSimulation = useCallback(async () => {
     setState("running");
@@ -68,15 +56,15 @@ function SimulatedRunner({
 
       for (let stepIdx = 0; stepIdx < flow.steps.length; stepIdx++) {
         setActiveStep(stepIdx);
-        addEvent(
-          "trace",
-          `  ${flow.steps[stepIdx].tool}: processing ${file}`,
-        );
+        addEvent("trace", `  ${flow.steps[stepIdx].tool}: processing ${file}`);
         await new Promise((r) => setTimeout(r, stepDurationMs));
         setElapsed(Date.now() - start);
 
         if (simulateError && fileIdx === 1 && stepIdx === 1) {
-          addEvent("error", `Error in ${flow.steps[stepIdx].tool}: connection timeout to AI provider`);
+          addEvent(
+            "error",
+            `Error in ${flow.steps[stepIdx].tool}: connection timeout to AI provider`,
+          );
           setState("error");
           setActiveStep(-1);
           return;
@@ -116,9 +104,7 @@ function SimulatedRunner({
   };
 
   const progressPct =
-    progress.total > 0
-      ? Math.round((progress.current / progress.total) * 100)
-      : 0;
+    progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
   return (
     <div className="p-6">
@@ -126,9 +112,7 @@ function SimulatedRunner({
         <h2 className="text-lg font-medium">Run: {flowName}</h2>
         {stateIcon[state]}
         {state === "running" && elapsed > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {(elapsed / 1000).toFixed(1)}s
-          </span>
+          <span className="text-xs text-muted-foreground">{(elapsed / 1000).toFixed(1)}s</span>
         )}
       </div>
 
@@ -150,12 +134,7 @@ function SimulatedRunner({
                       : "bg-accent"
                 }`}
               >
-                {activeStep === i && (
-                  <Loader2
-                    size={10}
-                    className="mr-1 inline animate-spin"
-                  />
-                )}
+                {activeStep === i && <Loader2 size={10} className="mr-1 inline animate-spin" />}
                 {step.tool}
               </span>
             </div>
@@ -272,10 +251,7 @@ export const IdleState: Story = {
   args: {
     flowName: "translate-and-qa",
     flow: {
-      steps: [
-        { tool: "ai-translate", config: { provider: "anthropic" } },
-        { tool: "qa-check" },
-      ],
+      steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }, { tool: "qa-check" }],
     },
   },
 };
@@ -285,10 +261,7 @@ export const AutoRunThreeFiles: Story = {
   args: {
     flowName: "translate-and-qa",
     flow: {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
     },
     autoRun: true,
     fileCount: 3,
@@ -319,10 +292,7 @@ export const ErrorDuringExecution: Story = {
   args: {
     flowName: "translate-and-qa",
     flow: {
-      steps: [
-        { tool: "ai-translate" },
-        { tool: "qa-check" },
-      ],
+      steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
     },
     autoRun: true,
     simulateError: true,

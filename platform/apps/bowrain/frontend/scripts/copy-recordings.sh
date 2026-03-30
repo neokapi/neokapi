@@ -34,7 +34,7 @@ KNOWN_NAMES=(
 
 if [ ! -d "$RECORDINGS_DIR" ]; then
   echo "ERROR: No recordings found at $RECORDINGS_DIR"
-  echo "Run 'npm run recordings' first to generate videos."
+  echo "Run 'vp run recordings' first to generate videos."
   exit 1
 fi
 
@@ -112,7 +112,7 @@ done
 
 if [ $copied -eq 0 ]; then
   echo "No videos found in $RECORDINGS_DIR"
-  echo "Run 'npm run recordings' first to generate videos."
+  echo "Run 'vp run recordings' first to generate videos."
   exit 1
 fi
 

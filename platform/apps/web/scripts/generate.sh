@@ -18,19 +18,19 @@ echo ""
 echo "--- Step 2: Checking Playwright ---"
 cd "$WEB_DIR"
 if [ ! -d "node_modules/@playwright" ]; then
-  npm install --save-dev @playwright/test
+  vp add -D @playwright/test
 fi
-npx playwright install chromium --with-deps 2>/dev/null || true
+vpx playwright install chromium --with-deps 2>/dev/null || true
 echo ""
 
 # Step 3: Run screenshot tests
 echo "--- Step 3: Capturing screenshots ---"
-npx playwright test --config playwright.config.ts
+vpx playwright test --config playwright.config.ts
 echo ""
 
 # Step 4: Run recording tests
 echo "--- Step 4: Recording screencasts ---"
-npx playwright test --config playwright.recordings.config.ts
+vpx playwright test --config playwright.recordings.config.ts
 echo ""
 
 # Step 5: Copy recordings to website (all 3 themes)

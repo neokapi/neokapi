@@ -29,7 +29,7 @@ KNOWN_RECORDINGS=(
 
 if [ ! -d "$RECORDINGS_DIR" ]; then
   echo "ERROR: No recordings found at $RECORDINGS_DIR"
-  echo "Run: npx playwright test --config playwright.recordings.config.ts"
+  echo "Run: vpx playwright test --config playwright.recordings.config.ts"
   exit 1
 fi
 

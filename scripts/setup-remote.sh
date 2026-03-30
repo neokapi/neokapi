@@ -39,11 +39,12 @@ go mod download
 (cd kapi     && go mod download)
 (cd bowrain  && go mod download)
 
-# ── Node.js / npm dependencies ───────────────────────────────────────────────
-echo "==> Installing npm dependencies"
-(cd packages/ui               && npm ci --prefer-offline)
-(cd bowrain/apps/web           && npm ci --prefer-offline)
-(cd kapi/apps/kapi-web      && npm ci --prefer-offline)
-(cd bowrain/apps/bowrain/frontend && npm ci --prefer-offline)
+# ── Node.js / frontend dependencies ──────────────────────────────────────────
+echo "==> Installing frontend dependencies"
+(cd packages/ui               && vp install --frozen-lockfile --prefer-offline)
+(cd packages/flow-editor      && vp install --frozen-lockfile --prefer-offline)
+(cd bowrain/apps/web           && vp install --frozen-lockfile --prefer-offline)
+(cd kapi/apps/kapi-web      && vp install --frozen-lockfile --prefer-offline)
+(cd bowrain/apps/bowrain/frontend && vp install --frozen-lockfile --prefer-offline)
 
 echo "==> Remote environment ready"

@@ -21,9 +21,9 @@ runs:
     - name: Install workspace dependencies
       shell: bash
       working-directory: platform
-      run: npm ci
+      run: vp install --frozen-lockfile
 
     - name: Build shared UI package
       shell: bash
       working-directory: platform/packages/ui
-      run: npx tsc
+      run: vpx tsc

@@ -19,12 +19,7 @@ interface FormatConfigEditorProps {
  * Used in both the flow editor (reader/writer node config) and
  * the standalone format presets page.
  */
-export function FormatConfigEditor({
-  schema,
-  values,
-  onChange,
-  title,
-}: FormatConfigEditorProps) {
+export function FormatConfigEditor({ schema, values, onChange, title }: FormatConfigEditorProps) {
   const filterMeta = (schema as unknown as Record<string, unknown>)["x-filter"] as
     | Record<string, unknown>
     | undefined;
@@ -35,13 +30,9 @@ export function FormatConfigEditor({
     <div className="flex flex-col gap-3">
       {/* Header */}
       <div className="border-b border-border pb-3">
-        <h3 className="text-sm font-semibold text-foreground">
-          {title || schema.title}
-        </h3>
+        <h3 className="text-sm font-semibold text-foreground">{title || schema.title}</h3>
         {schema.description && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {schema.description}
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">{schema.description}</p>
         )}
 
         {/* Format metadata badges */}

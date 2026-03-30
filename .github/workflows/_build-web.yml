@@ -16,7 +16,7 @@ jobs:
         env:
           VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
-        run: npm run build
+        run: vp run build
 
       - name: Upload web artifacts
         uses: actions/upload-artifact@v7

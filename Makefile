@@ -22,8 +22,7 @@ export BUILD_DATE  := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 export VERSION_PKG := github.com/neokapi/neokapi/core/version
 export LDFLAGS     := -ldflags "-X $(VERSION_PKG).Version=$(VERSION) -X $(VERSION_PKG).Commit=$(COMMIT) -X $(VERSION_PKG).BuildDate=$(BUILD_DATE)"
 
-GO  := go
-NPM := npm
+GO := go
 
 # ── SUBDIRS convention ───────────────────────────────────────────────────────
 # Targets listed here are forwarded to both framework/ and platform/ Makefiles
@@ -57,7 +56,7 @@ verify-isolation: ## Verify all Go module isolation boundaries
 	@# kapi must not depend on platform
 	@if cd framework/kapi && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/platform'; then echo "ERROR: kapi depends on platform"; exit 1; fi
 	@# bowrain must not depend on cli
-	@if cd platform && GOWORK=off go list -m all 2>/dev/null | grep -q 'neokapi/cli'; then echo "ERROR: bowrain depends on cli"; exit 1; fi
+	@if cd platform && GOWORK=off go list -m all 2>/dev/null | grep -iE 'neokapi/cli'; then echo "ERROR: bowrain depends on cli"; exit 1; fi
 	@# kapi must not have heavy deps
 	@if cd framework/kapi && GOWORK=off go list -m all 2>/dev/null | grep -iE 'wails|echo|oidc|keyring'; then echo "ERROR: kapi has heavy deps"; exit 1; fi
 
@@ -76,6 +75,9 @@ build-server build-worker build-bowrain-cli build-bowrain build-headless install
 
 # ── Kapi Desktop ────────────────────────────────────────────────────────────
 
+# Node 22 requires --experimental-strip-types to load vite.config.ts natively.
+export NODE_OPTIONS := --experimental-strip-types
+
 KAPI_DESKTOP_DIR := framework/apps/kapi-desktop
 
 build-kapi-desktop: kapi-desktop-frontend-build ## Build the Kapi Desktop app
@@ -88,25 +90,34 @@ kapi-desktop-test: ## Run Kapi Desktop Go backend tests
 	cd $(KAPI_DESKTOP_DIR) && $(GO) test ./backend/... -count=1
 
 kapi-desktop-frontend-deps: ## Install Kapi Desktop frontend dependencies
-	cd $(KAPI_DESKTOP_DIR)/frontend && npm install
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp install
 
 kapi-desktop-frontend-dev: kapi-desktop-frontend-deps ## Start Kapi Desktop frontend dev server
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp dev --port 5174 --strictPort
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp dev --port 5174 --strictPort
 
 kapi-desktop-frontend-build: kapi-desktop-frontend-deps ## Build Kapi Desktop frontend for production
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp build
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp build
 
 kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop frontend tests
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp test
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp test
 
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx vp check
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
+
+flow-editor-deps: ## Install flow-editor dependencies
+	cd packages/flow-editor && vp install
+
+flow-editor-check: flow-editor-deps ## Lint + format + typecheck flow-editor package
+	cd packages/flow-editor && vp check
+
+flow-editor-test: flow-editor-deps ## Run flow-editor tests
+	cd packages/flow-editor && vp test
 
 kapi-desktop-storybook: kapi-desktop-frontend-deps ## Run Kapi Desktop Storybook (port 6007)
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx storybook dev -p 6007
+	cd $(KAPI_DESKTOP_DIR)/frontend && vpx storybook dev -p 6007
 
 kapi-desktop-storybook-build: kapi-desktop-frontend-deps ## Build Kapi Desktop Storybook
-	cd $(KAPI_DESKTOP_DIR)/frontend && npx storybook build -o storybook-static
+	cd $(KAPI_DESKTOP_DIR)/frontend && vpx storybook build -o storybook-static
 
 install: ## Install kapi CLI to GOPATH/bin
 	$(MAKE) -C framework install
@@ -184,12 +195,12 @@ fetch-docs-assets: ## Download pre-built docs assets from GitHub release
 
 VIDEOS_DIR := website/videos
 
-videos-deps: ; cd $(VIDEOS_DIR) && $(NPM) ci
-videos-setup: videos-deps ; cd $(VIDEOS_DIR) && $(NPM) run setup-raw
-videos-studio: videos-setup ; cd $(VIDEOS_DIR) && $(NPM) run studio
+videos-deps: ; cd $(VIDEOS_DIR) && vp install --frozen-lockfile
+videos-setup: videos-deps ; cd $(VIDEOS_DIR) && vp run setup-raw
+videos-studio: videos-setup ; cd $(VIDEOS_DIR) && vp run studio
 videos-render: videos-setup ## Render all polished demo videos
-	cd $(VIDEOS_DIR) && $(NPM) run build
-	cd $(VIDEOS_DIR) && $(NPM) run publish
+	cd $(VIDEOS_DIR) && vp run build
+	cd $(VIDEOS_DIR) && vp run publish
 
 # ── Generate (scripts at root) ──────────────────────────────────────────────
 
@@ -220,10 +231,10 @@ generate-test-stubs: fetch-okapi-surefire ## Generate Go test stubs from Surefir
 
 # ── Documentation Site ──────────────────────────────────────────────────────
 
-docs-deps: ; cd website && $(NPM) ci
-docs-dev: ; cd website && $(NPM) start
-docs-build: ; cd website && $(NPM) run build
-docs-serve: ; cd website && $(NPM) run serve
+docs-deps: ; cd website && vp install --frozen-lockfile
+docs-dev: ; cd website && vp run start
+docs-build: ; cd website && vp run build
+docs-serve: ; cd website && vp run serve
 
 # ── Tools ────────────────────────────────────────────────────────────────────
 
@@ -276,6 +287,7 @@ help: ## Show this help
         build-kapi-desktop kapi-desktop-dev kapi-desktop-test \
         kapi-desktop-frontend-deps kapi-desktop-frontend-dev kapi-desktop-frontend-build \
         kapi-desktop-frontend-test kapi-desktop-frontend-check \
+        flow-editor-deps flow-editor-check flow-editor-test \
         kapi-desktop-storybook kapi-desktop-storybook-build \
         cover test-e2e test-e2e-kapi test-e2e-bowrain test-e2e-cloud test-e2e-dev \
         fetch-bridge-jar fetch-bridge-testdata test-bridge-filters test-bridge-pool test-bridge-json test-native-json \

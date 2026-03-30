@@ -26,7 +26,10 @@ export const Buttons: Story = {
       <button className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent">
         Ghost
       </button>
-      <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground opacity-50" disabled>
+      <button
+        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground opacity-50"
+        disabled
+      >
         Disabled
       </button>
     </div>
@@ -38,15 +41,11 @@ export const Cards: Story = {
     <div className="grid grid-cols-2 gap-4 p-4" style={{ maxWidth: 600 }}>
       <div className="rounded-lg border border-border p-4">
         <h3 className="text-sm font-medium">Card Title</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Card description with some content.
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground">Card description with some content.</p>
       </div>
       <div className="rounded-lg border border-border bg-accent/30 p-4">
         <h3 className="text-sm font-medium">Accent Card</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          With background accent.
-        </p>
+        <p className="mt-1 text-xs text-muted-foreground">With background accent.</p>
       </div>
     </div>
   ),
@@ -82,15 +81,11 @@ export const Badges: Story = {
       <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
         Primary
       </span>
-      <span className="rounded bg-accent px-2 py-0.5 text-xs">
-        Accent
-      </span>
+      <span className="rounded bg-accent px-2 py-0.5 text-xs">Accent</span>
       <span className="rounded bg-destructive/10 px-2 py-0.5 text-xs text-destructive">
         Destructive
       </span>
-      <span className="rounded bg-green-500/10 px-2 py-0.5 text-xs text-green-500">
-        Success
-      </span>
+      <span className="rounded bg-green-500/10 px-2 py-0.5 text-xs text-green-500">Success</span>
     </div>
   ),
 };

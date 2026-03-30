@@ -52,7 +52,13 @@ export const WithError: Story = {
     events: [
       ...completedEvents.slice(0, 4),
       { ts: 550, type: "enter", nodeId: "tool-1", partId: "p1" },
-      { ts: 800, type: "error", nodeId: "tool-1", partId: "p1", meta: { error: "QA check failed: missing translation" } },
+      {
+        ts: 800,
+        type: "error",
+        nodeId: "tool-1",
+        partId: "p1",
+        meta: { error: "QA check failed: missing translation" },
+      },
     ],
     nodeNames,
     totalDurationUs: 800,

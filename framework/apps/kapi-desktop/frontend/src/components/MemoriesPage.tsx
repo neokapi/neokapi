@@ -3,12 +3,7 @@ import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
-import {
-  TMBrowser,
-  ResourceCard,
-  ImportProgress,
-  type ResourceInfo,
-} from "@neokapi/ui-primitives";
+import { TMBrowser, ResourceCard, ImportProgress, type ResourceInfo } from "@neokapi/ui-primitives";
 
 export function MemoriesPage() {
   const [resources, setResources] = useState<ResourceInfo[]>([]);
@@ -152,9 +147,7 @@ export function MemoriesPage() {
             </button>
             <div>
               <h1 className="text-lg font-semibold">{tmName}</h1>
-              {tmPath && (
-                <p className="text-[11px] text-muted-foreground">{tmPath}</p>
-              )}
+              {tmPath && <p className="text-[11px] text-muted-foreground">{tmPath}</p>}
             </div>
           </div>
           <div className="flex gap-2">

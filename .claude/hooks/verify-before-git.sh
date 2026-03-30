@@ -65,11 +65,11 @@ if echo "$STAGED" | grep -qE '\.class$|\.jar$|\.exe$|\.o$|\.so$|\.dylib$'; then
   exit 2
 fi
 
-# 4. If package.json or package-lock.json changed, verify npm workspace
+# 4. If package.json or package-lock.json changed, verify frontend builds
 if echo "$STAGED" | grep -qE 'package(-lock)?\.json$'; then
-  echo "Checking npm workspace..." >&2
-  if ! (cd packages/ui && npm ci && npx tsc) 2>&1; then
-    echo "BLOCKED: npm workspace (packages/ui) build failed" >&2
+  echo "Checking frontend workspace..." >&2
+  if ! (cd packages/ui && vp install --frozen-lockfile && vpx tsc) 2>&1; then
+    echo "BLOCKED: packages/ui build failed" >&2
     exit 2
   fi
 fi

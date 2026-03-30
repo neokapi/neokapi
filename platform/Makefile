@@ -28,7 +28,6 @@ GOTEST      := $(GO) test
 GOBUILD     := $(GO) build
 GOVET       := $(GO) vet
 GOFMT       := gofmt
-NPM         := npm
 BIN_DIR     := $(ROOT_DIR)/bin
 COVER_DIR   := $(ROOT_DIR)/coverage
 
@@ -114,99 +113,99 @@ install-bowrain-cli: ## Install Bowrain CLI to GOPATH/bin
 # ── Frontend (Bowrain UI) ───────────────────────────────────────────────────
 
 frontend-deps: ## Install frontend dependencies
-	cd $(FRONTEND_DIR) && $(NPM) install
+	cd $(FRONTEND_DIR) && vp install
 
 frontend-dev: ## Start frontend dev server
 	@printf '\033]0;Bowrain Frontend\007'
-	cd $(FRONTEND_DIR) && $(NPM) run dev
+	cd $(FRONTEND_DIR) && vp run dev
 
 frontend-build: ui-build frontend-deps ## Build frontend for production
-	cd $(FRONTEND_DIR) && $(NPM) run build
+	cd $(FRONTEND_DIR) && vp run build
 
 frontend-check: frontend-deps ## Lint, format-check, and typecheck Bowrain frontend
-	cd $(FRONTEND_DIR) && $(NPM) run check
+	cd $(FRONTEND_DIR) && vp check
 
 build-ui: build-server frontend-build ## Build server + frontend
 
 # ── Shared UI Package ──────────────────────────────────────────────────────
 
 ui-deps: ## Install shared UI package dependencies
-	cd packages/ui && $(NPM) install
+	cd packages/ui && vp install
 
 ui-build: ui-deps ## Build shared UI declarations
-	cd packages/ui && npx tsc
+	cd packages/ui && vpx tsc
 
 ui-check: ui-deps ## Lint, format-check, and typecheck shared UI
-	cd packages/ui && $(NPM) run check
+	cd packages/ui && vp check
 
 storybook: ui-deps email-deps ## Launch Storybook dev server (port 6006)
 	@printf '\033]0;Storybook\007'
-	cd packages/ui && $(NPM) run storybook
+	cd packages/ui && vpx storybook dev -p 6006
 
 storybook-dev: storybook ## Alias for storybook
 
 storybook-build: ui-deps email-deps ## Build Storybook static site
-	cd packages/ui && $(NPM) run storybook:build
+	cd packages/ui && vpx storybook build -o storybook-static
 
 # ── SaaS Web UI (bowrain-server) ───────────────────────────────────────────
 
 web-deps: ## Install SaaS web UI dependencies
-	cd $(WEB_DIR) && $(NPM) install
+	cd $(WEB_DIR) && vp install
 
 web-build: ui-build web-deps ## Build SaaS web UI for production
 	@printf '{"version":"%s","commit":"%s","build_date":"%s","component":"web"}\n' "$(VERSION)" "$(COMMIT)" "$(BUILD_DATE)" > $(WEB_DIR)/public/version.json
-	cd $(WEB_DIR) && $(NPM) run build
+	cd $(WEB_DIR) && vp run build
 
 web-check: web-deps ## Lint, format-check, and typecheck SaaS web UI
-	cd $(WEB_DIR) && $(NPM) run check
+	cd $(WEB_DIR) && vp check
 
 # ── Control Plane (ctrl.bowrain.cloud) ───────────────────────────────────────
 
 ctrl-deps: ## Install control plane dependencies
-	cd $(CTRL_DIR) && $(NPM) install
+	cd $(CTRL_DIR) && vp install
 
 ctrl-dev: ctrl-deps ## Start control plane dev server (port 3100)
 	@printf '\033]0;Ctrl UI\007'
 	cd $(CTRL_DIR) && \
 	VITE_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
-	$(NPM) run dev
+	vp run dev
 
 ctrl-build: ui-build ctrl-deps ## Build control plane for production
-	cd $(CTRL_DIR) && $(NPM) run build
+	cd $(CTRL_DIR) && vp run build
 
 ctrl-check: ctrl-deps ## Lint, format-check, and typecheck control plane
-	cd $(CTRL_DIR) && $(NPM) run check
+	cd $(CTRL_DIR) && vp check
 
 # ── Pulse Dashboard (pulse.bowrain.cloud) ─────────────────────────────────
 
 pulse-deps: ## Install Pulse dashboard dependencies
-	cd $(PULSE_DIR) && $(NPM) install
+	cd $(PULSE_DIR) && vp install
 
 pulse-dev: pulse-deps ## Start Pulse dev server (port 3200)
 	@printf '\033]0;Pulse UI\007'
-	cd $(PULSE_DIR) && $(NPM) run dev
+	cd $(PULSE_DIR) && vp run dev
 
 pulse-build: ui-build pulse-deps ## Build Pulse dashboard for production
-	cd $(PULSE_DIR) && $(NPM) run build
+	cd $(PULSE_DIR) && vp run build
 
 pulse-check: pulse-deps ## Lint, format-check, and typecheck Pulse dashboard
-	cd $(PULSE_DIR) && $(NPM) run check
+	cd $(PULSE_DIR) && vp check
 
 # ── Email Templates (React Email -> HTML) ────────────────────────────────────
 
 email-deps: ## Install React Email template dependencies
-	cd $(EMAILS_DIR) && $(NPM) install --legacy-peer-deps
+	cd $(EMAILS_DIR) && vp install
 
 email-build: email-deps ## Pre-render React Email templates
-	cd $(EMAILS_DIR) && $(NPM) run build
+	cd $(EMAILS_DIR) && vp run build
 
 # ── Keycloak Theme ─────────────────────────────────────────────────────────
 
 keycloak-theme: ui-deps ## Build Keycloak login theme JAR
-	cd $(KC_THEME_DIR) && $(NPM) run build-keycloak-theme
+	cd $(KC_THEME_DIR) && vp run build-keycloak-theme
 
 keycloak-check: ## Lint, format-check, and typecheck Keycloak theme
-	cd $(KC_THEME_DIR) && $(NPM) run check
+	cd $(KC_THEME_DIR) && vp check
 
 # ── Frontend Checks (all) ────────────────────────────────────────────────
 
@@ -290,21 +289,21 @@ dev-worker: ## Run bowrain-worker locally (processes sync push + translation job
 
 dev-web: ## Run web UI dev server with HMR (proxy -> localhost:8080)
 	@printf '\033]0;Web UI\007'
-	cd apps/web && $(NPM) run dev
+	cd apps/web && vp run dev
 
 dev-ctrl: ctrl-deps ## Run control plane dev server with HMR (proxy -> localhost:8080)
 	@printf '\033]0;Ctrl UI\007'
 	cd $(CTRL_DIR) && \
 	VITE_ADMIN_OIDC_ISSUER_URL=https://auth.bowrain.mymac/realms/bowrain-admin \
-	$(NPM) run dev
+	vp run dev
 
 # ── Documentation Assets (Screenshots & Recordings) ─────────────────────────
 
 screenshots: frontend-deps ## Generate documentation screenshots
-	cd $(FRONTEND_DIR) && $(NPM) run screenshots
+	cd $(FRONTEND_DIR) && vp run screenshots
 
 recordings: frontend-deps ## Generate Bowrain (GUI) video recordings
-	cd $(FRONTEND_DIR) && $(NPM) run recordings:all
+	cd $(FRONTEND_DIR) && vp run recordings:all
 
 bowrain-cli-recordings: build-bowrain-cli ## Generate Bowrain CLI demo videos (VHS)
 	./e2e/tapes/generate.sh
