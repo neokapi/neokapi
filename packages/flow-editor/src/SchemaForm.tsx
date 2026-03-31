@@ -16,6 +16,8 @@ interface SchemaFormProps {
   values: Record<string, unknown>;
   onChange: (values: Record<string, unknown>) => void;
   compact?: boolean;
+  /** When provided, fields whose value differs from the preset show a colored indicator dot. */
+  presetValues?: Record<string, unknown>;
 }
 
 /**
@@ -24,7 +26,7 @@ interface SchemaFormProps {
  * types, defaults, enums, validation constraints, nested objects, arrays,
  * dynamic maps, and x-widget hints.
  */
-export function SchemaForm({ schema, values, onChange, compact = false }: SchemaFormProps) {
+export function SchemaForm({ schema, values, onChange, compact = false, presetValues }: SchemaFormProps) {
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
     const grps = schema["x-groups"] || [];
@@ -160,6 +162,7 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
           onChange={handleChange}
           compact={compact}
           onDrillDown={handleDrillDown}
+          presetValues={presetValues}
         />
       ))}
 
@@ -194,6 +197,7 @@ export function SchemaForm({ schema, values, onChange, compact = false }: Schema
                 allValues={values}
                 allProperties={properties}
                 onDrillDown={handleDrillDown}
+                presetValues={presetValues}
               />
             ))}
           </div>
@@ -218,6 +222,7 @@ function FieldGroup({
   onChange,
   compact,
   onDrillDown,
+  presetValues,
 }: {
   group: ParameterGroup;
   groupIndex: number;
@@ -226,6 +231,7 @@ function FieldGroup({
   onChange: (key: string, value: unknown) => void;
   compact: boolean;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
+  presetValues?: Record<string, unknown>;
 }) {
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
   if (fields.length === 0) return null;
@@ -311,11 +317,34 @@ function FieldGroup({
               allValues={values}
               allProperties={properties}
               onDrillDown={onDrillDown}
+              presetValues={presetValues}
             />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Preset Modified Indicator ─────────────────────────────
+
+/** Small colored dot shown before a field label when the value differs from the active preset. */
+function PresetDot({ visible }: { visible: boolean }) {
+  if (!visible) return null;
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        width: 5,
+        height: 5,
+        borderRadius: "50%",
+        background: theme.accent,
+        marginRight: 4,
+        flexShrink: 0,
+        verticalAlign: "middle",
+      }}
+      title="Modified from preset"
+    />
   );
 }
 
@@ -331,6 +360,7 @@ function PropertyField({
   allProperties,
   depth = 0,
   onDrillDown,
+  presetValues,
 }: {
   name: string;
   schema: PropertySchema;
@@ -341,6 +371,7 @@ function PropertyField({
   allProperties?: Record<string, PropertySchema>;
   depth?: number;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
+  presetValues?: Record<string, unknown>;
 }) {
   // x-showIf conditional visibility
   const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
@@ -362,6 +393,16 @@ function PropertyField({
   const label = schema.title || formatLabel(name);
   const resolved = value ?? schema.default;
   const widget = schema["x-widget"] as string | undefined;
+
+  // Preset-modified indicator: compare current value with preset value.
+  const isModifiedFromPreset = useMemo(() => {
+    if (!presetValues) return false;
+    const presetVal = presetValues[name];
+    const currentVal = value ?? schema.default;
+    if (presetVal === undefined && currentVal === undefined) return false;
+    if (presetVal === undefined || currentVal === undefined) return true;
+    return JSON.stringify(currentVal) !== JSON.stringify(presetVal);
+  }, [presetValues, name, value, schema.default]);
 
   // ── x-widget dispatch ──
 
@@ -778,7 +819,7 @@ function NestedObjectEditor({
           textAlign: "left",
         }}
       >
-        <span style={{ flex: 1, fontSize: 11, color: theme.fg }}>{label}</span>
+        <span style={{ flex: 1, fontSize: 11, color: theme.fg }}><PresetDot visible={isModifiedFromPreset} />{label}</span>
         <span style={{ fontSize: 10, color: theme.fgMuted }}>{keys.length} fields</span>
         <ChevronRight size={12} style={{ color: theme.fgMuted, marginLeft: 4 }} />
       </button>
@@ -874,7 +915,7 @@ function MapEditor({
   return (
     <div>
       {/* Sub-label */}
-      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}><PresetDot visible={isModifiedFromPreset} />{label}</div>
       {description && (
         <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
           {description}
@@ -1192,7 +1233,7 @@ function ArrayEditor({
   // Complex arrays — flat section sub-label + list
   return (
     <div>
-      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}><PresetDot visible={isModifiedFromPreset} />{label}</div>
       {description && (
         <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
           {description}
@@ -1349,7 +1390,7 @@ function CodeFinderRulesEditor({
 
   return (
     <div>
-      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}><PresetDot visible={isModifiedFromPreset} />{label}</div>
       {description && <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>{description}</div>}
 
       {/* Preset selector */}
@@ -1526,7 +1567,7 @@ function JsonEditor({
         ) : (
           <ChevronDown size={11} style={{ color: theme.fgMuted }} />
         )}
-        <span style={{ fontSize: 11, fontWeight: 500, color: theme.fgSecondary, flex: 1 }}>{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 500, color: theme.fgSecondary, flex: 1 }}><PresetDot visible={isModifiedFromPreset} />{label}</span>
         {error && <span style={{ fontSize: 9, color: theme.destructive }}>{error}</span>}
       </button>
 

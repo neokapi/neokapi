@@ -8,16 +8,18 @@ function SchemaFormWrapper({
   initialValues = {},
   compact = false,
   width = 360,
+  presetValues,
 }: {
   schema: ComponentSchema;
   initialValues?: Record<string, unknown>;
   compact?: boolean;
   width?: number;
+  presetValues?: Record<string, unknown>;
 }) {
   const [values, setValues] = useState<Record<string, unknown>>(initialValues);
   return (
     <div style={{ maxWidth: width }}>
-      <SchemaForm schema={schema} values={values} onChange={setValues} compact={compact} />
+      <SchemaForm schema={schema} values={values} onChange={setValues} compact={compact} presetValues={presetValues} />
       <pre
         style={{
           marginTop: 16,
@@ -633,6 +635,29 @@ export const FormatsPageConfig: Story = {
       indentation: 2,
       trailingNewline: true,
       sortKeys: false,
+    },
+  },
+};
+
+// ── Preset indicator story ──
+
+export const WithPresetIndicator: Story = {
+  name: "With Preset Indicator",
+  args: {
+    schema: pseudoTranslateSchema,
+    initialValues: {
+      prefix: ">>",
+      suffix: "]",
+      expansionPercent: 45,
+      applyAccents: true,
+      padWithX: false,
+    },
+    presetValues: {
+      prefix: "[",
+      suffix: "]",
+      expansionPercent: 30,
+      applyAccents: true,
+      padWithX: false,
     },
   },
 };
