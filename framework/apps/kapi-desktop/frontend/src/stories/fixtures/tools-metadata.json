@@ -6,7 +6,7 @@
     "has_schema": false,
     "inputs": ["block"],
     "tags": ["ai-powered", "translation"],
-    "requires": ["target-language", "credentials"]
+    "requires": ["target-language", "credentials", "retryable"]
   },
   {
     "name": "ai-qa",
@@ -15,7 +15,7 @@
     "has_schema": false,
     "inputs": ["block"],
     "tags": ["ai-powered", "quality"],
-    "requires": ["target-language", "credentials"]
+    "requires": ["target-language", "credentials", "retryable"]
   },
   {
     "name": "ai-review",
@@ -24,7 +24,7 @@
     "has_schema": false,
     "inputs": ["block"],
     "tags": ["ai-powered", "quality"],
-    "requires": ["target-language", "credentials"]
+    "requires": ["target-language", "credentials", "retryable"]
   },
   {
     "name": "pseudo-translate",

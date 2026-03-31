@@ -75,6 +75,7 @@ const (
 	RequiresTM             = "tm"
 	RequiresTermbase       = "termbase"
 	RequiresCredentials    = "credentials"
+	RequiresRetryable      = "retryable"
 )
 
 // ParameterGroup defines a UI grouping of parameters.
