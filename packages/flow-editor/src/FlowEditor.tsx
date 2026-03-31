@@ -789,7 +789,7 @@ function ConfigPanel({
       {/* Config form */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
         {schema ? (
-          <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact />
+          <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact paramDocs={doc?.parameters} />
         ) : (
           <div
             style={{

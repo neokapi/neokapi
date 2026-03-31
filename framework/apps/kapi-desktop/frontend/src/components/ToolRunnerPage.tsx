@@ -23,7 +23,6 @@ import type { ComponentSchema } from "@neokapi/flow-editor";
 import { SchemaForm } from "@neokapi/flow-editor";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import { DocsPanel } from "./DocsPanel";
 
 // Category metadata for visual treatment
 const categoryMeta: Record<
@@ -281,8 +280,6 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
 
 // --- Tool Detail Panel ---
 
-type DetailTab = "overview" | "docs";
-
 function ToolDetail({
   tool,
   docs,
@@ -290,7 +287,6 @@ function ToolDetail({
   tool: ToolInfo;
   docs: PluginDocs | null;
 }) {
-  const [activeTab, setActiveTab] = useState<DetailTab>("overview");
   const [schema, setSchema] = useState<ComponentSchema | null>(null);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [loadingSchema, setLoadingSchema] = useState(false);
@@ -327,11 +323,6 @@ function ToolDetail({
       .then((s) => { if (s) setSchema(s as ComponentSchema); })
       .catch(() => {})
       .finally(() => setLoadingSchema(false));
-  }, [tool.name]);
-
-  // Reset tab when tool changes
-  useEffect(() => {
-    setActiveTab("overview");
   }, [tool.name]);
 
   // TODO: RunFlow requires a project tab — ad-hoc tool execution needs a
@@ -399,175 +390,71 @@ function ToolDetail({
         </div>
       </div>
 
-      {/* Overview from docs */}
-      {stepDoc && (
-        <div className="mb-5 rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3">
-          <p className="text-[13px] leading-relaxed text-foreground/85">
-            {stepDoc.overview}
-          </p>
-        </div>
-      )}
-
-      {/* Tab bar */}
-      <div className="flex items-center gap-0 mb-4 border-b border-border">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-            activeTab === "overview"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <span className="flex items-center gap-1.5">
-            <Settings2 size={12} />
-            Configure & Run
-          </span>
-        </button>
-        {stepDoc && (
-          <button
-            onClick={() => setActiveTab("docs")}
-            className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-              activeTab === "docs"
-                ? "border-primary text-primary"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <BookOpen size={12} />
-              Documentation
-            </span>
-          </button>
+      {/* Configuration form with inline parameter docs */}
+      <div className="max-w-xl space-y-4">
+        {loadingSchema && (
+          <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
+            Loading configuration...
+          </div>
         )}
-      </div>
+        {!loadingSchema && schema && (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <SchemaForm
+              schema={schema}
+              values={config}
+              onChange={setConfig}
+              paramDocs={stepDoc?.parameters}
+            />
+          </div>
+        )}
 
-      {/* Tab content */}
-      {activeTab === "overview" && (
-        <div className="flex gap-4">
-          <div className="flex-1 max-w-xl space-y-4">
-            {/* Configuration form */}
-            {loadingSchema && (
-              <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
-                Loading configuration...
-              </div>
-            )}
-            {!loadingSchema && schema && (
-              <div className="rounded-lg border border-border bg-card p-4">
-                <SchemaForm
-                  schema={schema}
-                  values={config}
-                  onChange={setConfig}
-                />
-              </div>
-            )}
-
-            {/* I/O badges */}
-            {(tool.inputs || tool.outputs) && (
-              <div className="flex gap-4">
-                {tool.inputs && tool.inputs.length > 0 && (
-                  <div>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      Inputs
-                    </span>
-                    <div className="flex gap-1 mt-1">
-                      {tool.inputs.map((inp) => (
-                        <span
-                          key={inp}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
-                        >
-                          {inp}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {tool.outputs && tool.outputs.length > 0 && (
-                  <div>
-                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      Outputs
-                    </span>
-                    <div className="flex gap-1 mt-1">
-                      {tool.outputs.map((out) => (
-                        <span
-                          key={out}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
-                        >
-                          {out}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Runner controls */}
-            <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium" htmlFor="tool-files">
-                  Input Files
-                </label>
-                <button
-                  id="tool-files"
-                  className="flex items-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors w-full"
-                >
-                  <FileInput size={14} />
-                  Select files...
-                </button>
-              </div>
-
-              {tool.requires?.includes("target-language") && (
-                <div>
-                  <label className="mb-1 block text-xs font-medium" htmlFor="tool-target-lang">
-                    Target Language
-                  </label>
-                  <input
-                    id="tool-target-lang"
-                    type="text"
-                    value={targetLang}
-                    onChange={(e) => setTargetLang(e.target.value)}
-                    placeholder="e.g. fr-FR"
-                    className="w-48 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-                  />
-                </div>
-              )}
-
-              {error && (
-                <p className="text-xs text-destructive" role="alert">
-                  {error}
-                </p>
-              )}
-
-              <button
-                onClick={handleRun}
-                disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
-                className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-                {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
-              </button>
-            </div>
+        {/* Runner controls */}
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium" htmlFor="tool-files">
+              Input Files
+            </label>
+            <button
+              id="tool-files"
+              className="flex items-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors w-full"
+            >
+              <FileInput size={14} />
+              Select files...
+            </button>
           </div>
 
-          {/* Contextual parameter help sidebar */}
-          {stepDoc && stepDoc.parameters && Object.keys(stepDoc.parameters).length > 0 && (
-            <div className="w-80 shrink-0 hidden xl:block">
-              <div className="sticky top-4">
-                <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <BookOpen size={11} />
-                  Parameter Reference
-                </h3>
-                <DocsPanel doc={stepDoc} inline />
-              </div>
+          {tool.requires?.includes("target-language") && (
+            <div>
+              <label className="mb-1 block text-xs font-medium" htmlFor="tool-target-lang">
+                Target Language
+              </label>
+              <input
+                id="tool-target-lang"
+                type="text"
+                value={targetLang}
+                onChange={(e) => setTargetLang(e.target.value)}
+                placeholder="e.g. fr-FR"
+                className="w-48 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              />
             </div>
           )}
-        </div>
-      )}
 
-      {activeTab === "docs" && stepDoc && (
-        <div className="max-w-2xl">
-          <DocsPanel doc={stepDoc} />
+          {error && (
+            <p className="text-xs text-destructive" role="alert">
+              {error}
+            </p>
+          )}
+
+          <button
+            onClick={handleRun}
+            disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
+            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+            {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
