@@ -2,6 +2,8 @@ package backend
 
 import (
 	"fmt"
+	"io"
+	"sync/atomic"
 
 	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
@@ -169,7 +171,11 @@ func (a *App) remoteRegistry() *pluginreg.RemoteRegistry {
 	if dir == "" {
 		return nil
 	}
-	a.registry = pluginreg.NewRemoteRegistry(defaultRegistryURL, dir)
+	reg := pluginreg.NewRemoteRegistry(defaultRegistryURL, dir)
+	reg.OnProgress = func(totalBytes int64) io.Writer {
+		return &progressWriter{app: a, total: totalBytes}
+	}
+	a.registry = reg
 	return a.registry
 }
 
@@ -179,4 +185,30 @@ func (a *App) installedNames() map[string]bool {
 		names[p.Name] = true
 	}
 	return names
+}
+
+// progressWriter emits download progress events to the frontend.
+type progressWriter struct {
+	app     *App
+	total   int64
+	written atomic.Int64
+}
+
+func (w *progressWriter) Write(p []byte) (int, error) {
+	n := len(p)
+	cur := w.written.Add(int64(n))
+	// Emit progress at ~10% intervals to avoid flooding.
+	pct := int64(0)
+	if w.total > 0 {
+		pct = cur * 100 / w.total
+	}
+	prev := (cur - int64(n)) * 100 / max(w.total, 1)
+	if pct/10 > prev/10 || cur == w.total {
+		w.app.emitEvent("plugin-progress", map[string]any{
+			"bytes_written": cur,
+			"bytes_total":   w.total,
+			"percent":       pct,
+		})
+	}
+	return n, nil
 }

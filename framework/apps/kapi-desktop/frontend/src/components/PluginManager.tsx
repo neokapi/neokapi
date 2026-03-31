@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, Trash2 } from "lucide-react";
 import type { PluginInfo } from "../types/api";
 import { api } from "../hooks/useApi";
@@ -12,13 +12,19 @@ interface AvailablePlugin {
   installed: boolean;
 }
 
+interface InstallStatus {
+  state: "downloading" | "installing" | "done" | "error";
+  percent?: number;
+  error?: string;
+}
+
 export function PluginManager() {
   const [search, setSearch] = useState("");
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const [available, setAvailable] = useState<AvailablePlugin[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
-  const [installing, setInstalling] = useState<string | null>(null);
+  const [installStatus, setInstallStatus] = useState<Record<string, InstallStatus>>({});
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +38,6 @@ export function PluginManager() {
     try {
       const result = await api.listPlugins();
       if (result) {
-        // Deduplicate by name (plugin loader may return duplicates after re-scan).
         const seen = new Set<string>();
         const deduped = result.filter((p) => {
           if (seen.has(p.name)) return false;
@@ -45,40 +50,6 @@ export function PluginManager() {
       setError(String(e));
     } finally {
       setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadPlugins();
-  }, [loadPlugins]);
-
-  const handleInstall = useCallback(
-    async (name: string) => {
-      setInstalling(name);
-      setError(null);
-      try {
-        await api.installPlugin(name);
-        await loadPlugins();
-      } catch (e) {
-        setError(String(e));
-      } finally {
-        setInstalling(null);
-      }
-    },
-    [loadPlugins],
-  );
-
-  const handleCheckUpdates = useCallback(async () => {
-    setError(null);
-    try {
-      const updates = await api.checkPluginUpdates();
-      if (updates && Array.isArray(updates) && updates.length > 0) {
-        setError(`${updates.length} update(s) available`);
-      } else {
-        setError("All plugins are up to date");
-      }
-    } catch (e) {
-      setError(String(e));
     }
   }, []);
 
@@ -96,18 +67,104 @@ export function PluginManager() {
     }
   }, [showError]);
 
-  // Load available plugins when switching to the tab.
+  // Initial load.
   useEffect(() => {
-    if (tab === "available" && available.length === 0) {
+    void loadPlugins();
+  }, [loadPlugins]);
+
+  // Load available when switching to tab.
+  useEffect(() => {
+    if (tab === "available") {
       void loadAvailable();
     }
-  }, [tab, available.length, loadAvailable]);
-
-  const handleSearch = useCallback(async (query: string) => {
-    if (tab === "available" && query.trim()) {
-      await loadAvailable(query);
-    }
   }, [tab, loadAvailable]);
+
+  // Listen for Wails events to stay in sync with CLI and backend.
+  useEffect(() => {
+    let cleanups: Array<() => void> = [];
+    import("@wailsio/runtime")
+      .then(({ Events }) => {
+        // Refresh installed list when any plugin changes (install, remove, CLI action).
+        cleanups.push(
+          Events.On("plugins-changed", () => {
+            void loadPlugins();
+            // Also refresh available list to update installed badges.
+            if (tab === "available") void loadAvailable();
+          }),
+        );
+
+        // Download progress.
+        cleanups.push(
+          Events.On("plugin-progress", (e: { data: unknown }) => {
+            const data = e.data as { percent?: number };
+            // Update all currently-installing plugins with progress.
+            setInstallStatus((prev) => {
+              const next = { ...prev };
+              for (const [name, status] of Object.entries(next)) {
+                if (status.state === "downloading") {
+                  next[name] = { ...status, percent: data.percent ?? 0 };
+                }
+              }
+              return next;
+            });
+          }),
+        );
+
+        // Install complete.
+        cleanups.push(
+          Events.On("plugin-installed", (e: { data: unknown }) => {
+            const data = e.data as { name?: string };
+            if (data.name) {
+              setInstallStatus((prev) => ({ ...prev, [data.name!]: { state: "done" } }));
+              // Clear "done" status after 2 seconds.
+              setTimeout(() => {
+                setInstallStatus((prev) => {
+                  const next = { ...prev };
+                  delete next[data.name!];
+                  return next;
+                });
+              }, 2000);
+            }
+          }),
+        );
+
+        // Install error.
+        cleanups.push(
+          Events.On("plugin-error", (e: { data: unknown }) => {
+            const data = e.data as { name?: string; error?: string };
+            if (data.name) {
+              setInstallStatus((prev) => ({
+                ...prev,
+                [data.name!]: { state: "error", error: data.error },
+              }));
+            }
+          }),
+        );
+      })
+      .catch(() => {});
+
+    return () => cleanups.forEach((fn) => fn());
+  }, [loadPlugins, loadAvailable, tab]);
+
+  const handleInstall = useCallback((name: string) => {
+    setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));
+    // Fire-and-forget — the backend runs in a goroutine and emits events.
+    api.installPlugin(name);
+  }, []);
+
+  const handleCheckUpdates = useCallback(async () => {
+    setError(null);
+    try {
+      const updates = await api.checkPluginUpdates();
+      if (updates && Array.isArray(updates) && updates.length > 0) {
+        setError(`${updates.length} update(s) available`);
+      } else {
+        setError("All plugins are up to date");
+      }
+    } catch (e) {
+      setError(String(e));
+    }
+  }, []);
 
   const handleRemove = useCallback(
     async (name: string) => {
@@ -125,19 +182,20 @@ export function PluginManager() {
     [loadPlugins, showError],
   );
 
-  const filtered = plugins.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered = plugins.filter(
+    (p) => !search || p.name.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  const searchDebounceRef = useCallback(
-    (() => {
-      let timer: ReturnType<typeof setTimeout>;
-      return (query: string) => {
-        clearTimeout(timer);
-        if (tab === "available") {
-          timer = setTimeout(() => void handleSearch(query), 300);
-        }
-      };
-    })(),
-    [tab, handleSearch],
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const handleSearchChange = useCallback(
+    (query: string) => {
+      setSearch(query);
+      clearTimeout(searchDebounceRef.current);
+      if (tab === "available") {
+        searchDebounceRef.current = setTimeout(() => void loadAvailable(query || undefined), 300);
+      }
+    },
+    [tab, loadAvailable],
   );
 
   return (
@@ -153,7 +211,7 @@ export function PluginManager() {
         </button>
       </div>
 
-      {/* Installed / Available tabs */}
+      {/* Tabs */}
       <div className="flex gap-0 mb-4 border-b border-border">
         <button
           onClick={() => setTab("installed")}
@@ -182,17 +240,14 @@ export function PluginManager() {
         <input
           type="text"
           value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            searchDebounceRef(e.target.value);
-          }}
+          onChange={(e) => handleSearchChange(e.target.value)}
           placeholder={tab === "installed" ? "Filter installed..." : "Search registry..."}
           className="w-full rounded-md border border-input bg-transparent py-2 pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring"
         />
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-muted-foreground" role="status">{error}</p>
+        <p className="mb-4 text-sm text-muted-foreground">{error}</p>
       )}
 
       {/* Installed tab */}
@@ -200,8 +255,7 @@ export function PluginManager() {
         <>
           {loading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 size={16} className="animate-spin" />
-              Loading plugins...
+              <Loader2 size={16} className="animate-spin" /> Loading plugins...
             </div>
           ) : (
             <div className="space-y-2">
@@ -215,10 +269,9 @@ export function PluginManager() {
                       <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{plugin.type}</span>
                     </div>
                   </div>
-                  {installing === plugin.name || removing === plugin.name ? (
+                  {removing === plugin.name ? (
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Loader2 size={12} className="animate-spin" />
-                      {removing === plugin.name ? "Removing..." : "Updating..."}
+                      <Loader2 size={12} className="animate-spin" /> Removing...
                     </div>
                   ) : confirmRemove === plugin.name ? (
                     <div className="flex items-center gap-1">
@@ -226,11 +279,7 @@ export function PluginManager() {
                       <button onClick={() => setConfirmRemove(null)} className="rounded px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground">Cancel</button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setConfirmRemove(plugin.name)}
-                      className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Uninstall plugin"
-                    >
+                    <button onClick={() => setConfirmRemove(plugin.name)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Uninstall">
                       <Trash2 size={12} />
                     </button>
                   )}
@@ -254,42 +303,63 @@ export function PluginManager() {
         <>
           {loadingAvailable ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 size={16} className="animate-spin" />
-              Loading plugin registry...
+              <Loader2 size={16} className="animate-spin" /> Loading plugin registry...
             </div>
           ) : (
             <div className="space-y-2">
-              {available.map((plugin) => (
-                <div key={plugin.name} className="flex items-center gap-3 rounded-lg border border-border p-4">
-                  <Package size={20} className={`shrink-0 ${plugin.installed ? "text-primary" : "text-muted-foreground"}`} />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{plugin.name}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">v{plugin.version}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{plugin.type}</span>
+              {available.map((plugin) => {
+                const status = installStatus[plugin.name];
+                return (
+                  <div key={plugin.name} className="flex items-center gap-3 rounded-lg border border-border p-4">
+                    <Package size={20} className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`} />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{plugin.name}</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">v{plugin.version}</span>
+                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{plugin.type}</span>
+                      </div>
+                      {plugin.description && (
+                        <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
+                      )}
+                      {/* Download progress bar */}
+                      {status?.state === "downloading" && status.percent !== undefined && (
+                        <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-300"
+                            style={{ width: `${status.percent}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                    {plugin.description && (
-                      <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
+                    {/* Status / action */}
+                    {plugin.installed || status?.state === "done" ? (
+                      <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded bg-muted">Installed</span>
+                    ) : status?.state === "downloading" ? (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Loader2 size={12} className="animate-spin" />
+                        {status.percent !== undefined ? `${status.percent}%` : "Downloading..."}
+                      </div>
+                    ) : status?.state === "error" ? (
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-destructive">{status.error || "Failed"}</span>
+                        <button
+                          onClick={() => handleInstall(plugin.name)}
+                          className="text-[10px] text-primary hover:text-primary/80"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleInstall(plugin.name)}
+                        className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                      >
+                        <Download size={12} /> Install
+                      </button>
                     )}
                   </div>
-                  {plugin.installed ? (
-                    <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded bg-muted">Installed</span>
-                  ) : installing === plugin.name ? (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Loader2 size={12} className="animate-spin" />
-                      Installing...
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => void handleInstall(plugin.name)}
-                      className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                    >
-                      <Download size={12} />
-                      Install
-                    </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
               {available.length === 0 && (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                   {search ? "No plugins match your search." : "No plugins available."}
