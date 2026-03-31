@@ -161,6 +161,11 @@ function FormatSection({
                   <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
                     {f.display_name || f.name}
                   </span>
+                  {f.display_name && (
+                    <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono shrink-0">
+                      {f.name}
+                    </span>
+                  )}
                   {f.source && f.source !== "built-in" && (
                     <Plug size={10} className="text-muted-foreground shrink-0" title={f.source} />
                   )}
