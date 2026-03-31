@@ -73,6 +73,7 @@ export interface PluginCapability {
 
 export interface PluginInfo {
   name: string;
+  id: string;
   version: string;
   framework_version?: string;
   description?: string;
