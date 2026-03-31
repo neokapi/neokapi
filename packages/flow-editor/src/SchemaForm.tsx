@@ -449,7 +449,7 @@ function PropertyField({
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "// Enter JavaScript code..."}
@@ -473,7 +473,7 @@ function PropertyField({
 
   if (widget === "file-picker") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -534,7 +534,7 @@ function PropertyField({
 
   if (widget === "simplifierRulesEditor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "One rule per line..."}
@@ -569,7 +569,7 @@ function PropertyField({
 
   if (widget === "regexBuilder" || widget === "tagList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -591,7 +591,7 @@ function PropertyField({
 
   if (widget === "numberList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -625,7 +625,7 @@ function PropertyField({
               fontWeight: 500,
             }}
           >
-            {label}
+            <PresetDot visible={isModifiedFromPreset} />{label}
           </div>
           {!compact && schema.description && (
             <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 1 }}>
@@ -639,7 +639,7 @@ function PropertyField({
 
   if (schema.enum && schema.enum.length > 0) {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <select
           value={String(resolved ?? "")}
           onChange={(e) => onChange(e.target.value)}
@@ -658,7 +658,7 @@ function PropertyField({
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
         <input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -754,7 +754,7 @@ function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={schema.description} compact={compact}>
+    <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
       <input
         type="text"
         value={String(resolved ?? "")}
@@ -819,7 +819,7 @@ function NestedObjectEditor({
           textAlign: "left",
         }}
       >
-        <span style={{ flex: 1, fontSize: 11, color: theme.fg }}><PresetDot visible={isModifiedFromPreset} />{label}</span>
+        <span style={{ flex: 1, fontSize: 11, color: theme.fg }}>{label}</span>
         <span style={{ fontSize: 10, color: theme.fgMuted }}>{keys.length} fields</span>
         <ChevronRight size={12} style={{ color: theme.fgMuted, marginLeft: 4 }} />
       </button>
@@ -915,7 +915,7 @@ function MapEditor({
   return (
     <div>
       {/* Sub-label */}
-      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}><PresetDot visible={isModifiedFromPreset} />{label}</div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
       {description && (
         <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
           {description}
@@ -1233,7 +1233,7 @@ function ArrayEditor({
   // Complex arrays — flat section sub-label + list
   return (
     <div>
-      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}><PresetDot visible={isModifiedFromPreset} />{label}</div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
       {description && (
         <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
           {description}
@@ -1390,7 +1390,7 @@ function CodeFinderRulesEditor({
 
   return (
     <div>
-      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}><PresetDot visible={isModifiedFromPreset} />{label}</div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 2 }}>{label}</div>
       {description && <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>{description}</div>}
 
       {/* Preset selector */}
@@ -1567,7 +1567,7 @@ function JsonEditor({
         ) : (
           <ChevronDown size={11} style={{ color: theme.fgMuted }} />
         )}
-        <span style={{ fontSize: 11, fontWeight: 500, color: theme.fgSecondary, flex: 1 }}><PresetDot visible={isModifiedFromPreset} />{label}</span>
+        <span style={{ fontSize: 11, fontWeight: 500, color: theme.fgSecondary, flex: 1 }}>{label}</span>
         {error && <span style={{ fontSize: 9, color: theme.destructive }}>{error}</span>}
       </button>
 
@@ -1775,11 +1775,13 @@ function FieldWrapper({
   label,
   description,
   compact,
+  isModified,
   children,
 }: {
   label: string;
   description?: string;
   compact: boolean;
+  isModified?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -1791,6 +1793,7 @@ function FieldWrapper({
           fontWeight: 500,
         }}
       >
+        <PresetDot visible={!!isModified} />
         {label}
       </div>
       {description && !compact && (
