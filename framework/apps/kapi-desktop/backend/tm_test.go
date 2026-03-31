@@ -29,6 +29,7 @@ func openTestTM(t *testing.T, app *App) string {
 	handle, err := app.OpenTM(path)
 	require.NoError(t, err)
 	require.NotEmpty(t, handle)
+	t.Cleanup(func() { app.CloseTM(handle) })
 	return handle
 }
 
