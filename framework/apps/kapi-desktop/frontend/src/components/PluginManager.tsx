@@ -159,14 +159,14 @@ export function PluginManager() {
   }, []);
 
   const handleRemove = useCallback(
-    async (name: string) => {
-      setRemoving(name);
+    async (pluginId: string) => {
+      setRemoving(pluginId);
       setConfirmRemove(null);
       try {
-        await api.removePlugin(name);
+        await api.removePlugin(pluginId);
         // Optimistically remove from local state immediately.
-        setPlugins((prev) => prev.filter((p) => p.name !== name));
-        setAvailable((prev) => prev.map((p) => p.name === name ? { ...p, installed: false } : p));
+        setPlugins((prev) => prev.filter((p) => p.id !== pluginId));
+        setAvailable((prev) => prev.map((p) => p.name === pluginId ? { ...p, installed: false } : p));
       } catch (e) {
         showError("Failed to remove plugin", e);
         // Refresh to restore accurate state on error.
@@ -256,15 +256,15 @@ export function PluginManager() {
           ) : (
             <div className="space-y-2">
               {filtered.map((plugin) => (
-                <InstalledPluginCard
-                  key={plugin.name}
-                  plugin={plugin}
-                  removing={removing === plugin.name}
-                  confirmRemove={confirmRemove === plugin.name}
-                  onConfirmRemove={() => setConfirmRemove(plugin.name)}
-                  onCancelRemove={() => setConfirmRemove(null)}
-                  onRemove={() => void handleRemove(plugin.name)}
-                />
+                  <InstalledPluginCard
+                    key={plugin.id}
+                    plugin={plugin}
+                    removing={removing === plugin.id}
+                    confirmRemove={confirmRemove === plugin.id}
+                    onConfirmRemove={() => setConfirmRemove(plugin.id)}
+                    onCancelRemove={() => setConfirmRemove(null)}
+                    onRemove={() => void handleRemove(plugin.id)}
+                  />
               ))}
               {filtered.length === 0 && (
                 <div className="py-8 text-center">

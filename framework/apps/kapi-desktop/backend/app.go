@@ -610,6 +610,7 @@ type PluginCapability struct {
 // PluginInfo is the frontend-facing plugin summary.
 type PluginInfo struct {
 	Name             string             `json:"name"`
+	ID               string             `json:"id"`                         // unique identifier for this specific plugin installation
 	Version          string             `json:"version"`
 	FrameworkVersion string             `json:"framework_version,omitempty"`
 	Type             string             `json:"type"`
@@ -638,8 +639,17 @@ func (a *App) ListPlugins() []PluginInfo {
 
 	var infos []PluginInfo
 	for _, p := range a.pluginLoader.Plugins() {
+		// Build a unique ID from the directory name on disk.
+		// Source path is like ".../plugins/okapi-1.44.0/2.20.0" — parent base is the plugin ref name.
+		pluginID := p.Name
+		if p.Source != "" {
+			parent := filepath.Dir(p.Source)
+			pluginID = filepath.Base(parent)
+		}
+
 		info := PluginInfo{
 			Name:             p.Name,
+			ID:               pluginID,
 			Version:          p.Version,
 			FrameworkVersion: p.FrameworkVersion,
 			Type:             p.Type,
