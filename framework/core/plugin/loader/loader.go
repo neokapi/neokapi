@@ -837,15 +837,28 @@ func (l *PluginLoader) FilterDoc(filterID string) json.RawMessage {
 }
 
 // StepDoc reads and returns documentation for a single pipeline step by ID.
+// Strips plugin prefixes (e.g. "okapi:image-modification" → "image-modification").
 // Returns nil if the docs directory is unavailable or the step has no docs.
 func (l *PluginLoader) StepDoc(stepID string) json.RawMessage {
 	if l.docsDir == "" {
 		return nil
 	}
-	path := filepath.Join(l.docsDir, "steps", stepID+".json")
+	// Strip plugin prefix (e.g. "okapi:batch-translation" → "batch-translation").
+	bare := stepID
+	if idx := strings.LastIndex(stepID, ":"); idx >= 0 {
+		bare = stepID[idx+1:]
+	}
+	path := filepath.Join(l.docsDir, "steps", bare+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		// Try the original ID as-is in case it has no prefix.
+		if bare != stepID {
+			path = filepath.Join(l.docsDir, "steps", stepID+".json")
+			data, err = os.ReadFile(path)
+		}
+		if err != nil {
+			return nil
+		}
 	}
 	return data
 }
