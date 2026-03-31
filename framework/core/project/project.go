@@ -24,7 +24,7 @@ const CurrentVersion = "v1"
 // KapiProject is the root type for a .kapi project file.
 type KapiProject struct {
 	Version         string                     `yaml:"version" json:"version"`
-	Name            string                     `yaml:"name" json:"name"`
+	Name            string                     `yaml:"name,omitempty" json:"name"`
 	SourceLanguage  string                     `yaml:"source_language,omitempty" json:"source_language,omitempty"`
 	TargetLanguages []string                   `yaml:"target_languages,omitempty" json:"target_languages,omitempty"`
 	Content         []ContentEntry             `yaml:"content,omitempty" json:"content,omitempty"`
@@ -36,9 +36,12 @@ type KapiProject struct {
 
 // ContentEntry maps local files to format and target path patterns.
 type ContentEntry struct {
-	Path   string `yaml:"path" json:"path"`
-	Format string `yaml:"format,omitempty" json:"format,omitempty"`
-	Target string `yaml:"target,omitempty" json:"target,omitempty"`
+	Path         string         `yaml:"path" json:"path"`
+	Format       string         `yaml:"format,omitempty" json:"format,omitempty"`
+	Target       string         `yaml:"target,omitempty" json:"target,omitempty"`
+	Collection   string         `yaml:"collection,omitempty" json:"collection,omitempty"`
+	FormatPreset string         `yaml:"format_preset,omitempty" json:"format_preset,omitempty"`
+	FormatConfig map[string]any `yaml:"format_config,omitempty" json:"format_config,omitempty"`
 }
 
 // Defaults holds project-wide processing defaults.
@@ -97,9 +100,6 @@ func (p *KapiProject) Validate() error {
 	}
 	if p.Version != CurrentVersion {
 		return fmt.Errorf("unsupported version %q (expected %q)", p.Version, CurrentVersion)
-	}
-	if p.Name == "" {
-		return fmt.Errorf("name is required")
 	}
 	for i, c := range p.Content {
 		if c.Path == "" {

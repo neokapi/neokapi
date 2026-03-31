@@ -222,24 +222,33 @@ func TestScriptNonBlockPartTypes(t *testing.T) {
 }
 
 func TestScriptConfigValidation(t *testing.T) {
-	// Both empty: error.
-	cfg := &tools.ScriptConfig{}
+	// Inline mode with no code: error.
+	cfg := &tools.ScriptConfig{Source: "inline"}
 	assert.Error(t, cfg.Validate())
 
-	// Both set: error.
-	cfg = &tools.ScriptConfig{Code: "emit(part)", ScriptFile: "test.js"}
-	assert.Error(t, cfg.Validate())
+	// Inline mode with code: ok.
+	cfg = &tools.ScriptConfig{Source: "inline", Code: "emit(part)"}
+	assert.NoError(t, cfg.Validate())
 
-	// Only code: ok.
+	// Default source (empty) with code: ok (defaults to inline).
 	cfg = &tools.ScriptConfig{Code: "emit(part)"}
 	assert.NoError(t, cfg.Validate())
 
-	// Only file: ok.
-	cfg = &tools.ScriptConfig{ScriptFile: "test.js"}
+	// Default source (empty) with no code: error.
+	cfg = &tools.ScriptConfig{}
+	assert.Error(t, cfg.Validate())
+
+	// File mode with file: ok.
+	cfg = &tools.ScriptConfig{Source: "file", ScriptFile: "test.js"}
 	assert.NoError(t, cfg.Validate())
 
-	// Reset clears values.
+	// File mode with no file: error.
+	cfg = &tools.ScriptConfig{Source: "file"}
+	assert.Error(t, cfg.Validate())
+
+	// Reset clears values and sets source to inline.
 	cfg.Reset()
+	assert.Equal(t, "inline", cfg.Source)
 	assert.Equal(t, "", cfg.Code)
 	assert.Equal(t, "", cfg.ScriptFile)
 }

@@ -17,11 +17,13 @@ import { ToolRunnerPage } from "./components/ToolRunnerPage";
 import { SettingsPage } from "./components/SettingsPage";
 import { HomePage } from "./components/HomePage";
 import { ContentPage } from "./components/ContentPage";
+import { ProjectSetupPage } from "./components/ProjectSetupPage";
 import { useShortenHome } from "./hooks/useShortenHome";
 
 interface TabState {
   info: TabInfo;
   project: KapiProject;
+  isEmpty?: boolean;
 }
 
 export default function App() {
@@ -98,10 +100,11 @@ function AppInner() {
     if (v !== "flows") setSelectedFlow(null);
   }, []);
 
-  const addTab = useCallback((tab: TabInfo, project: KapiProject) => {
+  const addTab = useCallback(async (tab: TabInfo, project: KapiProject) => {
+    const empty = await api.isEmptyProject(tab.id);
     setTabs((prev) => {
       if (prev.some((t) => t.info.id === tab.id)) return prev;
-      return [...prev, { info: tab, project }];
+      return [...prev, { info: tab, project, isEmpty: empty ?? false }];
     });
     setActiveTabID(tab.id);
     setMode("projects");
@@ -114,7 +117,7 @@ function AppInner() {
         const tab = await api.newProject(name, "en-US", [], savePath);
         if (tab) {
           const proj = await api.getProject(tab.id);
-          addTab(tab, proj ?? { version: "v1", name });
+          addTab(tab, proj ?? { version: "v1", name: tab.name });
         }
         setShowNewProjectForm(false);
       } catch (err) {
@@ -309,8 +312,24 @@ function AppInner() {
           {mode === "adhoc" && view === "formats" && <FormatsPage />}
 
           {/* Project views (only when a project tab is active) */}
-          {mode === "projects" && activeTab && view === "project-home" && (
-            <HomePage project={activeTab.project} onNavigate={handleViewChange} />
+          {mode === "projects" && activeTab && view === "project-home" && activeTab.isEmpty && (
+            <ProjectSetupPage
+              tabID={activeTab.info.id}
+              onDone={() => {
+                setTabs((prev) =>
+                  prev.map((t) =>
+                    t.info.id === activeTab.info.id ? { ...t, isEmpty: false } : t,
+                  ),
+                );
+              }}
+            />
+          )}
+          {mode === "projects" && activeTab && view === "project-home" && !activeTab.isEmpty && (
+            <HomePage
+              project={activeTab.project}
+              displayName={activeTab.info.name}
+              onNavigate={handleViewChange}
+            />
           )}
           {mode === "projects" && activeTab && view === "content" && (
             <ContentPage
@@ -367,19 +386,18 @@ function NewProjectDialog({
   const [name, setName] = useState("");
   const [customPath, setCustomPath] = useState("");
   const INVALID = /[<>:"/\\|?*\x00-\x1f]/;
-  const valid = name.trim().length > 0 && !INVALID.test(name) && name !== "." && name !== "..";
   const trimmed = name.trim();
-  const saveDir = customPath
-    ? `${customPath}/${trimmed}`
-    : valid
-      ? `~/KapiProjects/${trimmed}`
-      : "";
+  const nameValid =
+    trimmed.length > 0 && !INVALID.test(trimmed) && trimmed !== "." && trimmed !== "..";
+  // When a folder is browsed, use it directly. Otherwise require a name for ~/KapiProjects/{name}.
+  const canCreate = customPath ? true : nameValid;
+  const saveDir = customPath ? customPath : nameValid ? `~/KapiProjects/${trimmed}` : "";
   const handleBrowse = async () => {
     const dir = await api.browseProjectLocation();
     if (dir) setCustomPath(shortenHome(dir));
   };
   const handleCreate = () => {
-    if (valid) onCreate(trimmed, saveDir ? `${saveDir}/project.kapi` : undefined);
+    if (canCreate) onCreate(trimmed, saveDir ? `${saveDir}/project.kapi` : undefined);
   };
 
   return (
@@ -388,18 +406,24 @@ function NewProjectDialog({
         <h2 className="mb-4 text-lg font-semibold">New Project</h2>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Project Name</label>
+            <label className="mb-1 block text-xs text-muted-foreground">
+              {customPath ? "Location" : "Name"}
+            </label>
             <div className="flex items-center gap-1.5">
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={customPath || name}
+                onChange={(e) => {
+                  if (customPath) return;
+                  setName(e.target.value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") handleCreate();
                 }}
-                placeholder="My App"
-                autoFocus
-                className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${name && !valid ? "border-destructive" : "border-input"}`}
+                placeholder={customPath ? "" : "My App"}
+                readOnly={!!customPath}
+                autoFocus={!customPath}
+                className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${name && !nameValid && !customPath ? "border-destructive" : "border-input"} ${customPath ? "text-muted-foreground" : ""}`}
               />
               <button
                 onClick={handleBrowse}
@@ -420,17 +444,43 @@ function NewProjectDialog({
                   <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
                 </svg>
               </button>
+              {customPath && (
+                <button
+                  onClick={() => setCustomPath("")}
+                  className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label="Clear location"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
+                  </svg>
+                </button>
+              )}
             </div>
-            {name && !valid ? (
+            {customPath ? (
+              <p className="mt-1 text-xs">&nbsp;</p>
+            ) : name && !nameValid ? (
               <p className="mt-1 text-xs text-destructive">Invalid directory name</p>
             ) : saveDir ? (
-              <p className="mt-1 text-xs text-muted-foreground">Saved to {saveDir}</p>
-            ) : null}
+              <p className="mt-1 text-xs text-muted-foreground">{saveDir}</p>
+            ) : (
+              <p className="mt-1 text-xs">&nbsp;</p>
+            )}
           </div>
           <div className="flex gap-2">
             <button
               onClick={handleCreate}
-              disabled={!valid}
+              disabled={!canCreate}
               className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               Create Project

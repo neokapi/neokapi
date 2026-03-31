@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Globe, FileText, Workflow, Save, Loader2 } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 
@@ -7,11 +7,29 @@ interface ProjectPageProps {
   project: KapiProject;
   projectPath: string;
   onSaved?: (tab: TabInfo) => void;
+  onProjectChange?: (project: KapiProject) => void;
   tabID: string;
 }
 
-export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPageProps) {
+/** Derive the display name: explicit name from YAML, or folder name from path. */
+function displayName(project: KapiProject, projectPath: string): string {
+  if (project.name) return project.name;
+  if (!projectPath) return "Untitled";
+  // Path is like /Users/.../MyApp/project.kapi — grab "MyApp"
+  const parts = projectPath.replace(/\/project\.kapi$/i, "").split("/");
+  return parts[parts.length - 1] || "Untitled";
+}
+
+export function ProjectPage({
+  project,
+  projectPath,
+  onSaved,
+  onProjectChange,
+  tabID,
+}: ProjectPageProps) {
   const [saving, setSaving] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState("");
 
   const handleSave = async () => {
     setSaving(true);
@@ -27,11 +45,69 @@ export function ProjectPage({ project, projectPath, onSaved, tabID }: ProjectPag
     }
   };
 
+  const handleStartEditName = useCallback(() => {
+    setNameInput(project.name || "");
+    setEditingName(true);
+  }, [project.name]);
+
+  const handleSaveName = useCallback(async () => {
+    const trimmed = nameInput.trim();
+    const updated = { ...project, name: trimmed };
+    await api.updateProject(tabID, updated);
+    onProjectChange?.(updated);
+    if (projectPath) await api.saveProject(tabID);
+    setEditingName(false);
+  }, [nameInput, project, tabID, projectPath, onProjectChange]);
+
+  const handleCancelEditName = useCallback(() => {
+    setEditingName(false);
+  }, []);
+
+  const name = displayName(project, projectPath);
+
   return (
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">{project.name}</h1>
+          {editingName ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Escape") handleCancelEditName();
+                }}
+                placeholder={displayName({ ...project, name: "" }, projectPath)}
+                autoFocus
+                className="rounded-md border border-input bg-transparent px-2 py-1 text-xl font-semibold outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                onClick={handleSaveName}
+                className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent"
+              >
+                Save
+              </button>
+              <button
+                onClick={handleCancelEditName}
+                className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="group flex items-center gap-2">
+              <h1 className="text-xl font-semibold">{name}</h1>
+              <button
+                onClick={handleStartEditName}
+                className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                aria-label="Edit project name"
+              >
+                <Pencil size={14} />
+              </button>
+            </div>
+          )}
           {projectPath ? (
             <p className="mt-1 text-sm text-muted-foreground">{projectPath}</p>
           ) : (

@@ -17,6 +17,7 @@ type Story = StoryObj<typeof HomePage>;
 
 export const Default: Story = {
   args: {
+    displayName: "Acme App Localization",
     project: {
       version: "v1",
       name: "Acme App Localization",
@@ -43,6 +44,7 @@ export const Default: Story = {
 
 export const NoFlows: Story = {
   args: {
+    displayName: "Starter Project",
     project: {
       version: "v1",
       name: "Starter Project",

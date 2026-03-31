@@ -137,11 +137,33 @@ export const api = {
 
   // Files
   matchContent: (tabID: string) =>
-    call<Array<{ path: string; format: string; relative: string; pattern: string }>>(
-      "MatchContent",
-      tabID,
-    ),
+    call<
+      Array<{
+        path: string;
+        format: string;
+        relative: string;
+        pattern: string;
+        collection: string;
+      }>
+    >("MatchContent", tabID),
   getBasePath: (tabID: string) => call<string>("GetBasePath", tabID),
+  isEmptyProject: (tabID: string) => call<boolean>("IsEmptyProject", tabID),
+  listProjectFiles: (tabID: string) =>
+    call<
+      Array<{
+        path: string;
+        relative: string;
+        format: string;
+        size: number;
+        is_dir: boolean;
+      }>
+    >("ListProjectFiles", tabID),
+  applyTemplate: (tabID: string, template: string) =>
+    call<void>("ApplyTemplate", tabID, template),
+  copyFileToProject: (tabID: string, srcPath: string, destDir: string) =>
+    call<string>("CopyFileToProject", tabID, srcPath, destDir),
+  addFilesDialog: (tabID: string, destDir: string) =>
+    call<string[]>("AddFilesDialog", tabID, destDir),
 
   // Recent files
   listRecentFiles: () =>

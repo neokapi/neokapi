@@ -23,22 +23,25 @@ func TestNewApp(t *testing.T) {
 func newTestProject(t *testing.T, app *App, name string) *TabInfo {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name, "project.kapi")
-	tab, err := app.NewProject(name, "en-US", nil, path)
+	tab, err := app.NewProject("", "en-US", nil, path)
 	require.NoError(t, err)
 	return tab
 }
 
 func TestNewProject(t *testing.T) {
 	app := NewApp()
-	tab := newTestProject(t, app, "Test")
+	dir := filepath.Join(t.TempDir(), "TestProject")
+	path := filepath.Join(dir, "project.kapi")
+	tab, err := app.NewProject("", "en-US", nil, path)
+	require.NoError(t, err)
 
 	assert.NotEmpty(t, tab.ID)
-	assert.Equal(t, "Test", tab.Name)
-	assert.NotEmpty(t, tab.Path, "should have a path after creation")
+	assert.Equal(t, "TestProject", tab.Name, "display name should be derived from folder")
+	assert.NotEmpty(t, tab.Path)
 
 	proj := app.GetProject(tab.ID)
 	require.NotNil(t, proj)
-	assert.Equal(t, "Test", proj.Name)
+	assert.Empty(t, proj.Name, "YAML name should be empty")
 }
 
 func TestNewProjectDefaultPath(t *testing.T) {
@@ -46,9 +49,10 @@ func TestNewProjectDefaultPath(t *testing.T) {
 	tab, err := app.NewProject("MyApp", "en", nil, "")
 	require.NoError(t, err)
 	assert.Contains(t, tab.Path, "KapiProjects/MyApp/project.kapi")
+	assert.Equal(t, "MyApp", tab.Name)
 }
 
-func TestNewProjectRequiresName(t *testing.T) {
+func TestNewProjectRequiresNameOrPath(t *testing.T) {
 	app := NewApp()
 	_, err := app.NewProject("", "en", nil, "")
 	assert.Error(t, err)
