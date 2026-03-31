@@ -120,6 +120,11 @@ func (l *PluginLoader) SetDisabledPlugins(names map[string]bool) {
 // No external processes are started. Bridge plugins are recorded for
 // deferred loading via LoadBridges.
 func (l *PluginLoader) ScanMetadata(formatReg ...*registry.FormatRegistry) error {
+	// Clear accumulated state so ScanMetadata is idempotent when called
+	// multiple times (e.g., after plugin install/remove in the desktop app).
+	l.plugins = nil
+	l.pendingBridges = nil
+
 	var fmtReg *registry.FormatRegistry
 	if len(formatReg) > 0 {
 		fmtReg = formatReg[0]
