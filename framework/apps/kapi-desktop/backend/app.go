@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/id"
@@ -126,6 +127,38 @@ func (a *App) LoadPlugins() {
 		a.logger.Printf("plugin scan: %v", err)
 	}
 	a.emitEvent("plugins-loaded", nil)
+
+	// Watch the plugin cache file for external changes (e.g., CLI install/remove).
+	go a.watchPluginCache()
+}
+
+// watchPluginCache polls the plugin-cache.json file for changes and re-scans
+// when it detects an external modification (e.g., from the kapi CLI).
+func (a *App) watchPluginCache() {
+	cachePath := filepath.Join(a.pluginLoader.Dir(), "plugin-cache.json")
+	var lastMod time.Time
+
+	if info, err := os.Stat(cachePath); err == nil {
+		lastMod = info.ModTime()
+	}
+
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		info, err := os.Stat(cachePath)
+		if err != nil {
+			continue
+		}
+		if info.ModTime().After(lastMod) {
+			lastMod = info.ModTime()
+			a.logger.Println("plugin cache changed externally, re-scanning")
+			if err := a.pluginLoader.ScanMetadata(); err != nil {
+				a.logger.Printf("re-scan after external change: %v", err)
+			}
+			a.emitEvent("plugins-changed", nil)
+		}
+	}
 }
 
 // --- Project operations (multi-tab) ---
