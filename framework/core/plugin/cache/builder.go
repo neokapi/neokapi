@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -122,11 +123,27 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 		}
 	}
 
+	// Collect docs bundle from any plugin that provides one.
+	var docsBundle json.RawMessage
+	for _, versions := range all {
+		for _, iv := range versions {
+			docsPath := filepath.Join(iv.Dir, "docs.json")
+			if data, err := os.ReadFile(docsPath); err == nil {
+				docsBundle = data
+				break
+			}
+		}
+		if docsBundle != nil {
+			break
+		}
+	}
+
 	cache := &PluginCache{
 		Version: CacheVersion,
 		Plugins: plugins,
 		Schemas: collectSchemas(schemaReg),
 		Presets: collectPresets(presetReg),
+		Docs:    docsBundle,
 	}
 	return cache, nil
 }

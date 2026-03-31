@@ -73,6 +73,7 @@ type PluginLoader struct {
 	plugins  []PluginInfo
 	schemas  *SchemaRegistry        // filter parameter schemas
 	presets  *preset.PresetRegistry // format and framework presets
+	docs     json.RawMessage        // curated documentation bundle (docs.json)
 	logger   *log.Logger
 
 	// disabledPlugins is a set of plugin names to skip during scan and load.
@@ -174,6 +175,11 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 	// Populate schemas.
 	for id, s := range c.Schemas {
 		l.schemas.RegisterSchema(id, s)
+	}
+
+	// Populate docs.
+	if len(c.Docs) > 0 {
+		l.docs = c.Docs
 	}
 
 	// Populate presets.
@@ -283,6 +289,12 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 					l.logf("loading schemas from %s: %v", schemasDir, err)
 				}
 				idsAfter := l.schemas.FilterIDSet()
+
+				// Load documentation bundle if present.
+				docsPath := filepath.Join(vDir, "docs.json")
+				if data, err := os.ReadFile(docsPath); err == nil {
+					l.docs = data
+				}
 
 				var newFilterIDs []string
 				for id := range idsAfter {
@@ -796,6 +808,12 @@ func (l *PluginLoader) Schemas() *SchemaRegistry {
 // Presets returns the preset registry.
 func (l *PluginLoader) Presets() *preset.PresetRegistry {
 	return l.presets
+}
+
+// Docs returns the raw documentation bundle (docs.json) loaded from plugins.
+// Returns nil if no documentation is available.
+func (l *PluginLoader) Docs() json.RawMessage {
+	return l.docs
 }
 
 // Registry returns the shared bridge registry, or nil if no bridges are loaded.
