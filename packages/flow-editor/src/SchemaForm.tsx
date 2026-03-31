@@ -20,8 +20,6 @@ interface SchemaFormProps {
   presetValues?: Record<string, unknown>;
   /** Rich parameter documentation keyed by parameter path (e.g. "extraction.extractAll"). */
   paramDocs?: Record<string, ToolDocParam>;
-  /** Called when a field gains focus — use to drive a contextual doc sidebar. */
-  onFieldFocus?: (fieldKey: string | null) => void;
 }
 
 /**
@@ -30,7 +28,7 @@ interface SchemaFormProps {
  * types, defaults, enums, validation constraints, nested objects, arrays,
  * dynamic maps, and x-widget hints.
  */
-export function SchemaForm({ schema, values, onChange, compact = false, presetValues, paramDocs, onFieldFocus }: SchemaFormProps) {
+export function SchemaForm({ schema, values, onChange, compact = false, presetValues, paramDocs }: SchemaFormProps) {
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
     const grps = schema["x-groups"] || [];
@@ -168,7 +166,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
           onDrillDown={handleDrillDown}
           presetValues={presetValues}
           paramDocs={paramDocs}
-          onFieldFocus={onFieldFocus}
+
         />
       ))}
 
@@ -205,7 +203,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
                 onDrillDown={handleDrillDown}
                 presetValues={presetValues}
                 docParam={paramDocs?.[key]}
-                onFieldFocus={onFieldFocus}
+      
               />
             ))}
           </div>
@@ -243,7 +241,6 @@ function FieldGroup({
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   presetValues?: Record<string, unknown>;
   paramDocs?: Record<string, ToolDocParam>;
-  onFieldFocus?: (key: string | null) => void;
 }) {
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
   if (fields.length === 0) return null;
@@ -331,7 +328,7 @@ function FieldGroup({
               onDrillDown={onDrillDown}
               presetValues={presetValues}
               docParam={paramDocs?.[key]}
-              onFieldFocus={onFieldFocus}
+    
             />
           ))}
         </div>
@@ -388,7 +385,6 @@ function PropertyField({
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   presetValues?: Record<string, unknown>;
   docParam?: ToolDocParam;
-  onFieldFocus?: (key: string | null) => void;
 }) {
   // x-showIf conditional visibility
   const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
@@ -466,7 +462,7 @@ function PropertyField({
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "// Enter JavaScript code..."}
@@ -490,7 +486,7 @@ function PropertyField({
 
   if (widget === "file-picker") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -551,7 +547,7 @@ function PropertyField({
 
   if (widget === "simplifierRulesEditor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "One rule per line..."}
@@ -586,7 +582,7 @@ function PropertyField({
 
   if (widget === "regexBuilder" || widget === "tagList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -608,7 +604,7 @@ function PropertyField({
 
   if (widget === "numberList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -656,7 +652,7 @@ function PropertyField({
 
   if (schema.enum && schema.enum.length > 0) {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <select
           value={String(resolved ?? "")}
           onChange={(e) => onChange(e.target.value)}
@@ -675,7 +671,7 @@ function PropertyField({
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -771,7 +767,7 @@ function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} fieldKey={name} onFieldFocus={onFieldFocus}>
+    <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
       <input
         type="text"
         value={String(resolved ?? "")}
@@ -1904,8 +1900,6 @@ function FieldWrapper({
   compact,
   isModified,
   docParam,
-  fieldKey,
-  onFieldFocus,
   children,
 }: {
   label: string;
@@ -1913,33 +1907,108 @@ function FieldWrapper({
   compact: boolean;
   isModified?: boolean;
   docParam?: ToolDocParam;
-  fieldKey?: string;
-  onFieldFocus?: (key: string | null) => void;
   children: React.ReactNode;
 }) {
-  const hasDocs = !!docParam;
+  const [showMore, setShowMore] = useState(false);
+  const docDesc = docParam?.description;
+  const hasNotes = docParam?.notes && docParam.notes.length > 0;
+  const hasDeps = docParam?.dependsOn && docParam.dependsOn.length > 0;
+  const hasExtra = hasNotes || hasDeps || docParam?.introducedIn;
+
   return (
-    <div
-      style={{ display: "flex", flexDirection: "column", gap: 3 }}
-      onMouseEnter={hasDocs && onFieldFocus && fieldKey ? () => onFieldFocus(fieldKey) : undefined}
-      onFocus={hasDocs && onFieldFocus && fieldKey ? () => onFieldFocus(fieldKey) : undefined}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          color: theme.fgSecondary,
-          fontWeight: 500,
-        }}
-      >
-        <PresetDot visible={!!isModified} />
-        {label}
+    <div style={{ display: "flex", gap: 16 }}>
+      {/* Left: label + control */}
+      <div style={{ flex: "1 1 0%", minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: theme.fgSecondary,
+            fontWeight: 500,
+          }}
+        >
+          <PresetDot visible={!!isModified} />
+          {label}
+        </div>
+        {description && !compact && !docDesc && (
+          <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.3, marginBottom: 2 }}>
+            {description}
+          </div>
+        )}
+        {children}
       </div>
-      {description && !compact && (
-        <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.3, marginBottom: 2 }}>
-          {description}
+
+      {/* Right: doc description */}
+      {docDesc && !compact && (
+        <div style={{ flex: "0 0 42%", minWidth: 0, paddingTop: 2 }}>
+          <div
+            style={{
+              fontSize: 10,
+              color: theme.fgMuted,
+              lineHeight: 1.5,
+              display: "-webkit-box",
+              WebkitLineClamp: showMore ? undefined : 3,
+              WebkitBoxOrient: "vertical" as const,
+              overflow: showMore ? "visible" : "hidden",
+            }}
+          >
+            {docDesc}
+          </div>
+          {(hasExtra || (docDesc && docDesc.length > 120)) && (
+            <button
+              onClick={() => setShowMore((v) => !v)}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                marginTop: 3,
+                fontSize: 9,
+                color: theme.ring,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {showMore ? "Show less" : "Show more"}
+            </button>
+          )}
+          {showMore && hasNotes && (
+            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
+              {docParam!.notes!.map((note, i) => (
+                <div
+                  key={i}
+                  style={{
+                    fontSize: 9,
+                    color: theme.fgMuted,
+                    fontStyle: "italic",
+                    lineHeight: 1.4,
+                    paddingLeft: 6,
+                    borderLeft: `2px solid color-mix(in oklch, ${theme.accent} 30%, transparent)`,
+                  }}
+                >
+                  {note}
+                </div>
+              ))}
+            </div>
+          )}
+          {showMore && hasDeps && (
+            <div style={{ marginTop: 4, display: "flex", flexWrap: "wrap", gap: 3 }}>
+              {docParam!.dependsOn!.map((dep, i) => (
+                <span
+                  key={i}
+                  style={{
+                    fontSize: 9,
+                    padding: "1px 5px",
+                    borderRadius: 3,
+                    background: `color-mix(in oklch, ${theme.ring} 8%, transparent)`,
+                    color: theme.fgMuted,
+                  }}
+                >
+                  Requires <code style={{ fontWeight: 600 }}>{dep.property}</code> {dep.condition}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
-      {children}
     </div>
   );
 }
