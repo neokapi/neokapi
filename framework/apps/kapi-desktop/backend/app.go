@@ -464,8 +464,23 @@ type FormatInfo struct {
 
 // ListFormats returns all registered formats with full metadata.
 func (a *App) ListFormats() []FormatInfo {
+	// Deduplicate versioned entries: if both "okf_html" and "okf_html@1.48.0"
+	// exist, keep only the bare name. Same logic as the CLI's formats list.
+	allInfos := a.formatReg.FormatInfos()
+	bareNames := make(map[string]bool, len(allInfos))
+	for _, fi := range allInfos {
+		if !strings.Contains(fi.Name, "@") {
+			bareNames[fi.Name] = true
+		}
+	}
+
 	var infos []FormatInfo
-	for _, fi := range a.formatReg.FormatInfos() {
+	for _, fi := range allInfos {
+		if idx := strings.LastIndex(fi.Name, "@"); idx > 0 {
+			if bareNames[fi.Name[:idx]] {
+				continue
+			}
+		}
 		_, hasSchema := a.schemaReg.GetSchema(fi.Name)
 		infos = append(infos, FormatInfo{
 			Name:        fi.Name,
