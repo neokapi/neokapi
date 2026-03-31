@@ -9,8 +9,7 @@ import (
 
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
-	Theme     string `json:"theme"`      // "system", "dark", or "light"
-	PluginDir string `json:"plugin_dir"` // override plugin directory
+	Theme string `json:"theme"` // "system", "dark", or "light"
 }
 
 // settingsStore manages user preferences.

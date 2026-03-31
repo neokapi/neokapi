@@ -179,8 +179,8 @@ export const api = {
   clearRecentFiles: () => call<void>("ClearRecentFiles"),
 
   // Settings
-  getSettings: () => call<{ theme: string; plugin_dir: string }>("GetSettings"),
-  saveSettings: (s: { theme: string; plugin_dir: string }) => call<void>("SaveSettings", s),
+  getSettings: () => call<{ theme: string }>("GetSettings"),
+  saveSettings: (s: { theme: string }) => call<void>("SaveSettings", s),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
 

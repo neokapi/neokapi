@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Sun, Moon, Monitor, FolderCog, Loader2 } from "lucide-react";
+import { Sun, Moon, Monitor, Loader2 } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { CredentialsPage } from "./CredentialsPage";
@@ -19,7 +19,6 @@ export function applyTheme(mode: ThemeMode) {
 
 export function SettingsPage() {
   const [theme, setTheme] = useState<ThemeMode>("system");
-  const [pluginDir, setPluginDir] = useState("");
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"general" | "credentials" | "plugins">("general");
 
@@ -41,7 +40,6 @@ export function SettingsPage() {
       if (settings) {
         const t = (settings.theme || "system") as ThemeMode;
         setTheme(t);
-        setPluginDir(settings.plugin_dir || "");
       }
     }).catch((err) => {
       showError("Failed to load settings", err);
@@ -55,10 +53,6 @@ export function SettingsPage() {
     applyTheme(next);
     try { await api.setTheme(next); } catch (err) { showError("Failed to save theme", err); }
   }, [showError]);
-
-  const handleSavePluginDir = async () => {
-    try { await api.saveSettings({ theme, plugin_dir: pluginDir }); } catch (err) { showError("Failed to save settings", err); }
-  };
 
   if (loading) {
     return (
@@ -139,24 +133,6 @@ export function SettingsPage() {
                 </p>
               </div>
 
-              <div className="rounded-lg border border-border p-4">
-                <div className="mb-3 flex items-center gap-3">
-                  <FolderCog size={18} />
-                  <div className="text-sm font-medium">Plugin Directory</div>
-                </div>
-                <input
-                  type="text"
-                  value={pluginDir}
-                  onChange={(e) => setPluginDir(e.target.value)}
-                  onBlur={handleSavePluginDir}
-                  placeholder="~/.config/kapi/plugins"
-                  className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-                  aria-label="Plugin directory path"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Override with KAPI_PLUGIN_DIR environment variable
-                </p>
-              </div>
             </div>
           </div>
         )}

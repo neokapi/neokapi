@@ -21,7 +21,7 @@ func TestSettingsPersistence(t *testing.T) {
 
 	s1 := &settingsStore{
 		filePath: path,
-		settings: AppSettings{Theme: "light", PluginDir: "/custom/plugins"},
+		settings: AppSettings{Theme: "light"},
 	}
 	s1.save()
 
@@ -31,7 +31,6 @@ func TestSettingsPersistence(t *testing.T) {
 	}
 	s2.load()
 	assert.Equal(t, "light", s2.settings.Theme)
-	assert.Equal(t, "/custom/plugins", s2.settings.PluginDir)
 }
 
 func TestAppGetSettings(t *testing.T) {
@@ -49,11 +48,7 @@ func TestAppSetTheme(t *testing.T) {
 
 func TestAppSaveSettings(t *testing.T) {
 	app := NewApp()
-	app.SaveSettings(AppSettings{
-		Theme:     "light",
-		PluginDir: "/custom",
-	})
+	app.SaveSettings(AppSettings{Theme: "light"})
 	settings := app.GetSettings()
 	assert.Equal(t, "light", settings.Theme)
-	assert.Equal(t, "/custom", settings.PluginDir)
 }
