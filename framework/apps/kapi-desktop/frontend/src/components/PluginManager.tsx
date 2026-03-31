@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench } from "lucide-react";
+import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench, ArrowUpCircle } from "lucide-react";
 import type { PluginInfo } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
@@ -11,6 +11,12 @@ interface AvailablePlugin {
   description: string;
   type: string;
   installed: boolean;
+}
+
+interface PluginUpdate {
+  name: string;
+  current_version?: string;
+  latest_version?: string;
 }
 
 interface InstallStatus {
@@ -30,6 +36,9 @@ export function PluginManager() {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"installed" | "available">("installed");
+  const [updates, setUpdates] = useState<PluginUpdate[]>([]);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updatingAll, setUpdatingAll] = useState(false);
 
   const { showError } = useError();
 
@@ -92,16 +101,23 @@ export function PluginManager() {
     });
   });
 
-  // Install complete.
+  // Install/update complete.
   useWailsEvent("plugin-installed", (data) => {
     const d = data as { name?: string };
     if (d.name) {
       setInstallStatus((prev) => ({ ...prev, [d.name!]: { state: "done" } }));
+      // Remove from pending updates list.
+      setUpdates((prev) => prev.filter((u) => u.name !== d.name));
       setTimeout(() => {
         setInstallStatus((prev) => {
           const next = { ...prev };
           delete next[d.name!];
           return next;
+        });
+        // Reset updatingAll when all updates are done.
+        setUpdates((prev) => {
+          if (prev.length === 0) setUpdatingAll(false);
+          return prev;
         });
       }, 2000);
     }
@@ -126,17 +142,35 @@ export function PluginManager() {
 
   const handleCheckUpdates = useCallback(async () => {
     setError(null);
+    setCheckingUpdates(true);
     try {
-      const updates = await api.checkPluginUpdates();
-      if (updates && Array.isArray(updates) && updates.length > 0) {
-        setError(`${updates.length} update(s) available`);
+      const result = await api.checkPluginUpdates();
+      if (result && Array.isArray(result) && result.length > 0) {
+        setUpdates(result as PluginUpdate[]);
       } else {
+        setUpdates([]);
         setError("All plugins are up to date");
       }
     } catch (e) {
       setError(String(e));
+    } finally {
+      setCheckingUpdates(false);
     }
   }, []);
+
+  const handleUpdate = useCallback((name: string) => {
+    setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));
+    api.updatePlugin(name);
+  }, []);
+
+  const handleUpdateAll = useCallback(async () => {
+    setUpdatingAll(true);
+    for (const u of updates) {
+      setInstallStatus((prev) => ({ ...prev, [u.name]: { state: "downloading", percent: 0 } }));
+      api.updatePlugin(u.name);
+    }
+    // The event handlers will manage state from here.
+  }, [updates]);
 
   const handleRemove = useCallback(
     async (pluginId: string) => {
@@ -178,13 +212,26 @@ export function PluginManager() {
     <div className="p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Plugins</h1>
-        <button
-          onClick={handleCheckUpdates}
-          className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
-        >
-          <RefreshCw size={12} />
-          Check Updates
-        </button>
+        <div className="flex items-center gap-2">
+          {updates.length > 0 && (
+            <button
+              onClick={handleUpdateAll}
+              disabled={updatingAll}
+              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              <ArrowUpCircle size={12} />
+              {updatingAll ? "Updating..." : `Update All (${updates.length})`}
+            </button>
+          )}
+          <button
+            onClick={handleCheckUpdates}
+            disabled={checkingUpdates}
+            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
+          >
+            <RefreshCw size={12} className={checkingUpdates ? "animate-spin" : ""} />
+            {checkingUpdates ? "Checking..." : "Check Updates"}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -235,17 +282,24 @@ export function PluginManager() {
             </div>
           ) : (
             <div className="space-y-2">
-              {filtered.map((plugin) => (
-                  <InstalledPluginCard
-                    key={plugin.id}
-                    plugin={plugin}
-                    removing={removing === plugin.id}
-                    confirmRemove={confirmRemove === plugin.id}
-                    onConfirmRemove={() => setConfirmRemove(plugin.id)}
-                    onCancelRemove={() => setConfirmRemove(null)}
-                    onRemove={() => void handleRemove(plugin.id)}
-                  />
-              ))}
+              {filtered.map((plugin) => {
+                  const updateInfo = updates.find((u) => u.name === plugin.name);
+                  const updateStatus = installStatus[plugin.name];
+                  return (
+                    <InstalledPluginCard
+                      key={plugin.id}
+                      plugin={plugin}
+                      removing={removing === plugin.id}
+                      confirmRemove={confirmRemove === plugin.id}
+                      onConfirmRemove={() => setConfirmRemove(plugin.id)}
+                      onCancelRemove={() => setConfirmRemove(null)}
+                      onRemove={() => void handleRemove(plugin.id)}
+                      updateAvailable={updateInfo}
+                      updateStatus={updateStatus}
+                      onUpdate={() => handleUpdate(plugin.name)}
+                    />
+                  );
+              })}
               {filtered.length === 0 && (
                 <div className="py-8 text-center">
                   <p className="text-sm text-muted-foreground mb-2">No plugins installed.</p>
@@ -341,6 +395,9 @@ function InstalledPluginCard({
   onConfirmRemove,
   onCancelRemove,
   onRemove,
+  updateAvailable,
+  updateStatus,
+  onUpdate,
 }: {
   plugin: PluginInfo;
   removing: boolean;
@@ -348,6 +405,9 @@ function InstalledPluginCard({
   onConfirmRemove: () => void;
   onCancelRemove: () => void;
   onRemove: () => void;
+  updateAvailable?: PluginUpdate;
+  updateStatus?: InstallStatus;
+  onUpdate?: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const formatCaps = plugin.capabilities?.filter((c) => c.type === "format") ?? [];
@@ -384,6 +444,15 @@ function InstalledPluginCard({
               )}
             </div>
           )}
+          {/* Update progress bar */}
+          {updateStatus?.state === "downloading" && updateStatus.percent !== undefined && (
+            <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${updateStatus.percent}%` }}
+              />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {hasDetails && (
@@ -395,6 +464,32 @@ function InstalledPluginCard({
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             </button>
           )}
+          {/* Update button / progress */}
+          {updateStatus?.state === "downloading" ? (
+            <div className="flex items-center gap-1 text-xs text-primary">
+              <Loader2 size={12} className="animate-spin" />
+              {updateStatus.percent !== undefined ? `${updateStatus.percent}%` : "Updating..."}
+            </div>
+          ) : updateStatus?.state === "done" ? (
+            <span className="text-[10px] text-primary px-2 py-0.5 rounded bg-primary/10">Updated</span>
+          ) : updateStatus?.state === "error" ? (
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-destructive">{updateStatus.error || "Failed"}</span>
+              {onUpdate && (
+                <button onClick={onUpdate} className="text-[10px] text-primary hover:text-primary/80">Retry</button>
+              )}
+            </div>
+          ) : updateAvailable && onUpdate ? (
+            <button
+              onClick={onUpdate}
+              className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+              title={`Update to v${updateAvailable.latest_version}`}
+            >
+              <ArrowUpCircle size={11} />
+              {updateAvailable.latest_version ? `v${updateAvailable.latest_version}` : "Update"}
+            </button>
+          ) : null}
+          {/* Remove */}
           {removing ? (
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Loader2 size={12} className="animate-spin" /> Removing...
