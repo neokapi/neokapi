@@ -47,6 +47,7 @@ export interface FlowInfo {
 
 export interface ToolInfo {
   name: string;
+  display_name?: string;
   description: string;
   category: string;
   has_schema: boolean;

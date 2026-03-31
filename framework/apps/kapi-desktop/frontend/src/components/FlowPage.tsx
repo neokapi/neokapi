@@ -26,6 +26,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
         setTools(
           result.map((t) => ({
             name: t.name,
+            display_name: t.display_name,
             description: t.description,
             category: t.category,
             has_schema: t.has_schema,

@@ -211,7 +211,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className={`text-xs font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
-                            {tool.name}
+                            {tool.display_name || tool.name}
                           </span>
                           {tool.has_schema && (
                             <Settings2 size={9} className="text-muted-foreground shrink-0" />
@@ -360,7 +360,7 @@ function ToolDetail({
           <Icon size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-semibold text-foreground">{tool.name}</h2>
+          <h2 className="text-lg font-semibold text-foreground">{tool.display_name || tool.name}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">
             {tool.description}
           </p>
@@ -543,7 +543,7 @@ function ToolDetail({
               className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-              {running ? "Running..." : `Run ${tool.name}`}
+              {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
             </button>
           </div>
         </div>
