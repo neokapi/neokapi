@@ -1,0 +1,48 @@
+{
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "cart": "Shopping Cart",
+    "account": "My Account",
+    "orders": "Order History",
+    "wishlist": "Wishlist",
+    "help": "Help & Support"
+  },
+  "hero": {
+    "title": "Welcome to KapiMart",
+    "subtitle": "Your one-stop shop for premium goods, delivered worldwide.",
+    "cta": "Shop Now",
+    "sale_banner": "Spring Sale — Up to 40% off selected items!"
+  },
+  "product": {
+    "add_to_cart": "Add to Cart",
+    "buy_now": "Buy Now",
+    "out_of_stock": "Out of Stock",
+    "in_stock": "{count} in stock",
+    "reviews": "{count, plural, one {# review} other {# reviews}}",
+    "price_from": "From {price}",
+    "free_shipping": "Free shipping on orders over {amount}",
+    "size_guide": "Size Guide",
+    "color": "Color",
+    "quantity": "Quantity"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "shipping_address": "Shipping Address",
+    "payment_method": "Payment Method",
+    "order_summary": "Order Summary",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "tax": "Tax",
+    "total": "Total",
+    "place_order": "Place Order",
+    "secure_payment": "Your payment information is encrypted and secure."
+  },
+  "footer": {
+    "about": "About KapiMart",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "contact": "Contact Us",
+    "copyright": "2026 KapiMart. All rights reserved."
+  }
+}

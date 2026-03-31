@@ -7,10 +7,13 @@ const meta: Meta<typeof AppHome> = {
   component: AppHome,
   tags: ["autodocs"],
   args: {
+    samplesDismissed: false,
     onOpenRecent: fn(),
     onNewProject: fn(),
     onOpenProject: fn(),
     onNavigate: fn(),
+    onCreateSampleProject: fn(),
+    onDismissSamples: fn(),
   },
   parameters: {
     layout: "fullscreen",
@@ -42,8 +45,17 @@ export const WithRecentProjects: Story = {
   },
 };
 
+/** Empty state shows sample project cards. */
 export const Empty: Story = {
   args: {
     recentFiles: [],
+  },
+};
+
+/** Sample cards hidden after user dismisses them. */
+export const SamplesDismissed: Story = {
+  args: {
+    recentFiles: [],
+    samplesDismissed: true,
   },
 };

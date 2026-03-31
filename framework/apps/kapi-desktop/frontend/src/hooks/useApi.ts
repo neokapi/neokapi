@@ -64,6 +64,7 @@ export const api = {
     call<TabInfo>("NewProject", name, sourceLang, targetLangs, savePath ?? ""),
   openProject: (path: string) => call<TabInfo>("OpenProject", path),
   openProjectDialog: () => call<TabInfo>("OpenProjectDialog"),
+  createSampleProject: (name: string) => call<TabInfo>("CreateSampleProject", name),
   browseProjectLocation: () => call<string>("BrowseProjectLocation"),
   closeProject: (tabID: string) => call<void>("CloseProject", tabID),
   listTabs: () => call<TabInfo[]>("ListTabs"),
@@ -179,8 +180,9 @@ export const api = {
   clearRecentFiles: () => call<void>("ClearRecentFiles"),
 
   // Settings
-  getSettings: () => call<{ theme: string }>("GetSettings"),
+  getSettings: () => call<{ theme: string; samples_dismissed?: boolean }>("GetSettings"),
   saveSettings: (s: { theme: string }) => call<void>("SaveSettings", s),
+  dismissSamples: () => call<void>("DismissSamples"),
   getTheme: () => call<string>("GetTheme"),
   setTheme: (theme: string) => call<void>("SetTheme", theme),
 

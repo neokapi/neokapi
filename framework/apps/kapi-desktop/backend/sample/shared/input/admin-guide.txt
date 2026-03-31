@@ -1,0 +1,64 @@
+KapiMart Store Administration Guide
+=====================================
+
+Welcome to the KapiMart admin panel. This guide covers the essential tasks
+you need to manage your store effectively.
+
+Getting Started
+---------------
+
+After signing in to the admin panel, you'll see the dashboard with an overview
+of recent orders, revenue, and inventory alerts. The navigation menu on the left
+gives you access to all management sections.
+
+Managing Products
+-----------------
+
+To add a new product, go to Products > Add New. Fill in the product name,
+description, price, and upload at least one image. Products are not visible
+to customers until you click "Publish."
+
+To edit an existing product, find it in the product list and click its name.
+You can update the price, description, stock quantity, and images at any time.
+Changes take effect immediately.
+
+Processing Orders
+-----------------
+
+New orders appear in the Orders section with a "Pending" status. Review the
+order details, confirm the items are in stock, and mark the order as
+"Processing" to begin fulfillment.
+
+Once the package is shipped, update the status to "Shipped" and enter the
+tracking number. The customer will receive an automatic notification with
+tracking information.
+
+Handling Returns
+----------------
+
+Return requests appear in Orders > Returns. Review the reason for the return
+and approve or deny the request. Approved returns generate a return shipping
+label automatically.
+
+Refunds are processed within 3-5 business days after we receive the returned
+item. You can also issue immediate refunds for damaged or incorrect items.
+
+Inventory Management
+--------------------
+
+The Inventory section shows current stock levels for all products. Set up
+low-stock alerts to receive notifications when a product falls below your
+chosen threshold.
+
+You can import and export inventory data using CSV files. This is useful for
+bulk updates or syncing with external warehouse systems.
+
+Customer Support
+----------------
+
+Customer messages are collected in the Support section. Assign tickets to team
+members, add internal notes, and track resolution times. Aim to respond to all
+inquiries within 24 hours.
+
+For urgent issues, use the priority flag to escalate tickets. Escalated tickets
+appear at the top of the queue for immediate attention.

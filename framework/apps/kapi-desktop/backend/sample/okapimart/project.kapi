@@ -1,0 +1,45 @@
+version: v1
+name: OkapiMart
+source_language: en-US
+target_languages:
+  - fr-FR
+  - de-DE
+  - ja-JP
+plugins:
+  - okapi-bridge
+content:
+  - path: "input/*.json"
+    format: okf_json
+    target: "output/{lang}/*.json"
+  - path: "input/*.yaml"
+    format: okf_yaml
+    target: "output/{lang}/*.yaml"
+  - path: "input/*.html"
+    format: okf_html
+    target: "output/{lang}/*.html"
+  - path: "input/*.md"
+    format: okf_markdown
+    target: "output/{lang}/*.md"
+  - path: "input/*.properties"
+    format: okf_properties
+    target: "output/{lang}/*.properties"
+  - path: "input/*.srt"
+    format: okf_vtt
+    target: "output/{lang}/*.srt"
+  - path: "input/*.xml"
+    format: okf_xml
+    target: "output/{lang}/*.xml"
+  - path: "input/*.txt"
+    format: okf_plaintext
+    target: "output/{lang}/*.txt"
+flows:
+  translate:
+    steps:
+      - tool: ai-translate
+  translate-and-qa:
+    steps:
+      - tool: ai-translate
+      - tool: qa-check
+  pseudo-translate:
+    steps:
+      - tool: pseudo-translate

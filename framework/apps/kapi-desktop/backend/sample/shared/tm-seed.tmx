@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <header creationtool="KapiMart Sample" creationtoolversion="1.0"
+          datatype="plaintext" segtype="sentence" adminlang="en-US" srclang="en-US"/>
+  <body>
+    <!-- Navigation -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Home</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Accueil</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Startseite</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ホーム</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Products</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Produits</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Produkte</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>商品</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Shopping Cart</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Panier</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Warenkorb</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>ショッピングカート</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>My Account</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Mon compte</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Mein Konto</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>マイアカウント</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Order History</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Historique des commandes</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bestellverlauf</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文履歴</seg></tuv>
+    </tu>
+
+    <!-- Product page -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Add to Cart</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Ajouter au panier</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>In den Warenkorb</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>カートに追加</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Buy Now</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Acheter maintenant</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Jetzt kaufen</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>今すぐ購入</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Out of Stock</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Rupture de stock</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nicht auf Lager</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>在庫切れ</seg></tuv>
+    </tu>
+
+    <!-- Checkout -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Checkout</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Paiement</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zur Kasse</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お支払い</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Shipping Address</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Adresse de livraison</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Lieferadresse</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>配送先住所</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Payment Method</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Moyen de paiement</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Zahlungsmethode</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お支払い方法</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Place Order</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Passer la commande</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bestellung aufgeben</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>注文する</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your payment information is encrypted and secure.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Vos informations de paiement sont chiffrées et sécurisées.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Zahlungsinformationen sind verschlüsselt und sicher.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お支払い情報は暗号化され、安全に保護されています。</seg></tuv>
+    </tu>
+
+    <!-- General -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Free shipping on orders over $50.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Livraison gratuite pour les commandes de plus de 50 $.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kostenloser Versand bei Bestellungen über 50 $.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>50ドル以上のご注文で送料無料。</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Privacy Policy</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Politique de confidentialité</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Datenschutzrichtlinie</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>プライバシーポリシー</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Terms of Service</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Conditions d'utilisation</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Nutzungsbedingungen</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>利用規約</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Contact Us</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Contactez-nous</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Kontaktieren Sie uns</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>お問い合わせ</seg></tuv>
+    </tu>
+
+    <!-- About page -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Quality products, delivered worldwide since 2020.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Des produits de qualité, livrés dans le monde entier depuis 2020.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Qualitätsprodukte, seit 2020 weltweit geliefert.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>2020年から世界中にお届けする高品質な商品。</seg></tuv>
+    </tu>
+
+    <!-- Error messages -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Something went wrong on our end. Please try again later.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Un problème est survenu de notre côté. Veuillez réessayer plus tard.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Bei uns ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>こちら側で問題が発生しました。後ほどもう一度お試しください。</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your session has expired. Please sign in again.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre session a expiré. Veuillez vous reconnecter.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>セッションの有効期限が切れました。もう一度ログインしてください。</seg></tuv>
+    </tu>
+
+    <!-- Product descriptions -->
+    <tu>
+      <tuv xml:lang="en-US"><seg>Silence the world. Hear what matters.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Faites taire le monde. Écoutez ce qui compte.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Schalten Sie die Welt stumm. Hören Sie, was zählt.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>世界の雑音を消して、大切な音だけを聴こう。</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Music without boundaries.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>De la musique sans frontières.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Musik ohne Grenzen.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>音楽に境界はない。</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Your home, your rules.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>Votre maison, vos règles.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Ihr Zuhause, Ihre Regeln.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>あなたの家、あなたのルール。</seg></tuv>
+    </tu>
+    <tu>
+      <tuv xml:lang="en-US"><seg>Precision in every cut.</seg></tuv>
+      <tuv xml:lang="fr-FR"><seg>La précision à chaque coupe.</seg></tuv>
+      <tuv xml:lang="de-DE"><seg>Präzision bei jedem Schnitt.</seg></tuv>
+      <tuv xml:lang="ja-JP"><seg>すべての切り口に精密さを。</seg></tuv>
+    </tu>
+  </body>
+</tmx>

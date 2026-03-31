@@ -103,6 +103,10 @@ type openProject struct {
 	Path    string
 	Project *project.KapiProject
 	watcher *fileWatcher
+
+	// Project-scoped TM and termbase (auto-opened from .kapi/tm.db and .kapi/termbase.db).
+	tmHandle string // handle ID in App.tmHandles, empty if none
+	tbHandle string // handle ID in App.tbHandles, empty if none
 }
 
 // ServiceStartup is called by Wails v3 during application startup.
@@ -286,6 +290,9 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 	tabID := id.New()
 	op := &openProject{ID: tabID, Path: path, Project: proj}
 
+	// Auto-open project-scoped TM and termbase if present.
+	a.autoOpenProjectResources(op)
+
 	a.mu.Lock()
 	a.projects[tabID] = op
 	a.mu.Unlock()
@@ -310,14 +317,48 @@ func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	return nil
 }
 
-// CloseProject removes a project tab and stops its file watcher.
+// CloseProject removes a project tab, stops its file watcher,
+// and closes any auto-opened TM/termbase handles.
 func (a *App) CloseProject(tabID string) {
 	a.mu.Lock()
 	op := a.projects[tabID]
 	delete(a.projects, tabID)
 	a.mu.Unlock()
-	if op != nil && op.watcher != nil {
+	if op == nil {
+		return
+	}
+	if op.watcher != nil {
 		op.watcher.Stop()
+	}
+	if op.tmHandle != "" {
+		a.tmHandles.Close(op.tmHandle)
+	}
+	if op.tbHandle != "" {
+		a.tbHandles.Close(op.tbHandle)
+	}
+}
+
+// autoOpenProjectResources checks for convention-based .kapi/tm.db and
+// .kapi/termbase.db files relative to the project root and opens them as
+// project-scoped TM/termbase handles.
+func (a *App) autoOpenProjectResources(op *openProject) {
+	if op.Path == "" {
+		return
+	}
+	basePath := filepath.Dir(op.Path)
+
+	tmPath := filepath.Join(basePath, ".kapi", "tm.db")
+	if _, err := os.Stat(tmPath); err == nil {
+		if tm, err := sievepen.NewSQLiteTM(tmPath); err == nil {
+			op.tmHandle = a.tmHandles.Open(tm)
+		}
+	}
+
+	tbPath := filepath.Join(basePath, ".kapi", "termbase.db")
+	if _, err := os.Stat(tbPath); err == nil {
+		if tb, err := termbase.NewSQLiteTermBase(tbPath); err == nil {
+			op.tbHandle = a.tbHandles.Open(tb)
+		}
 	}
 }
 

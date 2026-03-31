@@ -1,0 +1,48 @@
+1
+00:00:01,000 --> 00:00:04,500
+Welcome to KapiMart — your new favorite online store.
+
+2
+00:00:05,000 --> 00:00:09,000
+In this quick tour, we'll show you how to find products,
+place orders, and track your deliveries.
+
+3
+00:00:10,000 --> 00:00:14,500
+Start by browsing our categories. We've organized everything
+from electronics to kitchen essentials.
+
+4
+00:00:15,000 --> 00:00:19,000
+Found something you like? Click "Add to Cart" to save it.
+You can keep shopping or check out right away.
+
+5
+00:00:20,000 --> 00:00:24,500
+At checkout, enter your shipping address and payment details.
+We accept all major credit cards and digital wallets.
+
+6
+00:00:25,000 --> 00:00:29,000
+Once your order is placed, you'll receive a confirmation email
+with a tracking number.
+
+7
+00:00:30,000 --> 00:00:34,500
+Track your package in real time from the "Order History" page.
+You'll get notifications at every step.
+
+8
+00:00:35,000 --> 00:00:39,000
+Need to return something? No problem.
+Go to your order, click "Return Item," and follow the steps.
+
+9
+00:00:40,000 --> 00:00:44,500
+Our support team is available around the clock.
+Reach us via chat, email, or phone — whatever works for you.
+
+10
+00:00:45,000 --> 00:00:49,000
+That's it! You're all set to start shopping.
+Enjoy free shipping on your first order with code WELCOME.
