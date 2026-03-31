@@ -31,6 +31,19 @@ export function FormatsPage() {
       .finally(() => setLoading(false));
   }, [showError]);
 
+  // Refresh when plugins change (formats may have been added/removed).
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    import("@wailsio/runtime")
+      .then(({ Events }) => {
+        cleanup = Events.On("registries-changed", () => {
+          api.listFormats().then((f) => { if (f) setFormats(f); }).catch(() => {});
+        });
+      })
+      .catch(() => {});
+    return () => { cleanup?.(); };
+  }, []);
+
   const filtered = search
     ? formats.filter(
         (f) =>

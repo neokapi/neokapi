@@ -124,13 +124,20 @@ func (a *App) SetApplication(app *application.App) {
 
 // LoadPlugins scans and loads plugins in the background.
 func (a *App) LoadPlugins() {
-	if err := a.pluginLoader.ScanMetadata(); err != nil {
-		a.logger.Printf("plugin scan: %v", err)
-	}
+	a.rescanPlugins()
 	a.emitEvent("plugins-loaded", nil)
 
 	// Watch the plugin cache file for external changes (e.g., CLI install/remove).
 	go a.watchPluginCache()
+}
+
+// rescanPlugins re-reads plugin metadata and registers plugin-provided
+// formats into the app's format registry. Pass formatReg so ScanMetadata
+// can register format readers/writers from the cache.
+func (a *App) rescanPlugins() {
+	if err := a.pluginLoader.ScanMetadata(a.formatReg); err != nil {
+		a.logger.Printf("plugin scan: %v", err)
+	}
 }
 
 // watchPluginCache polls the plugin-cache.json file for changes and re-scans
@@ -154,10 +161,9 @@ func (a *App) watchPluginCache() {
 		if info.ModTime().After(lastMod) {
 			lastMod = info.ModTime()
 			a.logger.Println("plugin cache changed externally, re-scanning")
-			if err := a.pluginLoader.ScanMetadata(); err != nil {
-				a.logger.Printf("re-scan after external change: %v", err)
-			}
+			a.rescanPlugins()
 			a.emitEvent("plugins-changed", nil)
+			a.emitEvent("registries-changed", nil)
 		}
 	}
 }

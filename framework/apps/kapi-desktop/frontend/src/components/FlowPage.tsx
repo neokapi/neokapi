@@ -18,7 +18,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
   const fetchingRef = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
-  useEffect(() => {
+  const loadTools = useCallback(() => {
     api.listTools().then((result) => {
       if (result) {
         setTools(
@@ -36,6 +36,19 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
       }
     });
   }, []);
+
+  useEffect(() => { loadTools(); }, [loadTools]);
+
+  // Refresh when plugins change (tools may have been added/removed).
+  useEffect(() => {
+    let cleanup: (() => void) | null = null;
+    import("@wailsio/runtime")
+      .then(({ Events }) => {
+        cleanup = Events.On("registries-changed", () => loadTools());
+      })
+      .catch(() => {});
+    return () => { cleanup?.(); };
+  }, [loadTools]);
 
   const handleGetSchema = useCallback((toolName: string): ComponentSchema | null => {
     if (toolName in schemasRef.current) {
