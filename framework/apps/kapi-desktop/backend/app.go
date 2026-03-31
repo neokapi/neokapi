@@ -132,11 +132,16 @@ func (a *App) LoadPlugins() {
 }
 
 // rescanPlugins re-reads plugin metadata and registers plugin-provided
-// formats into the app's format registry. Pass formatReg so ScanMetadata
-// can register format readers/writers from the cache.
+// formats and schemas into the app's registries.
 func (a *App) rescanPlugins() {
 	if err := a.pluginLoader.ScanMetadata(a.formatReg); err != nil {
 		a.logger.Printf("plugin scan: %v", err)
+		return
+	}
+	// Transfer plugin schemas to the app's schema registry so
+	// GetFormatSchema can find them (e.g., okf_html, okf_xliff).
+	for id, s := range a.pluginLoader.Schemas().AllSchemas() {
+		a.schemaReg.RegisterSchema(id, s)
 	}
 }
 
