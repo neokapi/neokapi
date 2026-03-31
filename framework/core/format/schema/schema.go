@@ -265,6 +265,17 @@ func (r *SchemaRegistry) ListFilters() []FilterSchemaMeta {
 	return result
 }
 
+// AllSchemas returns a copy of all registered schemas keyed by filter ID.
+func (r *SchemaRegistry) AllSchemas() map[string]*FilterSchema {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	result := make(map[string]*FilterSchema, len(r.schemas))
+	for id, s := range r.schemas {
+		result[id] = s
+	}
+	return result
+}
+
 // FilterIDSet returns a snapshot of all registered filter IDs as a set.
 // Used to diff before/after schema loading.
 func (r *SchemaRegistry) FilterIDSet() map[string]struct{} {
