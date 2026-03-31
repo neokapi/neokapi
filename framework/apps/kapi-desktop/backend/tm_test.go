@@ -198,6 +198,7 @@ func TestTM_EntityAwareLookup(t *testing.T) {
 	path := filepath.Join(dir, "lookup.db")
 	handle, err := app.OpenTM(path)
 	require.NoError(t, err)
+	t.Cleanup(func() { app.CloseTM(handle) })
 
 	// Add an entry with entity spans: "John is a hero" with John as entity:person.
 	tm, ok := app.tmHandles.Get(handle)
@@ -340,6 +341,7 @@ func TestTM_CreateNamedTM(t *testing.T) {
 	handle, err := app.CreateTM(path)
 	require.NoError(t, err)
 	require.NotEmpty(t, handle)
+	t.Cleanup(func() { app.CloseTM(handle) })
 
 	stats := app.GetTMStats(handle)
 	require.NotNil(t, stats)
