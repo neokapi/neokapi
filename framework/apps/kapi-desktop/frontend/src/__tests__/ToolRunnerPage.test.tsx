@@ -169,8 +169,8 @@ describe("ToolRunnerPage", () => {
     ];
     renderPage({ tools: toolsWithDocs, docs: sampleDocs });
     await userEvent.click(screen.getByText("batch-translation"));
-    expect(
-      screen.getByText("Translates using batch resources."),
-    ).toBeInTheDocument();
+    // Overview may appear in both header banner and sidebar
+    const matches = screen.getAllByText("Translates using batch resources.");
+    expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });
