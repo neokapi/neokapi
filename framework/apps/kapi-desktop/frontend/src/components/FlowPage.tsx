@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef, useReducer } from "react";
 import type { FlowSpec } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { FlowEditor } from "@neokapi/flow-editor";
-import type { ToolInfo, ComponentSchema } from "@neokapi/flow-editor";
+import type { ToolInfo, ToolDoc, ComponentSchema } from "@neokapi/flow-editor";
 import { api } from "../hooks/useApi";
 
 interface FlowPageProps {
@@ -16,6 +16,7 @@ interface FlowPageProps {
 export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPageProps) {
   const [tools, setTools] = useState<ToolInfo[]>([]);
   const schemasRef = useRef<Record<string, ComponentSchema | null>>({});
+  const docsRef = useRef<Record<string, ToolDoc | null>>({});
   const fetchingRef = useRef<Set<string>>(new Set());
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
@@ -57,6 +58,33 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
     return null;
   }, []);
 
+  const handleGetDoc = useCallback((toolName: string): ToolDoc | null => {
+    if (toolName in docsRef.current) {
+      return docsRef.current[toolName] ?? null;
+    }
+    const fetchKey = `doc:${toolName}`;
+    if (fetchingRef.current.has(fetchKey)) return null;
+    fetchingRef.current.add(fetchKey);
+    api.getStepDoc(toolName).then((result) => {
+      fetchingRef.current.delete(fetchKey);
+      if (result) {
+        docsRef.current[toolName] = {
+          displayName: result.filterName,
+          overview: result.overview,
+          parameters: result.parameters,
+          limitations: result.limitations,
+          processingNotes: result.processingNotes,
+          examples: result.examples,
+          wikiUrl: result.wikiUrl,
+        };
+      } else {
+        docsRef.current[toolName] = null;
+      }
+      forceUpdate();
+    });
+    return null;
+  }, []);
+
   return (
     <FlowEditor
       key={flowName}
@@ -65,6 +93,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
       onChange={onChange}
       onRun={onRun ? (spec) => onRun(flowName, spec) : undefined}
       onGetSchema={handleGetSchema}
+      onGetDoc={handleGetDoc}
       readOnly={readOnly}
     />
   );

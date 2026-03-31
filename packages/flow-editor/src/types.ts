@@ -101,6 +101,31 @@ export interface PropertySchema {
   items?: PropertySchema;
 }
 
+/** Documentation for a tool or format, loaded from plugin docs. */
+export interface ToolDoc {
+  /** Display name (e.g. "JSON Filter", "Batch Translation Step"). */
+  displayName?: string;
+  /** Rich overview paragraph describing the tool's purpose and behavior. */
+  overview?: string;
+  /** Per-parameter documentation keyed by parameter path (e.g. "extraction.extractAll"). */
+  parameters?: Record<string, ToolDocParam>;
+  /** Known limitations. */
+  limitations?: string[];
+  /** Processing notes / tips. */
+  processingNotes?: string[];
+  /** Usage examples. */
+  examples?: Array<{ title: string; description?: string; input?: string; output?: string }>;
+  /** URL to external wiki/docs page. */
+  wikiUrl?: string;
+}
+
+export interface ToolDocParam {
+  description: string;
+  notes?: string[];
+  introducedIn?: string;
+  dependsOn?: Array<{ property: string; condition: string }>;
+}
+
 /** Props for the FlowEditor component — fully decoupled from any backend. */
 export interface FlowEditorProps {
   /** The flow to display/edit, in steps format. */
@@ -115,6 +140,8 @@ export interface FlowEditorProps {
   readOnly?: boolean;
   /** Called to fetch a tool's config schema. Returns null if none available. */
   onGetSchema?: (toolName: string) => ComponentSchema | null;
+  /** Called to fetch documentation for a tool. Returns null if unavailable. */
+  onGetDoc?: (toolName: string) => ToolDoc | null;
   /** Trace events from a running or completed flow execution. */
   traceEvents?: import("./traceTypes").TraceEvent[];
   /** Full trace data from a completed execution (includes part snapshots). */

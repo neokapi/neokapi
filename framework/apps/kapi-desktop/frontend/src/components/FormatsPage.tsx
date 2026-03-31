@@ -31,7 +31,7 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
   const [loading, setLoading] = useState(true);
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [docs, setDocs] = useState<PluginDocs | null>(propDocs ?? null);
+  const [docs] = useState<PluginDocs | null>(propDocs ?? null);
   const [docsSummary, setDocsSummary] = useState<PluginDocsSummary | null>(null);
 
   const { showError } = useError();
