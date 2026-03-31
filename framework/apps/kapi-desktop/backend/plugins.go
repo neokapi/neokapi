@@ -102,11 +102,10 @@ func (a *App) InstallPlugin(name string) {
 		if err := plugincache.RebuildAndWrite(a.pluginLoader.Dir(), nil); err != nil {
 			a.logger.Printf("rebuild cache after install: %v", err)
 		}
-		if scanErr := a.pluginLoader.ScanMetadata(); scanErr != nil {
-			a.logger.Printf("re-scan after install: %v", scanErr)
-		}
+		a.rescanPlugins()
 		a.emitEvent("plugin-installed", map[string]string{"name": name})
 		a.emitEvent("plugins-changed", nil)
+		a.emitEvent("registries-changed", nil)
 	}()
 }
 
@@ -131,10 +130,9 @@ func (a *App) RemovePlugin(name string) error {
 	if err := plugincache.RebuildAndWrite(a.pluginLoader.Dir(), nil); err != nil {
 		a.logger.Printf("rebuild cache after remove: %v", err)
 	}
-	if scanErr := a.pluginLoader.ScanMetadata(); scanErr != nil {
-		a.logger.Printf("re-scan after remove: %v", scanErr)
-	}
+	a.rescanPlugins()
 	a.emitEvent("plugins-changed", nil)
+	a.emitEvent("registries-changed", nil)
 	return nil
 }
 
