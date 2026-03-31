@@ -530,8 +530,41 @@ func (a *App) ListTools() []ToolInfo {
 }
 
 // GetToolSchema returns the component schema for a tool's parameters.
-func (a *App) GetToolSchema(name string) *schema.ComponentSchema {
-	return a.toolReg.GetSchema(name)
+func (a *App) GetToolSchema(name string) map[string]any {
+	// Check built-in tool registry first.
+	if s := a.toolReg.GetSchema(name); s != nil {
+		return schemaToMap(s)
+	}
+	// Fall back to the format/step schema registry (plugin-provided schemas).
+	// Strip plugin prefix for lookup (e.g. "okapi:segmentation" → "segmentation").
+	lookup := name
+	if idx := strings.LastIndex(name, ":"); idx >= 0 {
+		lookup = name[idx+1:]
+	}
+	if s, ok := a.schemaReg.GetSchema(lookup); ok {
+		data, err := json.Marshal(s)
+		if err != nil {
+			return nil
+		}
+		var result map[string]any
+		if err := json.Unmarshal(data, &result); err != nil {
+			return nil
+		}
+		return result
+	}
+	return nil
+}
+
+func schemaToMap(s *schema.ComponentSchema) map[string]any {
+	data, err := json.Marshal(s)
+	if err != nil {
+		return nil
+	}
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+	return result
 }
 
 // FormatInfo is the frontend-facing format summary.
