@@ -165,11 +165,14 @@ func buildBridgePlugin(iv pluginreg.InstalledVersion, vDir string, schemaReg *sc
 		return CachedPlugin{}, nil, fmt.Errorf("no manifest.json in %s", vDir)
 	}
 
-	// Load schemas.
+	// Load schemas (filter schemas + step schemas).
 	schemasDir := filepath.Join(vDir, "schemas")
 	idsBefore := schemaReg.FilterIDSet()
 	if err := schemaReg.LoadFromDirectory(schemasDir); err != nil {
 		logf(logger, "loading schemas from %s: %v", schemasDir, err)
+	}
+	if err := schemaReg.LoadFromDirectory(filepath.Join(schemasDir, "steps")); err != nil {
+		logf(logger, "loading step schemas from %s: %v", filepath.Join(schemasDir, "steps"), err)
 	}
 	idsAfter := schemaReg.FilterIDSet()
 
