@@ -6,7 +6,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import type { ComponentSchema, PropertySchema, ParameterGroup } from "./types";
+import type { ComponentSchema, PropertySchema, ParameterGroup, ToolDocParam } from "./types";
 import { theme } from "./theme";
 
 // ─── Public API ─────────────────────────────────────────────
@@ -18,6 +18,8 @@ interface SchemaFormProps {
   compact?: boolean;
   /** When provided, fields whose value differs from the preset show a colored indicator dot. */
   presetValues?: Record<string, unknown>;
+  /** Rich parameter documentation keyed by parameter path (e.g. "extraction.extractAll"). */
+  paramDocs?: Record<string, ToolDocParam>;
 }
 
 /**
@@ -26,7 +28,7 @@ interface SchemaFormProps {
  * types, defaults, enums, validation constraints, nested objects, arrays,
  * dynamic maps, and x-widget hints.
  */
-export function SchemaForm({ schema, values, onChange, compact = false, presetValues }: SchemaFormProps) {
+export function SchemaForm({ schema, values, onChange, compact = false, presetValues, paramDocs }: SchemaFormProps) {
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
     const grps = schema["x-groups"] || [];
@@ -163,6 +165,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
           compact={compact}
           onDrillDown={handleDrillDown}
           presetValues={presetValues}
+          paramDocs={paramDocs}
         />
       ))}
 
@@ -198,6 +201,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
                 allProperties={properties}
                 onDrillDown={handleDrillDown}
                 presetValues={presetValues}
+                docParam={paramDocs?.[key]}
               />
             ))}
           </div>
@@ -224,6 +228,7 @@ function FieldGroup({
   compact,
   onDrillDown,
   presetValues,
+  paramDocs,
 }: {
   group: ParameterGroup;
   groupIndex: number;
@@ -233,6 +238,7 @@ function FieldGroup({
   compact: boolean;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   presetValues?: Record<string, unknown>;
+  paramDocs?: Record<string, ToolDocParam>;
 }) {
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
   if (fields.length === 0) return null;
@@ -319,6 +325,7 @@ function FieldGroup({
               allProperties={properties}
               onDrillDown={onDrillDown}
               presetValues={presetValues}
+              docParam={paramDocs?.[key]}
             />
           ))}
         </div>
@@ -362,6 +369,7 @@ function PropertyField({
   depth = 0,
   onDrillDown,
   presetValues,
+  docParam,
 }: {
   name: string;
   schema: PropertySchema;
@@ -373,6 +381,7 @@ function PropertyField({
   depth?: number;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   presetValues?: Record<string, unknown>;
+  docParam?: ToolDocParam;
 }) {
   // x-showIf conditional visibility
   const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
@@ -450,7 +459,7 @@ function PropertyField({
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "// Enter JavaScript code..."}
@@ -474,7 +483,7 @@ function PropertyField({
 
   if (widget === "file-picker") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -535,7 +544,7 @@ function PropertyField({
 
   if (widget === "simplifierRulesEditor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "One rule per line..."}
@@ -570,7 +579,7 @@ function PropertyField({
 
   if (widget === "regexBuilder" || widget === "tagList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -592,7 +601,7 @@ function PropertyField({
 
   if (widget === "numberList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -640,7 +649,7 @@ function PropertyField({
 
   if (schema.enum && schema.enum.length > 0) {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <select
           value={String(resolved ?? "")}
           onChange={(e) => onChange(e.target.value)}
@@ -659,7 +668,7 @@ function PropertyField({
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -755,7 +764,7 @@ function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset}>
+    <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
       <input
         type="text"
         value={String(resolved ?? "")}
@@ -1887,14 +1896,19 @@ function FieldWrapper({
   description,
   compact,
   isModified,
+  docParam,
   children,
 }: {
   label: string;
   description?: string;
   compact: boolean;
   isModified?: boolean;
+  docParam?: ToolDocParam;
   children: React.ReactNode;
 }) {
+  // Prefer rich doc description over schema description.
+  const desc = docParam?.description || description;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       <div
@@ -1902,17 +1916,72 @@ function FieldWrapper({
           fontSize: 11,
           color: theme.fgSecondary,
           fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 4,
         }}
       >
         <PresetDot visible={!!isModified} />
         {label}
+        {docParam?.introducedIn && (
+          <span
+            style={{
+              fontSize: 8,
+              padding: "1px 4px",
+              borderRadius: 3,
+              background: `color-mix(in oklch, ${theme.accent} 20%, transparent)`,
+              color: theme.fgMuted,
+              fontWeight: 500,
+            }}
+          >
+            {docParam.introducedIn}
+          </span>
+        )}
       </div>
-      {description && !compact && (
-        <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.3, marginBottom: 2 }}>
-          {description}
+      {desc && !compact && (
+        <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.4, marginBottom: 2 }}>
+          {desc}
         </div>
       )}
       {children}
+      {/* Doc notes and dependencies */}
+      {docParam?.notes && docParam.notes.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 1 }}>
+          {docParam.notes.map((note, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: 9,
+                color: theme.fgMuted,
+                fontStyle: "italic",
+                lineHeight: 1.4,
+                paddingLeft: 6,
+                borderLeft: `2px solid color-mix(in oklch, ${theme.accent} 30%, transparent)`,
+              }}
+            >
+              {note}
+            </div>
+          ))}
+        </div>
+      )}
+      {docParam?.dependsOn && docParam.dependsOn.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 1 }}>
+          {docParam.dependsOn.map((dep, i) => (
+            <span
+              key={i}
+              style={{
+                fontSize: 9,
+                padding: "1px 5px",
+                borderRadius: 3,
+                background: `color-mix(in oklch, ${theme.ring} 8%, transparent)`,
+                color: theme.fgMuted,
+              }}
+            >
+              Requires <code style={{ fontWeight: 600 }}>{dep.property}</code> {dep.condition}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

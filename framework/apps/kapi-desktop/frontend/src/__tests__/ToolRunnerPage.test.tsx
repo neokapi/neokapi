@@ -144,7 +144,7 @@ describe("ToolRunnerPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows Documentation tab when step docs available", async () => {
+  it("shows tool description in header when docs available", async () => {
     const toolsWithDocs: ToolInfo[] = [
       {
         name: "batch-translation",
@@ -155,22 +155,8 @@ describe("ToolRunnerPage", () => {
     ];
     renderPage({ tools: toolsWithDocs, docs: sampleDocs });
     await userEvent.click(screen.getByText("batch-translation"));
-    expect(screen.getByText("Documentation")).toBeInTheDocument();
-  });
-
-  it("shows step overview when docs available", async () => {
-    const toolsWithDocs: ToolInfo[] = [
-      {
-        name: "batch-translation",
-        description: "Batch translation tool",
-        category: "translate",
-        has_schema: false,
-      },
-    ];
-    renderPage({ tools: toolsWithDocs, docs: sampleDocs });
-    await userEvent.click(screen.getByText("batch-translation"));
-    // Overview may appear in both header banner and sidebar
-    const matches = screen.getAllByText("Translates using batch resources.");
+    // The tool description appears in the header
+    const matches = screen.getAllByText("Batch translation tool");
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 });
