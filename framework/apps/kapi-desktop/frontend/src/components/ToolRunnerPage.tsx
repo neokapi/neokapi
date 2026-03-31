@@ -289,6 +289,7 @@ function ToolDetail({
 }) {
   const [schema, setSchema] = useState<ComponentSchema | null>(null);
   const [config, setConfig] = useState<Record<string, unknown>>({});
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [loadingSchema, setLoadingSchema] = useState(false);
   const [targetLang, setTargetLang] = useState("");
   const [running, setRunning] = useState(false);
@@ -390,70 +391,177 @@ function ToolDetail({
         </div>
       </div>
 
-      {/* Configuration form with inline parameter docs */}
-      <div className="max-w-xl space-y-4">
-        {loadingSchema && (
-          <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
-            Loading configuration...
-          </div>
-        )}
-        {!loadingSchema && schema && (
-          <div className="rounded-lg border border-border bg-card p-4">
-            <SchemaForm
-              schema={schema}
-              values={config}
-              onChange={setConfig}
-              paramDocs={stepDoc?.parameters}
-            />
-          </div>
-        )}
-
-        {/* Runner controls */}
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium" htmlFor="tool-files">
-              Input Files
-            </label>
-            <button
-              id="tool-files"
-              className="flex items-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors w-full"
-            >
-              <FileInput size={14} />
-              Select files...
-            </button>
-          </div>
-
-          {tool.requires?.includes("target-language") && (
-            <div>
-              <label className="mb-1 block text-xs font-medium" htmlFor="tool-target-lang">
-                Target Language
-              </label>
-              <input
-                id="tool-target-lang"
-                type="text"
-                value={targetLang}
-                onChange={(e) => setTargetLang(e.target.value)}
-                placeholder="e.g. fr-FR"
-                className="w-48 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+      {/* Two-column layout: form left, contextual docs right */}
+      <div className="flex gap-5">
+        {/* Left: config form + run controls */}
+        <div className="flex-1 min-w-0 max-w-xl space-y-4"
+          onMouseLeave={() => setFocusedField(null)}
+        >
+          {loadingSchema && (
+            <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
+              Loading configuration...
+            </div>
+          )}
+          {!loadingSchema && schema && (
+            <div className="rounded-lg border border-border bg-card p-4">
+              <SchemaForm
+                schema={schema}
+                values={config}
+                onChange={setConfig}
+                paramDocs={stepDoc?.parameters}
+                onFieldFocus={setFocusedField}
               />
             </div>
           )}
 
-          {error && (
-            <p className="text-xs text-destructive" role="alert">
-              {error}
-            </p>
-          )}
+          {/* Runner controls */}
+          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+            <div>
+              <label className="mb-1 block text-xs font-medium" htmlFor="tool-files">
+                Input Files
+              </label>
+              <button
+                id="tool-files"
+                className="flex items-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors w-full"
+              >
+                <FileInput size={14} />
+                Select files...
+              </button>
+            </div>
 
-          <button
-            onClick={handleRun}
-            disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-          >
-            {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-            {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
-          </button>
+            {tool.requires?.includes("target-language") && (
+              <div>
+                <label className="mb-1 block text-xs font-medium" htmlFor="tool-target-lang">
+                  Target Language
+                </label>
+                <input
+                  id="tool-target-lang"
+                  type="text"
+                  value={targetLang}
+                  onChange={(e) => setTargetLang(e.target.value)}
+                  placeholder="e.g. fr-FR"
+                  className="w-48 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                />
+              </div>
+            )}
+
+            {error && (
+              <p className="text-xs text-destructive" role="alert">
+                {error}
+              </p>
+            )}
+
+            <button
+              onClick={handleRun}
+              disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
+              className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+            >
+              {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+              {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
+            </button>
+          </div>
         </div>
+
+        {/* Right: contextual doc inspector */}
+        {stepDoc && (
+          <div className="w-72 shrink-0 hidden lg:block">
+            <div className="sticky top-4">
+              <FieldDocInspector
+                stepDoc={stepDoc}
+                focusedField={focusedField}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- Contextual doc inspector sidebar ---
+
+function FieldDocInspector({
+  stepDoc,
+  focusedField,
+}: {
+  stepDoc: StepDoc;
+  focusedField: string | null;
+}) {
+  const paramDoc = focusedField ? stepDoc.parameters?.[focusedField] : null;
+
+  return (
+    <div className="rounded-lg border border-border bg-card overflow-hidden">
+      {/* Header */}
+      <div className="px-3 py-2.5 border-b border-border bg-muted/30">
+        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+          {paramDoc ? "Parameter" : "Overview"}
+        </div>
+      </div>
+
+      <div className="px-3 py-3">
+        {paramDoc ? (
+          /* Focused field documentation */
+          <div className="space-y-2.5">
+            <code className="text-[11px] font-semibold text-primary bg-primary/8 px-1.5 py-0.5 rounded inline-flex items-center gap-1.5">
+              {focusedField}
+              {paramDoc.introducedIn && (
+                <span className="text-[8px] px-1 py-px rounded bg-muted text-muted-foreground font-normal">
+                  {paramDoc.introducedIn}
+                </span>
+              )}
+            </code>
+            <p className="text-[11px] leading-relaxed text-foreground/80">
+              {paramDoc.description}
+            </p>
+            {paramDoc.notes?.map((note, i) => (
+              <div
+                key={i}
+                className="text-[10px] leading-relaxed text-muted-foreground italic pl-2.5 border-l-2 border-chart-4/30"
+              >
+                {note}
+              </div>
+            ))}
+            {paramDoc.dependsOn?.map((dep, i) => (
+              <div
+                key={i}
+                className="text-[10px] px-2 py-1 rounded bg-chart-3/8 text-chart-3 flex items-center gap-1"
+              >
+                <span className="opacity-70">Requires</span>
+                <code className="font-semibold">{dep.property}</code>
+                <span className="opacity-70">{dep.condition}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* Default: tool overview */
+          <div className="space-y-2.5">
+            <p className="text-[11px] leading-relaxed text-foreground/80">
+              {stepDoc.overview}
+            </p>
+            {stepDoc.wikiUrl && (
+              <a
+                href={stepDoc.wikiUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] text-primary/70 hover:text-primary transition-colors inline-flex items-center gap-1"
+              >
+                View full documentation
+              </a>
+            )}
+            {stepDoc.limitations && stepDoc.limitations.length > 0 && (
+              <div className="pt-2 border-t border-border">
+                <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                  Limitations
+                </div>
+                {stepDoc.limitations.map((lim, i) => (
+                  <div key={i} className="text-[10px] text-muted-foreground leading-relaxed mb-1">
+                    {lim}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
