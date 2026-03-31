@@ -19,11 +19,14 @@ export function AppHome({
   const shortenHome = useShortenHome();
   return (
     <div className="p-6">
-      <div className="mb-8">
-        <h1 className="text-xl font-semibold">Welcome to Kapi</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Localization plumbing and glue for people, elves, and agents.
-        </p>
+      <div className="mb-8 flex items-center gap-4">
+        <img src="/neokapi-logo.png" alt="neokapi" className="h-12 w-12 drop-shadow-lg" />
+        <div>
+          <h1 className="text-xl font-semibold">Welcome to Kapi</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Localization plumbing and glue for people, elves, and agents.
+          </p>
+        </div>
       </div>
 
       {/* Quick actions */}

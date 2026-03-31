@@ -65,6 +65,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   }, []);
 
   const nameValid = isValidDirName(newName);
+  const canCreate = customPath ? true : nameValid;
   const savePath = customPath || (nameValid ? `~/KapiProjects/${newName.trim()}` : "");
 
   const handleNew = useCallback(() => {
@@ -86,20 +87,18 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   }, []);
 
   const handleCreateProject = useCallback(async () => {
-    const name = newName.trim();
-    if (!name || !nameValid) return;
+    if (!canCreate) return;
     setCreating(true);
     setError(null);
     try {
       const proj: KapiProject = {
         version: "v1",
-        name,
+        name: "",
         source_language: "en-US",
         target_languages: [],
         flows: {},
       };
-      // If custom path is set, save to {customPath}/project.kapi
-      const path = customPath ? `${customPath}/project.kapi` : undefined;
+      const path = savePath ? `${savePath}/project.kapi` : undefined;
       onNew(proj, path);
       setShowNewForm(false);
     } catch (e) {
@@ -107,7 +106,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
     } finally {
       setCreating(false);
     }
-  }, [newName, nameValid, onNew]);
+  }, [canCreate, savePath, onNew]);
 
   const handleOpen = useCallback(async () => {
     setError(null);
@@ -164,21 +163,27 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
               <div className="w-full max-w-sm space-y-3">
                 <div>
                   <label className="mb-1 block text-left text-xs text-muted-foreground">
-                    Project Name
+                    {customPath ? "Location" : "Name"}
                   </label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && nameValid) handleCreateProject();
+                      value={customPath || newName}
+                      onChange={(e) => {
+                        if (customPath) return;
+                        setNewName(e.target.value);
                       }}
-                      placeholder="My App"
-                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && canCreate) handleCreateProject();
+                      }}
+                      placeholder={customPath ? "" : "My App"}
+                      readOnly={!!customPath}
+                      autoFocus={!customPath}
                       className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
-                        newName && !nameValid ? "border-destructive" : "border-input"
-                      }`}
+                        newName && !nameValid && !customPath
+                          ? "border-destructive"
+                          : "border-input"
+                      } ${customPath ? "text-muted-foreground" : ""}`}
                     />
                     <button
                       onClick={handleBrowse}
@@ -188,21 +193,35 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     >
                       <FolderOpen size={16} />
                     </button>
+                    {customPath && (
+                      <button
+                        onClick={() => setCustomPath("")}
+                        className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        aria-label="Clear location"
+                        title="Clear location"
+                      >
+                        <span className="text-sm">✕</span>
+                      </button>
+                    )}
                   </div>
-                  {newName && !nameValid ? (
+                  {customPath ? (
+                    <p className="mt-1 text-left text-xs">&nbsp;</p>
+                  ) : newName && !nameValid ? (
                     <p className="mt-1 text-left text-xs text-destructive">
-                      Name contains invalid characters for a directory
+                      Invalid directory name
                     </p>
                   ) : savePath ? (
                     <p className="mt-1 text-left text-xs text-muted-foreground">
-                      Saved to {savePath}
+                      {savePath}
                     </p>
-                  ) : null}
+                  ) : (
+                    <p className="mt-1 text-left text-xs">&nbsp;</p>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={handleCreateProject}
-                    disabled={!nameValid || creating}
+                    disabled={!canCreate || creating}
                     className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {creating ? "Creating..." : "Create Project"}

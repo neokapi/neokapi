@@ -121,11 +121,6 @@ func TestValidation(t *testing.T) {
 			wantErr: "unsupported version",
 		},
 		{
-			name:    "missing name",
-			proj:    KapiProject{Version: "v1"},
-			wantErr: "name is required",
-		},
-		{
 			name: "content without path",
 			proj: KapiProject{
 				Version: "v1",

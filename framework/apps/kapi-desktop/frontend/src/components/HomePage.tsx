@@ -4,11 +4,12 @@ import type { KapiProject, FlowSpec } from "../types/api";
 
 interface HomePageProps {
   project: KapiProject;
+  displayName: string;
   onRunFlow?: (flowName: string, flow: FlowSpec) => void;
   onNavigate: (view: string) => void;
 }
 
-export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
+export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePageProps) {
   const [runningFlow, setRunningFlow] = useState<string | null>(null);
   const flowNames = Object.keys(project.flows ?? {});
   const hasContent = (project.content?.length ?? 0) > 0;
@@ -25,7 +26,7 @@ export function HomePage({ project, onRunFlow, onNavigate }: HomePageProps) {
     <div className="p-6">
       {/* Project summary */}
       <div className="mb-6">
-        <h1 className="text-xl font-semibold">{project.name}</h1>
+        <h1 className="text-xl font-semibold">{displayName}</h1>
         <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Globe size={14} />

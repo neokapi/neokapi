@@ -16,6 +16,9 @@ export interface ContentEntry {
   path: string;
   format?: string;
   target?: string;
+  collection?: string;
+  format_preset?: string;
+  format_config?: Record<string, unknown>;
 }
 
 export interface FlowSpec {

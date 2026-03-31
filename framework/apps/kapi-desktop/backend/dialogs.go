@@ -41,7 +41,7 @@ func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 
 	dlg := a.app.Dialog.SaveFile().
 		AddFilter("Kapi Projects", "*.kapi").
-		SetFilename(op.Project.Name + ".kapi")
+		SetFilename(projectDisplayName(op.Project, op.Path) + ".kapi")
 
 	// Default to base path directory for the save dialog.
 	if dir := a.GetBasePath(tabID); dir != "" {
@@ -72,7 +72,7 @@ func (a *App) SaveProjectDialog(tabID string) (*TabInfo, error) {
 		return nil, err
 	}
 
-	return &TabInfo{ID: tabID, Name: op.Project.Name, Path: path}, nil
+	return &TabInfo{ID: tabID, Name: projectDisplayName(op.Project, path), Path: path}, nil
 }
 
 // BrowseProjectLocation shows a native directory picker and returns the selected path.

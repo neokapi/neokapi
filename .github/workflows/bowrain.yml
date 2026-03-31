@@ -41,7 +41,7 @@ jobs:
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: vpx tsc
+        run: npx tsc
 
       - name: Install frontend dependencies
         working-directory: platform/apps/bowrain/frontend

@@ -102,6 +102,7 @@ type openProject struct {
 	ID      string
 	Path    string
 	Project *project.KapiProject
+	watcher *fileWatcher
 }
 
 // ServiceStartup is called by Wails v3 during application startup.
@@ -187,13 +188,14 @@ type TabInfo struct {
 
 // NewProject creates a new project, saves it to disk, and opens it as a tab.
 // If savePath is empty, defaults to ~/KapiProjects/{name}/project.kapi.
+// The name is not stored in the YAML — the display name is derived from the
+// folder name. Users can override it later on the project detail page.
 func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath string) (*TabInfo, error) {
-	if name == "" {
-		return nil, fmt.Errorf("project name is required")
-	}
-
 	// Default save location: ~/KapiProjects/{name}/project.kapi
 	if savePath == "" {
+		if name == "" {
+			return nil, fmt.Errorf("project name or save path is required")
+		}
 		home, err := os.UserHomeDir()
 		if err != nil {
 			return nil, fmt.Errorf("cannot determine home directory: %w", err)
@@ -221,7 +223,6 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 
 	proj := &project.KapiProject{
 		Version:         project.CurrentVersion,
-		Name:            name,
 		SourceLanguage:  sourceLang,
 		TargetLanguages: targetLangs,
 		Flows:           make(map[string]*flow.StepsSpec),
@@ -231,13 +232,38 @@ func (a *App) NewProject(name, sourceLang string, targetLangs []string, savePath
 		return nil, fmt.Errorf("save project: %w", err)
 	}
 
+	displayName := projectDisplayName(proj, savePath)
+
 	tabID := id.New()
+	op := &openProject{ID: tabID, Path: savePath, Project: proj}
 	a.mu.Lock()
-	a.projects[tabID] = &openProject{ID: tabID, Path: savePath, Project: proj}
+	a.projects[tabID] = op
 	a.mu.Unlock()
 
-	a.recent.add(savePath, name)
-	return &TabInfo{ID: tabID, Name: name, Path: savePath}, nil
+	a.startWatcher(op)
+	a.recent.add(savePath, displayName)
+	return &TabInfo{ID: tabID, Name: displayName, Path: savePath}, nil
+}
+
+// startWatcher begins file system polling for a project tab.
+func (a *App) startWatcher(op *openProject) {
+	if op.Path == "" {
+		return
+	}
+	dir := filepath.Dir(op.Path)
+	fw := newFileWatcher(a, op.ID, dir)
+	op.watcher = fw
+	fw.Start()
+}
+
+// projectDisplayName returns the project name for display purposes.
+// If the project has an explicit name set in the YAML, use it.
+// Otherwise derive it from the parent directory of the .kapi file.
+func projectDisplayName(proj *project.KapiProject, path string) string {
+	if proj.Name != "" {
+		return proj.Name
+	}
+	return filepath.Base(filepath.Dir(path))
 }
 
 // OpenProject loads a .kapi file from disk and returns its tab ID.
@@ -248,7 +274,7 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 	for _, op := range a.projects {
 		if op.Path == path {
 			a.mu.RUnlock()
-			return &TabInfo{ID: op.ID, Name: op.Project.Name, Path: op.Path}, nil
+			return &TabInfo{ID: op.ID, Name: projectDisplayName(op.Project, op.Path), Path: op.Path}, nil
 		}
 	}
 	a.mu.RUnlock()
@@ -258,13 +284,16 @@ func (a *App) OpenProject(path string) (*TabInfo, error) {
 		return nil, err
 	}
 	tabID := id.New()
+	op := &openProject{ID: tabID, Path: path, Project: proj}
 
 	a.mu.Lock()
-	a.projects[tabID] = &openProject{ID: tabID, Path: path, Project: proj}
+	a.projects[tabID] = op
 	a.mu.Unlock()
 
-	a.recent.add(path, proj.Name)
-	return &TabInfo{ID: tabID, Name: proj.Name, Path: path}, nil
+	a.startWatcher(op)
+	displayName := projectDisplayName(proj, path)
+	a.recent.add(path, displayName)
+	return &TabInfo{ID: tabID, Name: displayName, Path: path}, nil
 }
 
 // UpdateProject replaces the in-memory project state for a tab.
@@ -281,11 +310,15 @@ func (a *App) UpdateProject(tabID string, proj *project.KapiProject) error {
 	return nil
 }
 
-// CloseProject removes a project tab.
+// CloseProject removes a project tab and stops its file watcher.
 func (a *App) CloseProject(tabID string) {
 	a.mu.Lock()
+	op := a.projects[tabID]
 	delete(a.projects, tabID)
 	a.mu.Unlock()
+	if op != nil && op.watcher != nil {
+		op.watcher.Stop()
+	}
 }
 
 // ListTabs returns all open project tabs.

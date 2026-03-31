@@ -108,6 +108,161 @@ func TestValidateContentPath(t *testing.T) {
 	assert.Error(t, app.ValidateContentPath("/etc/passwd"))
 }
 
+func TestIsEmptyProject(t *testing.T) {
+	dir := t.TempDir()
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+
+	app := NewApp()
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	assert.True(t, app.IsEmptyProject(tab.ID), "project with only project.kapi should be empty")
+
+	// Add a file — no longer empty.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "hello.json"), []byte(`{}`), 0o644))
+	assert.False(t, app.IsEmptyProject(tab.ID))
+}
+
+func TestListProjectFiles(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "input"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "input", "en.json"), []byte(`{}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "readme.txt"), []byte("hi"), 0o644))
+
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+
+	app := NewApp()
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	files, err := app.ListProjectFiles(tab.ID)
+	require.NoError(t, err)
+	// Should find: input/ dir, input/en.json, readme.txt
+	assert.Len(t, files, 3)
+
+	// Should not include project.kapi or hidden files.
+	for _, f := range files {
+		assert.NotEqual(t, "project.kapi", f.Relative)
+	}
+}
+
+func TestKapiIgnoreExcludesFiles(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "keep.json"), []byte(`{}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "scratch.tmp"), []byte("tmp"), 0o644))
+	require.NoError(t, os.MkdirAll(filepath.Join(dir, "build"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "build", "out.js"), []byte("x"), 0o644))
+
+	// Write .kapiignore.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapiignore"), []byte("*.tmp\nbuild/\n"), 0o644))
+
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+
+	app := NewApp()
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	files, err := app.ListProjectFiles(tab.ID)
+	require.NoError(t, err)
+
+	// Only keep.json should remain (scratch.tmp and build/ excluded).
+	assert.Len(t, files, 1)
+	assert.Equal(t, "keep.json", files[0].Relative)
+}
+
+func TestMatchContentRespectsKapiIgnore(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "en.json"), []byte(`{}`), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "temp.json"), []byte(`{}`), 0o644))
+
+	// Ignore temp.json.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".kapiignore"), []byte("temp.json\n"), 0o644))
+
+	kapiPath := filepath.Join(dir, "project.kapi")
+	proj := &project.KapiProject{
+		Version: "v1",
+		Content: []project.ContentEntry{{Path: "*.json"}},
+	}
+	require.NoError(t, project.Save(kapiPath, proj))
+
+	app := NewApp()
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	matches, err := app.MatchContent(tab.ID)
+	require.NoError(t, err)
+
+	// Only en.json should match (temp.json ignored).
+	assert.Len(t, matches, 1)
+	assert.Equal(t, "en.json", matches[0].Relative)
+}
+
+func TestApplyTemplateInputOutput(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	require.NoError(t, app.ApplyTemplate(tab.ID, "input-output"))
+
+	// Directories should exist.
+	_, err = os.Stat(filepath.Join(dir, "input"))
+	assert.NoError(t, err)
+	_, err = os.Stat(filepath.Join(dir, "output"))
+	assert.NoError(t, err)
+
+	// Content pattern should be set.
+	proj := app.GetProject(tab.ID)
+	require.Len(t, proj.Content, 1)
+	assert.Equal(t, "input/*", proj.Content[0].Path)
+	assert.Equal(t, "output/{lang}/*", proj.Content[0].Target)
+}
+
+func TestApplyTemplateEmpty(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	require.NoError(t, app.ApplyTemplate(tab.ID, "empty"))
+
+	proj := app.GetProject(tab.ID)
+	assert.Empty(t, proj.Content)
+}
+
+func TestCopyFileToProject(t *testing.T) {
+	app := NewApp()
+	dir := t.TempDir()
+	kapiPath := filepath.Join(dir, "project.kapi")
+	require.NoError(t, project.Save(kapiPath, &project.KapiProject{Version: "v1"}))
+
+	tab, err := app.OpenProject(kapiPath)
+	require.NoError(t, err)
+
+	// Create a source file outside the project.
+	srcDir := t.TempDir()
+	srcPath := filepath.Join(srcDir, "hello.json")
+	require.NoError(t, os.WriteFile(srcPath, []byte(`{"greeting":"hello"}`), 0o644))
+
+	rel, err := app.CopyFileToProject(tab.ID, srcPath, "input")
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join("input", "hello.json"), rel)
+
+	// Verify file exists.
+	data, err := os.ReadFile(filepath.Join(dir, "input", "hello.json"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "greeting")
+}
+
 func TestDetectFormatByExtension(t *testing.T) {
 	tests := []struct {
 		path   string

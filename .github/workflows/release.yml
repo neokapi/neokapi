@@ -34,7 +34,7 @@ jobs:
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: vpx tsc
+        run: npx tsc
 
       - name: Run UI unit tests
         working-directory: platform/packages/ui
@@ -259,7 +259,7 @@ jobs:
 
       - name: Build shared UI package
         working-directory: platform/packages/ui
-        run: vpx tsc
+        run: npx tsc
 
       # Build frontend and assets manually to avoid Wails Taskfile running
       # `npm install` which conflicts with the workspace npm ci above.

@@ -5,7 +5,9 @@ const meta: Meta<typeof ProjectPage> = {
   title: "Pages/ProjectPage",
   component: ProjectPage,
   tags: ["autodocs"],
-  args: {},
+  args: {
+    tabID: "story-tab",
+  },
 };
 
 export default meta;

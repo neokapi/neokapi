@@ -37,8 +37,8 @@ describe("WelcomePage", () => {
     await userEvent.type(screen.getByPlaceholderText("My App"), "Test App");
     await userEvent.click(screen.getByText("Create Project"));
     expect(onNew).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "Test App" }),
-      undefined, // no custom path
+      expect.objectContaining({ name: "" }),
+      "~/KapiProjects/Test App/project.kapi",
     );
   });
 
