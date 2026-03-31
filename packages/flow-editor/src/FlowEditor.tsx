@@ -592,7 +592,7 @@ function ConfigPanel({
   const category = toolInfo?.category || "pipeline";
   const catStyle = getCategoryStyle(category);
   const Icon = catStyle.icon;
-  const displayName = (step.tool || "").replace(/^okapi:/, "");
+  const displayName = toolInfo?.display_name || step.tool;
 
   // Local config state — owns the values to prevent parent re-renders from
   // resetting inputs. Syncs to parent via debounced onConfigChange.

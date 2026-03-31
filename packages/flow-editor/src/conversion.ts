@@ -54,7 +54,7 @@ export function stepsToGraph(
           type: "tool",
           position: { x, y: startY + b * (60 + BRANCH_GAP) },
           data: {
-            label: branch.label || branch.tool,
+            label: branch.label || info?.display_name || branch.tool,
             toolName: branch.tool,
             config: branch.config,
             category: info?.category || "pipeline",
@@ -89,7 +89,7 @@ export function stepsToGraph(
         type: "tool",
         position: { x, y: Y_CENTER },
         data: {
-          label: step.label || step.tool,
+          label: step.label || info?.display_name || step.tool,
           toolName: step.tool,
           config: step.config,
           category: info?.category || "pipeline",

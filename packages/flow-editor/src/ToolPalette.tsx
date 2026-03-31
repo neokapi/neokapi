@@ -190,7 +190,7 @@ function ToolItem({
   onDragStart: (e: React.DragEvent<HTMLButtonElement>) => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const displayName = tool.name.replace(/^okapi:/, "");
+  const displayName = tool.display_name || tool.name;
 
   return (
     <button
