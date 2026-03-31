@@ -172,9 +172,13 @@ export function PluginManager() {
       setConfirmRemove(null);
       try {
         await api.removePlugin(name);
-        await loadPlugins();
+        // Optimistically remove from local state immediately.
+        setPlugins((prev) => prev.filter((p) => p.name !== name));
+        setAvailable((prev) => prev.map((p) => p.name === name ? { ...p, installed: false } : p));
       } catch (e) {
         showError("Failed to remove plugin", e);
+        // Refresh to restore accurate state on error.
+        await loadPlugins();
       } finally {
         setRemoving(null);
       }
