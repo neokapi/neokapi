@@ -151,6 +151,27 @@ func TestListFormats(t *testing.T) {
 	assert.NotEmpty(t, app.ListFormats())
 }
 
+func TestGetPluginDocsNil(t *testing.T) {
+	app := NewApp()
+	// No plugins installed — docs should be nil.
+	result := app.GetPluginDocs()
+	assert.Nil(t, result)
+}
+
+func TestGetFilterDocNil(t *testing.T) {
+	app := NewApp()
+	// No plugins installed — individual filter doc should be nil.
+	result := app.GetFilterDoc("okf_json")
+	assert.Nil(t, result)
+}
+
+func TestGetStepDocNil(t *testing.T) {
+	app := NewApp()
+	// No plugins installed — individual step doc should be nil.
+	result := app.GetStepDoc("batch-translation")
+	assert.Nil(t, result)
+}
+
 func TestGetVersion(t *testing.T) {
 	app := NewApp()
 	assert.NotEmpty(t, app.GetVersion())

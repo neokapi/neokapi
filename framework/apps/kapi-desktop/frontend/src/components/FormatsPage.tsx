@@ -8,40 +8,57 @@ import {
   Plug,
   Settings2,
   Save,
-  Trash2,
   Play,
   ChevronDown,
   ChevronRight,
   X,
+  BookOpen,
 } from "lucide-react";
-import type { FormatInfo } from "../types/api";
+import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/flow-editor";
 import { SchemaForm } from "@neokapi/flow-editor";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { DocsPanel } from "./DocsPanel";
 
-export function FormatsPage() {
+export interface FormatsPageProps {
+  /** Pre-loaded docs for Storybook — in real app, individual docs fetched on demand. */
+  docs?: PluginDocs | null;
+}
+
+export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
   const [formats, setFormats] = useState<FormatInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFormat, setSelectedFormat] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [docs, setDocs] = useState<PluginDocs | null>(propDocs ?? null);
+  const [docsSummary, setDocsSummary] = useState<PluginDocsSummary | null>(null);
 
   const { showError } = useError();
 
   useEffect(() => {
-    api
-      .listFormats()
-      .then((f) => {
+    Promise.all([
+      api.listFormats(),
+      propDocs ? Promise.resolve(null) : api.getPluginDocsSummary(),
+    ])
+      .then(([f, summary]) => {
         if (f) setFormats(f);
+        if (summary) setDocsSummary(summary);
       })
       .catch((err) => showError("Failed to load formats", err))
       .finally(() => setLoading(false));
-  }, [showError]);
+  }, [showError, propDocs]);
 
   // Refresh when plugins change (formats may have been added/removed).
   useWailsEvent("registries-changed", () => {
     api.listFormats().then((f) => { if (f) setFormats(f); }).catch(() => {});
+    api.getPluginDocsSummary().then((s) => { if (s) setDocsSummary(s); }).catch(() => {});
   });
+
+  // Total documented count for display
+  const documentedCount = propDocs
+    ? Object.keys(propDocs.filters).length
+    : (docsSummary?.filterIDs?.length ?? 0);
 
   const filtered = search
     ? formats.filter(
@@ -61,6 +78,7 @@ export function FormatsPage() {
       <FormatDetail
         formatName={selectedFormat}
         formatInfo={formats.find((f) => f.name === selectedFormat)}
+        docs={docs}
         onBack={() => setSelectedFormat(null)}
       />
     );
@@ -70,6 +88,11 @@ export function FormatsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Formats</h1>
+        {documentedCount > 0 && (
+          <span className="text-[10px] text-muted-foreground">
+            {documentedCount} documented formats
+          </span>
+        )}
       </div>
 
       {/* Search */}
@@ -113,6 +136,8 @@ export function FormatsPage() {
             <FormatSection
               title="Built-in Formats"
               formats={builtIn}
+              docs={docs}
+              docsSummary={docsSummary}
               onSelect={setSelectedFormat}
             />
           )}
@@ -120,6 +145,8 @@ export function FormatsPage() {
             <FormatSection
               title="Plugin Formats"
               formats={plugin}
+              docs={docs}
+              docsSummary={docsSummary}
               onSelect={setSelectedFormat}
             />
           )}
@@ -139,76 +166,102 @@ export function FormatsPage() {
 function FormatSection({
   title,
   formats,
+  docs,
+  docsSummary,
   onSelect,
 }: {
   title: string;
   formats: FormatInfo[];
+  docs: PluginDocs | null;
+  docsSummary?: PluginDocsSummary | null;
   onSelect: (name: string) => void;
 }) {
+  const documentedIDs = useMemo(() => {
+    if (docs) return new Set(Object.keys(docs.filters));
+    if (docsSummary?.filterIDs) return new Set(docsSummary.filterIDs);
+    return new Set<string>();
+  }, [docs, docsSummary]);
   return (
     <div className="mb-6">
       <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
         {title}
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        {formats.map((f) => (
-          <button
-            key={f.name}
-            onClick={() => onSelect(f.name)}
-            className="group w-full text-left rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
-          >
-            <div className="flex items-start gap-3">
-              <FileText
-                size={18}
-                className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                    {f.display_name || f.name}
-                  </span>
-                  {f.display_name && (
-                    <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono shrink-0">
-                      {f.name}
+        {formats.map((f) => {
+          const filterDoc = resolveFilterDoc(f.name, docs);
+          const hasDocs = filterDoc || documentedIDs.has(f.name);
+          return (
+            <button
+              key={f.name}
+              onClick={() => onSelect(f.name)}
+              className="group w-full text-left rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
+            >
+              <div className="flex items-start gap-3">
+                <FileText
+                  size={18}
+                  className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+                      {f.display_name || f.name}
                     </span>
-                  )}
-                  {f.source && f.source !== "built-in" && (
-                    <Plug size={10} className="text-muted-foreground shrink-0" title={f.source} />
-                  )}
-                </div>
-                {f.extensions && f.extensions.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {f.extensions.map((ext) => (
-                      <span
-                        key={ext}
-                        className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono"
-                      >
-                        {ext}
+                    {f.display_name && (
+                      <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono shrink-0">
+                        {f.name}
                       </span>
-                    ))}
+                    )}
+                    {f.source && f.source !== "built-in" && (
+                      <Plug size={10} className="text-muted-foreground shrink-0" />
+                    )}
                   </div>
-                )}
-                <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
-                  {f.has_reader && (
-                    <span className="flex items-center gap-0.5">
-                      <FileInput size={9} /> Read
-                    </span>
+
+                  {/* Doc overview snippet (only when pre-loaded, e.g. Storybook) */}
+                  {filterDoc && (
+                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground line-clamp-2">
+                      {filterDoc.overview}
+                    </p>
                   )}
-                  {f.has_writer && (
-                    <span className="flex items-center gap-0.5">
-                      <FileOutput size={9} /> Write
-                    </span>
+
+                  {f.extensions && f.extensions.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {f.extensions.map((ext) => (
+                        <span
+                          key={ext}
+                          className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono"
+                        >
+                          {ext}
+                        </span>
+                      ))}
+                    </div>
                   )}
-                  {f.has_schema && (
-                    <span className="flex items-center gap-0.5">
-                      <Settings2 size={9} /> Configurable
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 mt-1.5 text-[10px] text-muted-foreground">
+                    {f.has_reader && (
+                      <span className="flex items-center gap-0.5">
+                        <FileInput size={9} /> Read
+                      </span>
+                    )}
+                    {f.has_writer && (
+                      <span className="flex items-center gap-0.5">
+                        <FileOutput size={9} /> Write
+                      </span>
+                    )}
+                    {f.has_schema && (
+                      <span className="flex items-center gap-0.5">
+                        <Settings2 size={9} /> Configurable
+                      </span>
+                    )}
+                    {hasDocs && (
+                      <span className="flex items-center gap-0.5">
+                        <BookOpen size={9} /> Docs
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          </button>
-        ))}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -235,15 +288,17 @@ interface FormatPartInfo {
 }
 
 // --- Config tab type ---
-type ConfigTab = "editor" | "yaml";
+type ConfigTab = "editor" | "yaml" | "docs";
 
 function FormatDetail({
   formatName,
   formatInfo,
+  docs,
   onBack,
 }: {
   formatName: string;
   formatInfo?: FormatInfo;
+  docs: PluginDocs | null;
   onBack: () => void;
 }) {
   const [schema, setSchema] = useState<ComponentSchema | null>(null);
@@ -266,7 +321,20 @@ function FormatDetail({
   const [runnerParts, setRunnerParts] = useState<FormatPartInfo[] | null>(null);
   const [runnerLoading, setRunnerLoading] = useState(false);
 
+  // Filter documentation — pre-loaded (Storybook) or fetched on demand
+  const [filterDoc, setFilterDoc] = useState<FilterDoc | undefined>(
+    () => resolveFilterDoc(formatName, docs),
+  );
+
   const { showError } = useError();
+
+  // Fetch filter doc on demand if not pre-loaded
+  useEffect(() => {
+    if (docs) return; // Already have pre-loaded docs
+    api.getFilterDoc(formatName).then((d) => {
+      if (d) setFilterDoc(d);
+    }).catch(() => {});
+  }, [formatName, docs]);
 
   // Get preset values for modified-from-preset indicator
   const presetValues = useMemo(() => {
@@ -381,6 +449,8 @@ function FormatDetail({
     }
   }, [formatName, config, showError]);
 
+  const hasDocumentation = !!filterDoc;
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -392,9 +462,9 @@ function FormatDetail({
           <ArrowLeft size={16} />
         </button>
         <FileText size={20} className="text-primary" />
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold">
-            {formatInfo?.display_name || formatName}
+            {filterDoc?.filterName || formatInfo?.display_name || formatName}
           </h1>
           <div className="flex items-center gap-2 mt-0.5">
             {formatInfo?.extensions?.map((ext) => (
@@ -417,6 +487,15 @@ function FormatDetail({
         </div>
       </div>
 
+      {/* Overview from docs */}
+      {filterDoc && (
+        <div className="mb-6 rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3">
+          <p className="text-[13px] leading-relaxed text-foreground/85">
+            {filterDoc.overview}
+          </p>
+        </div>
+      )}
+
       {/* Capabilities */}
       <div className="flex gap-3 mb-6">
         {formatInfo?.has_reader && (
@@ -434,9 +513,19 @@ function FormatDetail({
             <Plug size={12} /> {formatInfo.source}
           </div>
         )}
+        {filterDoc?.wikiUrl && (
+          <a
+            href={filterDoc.wikiUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors ml-auto"
+          >
+            <BookOpen size={12} /> Wiki
+          </a>
+        )}
       </div>
 
-      {/* Presets (Phase 2) */}
+      {/* Presets */}
       {presets.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
@@ -484,7 +573,7 @@ function FormatDetail({
         </div>
       )}
 
-      {/* Save Preset Dialog (Phase 2) */}
+      {/* Save Preset Dialog */}
       {showSavePreset && (
         <div className="mb-6 rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-semibold mb-2">Save as Preset</h3>
@@ -534,45 +623,82 @@ function FormatDetail({
         </div>
       )}
 
-      {!loadingSchema && schema && (
+      {!loadingSchema && (schema || hasDocumentation) && (
         <div>
-          {/* Phase 3: Tab bar */}
+          {/* Tab bar */}
           <div className="flex items-center gap-0 mb-3 border-b border-border">
-            <button
-              onClick={() => setActiveTab("editor")}
-              className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-                activeTab === "editor"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Editor
-            </button>
-            <button
-              onClick={() => setActiveTab("yaml")}
-              className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
-                activeTab === "yaml"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Config (YAML)
-            </button>
+            {schema && (
+              <>
+                <button
+                  onClick={() => setActiveTab("editor")}
+                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                    activeTab === "editor"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Settings2 size={12} />
+                    Editor
+                  </span>
+                </button>
+                <button
+                  onClick={() => setActiveTab("yaml")}
+                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                    activeTab === "yaml"
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Config (YAML)
+                </button>
+              </>
+            )}
+            {hasDocumentation && (
+              <button
+                onClick={() => setActiveTab("docs")}
+                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  activeTab === "docs"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <BookOpen size={12} />
+                  Documentation
+                </span>
+              </button>
+            )}
           </div>
 
           {/* Editor tab */}
-          {activeTab === "editor" && (
-            <div className="max-w-xl rounded-lg border border-border bg-card p-4">
-              <SchemaForm
-                schema={schema}
-                values={config}
-                onChange={setConfig}
-                presetValues={presetValues}
-              />
+          {activeTab === "editor" && schema && (
+            <div className="flex gap-4">
+              <div className="max-w-xl flex-1 rounded-lg border border-border bg-card p-4">
+                <SchemaForm
+                  schema={schema}
+                  values={config}
+                  onChange={setConfig}
+                  presetValues={presetValues}
+                />
+              </div>
+
+              {/* Contextual parameter help sidebar */}
+              {filterDoc && filterDoc.parameters && Object.keys(filterDoc.parameters).length > 0 && (
+                <div className="w-80 shrink-0 hidden xl:block">
+                  <div className="sticky top-4">
+                    <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                      <BookOpen size={11} />
+                      Parameter Reference
+                    </h3>
+                    <DocsPanel doc={filterDoc} inline />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* YAML tab (Phase 3) */}
+          {/* YAML tab */}
           {activeTab === "yaml" && (
             <div className="max-w-xl">
               <textarea
@@ -586,16 +712,23 @@ function FormatDetail({
               )}
             </div>
           )}
+
+          {/* Documentation tab */}
+          {activeTab === "docs" && filterDoc && (
+            <div className="max-w-2xl">
+              <DocsPanel doc={filterDoc} />
+            </div>
+          )}
         </div>
       )}
 
-      {!loadingSchema && !schema && (
+      {!loadingSchema && !schema && !hasDocumentation && (
         <div className="py-8 text-center text-sm text-muted-foreground">
           This format has no configurable parameters.
         </div>
       )}
 
-      {/* Phase 4: Ad-hoc Format Runner */}
+      {/* Ad-hoc Format Runner */}
       {!loadingSchema && formatInfo?.has_reader && (
         <div className="mt-8">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -639,7 +772,7 @@ function FormatDetail({
   );
 }
 
-// --- Part Row for Runner Results (Phase 4) ---
+// --- Part Row for Runner Results ---
 
 const partTypeBadgeColors: Record<string, string> = {
   Block: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
@@ -718,4 +851,32 @@ function PartRow({ part }: { part: FormatPartInfo }) {
       )}
     </div>
   );
+}
+
+// --- Utility: resolve filter doc by format name ---
+
+function resolveFilterDoc(
+  formatName: string,
+  docs: PluginDocs | null,
+): FilterDoc | undefined {
+  if (!docs) return undefined;
+
+  // Direct match
+  if (docs.filters[formatName]) return docs.filters[formatName];
+
+  // Try alias resolution
+  const aliased = docs.aliases?.[formatName];
+  if (aliased && docs.filters[aliased]) return docs.filters[aliased];
+
+  // Strip version suffix (e.g., "okf_html@1.48.0" → "okf_html")
+  const bare = formatName.includes("@")
+    ? formatName.slice(0, formatName.lastIndexOf("@"))
+    : formatName;
+  if (bare !== formatName) {
+    if (docs.filters[bare]) return docs.filters[bare];
+    const bareAliased = docs.aliases?.[bare];
+    if (bareAliased && docs.filters[bareAliased]) return docs.filters[bareAliased];
+  }
+
+  return undefined;
 }

@@ -554,6 +554,63 @@ func (a *App) GetFormatSchema(formatName string) map[string]any {
 	return result
 }
 
+// GetPluginDocs returns a summary of available documentation.
+// Returns filter/step ID lists and metadata — individual docs are fetched
+// via GetFilterDoc/GetStepDoc to avoid loading the full corpus.
+func (a *App) GetPluginDocs() map[string]any {
+	filterIDs := a.pluginLoader.ListFilterDocs()
+	stepIDs := a.pluginLoader.ListStepDocs()
+	if len(filterIDs) == 0 && len(stepIDs) == 0 {
+		return nil
+	}
+
+	result := map[string]any{
+		"filterIDs": filterIDs,
+		"stepIDs":   stepIDs,
+	}
+
+	// Include metadata (aliases, wiki URL).
+	meta := a.pluginLoader.DocsMetadata()
+	if meta != nil {
+		var m map[string]any
+		if err := json.Unmarshal(meta, &m); err == nil {
+			for k, v := range m {
+				result[k] = v
+			}
+		}
+	}
+
+	return result
+}
+
+// GetFilterDoc returns documentation for a single filter by ID (e.g. "okf_json").
+// The loader handles alias resolution. Returns nil if not found.
+func (a *App) GetFilterDoc(filterID string) map[string]any {
+	raw := a.pluginLoader.FilterDoc(filterID)
+	if raw == nil {
+		return nil
+	}
+	var result map[string]any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil
+	}
+	return result
+}
+
+// GetStepDoc returns documentation for a single pipeline step by ID
+// (e.g. "batch-translation"). Returns nil if not found.
+func (a *App) GetStepDoc(stepID string) map[string]any {
+	raw := a.pluginLoader.StepDoc(stepID)
+	if raw == nil {
+		return nil
+	}
+	var result map[string]any
+	if err := json.Unmarshal(raw, &result); err != nil {
+		return nil
+	}
+	return result
+}
+
 // --- Preset operations ---
 
 // PresetInfo is the frontend-facing framework preset summary.

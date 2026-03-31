@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -123,17 +122,18 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 		}
 	}
 
-	// Collect docs bundle from any plugin that provides one.
-	var docsBundle json.RawMessage
+	// Discover docs directory from any plugin that provides one.
+	// Prefer split docs/ directory over legacy docs.json.
+	var docsDir string
 	for _, versions := range all {
 		for _, iv := range versions {
-			docsPath := filepath.Join(iv.Dir, "docs.json")
-			if data, err := os.ReadFile(docsPath); err == nil {
-				docsBundle = data
+			d := filepath.Join(iv.Dir, "docs")
+			if info, err := os.Stat(d); err == nil && info.IsDir() {
+				docsDir = d
 				break
 			}
 		}
-		if docsBundle != nil {
+		if docsDir != "" {
 			break
 		}
 	}
@@ -143,7 +143,7 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 		Plugins: plugins,
 		Schemas: collectSchemas(schemaReg),
 		Presets: collectPresets(presetReg),
-		Docs:    docsBundle,
+		DocsDir: docsDir,
 	}
 	return cache, nil
 }
