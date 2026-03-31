@@ -479,6 +479,7 @@ func (a *App) ListTools() []ToolInfo {
 		seen[info.Name] = true
 		infos = append(infos, ToolInfo{
 			Name:        info.Name,
+			DisplayName: info.DisplayName,
 			Description: info.Description,
 			Category:    info.Category,
 			HasSchema:   info.HasSchema,

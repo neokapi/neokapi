@@ -14,6 +14,7 @@ type ToolFactory func() tool.Tool
 // ToolInfo holds metadata about a registered tool.
 type ToolInfo struct {
 	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Category    string   `json:"category,omitempty"`
 	Source      string   `json:"source,omitempty"` // "built-in", plugin name
@@ -62,6 +63,7 @@ func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *s
 		HasSchema: s != nil,
 	}
 	if s != nil {
+		info.DisplayName = s.Title
 		info.Description = s.Description
 		info.Category = s.Meta.Category
 		info.Inputs = s.Meta.Inputs
