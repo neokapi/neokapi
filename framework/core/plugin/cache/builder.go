@@ -123,7 +123,6 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 	}
 
 	// Discover docs directory from any plugin that provides one.
-	// Prefer split docs/ directory over legacy docs.json.
 	var docsDir string
 	for _, versions := range all {
 		for _, iv := range versions {
@@ -411,3 +410,6 @@ func logf(logger *log.Logger, format string, args ...any) {
 		logger.Printf(format, args...)
 	}
 }
+
+
+
