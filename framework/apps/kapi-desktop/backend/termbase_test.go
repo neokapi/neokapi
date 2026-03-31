@@ -15,6 +15,7 @@ func openTestTermbase(t *testing.T, app *App) string {
 	handle, err := app.OpenTermbase(path)
 	require.NoError(t, err)
 	require.NotEmpty(t, handle)
+	t.Cleanup(func() { app.CloseTermbase(handle) })
 	return handle
 }
 
