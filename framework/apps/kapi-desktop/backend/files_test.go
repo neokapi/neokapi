@@ -105,7 +105,8 @@ func TestValidateContentPath(t *testing.T) {
 	assert.NoError(t, app.ValidateContentPath("locales/*.json"))
 	assert.NoError(t, app.ValidateContentPath("src/i18n/en.json"))
 	assert.Error(t, app.ValidateContentPath("../secret"))
-	assert.Error(t, app.ValidateContentPath("/etc/passwd"))
+	// Use a path that filepath.IsAbs recognises on all platforms.
+	assert.Error(t, app.ValidateContentPath(filepath.Join(string(filepath.Separator), "etc", "passwd")))
 }
 
 func TestIsEmptyProject(t *testing.T) {
