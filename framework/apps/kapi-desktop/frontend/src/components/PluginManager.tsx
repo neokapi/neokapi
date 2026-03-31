@@ -381,12 +381,12 @@ function InstalledPluginCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold">{plugin.name}</span>
-            <span className="rounded bg-accent px-1.5 py-0.5 text-xs">v{plugin.version}</span>
             {plugin.framework_version && (
-              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              <span className="rounded bg-accent px-1.5 py-0.5 text-xs font-medium">
                 {plugin.framework_version}
               </span>
             )}
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">v{plugin.version}</span>
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{plugin.type}</span>
           </div>
           {plugin.description && (
