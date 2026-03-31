@@ -48,7 +48,7 @@ func TestNewProjectDefaultPath(t *testing.T) {
 	app := NewApp()
 	tab, err := app.NewProject("MyApp", "en", nil, "")
 	require.NoError(t, err)
-	assert.Contains(t, tab.Path, "KapiProjects/MyApp/project.kapi")
+	assert.Contains(t, tab.Path, filepath.Join("KapiProjects", "MyApp", "project.kapi"))
 	assert.Equal(t, "MyApp", tab.Name)
 }
 
