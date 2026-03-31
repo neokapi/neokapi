@@ -64,12 +64,21 @@ export interface FormatInfo {
   has_schema: boolean;
 }
 
+export interface PluginCapability {
+  type: string;
+  name: string;
+  display_name?: string;
+  extensions?: string[];
+}
+
 export interface PluginInfo {
   name: string;
   version: string;
-  description: string;
+  framework_version?: string;
+  description?: string;
   type: string;
-  installed: boolean;
+  formats?: string[];
+  capabilities?: PluginCapability[];
 }
 
 export interface ProviderConfig {

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/id"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
@@ -598,22 +599,65 @@ func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
 
 // --- Plugin operations ---
 
-// PluginInfo is the frontend-facing plugin summary.
-type PluginInfo struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-	Type    string `json:"type"`
+// PluginCapability describes a format or tool provided by a plugin.
+type PluginCapability struct {
+	Type        string   `json:"type"`                   // "format" or "tool"
+	Name        string   `json:"name"`
+	DisplayName string   `json:"display_name,omitempty"`
+	Extensions  []string `json:"extensions,omitempty"`
 }
 
-// ListPlugins returns installed plugins (deduplicated by name).
+// PluginInfo is the frontend-facing plugin summary.
+type PluginInfo struct {
+	Name             string             `json:"name"`
+	Version          string             `json:"version"`
+	FrameworkVersion string             `json:"framework_version,omitempty"`
+	Type             string             `json:"type"`
+	Description      string             `json:"description,omitempty"`
+	Formats          []string           `json:"formats,omitempty"`
+	Capabilities     []PluginCapability `json:"capabilities,omitempty"`
+}
+
+// ListPlugins returns installed plugins with full metadata.
 func (a *App) ListPlugins() []PluginInfo {
+	// Read the cache to get rich metadata (capabilities, descriptions).
+	cache, _ := plugincache.Read(a.pluginLoader.Dir())
+	cacheMap := make(map[string]*plugincache.CachedPlugin)
+	if cache != nil {
+		for i := range cache.Plugins {
+			cacheMap[cache.Plugins[i].Name] = &cache.Plugins[i]
+		}
+	}
+
 	var infos []PluginInfo
 	for _, p := range a.pluginLoader.Plugins() {
-		infos = append(infos, PluginInfo{
-			Name:    p.Name,
-			Version: p.Version,
-			Type:    p.Type,
-		})
+		info := PluginInfo{
+			Name:             p.Name,
+			Version:          p.Version,
+			FrameworkVersion: p.FrameworkVersion,
+			Type:             p.Type,
+			Formats:          p.Formats,
+		}
+
+		// Enrich from cache (has manifest with capabilities and description).
+		if cp := cacheMap[p.Name]; cp != nil {
+			if cp.Manifest != nil {
+				info.Description = cp.Manifest.Description
+				for _, cap := range cp.Manifest.Capabilities {
+					info.Capabilities = append(info.Capabilities, PluginCapability{
+						Type:        cap.Type,
+						Name:        cap.Name,
+						DisplayName: cap.DisplayName,
+						Extensions:  cap.Extensions,
+					})
+				}
+			}
+			if cp.FrameworkVersion != "" {
+				info.FrameworkVersion = cp.FrameworkVersion
+			}
+		}
+
+		infos = append(infos, info)
 	}
 	return infos
 }

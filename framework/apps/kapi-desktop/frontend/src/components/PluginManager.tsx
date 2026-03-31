@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Download, RefreshCw, Search, Package, Loader2, Trash2 } from "lucide-react";
+import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench } from "lucide-react";
 import type { PluginInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -256,30 +256,15 @@ export function PluginManager() {
           ) : (
             <div className="space-y-2">
               {filtered.map((plugin) => (
-                <div key={plugin.name} className="flex items-center gap-3 rounded-lg border border-border p-4">
-                  <Package size={20} className="shrink-0 text-primary" />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">{plugin.name}</span>
-                      <span className="rounded bg-accent px-1.5 py-0.5 text-xs">v{plugin.version}</span>
-                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{plugin.type}</span>
-                    </div>
-                  </div>
-                  {removing === plugin.name ? (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Loader2 size={12} className="animate-spin" /> Removing...
-                    </div>
-                  ) : confirmRemove === plugin.name ? (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => void handleRemove(plugin.name)} className="rounded px-2 py-0.5 text-[10px] bg-destructive text-destructive-foreground">Remove</button>
-                      <button onClick={() => setConfirmRemove(null)} className="rounded px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground">Cancel</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setConfirmRemove(plugin.name)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Uninstall">
-                      <Trash2 size={12} />
-                    </button>
-                  )}
-                </div>
+                <InstalledPluginCard
+                  key={plugin.name}
+                  plugin={plugin}
+                  removing={removing === plugin.name}
+                  confirmRemove={confirmRemove === plugin.name}
+                  onConfirmRemove={() => setConfirmRemove(plugin.name)}
+                  onCancelRemove={() => setConfirmRemove(null)}
+                  onRemove={() => void handleRemove(plugin.name)}
+                />
               ))}
               {filtered.length === 0 && (
                 <div className="py-8 text-center">
@@ -364,6 +349,124 @@ export function PluginManager() {
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+function InstalledPluginCard({
+  plugin,
+  removing,
+  confirmRemove,
+  onConfirmRemove,
+  onCancelRemove,
+  onRemove,
+}: {
+  plugin: PluginInfo;
+  removing: boolean;
+  confirmRemove: boolean;
+  onConfirmRemove: () => void;
+  onCancelRemove: () => void;
+  onRemove: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const formatCaps = plugin.capabilities?.filter((c) => c.type === "format") ?? [];
+  const toolCaps = plugin.capabilities?.filter((c) => c.type === "tool") ?? [];
+  const hasDetails = formatCaps.length > 0 || toolCaps.length > 0;
+
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <div className="flex items-center gap-3 p-4">
+        <Package size={20} className="shrink-0 text-primary" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold">{plugin.name}</span>
+            <span className="rounded bg-accent px-1.5 py-0.5 text-xs">v{plugin.version}</span>
+            {plugin.framework_version && (
+              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                {plugin.framework_version}
+              </span>
+            )}
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{plugin.type}</span>
+          </div>
+          {plugin.description && (
+            <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
+          )}
+          {plugin.formats && plugin.formats.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {plugin.formats.slice(0, 8).map((f) => (
+                <span key={f} className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono">
+                  {f}
+                </span>
+              ))}
+              {plugin.formats.length > 8 && (
+                <span className="text-[10px] text-muted-foreground">+{plugin.formats.length - 8} more</span>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {hasDetails && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="p-1.5 rounded hover:bg-accent text-muted-foreground transition-colors"
+              title="Show capabilities"
+            >
+              {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          )}
+          {removing ? (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Loader2 size={12} className="animate-spin" /> Removing...
+            </div>
+          ) : confirmRemove ? (
+            <div className="flex items-center gap-1">
+              <button onClick={onRemove} className="rounded px-2 py-0.5 text-[10px] bg-destructive text-destructive-foreground">Remove</button>
+              <button onClick={onCancelRemove} className="rounded px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground">Cancel</button>
+            </div>
+          ) : (
+            <button onClick={onConfirmRemove} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Uninstall">
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded capabilities */}
+      {expanded && hasDetails && (
+        <div className="border-t border-border px-4 py-3">
+          {formatCaps.length > 0 && (
+            <div className="mb-2">
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+                <FileText size={10} /> Formats ({formatCaps.length})
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {formatCaps.map((c) => (
+                  <span key={c.name} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-foreground">
+                    {c.display_name || c.name}
+                    {c.extensions && c.extensions.length > 0 && (
+                      <span className="text-muted-foreground ml-1">{c.extensions.join(" ")}</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {toolCaps.length > 0 && (
+            <div>
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Wrench size={10} /> Tools ({toolCaps.length})
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {toolCaps.map((c) => (
+                  <span key={c.name} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-foreground">
+                    {c.display_name || c.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
