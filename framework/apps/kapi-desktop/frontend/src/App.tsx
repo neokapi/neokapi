@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { AppMode, KapiProject, TabInfo } from "./types/api";
 import { api } from "./hooks/useApi";
+import { useWailsEvent } from "./hooks/useWailsEvent";
 import { ErrorProvider, useError } from "./components/ErrorBanner";
 import { IconSidebar } from "./components/IconSidebar";
 import { ModeToggle } from "./components/ModeToggle";
@@ -72,19 +73,7 @@ function AppInner() {
 
   // Per Wails v3 docs: common:ApplicationStarted fires after all
   // ServiceStartup hooks complete — data is guaranteed available.
-  useEffect(() => {
-    let cleanup: (() => void) | null = null;
-    import("@wailsio/runtime")
-      .then(({ Events }) => {
-        cleanup = Events.On("common:ApplicationStarted", () => refreshRecent());
-        // Also call immediately — event may have already fired during import.
-        refreshRecent();
-      })
-      .catch(() => {});
-    return () => {
-      cleanup?.();
-    };
-  }, [refreshRecent]);
+  useWailsEvent("common:ApplicationStarted", () => refreshRecent());
 
   const handleModeChange = useCallback(
     (m: AppMode) => {
@@ -194,63 +183,51 @@ function AppInner() {
     );
   }, []);
 
-  // Menu events
-  useEffect(() => {
-    const cleanups: Array<() => void> = [];
-    import("@wailsio/runtime")
-      .then(({ Events }) => {
-        cleanups.push(
-          Events.On("menu:new-project", () => {
-            setMode("projects");
-            setShowNewProjectForm(true);
-          }),
-        );
-        cleanups.push(Events.On("menu:open-project", () => handleOpenProject()));
-        cleanups.push(
-          Events.On("menu:open-recent", (e: { data: unknown }) => {
-            const p = e.data as string;
-            if (p) handleOpenRecent(p);
-          }),
-        );
-        cleanups.push(
-          Events.On("menu:save-project", async () => {
-            if (!activeTabID) return;
-            try {
-              const path = await api.getProjectPath(activeTabID);
-              if (path) await api.saveProject(activeTabID);
-              else {
-                const u = await api.saveProjectDialog(activeTabID);
-                if (u) updateActiveTab(u);
-              }
-            } catch (err) {
-              showError("Failed to save project", err);
-            }
-          }),
-        );
-        cleanups.push(
-          Events.On("menu:save-project-as", async () => {
-            if (!activeTabID) return;
-            try {
-              const u = await api.saveProjectDialog(activeTabID);
-              if (u) updateActiveTab(u);
-            } catch (err) {
-              showError("Failed to save project", err);
-            }
-          }),
-        );
-        cleanups.push(
-          Events.On("open-project-tab", async (e: { data: unknown }) => {
-            const tab = e.data as TabInfo;
-            if (tab?.id) {
-              const proj = await api.getProject(tab.id);
-              if (proj) addTab(tab, proj);
-            }
-          }),
-        );
-      })
-      .catch(() => {});
-    return () => cleanups.forEach((fn) => fn());
-  }, [activeTabID, handleOpenProject, handleOpenRecent, addTab, updateActiveTab, showError]);
+  // Menu events — use refs for state that changes between renders
+  // so the event callbacks always access the latest values.
+  const activeTabIDRef = useRef(activeTabID);
+  activeTabIDRef.current = activeTabID;
+
+  useWailsEvent("menu:new-project", () => {
+    setMode("projects");
+    setShowNewProjectForm(true);
+  });
+  useWailsEvent("menu:open-project", () => handleOpenProject());
+  useWailsEvent("menu:open-recent", (data) => {
+    const p = data as string;
+    if (p) handleOpenRecent(p);
+  });
+  useWailsEvent("menu:save-project", async () => {
+    const tabID = activeTabIDRef.current;
+    if (!tabID) return;
+    try {
+      const path = await api.getProjectPath(tabID);
+      if (path) await api.saveProject(tabID);
+      else {
+        const u = await api.saveProjectDialog(tabID);
+        if (u) updateActiveTab(u);
+      }
+    } catch (err) {
+      showError("Failed to save project", err);
+    }
+  });
+  useWailsEvent("menu:save-project-as", async () => {
+    const tabID = activeTabIDRef.current;
+    if (!tabID) return;
+    try {
+      const u = await api.saveProjectDialog(tabID);
+      if (u) updateActiveTab(u);
+    } catch (err) {
+      showError("Failed to save project", err);
+    }
+  });
+  useWailsEvent("open-project-tab", async (data) => {
+    const tab = data as TabInfo;
+    if (tab?.id) {
+      const proj = await api.getProject(tab.id);
+      if (proj) addTab(tab, proj);
+    }
+  });
 
   return (
     <div className="flex h-screen bg-background text-foreground">

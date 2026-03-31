@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useReducer } from "react";
+import { useWailsEvent } from "../hooks/useWailsEvent";
 import {
   FileText,
   ArrowLeft,
@@ -32,17 +33,9 @@ export function FormatsPage() {
   }, [showError]);
 
   // Refresh when plugins change (formats may have been added/removed).
-  useEffect(() => {
-    let cleanup: (() => void) | null = null;
-    import("@wailsio/runtime")
-      .then(({ Events }) => {
-        cleanup = Events.On("registries-changed", () => {
-          api.listFormats().then((f) => { if (f) setFormats(f); }).catch(() => {});
-        });
-      })
-      .catch(() => {});
-    return () => { cleanup?.(); };
-  }, []);
+  useWailsEvent("registries-changed", () => {
+    api.listFormats().then((f) => { if (f) setFormats(f); }).catch(() => {});
+  });
 
   const filtered = search
     ? formats.filter(

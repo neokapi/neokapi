@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench } from "lucide-react";
 import type { PluginInfo } from "../types/api";
+import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -71,72 +72,51 @@ export function PluginManager() {
     }
   }, [tab, loadAvailable]);
 
-  // Listen for Wails events to stay in sync with CLI and backend.
-  useEffect(() => {
-    let cleanups: Array<() => void> = [];
-    import("@wailsio/runtime")
-      .then(({ Events }) => {
-        // Refresh installed list when any plugin changes (install, remove, CLI action).
-        cleanups.push(
-          Events.On("plugins-changed", () => {
-            void loadPlugins();
-            // Also refresh available list to update installed badges.
-            if (tab === "available") void loadAvailable();
-          }),
-        );
+  // Refresh installed list when plugins change (install, remove, CLI action).
+  useWailsEvent("plugins-changed", () => {
+    void loadPlugins();
+    if (tab === "available") void loadAvailable();
+  });
 
-        // Download progress.
-        cleanups.push(
-          Events.On("plugin-progress", (e: { data: unknown }) => {
-            const data = e.data as { percent?: number };
-            // Update all currently-installing plugins with progress.
-            setInstallStatus((prev) => {
-              const next = { ...prev };
-              for (const [name, status] of Object.entries(next)) {
-                if (status.state === "downloading") {
-                  next[name] = { ...status, percent: data.percent ?? 0 };
-                }
-              }
-              return next;
-            });
-          }),
-        );
+  // Download progress.
+  useWailsEvent("plugin-progress", (data) => {
+    const d = data as { percent?: number };
+    setInstallStatus((prev) => {
+      const next = { ...prev };
+      for (const [name, status] of Object.entries(next)) {
+        if (status.state === "downloading") {
+          next[name] = { ...status, percent: d.percent ?? 0 };
+        }
+      }
+      return next;
+    });
+  });
 
-        // Install complete.
-        cleanups.push(
-          Events.On("plugin-installed", (e: { data: unknown }) => {
-            const data = e.data as { name?: string };
-            if (data.name) {
-              setInstallStatus((prev) => ({ ...prev, [data.name!]: { state: "done" } }));
-              // Clear "done" status after 2 seconds.
-              setTimeout(() => {
-                setInstallStatus((prev) => {
-                  const next = { ...prev };
-                  delete next[data.name!];
-                  return next;
-                });
-              }, 2000);
-            }
-          }),
-        );
+  // Install complete.
+  useWailsEvent("plugin-installed", (data) => {
+    const d = data as { name?: string };
+    if (d.name) {
+      setInstallStatus((prev) => ({ ...prev, [d.name!]: { state: "done" } }));
+      setTimeout(() => {
+        setInstallStatus((prev) => {
+          const next = { ...prev };
+          delete next[d.name!];
+          return next;
+        });
+      }, 2000);
+    }
+  });
 
-        // Install error.
-        cleanups.push(
-          Events.On("plugin-error", (e: { data: unknown }) => {
-            const data = e.data as { name?: string; error?: string };
-            if (data.name) {
-              setInstallStatus((prev) => ({
-                ...prev,
-                [data.name!]: { state: "error", error: data.error },
-              }));
-            }
-          }),
-        );
-      })
-      .catch(() => {});
-
-    return () => cleanups.forEach((fn) => fn());
-  }, [loadPlugins, loadAvailable, tab]);
+  // Install error.
+  useWailsEvent("plugin-error", (data) => {
+    const d = data as { name?: string; error?: string };
+    if (d.name) {
+      setInstallStatus((prev) => ({
+        ...prev,
+        [d.name!]: { state: "error", error: d.error },
+      }));
+    }
+  });
 
   const handleInstall = useCallback((name: string) => {
     setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));

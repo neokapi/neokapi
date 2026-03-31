@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
 import type { FlowSpec } from "../types/api";
 import { api } from "../hooks/useApi";
+import { useWailsEvent } from "../hooks/useWailsEvent";
 
 type RunState = "idle" | "running" | "complete" | "error" | "canceled";
 
@@ -29,47 +30,28 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
   const [targetLang, setTargetLang] = useState("");
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
-  const eventCleanupRef = useRef<(() => void) | null>(null);
-
   // Listen for flow events from the backend.
-  useEffect(() => {
-    // In Wails runtime, listen to "flow:event" events.
-    // Outside Wails, this is a no-op.
-    if (typeof window !== "undefined" && "go" in window) {
-      import("@wailsio/runtime")
-        .then(({ Events }) => {
-          const cancel = Events.On("flow:event", (event: { data: unknown }) => {
-            const e = event.data as RunEvent;
-            setEvents((prev) => [...prev, e]);
+  useWailsEvent("flow:event", (data) => {
+    const e = data as RunEvent;
+    setEvents((prev) => [...prev, e]);
 
-            switch (e.type) {
-              case "progress":
-                setProgress({
-                  current: (e.file_index ?? 0) + 1,
-                  total: e.file_count ?? 0,
-                });
-                break;
-              case "complete":
-                setState("complete");
-                setProgress((prev) => ({ ...prev, current: prev.total }));
-                break;
-              case "error":
-                setState("error");
-                setError(e.message ?? "Flow execution failed");
-                break;
-            }
-          });
-          eventCleanupRef.current = cancel;
-        })
-        .catch(() => {
-          // Not in Wails runtime — no event listening available.
+    switch (e.type) {
+      case "progress":
+        setProgress({
+          current: (e.file_index ?? 0) + 1,
+          total: e.file_count ?? 0,
         });
+        break;
+      case "complete":
+        setState("complete");
+        setProgress((prev) => ({ ...prev, current: prev.total }));
+        break;
+      case "error":
+        setState("error");
+        setError(e.message ?? "Flow execution failed");
+        break;
     }
-
-    return () => {
-      eventCleanupRef.current?.();
-    };
-  }, []);
+  });
 
   const handleRun = useCallback(async () => {
     if (!targetLang || inputFiles.length === 0) return;
