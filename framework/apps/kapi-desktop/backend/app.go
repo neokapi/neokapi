@@ -468,10 +468,14 @@ type ToolInfo struct {
 	Requires    []string `json:"requires,omitempty"`
 }
 
-// ListTools returns all registered tools.
+// ListTools returns all registered tools, including plugin-provided tools.
 func (a *App) ListTools() []ToolInfo {
+	seen := make(map[string]bool)
 	var infos []ToolInfo
+
+	// Built-in tools from the tool registry.
 	for _, info := range a.toolReg.ListWithSchemas() {
+		seen[info.Name] = true
 		infos = append(infos, ToolInfo{
 			Name:        info.Name,
 			Description: info.Description,
@@ -483,6 +487,42 @@ func (a *App) ListTools() []ToolInfo {
 			Requires:    info.Requires,
 		})
 	}
+
+	// Plugin-provided tools from the cache (bridge step capabilities).
+	cache, _ := plugincache.Read(a.pluginLoader.Dir())
+	if cache != nil {
+		for _, cp := range cache.Plugins {
+			if cp.Manifest == nil {
+				continue
+			}
+			for _, cap := range cp.Manifest.Capabilities {
+				if cap.Type != "tool" {
+					continue
+				}
+				name := cap.ID
+				if name == "" {
+					name = cap.Name
+				}
+				if seen[name] {
+					continue
+				}
+				seen[name] = true
+				_, hasSchema := a.schemaReg.GetSchema(name)
+				infos = append(infos, ToolInfo{
+					Name:        name,
+					Description: cap.Description,
+					Category:    cap.Category,
+					HasSchema:   hasSchema,
+					Inputs:      cap.Inputs,
+					Outputs:     cap.Outputs,
+					Tags:        cap.Tags,
+					Requires:    cap.Requires,
+				})
+			}
+		}
+	}
+
+	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
 	return infos
 }
 
