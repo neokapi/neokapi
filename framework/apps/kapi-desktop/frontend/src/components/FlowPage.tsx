@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useReducer } from "react";
 import type { FlowSpec } from "../types/api";
+import { useWailsEvent } from "../hooks/useWailsEvent";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo, ComponentSchema } from "@neokapi/flow-editor";
 import { api } from "../hooks/useApi";
@@ -40,15 +41,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
   useEffect(() => { loadTools(); }, [loadTools]);
 
   // Refresh when plugins change (tools may have been added/removed).
-  useEffect(() => {
-    let cleanup: (() => void) | null = null;
-    import("@wailsio/runtime")
-      .then(({ Events }) => {
-        cleanup = Events.On("registries-changed", () => loadTools());
-      })
-      .catch(() => {});
-    return () => { cleanup?.(); };
-  }, [loadTools]);
+  useWailsEvent("registries-changed", loadTools);
 
   const handleGetSchema = useCallback((toolName: string): ComponentSchema | null => {
     if (toolName in schemasRef.current) {
