@@ -46,6 +46,7 @@ export function FlowEditor({
   onChange,
   onRun,
   onGetSchema,
+  onGetDoc,
   readOnly = false,
   traceEvents,
   trace,
@@ -297,6 +298,7 @@ export function FlowEditor({
     : NaN;
   const selectedToolInfo = selectedToolName ? toolMap.get(selectedToolName) : null;
   const selectedSchema = selectedToolName && onGetSchema ? onGetSchema(selectedToolName) : null;
+  const selectedDoc = selectedToolName && onGetDoc ? onGetDoc(selectedToolName) : null;
 
   const handleConfigChange = useCallback(
     (config: Record<string, unknown>) => {
@@ -530,6 +532,7 @@ export function FlowEditor({
           step={selectedStep}
           toolInfo={selectedToolInfo}
           schema={selectedSchema}
+          doc={selectedDoc}
           config={selectedStep.config || {}}
           onConfigChange={handleConfigChange}
           onClose={() => setSelectedNodeId(null)}
@@ -570,6 +573,7 @@ function ConfigPanel({
   step,
   toolInfo,
   schema,
+  doc,
   config,
   onConfigChange,
   onClose,
@@ -578,11 +582,13 @@ function ConfigPanel({
   step: { tool: string };
   toolInfo: ToolInfo | null | undefined;
   schema: ComponentSchema | null | undefined;
+  doc: import("./types").ToolDoc | null | undefined;
   config: Record<string, unknown>;
   onConfigChange: (config: Record<string, unknown>) => void;
   onClose: () => void;
   onRemove?: () => void;
 }) {
+  const [showDocs, setShowDocs] = useState(false);
   const category = toolInfo?.category || "pipeline";
   const catStyle = getCategoryStyle(category);
   const Icon = catStyle.icon;
@@ -693,39 +699,92 @@ function ConfigPanel({
           </button>
         </div>
 
-        {toolInfo?.description && (
+        {/* Description — prefer doc overview, fall back to ToolInfo.description */}
+        {(doc?.overview || toolInfo?.description) && (
           <div
             style={{
               fontSize: 11,
               color: theme.fgMuted,
-              lineHeight: 1.4,
+              lineHeight: 1.5,
+              display: "-webkit-box",
+              WebkitLineClamp: showDocs ? undefined : 3,
+              WebkitBoxOrient: "vertical",
+              overflow: showDocs ? "visible" : "hidden",
             }}
           >
-            {toolInfo.description}
+            {doc?.overview || toolInfo?.description}
           </div>
         )}
 
-        {/* Requirements badges */}
-        {toolInfo?.requires && toolInfo.requires.length > 0 && (
-          <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-            {toolInfo.requires.map((req) => (
-              <span
-                key={req}
-                style={{
-                  fontSize: 9,
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  background: theme.bgSecondary,
-                  color: theme.fgMuted,
-                  fontWeight: 500,
-                }}
-              >
-                {req}
-              </span>
-            ))}
-          </div>
-        )}
+        {/* Requirements badges + docs toggle */}
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
+          {toolInfo?.requires?.map((req) => (
+            <span
+              key={req}
+              style={{
+                fontSize: 9,
+                padding: "2px 6px",
+                borderRadius: 4,
+                background: theme.bgSecondary,
+                color: theme.fgMuted,
+                fontWeight: 500,
+              }}
+            >
+              {req}
+            </span>
+          ))}
+          {doc && (
+            <button
+              onClick={() => setShowDocs((v) => !v)}
+              style={{
+                marginLeft: "auto",
+                fontSize: 9,
+                padding: "2px 8px",
+                borderRadius: 4,
+                border: `1px solid ${showDocs ? theme.ring : theme.border}`,
+                background: showDocs ? `color-mix(in oklch, ${theme.ring} 10%, transparent)` : "transparent",
+                color: showDocs ? theme.ring : theme.fgMuted,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {showDocs ? "Hide Docs" : "Docs"}
+            </button>
+          )}
+          {doc?.wikiUrl && (
+            <a
+              href={doc.wikiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 9,
+                color: theme.fgMuted,
+                textDecoration: "none",
+                padding: "2px 4px",
+              }}
+              title="Open wiki documentation"
+            >
+              Wiki ↗
+            </a>
+          )}
+        </div>
       </div>
+
+      {/* Docs panel (collapsible) */}
+      {showDocs && doc && (
+        <div
+          style={{
+            maxHeight: 260,
+            overflow: "auto",
+            padding: "8px 12px",
+            borderBottom: `1px solid ${theme.border}`,
+            fontSize: 11,
+            lineHeight: 1.5,
+          }}
+        >
+          <DocsSidebar doc={doc} />
+        </div>
+      )}
 
       {/* Config form */}
       <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
@@ -773,6 +832,216 @@ function ConfigPanel({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// --- Inline documentation sidebar for the config panel ---
+
+import type { ToolDoc, ToolDocParam } from "./types";
+
+function DocsSidebar({ doc }: { doc: ToolDoc }) {
+  const params = doc.parameters ? Object.entries(doc.parameters) : [];
+  const hasExamples = doc.examples && doc.examples.length > 0;
+  const hasLimitations = doc.limitations && doc.limitations.length > 0;
+  const hasNotes = doc.processingNotes && doc.processingNotes.length > 0;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {/* Parameters */}
+      {params.length > 0 && (
+        <DocSection title="Parameters">
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {params.map(([key, p]) => (
+              <DocParamRow key={key} name={key} param={p} />
+            ))}
+          </div>
+        </DocSection>
+      )}
+
+      {/* Examples */}
+      {hasExamples && (
+        <DocSection title="Examples">
+          {doc.examples!.map((ex, i) => (
+            <div
+              key={i}
+              style={{
+                padding: "6px 8px",
+                borderRadius: 4,
+                background: theme.bgSecondary,
+                marginBottom: i < doc.examples!.length - 1 ? 4 : 0,
+              }}
+            >
+              <div style={{ fontWeight: 600, fontSize: 10, color: theme.fg }}>
+                {ex.title}
+              </div>
+              {ex.description && (
+                <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 2 }}>
+                  {ex.description}
+                </div>
+              )}
+              {ex.input && (
+                <pre
+                  style={{
+                    fontSize: 9,
+                    fontFamily: "monospace",
+                    background: theme.bg,
+                    borderRadius: 3,
+                    padding: "4px 6px",
+                    marginTop: 4,
+                    overflow: "auto",
+                    maxHeight: 60,
+                    whiteSpace: "pre-wrap",
+                    color: theme.fg,
+                  }}
+                >
+                  {ex.input}
+                </pre>
+              )}
+            </div>
+          ))}
+        </DocSection>
+      )}
+
+      {/* Limitations */}
+      {hasLimitations && (
+        <DocSection title="Limitations">
+          {doc.limitations!.map((lim, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: 10,
+                color: theme.fgMuted,
+                paddingLeft: 8,
+                borderLeft: `2px solid color-mix(in oklch, ${theme.ring} 30%, transparent)`,
+                marginBottom: 3,
+              }}
+            >
+              {lim}
+            </div>
+          ))}
+        </DocSection>
+      )}
+
+      {/* Processing Notes */}
+      {hasNotes && (
+        <DocSection title="Notes">
+          {doc.processingNotes!.map((note, i) => (
+            <div
+              key={i}
+              style={{
+                fontSize: 10,
+                color: theme.fgMuted,
+                paddingLeft: 8,
+                borderLeft: `2px solid color-mix(in oklch, ${theme.accent} 40%, transparent)`,
+                marginBottom: 3,
+              }}
+            >
+              {note}
+            </div>
+          ))}
+        </DocSection>
+      )}
+    </div>
+  );
+}
+
+function DocSection({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div
+        style={{
+          fontSize: 9,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.06em",
+          color: theme.fgMuted,
+          marginBottom: 4,
+        }}
+      >
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function DocParamRow({ name, param }: { name: string; param: ToolDocParam }) {
+  return (
+    <div
+      style={{
+        padding: "4px 8px",
+        borderRadius: 4,
+        background: theme.bgSecondary,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+        <code
+          style={{
+            fontSize: 10,
+            fontWeight: 600,
+            color: theme.ring,
+            background: `color-mix(in oklch, ${theme.ring} 8%, transparent)`,
+            padding: "1px 5px",
+            borderRadius: 3,
+          }}
+        >
+          {name}
+        </code>
+        {param.introducedIn && (
+          <span
+            style={{
+              fontSize: 8,
+              padding: "1px 4px",
+              borderRadius: 3,
+              background: `color-mix(in oklch, ${theme.accent} 20%, transparent)`,
+              color: theme.fgMuted,
+              fontWeight: 500,
+            }}
+          >
+            {param.introducedIn}
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.4 }}>
+        {param.description}
+      </div>
+      {param.notes?.map((note, i) => (
+        <div
+          key={i}
+          style={{
+            fontSize: 9,
+            color: theme.fgMuted,
+            marginTop: 3,
+            fontStyle: "italic",
+            opacity: 0.8,
+          }}
+        >
+          {note}
+        </div>
+      ))}
+      {param.dependsOn?.map((dep, i) => (
+        <div
+          key={i}
+          style={{
+            fontSize: 9,
+            marginTop: 3,
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+          }}
+        >
+          <GitBranch size={8} style={{ color: theme.fgMuted }} />
+          <code style={{ fontWeight: 600, color: theme.fgMuted }}>{dep.property}</code>
+          <span style={{ color: theme.fgMuted, opacity: 0.7 }}>{dep.condition}</span>
+        </div>
+      ))}
     </div>
   );
 }

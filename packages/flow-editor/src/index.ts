@@ -37,4 +37,6 @@ export type {
   ComponentMeta,
   ParameterGroup,
   PropertySchema,
+  ToolDoc,
+  ToolDocParam,
 } from "./types";

@@ -77,7 +77,7 @@ export interface ToolRunnerPageProps {
 export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerPageProps = {}) {
   const [tools, setTools] = useState<ToolInfo[]>(propTools ?? []);
   const [loading, setLoading] = useState(!propTools);
-  const [docs, setDocs] = useState<PluginDocs | null>(propDocs ?? null);
+  const [docs] = useState<PluginDocs | null>(propDocs ?? null);
   const [docsSummary, setDocsSummary] = useState<PluginDocsSummary | null>(null);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
   const [search, setSearch] = useState("");
