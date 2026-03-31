@@ -193,13 +193,8 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 				if name == "" {
 					name = cap.Name
 				}
-				// Look up schema by bare name (without plugin prefix).
-				bare := name
-				if idx := strings.LastIndex(name, ":"); idx >= 0 {
-					bare = name[idx+1:]
-				}
 				var toolSchema *fmtschema.FilterSchema
-				if s, ok := c.ToolSchemas[bare]; ok {
+				if s, ok := c.ToolSchemas[name]; ok {
 					toolSchema = s
 				}
 				// Build a ComponentSchema from the capability + optional FilterSchema.
@@ -766,8 +761,7 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 // for step schema JSON files and registers each as a tool.Tool.
 //
 // Schema extraction preserves Okapi naming (e.g., step ID "search-and-replace").
-// The mapping to neokapi tool names (e.g., "okapi:search-and-replace") happens here
-// at the bridge integration layer.
+// Tool names use the step ID directly — no prefix is added.
 func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.BridgeRegistry, cfg bridge.BridgeConfig, toolReg *registry.ToolRegistry, source string) {
 	stepsDir := filepath.Join(versionDir, "schemas", "steps")
 	entries, err := os.ReadDir(stepsDir)
@@ -796,14 +790,11 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			continue
 		}
 
-		// Extraction preserves Okapi naming. We add the "okapi:" prefix here
-		// to place bridge-provided tools in the neokapi tool namespace.
 		stepClass := cs.Meta.ID
-		okapiStepID := cs.ID
-		if okapiStepID == "" {
-			okapiStepID = cs.Meta.ID
+		toolName := cs.ID
+		if toolName == "" {
+			toolName = cs.Meta.ID
 		}
-		toolName := "okapi:" + okapiStepID
 
 		// Capture for closure.
 		schemaRef := &cs
@@ -923,28 +914,15 @@ func (l *PluginLoader) FilterDoc(filterID string) json.RawMessage {
 }
 
 // StepDoc reads and returns documentation for a single pipeline step by ID.
-// Strips plugin prefixes (e.g. "okapi:image-modification" → "image-modification").
 // Returns nil if the docs directory is unavailable or the step has no docs.
 func (l *PluginLoader) StepDoc(stepID string) json.RawMessage {
 	if l.docsDir == "" {
 		return nil
 	}
-	// Strip plugin prefix (e.g. "okapi:batch-translation" → "batch-translation").
-	bare := stepID
-	if idx := strings.LastIndex(stepID, ":"); idx >= 0 {
-		bare = stepID[idx+1:]
-	}
-	path := filepath.Join(l.docsDir, "steps", bare+".json")
+	path := filepath.Join(l.docsDir, "steps", stepID+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		// Try the original ID as-is in case it has no prefix.
-		if bare != stepID {
-			path = filepath.Join(l.docsDir, "steps", stepID+".json")
-			data, err = os.ReadFile(path)
-		}
-		if err != nil {
-			return nil
-		}
+		return nil
 	}
 	return data
 }
