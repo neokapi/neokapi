@@ -22,9 +22,9 @@ func TestLoadBridgeStepTools_LoadsFromDirectory(t *testing.T) {
 
 	names := toolReg.Names()
 	assert.NotEmpty(t, names, "expected step tools to be registered")
-	assert.True(t, toolReg.Has("okapi:search-and-replace"))
-	assert.True(t, toolReg.Has("okapi:segmentation"))
-	assert.True(t, toolReg.Has("okapi:quality-check"))
+	assert.True(t, toolReg.Has("search-and-replace"))
+	assert.True(t, toolReg.Has("segmentation"))
+	assert.True(t, toolReg.Has("quality-check"))
 }
 
 func TestLoadBridgeStepTools_SchemaMetadata(t *testing.T) {
@@ -34,7 +34,7 @@ func TestLoadBridgeStepTools_SchemaMetadata(t *testing.T) {
 
 	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
-	s := toolReg.GetSchema("okapi:search-and-replace")
+	s := toolReg.GetSchema("search-and-replace")
 	require.NotNil(t, s)
 
 	// Schema $id preserves Okapi naming (no okapi: prefix)
@@ -54,15 +54,15 @@ func TestLoadBridgeStepTools_MapsOkapiNameToNeokapi(t *testing.T) {
 	loader.loadBridgeStepTools(filepath.Join("testdata"), bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
 
 	// Schema preserves Okapi naming
-	s := toolReg.GetSchema("okapi:search-and-replace")
+	s := toolReg.GetSchema("search-and-replace")
 	require.NotNil(t, s)
 	assert.Equal(t, "search-and-replace", s.ID)
 	assert.Equal(t, "search-and-replace", s.Meta.ID)
 
-	// Tool registered with neokapi namespace
-	tl, err := toolReg.NewTool("okapi:search-and-replace")
+	// Tool registered with step ID as name
+	tl, err := toolReg.NewTool("search-and-replace")
 	require.NoError(t, err)
-	assert.Equal(t, "okapi:search-and-replace", tl.Name())
+	assert.Equal(t, "search-and-replace", tl.Name())
 }
 
 func TestLoadBridgeStepTools_SkipsNonStepSchemas(t *testing.T) {
@@ -83,7 +83,7 @@ func TestLoadBridgeStepTools_SkipsNonStepSchemas(t *testing.T) {
 	bridgeReg := bridge.NewBridgeRegistry(1, 1, nil)
 
 	loader.loadBridgeStepTools(tmpDir, bridgeReg, bridge.BridgeConfig{}, toolReg, "test")
-	assert.False(t, toolReg.Has("okapi:some-filter"))
+	assert.False(t, toolReg.Has("some-filter"))
 }
 
 func TestLoadBridgeStepTools_MissingDirectory(t *testing.T) {
@@ -107,7 +107,7 @@ func TestLoadBridgeStepTools_ToolInfoMetadata(t *testing.T) {
 	infos := toolReg.ListWithSchemas()
 	var found *registry.ToolInfo
 	for i := range infos {
-		if infos[i].Name == "okapi:search-and-replace" {
+		if infos[i].Name == "search-and-replace" {
 			found = &infos[i]
 			break
 		}
