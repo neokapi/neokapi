@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/format"
+	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/plugin/bridge"
 	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/plugin/host"
@@ -73,6 +74,7 @@ type PluginLoader struct {
 	plugins  []PluginInfo
 	schemas  *SchemaRegistry        // filter parameter schemas
 	presets  *preset.PresetRegistry // format and framework presets
+	toolReg  *registry.ToolRegistry // tool registry for plugin tools (optional)
 	docsDir  string                 // path to docs/ directory with per-filter/step JSON files
 	logger   *log.Logger
 
@@ -175,6 +177,36 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 	// Populate schemas.
 	for id, s := range c.Schemas {
 		l.schemas.RegisterSchema(id, s)
+	}
+
+	// Register plugin tool schemas into the tool registry.
+	if l.toolReg != nil {
+		for _, cp := range c.Plugins {
+			if cp.Manifest == nil {
+				continue
+			}
+			for _, cap := range cp.Manifest.Capabilities {
+				if cap.Type != "tool" {
+					continue
+				}
+				name := cap.ID
+				if name == "" {
+					name = cap.Name
+				}
+				// Look up schema by bare name (without plugin prefix).
+				bare := name
+				if idx := strings.LastIndex(name, ":"); idx >= 0 {
+					bare = name[idx+1:]
+				}
+				var toolSchema *fmtschema.FilterSchema
+				if s, ok := c.ToolSchemas[bare]; ok {
+					toolSchema = s
+				}
+				// Build a ComponentSchema from the capability + optional FilterSchema.
+				cs := capabilityToComponentSchema(cap, toolSchema)
+				l.toolReg.RegisterMetadata(name, cs, cp.Name)
+			}
+		}
 	}
 
 	// Populate docs directory path.
@@ -788,6 +820,60 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 
 		l.logf("registered bridge step tool: %s (source: %s)", toolName, source)
 	}
+}
+
+// SetToolRegistry sets the tool registry that plugin tools will be registered into
+// during ScanMetadata. Call before ScanMetadata.
+func (l *PluginLoader) SetToolRegistry(reg *registry.ToolRegistry) {
+	l.toolReg = reg
+}
+
+// capabilityToComponentSchema builds a ComponentSchema from a plugin capability
+// and an optional FilterSchema (loaded from schemas/steps/). The FilterSchema
+// provides property definitions and groups; the capability provides metadata.
+func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FilterSchema) *schema.ComponentSchema {
+	cs := &schema.ComponentSchema{
+		Type: "object",
+		Meta: schema.ComponentMeta{
+			ID:          cap.ID,
+			Type:        "tool",
+			Category:    cap.Category,
+			DisplayName: cap.DisplayName,
+			Description: cap.Description,
+			Inputs:      cap.Inputs,
+			Outputs:     cap.Outputs,
+			Tags:        cap.Tags,
+			Requires:    cap.Requires,
+		},
+	}
+	cs.Title = cap.DisplayName
+	cs.Description = cap.Description
+
+	// Merge schema properties from FilterSchema if available.
+	if fs != nil {
+		cs.ID = fs.ID
+		cs.Version = fs.Version
+		if fs.Title != "" {
+			cs.Title = fs.Title
+		}
+		if fs.Description != "" {
+			cs.Description = fs.Description
+		}
+		// Convert FilterSchema properties/groups via JSON round-trip.
+		data, err := json.Marshal(fs)
+		if err == nil {
+			var proxy struct {
+				Groups     []schema.ParameterGroup          `json:"x-groups"`
+				Properties map[string]schema.PropertySchema `json:"properties"`
+			}
+			if json.Unmarshal(data, &proxy) == nil {
+				cs.Groups = proxy.Groups
+				cs.Properties = proxy.Properties
+			}
+		}
+	}
+
+	return cs
 }
 
 // Plugins returns information about all loaded plugins.
