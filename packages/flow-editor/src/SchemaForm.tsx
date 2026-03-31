@@ -204,8 +204,9 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
         </div>
       )}
 
-      {/* Retry Policy section — only for tools, not formats */}
-      {schema["x-component"]?.type === "tool" && (
+      {/* Retry Policy section — only for tools that interact with external services */}
+      {schema["x-component"]?.type === "tool" &&
+        schema["x-component"]?.requires?.includes("credentials") && (
         <RetryPolicySection values={values} onChange={onChange} compact={compact} />
       )}
     </div>
