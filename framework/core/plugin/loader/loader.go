@@ -73,7 +73,7 @@ type PluginLoader struct {
 	plugins  []PluginInfo
 	schemas  *SchemaRegistry        // filter parameter schemas
 	presets  *preset.PresetRegistry // format and framework presets
-	docs     json.RawMessage        // curated documentation bundle (docs.json)
+	docsDir  string                 // path to docs/ directory with per-filter/step JSON files
 	logger   *log.Logger
 
 	// disabledPlugins is a set of plugin names to skip during scan and load.
@@ -177,9 +177,9 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 		l.schemas.RegisterSchema(id, s)
 	}
 
-	// Populate docs.
-	if len(c.Docs) > 0 {
-		l.docs = c.Docs
+	// Populate docs directory path.
+	if c.DocsDir != "" {
+		l.docsDir = c.DocsDir
 	}
 
 	// Populate presets.
@@ -290,10 +290,10 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 				}
 				idsAfter := l.schemas.FilterIDSet()
 
-				// Load documentation bundle if present.
-				docsPath := filepath.Join(vDir, "docs.json")
-				if data, err := os.ReadFile(docsPath); err == nil {
-					l.docs = data
+				// Discover documentation directory if present.
+				docsPath := filepath.Join(vDir, "docs")
+				if info, err := os.Stat(docsPath); err == nil && info.IsDir() {
+					l.docsDir = docsPath
 				}
 
 				var newFilterIDs []string
@@ -810,10 +810,112 @@ func (l *PluginLoader) Presets() *preset.PresetRegistry {
 	return l.presets
 }
 
-// Docs returns the raw documentation bundle (docs.json) loaded from plugins.
-// Returns nil if no documentation is available.
-func (l *PluginLoader) Docs() json.RawMessage {
-	return l.docs
+// DocsDir returns the path to the docs/ directory, or "" if unavailable.
+func (l *PluginLoader) DocsDir() string {
+	return l.docsDir
+}
+
+// FilterDoc reads and returns documentation for a single filter by ID.
+// Returns nil if the docs directory is unavailable or the filter has no docs.
+func (l *PluginLoader) FilterDoc(filterID string) json.RawMessage {
+	if l.docsDir == "" {
+		return nil
+	}
+	path := filepath.Join(l.docsDir, "filters", filterID+".json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		// Try alias resolution via metadata.json.
+		if aliased := l.resolveAlias(filterID); aliased != "" {
+			path = filepath.Join(l.docsDir, "filters", aliased+".json")
+			data, err = os.ReadFile(path)
+		}
+		if err != nil {
+			return nil
+		}
+	}
+	return data
+}
+
+// StepDoc reads and returns documentation for a single pipeline step by ID.
+// Returns nil if the docs directory is unavailable or the step has no docs.
+func (l *PluginLoader) StepDoc(stepID string) json.RawMessage {
+	if l.docsDir == "" {
+		return nil
+	}
+	path := filepath.Join(l.docsDir, "steps", stepID+".json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+// DocsMetadata reads and returns the docs metadata (aliases, wiki URL, etc).
+// Returns nil if unavailable.
+func (l *PluginLoader) DocsMetadata() json.RawMessage {
+	if l.docsDir == "" {
+		return nil
+	}
+	data, err := os.ReadFile(filepath.Join(l.docsDir, "metadata.json"))
+	if err != nil {
+		return nil
+	}
+	return data
+}
+
+// resolveAlias looks up a filter ID alias in metadata.json.
+func (l *PluginLoader) resolveAlias(filterID string) string {
+	meta := l.DocsMetadata()
+	if meta == nil {
+		return ""
+	}
+	var m struct {
+		Aliases map[string]string `json:"aliases"`
+	}
+	if err := json.Unmarshal(meta, &m); err != nil {
+		return ""
+	}
+	return m.Aliases[filterID]
+}
+
+// ListFilterDocs returns the IDs of all filters that have documentation.
+func (l *PluginLoader) ListFilterDocs() []string {
+	if l.docsDir == "" {
+		return nil
+	}
+	dir := filepath.Join(l.docsDir, "filters")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		ids = append(ids, strings.TrimSuffix(e.Name(), ".json"))
+	}
+	return ids
+}
+
+// ListStepDocs returns the IDs of all steps that have documentation.
+func (l *PluginLoader) ListStepDocs() []string {
+	if l.docsDir == "" {
+		return nil
+	}
+	dir := filepath.Join(l.docsDir, "steps")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+	var ids []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		ids = append(ids, strings.TrimSuffix(e.Name(), ".json"))
+	}
+	return ids
 }
 
 // Registry returns the shared bridge registry, or nil if no bridges are loaded.

@@ -3,8 +3,8 @@
  * The host app (kapi-desktop, bowrain, etc.) provides the actual values
  * via its globals.css / index.css theme definition.
  *
- * This replaces the previously hardcoded oklch(... 260) cool-blue values
- * with warm Sandstone-compatible CSS variable references.
+ * Uses CSS custom property references so the flow editor automatically
+ * inherits the host app's theme (Kapi Blue, Sandstone, etc.).
  */
 
 export const theme = {
@@ -23,7 +23,7 @@ export const theme = {
   border: "var(--border)",
   input: "var(--input)",
 
-  // Accent / ring (gold in Sandstone)
+  // Accent / ring
   accent: "var(--accent)",
   accentFg: "var(--accent-foreground)",
   ring: "var(--ring)",

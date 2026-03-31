@@ -107,6 +107,77 @@ export type {
   PropertySchema,
 } from "@neokapi/flow-editor";
 
+// --- Plugin documentation types (from docs.json) ---
+
+/** Summary returned by GetPluginDocs — lists available doc IDs. */
+export interface PluginDocsSummary {
+  generatedAt?: string;
+  wikiBaseUrl?: string;
+  filterIDs?: string[];
+  stepIDs?: string[];
+  aliases?: Record<string, string>;
+}
+
+/**
+ * Full docs bundle used in Storybook fixtures and for pre-loaded data.
+ * In the real app, individual docs are fetched via getFilterDoc/getStepDoc.
+ */
+export interface PluginDocs {
+  generatedAt?: string;
+  wikiBaseUrl?: string;
+  filters: Record<string, FilterDoc>;
+  steps: Record<string, StepDoc>;
+  aliases?: Record<string, string>;
+  concepts?: Record<string, ConceptDoc>;
+}
+
+export interface FilterDoc {
+  filterName: string;
+  overview: string;
+  filterId?: string;
+  wikiUrl?: string;
+  parameters?: Record<string, ParameterDoc>;
+  limitations?: string[];
+  processingNotes?: string[];
+  examples?: DocExample[];
+}
+
+export interface StepDoc {
+  filterName: string; // actually the step display name
+  overview: string;
+  stepId?: string;
+  wikiUrl?: string;
+  parameters?: Record<string, ParameterDoc>;
+  limitations?: string[];
+  processingNotes?: string[];
+  examples?: DocExample[];
+}
+
+export interface ParameterDoc {
+  description: string;
+  notes?: string[];
+  introducedIn?: string;
+  dependsOn?: ParameterDependency[];
+}
+
+export interface ParameterDependency {
+  property: string;
+  condition: string;
+}
+
+export interface DocExample {
+  title: string;
+  description?: string;
+  input?: string;
+  output?: string;
+}
+
+export interface ConceptDoc {
+  wikiRef?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
 export type AppMode = "adhoc" | "projects";
 
 // Sidebar items for Ad-Hoc mode

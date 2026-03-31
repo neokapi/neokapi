@@ -14,6 +14,9 @@ import type {
   FormatInfo,
   PluginInfo,
   ProviderConfig,
+  PluginDocsSummary,
+  FilterDoc,
+  StepDoc,
 } from "../types/api";
 
 type Backend = Record<string, (...args: unknown[]) => Promise<unknown>>;
@@ -119,6 +122,11 @@ export const api = {
     call<Array<{ type: string; id: string; summary: string; source_text?: string; properties?: Record<string, string> }>>("RunFormatReader", format, filePath, config),
   runFormatReaderDialog: (format: string, config: Record<string, unknown>) =>
     call<Array<{ type: string; id: string; summary: string; source_text?: string; properties?: Record<string, string> }>>("RunFormatReaderDialog", format, config),
+
+  // Plugin docs — summary lists available IDs; individual docs fetched on demand
+  getPluginDocsSummary: () => call<PluginDocsSummary>("GetPluginDocs"),
+  getFilterDoc: (filterID: string) => call<FilterDoc>("GetFilterDoc", filterID),
+  getStepDoc: (stepID: string) => call<StepDoc>("GetStepDoc", stepID),
 
   // Plugins
   listPlugins: () => call<PluginInfo[]>("ListPlugins"),
