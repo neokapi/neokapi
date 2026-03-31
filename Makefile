@@ -114,10 +114,10 @@ flow-editor-test: flow-editor-deps ## Run flow-editor tests
 	cd packages/flow-editor && vp test
 
 kapi-desktop-storybook: kapi-desktop-frontend-deps ## Run Kapi Desktop Storybook (port 6007)
-	cd $(KAPI_DESKTOP_DIR)/frontend && vpx storybook dev -p 6007
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp exec storybook dev -p 6007
 
 kapi-desktop-storybook-build: kapi-desktop-frontend-deps ## Build Kapi Desktop Storybook
-	cd $(KAPI_DESKTOP_DIR)/frontend && vpx storybook build -o storybook-static
+	cd $(KAPI_DESKTOP_DIR)/frontend && vp exec storybook build -o storybook-static
 
 install: ## Install kapi CLI to GOPATH/bin
 	$(MAKE) -C framework install
