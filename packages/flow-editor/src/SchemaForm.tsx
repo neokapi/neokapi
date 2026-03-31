@@ -1002,8 +1002,14 @@ function MapEntry({
   const isComplex =
     itemSchema?.properties || itemSchema?.type === "object" || itemSchema?.type === "array";
 
-  // Simple value — horizontal row
-  if (!isComplex) {
+  // Also treat values that are actually objects/arrays as complex,
+  // even if the schema doesn't declare additionalProperties.
+  const valueIsObject = value !== null && typeof value === "object" && !Array.isArray(value);
+  const valueIsArray = Array.isArray(value);
+  const effectivelyComplex = isComplex || valueIsObject || valueIsArray;
+
+  // Simple value — horizontal row with text input
+  if (!effectivelyComplex) {
     return (
       <div
         style={{
@@ -1109,6 +1115,12 @@ function MapEntry({
                   depth={depth + 1}
                 />
               ))
+          ) : valueIsObject ? (
+            <InferredObjectEditor
+              value={value as Record<string, unknown>}
+              onChange={onChange}
+              compact={compact}
+            />
           ) : (
             <JsonInlineEditor value={value} onChange={onChange} />
           )}
@@ -1599,6 +1611,104 @@ function JsonEditor({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Inferred object editor — renders object values without a schema by
+ * introspecting the actual value types. Used when additionalProperties
+ * is empty but the runtime value is a rich object.
+ */
+function InferredObjectEditor({
+  value,
+  onChange,
+  compact,
+}: {
+  value: Record<string, unknown>;
+  onChange: (value: unknown) => void;
+  compact: boolean;
+}) {
+  const entries = Object.entries(value);
+  const handleFieldChange = useCallback(
+    (key: string, fieldValue: unknown) => {
+      onChange({ ...value, [key]: fieldValue });
+    },
+    [value, onChange],
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: compact ? 2 : 4 }}>
+      {entries.map(([key, val]) => {
+        // Array of strings → pill list
+        if (Array.isArray(val) && val.every((v) => typeof v === "string")) {
+          return (
+            <div key={key}>
+              <div style={{ fontSize: 10, color: theme.fgMuted, fontWeight: 500, marginBottom: 2 }}>
+                {formatLabel(key)}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                {val.map((item, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      fontSize: 10,
+                      padding: "1px 6px",
+                      borderRadius: 10,
+                      border: `1px solid ${theme.border}`,
+                      fontFamily: "var(--font-mono, ui-monospace, monospace)",
+                      color: theme.fg,
+                      background: theme.bgCard,
+                    }}
+                  >
+                    {String(item)}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        // Boolean → inline label
+        if (typeof val === "boolean") {
+          return (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
+              <span style={{ color: theme.fgMuted, fontWeight: 500 }}>{formatLabel(key)}:</span>
+              <span style={{ color: val ? "oklch(0.65 0.15 145)" : theme.fgMuted }}>{val ? "Yes" : "No"}</span>
+            </div>
+          );
+        }
+
+        // String → inline text
+        if (typeof val === "string") {
+          return (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
+              <span style={{ color: theme.fgMuted, fontWeight: 500 }}>{formatLabel(key)}:</span>
+              <span style={{ color: theme.fg, fontFamily: "var(--font-mono, ui-monospace, monospace)" }}>{val}</span>
+            </div>
+          );
+        }
+
+        // Number → inline
+        if (typeof val === "number") {
+          return (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10 }}>
+              <span style={{ color: theme.fgMuted, fontWeight: 500 }}>{formatLabel(key)}:</span>
+              <span style={{ color: theme.fg }}>{val}</span>
+            </div>
+          );
+        }
+
+        // Fallback: JSON string
+        return (
+          <div key={key} style={{ fontSize: 10 }}>
+            <span style={{ color: theme.fgMuted, fontWeight: 500 }}>{formatLabel(key)}: </span>
+            <span style={{ color: theme.fgMuted, fontFamily: "var(--font-mono, ui-monospace, monospace)" }}>
+              {JSON.stringify(val)}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
