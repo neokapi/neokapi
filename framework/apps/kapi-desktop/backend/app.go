@@ -621,11 +621,18 @@ type PluginInfo struct {
 // ListPlugins returns installed plugins with full metadata.
 func (a *App) ListPlugins() []PluginInfo {
 	// Read the cache to get rich metadata (capabilities, descriptions).
+	// Key by name+frameworkVersion since multiple versions can coexist (e.g., okapi 1.44.0 + 1.48.0).
 	cache, _ := plugincache.Read(a.pluginLoader.Dir())
 	cacheMap := make(map[string]*plugincache.CachedPlugin)
 	if cache != nil {
 		for i := range cache.Plugins {
-			cacheMap[cache.Plugins[i].Name] = &cache.Plugins[i]
+			cp := &cache.Plugins[i]
+			key := cp.Name + ":" + cp.FrameworkVersion
+			cacheMap[key] = cp
+			// Also store by name-only as fallback.
+			if _, exists := cacheMap[cp.Name]; !exists {
+				cacheMap[cp.Name] = cp
+			}
 		}
 	}
 
@@ -639,8 +646,13 @@ func (a *App) ListPlugins() []PluginInfo {
 			Formats:          p.Formats,
 		}
 
-		// Enrich from cache (has manifest with capabilities and description).
-		if cp := cacheMap[p.Name]; cp != nil {
+		// Enrich from cache — try exact match (name+fw), fall back to name-only.
+		key := p.Name + ":" + p.FrameworkVersion
+		cp := cacheMap[key]
+		if cp == nil {
+			cp = cacheMap[p.Name]
+		}
+		if cp != nil {
 			if cp.Manifest != nil {
 				info.Description = cp.Manifest.Description
 				for _, cap := range cp.Manifest.Capabilities {
