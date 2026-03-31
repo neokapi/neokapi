@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<release-notes>
+  <release version="3.2.0" date="2026-03-15">
+    <title>KapiMart v3.2 — Spring Update</title>
+    <summary>
+      This release brings a redesigned checkout experience, faster search,
+      and expanded international shipping options.
+    </summary>
+
+    <section id="new-features">
+      <heading>New Features</heading>
+      <item>
+        <title>One-Page Checkout</title>
+        <description>
+          Complete your purchase without leaving the page. Address, payment,
+          and confirmation — all in a single, streamlined flow.
+        </description>
+      </item>
+      <item>
+        <title>Instant Search</title>
+        <description>
+          Search results now appear as you type, with smart suggestions
+          based on your browsing history and popular products.
+        </description>
+      </item>
+      <item>
+        <title>Expanded Shipping</title>
+        <description>
+          We now ship to 15 additional countries, including Japan, South Korea,
+          and Brazil. Express delivery available in select regions.
+        </description>
+      </item>
+    </section>
+
+    <section id="improvements">
+      <heading>Improvements</heading>
+      <item>
+        <title>Faster Page Loads</title>
+        <description>
+          Product pages now load 40% faster thanks to optimized images
+          and a new content delivery network.
+        </description>
+      </item>
+      <item>
+        <title>Better Mobile Experience</title>
+        <description>
+          The mobile app has been redesigned with larger touch targets,
+          smoother animations, and improved accessibility.
+        </description>
+      </item>
+    </section>
+
+    <section id="bug-fixes">
+      <heading>Bug Fixes</heading>
+      <item>
+        <description>Fixed an issue where discount codes were not applied correctly during checkout.</description>
+      </item>
+      <item>
+        <description>Resolved a bug that caused duplicate order confirmation emails.</description>
+      </item>
+      <item>
+        <description>Fixed incorrect stock counts on product pages after restocking.</description>
+      </item>
+    </section>
+  </release>
+</release-notes>

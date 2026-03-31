@@ -1,0 +1,139 @@
+{
+  "version": "1",
+  "concepts": [
+    {
+      "id": "km-001",
+      "domain": "e-commerce",
+      "definition": "A temporary container where customers collect products before purchasing.",
+      "terms": [
+        { "text": "shopping cart", "locale": "en-US", "status": "preferred" },
+        { "text": "panier", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Warenkorb", "locale": "de-DE", "status": "preferred" },
+        { "text": "ショッピングカート", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-002",
+      "domain": "e-commerce",
+      "definition": "The process of completing a purchase by providing shipping and payment details.",
+      "terms": [
+        { "text": "checkout", "locale": "en-US", "status": "preferred" },
+        { "text": "paiement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Kasse", "locale": "de-DE", "status": "preferred" },
+        { "text": "お支払い", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-003",
+      "domain": "e-commerce",
+      "definition": "A saved list of products a customer intends to purchase in the future.",
+      "terms": [
+        { "text": "wishlist", "locale": "en-US", "status": "preferred" },
+        { "text": "liste de souhaits", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Wunschliste", "locale": "de-DE", "status": "preferred" },
+        { "text": "ウィッシュリスト", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-004",
+      "domain": "logistics",
+      "definition": "The physical delivery of purchased goods to the customer's address.",
+      "terms": [
+        { "text": "shipping", "locale": "en-US", "status": "preferred" },
+        { "text": "livraison", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Versand", "locale": "de-DE", "status": "preferred" },
+        { "text": "配送", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-005",
+      "domain": "e-commerce",
+      "definition": "A unique code that provides a price reduction at checkout.",
+      "terms": [
+        { "text": "discount code", "locale": "en-US", "status": "preferred" },
+        { "text": "coupon", "locale": "en-US", "status": "admitted" },
+        { "text": "code de réduction", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Rabattcode", "locale": "de-DE", "status": "preferred" },
+        { "text": "割引コード", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-006",
+      "domain": "e-commerce",
+      "definition": "The process of sending a purchased item back to the seller for a refund or exchange.",
+      "terms": [
+        { "text": "return", "locale": "en-US", "status": "preferred" },
+        { "text": "retour", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Rücksendung", "locale": "de-DE", "status": "preferred" },
+        { "text": "返品", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-007",
+      "domain": "e-commerce",
+      "definition": "The reversal of a payment, returning funds to the customer's original payment method.",
+      "terms": [
+        { "text": "refund", "locale": "en-US", "status": "preferred" },
+        { "text": "remboursement", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Erstattung", "locale": "de-DE", "status": "preferred" },
+        { "text": "返金", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-008",
+      "domain": "inventory",
+      "definition": "The quantity of a product available for sale.",
+      "terms": [
+        { "text": "stock", "locale": "en-US", "status": "preferred" },
+        { "text": "inventory", "locale": "en-US", "status": "admitted" },
+        { "text": "stock", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Bestand", "locale": "de-DE", "status": "preferred" },
+        { "text": "在庫", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-009",
+      "domain": "logistics",
+      "definition": "A unique identifier assigned to a shipment for real-time location tracking.",
+      "terms": [
+        { "text": "tracking number", "locale": "en-US", "status": "preferred" },
+        { "text": "numéro de suivi", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Sendungsnummer", "locale": "de-DE", "status": "preferred" },
+        { "text": "追跡番号", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-010",
+      "domain": "e-commerce",
+      "definition": "A confirmed request to purchase one or more products.",
+      "terms": [
+        { "text": "order", "locale": "en-US", "status": "preferred" },
+        { "text": "commande", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Bestellung", "locale": "de-DE", "status": "preferred" },
+        { "text": "注文", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-011",
+      "domain": "e-commerce",
+      "definition": "A customer-written evaluation of a purchased product.",
+      "terms": [
+        { "text": "review", "locale": "en-US", "status": "preferred" },
+        { "text": "avis", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Bewertung", "locale": "de-DE", "status": "preferred" },
+        { "text": "レビュー", "locale": "ja-JP", "status": "preferred" }
+      ]
+    },
+    {
+      "id": "km-012",
+      "domain": "e-commerce",
+      "definition": "The total cost of items before shipping, tax, and discounts are applied.",
+      "terms": [
+        { "text": "subtotal", "locale": "en-US", "status": "preferred" },
+        { "text": "sous-total", "locale": "fr-FR", "status": "preferred" },
+        { "text": "Zwischensumme", "locale": "de-DE", "status": "preferred" },
+        { "text": "小計", "locale": "ja-JP", "status": "preferred" }
+      ]
+    }
+  ]
+}

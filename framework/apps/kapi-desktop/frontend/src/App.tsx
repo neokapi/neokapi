@@ -45,6 +45,7 @@ function AppInner() {
     Array<{ path: string; name: string; opened_at: string }>
   >([]);
   const [showNewProjectForm, setShowNewProjectForm] = useState(false);
+  const [samplesDismissed, setSamplesDismissed] = useState(true); // default hidden until settings load
   const shortenHome = useShortenHome();
 
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
@@ -60,15 +61,18 @@ function AppInner() {
     refreshRecent();
   }, [refreshRecent, tabs.length]);
 
-  // Apply persisted theme on startup.
+  // Apply persisted theme and load settings on startup.
   useEffect(() => {
-    api.getTheme().then((t) => {
-      const mode = t || "system";
-      if (mode === "system") {
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        document.documentElement.classList.toggle("dark", prefersDark);
-      } else {
-        document.documentElement.classList.toggle("dark", mode === "dark");
+    api.getSettings().then((s) => {
+      if (s) {
+        setSamplesDismissed(!!s.samples_dismissed);
+        const mode = s.theme || "system";
+        if (mode === "system") {
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          document.documentElement.classList.toggle("dark", prefersDark);
+        } else {
+          document.documentElement.classList.toggle("dark", mode === "dark");
+        }
       }
     }).catch(() => {});
   }, []);
@@ -138,6 +142,26 @@ function AppInner() {
       showError("Failed to open project", err);
     }
   }, [addTab, showError]);
+
+  const handleCreateSampleProject = useCallback(
+    async (name: string) => {
+      try {
+        const tab = await api.createSampleProject(name);
+        if (tab) {
+          const proj = await api.getProject(tab.id);
+          if (proj) addTab(tab, proj);
+        }
+      } catch (err) {
+        showError("Failed to create sample project", err);
+      }
+    },
+    [addTab, showError],
+  );
+
+  const handleDismissSamples = useCallback(() => {
+    setSamplesDismissed(true);
+    api.dismissSamples().catch(() => {});
+  }, []);
 
   const handleOpenRecent = useCallback(
     async (path: string) => {
@@ -292,6 +316,7 @@ function AppInner() {
           {view === "home" && (
             <AppHome
               recentFiles={recentFiles}
+              samplesDismissed={samplesDismissed}
               onOpenRecent={handleOpenRecent}
               onNewProject={() => {
                 setMode("projects");
@@ -299,6 +324,8 @@ function AppInner() {
               }}
               onOpenProject={handleOpenProject}
               onNavigate={handleViewChange}
+              onCreateSampleProject={handleCreateSampleProject}
+              onDismissSamples={handleDismissSamples}
             />
           )}
 

@@ -1,0 +1,21 @@
+version: v1
+name: KapiMart
+source_language: en-US
+target_languages:
+  - fr-FR
+  - de-DE
+  - ja-JP
+content:
+  - path: "input/*"
+    target: "output/{lang}/*"
+flows:
+  translate:
+    steps:
+      - tool: ai-translate
+  translate-and-qa:
+    steps:
+      - tool: ai-translate
+      - tool: qa-check
+  pseudo-translate:
+    steps:
+      - tool: pseudo-translate

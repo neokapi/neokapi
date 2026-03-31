@@ -9,7 +9,8 @@ import (
 
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
-	Theme string `json:"theme"` // "system", "dark", or "light"
+	Theme            string `json:"theme"`                        // "system", "dark", or "light"
+	SamplesDismissed bool   `json:"samples_dismissed,omitempty"`  // true after user dismisses sample project cards
 }
 
 // settingsStore manages user preferences.
@@ -86,5 +87,13 @@ func (a *App) SetTheme(theme string) {
 	a.settings.mu.Lock()
 	defer a.settings.mu.Unlock()
 	a.settings.settings.Theme = theme
+	a.settings.save()
+}
+
+// DismissSamples marks the sample project cards as dismissed.
+func (a *App) DismissSamples() {
+	a.settings.mu.Lock()
+	defer a.settings.mu.Unlock()
+	a.settings.settings.SamplesDismissed = true
 	a.settings.save()
 }

@@ -1,0 +1,48 @@
+categories:
+  - name: Electronics
+    description: Cutting-edge gadgets and devices for everyday life.
+    products:
+      - name: Wireless Noise-Cancelling Headphones
+        description: >
+          Premium over-ear headphones with active noise cancellation,
+          40-hour battery life, and crystal-clear audio. Perfect for
+          commuters and remote workers.
+        tagline: Silence the world. Hear what matters.
+      - name: Portable Bluetooth Speaker
+        description: >
+          Compact waterproof speaker with 360-degree sound.
+          Take your music anywhere — from the beach to the mountains.
+        tagline: Music without boundaries.
+      - name: Smart Home Hub
+        description: >
+          Control your lights, thermostat, and security cameras
+          from a single dashboard. Works with all major smart home brands.
+        tagline: Your home, your rules.
+
+  - name: Kitchen & Dining
+    description: Everything you need to cook, serve, and enjoy great meals.
+    products:
+      - name: Professional Chef's Knife Set
+        description: >
+          Hand-forged stainless steel knives with ergonomic handles.
+          Includes chef's knife, santoku, paring knife, and honing steel.
+        tagline: Precision in every cut.
+      - name: Automatic Espresso Machine
+        description: >
+          Bean-to-cup espresso machine with built-in grinder and milk frother.
+          Brew barista-quality coffee at the touch of a button.
+        tagline: Café quality, kitchen convenience.
+
+  - name: Outdoor & Garden
+    description: Gear and accessories for outdoor adventures and garden enthusiasts.
+    products:
+      - name: Ultralight Camping Tent
+        description: >
+          Two-person tent weighing just 1.2 kg. Waterproof, windproof,
+          and sets up in under two minutes. Ideal for backpacking trips.
+        tagline: Light enough to forget. Tough enough to rely on.
+      - name: Solar-Powered Garden Lights
+        description: >
+          Set of 8 LED path lights with automatic dusk-to-dawn sensor.
+          No wiring needed — simply stake them into the ground.
+        tagline: Let the sun light your way.
