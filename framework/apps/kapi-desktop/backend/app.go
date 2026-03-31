@@ -10,11 +10,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
+	"github.com/neokapi/neokapi/core/model"
 	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/id"
 	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
@@ -30,6 +32,7 @@ import (
 	"github.com/neokapi/neokapi/sievepen"
 	"github.com/neokapi/neokapi/termbase"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"gopkg.in/yaml.v3"
 )
 
 // App is the Wails service that bridges Go backend to the React frontend.
@@ -532,6 +535,7 @@ type FormatPresetInfo struct {
 	Description string         `json:"description"`
 	Format      string         `json:"format"`
 	Config      map[string]any `json:"config,omitempty"`
+	Source      string         `json:"source,omitempty"` // "built-in", "plugin", "user", "bridge", "schema"
 }
 
 // ListPresets returns all available framework presets.
@@ -611,16 +615,305 @@ func (a *App) ApplyPreset(tabID, presetName string) (*project.KapiProject, error
 func (a *App) ListFormatPresets(format string) []FormatPresetInfo {
 	reg := a.pluginLoader.Presets()
 	preset.RegisterBuiltins(reg)
+	// Also extract presets from loaded schemas (bridge configurations).
+	a.schemaReg.ExtractPresets(reg)
 	var infos []FormatPresetInfo
 	for _, p := range reg.ListFormatPresets(format) {
+		source := p.Source
+		if source == "" {
+			source = "built-in"
+		}
 		infos = append(infos, FormatPresetInfo{
 			Name:        p.Name,
 			Description: p.Description,
 			Format:      p.Format,
 			Config:      p.Config,
+			Source:      source,
 		})
 	}
+
+	// Merge user presets from ~/.config/kapi/format-presets/{format}/*.json
+	userPresets, _ := a.loadUserPresets(format)
+	infos = append(infos, userPresets...)
+
 	return infos
+}
+
+// SaveFormatPreset saves a user format preset to ~/.config/kapi/format-presets/{format}/{name}.json.
+func (a *App) SaveFormatPreset(formatName, presetName string, config map[string]any) error {
+	if formatName == "" || presetName == "" {
+		return fmt.Errorf("format name and preset name are required")
+	}
+	dir := a.userPresetDir(formatName)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create preset directory: %w", err)
+	}
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal preset config: %w", err)
+	}
+	path := filepath.Join(dir, presetName+".json")
+	return os.WriteFile(path, data, 0o644)
+}
+
+// DeleteFormatPreset deletes a user format preset.
+func (a *App) DeleteFormatPreset(formatName, presetName string) error {
+	if formatName == "" || presetName == "" {
+		return fmt.Errorf("format name and preset name are required")
+	}
+	path := filepath.Join(a.userPresetDir(formatName), presetName+".json")
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete preset: %w", err)
+	}
+	return nil
+}
+
+// ListAllFormatPresets returns both built-in, plugin, and user presets for a format.
+func (a *App) ListAllFormatPresets(formatName string) []FormatPresetInfo {
+	return a.ListFormatPresets(formatName)
+}
+
+// userPresetDir returns the directory for user format presets.
+func (a *App) userPresetDir(formatName string) string {
+	home, err := os.UserConfigDir()
+	if err != nil {
+		home = os.TempDir()
+	}
+	return filepath.Join(home, "kapi", "format-presets", formatName)
+}
+
+// loadUserPresets reads user presets from disk for a given format.
+func (a *App) loadUserPresets(formatName string) ([]FormatPresetInfo, error) {
+	dir := a.userPresetDir(formatName)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var presets []FormatPresetInfo
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			continue
+		}
+		var config map[string]any
+		if err := json.Unmarshal(data, &config); err != nil {
+			continue
+		}
+		name := strings.TrimSuffix(entry.Name(), ".json")
+		presets = append(presets, FormatPresetInfo{
+			Name:   name,
+			Format: formatName,
+			Config: config,
+			Source: "user",
+		})
+	}
+	sort.Slice(presets, func(i, j int) bool { return presets[i].Name < presets[j].Name })
+	return presets, nil
+}
+
+// --- Phase 3: Config rendering ---
+
+// RenderFormatConfig converts form values to YAML or JSON format.
+func (a *App) RenderFormatConfig(formatName string, config map[string]any, outputFormat string) (string, error) {
+	if outputFormat == "" {
+		outputFormat = "yaml"
+	}
+
+	// For bridge formats with a section map, reconstruct hierarchical config.
+	rendered := config
+	s, hasSchema := a.schemaReg.GetSchema(formatName)
+	if hasSchema && len(s.SectionMap) > 0 {
+		hierarchical := make(map[string]any)
+		for key, val := range config {
+			section, ok := s.SectionMap[key]
+			if ok {
+				sec, exists := hierarchical[section]
+				if !exists {
+					sec = make(map[string]any)
+					hierarchical[section] = sec
+				}
+				sec.(map[string]any)[key] = val
+			} else {
+				hierarchical[key] = val
+			}
+		}
+		rendered = hierarchical
+	}
+
+	switch strings.ToLower(outputFormat) {
+	case "json":
+		data, err := json.MarshalIndent(rendered, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("marshal JSON: %w", err)
+		}
+		return string(data), nil
+	case "yaml", "yml":
+		data, err := yaml.Marshal(rendered)
+		if err != nil {
+			return "", fmt.Errorf("marshal YAML: %w", err)
+		}
+		return string(data), nil
+	default:
+		return "", fmt.Errorf("unsupported output format: %s", outputFormat)
+	}
+}
+
+// --- Phase 4: Ad-hoc format runner ---
+
+// FormatPartInfo describes a single part from a format reader.
+type FormatPartInfo struct {
+	Type       string            `json:"type"`
+	ID         string            `json:"id"`
+	Summary    string            `json:"summary"`
+	SourceText string            `json:"source_text,omitempty"`
+	Properties map[string]string `json:"properties,omitempty"`
+}
+
+// RunFormatReader runs a format reader on a file and returns the parts.
+func (a *App) RunFormatReader(formatName string, filePath string, config map[string]any) ([]FormatPartInfo, error) {
+	if formatName == "" {
+		return nil, fmt.Errorf("format name is required")
+	}
+	if filePath == "" {
+		return nil, fmt.Errorf("file path is required")
+	}
+
+	reader, err := a.formatReg.NewReader(formatName)
+	if err != nil {
+		return nil, fmt.Errorf("create reader: %w", err)
+	}
+	defer reader.Close()
+
+	// Apply configuration if provided.
+	if len(config) > 0 {
+		if cfg := reader.Config(); cfg != nil {
+			if err := cfg.ApplyMap(config); err != nil {
+				a.logger.Printf("warn: apply config to reader: %v", err)
+			}
+		}
+	}
+
+	// Open the file.
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	doc := &model.RawDocument{
+		URI:      filePath,
+		FormatID: formatName,
+		Reader:   f,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := reader.Open(ctx, doc); err != nil {
+		return nil, fmt.Errorf("open document: %w", err)
+	}
+
+	var parts []FormatPartInfo
+	for pr := range reader.Read(ctx) {
+		if pr.Error != nil {
+			return parts, fmt.Errorf("read error: %w", pr.Error)
+		}
+		parts = append(parts, partToInfo(pr.Part))
+	}
+
+	return parts, nil
+}
+
+// RunFormatReaderDialog shows a file dialog then runs the reader.
+func (a *App) RunFormatReaderDialog(formatName string, config map[string]any) ([]FormatPartInfo, error) {
+	if a.app == nil {
+		return nil, fmt.Errorf("no application context")
+	}
+
+	path, err := a.app.Dialog.OpenFile().
+		AddFilter("All Files", "*").
+		PromptForSingleSelection()
+	if err != nil {
+		return nil, err
+	}
+	if path == "" {
+		return nil, nil // user canceled
+	}
+
+	return a.RunFormatReader(formatName, path, config)
+}
+
+// partToInfo converts a model.Part to a FormatPartInfo for the frontend.
+func partToInfo(p *model.Part) FormatPartInfo {
+	info := FormatPartInfo{
+		Type: p.Type.String(),
+	}
+
+	if p.Resource != nil {
+		info.ID = p.Resource.ResourceID()
+	}
+
+	switch p.Type {
+	case model.PartBlock:
+		if b, ok := p.Resource.(*model.Block); ok {
+			info.Summary = blockSummary(b)
+			info.SourceText = blockSourceText(b)
+			info.Properties = blockProperties(b)
+		}
+	case model.PartLayerStart:
+		if l, ok := p.Resource.(*model.Layer); ok {
+			info.Summary = fmt.Sprintf("Layer: %s", l.ResourceID())
+			info.Properties = map[string]string{
+				"name": l.Name,
+			}
+		}
+	case model.PartData:
+		info.Summary = "Structural data"
+	}
+
+	return info
+}
+
+// blockSummary returns a short summary of a Block's source content.
+func blockSummary(b *model.Block) string {
+	text := b.SourceText()
+	if text == "" {
+		return "(empty)"
+	}
+	if len(text) > 80 {
+		return text[:80] + "..."
+	}
+	return text
+}
+
+// blockSourceText returns the full source text of a Block.
+func blockSourceText(b *model.Block) string {
+	return b.SourceText()
+}
+
+// blockProperties returns notable properties of a Block.
+func blockProperties(b *model.Block) map[string]string {
+	props := make(map[string]string)
+	for _, seg := range b.Source {
+		if seg.Content != nil && seg.Content.HasSpans() {
+			count := len(seg.Content.Spans)
+			props["inline_codes"] = fmt.Sprintf("%d", count)
+			break
+		}
+	}
+	if len(b.Targets) > 0 {
+		for loc := range b.Targets {
+			props["target_"+string(loc)] = "present"
+		}
+	}
+	return props
 }
 
 // --- Plugin operations ---

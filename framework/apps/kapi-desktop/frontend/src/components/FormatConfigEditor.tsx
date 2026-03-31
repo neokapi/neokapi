@@ -10,6 +10,8 @@ interface FormatConfigEditorProps {
   onChange: (values: Record<string, unknown>) => void;
   /** Optional title override (defaults to schema title). */
   title?: string;
+  /** When provided, fields differing from preset show a colored indicator dot. */
+  presetValues?: Record<string, unknown>;
 }
 
 /**
@@ -19,7 +21,7 @@ interface FormatConfigEditorProps {
  * Used in both the flow editor (reader/writer node config) and
  * the standalone format presets page.
  */
-export function FormatConfigEditor({ schema, values, onChange, title }: FormatConfigEditorProps) {
+export function FormatConfigEditor({ schema, values, onChange, title, presetValues }: FormatConfigEditorProps) {
   const filterMeta = (schema as unknown as Record<string, unknown>)["x-filter"] as
     | Record<string, unknown>
     | undefined;
@@ -59,7 +61,7 @@ export function FormatConfigEditor({ schema, values, onChange, title }: FormatCo
       </div>
 
       {/* Schema form */}
-      <SchemaForm schema={schema} values={values} onChange={onChange} />
+      <SchemaForm schema={schema} values={values} onChange={onChange} presetValues={presetValues} />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useReducer } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import {
   FileText,
@@ -7,6 +7,12 @@ import {
   FileOutput,
   Plug,
   Settings2,
+  Save,
+  Trash2,
+  Play,
+  ChevronDown,
+  ChevronRight,
+  X,
 } from "lucide-react";
 import type { FormatInfo } from "../types/api";
 import type { ComponentSchema } from "@neokapi/flow-editor";
@@ -208,6 +214,29 @@ function FormatSection({
   );
 }
 
+// --- Preset Info type ---
+
+interface PresetInfoItem {
+  name: string;
+  description: string;
+  format: string;
+  config?: Record<string, unknown>;
+  source?: string;
+}
+
+// --- Format Part Info type ---
+
+interface FormatPartInfo {
+  type: string;
+  id: string;
+  summary: string;
+  source_text?: string;
+  properties?: Record<string, string>;
+}
+
+// --- Config tab type ---
+type ConfigTab = "editor" | "yaml";
+
 function FormatDetail({
   formatName,
   formatInfo,
@@ -218,28 +247,68 @@ function FormatDetail({
   onBack: () => void;
 }) {
   const [schema, setSchema] = useState<ComponentSchema | null>(null);
-  const [presets, setPresets] = useState<
-    Array<{ name: string; description: string; format: string; config?: Record<string, unknown> }>
-  >([]);
+  const [presets, setPresets] = useState<PresetInfoItem[]>([]);
   const [loadingSchema, setLoadingSchema] = useState(true);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ConfigTab>("editor");
+
+  // Phase 2: Save-as-preset dialog
+  const [showSavePreset, setShowSavePreset] = useState(false);
+  const [savePresetName, setSavePresetName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  // Phase 3: YAML config view
+  const [yamlText, setYamlText] = useState("");
+  const [yamlError, setYamlError] = useState<string | null>(null);
+
+  // Phase 4: Format runner
+  const [runnerParts, setRunnerParts] = useState<FormatPartInfo[] | null>(null);
+  const [runnerLoading, setRunnerLoading] = useState(false);
 
   const { showError } = useError();
+
+  // Get preset values for modified-from-preset indicator
+  const presetValues = useMemo(() => {
+    if (!selectedPreset) return undefined;
+    const preset = presets.find((p) => p.name === selectedPreset);
+    return preset?.config;
+  }, [selectedPreset, presets]);
+
+  // Load schema and presets
+  const loadPresets = useCallback(() => {
+    return api.listFormatPresets(formatName).then((p) => {
+      if (p) setPresets(p as PresetInfoItem[]);
+    });
+  }, [formatName]);
 
   useEffect(() => {
     setLoadingSchema(true);
     Promise.all([
       api.getFormatSchema(formatName),
-      api.listFormatPresets(formatName),
+      loadPresets(),
     ])
-      .then(([s, p]) => {
+      .then(([s]) => {
         if (s) setSchema(s as ComponentSchema);
-        if (p) setPresets(p);
       })
       .catch((err) => showError("Failed to load format details", err))
       .finally(() => setLoadingSchema(false));
-  }, [formatName, showError]);
+  }, [formatName, showError, loadPresets]);
+
+  // Phase 3: Update YAML when switching to YAML tab or config changes
+  useEffect(() => {
+    if (activeTab === "yaml") {
+      api.renderFormatConfig(formatName, config, "yaml").then((text) => {
+        if (text !== null) {
+          setYamlText(text);
+          setYamlError(null);
+        }
+      }).catch(() => {
+        // Fall back to JSON stringify
+        setYamlText(JSON.stringify(config, null, 2));
+      });
+    }
+  }, [activeTab, config, formatName]);
 
   const handlePresetSelect = useCallback(
     (presetName: string) => {
@@ -251,6 +320,66 @@ function FormatDetail({
     },
     [presets],
   );
+
+  // Phase 2: Save preset handler
+  const handleSavePreset = useCallback(async () => {
+    if (!savePresetName.trim()) return;
+    setSaving(true);
+    try {
+      await api.saveFormatPreset(formatName, savePresetName.trim(), config);
+      await loadPresets();
+      setSelectedPreset(savePresetName.trim());
+      setShowSavePreset(false);
+      setSavePresetName("");
+    } catch (err) {
+      showError("Failed to save preset", err);
+    } finally {
+      setSaving(false);
+    }
+  }, [formatName, savePresetName, config, loadPresets, showError]);
+
+  // Phase 2: Delete preset handler
+  const handleDeletePreset = useCallback(async (presetName: string) => {
+    try {
+      await api.deleteFormatPreset(formatName, presetName);
+      await loadPresets();
+      if (selectedPreset === presetName) {
+        setSelectedPreset(null);
+      }
+    } catch (err) {
+      showError("Failed to delete preset", err);
+    }
+  }, [formatName, loadPresets, selectedPreset, showError]);
+
+  // Phase 3: YAML text change handler (parse back to config)
+  const handleYamlChange = useCallback((text: string) => {
+    setYamlText(text);
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed === "object" && parsed !== null) {
+        setConfig(parsed);
+        setYamlError(null);
+      }
+    } catch {
+      // Try parsing as YAML-like (simple key: value pairs)
+      setYamlError("Edit the config in JSON format to sync changes back to the editor");
+    }
+  }, []);
+
+  // Phase 4: Run format reader
+  const handleRunReader = useCallback(async () => {
+    setRunnerLoading(true);
+    try {
+      const parts = await api.runFormatReaderDialog(formatName, config);
+      if (parts) {
+        setRunnerParts(parts as FormatPartInfo[]);
+      }
+    } catch (err) {
+      showError("Failed to run format reader", err);
+    } finally {
+      setRunnerLoading(false);
+    }
+  }, [formatName, config, showError]);
 
   return (
     <div className="p-6">
@@ -307,30 +436,94 @@ function FormatDetail({
         )}
       </div>
 
-      {/* Presets */}
+      {/* Presets (Phase 2) */}
       {presets.length > 0 && (
         <div className="mb-6">
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            Presets
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Presets
+            </h2>
+            <button
+              onClick={() => setShowSavePreset(true)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Save size={10} /> Save as Preset
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
-              <button
-                key={p.name}
-                onClick={() => handlePresetSelect(p.name)}
-                className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                  selectedPreset === p.name
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                }`}
-              >
-                {p.name}
-                {p.description && (
-                  <span className="ml-1 text-muted-foreground">— {p.description}</span>
+              <div key={p.name} className="relative group">
+                <button
+                  onClick={() => handlePresetSelect(p.name)}
+                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                    selectedPreset === p.name
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                  }`}
+                >
+                  {p.name}
+                  {p.source && (
+                    <span className="ml-1 text-[9px] opacity-60">({p.source})</span>
+                  )}
+                  {p.description && (
+                    <span className="ml-1 text-muted-foreground">— {p.description}</span>
+                  )}
+                </button>
+                {p.source === "user" && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.name); }}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground"
+                    title="Delete preset"
+                  >
+                    <X size={8} />
+                  </button>
                 )}
-              </button>
+              </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Save Preset Dialog (Phase 2) */}
+      {showSavePreset && (
+        <div className="mb-6 rounded-lg border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-2">Save as Preset</h3>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={savePresetName}
+              onChange={(e) => setSavePresetName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleSavePreset(); }}
+              placeholder="Preset name..."
+              className="flex-1 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              autoFocus
+            />
+            <button
+              onClick={handleSavePreset}
+              disabled={saving || !savePresetName.trim()}
+              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+            <button
+              onClick={() => { setShowSavePreset(false); setSavePresetName(""); }}
+              className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* No presets yet — show Save as Preset shortcut */}
+      {presets.length === 0 && schema && !loadingSchema && (
+        <div className="mb-4">
+          <button
+            onClick={() => setShowSavePreset(true)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Save size={10} /> Save current configuration as a preset
+          </button>
         </div>
       )}
 
@@ -343,18 +536,184 @@ function FormatDetail({
 
       {!loadingSchema && schema && (
         <div>
-          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            Configuration
-          </h2>
-          <div className="max-w-xl rounded-lg border border-border bg-card p-4">
-            <SchemaForm schema={schema} values={config} onChange={setConfig} />
+          {/* Phase 3: Tab bar */}
+          <div className="flex items-center gap-0 mb-3 border-b border-border">
+            <button
+              onClick={() => setActiveTab("editor")}
+              className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                activeTab === "editor"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Editor
+            </button>
+            <button
+              onClick={() => setActiveTab("yaml")}
+              className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                activeTab === "yaml"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Config (YAML)
+            </button>
           </div>
+
+          {/* Editor tab */}
+          {activeTab === "editor" && (
+            <div className="max-w-xl rounded-lg border border-border bg-card p-4">
+              <SchemaForm
+                schema={schema}
+                values={config}
+                onChange={setConfig}
+                presetValues={presetValues}
+              />
+            </div>
+          )}
+
+          {/* YAML tab (Phase 3) */}
+          {activeTab === "yaml" && (
+            <div className="max-w-xl">
+              <textarea
+                value={yamlText}
+                onChange={(e) => handleYamlChange(e.target.value)}
+                className="w-full min-h-[300px] rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-ring resize-y"
+                spellCheck={false}
+              />
+              {yamlError && (
+                <p className="mt-1 text-[10px] text-amber-500">{yamlError}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
       {!loadingSchema && !schema && (
         <div className="py-8 text-center text-sm text-muted-foreground">
           This format has no configurable parameters.
+        </div>
+      )}
+
+      {/* Phase 4: Ad-hoc Format Runner */}
+      {!loadingSchema && formatInfo?.has_reader && (
+        <div className="mt-8">
+          <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+            Test
+          </h2>
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              onClick={handleRunReader}
+              disabled={runnerLoading}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:border-primary/30 hover:text-primary transition-colors disabled:opacity-50"
+            >
+              <Play size={12} />
+              {runnerLoading ? "Running..." : "Open File..."}
+            </button>
+            {runnerParts !== null && (
+              <span className="text-[10px] text-muted-foreground">
+                {runnerParts.length} part{runnerParts.length !== 1 ? "s" : ""} extracted
+              </span>
+            )}
+          </div>
+
+          {/* Runner results */}
+          {runnerParts !== null && runnerParts.length > 0 && (
+            <div className="max-w-2xl rounded-lg border border-border bg-card overflow-hidden">
+              <div className="max-h-[400px] overflow-y-auto divide-y divide-border">
+                {runnerParts.map((part, i) => (
+                  <PartRow key={i} part={part} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {runnerParts !== null && runnerParts.length === 0 && (
+            <div className="py-4 text-center text-sm text-muted-foreground">
+              No parts extracted from the file.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Part Row for Runner Results (Phase 4) ---
+
+const partTypeBadgeColors: Record<string, string> = {
+  Block: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  LayerStart: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  LayerEnd: "bg-emerald-500/10 text-emerald-500/70",
+  Data: "bg-gray-500/15 text-gray-600 dark:text-gray-400",
+  GroupStart: "bg-purple-500/15 text-purple-600 dark:text-purple-400",
+  GroupEnd: "bg-purple-500/10 text-purple-500/70",
+  Media: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+};
+
+function PartRow({ part }: { part: FormatPartInfo }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasProps = part.properties && Object.keys(part.properties).length > 0;
+  const hasDetails = hasProps || part.source_text;
+
+  return (
+    <div className="px-3 py-2">
+      <div className="flex items-center gap-2">
+        {/* Type badge */}
+        <span
+          className={`text-[9px] font-semibold px-1.5 py-0.5 rounded ${
+            partTypeBadgeColors[part.type] || "bg-muted text-muted-foreground"
+          }`}
+        >
+          {part.type}
+        </span>
+
+        {/* ID */}
+        {part.id && (
+          <span className="text-[10px] font-mono text-muted-foreground truncate max-w-[120px]">
+            {part.id}
+          </span>
+        )}
+
+        {/* Summary */}
+        <span className="flex-1 text-xs text-foreground truncate">
+          {part.summary}
+        </span>
+
+        {/* Expand toggle */}
+        {hasDetails && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="p-0.5 text-muted-foreground hover:text-foreground"
+          >
+            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          </button>
+        )}
+      </div>
+
+      {/* Expanded details */}
+      {expanded && (
+        <div className="mt-2 ml-6 space-y-1">
+          {part.source_text && (
+            <div>
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase">Source:</span>
+              <pre className="mt-0.5 text-[10px] text-foreground bg-muted/50 rounded p-2 whitespace-pre-wrap break-words max-h-32 overflow-auto">
+                {part.source_text}
+              </pre>
+            </div>
+          )}
+          {hasProps && (
+            <div>
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase">Properties:</span>
+              <div className="mt-0.5 flex flex-wrap gap-1">
+                {Object.entries(part.properties!).map(([k, v]) => (
+                  <span key={k} className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+                    {k}: {v}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -106,7 +106,19 @@ export const api = {
   applyPreset: (tabID: string, presetName: string) =>
     call<KapiProject>("ApplyPreset", tabID, presetName),
   listFormatPresets: (format: string) =>
-    call<Array<{ name: string; description: string; format: string }>>("ListFormatPresets", format),
+    call<Array<{ name: string; description: string; format: string; config?: Record<string, unknown>; source?: string }>>("ListFormatPresets", format),
+  saveFormatPreset: (format: string, name: string, config: Record<string, unknown>) =>
+    call<void>("SaveFormatPreset", format, name, config),
+  deleteFormatPreset: (format: string, name: string) =>
+    call<void>("DeleteFormatPreset", format, name),
+  listAllFormatPresets: (format: string) =>
+    call<Array<{ name: string; description: string; format: string; config?: Record<string, unknown>; source?: string }>>("ListAllFormatPresets", format),
+  renderFormatConfig: (format: string, config: Record<string, unknown>, outputFormat: string) =>
+    call<string>("RenderFormatConfig", format, config, outputFormat),
+  runFormatReader: (format: string, filePath: string, config: Record<string, unknown>) =>
+    call<Array<{ type: string; id: string; summary: string; source_text?: string; properties?: Record<string, string> }>>("RunFormatReader", format, filePath, config),
+  runFormatReaderDialog: (format: string, config: Record<string, unknown>) =>
+    call<Array<{ type: string; id: string; summary: string; source_text?: string; properties?: Record<string, string> }>>("RunFormatReaderDialog", format, config),
 
   // Plugins
   listPlugins: () => call<PluginInfo[]>("ListPlugins"),
