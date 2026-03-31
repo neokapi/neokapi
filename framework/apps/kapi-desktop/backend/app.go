@@ -26,7 +26,6 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
-	"github.com/neokapi/neokapi/core/schema"
 	libtools "github.com/neokapi/neokapi/core/tools"
 	"github.com/neokapi/neokapi/core/version"
 	"github.com/neokapi/neokapi/sievepen"
@@ -81,6 +80,7 @@ func NewApp() *App {
 	logger := log.New(os.Stderr, "[kapi-desktop] ", log.LstdFlags)
 	pluginDir := defaultPluginDir()
 	pluginLoader := loader.NewPluginLoader(pluginDir, logger)
+	pluginLoader.SetToolRegistry(toolReg)
 
 	return &App{
 		formatReg:    formatReg,
@@ -469,15 +469,12 @@ type ToolInfo struct {
 	Requires    []string `json:"requires,omitempty"`
 }
 
-// ListTools returns all registered tools, including plugin-provided tools.
+// ListTools returns all registered tools (built-in + plugin).
 func (a *App) ListTools() []ToolInfo {
-	seen := make(map[string]bool)
-	var infos []ToolInfo
-
-	// Built-in tools from the tool registry.
-	for _, info := range a.toolReg.ListWithSchemas() {
-		seen[info.Name] = true
-		infos = append(infos, ToolInfo{
+	all := a.toolReg.ListWithSchemas()
+	infos := make([]ToolInfo, len(all))
+	for i, info := range all {
+		infos[i] = ToolInfo{
 			Name:        info.Name,
 			DisplayName: info.DisplayName,
 			Description: info.Description,
@@ -487,75 +484,19 @@ func (a *App) ListTools() []ToolInfo {
 			Outputs:     info.Outputs,
 			Tags:        info.Tags,
 			Requires:    info.Requires,
-		})
-	}
-
-	// Plugin-provided tools from the cache (bridge step capabilities).
-	cache, _ := plugincache.Read(a.pluginLoader.Dir())
-	if cache != nil {
-		for _, cp := range cache.Plugins {
-			if cp.Manifest == nil {
-				continue
-			}
-			for _, cap := range cp.Manifest.Capabilities {
-				if cap.Type != "tool" {
-					continue
-				}
-				name := cap.ID
-				if name == "" {
-					name = cap.Name
-				}
-				if seen[name] {
-					continue
-				}
-				seen[name] = true
-				_, hasSchema := a.schemaReg.GetSchema(name)
-				infos = append(infos, ToolInfo{
-					Name:        name,
-					DisplayName: cap.DisplayName,
-					Description: cap.Description,
-					Category:    cap.Category,
-					HasSchema:   hasSchema,
-					Inputs:      cap.Inputs,
-					Outputs:     cap.Outputs,
-					Tags:        cap.Tags,
-					Requires:    cap.Requires,
-				})
-			}
 		}
 	}
-
 	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
 	return infos
 }
 
 // GetToolSchema returns the component schema for a tool's parameters.
+// GetToolSchema returns the configuration schema for a tool.
 func (a *App) GetToolSchema(name string) map[string]any {
-	// Check built-in tool registry first.
-	if s := a.toolReg.GetSchema(name); s != nil {
-		return schemaToMap(s)
+	s := a.toolReg.GetSchema(name)
+	if s == nil {
+		return nil
 	}
-	// Fall back to the format/step schema registry (plugin-provided schemas).
-	// Strip plugin prefix for lookup (e.g. "okapi:segmentation" → "segmentation").
-	lookup := name
-	if idx := strings.LastIndex(name, ":"); idx >= 0 {
-		lookup = name[idx+1:]
-	}
-	if s, ok := a.schemaReg.GetSchema(lookup); ok {
-		data, err := json.Marshal(s)
-		if err != nil {
-			return nil
-		}
-		var result map[string]any
-		if err := json.Unmarshal(data, &result); err != nil {
-			return nil
-		}
-		return result
-	}
-	return nil
-}
-
-func schemaToMap(s *schema.ComponentSchema) map[string]any {
 	data, err := json.Marshal(s)
 	if err != nil {
 		return nil

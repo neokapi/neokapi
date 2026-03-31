@@ -78,6 +78,32 @@ func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *s
 	}
 }
 
+// RegisterMetadata registers a tool's schema and metadata without a factory.
+// Used for plugin tools that are executed remotely via a bridge — they appear
+// in listings and have schemas for config UI, but cannot be instantiated locally.
+func (r *ToolRegistry) RegisterMetadata(name string, s *schema.ComponentSchema, source string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	info := ToolInfo{
+		Name:      name,
+		Source:    source,
+		HasSchema: s != nil,
+	}
+	if s != nil {
+		info.DisplayName = s.Title
+		info.Description = s.Description
+		info.Category = s.Meta.Category
+		info.Inputs = s.Meta.Inputs
+		info.Outputs = s.Meta.Outputs
+		info.Tags = s.Meta.Tags
+		info.Requires = s.Meta.Requires
+	}
+	r.tools[name] = &ToolRegistration{
+		Schema: s,
+		Info:   info,
+	}
+}
+
 // NewTool creates a new Tool instance for the given name.
 func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 	r.mu.RLock()
@@ -85,6 +111,9 @@ func (r *ToolRegistry) NewTool(name string) (tool.Tool, error) {
 	reg, ok := r.tools[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown tool: %s", name)
+	}
+	if reg.Factory == nil {
+		return nil, fmt.Errorf("tool %s is a plugin tool and cannot be instantiated locally", name)
 	}
 	return reg.Factory(), nil
 }

@@ -44,6 +44,7 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 	}
 
 	schemaReg := schema.NewSchemaRegistry()
+	toolSchemaReg := schema.NewSchemaRegistry()
 	presetReg := preset.NewPresetRegistry()
 
 	var plugins []CachedPlugin
@@ -63,7 +64,7 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 			vDir := iv.Dir
 			switch iv.InstallType {
 			case "bridge":
-				cp, fmts, err := buildBridgePlugin(iv, vDir, schemaReg, presetReg, logger)
+				cp, fmts, err := buildBridgePlugin(iv, vDir, schemaReg, toolSchemaReg, presetReg, logger)
 				if err != nil {
 					logf(logger, "building cache for %s/%s: %v", name, iv.Version, err)
 					continue
@@ -138,11 +139,12 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 	}
 
 	cache := &PluginCache{
-		Version: CacheVersion,
-		Plugins: plugins,
-		Schemas: collectSchemas(schemaReg),
-		Presets: collectPresets(presetReg),
-		DocsDir: docsDir,
+		Version:     CacheVersion,
+		Plugins:     plugins,
+		Schemas:     collectSchemas(schemaReg),
+		ToolSchemas: collectSchemas(toolSchemaReg),
+		Presets:     collectPresets(presetReg),
+		DocsDir:     docsDir,
 	}
 	return cache, nil
 }
@@ -156,7 +158,7 @@ func RebuildAndWrite(pluginDir string, logger *log.Logger) error {
 	return Write(pluginDir, c)
 }
 
-func buildBridgePlugin(iv pluginreg.InstalledVersion, vDir string, schemaReg *schema.SchemaRegistry, presetReg *preset.PresetRegistry, logger *log.Logger) (CachedPlugin, []CachedFormat, error) {
+func buildBridgePlugin(iv pluginreg.InstalledVersion, vDir string, schemaReg *schema.SchemaRegistry, toolSchemaReg *schema.SchemaRegistry, presetReg *preset.PresetRegistry, logger *log.Logger) (CachedPlugin, []CachedFormat, error) {
 	manifest, err := pluginreg.ReadBundledManifest(vDir)
 	if err != nil {
 		return CachedPlugin{}, nil, fmt.Errorf("reading manifest: %w", err)
@@ -165,13 +167,14 @@ func buildBridgePlugin(iv pluginreg.InstalledVersion, vDir string, schemaReg *sc
 		return CachedPlugin{}, nil, fmt.Errorf("no manifest.json in %s", vDir)
 	}
 
-	// Load schemas (filter schemas + step schemas).
+	// Load filter schemas.
 	schemasDir := filepath.Join(vDir, "schemas")
 	idsBefore := schemaReg.FilterIDSet()
 	if err := schemaReg.LoadFromDirectory(schemasDir); err != nil {
 		logf(logger, "loading schemas from %s: %v", schemasDir, err)
 	}
-	if err := schemaReg.LoadFromDirectory(filepath.Join(schemasDir, "steps")); err != nil {
+	// Load step/tool schemas into the separate tool schema registry.
+	if err := toolSchemaReg.LoadFromDirectory(filepath.Join(schemasDir, "steps")); err != nil {
 		logf(logger, "loading step schemas from %s: %v", filepath.Join(schemasDir, "steps"), err)
 	}
 	idsAfter := schemaReg.FilterIDSet()
