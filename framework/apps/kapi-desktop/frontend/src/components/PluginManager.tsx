@@ -37,15 +37,7 @@ export function PluginManager() {
     setError(null);
     try {
       const result = await api.listPlugins();
-      if (result) {
-        const seen = new Set<string>();
-        const deduped = result.filter((p) => {
-          if (seen.has(p.name)) return false;
-          seen.add(p.name);
-          return true;
-        });
-        setPlugins(deduped);
-      }
+      if (result) setPlugins(result);
     } catch (e) {
       setError(String(e));
     } finally {
