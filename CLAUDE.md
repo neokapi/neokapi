@@ -42,6 +42,11 @@ make fmt                # Format Go source (gofmt -w -s)
 make vet                # Run go vet (all modules)
 make lint               # Run golangci-lint (all modules)
 make check              # fmt + vet + lint
+make pre-push           # Run checks relevant to your changes (mirrors CI)
+make pre-push-all       # Run all checks regardless of changes
+make frontend-check-all # Lint + format + typecheck all frontend projects
+make kapi-desktop-frontend-check  # Lint + format + typecheck Kapi Desktop
+make flow-editor-check  # Lint + format + typecheck flow-editor
 make deps               # Download and tidy Go modules (all modules)
 make proto              # Generate gRPC code from protobuf definitions
 ```
