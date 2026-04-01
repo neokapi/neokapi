@@ -13,8 +13,10 @@ type MockProvider struct {
 	ProviderName        string
 	TranslateFunc       func(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
 	ChatFunc            func(ctx context.Context, messages []Message) (*ChatResponse, error)
-	ChatStructuredFunc  func(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
-	TranslateCalls      []TranslateRequest
+	ChatStructuredFunc       func(ctx context.Context, messages []Message, schema JSONSchema) (*ChatResponse, error)
+	ChatStreamFunc           func(ctx context.Context, messages []Message, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
+	ChatStructuredStreamFunc func(ctx context.Context, messages []Message, schema JSONSchema, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
+	TranslateCalls           []TranslateRequest
 	ChatCalls           [][]Message
 	ChatStructuredCalls []struct {
 		Messages []Message
@@ -103,7 +105,39 @@ func (p *MockProvider) ChatStructured(ctx context.Context, messages []Message, s
 	}, nil
 }
 
+// ChatStream implements StreamingLLMProvider by delegating to Chat and
+// emitting the result as a single content event followed by done.
+func (p *MockProvider) ChatStream(ctx context.Context, messages []Message, onEvent func(ChatStreamEvent)) (*ChatResponse, error) {
+	if p.ChatStreamFunc != nil {
+		return p.ChatStreamFunc(ctx, messages, onEvent)
+	}
+	resp, err := p.Chat(ctx, messages)
+	if err != nil {
+		return nil, err
+	}
+	onEvent(ChatStreamEvent{Type: StreamEventContent, Content: resp.Content})
+	onEvent(ChatStreamEvent{Type: StreamEventDone, Usage: resp.Usage, Model: resp.Model})
+	return resp, nil
+}
+
+// ChatStructuredStream implements StreamingLLMProvider by delegating to ChatStructured.
+func (p *MockProvider) ChatStructuredStream(ctx context.Context, messages []Message, schema JSONSchema, onEvent func(ChatStreamEvent)) (*ChatResponse, error) {
+	if p.ChatStructuredStreamFunc != nil {
+		return p.ChatStructuredStreamFunc(ctx, messages, schema, onEvent)
+	}
+	resp, err := p.ChatStructured(ctx, messages, schema)
+	if err != nil {
+		return nil, err
+	}
+	onEvent(ChatStreamEvent{Type: StreamEventContent, Content: resp.Content})
+	onEvent(ChatStreamEvent{Type: StreamEventDone, Usage: resp.Usage, Model: resp.Model})
+	return resp, nil
+}
+
 func (p *MockProvider) Close() error { return nil }
+
+// Compile-time check that MockProvider implements StreamingLLMProvider.
+var _ StreamingLLMProvider = (*MockProvider)(nil)
 
 func truncate(s string, maxLen int) string {
 	s = strings.TrimSpace(s)

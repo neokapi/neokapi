@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
@@ -17,22 +18,106 @@ type AITranslateTool struct {
 	tool.BaseTool
 	usageAccumulator
 	provider     provider.LLMProvider
+	streaming    provider.StreamingLLMProvider // nil when provider doesn't support streaming
 	sourceLocale model.LocaleID
 	targetLocale model.LocaleID
 	glossary     map[string]string
 	skipMatched  bool
 	batchSize    int
 	concurrency  int
+	onProgress   func(provider.ProgressEvent)
+	blockIndex   int
+	totalBlocks  int
 }
 
 // AITranslateConfig holds configuration for the AI translate tool.
+// Fields are exposed as CLI flags via schema tags and as flow config
+// via json tags.
 type AITranslateConfig struct {
-	SourceLocale model.LocaleID   `schema:"description=Source locale of the content"`
-	TargetLocale model.LocaleID   `schema:"description=Target locale for processing"`
-	Glossary     map[string]string `schema:"description=Glossary mapping source terms to target translations"`
-	SkipMatched  bool              `schema:"description=Skip blocks that already have a target translation"`
-	BatchSize    int               `schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"` // Blocks per LLM call. 0 or 1 = one block per call.
-	Concurrency  int               `schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
+	SourceLocale model.LocaleID    `json:"sourceLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
+	Provider     string            `json:"provider,omitempty"     schema:"description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
+	APIKey       string            `json:"apiKey,omitempty"       schema:"description=API key for the AI provider,group=provider"`
+	Model        string            `json:"model,omitempty"        schema:"description=AI model name,group=provider"`
+	Glossary     map[string]string `json:"glossary,omitempty"     schema:"-"`
+	SkipMatched  bool              `json:"skipMatched,omitempty"  schema:"description=Skip blocks that already have a target translation"`
+	BatchSize    int               `json:"batchSize,omitempty"    schema:"description=Number of blocks per LLM call,default=100,min=1"`
+	BatchConcurrency int            `json:"batchConcurrency,omitempty" schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"`
+
+	// OnProgress is called for each block during translation. It receives
+	// live thinking summaries when the provider supports streaming.
+	OnProgress func(provider.ProgressEvent) `json:"-"`
+}
+
+// AITranslateSchema returns the auto-generated schema for the AI translate tool.
+func AITranslateSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&AITranslateConfig{}, schema.ToolMeta{
+		ID:          "ai-translate",
+		Category:    schema.CategoryTranslate,
+		DisplayName: "AI Translate",
+		Description: "Translate content using an LLM provider",
+		Inputs:      []string{schema.PartTypeBlock},
+		Tags:        []string{"ai-powered"},
+		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+	})
+}
+
+// ProviderFromConfig creates an LLM provider from config map fields.
+func ProviderFromConfig(cfg AITranslateConfig) (provider.LLMProvider, error) {
+	name := cfg.Provider
+	if name == "" {
+		name = "anthropic"
+	}
+
+	pcfg := provider.Config{
+		APIKey: cfg.APIKey,
+		Model:  cfg.Model,
+	}
+
+	switch name {
+	case "anthropic":
+		return provider.NewAnthropicProvider(pcfg), nil
+	case "openai":
+		return provider.NewOpenAIProvider(pcfg), nil
+	case "gemini":
+		return provider.NewGeminiProvider(pcfg), nil
+	case "ollama":
+		return provider.NewOllamaProvider(pcfg), nil
+	default:
+		return nil, fmt.Errorf("unknown AI provider: %s (supported: anthropic, openai, gemini, ollama)", name)
+	}
+}
+
+// NewAITranslateFromConfig creates an AI translate tool from a config map.
+// Used by the schema-driven CLI path and the flow engine.
+//
+// The config map may contain an "onProgress" key with a func(ProgressEvent)
+// value for live progress reporting. This is extracted before JSON round-trip
+// since functions aren't JSON-serializable.
+func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	// Extract non-serializable fields before JSON round-trip.
+	var onProgress func(provider.ProgressEvent)
+	if fn, ok := config["onProgress"].(func(provider.ProgressEvent)); ok {
+		onProgress = fn
+		delete(config, "onProgress")
+	}
+
+	var cfg AITranslateConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("ai-translate config: %w", err)
+	}
+	cfg.OnProgress = onProgress
+
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+
+	p, err := ProviderFromConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewAITranslateTool(p, cfg), nil
 }
 
 // NewAITranslateTool creates a new AI translation tool.
@@ -44,7 +129,11 @@ func NewAITranslateTool(p provider.LLMProvider, cfg AITranslateConfig) *AITransl
 		glossary:     cfg.Glossary,
 		skipMatched:  cfg.SkipMatched,
 		batchSize:    cfg.BatchSize,
-		concurrency:  cfg.Concurrency,
+		concurrency:  cfg.BatchConcurrency,
+		onProgress:   cfg.OnProgress,
+	}
+	if sp, ok := p.(provider.StreamingLLMProvider); ok {
+		t.streaming = sp
 	}
 	if t.batchSize < 1 {
 		t.batchSize = 1
@@ -91,6 +180,8 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return part, nil
 	}
 
+	t.blockIndex++
+
 	// Check if the source fragment has inline spans.
 	frag := block.FirstFragment()
 	if frag != nil && frag.HasSpans() {
@@ -98,7 +189,7 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 	}
 
 	// Plain text translation.
-	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
+	resp, err := t.translateBlock(context.Background(), provider.TranslateRequest{
 		Source:         sourceText,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -111,7 +202,50 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 
 	block.SetTargetText(t.targetLocale, resp.Translation)
 	t.annotateTranslation(block, resp)
+
+	t.emitProgress(true, "")
 	return part, nil
+}
+
+// translateBlock translates text using streaming when available (for live
+// thinking progress), falling back to the standard Translate method.
+func (t *AITranslateTool) translateBlock(ctx context.Context, req provider.TranslateRequest) (*provider.TranslateResponse, error) {
+	if t.streaming == nil || t.onProgress == nil {
+		return t.provider.Translate(ctx, req)
+	}
+
+	// Build the same prompt that Translate would, but use ChatStream
+	// so we can surface thinking progress.
+	var prompt strings.Builder
+	prompt.WriteString(fmt.Sprintf(
+		"Translate the following text from %s to %s. Return ONLY the translation, no explanation.\n\nText: %s",
+		req.SourceLanguage, req.TargetLocale, req.Source,
+	))
+
+	if len(req.Glossary) > 0 {
+		prompt.WriteString("\n\nGlossary:\n")
+		for term, translation := range req.Glossary {
+			prompt.WriteString(fmt.Sprintf("- %s → %s\n", term, translation))
+		}
+	}
+
+	resp, err := t.streaming.ChatStream(ctx, []provider.Message{
+		{Role: "user", Content: prompt.String()},
+	}, func(e provider.ChatStreamEvent) {
+		if e.Type == provider.StreamEventThinking {
+			t.emitProgress(false, e.Content)
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &provider.TranslateResponse{
+		Translation: resp.Content,
+		Confidence:  0.85,
+		Model:       resp.Model,
+		Usage:       resp.Usage,
+	}, nil
 }
 
 // handleBlockWithSpans translates a block that contains inline spans.
@@ -125,7 +259,7 @@ func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 		t.sourceLocale, t.targetLocale, sourceText,
 	)
 
-	resp, err := t.provider.Translate(context.Background(), provider.TranslateRequest{
+	resp, err := t.translateBlock(context.Background(), provider.TranslateRequest{
 		Source:         prompt,
 		SourceLanguage: t.sourceLocale,
 		TargetLocale:   t.targetLocale,
@@ -140,7 +274,27 @@ func (t *AITranslateTool) handleBlockWithSpans(part *model.Part, block *model.Bl
 	targetFrag := model.ParsePlaceholderText(resp.Translation, frag.Spans)
 	block.SetTargetFragment(t.targetLocale, targetFrag)
 	t.annotateTranslation(block, resp)
+
+	t.emitProgress(true, "")
 	return part, nil
+}
+
+// SetTotalBlocks sets the total number of translatable blocks for progress
+// reporting. Call this before Process if the count is known.
+func (t *AITranslateTool) SetTotalBlocks(n int) {
+	t.totalBlocks = n
+}
+
+func (t *AITranslateTool) emitProgress(done bool, thinking string) {
+	if t.onProgress == nil {
+		return
+	}
+	t.onProgress(provider.ProgressEvent{
+		Block:       t.blockIndex,
+		TotalBlocks: t.totalBlocks,
+		Thinking:    thinking,
+		Done:        done,
+	})
 }
 
 func (t *AITranslateTool) annotateTranslation(block *model.Block, resp *provider.TranslateResponse) {
@@ -208,6 +362,9 @@ func (t *AITranslateTool) processBatched(ctx context.Context, in <-chan *model.P
 			sourceText: text, hasSpans: hasSpans, frag: frag,
 		})
 	}
+
+	// Set total for progress reporting since we know the full count.
+	t.totalBlocks = len(entries)
 
 	// 3. Group into batches.
 	batches := make([][]blockEntry, 0, (len(entries)+t.batchSize-1)/t.batchSize)
@@ -330,9 +487,22 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 		fmt.Fprintf(&prompt, "[%d] %s\n", i+1, entry.sourceText)
 	}
 
-	resp, err := t.provider.ChatStructured(ctx, []provider.Message{
-		{Role: "user", Content: prompt.String()},
-	}, batchTranslationSchema())
+	messages := []provider.Message{{Role: "user", Content: prompt.String()}}
+	schema := batchTranslationSchema()
+
+	var resp *provider.ChatResponse
+	var err error
+
+	if t.streaming != nil && t.onProgress != nil {
+		// Use streaming for live thinking progress on batch calls.
+		resp, err = t.streaming.ChatStructuredStream(ctx, messages, schema, func(e provider.ChatStreamEvent) {
+			if e.Type == provider.StreamEventThinking {
+				t.emitProgress(false, e.Content)
+			}
+		})
+	} else {
+		resp, err = t.provider.ChatStructured(ctx, messages, schema)
+	}
 	if err != nil {
 		return fmt.Errorf("ai-translate batch: %w", err)
 	}
@@ -371,6 +541,8 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			Confidence:  0.85,
 			Model:       resp.Model,
 		})
+		t.blockIndex++
+		t.emitProgress(true, "")
 	}
 
 	return nil

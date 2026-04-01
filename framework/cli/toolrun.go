@@ -76,6 +76,7 @@ type ToolRunConfig struct {
 	ParallelBlocks int    // fan out block processing across N goroutines (0 = off)
 	NewTool        func() (tool.Tool, error)
 	NewCollector   func() flow.Collector
+	AfterTool      func() // called after tool execution completes (e.g. to clear progress)
 }
 
 // RunToolOnFiles processes each file through a single-tool flow and
@@ -369,7 +370,14 @@ func (a *App) processOneFile(ctx context.Context, cfg ToolRunConfig, filePath st
 	}
 
 	if err := wait(); err != nil {
+		if cfg.AfterTool != nil {
+			cfg.AfterTool()
+		}
 		return fmt.Errorf("tool execution on %s: %w", filePath, err)
+	}
+
+	if cfg.AfterTool != nil {
+		cfg.AfterTool()
 	}
 
 	// Write trace JSON if --trace was set.

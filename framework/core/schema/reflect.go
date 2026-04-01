@@ -41,6 +41,11 @@ func FromStruct(cfg any, meta ToolMeta) *ComponentSchema {
 			continue
 		}
 
+		// Skip fields with schema:"-"
+		if field.Tag.Get("schema") == "-" {
+			continue
+		}
+
 		// Skip interface, func, and channel types
 		kind := field.Type.Kind()
 		if kind == reflect.Interface || kind == reflect.Func || kind == reflect.Chan {
