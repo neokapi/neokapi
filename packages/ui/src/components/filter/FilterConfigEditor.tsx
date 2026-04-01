@@ -184,7 +184,14 @@ interface ParameterFieldProps {
   depth?: number;
 }
 
-function ParameterField({ name, schema, value, onChange, allValues, depth = 0 }: ParameterFieldProps) {
+function ParameterField({
+  name,
+  schema,
+  value,
+  onChange,
+  allValues,
+  depth = 0,
+}: ParameterFieldProps) {
   const widget = schema["x-widget"];
 
   // x-showIf conditional visibility
@@ -222,7 +229,9 @@ function ParameterField({ name, schema, value, onChange, allValues, depth = 0 }:
   if (widget === "simplifierRulesEditor") {
     return (
       <div className="space-y-1">
-        <Label htmlFor={name} className="text-sm">{name}</Label>
+        <Label htmlFor={name} className="text-sm">
+          {name}
+        </Label>
         <textarea
           id={name}
           className="w-full min-h-[60px] p-2 text-xs font-mono rounded border bg-background border-input focus:border-ring focus:outline-none resize-y"
@@ -230,7 +239,9 @@ function ParameterField({ name, schema, value, onChange, allValues, depth = 0 }:
           placeholder={schema["x-placeholder"] || "One rule per line..."}
           onChange={(e) => onChange(e.target.value || undefined)}
         />
-        {schema.description && <p className="text-xs text-muted-foreground">{schema.description}</p>}
+        {schema.description && (
+          <p className="text-xs text-muted-foreground">{schema.description}</p>
+        )}
       </div>
     );
   }
@@ -254,7 +265,9 @@ function ParameterField({ name, schema, value, onChange, allValues, depth = 0 }:
       <TextField
         name={name}
         description={schema.description}
-        placeholder={schema["x-placeholder"] || (widget === "tagList" ? "tag1, tag2, ..." : "pattern...")}
+        placeholder={
+          schema["x-placeholder"] || (widget === "tagList" ? "tag1, tag2, ..." : "pattern...")
+        }
         value={value as string | undefined}
         defaultValue={schema.default as string | undefined}
         onChange={onChange}
@@ -282,7 +295,9 @@ function ParameterField({ name, schema, value, onChange, allValues, depth = 0 }:
     if (schema.enum && schema.enum.length > 0) {
       return (
         <div className="space-y-1">
-          <Label htmlFor={name} className="text-sm">{name}</Label>
+          <Label htmlFor={name} className="text-sm">
+            {name}
+          </Label>
           <select
             id={name}
             className="w-full h-9 px-3 text-sm rounded border bg-background border-input focus:border-ring focus:outline-none"
@@ -291,10 +306,14 @@ function ParameterField({ name, schema, value, onChange, allValues, depth = 0 }:
           >
             <option value="">—</option>
             {schema.enum.map((v) => (
-              <option key={String(v)} value={String(v)}>{String(v)}</option>
+              <option key={String(v)} value={String(v)}>
+                {String(v)}
+              </option>
             ))}
           </select>
-          {schema.description && <p className="text-xs text-muted-foreground">{schema.description}</p>}
+          {schema.description && (
+            <p className="text-xs text-muted-foreground">{schema.description}</p>
+          )}
         </div>
       );
     }
@@ -572,7 +591,13 @@ function MapField({
           <div key={key} className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-mono font-semibold text-muted-foreground">{key}</span>
-              <Button type="button" variant="ghost" size="sm" className="ml-auto h-6 w-6 p-0" onClick={() => handleRemove(key)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-6 w-6 p-0"
+                onClick={() => handleRemove(key)}
+              >
                 ✕
               </Button>
             </div>
@@ -611,7 +636,9 @@ function MapField({
             placeholder={keyPlaceholder}
             className="flex-1 text-xs h-7"
             onChange={(e) => setNewKey(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+            }}
           />
           <Button
             type="button"
@@ -647,14 +674,20 @@ function ArrayField({
   depth: number;
 }) {
   const items = value ?? [];
-  const isSimple = itemSchema.type === "string" || itemSchema.type === "number" || itemSchema.type === "integer";
+  const isSimple =
+    itemSchema.type === "string" || itemSchema.type === "number" || itemSchema.type === "integer";
 
   const handleAdd = useCallback(() => {
     const defaultVal =
-      itemSchema.type === "object" ? {} :
-      itemSchema.type === "array" ? [] :
-      itemSchema.type === "boolean" ? false :
-      itemSchema.type === "number" || itemSchema.type === "integer" ? 0 : "";
+      itemSchema.type === "object"
+        ? {}
+        : itemSchema.type === "array"
+          ? []
+          : itemSchema.type === "boolean"
+            ? false
+            : itemSchema.type === "number" || itemSchema.type === "integer"
+              ? 0
+              : "";
     onChange([...items, defaultVal]);
   }, [items, itemSchema, onChange]);
 
@@ -703,8 +736,11 @@ function ArrayField({
                     const v = e.target.value;
                     handleItemChange(
                       index,
-                      itemSchema.type === "integer" ? parseInt(v) || 0 :
-                      itemSchema.type === "number" ? parseFloat(v) || 0 : v,
+                      itemSchema.type === "integer"
+                        ? parseInt(v) || 0
+                        : itemSchema.type === "number"
+                          ? parseFloat(v) || 0
+                          : v,
                     );
                   }}
                 />
@@ -719,7 +755,10 @@ function ArrayField({
                         schema={fieldSchema}
                         value={(item as Record<string, unknown>)?.[key]}
                         onChange={(v) =>
-                          handleItemChange(index, { ...(item as Record<string, unknown>), [key]: v })
+                          handleItemChange(index, {
+                            ...(item as Record<string, unknown>),
+                            [key]: v,
+                          })
                         }
                         allValues={item as Record<string, unknown>}
                         depth={depth + 1}
@@ -734,7 +773,13 @@ function ArrayField({
                 />
               )}
             </div>
-            <Button type="button" variant="ghost" size="sm" className="h-6 w-6 p-0 mt-0.5" onClick={() => handleRemove(index)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 mt-0.5"
+              onClick={() => handleRemove(index)}
+            >
               ✕
             </Button>
           </div>

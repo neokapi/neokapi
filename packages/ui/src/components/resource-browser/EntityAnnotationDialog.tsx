@@ -160,9 +160,7 @@ export function EntityAnnotationDialog({
             </button>
 
             {/* Error */}
-            {error && (
-              <p className="text-xs text-destructive mb-2">{error}</p>
-            )}
+            {error && <p className="text-xs text-destructive mb-2">{error}</p>}
 
             {/* Actions */}
             <div className="flex gap-2 pt-2 border-t border-border">
