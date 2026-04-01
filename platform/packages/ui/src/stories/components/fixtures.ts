@@ -711,3 +711,23 @@ export const sampleRoleTemplates: RoleTemplate[] = [
     updated_at: "2026-03-01T10:00:00Z",
   },
 ];
+
+// ── Resource Picker Fixtures ────────────────────────────────────────────────
+
+import type { ResourceOption } from "../../components/ResourcePicker";
+
+export const sampleTMs: ResourceOption[] = [
+  { name: "project-memory", entryCount: 12450 },
+  { name: "legacy-tm", entryCount: 85000 },
+  { name: "small-test", entryCount: 120 },
+];
+
+export const sampleTermbases: ResourceOption[] = [
+  { name: "glossary", entryCount: 340 },
+  { name: "brand-terms", entryCount: 52 },
+];
+
+export const sampleSRXFiles: ResourceOption[] = [
+  { name: "custom-rules" },
+  { name: "japanese-rules" },
+];
