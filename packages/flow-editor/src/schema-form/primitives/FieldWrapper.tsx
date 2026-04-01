@@ -13,6 +13,7 @@ export function FieldWrapper({
   children,
   vertical: _vertical,
   disabled,
+  error,
 }: {
   label: string;
   description?: string;
@@ -24,6 +25,8 @@ export function FieldWrapper({
   vertical?: boolean;
   /** Visual disabled state (reduces opacity). */
   disabled?: boolean;
+  /** Validation error message from Zod. */
+  error?: string;
 }) {
   const [showMore, setShowMore] = useState(false);
   // Accept both "description" and "help" field names (okapi-bridge docs use "help")
@@ -52,6 +55,11 @@ export function FieldWrapper({
           </div>
         )}
         {children}
+        {error && (
+          <div style={{ fontSize: 10, color: "#ef4444", marginTop: 2, fontWeight: 500 }}>
+            {error}
+          </div>
+        )}
       </div>
 
       {/* Right: doc description */}

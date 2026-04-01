@@ -14,10 +14,13 @@
     "test:watch": "vp test watch"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
     "@xyflow/react": "^12.10.1",
     "lucide-react": "^0.577.0",
+    "react-hook-form": "^7.72.0",
     "react-markdown": "^10.1.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@storybook/react-vite": "^10.3.1",

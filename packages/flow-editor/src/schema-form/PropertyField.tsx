@@ -34,6 +34,7 @@ export function PropertyField({
   presetValues,
   docParam,
   defs,
+  error,
 }: {
   name: string;
   schema: PropertySchema;
@@ -47,6 +48,7 @@ export function PropertyField({
   presetValues?: Record<string, unknown>;
   docParam?: ToolDocParam;
   defs?: Record<string, PropertySchema>;
+  error?: string;
 }) {
   // Resolve $ref if present
   const schema = rawSchema.$ref ? resolveSchemaRef(rawSchema, defs) : rawSchema;
@@ -133,7 +135,7 @@ export function PropertyField({
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["ui:placeholder"] || "// Enter JavaScript code..."}
@@ -157,7 +159,7 @@ export function PropertyField({
 
   if (widget === "file-picker") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -218,7 +220,7 @@ export function PropertyField({
 
   if (widget === "simplifier-rules" || widget === "simplifierRulesEditor") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["ui:placeholder"] || "One rule per line..."}
@@ -253,7 +255,7 @@ export function PropertyField({
 
   if (widget === "regex" || widget === "tags" || widget === "regex" || widget === "regexBuilder" || widget === "tagList") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -275,7 +277,7 @@ export function PropertyField({
 
   if (widget === "number-list" || widget === "numberList") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -292,7 +294,7 @@ export function PropertyField({
   if (widget === "path") {
     const pathMeta = editor?.path;
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -356,7 +358,7 @@ export function PropertyField({
   if (widget === "folder") {
     const folderMeta = editor?.folder;
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -398,7 +400,7 @@ export function PropertyField({
   if (widget === "textarea" || widget === "multilineText") {
     const textMeta = editor?.text;
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["ui:placeholder"] || ""}
@@ -421,7 +423,7 @@ export function PropertyField({
 
   if (widget === "password") {
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
         <input
           type="password"
           value={String(resolved ?? "")}
@@ -440,7 +442,7 @@ export function PropertyField({
     const entries = widgetOpts.entries as Array<{ name: string; title: string; description?: string }>;
     const current = (resolved as Record<string, boolean>) ?? {};
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {entries.map((entry) => (
             <label
@@ -478,7 +480,7 @@ export function PropertyField({
     // x-editor "select" = scrollable list (vs "dropdown" which uses standard <select>)
     const current = String(resolved ?? "");
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
         <div style={{
           border: `1px solid ${theme.border}`,
           borderRadius: 4,
@@ -556,7 +558,7 @@ export function PropertyField({
 
   if (schema.enum && schema.enum.length > 0) {
     return (
-      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
         <select
           value={String(resolved ?? "")}
           onChange={(e) => onChange(e.target.value)}
@@ -587,7 +589,7 @@ export function PropertyField({
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
         <input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -685,7 +687,7 @@ export function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled}>
+    <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
       <input
         type="text"
         value={String(resolved ?? "")}
