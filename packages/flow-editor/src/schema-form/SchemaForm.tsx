@@ -25,7 +25,13 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
     const props = schema.properties || {};
     const grps = schema["ui:groups"] || [];
     const grouped = new Set(grps.flatMap((g) => g.fields));
-    const ungrp = Object.keys(props).filter((k) => !grouped.has(k) && !props[k].deprecated);
+    const ungrp = Object.keys(props)
+      .filter((k) => !grouped.has(k) && !props[k].deprecated)
+      .sort((a, b) => {
+        const orderA = props[a]?.["ui:order"] ?? Infinity;
+        const orderB = props[b]?.["ui:order"] ?? Infinity;
+        return orderA - orderB;
+      });
     return { properties: props, groups: grps, ungrouped: ungrp };
   }, [schema]);
 
@@ -160,6 +166,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
           presetValues={presetValues}
           paramDocs={paramDocs}
           defs={defs}
+          fieldErrors={fieldErrors}
         />
       ))}
 
