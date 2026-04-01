@@ -3,7 +3,7 @@ export { FlowTemplateLibrary } from "./FlowTemplateLibrary";
 export { FLOW_TEMPLATES } from "./templates";
 export type { FlowTemplate } from "./templates";
 export { ToolPalette } from "./ToolPalette";
-export { SchemaForm } from "./SchemaForm";
+export { SchemaForm } from "./schema-form";
 export { stepsToGraph, graphToSteps } from "./conversion";
 export { ReaderNode } from "./nodes/ReaderNode";
 export { WriterNode } from "./nodes/WriterNode";

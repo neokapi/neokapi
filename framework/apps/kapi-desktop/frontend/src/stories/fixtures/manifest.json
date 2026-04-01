@@ -26,7 +26,9 @@
         ".archive",
         ".zip"
       ],
-      "schema": "formats/okf_archive/schema.json"
+      "schema": "formats/okf_archive/schema.json",
+      "doc": "formats/okf_archive/doc.json",
+      "presets_dir": "formats/okf_archive/presets/"
     },
     {
       "type": "format",
@@ -46,7 +48,8 @@
         ".xlf2",
         ".xliff2"
       ],
-      "schema": "formats/okf_autoxliff/schema.json"
+      "schema": "formats/okf_autoxliff/schema.json",
+      "presets_dir": "formats/okf_autoxliff/presets/"
     },
     {
       "type": "format",
@@ -63,7 +66,8 @@
       "extensions": [
         ".txt"
       ],
-      "schema": "formats/okf_baseplaintext/schema.json"
+      "schema": "formats/okf_baseplaintext/schema.json",
+      "presets_dir": "formats/okf_baseplaintext/presets/"
     },
     {
       "type": "format",
@@ -80,7 +84,8 @@
       "extensions": [
         ".txt"
       ],
-      "schema": "formats/okf_basetable/schema.json"
+      "schema": "formats/okf_basetable/schema.json",
+      "presets_dir": "formats/okf_basetable/presets/"
     },
     {
       "type": "format",
@@ -97,7 +102,8 @@
       "extensions": [
         ".csv"
       ],
-      "schema": "formats/okf_commaseparatedvalues/schema.json"
+      "schema": "formats/okf_commaseparatedvalues/schema.json",
+      "presets_dir": "formats/okf_commaseparatedvalues/presets/"
     },
     {
       "type": "format",
@@ -119,7 +125,9 @@
         ".py",
         ".m"
       ],
-      "schema": "formats/okf_doxygen/schema.json"
+      "schema": "formats/okf_doxygen/schema.json",
+      "doc": "formats/okf_doxygen/doc.json",
+      "presets_dir": "formats/okf_doxygen/presets/"
     },
     {
       "type": "format",
@@ -137,7 +145,9 @@
         ".dtd",
         ".ent"
       ],
-      "schema": "formats/okf_dtd/schema.json"
+      "schema": "formats/okf_dtd/schema.json",
+      "doc": "formats/okf_dtd/doc.json",
+      "presets_dir": "formats/okf_dtd/presets/"
     },
     {
       "type": "format",
@@ -151,7 +161,8 @@
       "mime_types": [
         "text/csv"
       ],
-      "schema": "formats/okf_fixedwidthcolumns/schema.json"
+      "schema": "formats/okf_fixedwidthcolumns/schema.json",
+      "presets_dir": "formats/okf_fixedwidthcolumns/presets/"
     },
     {
       "type": "format",
@@ -170,7 +181,9 @@
         ".htm",
         ".xhtml"
       ],
-      "schema": "formats/okf_html/schema.json"
+      "schema": "formats/okf_html/schema.json",
+      "doc": "formats/okf_html/doc.json",
+      "presets_dir": "formats/okf_html/presets/"
     },
     {
       "type": "format",
@@ -188,7 +201,9 @@
         ".html",
         ".htm"
       ],
-      "schema": "formats/okf_html5/schema.json"
+      "schema": "formats/okf_html5/schema.json",
+      "doc": "formats/okf_html5/doc.json",
+      "presets_dir": "formats/okf_html5/presets/"
     },
     {
       "type": "format",
@@ -206,7 +221,9 @@
         ".wcml",
         ".icml"
       ],
-      "schema": "formats/okf_icml/schema.json"
+      "schema": "formats/okf_icml/schema.json",
+      "doc": "formats/okf_icml/doc.json",
+      "presets_dir": "formats/okf_icml/presets/"
     },
     {
       "type": "format",
@@ -223,7 +240,9 @@
       "extensions": [
         ".idml"
       ],
-      "schema": "formats/okf_idml/schema.json"
+      "schema": "formats/okf_idml/schema.json",
+      "doc": "formats/okf_idml/doc.json",
+      "presets_dir": "formats/okf_idml/presets/"
     },
     {
       "type": "format",
@@ -240,7 +259,9 @@
       "extensions": [
         ".json"
       ],
-      "schema": "formats/okf_json/schema.json"
+      "schema": "formats/okf_json/schema.json",
+      "doc": "formats/okf_json/doc.json",
+      "presets_dir": "formats/okf_json/presets/"
     },
     {
       "type": "format",
@@ -258,7 +279,9 @@
         ".md",
         ".markdown"
       ],
-      "schema": "formats/okf_markdown/schema.json"
+      "schema": "formats/okf_markdown/schema.json",
+      "doc": "formats/okf_markdown/doc.json",
+      "presets_dir": "formats/okf_markdown/presets/"
     },
     {
       "type": "format",
@@ -275,7 +298,9 @@
       "extensions": [
         ".mif"
       ],
-      "schema": "formats/okf_mif/schema.json"
+      "schema": "formats/okf_mif/schema.json",
+      "doc": "formats/okf_mif/doc.json",
+      "presets_dir": "formats/okf_mif/presets/"
     },
     {
       "type": "format",
@@ -292,7 +317,9 @@
       "extensions": [
         ".txt"
       ],
-      "schema": "formats/okf_mosestext/schema.json"
+      "schema": "formats/okf_mosestext/schema.json",
+      "doc": "formats/okf_mosestext/doc.json",
+      "presets_dir": "formats/okf_mosestext/presets/"
     },
     {
       "type": "format",
@@ -309,7 +336,9 @@
       "extensions": [
         ".csv"
       ],
-      "schema": "formats/okf_multiparsers/schema.json"
+      "schema": "formats/okf_multiparsers/schema.json",
+      "doc": "formats/okf_multiparsers/doc.json",
+      "presets_dir": "formats/okf_multiparsers/presets/"
     },
     {
       "type": "format",
@@ -323,7 +352,9 @@
       "mime_types": [
         "text/x-odf"
       ],
-      "schema": "formats/okf_odf/schema.json"
+      "schema": "formats/okf_odf/schema.json",
+      "doc": "formats/okf_odf/doc.json",
+      "presets_dir": "formats/okf_odf/presets/"
     },
     {
       "type": "format",
@@ -351,7 +382,8 @@
         ".sxd",
         ".sxi"
       ],
-      "schema": "formats/okf_openoffice/schema.json"
+      "schema": "formats/okf_openoffice/schema.json",
+      "presets_dir": "formats/okf_openoffice/presets/"
     },
     {
       "type": "format",
@@ -383,7 +415,9 @@
         ".vsdx",
         ".vsdm"
       ],
-      "schema": "formats/okf_openxml/schema.json"
+      "schema": "formats/okf_openxml/schema.json",
+      "doc": "formats/okf_openxml/doc.json",
+      "presets_dir": "formats/okf_openxml/presets/"
     },
     {
       "type": "format",
@@ -397,7 +431,8 @@
       "mime_types": [
         "text/plain"
       ],
-      "schema": "formats/okf_paraplaintext/schema.json"
+      "schema": "formats/okf_paraplaintext/schema.json",
+      "presets_dir": "formats/okf_paraplaintext/presets/"
     },
     {
       "type": "format",
@@ -414,7 +449,9 @@
       "extensions": [
         ".pdf"
       ],
-      "schema": "formats/okf_pdf/schema.json"
+      "schema": "formats/okf_pdf/schema.json",
+      "doc": "formats/okf_pdf/doc.json",
+      "presets_dir": "formats/okf_pdf/presets/"
     },
     {
       "type": "format",
@@ -431,7 +468,9 @@
       "extensions": [
         ".pentm"
       ],
-      "schema": "formats/okf_pensieve/schema.json"
+      "schema": "formats/okf_pensieve/schema.json",
+      "doc": "formats/okf_pensieve/doc.json",
+      "presets_dir": "formats/okf_pensieve/presets/"
     },
     {
       "type": "format",
@@ -448,7 +487,9 @@
       "extensions": [
         ".php"
       ],
-      "schema": "formats/okf_phpcontent/schema.json"
+      "schema": "formats/okf_phpcontent/schema.json",
+      "doc": "formats/okf_phpcontent/doc.json",
+      "presets_dir": "formats/okf_phpcontent/presets/"
     },
     {
       "type": "format",
@@ -465,7 +506,9 @@
       "extensions": [
         ".txt"
       ],
-      "schema": "formats/okf_plaintext/schema.json"
+      "schema": "formats/okf_plaintext/schema.json",
+      "doc": "formats/okf_plaintext/doc.json",
+      "presets_dir": "formats/okf_plaintext/presets/"
     },
     {
       "type": "format",
@@ -482,7 +525,9 @@
       "extensions": [
         ".po"
       ],
-      "schema": "formats/okf_po/schema.json"
+      "schema": "formats/okf_po/schema.json",
+      "doc": "formats/okf_po/doc.json",
+      "presets_dir": "formats/okf_po/presets/"
     },
     {
       "type": "format",
@@ -500,7 +545,9 @@
         ".properties",
         ".lang"
       ],
-      "schema": "formats/okf_properties/schema.json"
+      "schema": "formats/okf_properties/schema.json",
+      "doc": "formats/okf_properties/doc.json",
+      "presets_dir": "formats/okf_properties/presets/"
     },
     {
       "type": "format",
@@ -519,7 +566,9 @@
         ".rkm",
         ".rkp"
       ],
-      "schema": "formats/okf_rainbowkit/schema.json"
+      "schema": "formats/okf_rainbowkit/schema.json",
+      "doc": "formats/okf_rainbowkit/doc.json",
+      "presets_dir": "formats/okf_rainbowkit/presets/"
     },
     {
       "type": "format",
@@ -537,7 +586,9 @@
         ".srt",
         ".strings"
       ],
-      "schema": "formats/okf_regex/schema.json"
+      "schema": "formats/okf_regex/schema.json",
+      "doc": "formats/okf_regex/doc.json",
+      "presets_dir": "formats/okf_regex/presets/"
     },
     {
       "type": "format",
@@ -551,7 +602,8 @@
       "mime_types": [
         "text/plain"
       ],
-      "schema": "formats/okf_regexplaintext/schema.json"
+      "schema": "formats/okf_regexplaintext/schema.json",
+      "presets_dir": "formats/okf_regexplaintext/presets/"
     },
     {
       "type": "format",
@@ -568,7 +620,8 @@
       "extensions": [
         ".rtf"
       ],
-      "schema": "formats/okf_rtf/schema.json"
+      "schema": "formats/okf_rtf/schema.json",
+      "presets_dir": "formats/okf_rtf/presets/"
     },
     {
       "type": "format",
@@ -586,7 +639,9 @@
         ".sdlppx",
         ".sdlrpx"
       ],
-      "schema": "formats/okf_sdlpackage/schema.json"
+      "schema": "formats/okf_sdlpackage/schema.json",
+      "doc": "formats/okf_sdlpackage/doc.json",
+      "presets_dir": "formats/okf_sdlpackage/presets/"
     },
     {
       "type": "format",
@@ -600,7 +655,8 @@
       "mime_types": [
         "text/plain"
       ],
-      "schema": "formats/okf_splicedlines/schema.json"
+      "schema": "formats/okf_splicedlines/schema.json",
+      "presets_dir": "formats/okf_splicedlines/presets/"
     },
     {
       "type": "format",
@@ -617,7 +673,9 @@
       "extensions": [
         ".csv"
       ],
-      "schema": "formats/okf_table/schema.json"
+      "schema": "formats/okf_table/schema.json",
+      "doc": "formats/okf_table/doc.json",
+      "presets_dir": "formats/okf_table/presets/"
     },
     {
       "type": "format",
@@ -631,7 +689,8 @@
       "mime_types": [
         "text/csv"
       ],
-      "schema": "formats/okf_tabseparatedvalues/schema.json"
+      "schema": "formats/okf_tabseparatedvalues/schema.json",
+      "presets_dir": "formats/okf_tabseparatedvalues/presets/"
     },
     {
       "type": "format",
@@ -648,7 +707,8 @@
       "extensions": [
         ".tex"
       ],
-      "schema": "formats/okf_tex/schema.json"
+      "schema": "formats/okf_tex/schema.json",
+      "presets_dir": "formats/okf_tex/presets/"
     },
     {
       "type": "format",
@@ -665,7 +725,9 @@
       "extensions": [
         ".tmx"
       ],
-      "schema": "formats/okf_tmx/schema.json"
+      "schema": "formats/okf_tmx/schema.json",
+      "doc": "formats/okf_tmx/doc.json",
+      "presets_dir": "formats/okf_tmx/presets/"
     },
     {
       "type": "format",
@@ -682,7 +744,9 @@
       "extensions": [
         ".txp"
       ],
-      "schema": "formats/okf_transifex/schema.json"
+      "schema": "formats/okf_transifex/schema.json",
+      "doc": "formats/okf_transifex/doc.json",
+      "presets_dir": "formats/okf_transifex/presets/"
     },
     {
       "type": "format",
@@ -696,7 +760,8 @@
       "mime_types": [
         "text/x-transtable"
       ],
-      "schema": "formats/okf_transtable/schema.json"
+      "schema": "formats/okf_transtable/schema.json",
+      "presets_dir": "formats/okf_transtable/presets/"
     },
     {
       "type": "format",
@@ -713,7 +778,9 @@
       "extensions": [
         ".ts"
       ],
-      "schema": "formats/okf_ts/schema.json"
+      "schema": "formats/okf_ts/schema.json",
+      "doc": "formats/okf_ts/doc.json",
+      "presets_dir": "formats/okf_ts/presets/"
     },
     {
       "type": "format",
@@ -730,7 +797,8 @@
       "extensions": [
         ".ttml"
       ],
-      "schema": "formats/okf_ttml/schema.json"
+      "schema": "formats/okf_ttml/schema.json",
+      "presets_dir": "formats/okf_ttml/presets/"
     },
     {
       "type": "format",
@@ -747,7 +815,9 @@
       "extensions": [
         ".ttx"
       ],
-      "schema": "formats/okf_ttx/schema.json"
+      "schema": "formats/okf_ttx/schema.json",
+      "doc": "formats/okf_ttx/doc.json",
+      "presets_dir": "formats/okf_ttx/presets/"
     },
     {
       "type": "format",
@@ -764,7 +834,9 @@
       "extensions": [
         ".txml"
       ],
-      "schema": "formats/okf_txml/schema.json"
+      "schema": "formats/okf_txml/schema.json",
+      "doc": "formats/okf_txml/doc.json",
+      "presets_dir": "formats/okf_txml/presets/"
     },
     {
       "type": "format",
@@ -778,7 +850,9 @@
       "mime_types": [
         "text/xml"
       ],
-      "schema": "formats/okf_vignette/schema.json"
+      "schema": "formats/okf_vignette/schema.json",
+      "doc": "formats/okf_vignette/doc.json",
+      "presets_dir": "formats/okf_vignette/presets/"
     },
     {
       "type": "format",
@@ -796,7 +870,8 @@
         ".vtt",
         ".srt"
       ],
-      "schema": "formats/okf_vtt/schema.json"
+      "schema": "formats/okf_vtt/schema.json",
+      "presets_dir": "formats/okf_vtt/presets/"
     },
     {
       "type": "format",
@@ -813,7 +888,9 @@
       "extensions": [
         ".txt"
       ],
-      "schema": "formats/okf_wiki/schema.json"
+      "schema": "formats/okf_wiki/schema.json",
+      "doc": "formats/okf_wiki/doc.json",
+      "presets_dir": "formats/okf_wiki/presets/"
     },
     {
       "type": "format",
@@ -830,7 +907,8 @@
       "extensions": [
         ".xini"
       ],
-      "schema": "formats/okf_xini/schema.json"
+      "schema": "formats/okf_xini/schema.json",
+      "presets_dir": "formats/okf_xini/presets/"
     },
     {
       "type": "format",
@@ -844,7 +922,8 @@
       "mime_types": [
         "text/x-xini"
       ],
-      "schema": "formats/okf_xinirainbowkit/schema.json"
+      "schema": "formats/okf_xinirainbowkit/schema.json",
+      "presets_dir": "formats/okf_xinirainbowkit/presets/"
     },
     {
       "type": "format",
@@ -866,7 +945,9 @@
         ".mqxliff",
         ".sdlxliff"
       ],
-      "schema": "formats/okf_xliff/schema.json"
+      "schema": "formats/okf_xliff/schema.json",
+      "doc": "formats/okf_xliff/doc.json",
+      "presets_dir": "formats/okf_xliff/presets/"
     },
     {
       "type": "format",
@@ -886,7 +967,9 @@
         ".xlf2",
         ".xliff2"
       ],
-      "schema": "formats/okf_xliff2/schema.json"
+      "schema": "formats/okf_xliff2/schema.json",
+      "doc": "formats/okf_xliff2/doc.json",
+      "presets_dir": "formats/okf_xliff2/presets/"
     },
     {
       "type": "format",
@@ -907,7 +990,9 @@
         ".wxl",
         ".stringsdict"
       ],
-      "schema": "formats/okf_xml/schema.json"
+      "schema": "formats/okf_xml/schema.json",
+      "doc": "formats/okf_xml/doc.json",
+      "presets_dir": "formats/okf_xml/presets/"
     },
     {
       "type": "format",
@@ -925,7 +1010,9 @@
         ".dita",
         ".ditamap"
       ],
-      "schema": "formats/okf_xmlstream/schema.json"
+      "schema": "formats/okf_xmlstream/schema.json",
+      "doc": "formats/okf_xmlstream/doc.json",
+      "presets_dir": "formats/okf_xmlstream/presets/"
     },
     {
       "type": "format",
@@ -943,7 +1030,9 @@
         ".yml",
         ".yaml"
       ],
-      "schema": "formats/okf_yaml/schema.json"
+      "schema": "formats/okf_yaml/schema.json",
+      "doc": "formats/okf_yaml/doc.json",
+      "presets_dir": "formats/okf_yaml/presets/"
     },
     {
       "type": "tool",

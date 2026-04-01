@@ -584,627 +584,372 @@
       "name": "okf_archive",
       "display_name": "Archive Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".archive",
-        ".zip"
-      ],
-      "mime_types": [
-        "application/x-archive"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_autoxliff",
       "display_name": "XLIFF 1.2 and 2.0 Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".xlf",
-        ".xliff",
-        ".xlf2",
-        ".xliff2"
-      ],
-      "mime_types": [
-        "application/xliff+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_baseplaintext",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txt"
-      ],
-      "mime_types": [
-        "text/plain"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_basetable",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txt"
-      ],
-      "mime_types": [
-        "text/csv"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_commaseparatedvalues",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".csv"
-      ],
-      "mime_types": [
-        "text/csv"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_doxygen",
       "display_name": "Doxygen Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".h",
-        ".c",
-        ".cpp",
-        ".java",
-        ".py",
-        ".m"
-      ],
-      "mime_types": [
-        "text/x-doxygen-txt"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_dtd",
       "display_name": "DTD Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".dtd",
-        ".ent"
-      ],
-      "mime_types": [
-        "application/xml+dtd"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_fixedwidthcolumns",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/csv"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_html",
       "display_name": "HTML/XHTML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".html",
-        ".htm",
-        ".xhtml"
-      ],
-      "mime_types": [
-        "text/html"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_html5",
       "display_name": "HTML5-ITS Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".html",
-        ".htm"
-      ],
-      "mime_types": [
-        "text/html"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_icml",
       "display_name": "ICML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".wcml",
-        ".icml"
-      ],
-      "mime_types": [
-        "application/x-icml+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_idml",
       "display_name": "IDML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".idml"
-      ],
-      "mime_types": [
-        "application/vnd.adobe.indesign-idml-package"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_json",
       "display_name": "Json Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".json"
-      ],
-      "mime_types": [
-        "application/json"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_markdown",
       "display_name": "Markdown Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".md",
-        ".markdown"
-      ],
-      "mime_types": [
-        "text/markdown"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_mif",
       "display_name": "MIF Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".mif"
-      ],
-      "mime_types": [
-        "application/vnd.mif"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_mosestext",
       "display_name": "Moses Text Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txt"
-      ],
-      "mime_types": [
-        "text/x-mosestext"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_multiparsers",
       "display_name": "Multi-Parsers Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".csv"
-      ],
-      "mime_types": [
-        "text/csv"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_odf",
       "display_name": "ODF-Content Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/x-odf"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_openoffice",
       "display_name": "OpenOffice.org Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".odt",
-        ".ods",
-        ".odg",
-        ".odp",
-        ".ott",
-        ".ots",
-        ".otp",
-        ".otg",
-        ".swc",
-        ".swx",
-        ".sxd",
-        ".sxi"
-      ],
-      "mime_types": [
-        "application/x-openoffice"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_openxml",
       "display_name": "OpenXML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".docx",
-        ".docm",
-        ".dotx",
-        ".dotm",
-        ".pptx",
-        ".pptm",
-        ".ppsx",
-        ".ppsm",
-        ".potx",
-        ".potm",
-        ".xlsx",
-        ".xlsm",
-        ".xltx",
-        ".xltm",
-        ".vsdx",
-        ".vsdm"
-      ],
-      "mime_types": [
-        "text/xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_paraplaintext",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/plain"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_pdf",
       "display_name": "PDF Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".pdf"
-      ],
-      "mime_types": [
-        "application/pdf"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_pensieve",
       "display_name": "Pensieve TM Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".pentm"
-      ],
-      "mime_types": [
-        "application/x-pensieve-tm"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_phpcontent",
       "display_name": "PHP Content Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".php"
-      ],
-      "mime_types": [
-        "application/x-php"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_plaintext",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txt"
-      ],
-      "mime_types": [
-        "text/plain"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_po",
       "display_name": "PO Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".po"
-      ],
-      "mime_types": [
-        "application/x-gettext"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_properties",
       "display_name": "Properties Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".properties",
-        ".lang"
-      ],
-      "mime_types": [
-        "text/x-properties"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_rainbowkit",
       "display_name": "Rainbow Translation Kit Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".rkm",
-        ".rkp"
-      ],
-      "mime_types": [
-        "application/x-rainbowkit",
-        "application/x-rainbowkit-package"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_regex",
       "display_name": "Regex Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".srt",
-        ".strings"
-      ],
-      "mime_types": [
-        "text/x-regex"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_regexplaintext",
       "display_name": "okf_plaintext_regex Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/plain"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_rtf",
       "display_name": "Trados-Tagged RTF Filter - READING ONLY Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".rtf"
-      ],
-      "mime_types": [
-        "application/rtf"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_sdlpackage",
       "display_name": "SDLPPX and SDLRPX Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".sdlppx",
-        ".sdlrpx"
-      ],
-      "mime_types": [
-        "application/x-sdlpackage"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_splicedlines",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/plain"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_table",
       "display_name": "Table Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".csv"
-      ],
-      "mime_types": [
-        "text/csv"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_tabseparatedvalues",
       "display_name": "Plain Text Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/csv"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_tex",
       "display_name": "TEX Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".tex"
-      ],
-      "mime_types": [
-        "text/x-tex-text"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_tmx",
       "display_name": "TMX Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".tmx"
-      ],
-      "mime_types": [
-        "application/x-tmx+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_transifex",
       "display_name": "Transifex Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txp"
-      ],
-      "mime_types": [
-        "application/x-transifex"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_transtable",
       "display_name": "TransTable Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/x-transtable"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_ts",
       "display_name": "TS Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".ts"
-      ],
-      "mime_types": [
-        "application/x-ts"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_ttml",
       "display_name": "TTML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".ttml"
-      ],
-      "mime_types": [
-        "application/ttml+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_ttx",
       "display_name": "TTX Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".ttx"
-      ],
-      "mime_types": [
-        "application/x-ttx+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_txml",
       "display_name": "TXML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txml"
-      ],
-      "mime_types": [
-        "text/xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_vignette",
       "display_name": "Vignette Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/xml"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_vtt",
       "display_name": "VTT Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".vtt",
-        ".srt"
-      ],
-      "mime_types": [
-        "text/vtt"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_wiki",
       "display_name": "Wiki Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".txt"
-      ],
-      "mime_types": [
-        "text/x-wiki-txt"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_xini",
       "display_name": "XINI Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".xini"
-      ],
-      "mime_types": [
-        "text/x-xini"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_xinirainbowkit",
       "display_name": "XINI RainbowKit Filter Filter",
       "source": "okapi-bridge",
       "extensions": [],
-      "mime_types": [
-        "text/x-xini"
-      ]
+      "mime_types": []
     },
     {
       "name": "okf_xliff",
       "display_name": "XLIFF Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".xlf",
-        ".xlif",
-        ".xliff",
-        ".mxliff",
-        ".mqxliff",
-        ".sdlxliff"
-      ],
-      "mime_types": [
-        "application/x-xliff+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_xliff2",
       "display_name": "XLIFF-2 Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".xlf",
-        ".xliff",
-        ".xlf2",
-        ".xliff2"
-      ],
-      "mime_types": [
-        "application/xliff+xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_xml",
       "display_name": "XML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".xml",
-        ".resx",
-        ".rdf",
-        ".wxl",
-        ".stringsdict"
-      ],
-      "mime_types": [
-        "text/xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_xmlstream",
       "display_name": "XML Stream Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".dita",
-        ".ditamap"
-      ],
-      "mime_types": [
-        "text/xml"
-      ]
+      "extensions": [],
+      "mime_types": []
     },
     {
       "name": "okf_yaml",
       "display_name": "YAML Filter Filter",
       "source": "okapi-bridge",
-      "extensions": [
-        ".yml",
-        ".yaml"
-      ],
-      "mime_types": [
-        "text/x-yaml"
-      ]
+      "extensions": [],
+      "mime_types": []
     }
   ]
 }
