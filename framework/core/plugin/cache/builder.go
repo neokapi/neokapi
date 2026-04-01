@@ -321,12 +321,6 @@ func collectPresets(reg *preset.PresetRegistry) CachedPresets {
 	return cp
 }
 
-func sanitizeFilterName(name string) string {
-	name = strings.ToLower(name)
-	name = strings.ReplaceAll(name, " ", "-")
-	return name
-}
-
 // presetManifest is the YAML structure for presets.yaml files.
 type presetManifest struct {
 	Kind             string                          `yaml:"kind"`
