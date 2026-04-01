@@ -1,8 +1,10 @@
-import { useMemo } from "react";
 import type { PropertySchema, ToolDocParam } from "./types";
 import { theme, inputStyle, formatLabel, resolveRef, hasAdditionalProperties } from "./utils";
 import { resolveSchemaRef } from "./hooks/useSchemaResolution";
 import { evaluateCondition } from "./hooks/useConditionalVisibility";
+import { useFieldEnabled } from "./hooks/useFieldEnabled";
+import { usePresetComparison } from "./hooks/usePresetComparison";
+import { resolveWidgetName } from "./registry";
 import { Md } from "./primitives/Markdown";
 import { ToggleSwitch } from "./primitives/ToggleSwitch";
 import { PresetDot } from "./primitives/PresetDot";
@@ -12,14 +14,6 @@ import { MapEditor } from "./widgets/MapEditor";
 import { ArrayEditor } from "./widgets/ArrayEditor";
 import { NestedObjectEditor } from "./widgets/NestedObjectEditor";
 import { JsonEditor } from "./widgets/JsonEditor";
-
-// ─── Widget Resolution ────────────────────────────────────
-// Returns the ui:widget name, or undefined for type-based dispatch.
-// Widget names are canonical — no bridging needed with the new schema language.
-
-function getEffectiveWidget(schema: PropertySchema): string | undefined {
-  return schema["ui:widget"] || undefined;
-}
 
 export function PropertyField({
   name,
@@ -54,7 +48,8 @@ export function PropertyField({
   const schema = rawSchema.$ref ? resolveSchemaRef(rawSchema, defs) : rawSchema;
 
   // ui:enabled — disable field based on condition expression
-  const disabled = !evaluateCondition(schema["ui:enabled"], allValues, allProperties);
+  const enabled = useFieldEnabled(schema["ui:enabled"], allValues, allProperties);
+  const disabled = !enabled;
 
   // ui:visible — conditional visibility
   const visible = evaluateCondition(schema["ui:visible"], allValues, allProperties);
@@ -62,7 +57,7 @@ export function PropertyField({
 
   const label = schema.title || formatLabel(name);
   const resolved = value ?? schema.default;
-  const widget = getEffectiveWidget(schema);
+  const widget = resolveWidgetName(schema["ui:widget"]);
   const enumLabels = schema["ui:enum-labels"];
 
   // Suppress description when it's redundant with the label (same text, case-insensitive).
@@ -81,14 +76,7 @@ export function PropertyField({
     | undefined;
 
   // Preset-modified indicator: compare current value with preset value.
-  const isModifiedFromPreset = useMemo(() => {
-    if (!presetValues) return false;
-    const presetVal = presetValues[name];
-    const currentVal = value ?? schema.default;
-    if (presetVal === undefined && currentVal === undefined) return false;
-    if (presetVal === undefined || currentVal === undefined) return true;
-    return JSON.stringify(currentVal) !== JSON.stringify(presetVal);
-  }, [presetValues, name, value, schema.default]);
+  const isModifiedFromPreset = usePresetComparison(name, value, schema.default, presetValues);
 
   // ── x-widget dispatch ──
 
@@ -205,7 +193,7 @@ export function PropertyField({
     );
   }
 
-  if (widget === "code-finder" || widget === "codeFinderRules") {
+  if (widget === "code-finder") {
     return (
       <CodeFinderRulesEditor
         label={label}
@@ -218,7 +206,7 @@ export function PropertyField({
     );
   }
 
-  if (widget === "simplifier-rules" || widget === "simplifierRulesEditor") {
+  if (widget === "simplifier-rules") {
     return (
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <textarea
@@ -238,7 +226,7 @@ export function PropertyField({
     );
   }
 
-  if (widget === "element-rules" || widget === "attribute-rules" || widget === "elementRulesEditor" || widget === "attributeRulesEditor") {
+  if (widget === "element-rules" || widget === "attribute-rules") {
     return (
       <MapEditor
         label={label}
@@ -248,25 +236,25 @@ export function PropertyField({
         onChange={onChange}
         compact={compact}
         depth={depth}
-        keyPlaceholder={(widget === "element-rules" || widget === "elementRulesEditor") ? "element name" : "attribute name"}
+        keyPlaceholder={widget === "element-rules" ? "element name" : "attribute name"}
       />
     );
   }
 
-  if (widget === "regex" || widget === "tags" || widget === "regex" || widget === "regexBuilder" || widget === "tagList") {
+  if (widget === "regex" || widget === "tags") {
     return (
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <input
           type="text"
           value={String(resolved ?? "")}
           placeholder={
-            schema["ui:placeholder"] || ((widget === "tags" || widget === "tagList") ? "tag1, tag2, ..." : "pattern...")
+            schema["ui:placeholder"] || (widget === "tags" ? "tag1, tag2, ..." : "pattern...")
           }
           onChange={(e) => onChange(e.target.value || undefined)}
           style={{
             ...inputStyle(compact),
             fontFamily:
-              widget === "regex" || widget === "regexBuilder"
+              widget === "regex"
                 ? "ui-monospace, SFMono-Regular, Menlo, monospace"
                 : "inherit",
           }}
@@ -275,7 +263,7 @@ export function PropertyField({
     );
   }
 
-  if (widget === "number-list" || widget === "numberList") {
+  if (widget === "number-list") {
     return (
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} error={error}>
         <input
@@ -397,7 +385,7 @@ export function PropertyField({
     );
   }
 
-  if (widget === "textarea" || widget === "multilineText") {
+  if (widget === "textarea") {
     const textMeta = editor?.text;
     return (
       <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled} error={error}>
