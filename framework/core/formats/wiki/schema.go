@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "Wiki Format",
 		Description: "Configuration for the Wiki (MediaWiki/DokuWiki) format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "wiki",
 			Extensions: []string{".wiki", ".mediawiki"},
 			MimeTypes:  []string{"text/x-wiki"},

@@ -65,9 +65,8 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 		Title:       "Pseudo Translate",
 		Description: "Generate pseudo-translations",
 		Type:        "object",
-		Meta: ComponentMeta{
+		ToolMeta: &ToolMeta{
 			ID:          "pseudo-translate",
-			Type:        "tool",
 			Category:    "transform",
 			DisplayName: "Pseudo Translate",
 			Inputs:      []string{PartTypeBlock},
@@ -93,11 +92,11 @@ func TestComponentSchema_JSON_Roundtrip(t *testing.T) {
 
 	assert.Equal(t, s.ID, decoded.ID)
 	assert.Equal(t, s.Title, decoded.Title)
-	assert.Equal(t, s.Meta.Category, decoded.Meta.Category)
-	assert.Equal(t, []string{"block"}, decoded.Meta.Inputs)
-	assert.Empty(t, decoded.Meta.Outputs)
-	assert.Equal(t, []string{"translation"}, decoded.Meta.Tags)
-	assert.Equal(t, []string{"target-language"}, decoded.Meta.Requires)
+	assert.Equal(t, s.ToolMeta.Category, decoded.ToolMeta.Category)
+	assert.Equal(t, []string{"block"}, decoded.ToolMeta.Inputs)
+	assert.Empty(t, decoded.ToolMeta.Outputs)
+	assert.Equal(t, []string{"translation"}, decoded.ToolMeta.Tags)
+	assert.Equal(t, []string{"target-language"}, decoded.ToolMeta.Requires)
 	assert.Len(t, decoded.Properties, 3)
 	assert.Equal(t, "integer", decoded.Properties["expansionPercent"].Type)
 }

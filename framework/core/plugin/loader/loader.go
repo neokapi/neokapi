@@ -789,14 +789,14 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 		// all extension metadata (x-editor, x-step, title, etc.) intact.
 		cs.RawJSON = data
 
-		if cs.Meta.Type != "step" || cs.Meta.ID == "" {
+		if cs.ToolMeta == nil || cs.ToolMeta.ID == "" {
 			continue
 		}
 
-		stepClass := cs.Meta.ID
+		stepClass := cs.ToolMeta.ID
 		toolName := cs.ID
 		if toolName == "" {
-			toolName = cs.Meta.ID
+			toolName = cs.ToolMeta.ID
 		}
 
 		// Capture for closure.
@@ -804,8 +804,8 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 		stepClassRef := stepClass
 		cfgRef := cfg
 		desc := cs.Description
-		if desc == "" {
-			desc = cs.Meta.Description
+		if desc == "" && cs.ToolMeta != nil {
+			desc = cs.ToolMeta.Description
 		}
 
 		toolReg.RegisterWithSchema(toolName, func() tool.Tool {
@@ -828,9 +828,8 @@ func (l *PluginLoader) SetToolRegistry(reg *registry.ToolRegistry) {
 func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FormatSchema) *schema.ComponentSchema {
 	cs := &schema.ComponentSchema{
 		Type: "object",
-		Meta: schema.ComponentMeta{
+		ToolMeta: &schema.ToolMeta{
 			ID:          cap.ID,
-			Type:        "tool",
 			Category:    cap.Category,
 			DisplayName: cap.DisplayName,
 			Description: cap.Description,
@@ -866,7 +865,7 @@ func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FormatS
 		data, err := json.Marshal(fs)
 		if err == nil {
 			var proxy struct {
-				Groups     []schema.ParameterGroup          `json:"x-groups"`
+				Groups     []schema.ParameterGroup          `json:"ui:groups"`
 				Properties map[string]schema.PropertySchema `json:"properties"`
 			}
 			if json.Unmarshal(data, &proxy) == nil {

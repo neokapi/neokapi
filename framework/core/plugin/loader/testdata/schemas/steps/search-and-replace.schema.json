@@ -2,9 +2,8 @@
   "$id": "search-and-replace",
   "title": "Search and Replace",
   "type": "object",
-  "x-component": {
+  "toolMeta": {
     "id": "search-and-replace",
-    "type": "step",
     "displayName": "Search and Replace",
     "description": "Performs search and replace on the entire file or the text units. Expects raw document or filter events. Sends back: raw document or filter events."
   },

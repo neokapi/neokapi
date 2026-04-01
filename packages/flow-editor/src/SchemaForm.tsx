@@ -123,7 +123,11 @@ function resolveSchemaRef(schema: PropertySchema, defs: Record<string, PropertyS
 
 function getEffectiveWidget(schema: PropertySchema): string | undefined {
   // x-widget takes precedence for backwards compatibility
-  if (schema["x-widget"]) return schema["x-widget"];
+  if (schema["x-widget"]) {
+    // Normalize aliases
+    if (schema["x-widget"] === "textarea") return "multilineText";
+    return schema["x-widget"];
+  }
   const editor = schema["x-editor"];
   if (!editor) return undefined;
   // Map x-editor.widget values to x-widget equivalents where they exist
@@ -1088,7 +1092,7 @@ function PropertyField({
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled}>
         <input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -1096,13 +1100,14 @@ function PropertyField({
           min={schema.minimum}
           max={schema.maximum}
           step={schema.type === "integer" ? 1 : undefined}
+          disabled={disabled}
           onChange={(e) => {
             const v = e.target.value;
             onChange(
               v === "" ? undefined : schema.type === "integer" ? parseInt(v) : parseFloat(v),
             );
           }}
-          style={inputStyle(compact)}
+          style={{ ...inputStyle(compact), opacity: disabled ? 0.5 : 1 }}
         />
       </FieldWrapper>
     );
@@ -1185,7 +1190,7 @@ function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+    <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled}>
       <input
         type="text"
         value={String(resolved ?? "")}
@@ -1193,7 +1198,8 @@ function PropertyField({
           schema["x-placeholder"] || (schema.default != null ? String(schema.default) : undefined)
         }
         onChange={(e) => onChange(e.target.value || undefined)}
-        style={inputStyle(compact)}
+        disabled={disabled}
+        style={{ ...inputStyle(compact), opacity: disabled ? 0.5 : 1 }}
       />
     </FieldWrapper>
   );

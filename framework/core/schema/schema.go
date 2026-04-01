@@ -6,6 +6,11 @@ import "encoding/json"
 
 // ComponentSchema represents a JSON Schema for a component's parameters.
 // It supports parameter grouping, UI hints, and validation metadata.
+//
+// Extension namespaces:
+//   - ui:*          — UI rendering hints (widget, visibility, layout, groups)
+//   - (no prefix)   — neokapi data/metadata (formatMeta, toolMeta, presets)
+//   - x-okapi-*     — Okapi bridge internals (produced by okapi-bridge only)
 type ComponentSchema struct {
 	ID          string `json:"$id,omitempty"`
 	Version     string `json:"$version,omitempty"`
@@ -13,11 +18,11 @@ type ComponentSchema struct {
 	Description string `json:"description,omitempty"`
 	Type        string `json:"type"` // "object"
 
-	// Component metadata
-	Meta ComponentMeta `json:"x-component,omitempty"`
+	// Component metadata (tool identification)
+	ToolMeta *ToolMeta `json:"toolMeta,omitempty"`
 
 	// Parameter groupings for UI
-	Groups []ParameterGroup `json:"x-groups,omitempty"`
+	Groups []ParameterGroup `json:"ui:groups,omitempty"`
 
 	// Properties contains the parameter definitions.
 	Properties map[string]PropertySchema `json:"properties,omitempty"`
@@ -26,26 +31,23 @@ type ComponentSchema struct {
 	RawJSON json.RawMessage `json:"-"`
 }
 
-// ComponentMeta identifies the component this schema belongs to.
-type ComponentMeta struct {
+// ToolMeta identifies a tool and its capabilities.
+type ToolMeta struct {
 	ID          string `json:"id"`
-	Type        string `json:"type"`               // "format", "tool", "step"
-	Category    string `json:"category,omitempty"` // "translate","validate","enrich","convert","transform","pipeline"
+	Category    string `json:"category,omitempty"`    // "translate","validate","enrich","convert","transform","pipeline"
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 
-	// Inputs declares which part types this component accepts.
-	// Empty means the component accepts all part types (pass-through).
+	// Inputs declares which part types this tool accepts.
 	Inputs []string `json:"inputs,omitempty"` // "block","data","media","layer","group"
 
-	// Outputs declares which part types this component produces or modifies.
-	// Empty means same as inputs (in-place modification).
+	// Outputs declares which part types this tool produces or modifies.
 	Outputs []string `json:"outputs,omitempty"`
 
 	// Tags are freeform classification labels for UI filtering and grouping.
 	Tags []string `json:"tags,omitempty"` // "ai-powered","batch","regex","configurable"
 
-	// Requires declares external resources this component needs at runtime.
+	// Requires declares external resources this tool needs at runtime.
 	Requires []string `json:"requires,omitempty"` // "target-language","source-language","tm","termbase","credentials"
 }
 
@@ -83,16 +85,31 @@ type ParameterGroup struct {
 	ID          string   `json:"id"`
 	Label       string   `json:"label"`
 	Description string   `json:"description,omitempty"`
+	Collapsible *bool    `json:"collapsible,omitempty"`
 	Collapsed   bool     `json:"collapsed,omitempty"`
+	Icon        string   `json:"icon,omitempty"` // lucide icon name
 	Fields      []string `json:"fields"`
 }
 
-// ShowIfRule controls conditional visibility of a property.
-// The property is shown only when the referenced field matches the given value.
-type ShowIfRule struct {
-	Field string `json:"field"`           // name of the field to check
-	Value any    `json:"value"`           // value that makes this field visible
-	Empty bool   `json:"empty,omitempty"` // if true, show when the field is empty/unset
+// ConditionExpr is an expression for conditional visibility/enablement.
+// Supports simple field comparisons and compound AND/OR/NOT.
+//
+// Examples:
+//
+//	{ "field": "mode", "eq": "advanced" }
+//	{ "field": "path", "empty": true }
+//	{ "all": [{ "field": "a", "eq": true }, { "field": "b", "eq": true }] }
+//	{ "not": { "field": "mode", "eq": "simple" } }
+type ConditionExpr struct {
+	// Simple condition: field comparison
+	Field string `json:"field,omitempty"`
+	Eq    any    `json:"eq,omitempty"`
+	Empty *bool  `json:"empty,omitempty"`
+
+	// Compound conditions
+	All []*ConditionExpr `json:"all,omitempty"`
+	Any []*ConditionExpr `json:"any,omitempty"`
+	Not *ConditionExpr   `json:"not,omitempty"`
 }
 
 // PropertySchema represents a single parameter's schema.
@@ -110,17 +127,31 @@ type PropertySchema struct {
 	MinLength *int     `json:"minLength,omitempty"`
 	MaxLength *int     `json:"maxLength,omitempty"`
 
-	// UI hints
-	Widget      string         `json:"x-widget,omitempty"`
-	Placeholder string         `json:"x-placeholder,omitempty"`
-	Presets     map[string]any `json:"x-presets,omitempty"`
-	ShowIf      *ShowIfRule    `json:"x-showIf,omitempty"`
+	// UI rendering hints (ui: prefix)
+	Widget             string            `json:"ui:widget,omitempty"`
+	WidgetOptions      map[string]any    `json:"ui:widget-options,omitempty"`
+	Placeholder        string            `json:"ui:placeholder,omitempty"`
+	Visible            *ConditionExpr    `json:"ui:visible,omitempty"`
+	Enabled            *ConditionExpr    `json:"ui:enabled,omitempty"`
+	Layout             *LayoutHints      `json:"ui:layout,omitempty"`
+	EnumLabels         map[string]string `json:"ui:enum-labels,omitempty"`
+	EnumDescriptions   map[string]string `json:"ui:enum-descriptions,omitempty"`
+	Order              *int              `json:"ui:order,omitempty"`
+	DeprecatedMessage  string            `json:"ui:deprecated-message,omitempty"`
+	IntroducedIn       string            `json:"ui:introduced-in,omitempty"`
 
 	// Nested properties for object types
 	Properties map[string]PropertySchema `json:"properties,omitempty"`
 
 	// Array item schema
 	Items *PropertySchema `json:"items,omitempty"`
+}
+
+// LayoutHints controls field-level layout.
+type LayoutHints struct {
+	HideLabel bool `json:"hideLabel,omitempty"`
+	Vertical  bool `json:"vertical,omitempty"`
+	Columns   int  `json:"columns,omitempty"`
 }
 
 // Validate checks parameter values against this schema.

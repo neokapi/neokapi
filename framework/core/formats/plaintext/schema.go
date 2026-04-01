@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "Plain Text Format",
 		Description: "Configuration for the plain text format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "plaintext",
 			Extensions: []string{".txt"},
 			MimeTypes:  []string{"text/plain"},

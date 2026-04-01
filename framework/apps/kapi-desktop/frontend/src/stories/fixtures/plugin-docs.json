@@ -123,7 +123,7 @@
           "title": "Inline code finder alternate YAML syntax",
           "description": "Using YAML block scalar syntax for more readable code finder rules",
           "input": "useCodeFinder: true\ncodeFinderRules: |-\n   #v1\n   count.i=1\n   rule0=\\bVAR\\d\\b",
-          "output": "Same result as escaped syntax \u2014 VAR1 is detected as inline code"
+          "output": "Same result as escaped syntax — VAR1 is detected as inline code"
         },
         {
           "title": "Simple translatable attributes",
@@ -272,7 +272,7 @@
           ]
         },
         "mode": {
-          "description": "Processing mode settings that control how the PO file is interpreted \u2014 either as a bilingual file (source in msgid, translation in msgstr) or as a monolingual file (real ID in msgid, text in msgstr)."
+          "description": "Processing mode settings that control how the PO file is interpreted — either as a bilingual file (source in msgid, translation in msgstr) or as a monolingual file (real ID in msgid, text in msgstr)."
         },
         "bilingualMode": {
           "description": "When enabled, the input document is processed as a bilingual file where the msgid entry is the source text and the msgstr entry is the translation. This is the normal standard way PO files are process"
@@ -380,7 +380,7 @@
     },
     "cleanup": {
       "filterName": "Cleanup Step",
-      "overview": "This step cleans strings by normalizing quotes, punctuation, and whitespace ready for further processing. It takes filter events as input and sends filter events as output. By default, all whitespace is normalized before any further processing is performed \u2014 all multiple space, tab, etc. characters ",
+      "overview": "This step cleans strings by normalizing quotes, punctuation, and whitespace ready for further processing. It takes filter events as input and sends filter events as output. By default, all whitespace is normalized before any further processing is performed — all multiple space, tab, etc. characters ",
       "stepId": "cleanup",
       "wikiUrl": "https://okapiframework.org/wiki/index.php/cleanup_step",
       "parameters": {
@@ -507,7 +507,7 @@
       ],
       "processingNotes": [
         "If the step receives filter events, search and replace operates on text unit content and sends updated filter events. If it receives a raw document, it operates on the whole file content and sends an updated raw document.",
-        "When processing a raw document, the file must be in a text-based format \u2014 the document is seen exactly as it would be in a text editor with no conversion of escaped characters.",
+        "When processing a raw document, the file must be in a text-based format — the document is seen exactly as it would be in a text editor with no conversion of escaped characters.",
         "Patterns are processed in the order they are declared in the list. Longer patterns should be placed first if there is a chance of overlapping matches."
       ],
       "examples": [

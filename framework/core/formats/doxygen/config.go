@@ -32,7 +32,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "Doxygen Comments",
 		Description: "Extracts translatable text from Doxygen/Javadoc comments in source code",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "doxygen",
 			Extensions: []string{".c", ".cpp", ".h", ".java", ".m", ".py"},
 			MimeTypes:  []string{"text/x-doxygen-txt"},

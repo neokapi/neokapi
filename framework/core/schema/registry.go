@@ -123,7 +123,10 @@ func (r *Registry) loadFile(path string) error {
 	}
 	s.RawJSON = data
 
-	id := s.Meta.ID
+	var id string
+	if s.ToolMeta != nil {
+		id = s.ToolMeta.ID
+	}
 	if id == "" {
 		// Derive from filename: pseudo-translate.schema.json -> pseudo-translate
 		base := filepath.Base(path)

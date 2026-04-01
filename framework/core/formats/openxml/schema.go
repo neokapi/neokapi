@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "Office Open XML Format",
 		Description: "Configuration for the DOCX/PPTX/XLSX format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "openxml",
 			Extensions: []string{".docx", ".pptx", ".xlsx"},
 			MimeTypes: []string{

@@ -8,31 +8,21 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "JSON Format",
 		Description: "Configuration for the native JSON format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "json",
 			Extensions: []string{".json"},
 			MimeTypes:  []string{"application/json"},
-			Configurations: []schema.FormatConfiguration{
-				{
-					ConfigID:    "json-i18next",
-					Name:        "i18next",
-					Description: "i18next JSON resource files with full key paths and HTML subfilter for *_html keys",
-					Parameters: map[string]any{
-						"useFullKeyPath": true,
-						"subfilter":      "html",
-						"subfilterRules": "_html$",
-					},
-				},
-				{
-					ConfigID:    "json-chrome-extension",
-					Name:        "Chrome Extension",
-					Description: "Chrome extension messages.json format (extract 'message' keys, 'description' as notes)",
-					Parameters: map[string]any{
-						"extractAllPairs": false,
-						"exceptions":      "^message$",
-						"noteRules":       "^description$",
-					},
-				},
+		},
+		Presets: map[string]map[string]any{
+			"i18next": {
+				"useFullKeyPath": true,
+				"subfilter":      "html",
+				"subfilterRules": "_html$",
+			},
+			"Chrome Extension": {
+				"extractAllPairs": false,
+				"exceptions":      "^message$",
+				"noteRules":       "^description$",
 			},
 		},
 		Groups: []schema.ParameterGroup{

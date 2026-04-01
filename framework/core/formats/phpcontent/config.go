@@ -46,7 +46,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "PHP Content",
 		Description: "Extracts translatable strings from PHP source files",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "phpcontent",
 			Extensions: []string{".php", ".phpcnt"},
 			MimeTypes:  []string{"application/x-php"},

@@ -25,7 +25,7 @@ const preview: Preview = {
     layout: "fullscreen",
     options: {
       storySort: {
-        order: ["Foundations", "Flow Editor", "Pages", "Components"],
+        order: ["Schema Language", "Browsers", "Foundations", "Flow Editor", "Pages", "Components"],
       },
     },
   },

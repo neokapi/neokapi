@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "WebVTT Subtitles",
 		Description: "Web Video Text Tracks format — no configurable parameters",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "vtt",
 			Extensions: []string{".vtt"},
 			MimeTypes:  []string{"text/vtt"},

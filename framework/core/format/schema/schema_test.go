@@ -22,13 +22,13 @@ func TestSchemaRegistry_LoadFromDirectory(t *testing.T) {
 		"title": "JSON Filter",
 		"description": "Configuration for the Okapi JSON Filter",
 		"type": "object",
-		"x-format": {
+		"formatMeta": {
 			"id": "okf_json",
 			"class": "net.sf.okapi.filters.json.JSONFilter",
 			"extensions": [".json"],
 			"mimeTypes": ["application/json"]
 		},
-		"x-groups": [
+		"ui:groups": [
 			{
 				"id": "extraction",
 				"label": "Extraction Settings",
@@ -45,7 +45,7 @@ func TestSchemaRegistry_LoadFromDirectory(t *testing.T) {
 			"extractionRules": {
 				"type": "string",
 				"default": "",
-				"x-widget": "regexBuilder"
+				"ui:widget": "regexBuilder"
 			},
 			"useCodeFinder": {
 				"type": "boolean",
@@ -100,7 +100,7 @@ func TestSchemaRegistry_GetSchemaExactMatch(t *testing.T) {
 		"$version": "1.0.0",
 		"title": "HTML Filter",
 		"type": "object",
-		"x-format": { "id": "okf_html", "class": "HtmlFilter", "extensions": [], "mimeTypes": [] },
+		"formatMeta": { "id": "okf_html", "class": "HtmlFilter", "extensions": [], "mimeTypes": [] },
 		"properties": {}
 	}`
 
@@ -127,7 +127,7 @@ func TestSchemaRegistry_ValidateParams(t *testing.T) {
 		"$version": "1.0.0",
 		"title": "Test Filter",
 		"type": "object",
-		"x-format": { "id": "okf_test", "class": "Test", "extensions": [], "mimeTypes": [] },
+		"formatMeta": { "id": "okf_test", "class": "Test", "extensions": [], "mimeTypes": [] },
 		"properties": {
 			"enabled": { "type": "boolean" },
 			"count": { "type": "integer" },
@@ -196,7 +196,7 @@ func TestSchemaRegistry_ListFormats(t *testing.T) {
 			"$version": "1.0.0",
 			"title": "Filter",
 			"type": "object",
-			"x-format": { "id": "` + id + `", "class": "Filter", "extensions": [], "mimeTypes": [] },
+			"formatMeta": { "id": "` + id + `", "class": "Filter", "extensions": [], "mimeTypes": [] },
 			"properties": {}
 		}`
 		err := os.WriteFile(filepath.Join(dir, id+".schema.json"), []byte(schema), 0644)
@@ -227,13 +227,13 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 		"title": "HTML Filter",
 		"description": "Configuration for the Okapi HTML Filter",
 		"type": "object",
-		"x-format": {
+		"formatMeta": {
 			"id": "okf_html",
 			"class": "net.sf.okapi.filters.html.HtmlFilter",
 			"extensions": [".html", ".htm"],
 			"mimeTypes": ["text/html"]
 		},
-		"x-groups": [
+		"ui:groups": [
 			{
 				"id": "general",
 				"label": "General Settings",
@@ -253,7 +253,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 			"codeFinderRules": {
 				"type": "string",
 				"default": "",
-				"x-widget": "regexBuilder"
+				"ui:widget": "regexBuilder"
 			}
 		}
 	}`
@@ -265,7 +265,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 		"title": "XML Filter",
 		"description": "Configuration for the Okapi XML Filter",
 		"type": "object",
-		"x-format": {
+		"formatMeta": {
 			"id": "okf_xml",
 			"class": "net.sf.okapi.filters.xml.XMLFilter",
 			"extensions": [".xml"],
@@ -322,34 +322,21 @@ func TestSchemaRegistry_ExtractPresets(t *testing.T) {
 		"$version": "1.47.0",
 		"title": "HTML Filter",
 		"type": "object",
-		"x-format": {
+		"formatMeta": {
 			"id": "okf_html",
 			"class": "net.sf.okapi.filters.html.HtmlFilter",
 			"extensions": [".html"],
-			"mimeTypes": ["text/html"],
-			"configurations": [
-				{
-					"configId": "okf_html-wellFormed",
-					"name": "Well-Formed HTML",
-					"description": "Assumes well-formed XHTML input",
-					"mimeType": "text/html",
-					"extensions": ".html;.htm",
-					"parameters": {
-						"assumeWellformed": true,
-						"useCodeFinder": false
-					},
-					"isDefault": false
-				},
-				{
-					"configId": "okf_html",
-					"name": "Default HTML",
-					"description": "Standard HTML configuration",
-					"mimeType": "text/html",
-					"extensions": ".html;.htm",
-					"parameters": {},
-					"isDefault": true
-				}
-			]
+			"mimeTypes": ["text/html"]
+		},
+		"presets": {
+			"wellFormed": {
+				"assumeWellformed": true,
+				"useCodeFinder": false
+			},
+			"default": {
+				"assumeWellformed": false,
+				"useCodeFinder": true
+			}
 		},
 		"properties": {
 			"assumeWellformed": { "type": "boolean", "default": false },
@@ -369,21 +356,18 @@ func TestSchemaRegistry_ExtractPresets(t *testing.T) {
 	presets := presetReg.ListFormatPresets("okf_html")
 	require.Len(t, presets, 2)
 
-	// Verify the "wellFormed" preset (prefix stripped from "okf_html-wellFormed").
+	// Verify the "wellFormed" preset.
 	wf := presetReg.GetFormatPreset("okf_html", "wellFormed")
 	require.NotNil(t, wf)
 	assert.Equal(t, "wellFormed", wf.Name)
-	assert.Equal(t, "Assumes well-formed XHTML input", wf.Description)
 	assert.Equal(t, "okf_html", wf.Format)
 	assert.Equal(t, "bridge", wf.Source)
-	assert.False(t, wf.IsDefault)
 	assert.Equal(t, true, wf.Config["assumeWellformed"])
 	assert.Equal(t, false, wf.Config["useCodeFinder"])
 
-	// Verify the default preset (configId matches filterID exactly, no stripping).
-	def := presetReg.GetFormatPreset("okf_html", "okf_html")
+	// Verify the "default" preset.
+	def := presetReg.GetFormatPreset("okf_html", "default")
 	require.NotNil(t, def)
-	assert.True(t, def.IsDefault)
 	assert.Equal(t, "bridge", def.Source)
 }
 
@@ -394,7 +378,7 @@ func TestSchemaRegistry_RegisterSchema(t *testing.T) {
 	reg.RegisterSchema("json", &FormatSchema{
 		Title: "JSON Format",
 		Type:  "object",
-		FormatMeta: FormatSchemaMeta{
+		FormatMeta: FormatMeta{
 			ID:         "json",
 			Extensions: []string{".json"},
 			MimeTypes:  []string{"application/json"},

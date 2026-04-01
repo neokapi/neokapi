@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "YAML Format",
 		Description: "YAML format reader/writer — no configurable parameters",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "yaml",
 			Extensions: []string{".yaml", ".yml"},
 			MimeTypes:  []string{"application/x-yaml", "text/yaml"},

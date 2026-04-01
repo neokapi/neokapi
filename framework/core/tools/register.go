@@ -7,11 +7,10 @@ import (
 	"github.com/neokapi/neokapi/core/tool"
 )
 
-// toolMeta creates a ComponentMeta with common tool fields.
-func toolMeta(id, displayName, category string, opts ...func(*schema.ComponentMeta)) schema.ComponentMeta {
-	m := schema.ComponentMeta{
+// toolMeta creates a ToolMeta with common tool fields.
+func toolMeta(id, displayName, category string, opts ...func(*schema.ToolMeta)) schema.ToolMeta {
+	m := schema.ToolMeta{
 		ID:          id,
-		Type:        "tool",
 		Category:    category,
 		DisplayName: displayName,
 	}
@@ -21,20 +20,20 @@ func toolMeta(id, displayName, category string, opts ...func(*schema.ComponentMe
 	return m
 }
 
-func withInputs(parts ...string) func(*schema.ComponentMeta) {
-	return func(m *schema.ComponentMeta) { m.Inputs = parts }
+func withInputs(parts ...string) func(*schema.ToolMeta) {
+	return func(m *schema.ToolMeta) { m.Inputs = parts }
 }
 
-func withTags(tags ...string) func(*schema.ComponentMeta) {
-	return func(m *schema.ComponentMeta) { m.Tags = tags }
+func withTags(tags ...string) func(*schema.ToolMeta) {
+	return func(m *schema.ToolMeta) { m.Tags = tags }
 }
 
-func withRequires(reqs ...string) func(*schema.ComponentMeta) {
-	return func(m *schema.ComponentMeta) { m.Requires = reqs }
+func withRequires(reqs ...string) func(*schema.ToolMeta) {
+	return func(m *schema.ToolMeta) { m.Requires = reqs }
 }
 
 // toolSchema is a shorthand for generating a tool schema from a config struct.
-func toolSchema(cfg any, meta schema.ComponentMeta) *schema.ComponentSchema {
+func toolSchema(cfg any, meta schema.ToolMeta) *schema.ComponentSchema {
 	return schema.FromStruct(cfg, meta)
 }
 

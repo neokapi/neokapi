@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "PO Format (GNU Gettext)",
 		Description: "Configuration for the PO/POT format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "po",
 			Extensions: []string{".po", ".pot"},
 			MimeTypes:  []string{"text/x-gettext-translation"},
