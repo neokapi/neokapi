@@ -26,6 +26,7 @@ import (
 	mcpserver "github.com/neokapi/neokapi/bowrain/server/mcp"
 	"github.com/neokapi/neokapi/bowrain/service"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	corebrand "github.com/neokapi/neokapi/core/brand"
 	"github.com/neokapi/neokapi/core/formats"
 	coreg "github.com/neokapi/neokapi/core/graph"
@@ -35,7 +36,6 @@ import (
 	platagent "github.com/neokapi/neokapi/platform/agent"
 	platconn "github.com/neokapi/neokapi/platform/connector"
 	platev "github.com/neokapi/neokapi/platform/event"
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/platform/store"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/net/http2"
@@ -165,7 +165,6 @@ type Server struct {
 
 	// SyncCache is the optional Redis hash cache for sync diff engine (AD-038).
 	SyncCache bowsync.HashCache
-
 
 	// ExtractionJobStore persists extraction job state. Nil when job system is not configured.
 	ExtractionJobStore jobs.ExtractionJobStore

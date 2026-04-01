@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/model"
-	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -35,9 +35,9 @@ func TestSyncPush_Init_Unchanged(t *testing.T) {
 
 	// Init with matching root hash → unchanged.
 	body, _ := json.Marshal(map[string]any{
-		"project_id": pid,
+		"project_id":  pid,
 		"item_hashes": itemHashes,
-		"root_hash":  rootHash,
+		"root_hash":   rootHash,
 	})
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/init", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -108,7 +108,7 @@ func TestSyncPush_FullPushFlow(t *testing.T) {
 	// 2. Diff — all blocks are new.
 	diffBody, _ := json.Marshal(map[string]any{
 		"upload_id":    uploadID,
-		"item_name":   "en.json",
+		"item_name":    "en.json",
 		"block_hashes": map[string]string{"b1": "hash1", "b2": "hash2"},
 	})
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/projects/"+pid+"/sync/main/push/diff", bytes.NewReader(diffBody))

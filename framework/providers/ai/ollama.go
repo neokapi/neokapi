@@ -177,8 +177,8 @@ type ollamaChatRequest struct {
 }
 
 type ollamaChatResponse struct {
-	Model          string        `json:"model"`
-	Message        ollamaMessage `json:"message"`
-	PromptEvalCount int          `json:"prompt_eval_count"`
-	EvalCount       int          `json:"eval_count"`
+	Model           string        `json:"model"`
+	Message         ollamaMessage `json:"message"`
+	PromptEvalCount int           `json:"prompt_eval_count"`
+	EvalCount       int           `json:"eval_count"`
 }

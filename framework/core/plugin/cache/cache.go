@@ -32,13 +32,13 @@ const CacheVersion = 6
 // It contains all metadata needed to populate format/schema/preset registries
 // at startup without any directory scanning or file parsing.
 type PluginCache struct {
-	Version     int                        `json:"version"`
-	GeneratedAt string                     `json:"generated_at"`
-	Plugins     []CachedPlugin             `json:"plugins"`
+	Version     int                             `json:"version"`
+	GeneratedAt string                          `json:"generated_at"`
+	Plugins     []CachedPlugin                  `json:"plugins"`
 	Schemas     map[string]*schema.FormatSchema `json:"schemas,omitempty"`
 	ToolSchemas map[string]*schema.FormatSchema `json:"tool_schemas,omitempty"`
-	Presets     CachedPresets                  `json:"presets"`
-	DocsDir     string                         `json:"docs_dir,omitempty"` // path to docs/ directory (if available)
+	Presets     CachedPresets                   `json:"presets"`
+	DocsDir     string                          `json:"docs_dir,omitempty"` // path to docs/ directory (if available)
 }
 
 // CachedPlugin holds all metadata for a single installed plugin version.

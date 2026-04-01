@@ -450,6 +450,3 @@ func logf(logger *log.Logger, format string, args ...any) {
 		logger.Printf(format, args...)
 	}
 }
-
-
-

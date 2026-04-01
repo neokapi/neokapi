@@ -27,8 +27,8 @@ var defaultPatterns = []rule{
 // rule is a single parsed ignore rule.
 type rule struct {
 	pattern string
-	dirOnly bool   // trailing / in the original pattern
-	negated bool   // leading ! in the original pattern
+	dirOnly bool // trailing / in the original pattern
+	negated bool // leading ! in the original pattern
 }
 
 // Matcher tests file paths against a set of ignore rules.

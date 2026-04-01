@@ -41,9 +41,9 @@ func NewRetryTool(inner Tool, config RetryConfig) *RetryTool {
 	return &RetryTool{inner: inner, config: config}
 }
 
-func (t *RetryTool) Name() string        { return t.inner.Name() }
-func (t *RetryTool) Description() string  { return t.inner.Description() }
-func (t *RetryTool) Config() ToolConfig   { return t.inner.Config() }
+func (t *RetryTool) Name() string                 { return t.inner.Name() }
+func (t *RetryTool) Description() string          { return t.inner.Description() }
+func (t *RetryTool) Config() ToolConfig           { return t.inner.Config() }
 func (t *RetryTool) SetConfig(c ToolConfig) error { return t.inner.SetConfig(c) }
 
 // Process wraps the inner tool's Process. If the inner tool is a BaseTool

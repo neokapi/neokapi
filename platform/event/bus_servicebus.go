@@ -20,9 +20,9 @@ type ServiceBusEventBus struct {
 	sender *azservicebus.Sender
 	topic  string
 
-	mu       sync.Mutex
+	mu        sync.Mutex
 	receivers map[string]*sbReceiver
-	closed   bool
+	closed    bool
 }
 
 type sbReceiver struct {

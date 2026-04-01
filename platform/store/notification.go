@@ -40,8 +40,8 @@ const (
 	NotificationQuotaWarning NotificationType = "quota.warning"
 
 	// Content availability
-	NotificationContentAvailable     NotificationType = "content.available"
-	NotificationContentReadyForWork  NotificationType = "content.ready"
+	NotificationContentAvailable    NotificationType = "content.available"
+	NotificationContentReadyForWork NotificationType = "content.ready"
 
 	// Progress milestones
 	NotificationProgressMilestone NotificationType = "progress.milestone"

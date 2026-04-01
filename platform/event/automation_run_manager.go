@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neokapi/neokapi/core/id"
 	bstore "github.com/neokapi/neokapi/bowrain/store"
+	"github.com/neokapi/neokapi/core/id"
 	platev "github.com/neokapi/neokapi/platform/event"
 )
 

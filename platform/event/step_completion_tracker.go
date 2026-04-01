@@ -17,8 +17,8 @@ type StepCompletionTracker struct {
 	runStore     *bstore.AutomationRunStore
 	jobStore     jobs.JobStore
 	extractStore jobs.ExtractionJobStore
-	quotaStore   *jobs.PgQuotaStore       // optional; nil disables runner usage recording
-	billingHooks *billing.UsageHooks      // optional; nil disables billing credit deduction
+	quotaStore   *jobs.PgQuotaStore  // optional; nil disables runner usage recording
+	billingHooks *billing.UsageHooks // optional; nil disables billing credit deduction
 
 	mu           sync.Mutex
 	pending      map[string]*pendingStep // stepID → state

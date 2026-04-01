@@ -264,4 +264,3 @@ func (s *Server) HandleCancelTask(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, map[string]any{"ok": true})
 }
-

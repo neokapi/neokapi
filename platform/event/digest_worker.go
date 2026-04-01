@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	bstore "github.com/neokapi/neokapi/bowrain/store"
 	"github.com/neokapi/neokapi/bowrain/mailer"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // UserEmailResolver resolves a user ID to their email address.
@@ -16,14 +16,14 @@ type UserEmailResolver func(ctx context.Context, userID string) (email string, e
 
 // DigestWorker periodically assembles and sends notification digest emails.
 type DigestWorker struct {
-	notifStore    *bstore.NotificationStore
-	digestStore   *bstore.DigestStore
-	mailer        *mailer.Mailer
-	resolveEmail  UserEmailResolver
-	frequency     bstore.DigestFrequency
-	interval      time.Duration
-	stop          chan struct{}
-	done          chan struct{}
+	notifStore   *bstore.NotificationStore
+	digestStore  *bstore.DigestStore
+	mailer       *mailer.Mailer
+	resolveEmail UserEmailResolver
+	frequency    bstore.DigestFrequency
+	interval     time.Duration
+	stop         chan struct{}
+	done         chan struct{}
 }
 
 // NewDigestWorker creates a digest worker for the given frequency.

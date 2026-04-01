@@ -16,8 +16,8 @@ import (
 
 const (
 	natsEventStream  = "EVENTS"
-	natsEventSubject = "EVENTS"     // publish to EVENTS.<type>
-	natsEventFilter  = "EVENTS.>"   // subscribe to all events
+	natsEventSubject = "EVENTS"   // publish to EVENTS.<type>
+	natsEventFilter  = "EVENTS.>" // subscribe to all events
 	natsMaxDeliver   = 5
 	natsEventAckWait = 30 * time.Second
 )

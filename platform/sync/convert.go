@@ -8,22 +8,22 @@ import (
 	"encoding/json"
 	"sort"
 
-	"github.com/neokapi/neokapi/core/model"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // BlockToProto converts a model.Block to a SyncBlock protobuf message.
 func BlockToProto(b *model.Block, itemName string) *pb.SyncBlock {
 	sb := &pb.SyncBlock{
-		Id:                b.ID,
-		ItemName:          itemName,
-		Name:              b.Name,
-		Type:              b.Type,
-		MimeType:          b.MimeType,
-		Translatable:      b.Translatable,
-		SourceText:        b.SourceText(),
+		Id:                 b.ID,
+		ItemName:           itemName,
+		Name:               b.Name,
+		Type:               b.Type,
+		MimeType:           b.MimeType,
+		Translatable:       b.Translatable,
+		SourceText:         b.SourceText(),
 		PreserveWhitespace: b.PreserveWhitespace,
-		Properties:        b.Properties,
+		Properties:         b.Properties,
 	}
 
 	// Source segments.

@@ -57,13 +57,13 @@ type DimensionComparison struct {
 
 // EvaluationFinding is a single brand voice finding with content context.
 type EvaluationFinding struct {
-	BlockID      string           `json:"block_id"`
-	ItemName     string           `json:"item_name"`
-	CollectionID string           `json:"collection_id"`
-	SourceText   string           `json:"source_text"` // first 200 chars
-	TargetText   string           `json:"target_text"` // first 200 chars (if locale specified)
+	BlockID      string            `json:"block_id"`
+	ItemName     string            `json:"item_name"`
+	CollectionID string            `json:"collection_id"`
+	SourceText   string            `json:"source_text"` // first 200 chars
+	TargetText   string            `json:"target_text"` // first 200 chars (if locale specified)
 	Finding      BrandVoiceFinding `json:"finding"`
-	IsNew        bool             `json:"is_new"` // true if finding doesn't exist under baseline profile
+	IsNew        bool              `json:"is_new"` // true if finding doesn't exist under baseline profile
 }
 
 // EvaluateRequest holds parameters for a brand voice evaluation.

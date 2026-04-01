@@ -511,7 +511,7 @@ func TestHandlePulseFrontPage(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 
 	var resp struct {
-		Workspaces []any                `json:"workspaces"`
+		Workspaces []any                  `json:"workspaces"`
 		Stats      store.PulseGlobalStats `json:"stats"`
 	}
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))

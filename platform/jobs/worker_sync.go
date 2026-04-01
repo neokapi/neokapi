@@ -13,8 +13,8 @@ import (
 	"github.com/neokapi/neokapi/platform/store"
 	"google.golang.org/protobuf/proto"
 
-	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
+	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 )
 
 // syncPushManifest matches the JSON manifest written by HandleSyncPushCommit.

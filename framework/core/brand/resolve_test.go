@@ -22,10 +22,12 @@ func (m *mockBrandStore) GetProfile(_ context.Context, id string) (*VoiceProfile
 	return p, nil
 }
 
-func (m *mockBrandStore) CreateProfile(context.Context, *VoiceProfile) error            { return nil }
-func (m *mockBrandStore) UpdateProfile(context.Context, *VoiceProfile) error            { return nil }
-func (m *mockBrandStore) DeleteProfile(context.Context, string) error                   { return nil }
-func (m *mockBrandStore) ListProfiles(context.Context, string) ([]*VoiceProfile, error) { return nil, nil }
+func (m *mockBrandStore) CreateProfile(context.Context, *VoiceProfile) error { return nil }
+func (m *mockBrandStore) UpdateProfile(context.Context, *VoiceProfile) error { return nil }
+func (m *mockBrandStore) DeleteProfile(context.Context, string) error        { return nil }
+func (m *mockBrandStore) ListProfiles(context.Context, string) ([]*VoiceProfile, error) {
+	return nil, nil
+}
 func (m *mockBrandStore) ListProfileVersions(context.Context, string) ([]*ProfileVersion, error) {
 	return nil, nil
 }
@@ -35,10 +37,12 @@ func (m *mockBrandStore) GetProfileVersion(context.Context, string, int) (*Profi
 func (m *mockBrandStore) GetProfileAtTag(context.Context, string, string) (*VoiceProfile, error) {
 	return nil, nil
 }
-func (m *mockBrandStore) CreateProfileTag(context.Context, *ProfileTag) error            { return nil }
-func (m *mockBrandStore) ListProfileTags(context.Context, string) ([]*ProfileTag, error) { return nil, nil }
-func (m *mockBrandStore) DeleteProfileTag(context.Context, string, string) error         { return nil }
-func (m *mockBrandStore) StoreScore(context.Context, *StoredScore) error                 { return nil }
+func (m *mockBrandStore) CreateProfileTag(context.Context, *ProfileTag) error { return nil }
+func (m *mockBrandStore) ListProfileTags(context.Context, string) ([]*ProfileTag, error) {
+	return nil, nil
+}
+func (m *mockBrandStore) DeleteProfileTag(context.Context, string, string) error { return nil }
+func (m *mockBrandStore) StoreScore(context.Context, *StoredScore) error         { return nil }
 func (m *mockBrandStore) GetScores(context.Context, string, string) ([]*StoredScore, error) {
 	return nil, nil
 }

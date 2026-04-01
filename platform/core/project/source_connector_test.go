@@ -80,11 +80,11 @@ func setupTestProject(t *testing.T, handler http.Handler) (*Project, *registry.F
 // and records push requests for assertions.
 type mockSyncHandler struct {
 	pushCalls    int
-	chunkUploads int                                // number of chunk uploads received
-	initItems    []string                           // item names sent to init
+	chunkUploads int      // number of chunk uploads received
+	initItems    []string // item names sent to init
 	pullCursor   int64
-	pullBlocks   []apiclient.SyncBlock              // Blocks to return from pull
-	blocksByItem map[string][]apiclient.SyncBlock   // item_name → blocks for /sync/blocks
+	pullBlocks   []apiclient.SyncBlock            // Blocks to return from pull
+	blocksByItem map[string][]apiclient.SyncBlock // item_name → blocks for /sync/blocks
 	lastUploadID string
 }
 

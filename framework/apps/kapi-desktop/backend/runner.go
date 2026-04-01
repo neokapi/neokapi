@@ -356,11 +356,11 @@ func (a *App) executeFlow(ctx context.Context, flowName string, tools []tool.Too
 
 	// Store the complete trace for later retrieval.
 	trace := &flow.FlowTrace{
-		Name:        flowName,
-		Nodes:       traceNodes,
-		Events:      recorder.Events(),
-		Parts:       recorder.Snapshots(),
-		DurationUs:  recorder.DurationUs(),
+		Name:       flowName,
+		Nodes:      traceNodes,
+		Events:     recorder.Events(),
+		Parts:      recorder.Snapshots(),
+		DurationUs: recorder.DurationUs(),
 	}
 
 	a.runState.mu.Lock()

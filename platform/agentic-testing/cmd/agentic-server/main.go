@@ -160,6 +160,6 @@ type config struct {
 	FleetRepoToken    string
 	GitHubIssuesRepo  string
 	GitHubIssuesToken string
-	BowrainAPIURL   string
-	BowrainAPIToken string
+	BowrainAPIURL     string
+	BowrainAPIToken   string
 }
