@@ -12,12 +12,12 @@ import type { ComponentSchema } from "@neokapi/flow-editor";
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900  }}>
       <div>
         {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
         <SchemaForm schema={schema} values={values} onChange={setValues} />
       </div>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema</h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-80">
           {JSON.stringify(schema, null, 2)}

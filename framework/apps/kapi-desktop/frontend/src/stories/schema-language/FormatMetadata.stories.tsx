@@ -14,12 +14,12 @@ import formatSchemas from "../fixtures/format-schemas.json";
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900  }}>
       <div>
         {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
         <FormatConfigEditor schema={schema} values={values} onChange={setValues} title={schema.title} />
       </div>
-      <div>
+      <div style={{ minWidth: 0 }}>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">formatMeta</h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
           {JSON.stringify(schema.formatMeta || {}, null, 2)}
