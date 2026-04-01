@@ -161,9 +161,9 @@ func TestMailerAdapter_SendImmediate_UserNotFound(t *testing.T) {
 
 func TestMailerAdapter_ActionLabel(t *testing.T) {
 	tests := []struct {
-		name        string
-		category    string
-		wantLabel   string
+		name      string
+		category  string
+		wantLabel string
 	}{
 		{"task category", string(bstore.CategoryTask), "Open Task"},
 		{"quality category", string(bstore.CategoryQuality), "Review Issues"},

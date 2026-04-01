@@ -12,10 +12,10 @@ import (
 func testSchema() *schema.ComponentSchema {
 	return &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{
-			"enabled":        {Type: "boolean", Default: true, Description: "Enable feature"},
-			"mode":           {Type: "string", Default: "fast", Enum: []any{"fast", "slow"}, Description: "Processing mode"},
-			"maxRetries":     {Type: "integer", Default: 3, Description: "Max retry count"},
-			"threshold":      {Type: "number", Default: 0.75, Description: "Score threshold"},
+			"enabled":          {Type: "boolean", Default: true, Description: "Enable feature"},
+			"mode":             {Type: "string", Default: "fast", Enum: []any{"fast", "slow"}, Description: "Processing mode"},
+			"maxRetries":       {Type: "integer", Default: 3, Description: "Max retry count"},
+			"threshold":        {Type: "number", Default: 0.75, Description: "Score threshold"},
 			"expansionPercent": {Type: "integer", Default: 0, Description: "Expansion percent"},
 		},
 	}

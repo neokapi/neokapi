@@ -30,9 +30,9 @@ type ExtractionWorkerDeps struct {
 	CredStore          *credentials.Store
 	Queue              Queue
 	ReviewQueueCreator ReviewQueueCreator
-	KnownTermsLoader   KnownTermsLoader        // optional; nil disables known term filtering
-	NERProvider        ner.Provider            // optional; nil disables NER pass
-	Platform           *PlatformProviderConfig // optional; nil disables platform provider
+	KnownTermsLoader   KnownTermsLoader                                            // optional; nil disables known term filtering
+	NERProvider        ner.Provider                                                // optional; nil disables NER pass
+	Platform           *PlatformProviderConfig                                     // optional; nil disables platform provider
 	LogFunc            func(stepID, level, message string, data map[string]string) // optional (AD-035)
 }
 

@@ -29,8 +29,8 @@ type ComponentSchema struct {
 // ComponentMeta identifies the component this schema belongs to.
 type ComponentMeta struct {
 	ID          string `json:"id"`
-	Type        string `json:"type"`                  // "format", "tool", "step"
-	Category    string `json:"category,omitempty"`     // "translate","validate","enrich","convert","transform","pipeline"
+	Type        string `json:"type"`               // "format", "tool", "step"
+	Category    string `json:"category,omitempty"` // "translate","validate","enrich","convert","transform","pipeline"
 	DisplayName string `json:"displayName,omitempty"`
 	Description string `json:"description,omitempty"`
 
@@ -90,8 +90,8 @@ type ParameterGroup struct {
 // ShowIfRule controls conditional visibility of a property.
 // The property is shown only when the referenced field matches the given value.
 type ShowIfRule struct {
-	Field string `json:"field"`          // name of the field to check
-	Value any    `json:"value"`          // value that makes this field visible
+	Field string `json:"field"`           // name of the field to check
+	Value any    `json:"value"`           // value that makes this field visible
 	Empty bool   `json:"empty,omitempty"` // if true, show when the field is empty/unset
 }
 

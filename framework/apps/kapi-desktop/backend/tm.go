@@ -63,9 +63,9 @@ type TMStats struct {
 
 // TMMatchDTO is a single match from entity-aware TM lookup.
 type TMMatchDTO struct {
-	Entry             TMEntryDTO           `json:"entry"`
-	Score             float64              `json:"score"`
-	MatchType         string               `json:"match_type"`
+	Entry             TMEntryDTO            `json:"entry"`
+	Score             float64               `json:"score"`
+	MatchType         string                `json:"match_type"`
 	EntityAdaptations []EntityAdaptationDTO `json:"entity_adaptations,omitempty"`
 }
 
@@ -79,12 +79,12 @@ type EntityAdaptationDTO struct {
 
 // LookupTMRequest is the request for entity-aware TM lookup.
 type LookupTMRequest struct {
-	Text         string               `json:"text"`
+	Text         string                `json:"text"`
 	Entities     []EntityAnnotationDTO `json:"entities"`
-	SourceLocale string               `json:"source_locale"`
-	TargetLocale string               `json:"target_locale"`
-	MinScore     float64              `json:"min_score"`
-	MaxResults   int                  `json:"max_results"`
+	SourceLocale string                `json:"source_locale"`
+	TargetLocale string                `json:"target_locale"`
+	MinScore     float64               `json:"min_score"`
+	MaxResults   int                   `json:"max_results"`
 }
 
 // EntityAnnotationDTO is a single entity annotation from the frontend.

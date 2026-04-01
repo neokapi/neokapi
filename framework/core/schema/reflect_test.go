@@ -111,7 +111,7 @@ func TestFromStruct_NestedTypes(t *testing.T) {
 
 type withInterface struct {
 	Name     string
-	Provider interface{}     //nolint:revive
+	Provider interface{} //nolint:revive
 	Callback func() error
 }
 
@@ -122,9 +122,9 @@ func TestFromStruct_SkipsInterfaceAndFunc(t *testing.T) {
 }
 
 type groupedConfig struct {
-	Host string `schema:"group=connection,description=Server hostname"`
-	Port int    `schema:"group=connection,description=Server port"`
-	Verbose bool `schema:"group=advanced,description=Enable verbose output"`
+	Host    string `schema:"group=connection,description=Server hostname"`
+	Port    int    `schema:"group=connection,description=Server port"`
+	Verbose bool   `schema:"group=advanced,description=Enable verbose output"`
 }
 
 func TestFromStruct_Groups(t *testing.T) {

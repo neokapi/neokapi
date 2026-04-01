@@ -26,10 +26,10 @@ func (c *BrandVocabConfig) Validate() error  { return nil }
 type BrandVocabCheckTool struct {
 	tool.BaseTool
 	profile  *brand.VoiceProfile
-	termBase termbase.TermBase       // optional — if provided, filters by term_source=brand_vocabulary
-	resolver brand.ProfileResolver   // optional: lazy profile resolution
-	rc       brand.ResolveContext     // context for resolver
-	resolved bool                    // true after first resolution attempt
+	termBase termbase.TermBase     // optional — if provided, filters by term_source=brand_vocabulary
+	resolver brand.ProfileResolver // optional: lazy profile resolution
+	rc       brand.ResolveContext  // context for resolver
+	resolved bool                  // true after first resolution attempt
 }
 
 // NewBrandVocabCheckTool creates a new brand vocabulary check tool.

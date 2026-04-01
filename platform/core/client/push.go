@@ -287,4 +287,3 @@ func (c *BowrainClient) pushCommit(ctx context.Context, req PushCommitRequest) (
 	var result SyncPushResponse
 	return &result, json.NewDecoder(resp.Body).Decode(&result)
 }
-

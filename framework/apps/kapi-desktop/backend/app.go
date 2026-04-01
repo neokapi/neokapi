@@ -16,13 +16,13 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/core/flow"
-	"github.com/neokapi/neokapi/core/model"
-	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
-	"github.com/neokapi/neokapi/core/id"
-	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	fmtschema "github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/formats"
+	"github.com/neokapi/neokapi/core/id"
+	"github.com/neokapi/neokapi/core/model"
+	plugincache "github.com/neokapi/neokapi/core/plugin/cache"
 	"github.com/neokapi/neokapi/core/plugin/loader"
+	pluginreg "github.com/neokapi/neokapi/core/plugin/registry"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/neokapi/neokapi/core/registry"
@@ -1086,7 +1086,7 @@ func blockProperties(b *model.Block) map[string]string {
 
 // PluginCapability describes a format or tool provided by a plugin.
 type PluginCapability struct {
-	Type        string   `json:"type"`                   // "format" or "tool"
+	Type        string   `json:"type"` // "format" or "tool"
 	Name        string   `json:"name"`
 	DisplayName string   `json:"display_name,omitempty"`
 	Extensions  []string `json:"extensions,omitempty"`
@@ -1095,7 +1095,7 @@ type PluginCapability struct {
 // PluginInfo is the frontend-facing plugin summary.
 type PluginInfo struct {
 	Name             string             `json:"name"`
-	ID               string             `json:"id"`                         // unique identifier for this specific plugin installation
+	ID               string             `json:"id"` // unique identifier for this specific plugin installation
 	Version          string             `json:"version"`
 	FrameworkVersion string             `json:"framework_version,omitempty"`
 	Type             string             `json:"type"`

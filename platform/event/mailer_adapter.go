@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	bstore "github.com/neokapi/neokapi/bowrain/store"
-	"github.com/neokapi/neokapi/bowrain/mailer"
 	bauth "github.com/neokapi/neokapi/bowrain/auth"
+	"github.com/neokapi/neokapi/bowrain/mailer"
+	bstore "github.com/neokapi/neokapi/bowrain/store"
 )
 
 // categoryActionLabels maps notification categories to email CTA button labels.

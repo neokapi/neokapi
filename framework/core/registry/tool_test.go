@@ -13,9 +13,9 @@ import (
 
 type stubTool struct{}
 
-func (s *stubTool) Name() string                    { return "stub" }
-func (s *stubTool) Description() string             { return "stub tool" }
-func (s *stubTool) Config() tool.ToolConfig         { return nil }
+func (s *stubTool) Name() string                      { return "stub" }
+func (s *stubTool) Description() string               { return "stub tool" }
+func (s *stubTool) Config() tool.ToolConfig           { return nil }
 func (s *stubTool) SetConfig(_ tool.ToolConfig) error { return nil }
 func (s *stubTool) Process(_ context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
 	for p := range in {

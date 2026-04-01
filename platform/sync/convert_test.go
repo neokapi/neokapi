@@ -10,12 +10,12 @@ import (
 
 func TestBlockRoundTrip(t *testing.T) {
 	b := &model.Block{
-		ID:           "b1",
-		Name:         "greeting",
-		Type:         "text",
-		MimeType:     "text/plain",
-		Translatable: true,
-		Properties:   map[string]string{"context": "homepage"},
+		ID:                 "b1",
+		Name:               "greeting",
+		Type:               "text",
+		MimeType:           "text/plain",
+		Translatable:       true,
+		Properties:         map[string]string{"context": "homepage"},
 		PreserveWhitespace: true,
 	}
 	b.SetSourceText("Hello world")

@@ -14,8 +14,8 @@ import (
 	bowsync "github.com/neokapi/neokapi/bowrain/sync"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/storage"
-	apiclient "github.com/neokapi/neokapi/platform/client"
 	platauth "github.com/neokapi/neokapi/platform/auth"
+	apiclient "github.com/neokapi/neokapi/platform/client"
 	"github.com/neokapi/neokapi/platform/store"
 )
 
@@ -496,4 +496,3 @@ func (s *Server) HandleSyncPushStatus(c echo.Context) error {
 		"in_progress": inProgress,
 	})
 }
-

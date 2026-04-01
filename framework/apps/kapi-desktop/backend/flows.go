@@ -240,10 +240,10 @@ func (a *App) openFlowFile(path string) (*UserFlowDetail, error) {
 		name := filepath.Base(path)
 		name = strings.TrimSuffix(name, filepath.Ext(name))
 		return &UserFlowDetail{
-			ID:          name,
-			Name:        name,
-			Source:      "file",
-			Steps:       spec.Steps,
+			ID:     name,
+			Name:   name,
+			Source: "file",
+			Steps:  spec.Steps,
 		}, nil
 	}
 

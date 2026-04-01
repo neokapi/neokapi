@@ -74,7 +74,7 @@ var knownLeafElements = map[atom.Atom]bool{
 	atom.P: true, atom.Pre: true,
 	atom.H1: true, atom.H2: true, atom.H3: true,
 	atom.H4: true, atom.H5: true, atom.H6: true,
-	atom.Dt: true,
+	atom.Dt:    true,
 	atom.Title: true, atom.Caption: true, atom.Figcaption: true,
 	atom.Address: true,
 }

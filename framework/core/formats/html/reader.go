@@ -566,7 +566,6 @@ func trimCodedText(s string) string {
 	return string(runes[start:end])
 }
 
-
 func (r *Reader) renderOpenTag(n *html.Node) string {
 	var buf strings.Builder
 	buf.WriteString("<")

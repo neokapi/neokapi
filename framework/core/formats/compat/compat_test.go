@@ -46,12 +46,12 @@ type formatSpec struct {
 	name          string
 	newReader     func() format.DataFormatReader
 	newWriter     func() format.DataFormatWriter
-	filterClass   string                // Java Okapi filter class for bridge
+	filterClass   string // Java Okapi filter class for bridge
 	mimeType      string
 	files         []testFile
-	compareZIP    bool                  // use ZIP entry comparison instead of byte comparison
-	normalize     func([]byte) []byte   // optional normalization before byte comparison
-	normalizeText func(string) string   // optional block text normalization (default: whitespace only)
+	compareZIP    bool                // use ZIP entry comparison instead of byte comparison
+	normalize     func([]byte) []byte // optional normalization before byte comparison
+	normalizeText func(string) string // optional block text normalization (default: whitespace only)
 }
 
 // testFile is a test input file path relative to the okapi-testdata root.
@@ -238,4 +238,3 @@ func TestFormatCompat(t *testing.T) {
 		})
 	}
 }
-

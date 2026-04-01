@@ -28,13 +28,13 @@ type WorkerConfig struct {
 
 // WorkerDeps holds all dependencies for the translation worker.
 type WorkerDeps struct {
-	JobStore          JobStore
-	ContentStore      store.ContentStore
-	CredStore         *credentials.Store
-	Queue             Queue
-	QuotaStore        QuotaStore              // optional; nil disables quota enforcement
-	Platform          *PlatformProviderConfig // optional; nil disables platform provider
-	BillingHooks      *billing.UsageHooks     // optional; nil disables billing credit deduction
+	JobStore     JobStore
+	ContentStore store.ContentStore
+	CredStore    *credentials.Store
+	Queue        Queue
+	QuotaStore   QuotaStore              // optional; nil disables quota enforcement
+	Platform     *PlatformProviderConfig // optional; nil disables platform provider
+	BillingHooks *billing.UsageHooks     // optional; nil disables billing credit deduction
 	// LogFunc is called to emit structured automation logs (AD-035).
 	// Signature: func(stepID, level, message string, data map[string]string).
 	// Optional; nil disables run logging.

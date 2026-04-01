@@ -113,8 +113,8 @@ func TestAnthropicProviderParsesUsage(t *testing.T) {
 			"usage": map[string]any{
 				"input_tokens":                150,
 				"output_tokens":               42,
-				"cache_creation_input_tokens":  10,
-				"cache_read_input_tokens":      5,
+				"cache_creation_input_tokens": 10,
+				"cache_read_input_tokens":     5,
 			},
 		}
 		w.Header().Set("Content-Type", "application/json")

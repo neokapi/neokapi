@@ -21,7 +21,6 @@ type ProjectRequest struct {
 	Workspace             string   `json:"workspace,omitempty"`
 }
 
-
 // HandleCreateProject creates a project in the authenticated user's workspace.
 // If a workspace slug is provided in the request, it verifies membership and
 // uses that workspace; otherwise it defaults to the user's personal workspace.
@@ -218,4 +217,3 @@ func (s *Server) HandleDeleteProject(c echo.Context) error {
 	}
 	return c.NoContent(http.StatusNoContent)
 }
-

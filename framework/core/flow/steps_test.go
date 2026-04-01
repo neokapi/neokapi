@@ -126,7 +126,7 @@ func TestStepsToGraph_DefaultFormats(t *testing.T) {
 
 	nodes, _, err := StepsToGraph(spec)
 	require.NoError(t, err)
-	assert.Equal(t, "auto", nodes[0].Name)                  // reader defaults to auto
+	assert.Equal(t, "auto", nodes[0].Name)            // reader defaults to auto
 	assert.Equal(t, "auto", nodes[len(nodes)-1].Name) // writer defaults to auto
 }
 

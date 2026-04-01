@@ -9,8 +9,8 @@ import (
 
 // AppSettings holds persisted user preferences.
 type AppSettings struct {
-	Theme            string `json:"theme"`                        // "system", "dark", or "light"
-	SamplesDismissed bool   `json:"samples_dismissed,omitempty"`  // true after user dismisses sample project cards
+	Theme            string `json:"theme"`                       // "system", "dark", or "light"
+	SamplesDismissed bool   `json:"samples_dismissed,omitempty"` // true after user dismisses sample project cards
 }
 
 // settingsStore manages user preferences.

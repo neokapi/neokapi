@@ -18,9 +18,9 @@ type BrandVoiceCheckTool struct {
 	usageAccumulator
 	provider provider.LLMProvider
 	profile  *brand.VoiceProfile
-	resolver brand.ProfileResolver  // optional: lazy profile resolution
-	rc       brand.ResolveContext    // context for resolver
-	resolved bool                   // true after first resolution attempt
+	resolver brand.ProfileResolver // optional: lazy profile resolution
+	rc       brand.ResolveContext  // context for resolver
+	resolved bool                  // true after first resolution attempt
 }
 
 // BrandVoiceCheckConfig holds configuration for the brand voice check tool.
