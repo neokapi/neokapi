@@ -6,8 +6,7 @@ import "github.com/neokapi/neokapi/core/format/schema"
 
 // Type aliases for backward compatibility.
 type FormatSchema = schema.FormatSchema
-type FormatSchemaMeta = schema.FormatSchemaMeta
-type FormatConfiguration = schema.FormatConfiguration
+type FormatMeta = schema.FormatMeta
 type ParameterGroup = schema.ParameterGroup
 type PropertySchema = schema.PropertySchema
 type SchemaRegistry = schema.SchemaRegistry

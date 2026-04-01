@@ -19,46 +19,39 @@ type FormatSchema struct {
 	Description string `json:"description"`
 	Type        string `json:"type"`
 
-	// Format metadata
-	FormatMeta FormatSchemaMeta `json:"x-format"`
+	// Format identification metadata (no prefix — data field)
+	FormatMeta FormatMeta `json:"formatMeta"`
 
-	// Parameter groupings for UI
-	Groups []ParameterGroup `json:"x-groups,omitempty"`
+	// Named parameter presets (no prefix — data field)
+	Presets map[string]map[string]any `json:"presets,omitempty"`
+
+	// Parameter groupings for UI (ui: prefix)
+	Groups []ParameterGroup `json:"ui:groups,omitempty"`
 
 	// Properties contains the raw schema structure (section objects).
 	Properties map[string]PropertySchema `json:"properties"`
 
 	// FlatProperties maps flat Okapi parameter names to their schemas.
-	// Built from x-flattenPath annotations during loading.
+	// Built from x-okapi-flatten-path annotations during loading.
 	FlatProperties map[string]PropertySchema `json:"-"`
 
 	// SectionMap maps flat parameter names to their schema section keys.
 	// Used to wrap flat params into the hierarchical format the bridge expects.
-	// E.g., "elements" → "elements", "extractAllPairs" → "extraction".
 	SectionMap map[string]string `json:"-"`
 
 	// Raw JSON for full schema access
 	RawJSON json.RawMessage `json:"-"`
 }
 
-// FormatSchemaMeta contains format identification metadata.
-type FormatSchemaMeta struct {
-	ID             string                `json:"id"`
-	Class          string                `json:"class"`
-	Extensions     []string              `json:"extensions"`
-	MimeTypes      []string              `json:"mimeTypes"`
-	Configurations []FormatConfiguration `json:"configurations,omitempty"`
-}
+// FormatMeta contains format identification metadata.
+type FormatMeta struct {
+	ID         string   `json:"id"`
+	Extensions []string `json:"extensions"`
+	MimeTypes  []string `json:"mimeTypes"`
 
-// FormatConfiguration represents a named configuration from x-format.configurations.
-type FormatConfiguration struct {
-	ConfigID    string         `json:"configId"`
-	Name        string         `json:"name"`
-	Description string         `json:"description"`
-	MimeType    string         `json:"mimeType"`
-	Extensions  string         `json:"extensions"`
-	Parameters  map[string]any `json:"parameters"`
-	IsDefault   bool           `json:"isDefault"`
+	// Class is the Java filter class (only present in bridge schemas).
+	// Kept for bridge runtime lookups but not part of the public schema language.
+	Class string `json:"class,omitempty"`
 }
 
 // ParameterGroup defines a UI grouping of parameters.
@@ -66,7 +59,9 @@ type ParameterGroup struct {
 	ID          string   `json:"id"`
 	Label       string   `json:"label"`
 	Description string   `json:"description,omitempty"`
+	Collapsible *bool    `json:"collapsible,omitempty"`
 	Collapsed   bool     `json:"collapsed,omitempty"`
+	Icon        string   `json:"icon,omitempty"`
 	Fields      []string `json:"fields"`
 }
 
@@ -78,14 +73,14 @@ type PropertySchema struct {
 	Default     any    `json:"default,omitempty"`
 	Deprecated  bool   `json:"deprecated,omitempty"`
 
-	// UI hints
-	Widget      string         `json:"x-widget,omitempty"`
-	Placeholder string         `json:"x-placeholder,omitempty"`
-	Presets     map[string]any `json:"x-presets,omitempty"`
-	OkapiFormat string         `json:"x-okapiFormat,omitempty"`
+	// UI rendering hints (ui: prefix)
+	Widget      string         `json:"ui:widget,omitempty"`
+	Placeholder string         `json:"ui:placeholder,omitempty"`
+	UIPresets   map[string]any `json:"ui:presets,omitempty"` // widget-level presets (e.g., regex samples)
 
-	// Parameter flattening path (maps hierarchical schema key to flat Okapi name)
-	FlattenPath string `json:"x-flattenPath,omitempty"`
+	// Okapi bridge extensions (x-okapi- prefix, only in bridge schemas)
+	OkapiFormat string `json:"x-okapi-format,omitempty"`
+	FlattenPath string `json:"x-okapi-flatten-path,omitempty"`
 
 	// Nested properties for object types
 	Properties map[string]PropertySchema `json:"properties,omitempty"`
@@ -271,11 +266,11 @@ func (r *SchemaRegistry) GetSchemaJSON(formatID string) (json.RawMessage, bool) 
 }
 
 // ListFormats returns metadata for all registered format schemas.
-func (r *SchemaRegistry) ListFormats() []FormatSchemaMeta {
+func (r *SchemaRegistry) ListFormats() []FormatMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	result := make([]FormatSchemaMeta, 0, len(r.schemas))
+	result := make([]FormatMeta, 0, len(r.schemas))
 	for _, s := range r.schemas {
 		result = append(result, s.FormatMeta)
 	}
@@ -437,32 +432,22 @@ func validateType(paramName string, value any, expectedType string) error {
 	return nil
 }
 
-// ExtractPresets extracts format presets from x-format.configurations in loaded schemas.
-// For each configuration, it strips the format prefix from configId to get the preset name.
-// E.g., "okf_html-wellFormed" → format "okf_html", preset name "wellFormed".
+// ExtractPresets registers format presets from the presets field in loaded schemas.
 func (r *SchemaRegistry) ExtractPresets(reg *preset.PresetRegistry) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	for formatID, s := range r.schemas {
-		for _, cfg := range s.FormatMeta.Configurations {
-			presetName := cfg.ConfigID
-			// Strip format prefix: "okf_html-wellFormed" → "wellFormed"
-			if strings.HasPrefix(cfg.ConfigID, formatID+"-") {
-				presetName = cfg.ConfigID[len(formatID)+1:]
-			}
+		source := "schema"
+		if s.FormatMeta.Class != "" {
+			source = "bridge"
+		}
 
-			source := "schema"
-			if s.FormatMeta.Class != "" {
-				source = "bridge"
-			}
-
+		for presetName, params := range s.Presets {
 			reg.RegisterFormatPreset(formatID, presetName, &preset.FormatPreset{
-				Name:        presetName,
-				Description: cfg.Description,
-				Format:      formatID,
-				Config:      cfg.Parameters,
-				Source:      source,
-				IsDefault:   cfg.IsDefault,
+				Name:   presetName,
+				Format: formatID,
+				Config: params,
+				Source: source,
 			})
 		}
 	}

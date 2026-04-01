@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "SRT Subtitles",
 		Description: "SubRip subtitle format — no configurable parameters",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "srt",
 			Extensions: []string{".srt"},
 			MimeTypes:  []string{"application/x-subrip"},

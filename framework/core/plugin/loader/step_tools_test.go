@@ -40,7 +40,7 @@ func TestLoadBridgeStepTools_SchemaMetadata(t *testing.T) {
 	// Schema $id preserves Okapi naming (no okapi: prefix)
 	assert.Equal(t, "search-and-replace", s.ID)
 	assert.Equal(t, "Search and Replace", s.Title)
-	assert.Equal(t, "step", s.Meta.Type)
+	assert.Equal(t, "search-and-replace", s.ToolMeta.ID)
 	assert.NotEmpty(t, s.Properties)
 	assert.Equal(t, "boolean", s.Properties["regEx"].Type)
 	assert.Equal(t, "boolean", s.Properties["target"].Type)
@@ -57,7 +57,7 @@ func TestLoadBridgeStepTools_MapsOkapiNameToNeokapi(t *testing.T) {
 	s := toolReg.GetSchema("search-and-replace")
 	require.NotNil(t, s)
 	assert.Equal(t, "search-and-replace", s.ID)
-	assert.Equal(t, "search-and-replace", s.Meta.ID)
+	assert.Equal(t, "search-and-replace", s.ToolMeta.ID)
 
 	// Tool registered with step ID as name
 	tl, err := toolReg.NewTool("search-and-replace")
@@ -73,7 +73,6 @@ func TestLoadBridgeStepTools_SkipsNonStepSchemas(t *testing.T) {
 	filterSchema := schema.ComponentSchema{
 		ID:    "some-filter",
 		Title: "Some Filter",
-		Meta:  schema.ComponentMeta{ID: "some-filter", Type: "format"},
 	}
 	data, _ := json.Marshal(filterSchema)
 	require.NoError(t, os.WriteFile(filepath.Join(stepsDir, "some-filter.schema.json"), data, 0o644))

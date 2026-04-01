@@ -1,0 +1,95 @@
+{
+  "ruleTypes": {
+    "wikiRef": "Understanding_Filter_Configurations",
+    "description": "Rule types control how elements and attributes are handled during extraction. Each element or attribute rule must have a ruleTypes array.",
+    "elementRuleTypes": {
+      "INLINE": "Inline element — content flows within surrounding text (e.g. <b>, <span>, <a>)",
+      "TEXTUNIT": "Text unit — extracted as a translatable segment with skeleton before/after (e.g. <p>, <h1>, <li>)",
+      "EXCLUDE": "Excluded — element and all children are skipped during extraction (e.g. <script>, <style>)",
+      "INCLUDE": "Included — exception to EXCLUDE, re-enables extraction inside an excluded block",
+      "GROUP": "Group element — structural container, not translatable itself (e.g. <table>, <ul>, <div>)",
+      "ATTRIBUTES_ONLY": "Only attributes are translatable/localizable, not the element's text content (e.g. <meta>)",
+      "PRESERVE_WHITESPACE": "Preserve whitespace inside this element (e.g. <pre>, <code>)",
+      "SCRIPT": "Script element — embedded client-side code (e.g. <script>)",
+      "SERVER": "Server element — embedded server-side content (e.g. JSP, PHP, Mason tags)"
+    },
+    "attributeRuleTypes": {
+      "ATTRIBUTE_TRANS": "Translatable — attribute content is extracted for translation (e.g. alt, title)",
+      "ATTRIBUTE_WRITABLE": "Writable localizable — attribute is locale-specific and editable (e.g. href, src)",
+      "ATTRIBUTE_READONLY": "Read-only localizable — attribute is locale-specific but not user-editable",
+      "ATTRIBUTE_ID": "ID — attribute value is used as the segment identifier",
+      "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace — attribute controls whitespace preservation state (e.g. xml:space)"
+    }
+  },
+  "conditions": {
+    "wikiRef": "Understanding_Filter_Configurations",
+    "description": "Conditions are triples [attributeName, operator, value] that make extraction rules conditional on an attribute's value.",
+    "operators": {
+      "EQUALS": "Case-insensitive string equality. With array values, matches if attribute equals any value (OR logic).",
+      "NOT_EQUALS": "Case-insensitive string inequality. With array values, must not equal any of the values (AND logic).",
+      "MATCHES": "Java regex match. Must match the entire attribute value."
+    },
+    "examples": [
+      {
+        "description": "Extract only when translate=yes",
+        "value": [
+          "translate",
+          "EQUALS",
+          "yes"
+        ]
+      },
+      {
+        "description": "Skip file/hidden input types",
+        "value": [
+          "type",
+          "NOT_EQUALS",
+          [
+            "file",
+            "hidden"
+          ]
+        ]
+      },
+      {
+        "description": "Match data- attributes via regex",
+        "value": [
+          "data-i18n",
+          "MATCHES",
+          ".*"
+        ]
+      }
+    ]
+  },
+  "codeFinderRules": {
+    "wikiRef": "Inline_Codes_Simplifier_Step",
+    "description": "Regex patterns for detecting inline codes (placeholders, tags, format specifiers) within translatable text. Each pattern is a Java regex that matches content to be protected as an inline code."
+  },
+  "simplifierRules": {
+    "wikiRef": "Inline_Codes_Simplifier_Step",
+    "description": "Rules for simplifying inline code representation. Uses a custom grammar: 'if FIELD OPERATOR VALUE [and|or ...]; ...'",
+    "grammar": {
+      "fields": [
+        "DATA",
+        "OUTER_DATA",
+        "ORIGINAL_ID",
+        "TYPE",
+        "TAG_TYPE"
+      ],
+      "flags": [
+        "ADDABLE",
+        "DELETABLE",
+        "CLONEABLE"
+      ],
+      "operators": [
+        "=",
+        "!=",
+        "~",
+        "!~"
+      ],
+      "tagTypes": [
+        "OPENING",
+        "CLOSING",
+        "STANDALONE"
+      ]
+    }
+  }
+}

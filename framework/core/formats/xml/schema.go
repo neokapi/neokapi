@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "XML Format",
 		Description: "Configuration for the generic XML format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "xml",
 			Extensions: []string{".xml"},
 			MimeTypes:  []string{"text/xml", "application/xml"},

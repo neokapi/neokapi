@@ -13,13 +13,13 @@ import (
 //	schema:"description=...,default=...,min=...,max=...,enum=a|b|c,widget=...,group=..."
 //
 // Interface and function fields are skipped.
-func FromStruct(cfg any, meta ComponentMeta) *ComponentSchema {
+func FromStruct(cfg any, meta ToolMeta) *ComponentSchema {
 	s := &ComponentSchema{
 		ID:          meta.ID,
 		Title:       meta.DisplayName,
 		Description: meta.Description,
 		Type:        "object",
-		Meta:        meta,
+		ToolMeta:    &meta,
 		Properties:  make(map[string]PropertySchema),
 	}
 
@@ -311,12 +311,12 @@ func applyTag(prop *PropertySchema, tag string) {
 			// Format: showIf=field:value (show when field equals value)
 			parts := strings.SplitN(val, ":", 2)
 			if len(parts) == 2 {
-				prop.ShowIf = &ShowIfRule{Field: parts[0], Value: parts[1]}
+				prop.Visible = &ConditionExpr{Field: parts[0], Eq: parts[1]}
 			}
 		case "showIfEmpty":
-			prop.ShowIf = &ShowIfRule{Field: val, Empty: true}
+			prop.Visible = &ConditionExpr{Field: val, Empty: boolPtr(true)}
 		case "showIfSet":
-			prop.ShowIf = &ShowIfRule{Field: val, Empty: false}
+			prop.Visible = &ConditionExpr{Field: val, Empty: boolPtr(false)}
 		}
 	}
 }
@@ -375,3 +375,5 @@ func toUpper(r rune) rune {
 	}
 	return r
 }
+
+func boolPtr(b bool) *bool { return &b }

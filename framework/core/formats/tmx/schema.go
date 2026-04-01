@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "TMX (Translation Memory eXchange)",
 		Description: "TMX translation memory format — no configurable parameters",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "tmx",
 			Extensions: []string{".tmx"},
 			MimeTypes:  []string{"application/x-tmx+xml"},

@@ -251,7 +251,7 @@ func TestScanMetadataWithSchemas(t *testing.T) {
 		"$id": "okf_html",
 		"title": "HTML Filter",
 		"type": "object",
-		"x-format": {
+		"formatMeta": {
 			"id": "okf_html",
 			"class": "net.sf.okapi.filters.html.HtmlFilter",
 			"extensions": [".html", ".htm"],
@@ -263,7 +263,7 @@ func TestScanMetadataWithSchemas(t *testing.T) {
 		"$id": "okf_json",
 		"title": "JSON Filter",
 		"type": "object",
-		"x-format": {
+		"formatMeta": {
 			"id": "okf_json",
 			"class": "net.sf.okapi.filters.json.JSONFilter",
 			"extensions": [".json"],

@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "Markdown Format",
 		Description: "Configuration for the Markdown format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "markdown",
 			Extensions: []string{".md", ".markdown"},
 			MimeTypes:  []string{"text/markdown"},

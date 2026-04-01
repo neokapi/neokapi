@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "XLIFF 2.0",
 		Description: "XLIFF 2.0/2.1 bilingual exchange format with segment support — no configurable parameters",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "xliff2",
 			Extensions: []string{".xlf", ".xliff"},
 			MimeTypes:  []string{"application/xliff+xml"},

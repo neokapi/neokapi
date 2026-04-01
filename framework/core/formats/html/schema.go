@@ -10,7 +10,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "HTML Format",
 		Description: "Configuration for the native HTML format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "html",
 			Extensions: []string{".html", ".htm"},
 			MimeTypes:  []string{"text/html"},

@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "Java Properties Format",
 		Description: "Configuration for the Java .properties format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "properties",
 			Extensions: []string{".properties"},
 			MimeTypes:  []string{"text/x-java-properties"},

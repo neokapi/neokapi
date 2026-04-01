@@ -41,9 +41,8 @@ func TestRegisterWithSchema_PropagatesMetadata(t *testing.T) {
 	s := &schema.ComponentSchema{
 		Title:       "Test Tool",
 		Description: "A test tool",
-		Meta: schema.ComponentMeta{
+		ToolMeta: &schema.ToolMeta{
 			ID:       "test-tool",
-			Type:     "tool",
 			Category: "validate",
 			Inputs:   []string{"block", "data"},
 			Outputs:  []string{"block"},
@@ -89,7 +88,7 @@ func TestRegisterWithSchema_EmptyMeta(t *testing.T) {
 
 	s := &schema.ComponentSchema{
 		Title: "Minimal",
-		Meta:  schema.ComponentMeta{ID: "minimal", Type: "tool"},
+		ToolMeta: &schema.ToolMeta{ID: "minimal"},
 	}
 
 	reg.RegisterWithSchema("minimal", func() tool.Tool { return &stubTool{} }, s)

@@ -65,11 +65,13 @@ func (r *ToolRegistry) RegisterWithSchema(name string, factory ToolFactory, s *s
 	if s != nil {
 		info.DisplayName = s.Title
 		info.Description = s.Description
-		info.Category = s.Meta.Category
-		info.Inputs = s.Meta.Inputs
-		info.Outputs = s.Meta.Outputs
-		info.Tags = s.Meta.Tags
-		info.Requires = s.Meta.Requires
+		if s.ToolMeta != nil {
+			info.Category = s.ToolMeta.Category
+			info.Inputs = s.ToolMeta.Inputs
+			info.Outputs = s.ToolMeta.Outputs
+			info.Tags = s.ToolMeta.Tags
+			info.Requires = s.ToolMeta.Requires
+		}
 	}
 	r.tools[name] = &ToolRegistration{
 		Factory: factory,
@@ -92,11 +94,13 @@ func (r *ToolRegistry) RegisterMetadata(name string, s *schema.ComponentSchema, 
 	if s != nil {
 		info.DisplayName = s.Title
 		info.Description = s.Description
-		info.Category = s.Meta.Category
-		info.Inputs = s.Meta.Inputs
-		info.Outputs = s.Meta.Outputs
-		info.Tags = s.Meta.Tags
-		info.Requires = s.Meta.Requires
+		if s.ToolMeta != nil {
+			info.Category = s.ToolMeta.Category
+			info.Inputs = s.ToolMeta.Inputs
+			info.Outputs = s.ToolMeta.Outputs
+			info.Tags = s.ToolMeta.Tags
+			info.Requires = s.ToolMeta.Requires
+		}
 	}
 	r.tools[name] = &ToolRegistration{
 		Schema: s,

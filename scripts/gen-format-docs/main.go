@@ -86,7 +86,7 @@ func main() {
 					doc.Description = s.Description
 					doc.Properties = convertProperties(s.Properties)
 					doc.Groups = convertGroups(s.Groups, s.Properties)
-					doc.Presets = convertPresets(s.FormatMeta.Configurations)
+					doc.Presets = convertPresets(s.Presets)
 
 					// Use schema extensions/mimeTypes if the reader didn't provide them.
 					if len(doc.Extensions) == 0 {
@@ -213,17 +213,16 @@ func hasAnyFlattened(props map[string]schema.PropertySchema) bool {
 	return false
 }
 
-func convertPresets(configs []schema.FormatConfiguration) []PresetDoc {
-	if len(configs) == 0 {
+func convertPresets(presets map[string]map[string]any) []PresetDoc {
+	if len(presets) == 0 {
 		return nil
 	}
 	var result []PresetDoc
-	for _, c := range configs {
+	for name, params := range presets {
 		result = append(result, PresetDoc{
-			ID:          c.ConfigID,
-			Name:        c.Name,
-			Description: c.Description,
-			Parameters:  c.Parameters,
+			ID:         name,
+			Name:       name,
+			Parameters: params,
 		})
 	}
 	return result

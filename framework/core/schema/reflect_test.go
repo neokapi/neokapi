@@ -21,9 +21,8 @@ func TestFromStruct_SimpleTypes(t *testing.T) {
 		MaxRetries: 3,
 		Threshold:  0.75,
 	}
-	meta := ComponentMeta{
+	meta := ToolMeta{
 		ID:          "simple-tool",
-		Type:        "tool",
 		Category:    "transform",
 		DisplayName: "Simple Tool",
 	}
@@ -33,7 +32,7 @@ func TestFromStruct_SimpleTypes(t *testing.T) {
 	assert.Equal(t, "simple-tool", s.ID)
 	assert.Equal(t, "Simple Tool", s.Title)
 	assert.Equal(t, "object", s.Type)
-	assert.Equal(t, "tool", s.Meta.Type)
+	assert.Equal(t, "simple-tool", s.ToolMeta.ID)
 	assert.Len(t, s.Properties, 4)
 
 	// Boolean
@@ -64,7 +63,7 @@ type taggedConfig struct {
 }
 
 func TestFromStruct_SchemaTags(t *testing.T) {
-	s := FromStruct(&taggedConfig{}, ComponentMeta{ID: "tagged"})
+	s := FromStruct(&taggedConfig{}, ToolMeta{ID: "tagged"})
 
 	mode := s.Properties["mode"]
 	assert.Equal(t, "Processing mode", mode.Description)
@@ -94,7 +93,7 @@ type ruleEntry struct {
 }
 
 func TestFromStruct_NestedTypes(t *testing.T) {
-	s := FromStruct(&nestedConfig{}, ComponentMeta{ID: "nested"})
+	s := FromStruct(&nestedConfig{}, ToolMeta{ID: "nested"})
 
 	// Slice of structs
 	rules := s.Properties["rules"]
@@ -116,7 +115,7 @@ type withInterface struct {
 }
 
 func TestFromStruct_SkipsInterfaceAndFunc(t *testing.T) {
-	s := FromStruct(&withInterface{Name: "test"}, ComponentMeta{ID: "iface"})
+	s := FromStruct(&withInterface{Name: "test"}, ToolMeta{ID: "iface"})
 	assert.Len(t, s.Properties, 1)
 	assert.Contains(t, s.Properties, "name")
 }
@@ -128,7 +127,7 @@ type groupedConfig struct {
 }
 
 func TestFromStruct_Groups(t *testing.T) {
-	s := FromStruct(&groupedConfig{}, ComponentMeta{ID: "grouped"})
+	s := FromStruct(&groupedConfig{}, ToolMeta{ID: "grouped"})
 	require.Len(t, s.Groups, 2)
 	assert.Equal(t, "connection", s.Groups[0].ID)
 	assert.Equal(t, "Connection", s.Groups[0].Label)
@@ -139,13 +138,13 @@ func TestFromStruct_Groups(t *testing.T) {
 
 func TestFromStruct_NonPointer(t *testing.T) {
 	cfg := simpleConfig{Enabled: true}
-	s := FromStruct(cfg, ComponentMeta{ID: "val"})
+	s := FromStruct(cfg, ToolMeta{ID: "val"})
 	assert.Len(t, s.Properties, 4)
 }
 
 func TestFromStruct_EmptyStruct(t *testing.T) {
 	type empty struct{}
-	s := FromStruct(&empty{}, ComponentMeta{ID: "empty"})
+	s := FromStruct(&empty{}, ToolMeta{ID: "empty"})
 	assert.Empty(t, s.Properties)
 }
 
@@ -169,7 +168,7 @@ func TestToCamelCase(t *testing.T) {
 }
 
 func TestFromStruct_RawJSON(t *testing.T) {
-	s := FromStruct(&simpleConfig{Enabled: true}, ComponentMeta{ID: "json-test"})
+	s := FromStruct(&simpleConfig{Enabled: true}, ToolMeta{ID: "json-test"})
 	require.NotNil(t, s.RawJSON)
 	assert.Contains(t, string(s.RawJSON), `"enabled"`)
 	assert.Contains(t, string(s.RawJSON), `"boolean"`)

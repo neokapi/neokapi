@@ -2,9 +2,8 @@
   "$id": "quality-check",
   "title": "Quality Check",
   "type": "object",
-  "x-component": {
+  "toolMeta": {
     "id": "quality-check",
-    "type": "step",
     "displayName": "Quality Check",
     "description": "Compare source and target for quality. Expects: filter events or raw documents. Sends back: filter events or raw document."
   },

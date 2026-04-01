@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "CSV Format",
 		Description: "Configuration for the CSV/TSV format reader/writer",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "csv",
 			Extensions: []string{".csv", ".tsv"},
 			MimeTypes:  []string{"text/csv"},

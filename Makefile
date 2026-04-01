@@ -104,6 +104,9 @@ kapi-desktop-frontend-test: kapi-desktop-frontend-deps ## Run Kapi Desktop front
 kapi-desktop-frontend-check: kapi-desktop-frontend-deps ## Lint + format + typecheck Kapi Desktop frontend
 	cd $(KAPI_DESKTOP_DIR)/frontend && vp check
 
+storybook-fixtures: ## Generate Storybook fixtures from real format/tool data
+	@./scripts/gen-storybook-fixtures.sh
+
 flow-editor-deps: ## Install flow-editor dependencies
 	cd packages/flow-editor && vp install
 

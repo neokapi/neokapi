@@ -2,9 +2,8 @@
   "$id": "segmentation",
   "title": "Segmentation",
   "type": "object",
-  "x-component": {
+  "toolMeta": {
     "id": "segmentation",
-    "type": "step",
     "displayName": "Segmentation",
     "description": "Apply SRX segmentation to the text units content of a document. Expects: filter events. Sends back: filter events."
   },

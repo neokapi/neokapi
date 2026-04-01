@@ -28,9 +28,8 @@ func TestBridgeStepToolSchema(t *testing.T) {
 		ID:    "okapi:search-and-replace",
 		Title: "Search And Replace",
 		Type:  "object",
-		Meta: schema.ComponentMeta{
+		ToolMeta: &schema.ToolMeta{
 			ID:          "okapi:search-and-replace",
-			Type:        "step",
 			DisplayName: "Search And Replace",
 		},
 	}
@@ -50,8 +49,8 @@ func TestBridgeStepToolSchema(t *testing.T) {
 	if got.ID != "okapi:search-and-replace" {
 		t.Errorf("Schema().ID = %q, want %q", got.ID, "okapi:search-and-replace")
 	}
-	if got.Meta.Type != "step" {
-		t.Errorf("Schema().Meta.Type = %q, want %q", got.Meta.Type, "step")
+	if got.ToolMeta.ID != "okapi:search-and-replace" {
+		t.Errorf("Schema().ToolMeta.ID = %q, want %q", got.ToolMeta.ID, "okapi:search-and-replace")
 	}
 }
 

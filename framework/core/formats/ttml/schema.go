@@ -8,7 +8,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 		Title:       "TTML Subtitles",
 		Description: "Timed Text Markup Language (W3C standard) subtitle format",
 		Type:        "object",
-		FormatMeta: schema.FormatSchemaMeta{
+		FormatMeta: schema.FormatMeta{
 			ID:         "ttml",
 			Extensions: []string{".ttml", ".dfxp"},
 			MimeTypes:  []string{"application/ttml+xml"},
