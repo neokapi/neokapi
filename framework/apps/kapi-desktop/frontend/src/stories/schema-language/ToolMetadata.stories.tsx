@@ -1,7 +1,7 @@
 /**
  * Schema Language: Tool Metadata
  *
- * Demonstrates x-tool and x-component for tool identification,
+ * Demonstrates toolMeta and x-component for tool identification,
  * categorization, I/O types, and how these appear in the tool browser.
  */
 import { useState } from "react";
@@ -74,10 +74,10 @@ export default meta;
 type Story = StoryObj<typeof SchemaStory>;
 
 export const ToolIdentification: Story = {
-  name: "x-tool — ID, Category, I/O, Tags",
+  name: "toolMeta — ID, Category, I/O, Tags",
   args: {
     description:
-      'The `x-tool` block identifies a tool: its display name, category (translate, validate, transform, etc.), input/output part types, tags, and required context (e.g., needs target-language).',
+      'The `toolMeta` block identifies a tool: its display name, category (translate, validate, transform, etc.), input/output part types, tags, and required context (e.g., needs target-language).',
     schema: {
       title: "Word Count",
       type: "object",
@@ -114,7 +114,7 @@ export const RealBuiltInTool: Story = {
 export const RealBridgeTool: Story = {
   name: "Real Example: Okapi Bridge search-and-replace",
   args: {
-    description: "A real Okapi bridge tool schema with x-tool metadata derived from step-metadata.json.",
+    description: "A real Okapi bridge tool schema with toolMeta derived from step-metadata.json.",
     schema: (toolSchemas.bridge.find((t: Record<string, unknown>) => t["x-name"] === "search-and-replace") ?? {
       title: "search-and-replace (not found)",
       type: "object",
@@ -130,7 +130,7 @@ export const ToolCategories: Story = {
       'Tools are classified by category: translate, validate, transform, enrich, convert, pipeline, analysis. The ToolBrowser groups tools by category with distinct colors and icons.',
     schema: {
       title: "Category Examples",
-      description: "The x-tool.category field determines grouping and visual treatment in the tool browser.",
+      description: "The toolMeta.category field determines grouping and visual treatment in the tool browser.",
       type: "object",
       properties: {},
     },

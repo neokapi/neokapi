@@ -1,7 +1,7 @@
 /**
  * Schema Language: Widgets and Editors
  *
- * Demonstrates x-widget and x-editor for controlling how properties
+ * Demonstrates ui:widget and ui:widget-options for controlling how properties
  * are rendered beyond the default type-based dispatch.
  */
 import { useState } from "react";
@@ -41,9 +41,9 @@ export default meta;
 type Story = StoryObj<typeof SchemaStory>;
 
 export const TextWidget: Story = {
-  name: "x-widget: text — Standard Text Input",
+  name: "ui:widget: text — Standard Text Input",
   args: {
-    description: "The default for string properties. Supports `x-placeholder` for hint text.",
+    description: "The default for string properties. Supports `ui:placeholder` for hint text.",
     schema: {
       title: "Text Widgets",
       type: "object",
@@ -56,7 +56,7 @@ export const TextWidget: Story = {
 };
 
 export const TextareaWidget: Story = {
-  name: "x-widget: textarea — Multiline Text",
+  name: "ui:widget: textarea — Multiline Text",
   args: {
     description: 'Renders a multiline text area. The canonical widget name is `"multilineText"`. The alias `"textarea"` is also accepted. Use for rules, patterns, or any long-form text input.',
     schema: {
@@ -66,13 +66,13 @@ export const TextareaWidget: Story = {
         rules: {
           type: "string",
           title: "Extraction Rules (multilineText)",
-          description: "Using x-widget: multilineText",
+          description: "Using ui:widget: multilineText",
           "ui:widget": "multilineText",
         },
         notes: {
           type: "string",
           title: "Notes (textarea alias)",
-          description: "Using x-widget: textarea — normalized to multilineText",
+          description: "Using ui:widget: textarea — normalized to multilineText",
           "ui:widget": "textarea",
         },
       },
@@ -81,7 +81,7 @@ export const TextareaWidget: Story = {
 };
 
 export const RegexBuilderWidget: Story = {
-  name: "x-widget: regexBuilder — Regex Pattern Input",
+  name: "ui:widget: regexBuilder — Regex Pattern Input",
   args: {
     description: "A text input styled for regex patterns. Provides visual feedback for regex syntax.",
     schema: {
@@ -100,7 +100,7 @@ export const RegexBuilderWidget: Story = {
 };
 
 export const TagListWidget: Story = {
-  name: "x-widget: tagList — Tag/Token Input",
+  name: "ui:widget: tagList — Tag/Token Input",
   args: {
     description: "A tag list editor for entering multiple values as visual tags.",
     schema: {
@@ -119,9 +119,9 @@ export const TagListWidget: Story = {
 };
 
 export const PasswordWidget: Story = {
-  name: "x-editor: text (password) — Masked Input",
+  name: "ui:widget: text (password) — Masked Input",
   args: {
-    description: "The x-editor metadata can specify `text.password: true` for sensitive fields.",
+    description: "The ui:widget-options metadata can specify `text.password: true` for sensitive fields.",
     schema: {
       title: "Password Field",
       type: "object",
@@ -138,9 +138,9 @@ export const PasswordWidget: Story = {
 };
 
 export const SpinWidget: Story = {
-  name: "x-editor: spin — Numeric Spinner",
+  name: "ui:widget: spin — Numeric Spinner",
   args: {
-    description: "Numeric input with increment/decrement controls from x-editor.",
+    description: "Numeric input with increment/decrement controls from ui:widget-options.",
     schema: {
       title: "Spin Widget",
       type: "object",
@@ -160,9 +160,9 @@ export const SpinWidget: Story = {
 };
 
 export const CheckListWidget: Story = {
-  name: "x-editor: checkList — Named Checkbox List",
+  name: "ui:widget: checkList — Named Checkbox List",
   args: {
-    description: "Renders a list of named checkboxes from the x-editor.checkList.entries array. Each entry has a name, title, and optional description.",
+    description: "Renders a list of named checkboxes from the ui:widget-options.entries array. Each entry has a name, title, and optional description.",
     schema: {
       title: "Check List",
       type: "object",
@@ -186,9 +186,9 @@ export const CheckListWidget: Story = {
 };
 
 export const DropdownWidget: Story = {
-  name: "x-editor: dropdown — Dropdown Select",
+  name: "ui:widget: dropdown — Dropdown Select",
   args: {
-    description: "Dropdown selection from x-editor. Maps to the same rendering as enum + x-enumLabels.",
+    description: "Dropdown selection from ui:widget-options. Maps to the same rendering as enum + ui:enum-labels.",
     schema: {
       title: "Dropdown Widget",
       type: "object",
