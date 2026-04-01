@@ -5,9 +5,9 @@ package loader
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Type aliases for backward compatibility.
-type FilterSchema = schema.FilterSchema
-type FilterSchemaMeta = schema.FilterSchemaMeta
-type FilterConfiguration = schema.FilterConfiguration
+type FormatSchema = schema.FormatSchema
+type FormatSchemaMeta = schema.FormatSchemaMeta
+type FormatConfiguration = schema.FormatConfiguration
 type ParameterGroup = schema.ParameterGroup
 type PropertySchema = schema.PropertySchema
 type SchemaRegistry = schema.SchemaRegistry

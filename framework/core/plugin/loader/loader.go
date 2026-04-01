@@ -193,11 +193,11 @@ func (l *PluginLoader) loadFromCache(c *plugincache.PluginCache, fmtReg *registr
 				if name == "" {
 					name = cap.Name
 				}
-				var toolSchema *fmtschema.FilterSchema
+				var toolSchema *fmtschema.FormatSchema
 				if s, ok := c.ToolSchemas[name]; ok {
 					toolSchema = s
 				}
-				// Build a ComponentSchema from the capability + optional FilterSchema.
+				// Build a ComponentSchema from the capability + optional FormatSchema.
 				cs := capabilityToComponentSchema(cap, toolSchema)
 				l.toolReg.RegisterMetadata(name, cs, cp.Name)
 			}
@@ -311,11 +311,11 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 				}
 
 				schemasDir := filepath.Join(vDir, "schemas")
-				idsBefore := l.schemas.FilterIDSet()
+				idsBefore := l.schemas.FormatIDSet()
 				if err := l.schemas.LoadFromDirectory(schemasDir); err != nil {
 					l.logf("loading schemas from %s: %v", schemasDir, err)
 				}
-				idsAfter := l.schemas.FilterIDSet()
+				idsAfter := l.schemas.FormatIDSet()
 
 				// Discover documentation directory if present.
 				docsPath := filepath.Join(vDir, "docs")
@@ -358,8 +358,8 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 							if schema != nil {
 								info := registry.FormatInfo{
 									DisplayName: schema.Title,
-									MimeTypes:   schema.FilterMeta.MimeTypes,
-									Extensions:  schema.FilterMeta.Extensions,
+									MimeTypes:   schema.FormatMeta.MimeTypes,
+									Extensions:  schema.FormatMeta.Extensions,
 									Source:      manifest.Name,
 								}
 								if cap := capByID[filterID]; cap != nil {
@@ -670,7 +670,7 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 
 	// Register formats using manifest capabilities + schema metadata.
 	// Filter class names come from schemas (loaded during ScanMetadata),
-	// eliminating the need to start a JVM and call ListFilters.
+	// eliminating the need to start a JVM and call ListFormats.
 	var formats []string
 	for _, cap := range manifest.Capabilities {
 		if cap.Type != "format" {
@@ -688,8 +688,8 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 		// Look up the Java filter class from the schema registry.
 		// Schemas are loaded from disk during ScanMetadata — no JVM needed.
 		var filterClass string
-		if s, ok := l.schemas.GetSchema(filterID); ok && s.FilterMeta.Class != "" {
-			filterClass = s.FilterMeta.Class
+		if s, ok := l.schemas.GetSchema(filterID); ok && s.FormatMeta.Class != "" {
+			filterClass = s.FormatMeta.Class
 		}
 		if filterClass == "" {
 			l.logf("skipping bridge format %s: no filter class in schema", filterID)
@@ -706,8 +706,8 @@ func (l *PluginLoader) loadBridge(manifest *pluginreg.BundledManifest, versionDi
 			var sig format.FormatSignature
 			if s, ok := l.schemas.GetSchema(filterID); ok {
 				sig = format.FormatSignature{
-					MIMETypes:  s.FilterMeta.MimeTypes,
-					Extensions: s.FilterMeta.Extensions,
+					MIMETypes:  s.FormatMeta.MimeTypes,
+					Extensions: s.FormatMeta.Extensions,
 				}
 			}
 
@@ -785,6 +785,9 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			l.logf("parsing step schema %s: %v", entry.Name(), err)
 			continue
 		}
+		// Preserve the raw JSON so that GetToolSchema can return it with
+		// all extension metadata (x-editor, x-step, title, etc.) intact.
+		cs.RawJSON = data
 
 		if cs.Meta.Type != "step" || cs.Meta.ID == "" {
 			continue
@@ -820,9 +823,9 @@ func (l *PluginLoader) SetToolRegistry(reg *registry.ToolRegistry) {
 }
 
 // capabilityToComponentSchema builds a ComponentSchema from a plugin capability
-// and an optional FilterSchema (loaded from schemas/steps/). The FilterSchema
+// and an optional FormatSchema (loaded from schemas/steps/). The FormatSchema
 // provides property definitions and groups; the capability provides metadata.
-func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FilterSchema) *schema.ComponentSchema {
+func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FormatSchema) *schema.ComponentSchema {
 	cs := &schema.ComponentSchema{
 		Type: "object",
 		Meta: schema.ComponentMeta{
@@ -840,7 +843,7 @@ func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FilterS
 	cs.Title = cap.DisplayName
 	cs.Description = cap.Description
 
-	// Merge schema properties from FilterSchema if available.
+	// Merge schema properties from FormatSchema if available.
 	if fs != nil {
 		cs.ID = fs.ID
 		cs.Version = fs.Version
@@ -850,7 +853,16 @@ func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FilterS
 		if fs.Description != "" {
 			cs.Description = fs.Description
 		}
-		// Convert FilterSchema properties/groups via JSON round-trip.
+
+		// If the FormatSchema has pre-built RawJSON (loaded from a schema file),
+		// preserve it on the ComponentSchema so that GetToolSchema can return the
+		// full JSON with all extension metadata (x-editor, x-step, title, etc.)
+		// intact rather than re-serializing through the Go struct.
+		if len(fs.RawJSON) > 0 {
+			cs.RawJSON = fs.RawJSON
+		}
+
+		// Convert FormatSchema properties/groups via JSON round-trip.
 		data, err := json.Marshal(fs)
 		if err == nil {
 			var proxy struct {

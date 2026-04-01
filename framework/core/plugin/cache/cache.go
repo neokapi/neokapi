@@ -25,7 +25,8 @@ import (
 const CacheFileName = "plugin-cache.json"
 
 // CacheVersion is the schema version. Increment when the cache structure changes.
-const CacheVersion = 5
+// v6: Added Title field to PropertySchema (property titles from Okapi schemas).
+const CacheVersion = 6
 
 // PluginCache is the top-level cache structure written to plugin-cache.json.
 // It contains all metadata needed to populate format/schema/preset registries
@@ -34,8 +35,8 @@ type PluginCache struct {
 	Version     int                        `json:"version"`
 	GeneratedAt string                     `json:"generated_at"`
 	Plugins     []CachedPlugin             `json:"plugins"`
-	Schemas     map[string]*schema.FilterSchema `json:"schemas,omitempty"`
-	ToolSchemas map[string]*schema.FilterSchema `json:"tool_schemas,omitempty"`
+	Schemas     map[string]*schema.FormatSchema `json:"schemas,omitempty"`
+	ToolSchemas map[string]*schema.FormatSchema `json:"tool_schemas,omitempty"`
 	Presets     CachedPresets                  `json:"presets"`
 	DocsDir     string                         `json:"docs_dir,omitempty"` // path to docs/ directory (if available)
 }

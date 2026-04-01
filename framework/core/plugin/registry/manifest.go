@@ -61,6 +61,15 @@ type Capability struct {
 
 	// Requires declares external resources needed at runtime.
 	Requires []string `json:"requires,omitempty"`
+
+	// Schema is the path to this capability's parameter schema (relative to plugin dir).
+	Schema string `json:"schema,omitempty"`
+
+	// Doc is the path to this capability's documentation file (relative to plugin dir).
+	Doc string `json:"doc,omitempty"`
+
+	// PresetsDir is the path to the presets directory (relative to plugin dir).
+	PresetsDir string `json:"presets_dir,omitempty"`
 }
 
 // HasCapability reports whether this capability includes the named operation
