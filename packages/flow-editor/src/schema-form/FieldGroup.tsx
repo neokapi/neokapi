@@ -59,8 +59,13 @@ export function FieldGroup({
             borderBottom: `1px solid ${theme.border}`,
             paddingBottom: 6,
             marginBottom: 10,
+            display: "flex",
+            alignItems: "center",
           }}
         >
+          {group.icon && (
+            <span style={{ fontSize: 10, opacity: 0.5, marginRight: 4 }}>[{group.icon}]</span>
+          )}
           {group.label}
         </div>
       ) : (
@@ -87,6 +92,9 @@ export function FieldGroup({
           ) : (
             <ChevronDown size={11} style={{ color: theme.fgMuted }} />
           )}
+          {group.icon && (
+            <span style={{ fontSize: 10, opacity: 0.5, marginRight: 4 }}>[{group.icon}]</span>
+          )}
           <span
             style={{
               fontSize: 11,
@@ -100,33 +108,42 @@ export function FieldGroup({
           </span>
         </button>
       )}
-      {!collapsed && (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: compact ? 2 : 6,
-          }}
-        >
-          {sortedFields.map((key) => (
-            <PropertyField
-              key={key}
-              name={key}
-              schema={properties[key]}
-              value={values[key]}
-              onChange={(v) => onChange(key, v)}
-              compact={compact}
-              allValues={values}
-              allProperties={properties}
-              onDrillDown={onDrillDown}
-              presetValues={presetValues}
-              docParam={paramDocs?.[key]}
-              defs={defs}
-              error={fieldErrors?.[key]}
-            />
-          ))}
-        </div>
-      )}
+      {!collapsed && (() => {
+        const maxColumns = Math.max(1, ...sortedFields.map(k => properties[k]?.["ui:layout"]?.columns ?? 1));
+        const useGrid = maxColumns > 1;
+        return (
+          <div
+            style={{
+              display: useGrid ? "grid" : "flex",
+              gridTemplateColumns: useGrid ? `repeat(${maxColumns}, 1fr)` : undefined,
+              flexDirection: useGrid ? undefined : "column",
+              gap: compact ? 2 : 6,
+            }}
+          >
+            {sortedFields.map((key) => {
+              const columns = properties[key]?.["ui:layout"]?.columns ?? 1;
+              return (
+                <div key={key} style={useGrid && columns > 1 ? { gridColumn: `span ${columns}` } : undefined}>
+                  <PropertyField
+                    name={key}
+                    schema={properties[key]}
+                    value={values[key]}
+                    onChange={(v) => onChange(key, v)}
+                    compact={compact}
+                    allValues={values}
+                    allProperties={properties}
+                    onDrillDown={onDrillDown}
+                    presetValues={presetValues}
+                    docParam={paramDocs?.[key]}
+                    defs={defs}
+                    error={fieldErrors?.[key]}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 }
