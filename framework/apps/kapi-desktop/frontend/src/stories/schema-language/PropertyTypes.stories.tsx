@@ -52,8 +52,8 @@ export const StringProperty: Story = {
       type: "object",
       properties: {
         name: { type: "string", title: "Name", description: "A simple text field" },
-        pattern: { type: "string", title: "Regex Pattern", description: "With placeholder text", "x-placeholder": "e.g., ^[A-Z].*" },
-        notes: { type: "string", title: "Notes", description: "Multiline when x-widget is set to 'textarea'", "x-widget": "textarea" },
+        pattern: { type: "string", title: "Regex Pattern", description: "With placeholder text", "ui:placeholder": "e.g., ^[A-Z].*" },
+        notes: { type: "string", title: "Notes", description: "Multiline when x-widget is set to 'textarea'", "ui:widget": "textarea" },
       },
     },
   },
@@ -110,8 +110,8 @@ export const EnumProperty: Story = {
           description: "With custom labels and descriptions",
           enum: ["error", "warning", "info"],
           default: "warning",
-          "x-enumLabels": { error: "Error (fail build)", warning: "Warning (report only)", info: "Informational" },
-          "x-enumDescriptions": {
+          "ui:enum-labels": { error: "Error (fail build)", warning: "Warning (report only)", info: "Informational" },
+          "ui:enum-descriptions": {
             error: "Stops processing and reports the issue as a build failure",
             warning: "Reports the issue but continues processing",
             info: "Logs the issue for information purposes only",

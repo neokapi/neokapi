@@ -41,8 +41,8 @@ function SchemaFormWrapper({
 const pseudoTranslateSchema: ComponentSchema = {
   title: "Pseudo Translate",
   type: "object",
-  "x-component": { id: "pseudo-translate", type: "tool", category: "transform" },
-  "x-groups": [
+  toolMeta: { id: "pseudo-translate", category: "transform" },
+  "ui:groups": [
     { id: "output", label: "Output Format", fields: ["prefix", "suffix", "expansionPercent"] },
     { id: "behavior", label: "Behavior", fields: ["applyAccents", "padWithX"] },
   ],
@@ -72,8 +72,8 @@ const pseudoTranslateSchema: ComponentSchema = {
 const qaCheckSchema: ComponentSchema = {
   title: "QA Check",
   type: "object",
-  "x-component": { id: "qa-check", type: "tool", category: "validate" },
-  "x-groups": [
+  toolMeta: { id: "qa-check", category: "validate" },
+  "ui:groups": [
     {
       id: "whitespace",
       label: "Whitespace Checks",
@@ -131,7 +131,7 @@ const qaCheckSchema: ComponentSchema = {
 const searchReplaceSchema: ComponentSchema = {
   title: "Search and Replace",
   type: "object",
-  "x-component": { id: "search-replace", type: "tool", category: "transform" },
+  toolMeta: { id: "search-replace", category: "transform" },
   properties: {
     search: { type: "string", description: "Search pattern or literal text" },
     replace: { type: "string", description: "Replacement text" },
@@ -148,8 +148,8 @@ const searchReplaceSchema: ComponentSchema = {
 const nestedObjectSchema: ComponentSchema = {
   title: "HTML Filter",
   type: "object",
-  "x-component": { id: "html-filter", type: "format", category: "convert" },
-  "x-groups": [
+  formatMeta: { id: "html-filter" },
+  "ui:groups": [
     { id: "parser", label: "Parser Settings", fields: ["parser"] },
     { id: "extraction", label: "Extraction", fields: ["elements", "attributes"] },
     { id: "inline", label: "Inline Codes", fields: ["inlineCodes"] },
@@ -175,7 +175,7 @@ const nestedObjectSchema: ComponentSchema = {
     elements: {
       type: "object",
       description: "Element extraction rules",
-      "x-widget": "elementRulesEditor",
+      "ui:widget": "elementRulesEditor",
       additionalProperties: {
         type: "object",
         properties: {
@@ -192,7 +192,7 @@ const nestedObjectSchema: ComponentSchema = {
     attributes: {
       type: "object",
       description: "Global attribute extraction rules",
-      "x-widget": "attributeRulesEditor",
+      "ui:widget": "attributeRulesEditor",
       additionalProperties: {
         type: "object",
         properties: {
@@ -213,8 +213,8 @@ const nestedObjectSchema: ComponentSchema = {
     inlineCodes: {
       type: "object",
       description: "Inline code detection and handling",
-      "x-widget": "codeFinderRules",
-      "x-presets": {
+      "ui:widget": "codeFinderRules",
+      "ui:presets": {
         "HTML Tags": { rules: [{ pattern: "</?\\w[^>]*>" }] },
         "Printf Placeholders": { rules: [{ pattern: "%[\\w.]*[dsfx]" }] },
       },
@@ -222,7 +222,7 @@ const nestedObjectSchema: ComponentSchema = {
     editorTitle: { type: "string", description: "Display title in editor" },
     simplifierRules: {
       type: "string",
-      "x-widget": "simplifierRulesEditor",
+      "ui:widget": "simplifierRulesEditor",
       description: "Rules for simplifying inline code representation",
     },
   },
@@ -231,7 +231,7 @@ const nestedObjectSchema: ComponentSchema = {
 const arraySchema: ComponentSchema = {
   title: "Fixed-Width Columns",
   type: "object",
-  "x-component": { id: "fixed-width", type: "format", category: "convert" },
+  formatMeta: { id: "fixed-width" },
   properties: {
     columns: {
       type: "array",
@@ -263,7 +263,7 @@ const arraySchema: ComponentSchema = {
 const simpleArraySchema: ComponentSchema = {
   title: "Regex Filter",
   type: "object",
-  "x-component": { id: "regex-filter", type: "format", category: "convert" },
+  formatMeta: { id: "regex-filter" },
   properties: {
     patterns: {
       type: "array",
@@ -277,7 +277,7 @@ const simpleArraySchema: ComponentSchema = {
 const jsonFallbackSchema: ComponentSchema = {
   title: "Custom Config",
   type: "object",
-  "x-component": { id: "custom", type: "tool", category: "pipeline" },
+  toolMeta: { id: "custom", category: "pipeline" },
   properties: {
     name: { type: "string", description: "Configuration name" },
     settings: {
@@ -294,7 +294,7 @@ const jsonFallbackSchema: ComponentSchema = {
 const showIfSchema: ComponentSchema = {
   title: "Conditional Fields",
   type: "object",
-  "x-component": { id: "conditional", type: "tool", category: "transform" },
+  toolMeta: { id: "conditional", category: "transform" },
   properties: {
     mode: {
       type: "string",
@@ -306,13 +306,13 @@ const showIfSchema: ComponentSchema = {
       type: "number",
       default: 0.8,
       description: "Match threshold (only in advanced mode)",
-      "x-showIf": { field: "mode", value: "advanced" },
+      "ui:visible": { field: "mode", eq: "advanced" },
     },
     maxResults: {
       type: "integer",
       default: 100,
       description: "Maximum results (only in advanced mode)",
-      "x-showIf": { field: "mode", value: "advanced" },
+      "ui:visible": { field: "mode", eq: "advanced" },
     },
     caseSensitive: {
       type: "boolean",
@@ -327,7 +327,7 @@ const showIfSchema: ComponentSchema = {
 const deeplyNestedSchema: ComponentSchema = {
   title: "HTML Format",
   type: "object",
-  "x-groups": [
+  "ui:groups": [
     { id: "parser", label: "Parser Settings", fields: ["preserveWhitespace"] },
     { id: "extraction", label: "Extraction Rules", fields: ["elements", "attributes"] },
     { id: "codes", label: "Inline Codes", fields: ["codeFinderRules", "useCodeFinder"] },
@@ -376,8 +376,8 @@ const deeplyNestedSchema: ComponentSchema = {
 const mapEditorSchema: ComponentSchema = {
   title: "Environment Variables",
   type: "object",
-  "x-component": { id: "env-vars", type: "tool", category: "config" },
-  "x-groups": [
+  toolMeta: { id: "env-vars", category: "config" },
+  "ui:groups": [
     { id: "maps", label: "Variable Maps", fields: ["variables", "secrets", "overrides"] },
     { id: "options", label: "Options", fields: ["expandVars", "caseSensitiveKeys"] },
   ],
@@ -413,8 +413,8 @@ const mapEditorSchema: ComponentSchema = {
 const formatsPageSchema: ComponentSchema = {
   title: "JSON Format",
   type: "object",
-  "x-component": { id: "json-format", type: "format", category: "convert" },
-  "x-groups": [
+  formatMeta: { id: "json-format" },
+  "ui:groups": [
     { id: "parsing", label: "Parsing", fields: ["keyStyle", "arrayHandling", "preserveOrder"] },
     { id: "extraction", label: "Extraction", fields: ["extractPaths", "excludePaths"] },
     { id: "output", label: "Output", fields: ["indentation", "trailingNewline", "sortKeys"] },
@@ -558,7 +558,7 @@ export const JsonFallback: Story = {
 };
 
 export const ConditionalFields: Story = {
-  name: "x-showIf Conditional Visibility",
+  name: "ui:visible Conditional Visibility",
   args: {
     schema: showIfSchema,
     initialValues: { mode: "simple" },
@@ -566,7 +566,7 @@ export const ConditionalFields: Story = {
 };
 
 export const ConditionalFieldsAdvanced: Story = {
-  name: "x-showIf (advanced mode)",
+  name: "ui:visible (advanced mode)",
   args: {
     schema: showIfSchema,
     initialValues: { mode: "advanced", threshold: 0.75, maxResults: 50 },

@@ -476,37 +476,28 @@ const ioTypeLabels: Record<string, string> = {
 };
 
 function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
-  const stepMeta = schema["x-tool"];
-  if (!stepMeta) return null;
+  const toolMeta = schema.toolMeta;
+  if (!toolMeta) return null;
 
-  const hasIO = stepMeta.inputType || stepMeta.outputType;
-  const hasMappings = stepMeta.parameterMappings && stepMeta.parameterMappings.length > 0;
+  const hasInputs = toolMeta.inputs && toolMeta.inputs.length > 0;
+  const hasOutputs = toolMeta.outputs && toolMeta.outputs.length > 0;
 
-  if (!hasIO && !hasMappings) return null;
+  if (!hasInputs && !hasOutputs) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-[10px]">
-      {stepMeta.inputType && (
-        <span className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400">
+      {hasInputs && toolMeta.inputs!.map((input) => (
+        <span key={input} className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400">
           <FileInput size={9} />
-          In: {ioTypeLabels[stepMeta.inputType] || stepMeta.inputType}
+          In: {ioTypeLabels[input] || input}
         </span>
-      )}
-      {stepMeta.outputType && (
-        <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400">
+      ))}
+      {hasOutputs && toolMeta.outputs!.map((output) => (
+        <span key={output} className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400">
           <Play size={9} />
-          Out: {ioTypeLabels[stepMeta.outputType] || stepMeta.outputType}
+          Out: {ioTypeLabels[output] || output}
         </span>
-      )}
-      {hasMappings &&
-        stepMeta.parameterMappings!.map((pm) => (
-          <span
-            key={pm}
-            className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground font-mono"
-          >
-            {pm.toLowerCase().replace(/_/g, "-")}
-          </span>
-        ))}
+      ))}
     </div>
   );
 }

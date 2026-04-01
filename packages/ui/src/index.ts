@@ -113,6 +113,9 @@ export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type {
   ComponentSchema,
   FormatSchema,
+  FormatMeta,
+  ToolMeta,
+  ConditionExpr,
   ParameterGroup,
   PropertySchema,
   FormatParamsValue,

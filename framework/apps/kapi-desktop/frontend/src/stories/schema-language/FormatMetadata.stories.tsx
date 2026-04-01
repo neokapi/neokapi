@@ -20,9 +20,9 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
         <FormatConfigEditor schema={schema} values={values} onChange={setValues} title={schema.title} />
       </div>
       <div>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">x-format metadata</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">formatMeta</h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
-          {JSON.stringify(schema["x-format"] || {}, null, 2)}
+          {JSON.stringify(schema.formatMeta || {}, null, 2)}
         </pre>
         <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Values</h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
@@ -51,7 +51,7 @@ export const FormatIdentification: Story = {
       title: "JSON Format",
       description: "Configuration for the JSON file format reader/writer",
       type: "object",
-      "x-format": {
+      formatMeta: {
         id: "json",
         extensions: [".json", ".jsonc", ".json5"],
         mimeTypes: ["application/json"],

@@ -1,6 +1,5 @@
 import { SchemaForm } from "@neokapi/flow-editor";
 import type { ComponentSchema } from "../types/api";
-import type { FormatMeta } from "@neokapi/flow-editor";
 
 interface FormatConfigEditorProps {
   /** Schema for the format's configuration parameters. */
@@ -22,19 +21,10 @@ interface FormatConfigEditorProps {
  * Used in both the flow editor (reader/writer node config) and
  * the standalone format presets page.
  */
-const serializationLabels: Record<string, string> = {
-  stringParameters: "#v1 Key=Value",
-  yaml: "YAML",
-  "xml-its": "XML ITS",
-};
-
 export function FormatConfigEditor({ schema, values, onChange, title, presetValues }: FormatConfigEditorProps) {
-  const filterMeta = (schema as unknown as Record<string, unknown>)["x-format"] as
-    | FormatMeta
-    | undefined;
+  const filterMeta = schema.formatMeta;
   const extensions = filterMeta?.extensions || [];
   const mimeTypes = filterMeta?.mimeTypes || [];
-  const serFmt = filterMeta?.serializationFormat;
 
   return (
     <div className="flex flex-col gap-3">
@@ -46,7 +36,7 @@ export function FormatConfigEditor({ schema, values, onChange, title, presetValu
         )}
 
         {/* Format metadata badges */}
-        {(extensions.length > 0 || mimeTypes.length > 0 || serFmt) && (
+        {(extensions.length > 0 || mimeTypes.length > 0) && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {extensions.map((ext) => (
               <span
@@ -64,11 +54,6 @@ export function FormatConfigEditor({ schema, values, onChange, title, presetValu
                 {mt}
               </span>
             ))}
-            {serFmt && (
-              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
-                {serializationLabels[serFmt] || serFmt}
-              </span>
-            )}
           </div>
         )}
       </div>

@@ -38,7 +38,7 @@ export function FilterConfigEditor({
   onChange,
   className,
 }: FilterConfigEditorProps) {
-  const groups = schema["x-groups"] ?? [];
+  const groups = schema["ui:groups"] ?? [];
   const properties = schema.properties ?? {};
 
   // Track which groups are collapsed
@@ -173,7 +173,7 @@ interface ParameterFieldProps {
 }
 
 function ParameterField({ name, schema, value, onChange }: ParameterFieldProps) {
-  const widget = schema["x-widget"];
+  const widget = schema["ui:widget"];
 
   // Handle different types and widgets
   if (schema.type === "boolean") {
@@ -193,7 +193,7 @@ function ParameterField({ name, schema, value, onChange }: ParameterFieldProps) 
       <TextField
         name={name}
         description={schema.description}
-        placeholder={schema["x-placeholder"]}
+        placeholder={schema["ui:placeholder"]}
         value={value as string | undefined}
         defaultValue={schema.default as string | undefined}
         onChange={onChange}
@@ -207,7 +207,7 @@ function ParameterField({ name, schema, value, onChange }: ParameterFieldProps) 
         name={name}
         description={schema.description}
         value={value as Record<string, unknown> | undefined}
-        presets={schema["x-presets"]}
+        presets={schema["ui:presets"]}
         onChange={onChange}
       />
     );
@@ -219,7 +219,7 @@ function ParameterField({ name, schema, value, onChange }: ParameterFieldProps) 
       <TextField
         name={name}
         description={schema.description}
-        placeholder={schema["x-placeholder"]}
+        placeholder={schema["ui:placeholder"]}
         value={value as string | number | undefined}
         defaultValue={schema.default as string | number | undefined}
         onChange={onChange}

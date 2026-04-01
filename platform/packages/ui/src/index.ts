@@ -485,13 +485,12 @@ export type {
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type {
   ComponentSchema,
-  ComponentMeta,
   FilterSchema,
-  FilterMeta,
+  FormatMeta,
+  ToolMeta,
+  ConditionExpr,
   ParameterGroup,
   PropertySchema,
-  WidgetType,
-  ShowIfCondition,
   CodeFinderRulesValue,
   FilterParamsValue,
 } from "./components/filter";

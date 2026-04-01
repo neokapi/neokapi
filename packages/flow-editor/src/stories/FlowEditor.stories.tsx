@@ -10,8 +10,8 @@ const sampleSchemas: Record<string, ComponentSchema> = {
   "pseudo-translate": {
     title: "Pseudo Translate",
     type: "object",
-    "x-component": { id: "pseudo-translate", type: "tool", category: "transform" },
-    "x-groups": [
+    toolMeta: { id: "pseudo-translate", category: "transform" },
+    "ui:groups": [
       { id: "output", label: "Output Format", fields: ["prefix", "suffix", "expansionPercent"] },
     ],
     properties: {
@@ -39,8 +39,8 @@ const sampleSchemas: Record<string, ComponentSchema> = {
   "qa-check": {
     title: "QA Check",
     type: "object",
-    "x-component": { id: "qa-check", type: "tool", category: "validate" },
-    "x-groups": [
+    toolMeta: { id: "qa-check", category: "validate" },
+    "ui:groups": [
       {
         id: "checks",
         label: "Enabled Checks",
@@ -95,7 +95,7 @@ const sampleSchemas: Record<string, ComponentSchema> = {
   "search-replace": {
     title: "Search and Replace",
     type: "object",
-    "x-component": { id: "search-replace", type: "tool", category: "transform" },
+    toolMeta: { id: "search-replace", category: "transform" },
     properties: {
       search: { type: "string", description: "Search pattern" },
       replace: { type: "string", description: "Replacement text" },

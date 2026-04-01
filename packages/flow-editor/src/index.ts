@@ -34,7 +34,6 @@ export type {
   ToolInfo,
   ToolCategory,
   ComponentSchema,
-  ComponentMeta,
   FormatMeta,
   ToolMeta,
   ParameterGroup,
