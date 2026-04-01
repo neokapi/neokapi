@@ -2266,13 +2266,15 @@ func (*StepRequest_Part) isStepRequest_Request() {}
 
 // StepHeader configures the ProcessStep RPC.
 type StepHeader struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	StepClass     string                 `protobuf:"bytes,1,opt,name=step_class,json=stepClass,proto3" json:"step_class,omitempty"`                                                                              // Fully-qualified Java class name of the step
-	StepParams    map[string]string      `protobuf:"bytes,2,rep,name=step_params,json=stepParams,proto3" json:"step_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Step parameters (key-value)
-	SourceLocale  string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
-	TargetLocale  string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	StepClass          string                 `protobuf:"bytes,1,opt,name=step_class,json=stepClass,proto3" json:"step_class,omitempty"`                                                                              // Fully-qualified Java class name of the step
+	StepParams         map[string]string      `protobuf:"bytes,2,rep,name=step_params,json=stepParams,proto3" json:"step_params,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // Step parameters (key-value)
+	SourceLocale       string                 `protobuf:"bytes,3,opt,name=source_locale,json=sourceLocale,proto3" json:"source_locale,omitempty"`
+	TargetLocale       string                 `protobuf:"bytes,4,opt,name=target_locale,json=targetLocale,proto3" json:"target_locale,omitempty"`
+	RootDirectory      string                 `protobuf:"bytes,5,opt,name=root_directory,json=rootDirectory,proto3" json:"root_directory,omitempty"`                  // Project root for ${rootDir} resolution
+	InputRootDirectory string                 `protobuf:"bytes,6,opt,name=input_root_directory,json=inputRootDirectory,proto3" json:"input_root_directory,omitempty"` // Input root for ${inputRootDir} resolution
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *StepHeader) Reset() {
@@ -2329,6 +2331,20 @@ func (x *StepHeader) GetSourceLocale() string {
 func (x *StepHeader) GetTargetLocale() string {
 	if x != nil {
 		return x.TargetLocale
+	}
+	return ""
+}
+
+func (x *StepHeader) GetRootDirectory() string {
+	if x != nil {
+		return x.RootDirectory
+	}
+	return ""
+}
+
+func (x *StepHeader) GetInputRootDirectory() string {
+	if x != nil {
+		return x.InputRootDirectory
 	}
 	return ""
 }
@@ -2692,7 +2708,7 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\vStepRequest\x127\n" +
 	"\x06header\x18\x01 \x01(\v2\x1d.neokapi.bridge.v2.StepHeaderH\x00R\x06header\x124\n" +
 	"\x04part\x18\x02 \x01(\v2\x1e.neokapi.bridge.v2.PartMessageH\x00R\x04partB\t\n" +
-	"\arequest\"\x84\x02\n" +
+	"\arequest\"\xdd\x02\n" +
 	"\n" +
 	"StepHeader\x12\x1d\n" +
 	"\n" +
@@ -2700,7 +2716,9 @@ const file_core_plugin_proto_v2_neokapi_bridge_proto_rawDesc = "" +
 	"\vstep_params\x18\x02 \x03(\v2-.neokapi.bridge.v2.StepHeader.StepParamsEntryR\n" +
 	"stepParams\x12#\n" +
 	"\rsource_locale\x18\x03 \x01(\tR\fsourceLocale\x12#\n" +
-	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x1a=\n" +
+	"\rtarget_locale\x18\x04 \x01(\tR\ftargetLocale\x12%\n" +
+	"\x0eroot_directory\x18\x05 \x01(\tR\rrootDirectory\x120\n" +
+	"\x14input_root_directory\x18\x06 \x01(\tR\x12inputRootDirectory\x1a=\n" +
 	"\x0fStepParamsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8f\x01\n" +

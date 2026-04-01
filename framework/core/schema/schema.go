@@ -145,6 +145,26 @@ type PropertySchema struct {
 
 	// Array item schema
 	Items *PropertySchema `json:"items,omitempty"`
+
+	// Path annotation for resource/file path properties
+	PathInfo *PathAnnotation `json:"x-path,omitempty"`
+}
+
+// PathAnnotation describes a property that references a file path or named resource.
+// Used by the resource resolver to resolve URI prefixes (tm:, termbase:, srx:) and
+// relative paths, and by the UI to render ResourcePicker widgets.
+type PathAnnotation struct {
+	// Type is "file" or "directory".
+	Type string `json:"type,omitempty"`
+
+	// Role is "input" or "output". Output paths get auto-placed into the output directory.
+	Role string `json:"role,omitempty"`
+
+	// ResourceKind enables URI prefix resolution: "tm", "termbase", or "srx".
+	ResourceKind string `json:"resourceKind,omitempty"`
+
+	// Accepts lists file extensions for validation and UI filtering (e.g. ["html", "txt"]).
+	Accepts []string `json:"accepts,omitempty"`
 }
 
 // LayoutHints controls field-level layout.

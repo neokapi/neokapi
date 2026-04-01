@@ -333,6 +333,8 @@ message StepHeader {
   map<string, string> step_params = 2; // Step parameters (key-value)
   string source_locale = 3;
   string target_locale = 4;
+  string root_directory = 5;          // Project root for ${rootDir} resolution
+  string input_root_directory = 6;    // Input root for ${inputRootDir} resolution
 }
 
 // StepResponse is sent by the server (Java) to the client (Go).

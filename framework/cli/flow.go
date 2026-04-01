@@ -1000,7 +1000,7 @@ func (a *App) openTermbase(cmd ...*cobra.Command) (*sqltb.SQLiteTermBase, func()
 // runProjectSteps executes a flow defined in a .kapi project file.
 // It resolves tools by name from the registry, applying per-step configs,
 // and runs the flow using the standard single/multi-file execution path.
-func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec) error {
+func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName string, spec *flow.StepsSpec, rCtx *flow.ResourceContext) error {
 	inputPaths, _ := cmd.Flags().GetStringSlice("input")
 	concurrency, _ := cmd.Flags().GetInt("concurrency")
 
@@ -1011,7 +1011,7 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 	// Build tools from step definitions using the tool registry + BuiltinToolCommands.
 	var projectTools []tool.Tool
 	for _, step := range spec.Steps {
-		t, err := a.toolFromStep(step, cmd)
+		t, err := a.toolFromStep(step, cmd, rCtx)
 		if err != nil {
 			return fmt.Errorf("flow %q: %w", flowName, err)
 		}
@@ -1032,13 +1032,22 @@ func (a *App) runProjectSteps(ctx context.Context, cmd *cobra.Command, flowName 
 
 // toolFromStep creates a tool.Tool from a flow step definition.
 // It first checks BuiltinToolCommands for NewToolFromConfig support,
-// then falls back to the tool registry.
-func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command) (tool.Tool, error) {
+// then falls back to the tool registry. If rCtx is non-nil, resource
+// references in the step config are resolved before applying.
+func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command, rCtx *flow.ResourceContext) (tool.Tool, error) {
 	// Check if a BuiltinToolCommand has NewToolFromConfig for this tool.
 	for _, def := range BuiltinToolCommands {
 		if def.Use == step.Tool {
 			if def.NewToolFromConfig != nil {
-				return def.NewToolFromConfig(step.Config, a.TargetLang)
+				config := step.Config
+				if rCtx != nil && def.Schema != nil {
+					var err error
+					config, err = flow.ResolveToolConfig(config, def.Schema, *rCtx)
+					if err != nil {
+						return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
+					}
+				}
+				return def.NewToolFromConfig(config, a.TargetLang)
 			}
 			if def.NewTool != nil {
 				return def.NewTool(cmd, a.TargetLang)
@@ -1048,7 +1057,15 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command) (tool.Tool, e
 		for _, alias := range def.Aliases {
 			if alias == step.Tool {
 				if def.NewToolFromConfig != nil {
-					return def.NewToolFromConfig(step.Config, a.TargetLang)
+					config := step.Config
+					if rCtx != nil && def.Schema != nil {
+						var err error
+						config, err = flow.ResolveToolConfig(config, def.Schema, *rCtx)
+						if err != nil {
+							return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, err)
+						}
+					}
+					return def.NewToolFromConfig(config, a.TargetLang)
 				}
 				if def.NewTool != nil {
 					return def.NewTool(cmd, a.TargetLang)
@@ -1057,10 +1074,29 @@ func (a *App) toolFromStep(step flow.FlowStep, cmd *cobra.Command) (tool.Tool, e
 		}
 	}
 
-	// Fall back to tool registry (handles plugin tools).
+	// Fall back to tool registry (handles plugin tools, including bridge step tools).
 	t, err := a.ToolReg.NewTool(step.Tool)
 	if err != nil {
 		return nil, fmt.Errorf("tool %q: %w", step.Tool, err)
 	}
+
+	// Apply config and resource context to bridge step tools.
+	if bst, ok := t.(*bridge.BridgeStepTool); ok {
+		config := step.Config
+		if rCtx != nil {
+			stepCtx := *rCtx
+			stepCtx.ToolName = step.Tool
+			var resolveErr error
+			config, resolveErr = flow.ResolveToolConfig(config, bst.Schema(), stepCtx)
+			if resolveErr != nil {
+				return nil, fmt.Errorf("resolve config for %q: %w", step.Tool, resolveErr)
+			}
+			bst.SetRootDirectory(rCtx.ProjectDir)
+			bst.SetInputRootDirectory(rCtx.ProjectDir)
+		}
+		bst.SetStepParams(config)
+		bst.SetLocales(a.SourceLang, a.TargetLang)
+	}
+
 	return t, nil
 }
