@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -167,82 +168,75 @@ func buildBridgePlugin(iv pluginreg.InstalledVersion, vDir string, schemaReg *sc
 		return CachedPlugin{}, nil, fmt.Errorf("no manifest.json in %s", vDir)
 	}
 
-	// Load filter schemas.
-	schemasDir := filepath.Join(vDir, "schemas")
-	idsBefore := schemaReg.FilterIDSet()
-	if err := schemaReg.LoadFromDirectory(schemasDir); err != nil {
-		logf(logger, "loading schemas from %s: %v", schemasDir, err)
-	}
-	// Load step/tool schemas into the separate tool schema registry.
-	if err := toolSchemaReg.LoadFromDirectory(filepath.Join(schemasDir, "steps")); err != nil {
-		logf(logger, "loading step schemas from %s: %v", filepath.Join(schemasDir, "steps"), err)
-	}
-	idsAfter := schemaReg.FilterIDSet()
-
-	var newFilterIDs []string
-	for id := range idsAfter {
-		if _, existed := idsBefore[id]; !existed {
-			newFilterIDs = append(newFilterIDs, id)
-		}
-	}
-
-	// Build capability lookup.
-	capByID := make(map[string]*pluginreg.Capability, len(manifest.Capabilities))
-	for i := range manifest.Capabilities {
-		cap := &manifest.Capabilities[i]
-		if cap.Type == "format" {
-			if cap.ID != "" {
-				capByID[cap.ID] = cap
-			}
-			capByID[cap.Name] = cap
-		}
-	}
-
+	// Load schemas from explicit capability paths.
 	fmtVersion := iv.FormatVersion()
-
 	var formats []CachedFormat
-	if len(newFilterIDs) > 0 {
-		sort.Strings(newFilterIDs)
-		for _, filterID := range newFilterIDs {
-			if skipFilters[filterID] {
+
+	for _, cap := range manifest.Capabilities {
+		switch cap.Type {
+		case "format":
+			formatID := cap.ID
+			if formatID == "" {
+				formatID = cap.Name
+			}
+			if skipFilters[formatID] {
 				continue
 			}
-			versionedName := filterID + "@" + fmtVersion
 
-			var cf CachedFormat
-			cf.VersionedName = versionedName
-			cf.BaseName = filterID
-			cf.Source = manifest.Name
+			// Load schema from explicit path if provided, otherwise skip.
+			if cap.Schema != "" {
+				schemaPath := filepath.Join(vDir, cap.Schema)
+				if err := schemaReg.LoadSchemaFile(schemaPath, formatID); err != nil {
+					logf(logger, "loading format schema %s: %v", schemaPath, err)
+				}
+			}
 
-			if s, ok := schemaReg.GetSchema(filterID); ok {
-				cf.DisplayName = s.Title
-				cf.MimeTypes = s.FilterMeta.MimeTypes
-				cf.Extensions = s.FilterMeta.Extensions
-				cf.FilterClass = s.FilterMeta.Class
+			// Load presets from presets directory if provided.
+			if cap.PresetsDir != "" {
+				presetsPath := filepath.Join(vDir, cap.PresetsDir)
+				if info, err := os.Stat(presetsPath); err == nil && info.IsDir() {
+					loadPresetsFromDir(presetsPath, formatID, presetReg, logger)
+				}
 			}
-			if cap := capByID[filterID]; cap != nil {
-				cf.HasReader = cap.HasCapability("read")
-				cf.HasWriter = cap.HasCapability("write")
-			}
-			formats = append(formats, cf)
-		}
-	} else {
-		for _, cap := range manifest.Capabilities {
-			if cap.Type != "format" {
-				continue
-			}
-			baseFmtName := manifest.Name + "-" + sanitizeFilterName(cap.Name)
-			versionedName := baseFmtName + "@" + fmtVersion
-			formats = append(formats, CachedFormat{
+
+			versionedName := formatID + "@" + fmtVersion
+			cf := CachedFormat{
 				VersionedName: versionedName,
-				BaseName:      baseFmtName,
+				BaseName:      formatID,
 				DisplayName:   cap.DisplayName,
 				MimeTypes:     cap.MimeTypes,
 				Extensions:    cap.Extensions,
 				HasReader:     cap.HasCapability("read"),
 				HasWriter:     cap.HasCapability("write"),
 				Source:        manifest.Name,
-			})
+			}
+			// Enrich from schema if loaded.
+			if s, ok := schemaReg.GetSchema(formatID); ok {
+				if cf.DisplayName == "" {
+					cf.DisplayName = s.Title
+				}
+				if len(cf.MimeTypes) == 0 {
+					cf.MimeTypes = s.FormatMeta.MimeTypes
+				}
+				if len(cf.Extensions) == 0 {
+					cf.Extensions = s.FormatMeta.Extensions
+				}
+				cf.FilterClass = s.FormatMeta.Class
+			}
+			formats = append(formats, cf)
+
+		case "tool":
+			// Load tool schema from explicit path if provided.
+			if cap.Schema != "" {
+				toolID := cap.ID
+				if toolID == "" {
+					toolID = cap.Name
+				}
+				schemaPath := filepath.Join(vDir, cap.Schema)
+				if err := toolSchemaReg.LoadSchemaFile(schemaPath, toolID); err != nil {
+					logf(logger, "loading tool schema %s: %v", schemaPath, err)
+				}
+			}
 		}
 	}
 
@@ -285,12 +279,12 @@ func buildBinaryPlugin(iv pluginreg.InstalledVersion, vDir string) CachedPlugin 
 	return cp
 }
 
-func collectSchemas(reg *schema.SchemaRegistry) map[string]*schema.FilterSchema {
-	ids := reg.FilterIDs()
+func collectSchemas(reg *schema.SchemaRegistry) map[string]*schema.FormatSchema {
+	ids := reg.FormatIDs()
 	if len(ids) == 0 {
 		return nil
 	}
-	result := make(map[string]*schema.FilterSchema, len(ids))
+	result := make(map[string]*schema.FormatSchema, len(ids))
 	for _, id := range ids {
 		if s, ok := reg.GetSchema(id); ok {
 			result[id] = s
@@ -409,6 +403,52 @@ func loadPresetsFromFile(path string, reg *preset.PresetRegistry, source string)
 	}
 
 	return nil
+}
+
+// loadPresetsFromDir loads JSON preset files from a directory.
+func loadPresetsFromDir(dir string, formatID string, reg *preset.PresetRegistry, logger *log.Logger) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		logf(logger, "reading presets directory %s: %v", dir, err)
+		return
+	}
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, entry.Name()))
+		if err != nil {
+			logf(logger, "reading preset file %s: %v", entry.Name(), err)
+			continue
+		}
+		var presetData struct {
+			ID          string         `json:"id"`
+			Name        string         `json:"name"`
+			Description string         `json:"description"`
+			IsDefault   bool           `json:"isDefault"`
+			Parameters  map[string]any `json:"parameters"`
+		}
+		if err := json.Unmarshal(data, &presetData); err != nil {
+			logf(logger, "parsing preset file %s: %v", entry.Name(), err)
+			continue
+		}
+		presetName := presetData.ID
+		if presetName == "" {
+			presetName = strings.TrimSuffix(entry.Name(), ".json")
+		}
+		// Strip format prefix: "okf_html-wellFormed" → "wellFormed"
+		if strings.HasPrefix(presetName, formatID+"-") {
+			presetName = presetName[len(formatID)+1:]
+		}
+		reg.RegisterFormatPreset(formatID, presetName, &preset.FormatPreset{
+			Name:        presetName,
+			Description: presetData.Description,
+			Format:      formatID,
+			Config:      presetData.Parameters,
+			Source:      "bridge",
+			IsDefault:   presetData.IsDefault,
+		})
+	}
 }
 
 func logf(logger *log.Logger, format string, args ...any) {

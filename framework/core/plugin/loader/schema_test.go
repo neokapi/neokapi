@@ -15,7 +15,7 @@ func TestSchemaAliases(t *testing.T) {
 	assert.Equal(t, 0, reg.Count())
 
 	// Verify type aliases are usable
-	s := &FilterSchema{
+	s := &FormatSchema{
 		Title: "Test",
 		Properties: map[string]PropertySchema{
 			"foo": {Type: "boolean"},

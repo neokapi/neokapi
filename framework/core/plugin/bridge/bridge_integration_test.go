@@ -49,8 +49,8 @@ func TestIntegrationSchemaLoading(t *testing.T) {
 	for _, filterID := range []string{"okf_html", "okf_json", "okf_xliff", "okf_properties"} {
 		s, ok := reg.GetSchema(filterID)
 		require.True(t, ok, "expected schema for %s", filterID)
-		assert.NotEmpty(t, s.FilterMeta.ID, "schema %s should have x-filter.id", filterID)
-		assert.NotEmpty(t, s.FilterMeta.Class, "schema %s should have x-filter.class", filterID)
+		assert.NotEmpty(t, s.FormatMeta.ID, "schema %s should have x-format.id", filterID)
+		assert.NotEmpty(t, s.FormatMeta.Class, "schema %s should have x-format.class", filterID)
 	}
 
 	// Schemas with rich properties should have them parsed correctly.
