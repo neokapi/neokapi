@@ -5,6 +5,8 @@ import { theme } from "./utils";
 import { PropertyField } from "./PropertyField";
 import { FieldGroup } from "./FieldGroup";
 import { RetryPolicySection } from "./widgets/RetryPolicy";
+import { useSchemaToZod } from "./hooks/useSchemaToZod";
+import { useValidation } from "./hooks/useValidation";
 
 /**
  * Schema-driven configuration form.
@@ -14,6 +16,11 @@ import { RetryPolicySection } from "./widgets/RetryPolicy";
  */
 export function SchemaForm({ schema, values, onChange, compact = false, presetValues, paramDocs }: SchemaFormProps) {
   const defs = schema.$defs;
+
+  // Zod validation: convert schema properties to Zod and validate values
+  const zodSchema = useSchemaToZod(schema.properties);
+  const fieldErrors = useValidation(zodSchema, values);
+
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
     const grps = schema["ui:groups"] || [];
@@ -190,6 +197,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
                 presetValues={presetValues}
                 docParam={paramDocs?.[key]}
                 defs={defs}
+                error={fieldErrors[key]}
               />
             ))}
           </div>
