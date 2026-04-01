@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { ComponentSchema, PropertySchema, ParameterGroup, ToolDocParam, EditorMeta } from "./types";
+import type { ComponentSchema, PropertySchema, ParameterGroup, ToolDocParam, ConditionExpr } from "./types";
 import { theme } from "./theme";
 
 // ─── Styled Markdown ───────────────────────────────────────
@@ -117,49 +117,38 @@ function resolveSchemaRef(schema: PropertySchema, defs: Record<string, PropertyS
   return { ...resolved, ...rest };
 }
 
-// ─── x-editor → x-widget Bridge ───────────────────────────
-// Maps x-editor.widget to x-widget equivalents, and extracts the effective
-// widget name considering both old x-widget and new x-editor.
+// ─── Widget Resolution ────────────────────────────────────
+// Returns the ui:widget name, or undefined for type-based dispatch.
+// Widget names are canonical — no bridging needed with the new schema language.
 
 function getEffectiveWidget(schema: PropertySchema): string | undefined {
-  // x-widget takes precedence for backwards compatibility
-  if (schema["x-widget"]) {
-    // Normalize aliases
-    if (schema["x-widget"] === "textarea") return "multilineText";
-    return schema["x-widget"];
-  }
-  const editor = schema["x-editor"];
-  if (!editor) return undefined;
-  // Map x-editor.widget values to x-widget equivalents where they exist
-  switch (editor.widget) {
-    case "codeFinder": return "codeFinderRules";
-    case "path": return "path";
-    case "folder": return "folder";
-    case "checkList": return "checkList";
-    case "text": return editor.text?.height && editor.text.height > 1 ? "multilineText" : editor.text?.password ? "password" : undefined;
-    case "dropdown": return undefined; // handled by enum dispatch
-    case "select": return "select";
-    case "spin": return undefined; // handled by number dispatch
-    case "checkbox": return undefined; // handled by boolean dispatch
-    default: return undefined;
-  }
+  return schema["ui:widget"] || undefined;
 }
 
-// ─── enabledBy Evaluation ──────────────────────────────────
-// Evaluates x-editor.enabledBy to determine if a field should be disabled.
+// ─── Condition Evaluation ─────────────────────────────────
+// Evaluates ConditionExpr for ui:visible and ui:enabled.
 
-function isDisabledByMaster(
-  editor: EditorMeta | undefined,
+function evaluateCondition(
+  condition: ConditionExpr | undefined,
   allValues: Record<string, unknown> | undefined,
   allProperties: Record<string, PropertySchema> | undefined,
 ): boolean {
-  if (!editor?.enabledBy || !allValues) return false;
-  const { parameter, enabledWhenSelected } = editor.enabledBy;
-  const rawVal = allValues[parameter];
-  const defaultVal = allProperties?.[parameter]?.default;
-  const masterVal = rawVal ?? defaultVal;
-  const isTruthy = masterVal === true || masterVal === "true" || (typeof masterVal === "number" && masterVal !== 0);
-  return enabledWhenSelected ? !isTruthy : isTruthy;
+  if (!condition || !allValues) return true;
+
+  if ("all" in condition) return condition.all.every(c => evaluateCondition(c, allValues, allProperties));
+  if ("any" in condition) return condition.any.some(c => evaluateCondition(c, allValues, allProperties));
+  if ("not" in condition) return !evaluateCondition(condition.not, allValues, allProperties);
+
+  const rawVal = allValues[condition.field];
+  const defaultVal = allProperties?.[condition.field]?.default;
+  const fieldVal = rawVal ?? defaultVal;
+
+  if ("empty" in condition) {
+    const isEmpty = fieldVal === undefined || fieldVal === null || fieldVal === "";
+    return condition.empty ? isEmpty : !isEmpty;
+  }
+
+  return String(fieldVal ?? "") === String(condition.eq);
 }
 
 // ─── Public API ─────────────────────────────────────────────
@@ -185,7 +174,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
   const defs = schema.$defs;
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
-    const grps = schema["x-groups"] || [];
+    const grps = schema["ui:groups"] || [];
     const grouped = new Set(grps.flatMap((g) => g.fields));
     const ungrp = Object.keys(props).filter((k) => !grouped.has(k) && !props[k].deprecated);
     return { properties: props, groups: grps, ungrouped: ungrp };
@@ -366,8 +355,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
       )}
 
       {/* Retry Policy section — only for tools that opt in via requires: ["retryable"] */}
-      {schema["x-component"]?.type === "tool" &&
-        schema["x-component"]?.requires?.includes("retryable") && (
+      {schema.toolMeta?.requires?.includes("retryable") && (
         <RetryPolicySection values={values} onChange={onChange} compact={compact} />
       )}
     </div>
@@ -548,42 +536,27 @@ function PropertyField({
   // Resolve $ref if present
   const schema = rawSchema.$ref ? resolveSchemaRef(rawSchema, defs) : rawSchema;
 
-  // x-editor metadata
-  const editor = schema["x-editor"];
+  // ui:enabled — disable field based on condition expression
+  const disabled = !evaluateCondition(schema["ui:enabled"], allValues, allProperties);
 
-  // enabledBy: disable field when master parameter doesn't match
-  const disabled = isDisabledByMaster(editor, allValues, allProperties);
-
-  // x-showIf conditional visibility
-  const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
-  if (showIf && allValues) {
-    // Resolve the other field's value, falling back to its schema default.
-    const rawVal = allValues[showIf.field];
-    const otherDefault = allProperties?.[showIf.field]?.default;
-    const otherVal = rawVal ?? otherDefault;
-
-    if (showIf.empty !== undefined) {
-      const isEmpty = otherVal === undefined || otherVal === null || otherVal === "";
-      if (showIf.empty && !isEmpty) return null;
-      if (!showIf.empty && isEmpty) return null;
-    } else if (showIf.value !== undefined) {
-      if (String(otherVal ?? "") !== String(showIf.value)) return null;
-    }
-  }
+  // ui:visible — conditional visibility
+  const visible = evaluateCondition(schema["ui:visible"], allValues, allProperties);
+  if (!visible) return null;
 
   const label = schema.title || formatLabel(name);
   const resolved = value ?? schema.default;
   const widget = getEffectiveWidget(schema);
-  const enumLabels = schema["x-enumLabels"];
+  const enumLabels = schema["ui:enum-labels"];
 
   // Suppress description when it's redundant with the label (same text, case-insensitive).
   const description = schema.description && label.toLowerCase() !== schema.description.toLowerCase()
     ? schema.description
     : undefined;
 
-  // Layout hints from x-editor
-  const showLabel = editor?.layout?.withLabel !== false;
-  const verticalLayout = editor?.layout?.vertical ?? false;
+  // Layout hints from ui:layout
+  const layoutHints = schema["ui:layout"];
+  const showLabel = !layoutHints?.hideLabel;
+  const verticalLayout = layoutHints?.vertical ?? false;
 
   // Preset-modified indicator: compare current value with preset value.
   const isModifiedFromPreset = useMemo(() => {
@@ -643,7 +616,7 @@ function PropertyField({
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
-          placeholder={schema["x-placeholder"] || "// Enter JavaScript code..."}
+          placeholder={schema["ui:placeholder"] || "// Enter JavaScript code..."}
           onChange={(e) => onChange(e.target.value || undefined)}
           rows={compact ? 6 : 10}
           style={{
@@ -669,7 +642,7 @@ function PropertyField({
           <input
             type="text"
             value={String(resolved ?? "")}
-            placeholder={schema["x-placeholder"] || "/path/to/file..."}
+            placeholder={schema["ui:placeholder"] || "/path/to/file..."}
             onChange={(e) => onChange(e.target.value || undefined)}
             style={{
               ...inputStyle(compact),
@@ -710,25 +683,25 @@ function PropertyField({
     );
   }
 
-  if (widget === "codeFinderRules") {
+  if (widget === "code-finder" || widget === "codeFinderRules") {
     return (
       <CodeFinderRulesEditor
         label={label}
         description={description}
         value={resolved as Record<string, unknown> | undefined}
-        presets={schema["x-presets"]}
+        presets={schema["ui:presets"]}
         onChange={onChange}
         compact={compact}
       />
     );
   }
 
-  if (widget === "simplifierRulesEditor") {
+  if (widget === "simplifier-rules" || widget === "simplifierRulesEditor") {
     return (
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
-          placeholder={schema["x-placeholder"] || "One rule per line..."}
+          placeholder={schema["ui:placeholder"] || "One rule per line..."}
           onChange={(e) => onChange(e.target.value || undefined)}
           style={{
             ...inputStyle(compact),
@@ -743,7 +716,7 @@ function PropertyField({
     );
   }
 
-  if (widget === "elementRulesEditor" || widget === "attributeRulesEditor") {
+  if (widget === "element-rules" || widget === "attribute-rules" || widget === "elementRulesEditor" || widget === "attributeRulesEditor") {
     return (
       <MapEditor
         label={label}
@@ -753,25 +726,25 @@ function PropertyField({
         onChange={onChange}
         compact={compact}
         depth={depth}
-        keyPlaceholder={widget === "elementRulesEditor" ? "element name" : "attribute name"}
+        keyPlaceholder={(widget === "element-rules" || widget === "elementRulesEditor") ? "element name" : "attribute name"}
       />
     );
   }
 
-  if (widget === "regexBuilder" || widget === "tagList") {
+  if (widget === "regex" || widget === "tags" || widget === "regex" || widget === "regexBuilder" || widget === "tagList") {
     return (
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
           placeholder={
-            schema["x-placeholder"] || (widget === "tagList" ? "tag1, tag2, ..." : "pattern...")
+            schema["ui:placeholder"] || ((widget === "tags" || widget === "tagList") ? "tag1, tag2, ..." : "pattern...")
           }
           onChange={(e) => onChange(e.target.value || undefined)}
           style={{
             ...inputStyle(compact),
             fontFamily:
-              widget === "regexBuilder"
+              widget === "regex" || widget === "regexBuilder"
                 ? "ui-monospace, SFMono-Regular, Menlo, monospace"
                 : "inherit",
           }}
@@ -780,13 +753,13 @@ function PropertyField({
     );
   }
 
-  if (widget === "numberList") {
+  if (widget === "number-list" || widget === "numberList") {
     return (
       <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
-          placeholder={schema["x-placeholder"] || "1, 2, 3, ..."}
+          placeholder={schema["ui:placeholder"] || "1, 2, 3, ..."}
           onChange={(e) => onChange(e.target.value || undefined)}
           style={inputStyle(compact)}
         />
@@ -804,7 +777,7 @@ function PropertyField({
           <input
             type="text"
             value={String(resolved ?? "")}
-            placeholder={schema["x-placeholder"] || pathMeta?.browseTitle || "/path/to/file..."}
+            placeholder={schema["ui:placeholder"] || pathMeta?.browseTitle || "/path/to/file..."}
             onChange={(e) => onChange(e.target.value || undefined)}
             disabled={disabled}
             style={{
@@ -868,7 +841,7 @@ function PropertyField({
           <input
             type="text"
             value={String(resolved ?? "")}
-            placeholder={schema["x-placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."}
+            placeholder={schema["ui:placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."}
             onChange={(e) => onChange(e.target.value || undefined)}
             disabled={disabled}
             style={{
@@ -902,13 +875,13 @@ function PropertyField({
     );
   }
 
-  if (widget === "multilineText") {
+  if (widget === "textarea" || widget === "multilineText") {
     const textMeta = editor?.text;
     return (
       <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
         <textarea
           value={String(resolved ?? "")}
-          placeholder={schema["x-placeholder"] || ""}
+          placeholder={schema["ui:placeholder"] || ""}
           onChange={(e) => onChange(e.target.value || undefined)}
           disabled={disabled}
           rows={textMeta?.height || 4}
@@ -932,7 +905,7 @@ function PropertyField({
         <input
           type="password"
           value={String(resolved ?? "")}
-          placeholder={schema["x-placeholder"]}
+          placeholder={schema["ui:placeholder"]}
           onChange={(e) => onChange(e.target.value || undefined)}
           disabled={disabled}
           style={{ ...inputStyle(compact), opacity: disabled ? 0.5 : 1 }}
@@ -941,8 +914,10 @@ function PropertyField({
     );
   }
 
-  if (widget === "checkList" && editor?.checkList?.entries) {
-    const entries = editor.checkList.entries;
+  const widgetOpts = schema["ui:widget-options"] as Record<string, unknown> | undefined;
+
+  if (widget === "checklist" && widgetOpts?.entries) {
+    const entries = widgetOpts.entries as Array<{ name: string; title: string; description?: string }>;
     const current = (resolved as Record<string, boolean>) ?? {};
     return (
       <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
@@ -1079,7 +1054,7 @@ function PropertyField({
           })}
         </select>
         {(() => {
-          const desc = resolved != null ? schema["x-enumDescriptions"]?.[String(resolved)] : undefined;
+          const desc = resolved != null ? schema["ui:enum-descriptions"]?.[String(resolved)] : undefined;
           return desc ? (
             <div style={{ fontSize: 9, color: theme.fgMuted, marginTop: 2, fontStyle: "italic" }}>
               {desc}
@@ -1195,7 +1170,7 @@ function PropertyField({
         type="text"
         value={String(resolved ?? "")}
         placeholder={
-          schema["x-placeholder"] || (schema.default != null ? String(schema.default) : undefined)
+          schema["ui:placeholder"] || (schema.default != null ? String(schema.default) : undefined)
         }
         onChange={(e) => onChange(e.target.value || undefined)}
         disabled={disabled}
