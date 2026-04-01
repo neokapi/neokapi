@@ -3,12 +3,12 @@ package ttml
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the TTML format.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "TTML Subtitles",
 		Description: "Timed Text Markup Language (W3C standard) subtitle format",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "ttml",
 			Extensions: []string{".ttml", ".dfxp"},
 			MimeTypes:  []string{"application/ttml+xml"},

@@ -79,7 +79,7 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 			filterID := args[0]
 			info := a.FormatReg.FormatInfo(filterID)
 
-			var filterSchema *schema.FilterSchema
+			var filterSchema *schema.FormatSchema
 			if a.SchemaReg != nil {
 				filterSchema, _ = a.SchemaReg.GetSchema(filterID)
 			}
@@ -92,12 +92,12 @@ func (a *App) newFormatsInfoCmd() *cobra.Command {
 
 			if filterSchema != nil {
 				out.DisplayName = filterSchema.Title
-				out.FilterID = filterSchema.FilterMeta.ID
-				out.Class = filterSchema.FilterMeta.Class
+				out.FilterID = filterSchema.FormatMeta.ID
+				out.Class = filterSchema.FormatMeta.Class
 				out.Version = filterSchema.Version
 				out.HasSchema = true
-				out.Extensions = filterSchema.FilterMeta.Extensions
-				out.MimeTypes = filterSchema.FilterMeta.MimeTypes
+				out.Extensions = filterSchema.FormatMeta.Extensions
+				out.MimeTypes = filterSchema.FormatMeta.MimeTypes
 
 				if len(filterSchema.Groups) > 0 {
 					groupedFields := make(map[string]bool)

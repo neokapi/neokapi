@@ -5,12 +5,12 @@ import "github.com/neokapi/neokapi/core/format/schema"
 // Schema returns the JSON Schema metadata for the HTML format's parameters.
 // The schema mirrors the okf_html bridge schema structure so that presets
 // and configurations are interchangeable between the native and bridge formats.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "HTML Format",
 		Description: "Configuration for the native HTML format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "html",
 			Extensions: []string{".html", ".htm"},
 			MimeTypes:  []string{"text/html"},

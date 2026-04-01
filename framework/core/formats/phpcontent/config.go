@@ -41,12 +41,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 }
 
 // Schema returns the JSON Schema metadata for the PHP Content format.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "PHP Content",
 		Description: "Extracts translatable strings from PHP source files",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "phpcontent",
 			Extensions: []string{".php", ".phpcnt"},
 			MimeTypes:  []string{"application/x-php"},

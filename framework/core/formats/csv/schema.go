@@ -3,12 +3,12 @@ package csv
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the CSV format's parameters.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "CSV Format",
 		Description: "Configuration for the CSV/TSV format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "csv",
 			Extensions: []string{".csv", ".tsv"},
 			MimeTypes:  []string{"text/csv"},

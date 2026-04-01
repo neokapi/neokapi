@@ -1798,8 +1798,8 @@ func TestSpanTypes_Generic(t *testing.T) {
 func TestSchema(t *testing.T) {
 	cfg := &xmlfmt.Config{}
 	s := cfg.Schema()
-	assert.Equal(t, "xml", s.FilterMeta.ID)
-	assert.Contains(t, s.FilterMeta.Extensions, ".xml")
+	assert.Equal(t, "xml", s.FormatMeta.ID)
+	assert.Contains(t, s.FormatMeta.Extensions, ".xml")
 }
 
 // ---------------------------------------------------------------------------

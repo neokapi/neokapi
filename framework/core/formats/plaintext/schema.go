@@ -3,12 +3,12 @@ package plaintext
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the Plain Text format's parameters.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "Plain Text Format",
 		Description: "Configuration for the plain text format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "plaintext",
 			Extensions: []string{".txt"},
 			MimeTypes:  []string{"text/plain"},

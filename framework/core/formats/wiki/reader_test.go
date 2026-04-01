@@ -730,8 +730,8 @@ func TestRead_Schema(t *testing.T) {
 	cfg := &wiki.Config{}
 	schema := cfg.Schema()
 	assert.Equal(t, "Wiki Format", schema.Title)
-	assert.Equal(t, "wiki", schema.FilterMeta.ID)
-	assert.Contains(t, schema.FilterMeta.MimeTypes, "text/x-wiki")
+	assert.Equal(t, "wiki", schema.FormatMeta.ID)
+	assert.Contains(t, schema.FormatMeta.MimeTypes, "text/x-wiki")
 	assert.Contains(t, schema.Properties, "variant")
 }
 

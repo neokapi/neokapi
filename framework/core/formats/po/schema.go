@@ -3,12 +3,12 @@ package po
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the PO format's parameters.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "PO Format (GNU Gettext)",
 		Description: "Configuration for the PO/POT format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "po",
 			Extensions: []string{".po", ".pot"},
 			MimeTypes:  []string{"text/x-gettext-translation"},

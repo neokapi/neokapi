@@ -1847,7 +1847,7 @@ func TestCSV_Schema(t *testing.T) {
 	cfg := &csvfmt.Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)
-	assert.Equal(t, "csv", s.FilterMeta.ID)
+	assert.Equal(t, "csv", s.FormatMeta.ID)
 	assert.Contains(t, s.Properties, "separator")
 	assert.Contains(t, s.Properties, "hasHeader")
 	assert.Contains(t, s.Properties, "translatableColumns")

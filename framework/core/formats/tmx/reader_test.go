@@ -1732,9 +1732,9 @@ func TestConfigTransform(t *testing.T) {
 func TestSchemaMetadata(t *testing.T) {
 	cfg := tmx.Config{}
 	schema := cfg.Schema()
-	assert.Equal(t, "tmx", schema.FilterMeta.ID)
-	assert.Contains(t, schema.FilterMeta.Extensions, ".tmx")
-	assert.Contains(t, schema.FilterMeta.MimeTypes, "application/x-tmx+xml")
+	assert.Equal(t, "tmx", schema.FormatMeta.ID)
+	assert.Contains(t, schema.FormatMeta.Extensions, ".tmx")
+	assert.Contains(t, schema.FormatMeta.MimeTypes, "application/x-tmx+xml")
 }
 
 func TestMixedInlineCodes(t *testing.T) {
