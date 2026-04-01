@@ -2177,6 +2177,14 @@ export class ToolInfo {
              */
             this["category"] = "";
         }
+        if (/** @type {any} */(false)) {
+            /**
+             * "built-in" or plugin name
+             * @member
+             * @type {string | undefined}
+             */
+            this["source"] = undefined;
+        }
         if (!("has_schema" in $$source)) {
             /**
              * @member
@@ -2222,22 +2230,22 @@ export class ToolInfo {
      * @returns {ToolInfo}
      */
     static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType2;
         const $$createField6_0 = $$createType2;
         const $$createField7_0 = $$createType2;
         const $$createField8_0 = $$createType2;
+        const $$createField9_0 = $$createType2;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("inputs" in $$parsedSource) {
-            $$parsedSource["inputs"] = $$createField5_0($$parsedSource["inputs"]);
+            $$parsedSource["inputs"] = $$createField6_0($$parsedSource["inputs"]);
         }
         if ("outputs" in $$parsedSource) {
-            $$parsedSource["outputs"] = $$createField6_0($$parsedSource["outputs"]);
+            $$parsedSource["outputs"] = $$createField7_0($$parsedSource["outputs"]);
         }
         if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField7_0($$parsedSource["tags"]);
+            $$parsedSource["tags"] = $$createField8_0($$parsedSource["tags"]);
         }
         if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField8_0($$parsedSource["requires"]);
+            $$parsedSource["requires"] = $$createField9_0($$parsedSource["requires"]);
         }
         return new ToolInfo(/** @type {Partial<ToolInfo>} */($$parsedSource));
     }

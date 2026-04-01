@@ -155,10 +155,14 @@ export interface StepDoc {
 }
 
 export interface ParameterDoc {
-  description: string;
+  description?: string;
+  /** Alias for description used in okapi-bridge doc files. */
+  help?: string;
   notes?: string[];
   introducedIn?: string;
   dependsOn?: ParameterDependency[];
+  values?: string;
+  seeAlso?: string;
 }
 
 export interface ParameterDependency {

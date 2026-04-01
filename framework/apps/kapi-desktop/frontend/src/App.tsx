@@ -81,6 +81,24 @@ function AppInner() {
   // ServiceStartup hooks complete — data is guaranteed available.
   useWailsEvent("common:ApplicationStarted", () => refreshRecent());
 
+  // Intercept external link clicks and open in the system browser
+  // instead of navigating within the Wails webview.
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a[href]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#") || href.startsWith("/")) return;
+      // External URL — open in system browser.
+      e.preventDefault();
+      import("@wailsio/runtime").then((m) => m.Browser.OpenURL(href)).catch(() => {
+        window.open(href, "_blank");
+      });
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
+
   const handleModeChange = useCallback(
     (m: AppMode) => {
       setMode(m);
