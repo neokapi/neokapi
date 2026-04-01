@@ -1,10 +1,12 @@
 package tools
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -28,6 +30,26 @@ func (c *WordCountConfig) Reset() {}
 // Validate checks configuration validity.
 func (c *WordCountConfig) Validate() error {
 	return nil
+}
+
+// WordCountSchema returns the auto-generated schema for the word-count tool.
+func WordCountSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&WordCountConfig{}, schema.ToolMeta{
+		ID:          "word-count",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Word Count",
+		Description: "Count words in source and target text",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewWordCountFromConfig creates a word-count tool from a config map.
+func NewWordCountFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg WordCountConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("word-count config: %w", err)
+	}
+	return NewWordCountTool(&cfg), nil
 }
 
 // NewWordCountTool creates a new word count tool.

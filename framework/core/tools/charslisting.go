@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -15,9 +16,9 @@ const (
 
 // CharsListingConfig holds configuration for the chars listing tool.
 type CharsListingConfig struct {
-	IncludeSource bool           `schema:"description=Include source text in character listing,default=true"` // Include source text (default: true)
-	IncludeTarget bool           `schema:"description=Include target text in character listing,default=true"` // Include target text (default: true)
-	TargetLocale  model.LocaleID `schema:"description=Target locale for processing,showIfSet=IncludeTarget"` // Target locale (required when IncludeTarget)
+	IncludeSource bool           `json:"includeSource,omitempty" schema:"description=Include source text in character listing,default=true"`
+	IncludeTarget bool           `json:"includeTarget,omitempty" schema:"description=Include target text in character listing,default=true"`
+	TargetLocale  model.LocaleID `json:"targetLocale,omitempty"  schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -39,6 +40,29 @@ func (c *CharsListingConfig) Validate() error {
 		return fmt.Errorf("chars-listing: TargetLocale is required when IncludeTarget is true")
 	}
 	return nil
+}
+
+// CharsListingSchema returns the auto-generated schema for the chars-listing tool.
+func CharsListingSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&CharsListingConfig{}, schema.ToolMeta{
+		ID:          "chars-listing",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Chars Listing",
+		Description: "List all distinct characters used in source and/or target",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewCharsListingFromConfig creates a chars-listing tool from a config map.
+func NewCharsListingFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg CharsListingConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("chars-listing config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewCharsListingTool(&cfg).Tool(), nil
 }
 
 // CharsListingResult wraps a BaseTool and provides access to accumulated character counts.

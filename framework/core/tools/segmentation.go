@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -25,8 +26,8 @@ type SegmentationRule struct {
 
 // SegmentationConfig holds configuration for the segmentation tool.
 type SegmentationConfig struct {
-	TargetLocale model.LocaleID    `schema:"description=Target locale for processing"`
-	Rules        []SegmentationRule `schema:"description=Custom segmentation rules; if empty defaults are used"` // Custom rules; if empty, defaults are used
+	TargetLocale model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
+	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -56,6 +57,29 @@ func (c *SegmentationConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+// SegmentationSchema returns the auto-generated schema for the segmentation tool.
+func SegmentationSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&SegmentationConfig{}, schema.ToolMeta{
+		ID:          "segmentation",
+		Category:    schema.CategoryTransform,
+		DisplayName: "Segmentation",
+		Description: "Split source text into sentence-level segments",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewSegmentationFromConfig creates a segmentation tool from a config map.
+func NewSegmentationFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg SegmentationConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("segmentation config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewSegmentationTool(&cfg), nil
 }
 
 // defaultSegmentationRules returns SRX-like rules for common sentence boundaries.

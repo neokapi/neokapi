@@ -7,15 +7,16 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
 // ScriptConfig holds configuration for the script tool.
 // Source selects between inline code and file — a standard mode-selector pattern.
 type ScriptConfig struct {
-	Source     string `schema:"description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
-	Code       string `schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
-	ScriptFile string `schema:"description=Path to a .js file,widget=file-picker,showIf=source:file"`
+	Source     string `json:"source,omitempty"     schema:"description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
+	Code       string `json:"code,omitempty"       schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
+	ScriptFile string `json:"scriptFile,omitempty" schema:"description=Path to a .js file,widget=file-picker,showIf=source:file"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -41,6 +42,29 @@ func (c *ScriptConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+// ScriptSchema returns the auto-generated schema for the script tool.
+func ScriptSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&ScriptConfig{}, schema.ToolMeta{
+		ID:          "script",
+		Category:    schema.CategoryTransform,
+		DisplayName: "Script",
+		Description: "Run a JavaScript processing script on each part",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewScriptFromConfig creates a script tool from a config map.
+func NewScriptFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg ScriptConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("script config: %w", err)
+	}
+	if cfg.Code == "" && cfg.ScriptFile == "" {
+		return nil, fmt.Errorf("either --code or --script-file is required")
+	}
+	return NewScriptTool(&cfg), nil
 }
 
 // ScriptTool runs user-provided JavaScript (ES5) via goja.

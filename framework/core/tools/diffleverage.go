@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -23,10 +24,10 @@ type PreviousBlock struct {
 
 // DiffLeverageConfig holds configuration for the diff leverage tool.
 type DiffLeverageConfig struct {
-	TargetLocale  model.LocaleID           `schema:"description=Target locale for processing"` // Required
-	PreviousTexts map[string]PreviousBlock `schema:"description=Map of block ID to previous source text and translation"` // Map of block ID → previous source text + translation
-	CaseSensitive bool                     `schema:"description=Whether comparison is case-sensitive,default=true"` // Whether comparison is case-sensitive (default: true)
-	FuzzyMatch    bool                     `schema:"description=Enable fuzzy matching for similar texts"` // Enable fuzzy matching for similar texts (default: false)
+	TargetLocale  model.LocaleID           `json:"targetLocale,omitempty"  schema:"-"`
+	PreviousTexts map[string]PreviousBlock `json:"previousTexts,omitempty" schema:"-"`
+	CaseSensitive bool                     `json:"caseSensitive,omitempty" schema:"description=Whether comparison is case-sensitive,default=true"`
+	FuzzyMatch    bool                     `json:"fuzzyMatch,omitempty"    schema:"description=Enable fuzzy matching for similar texts"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -49,6 +50,33 @@ func (c *DiffLeverageConfig) Validate() error {
 		return fmt.Errorf("diff-leverage: PreviousTexts is required")
 	}
 	return nil
+}
+
+// DiffLeverageSchema returns the auto-generated schema for the diff-leverage tool.
+func DiffLeverageSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&DiffLeverageConfig{}, schema.ToolMeta{
+		ID:          "diff-leverage",
+		Category:    schema.CategoryTranslate,
+		DisplayName: "Diff Leverage",
+		Description: "Leverage translations from previous versions using diff analysis",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewDiffLeverageFromConfig creates a diff-leverage tool from a config map.
+func NewDiffLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg DiffLeverageConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("diff-leverage config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	if cfg.PreviousTexts == nil {
+		cfg.PreviousTexts = map[string]PreviousBlock{}
+	}
+	return NewDiffLeverageTool(&cfg), nil
 }
 
 // NewDiffLeverageTool creates a diff leverage tool that compares blocks between

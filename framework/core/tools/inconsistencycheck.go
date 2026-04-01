@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -18,10 +19,10 @@ const (
 
 // InconsistencyCheckConfig holds configuration for the inconsistency check tool.
 type InconsistencyCheckConfig struct {
-	TargetLocale             model.LocaleID `schema:"description=Target locale for processing"` // Required
-	CaseSensitive            bool           `schema:"description=Whether comparison is case-sensitive,default=true"` // Whether comparison is case-sensitive (default: true)
-	CheckTargetInconsistency bool           `schema:"description=Flag when the same source has different translations,default=true"` // Same source, different target (default: true)
-	CheckSourceInconsistency bool           `schema:"description=Flag when different sources share the same translation"` // Different source, same target (default: false)
+	TargetLocale             model.LocaleID `json:"targetLocale,omitempty"             schema:"-"`
+	CaseSensitive            bool           `json:"caseSensitive,omitempty"            schema:"description=Whether comparison is case-sensitive,default=true"`
+	CheckTargetInconsistency bool           `json:"checkTargetInconsistency,omitempty" schema:"description=Flag when the same source has different translations,default=true"`
+	CheckSourceInconsistency bool           `json:"checkSourceInconsistency,omitempty" schema:"description=Flag when different sources share the same translation"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -51,6 +52,30 @@ func NewInconsistencyCheckConfig(targetLocale model.LocaleID) *InconsistencyChec
 		CheckTargetInconsistency: true,
 		CheckSourceInconsistency: false,
 	}
+}
+
+// InconsistencyCheckSchema returns the auto-generated schema for the inconsistency-check tool.
+func InconsistencyCheckSchema() *schema.ComponentSchema {
+	return schema.FromStruct(NewInconsistencyCheckConfig(""), schema.ToolMeta{
+		ID:          "inconsistency-check",
+		Category:    schema.CategoryValidate,
+		DisplayName: "Inconsistency Check",
+		Description: "Detect inconsistent translations of identical source strings",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewInconsistencyCheckFromConfig creates an inconsistency-check tool from a config map.
+func NewInconsistencyCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewInconsistencyCheckConfig(model.LocaleID(targetLang))
+	if err := schema.ApplyConfig(config, cfg); err != nil {
+		return nil, fmt.Errorf("inconsistency-check config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewInconsistencyCheckTool(cfg), nil
 }
 
 // NewInconsistencyCheckTool creates a stateful tool that tracks source-target mappings

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -16,11 +17,11 @@ const (
 
 // LengthCheckConfig holds configuration for the length check tool.
 type LengthCheckConfig struct {
-	TargetLocale  model.LocaleID `schema:"description=Target locale for processing"` // Required
-	MaxChars      int            `schema:"description=Maximum character count for target text (0 = disabled),default=0,min=0"` // Max character count (0 = disabled)
-	MaxWords      int            `schema:"description=Maximum word count for target text (0 = disabled),default=0,min=0"` // Max word count (0 = disabled)
-	MaxPercentage float64        `schema:"description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"` // Max target/source ratio as percentage (0 = disabled, e.g. 150.0 = 150%)
-	MinPercentage float64        `schema:"description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"` // Min target/source ratio as percentage (0 = disabled, e.g. 50.0 = 50%)
+	TargetLocale  model.LocaleID `json:"targetLocale,omitempty"  schema:"-"`
+	MaxChars      int            `json:"maxChars,omitempty"      schema:"description=Maximum character count for target text (0 = disabled),default=0,min=0"`
+	MaxWords      int            `json:"maxWords,omitempty"      schema:"description=Maximum word count for target text (0 = disabled),default=0,min=0"`
+	MaxPercentage float64        `json:"maxPercentage,omitempty" schema:"description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
+	MinPercentage float64        `json:"minPercentage,omitempty" schema:"description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -53,6 +54,30 @@ func (c *LengthCheckConfig) Validate() error {
 		return fmt.Errorf("length-check: MinPercentage must be non-negative")
 	}
 	return nil
+}
+
+// LengthCheckSchema returns the auto-generated schema for the length-check tool.
+func LengthCheckSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&LengthCheckConfig{}, schema.ToolMeta{
+		ID:          "length-check",
+		Category:    schema.CategoryValidate,
+		DisplayName: "Length Check",
+		Description: "Validate string length against configured limits",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewLengthCheckFromConfig creates a length-check tool from a config map.
+func NewLengthCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg LengthCheckConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("length-check config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewLengthCheckTool(&cfg), nil
 }
 
 // NewLengthCheckTool creates a tool that verifies translation length constraints.

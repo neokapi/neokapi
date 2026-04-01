@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
@@ -20,8 +21,40 @@ type AIReviewTool struct {
 
 // AIReviewConfig holds configuration for the review tool.
 type AIReviewConfig struct {
-	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
-	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
+	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	Provider     string         `json:"provider,omitempty"     schema:"description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
+	APIKey       string         `json:"apiKey,omitempty"       schema:"description=API key for the AI provider,group=provider"`
+	Model        string         `json:"model,omitempty"        schema:"description=AI model name,group=provider"`
+}
+
+// AIReviewSchema returns the auto-generated schema for the AI review tool.
+func AIReviewSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&AIReviewConfig{}, schema.ToolMeta{
+		ID:          "ai-review",
+		Category:    schema.CategoryValidate,
+		DisplayName: "AI Review",
+		Description: "Review translations with scoring using an LLM provider",
+		Inputs:      []string{schema.PartTypeBlock},
+		Tags:        []string{"ai-powered"},
+		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+	})
+}
+
+// NewAIReviewFromConfig creates an AI review tool from a config map.
+func NewAIReviewFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg AIReviewConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("ai-review config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	p, err := ProviderFromConfig(cfg.Provider, provider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	if err != nil {
+		return nil, err
+	}
+	return NewAIReviewTool(p, cfg), nil
 }
 
 // NewAIReviewTool creates a new AI translation review tool.

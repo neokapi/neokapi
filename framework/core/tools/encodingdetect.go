@@ -1,9 +1,11 @@
 package tools
 
 import (
+	"fmt"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -25,6 +27,26 @@ func (c *EncodingDetectConfig) Reset() {}
 
 // Validate checks configuration validity.
 func (c *EncodingDetectConfig) Validate() error { return nil }
+
+// EncodingDetectSchema returns the auto-generated schema for the encoding-detect tool.
+func EncodingDetectSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&EncodingDetectConfig{}, schema.ToolMeta{
+		ID:          "encoding-detect",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Encoding Detect",
+		Description: "Detect character encoding of source files",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewEncodingDetectFromConfig creates an encoding-detect tool from a config map.
+func NewEncodingDetectFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg EncodingDetectConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("encoding-detect config: %w", err)
+	}
+	return NewEncodingDetectTool(&cfg), nil
+}
 
 // NewEncodingDetectTool creates a tool that detects the encoding characteristics
 // of source text in blocks and stores the results in properties.

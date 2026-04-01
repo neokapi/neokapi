@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -22,9 +23,9 @@ type GlossaryEntry struct {
 
 // TermCheckConfig holds configuration for the terminology check tool.
 type TermCheckConfig struct {
-	Glossary      []GlossaryEntry `schema:"description=Glossary entries mapping source terms to required target translations"`
-	TargetLocale  model.LocaleID  `schema:"description=Target locale for processing"`
-	CaseSensitive bool            `schema:"description=Whether term matching is case-sensitive"`
+	Glossary      []GlossaryEntry `json:"glossary,omitempty"      schema:"-"`
+	TargetLocale  model.LocaleID  `json:"targetLocale,omitempty"  schema:"-"`
+	CaseSensitive bool            `json:"caseSensitive,omitempty" schema:"description=Whether term matching is case-sensitive"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -51,6 +52,30 @@ func (c *TermCheckConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+// TermCheckSchema returns the auto-generated schema for the term-check tool.
+func TermCheckSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&TermCheckConfig{}, schema.ToolMeta{
+		ID:          "term-check",
+		Category:    schema.CategoryValidate,
+		DisplayName: "Term Check",
+		Description: "Check terminology consistency across content",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewTermCheckFromConfig creates a term-check tool from a config map.
+func NewTermCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg TermCheckConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("term-check config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewTermCheckTool(&cfg), nil
 }
 
 // NewTermCheckTool creates a tool that verifies terminology usage in translations.

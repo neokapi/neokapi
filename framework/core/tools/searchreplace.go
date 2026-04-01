@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -18,8 +19,8 @@ type ReplacePair struct {
 
 // SearchReplaceConfig holds configuration for the search-and-replace tool.
 type SearchReplaceConfig struct {
-	Pairs        []ReplacePair  `schema:"description=Search/replace pairs to apply"` // The search/replace pairs to apply
-	TargetLocale model.LocaleID `schema:"description=Target locale; if set replacements also apply to target text"` // If set, also apply to target text for this locale
+	Pairs        []ReplacePair  `json:"pairs,omitempty"        schema:"-"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -44,6 +45,29 @@ func (c *SearchReplaceConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+// SearchReplaceSchema returns the auto-generated schema for the search-replace tool.
+func SearchReplaceSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&SearchReplaceConfig{}, schema.ToolMeta{
+		ID:          "search-replace",
+		Category:    schema.CategoryTransform,
+		DisplayName: "Search Replace",
+		Description: "Find and replace patterns (literal or regex)",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewSearchReplaceFromConfig creates a search-replace tool from a config map.
+func NewSearchReplaceFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg SearchReplaceConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("search-replace config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewSearchReplaceTool(&cfg), nil
 }
 
 // NewSearchReplaceTool creates a new search-and-replace tool.

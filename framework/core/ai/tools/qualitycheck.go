@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 	"github.com/neokapi/neokapi/providers/ai"
 )
@@ -23,9 +24,41 @@ type AIQACheckTool struct {
 
 // AIQAConfig holds configuration for the QA check tool.
 type AIQAConfig struct {
-	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
-	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
-	Checks       []string       `schema:"description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
+	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	Provider     string         `json:"provider,omitempty"     schema:"description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
+	APIKey       string         `json:"apiKey,omitempty"       schema:"description=API key for the AI provider,group=provider"`
+	Model        string         `json:"model,omitempty"        schema:"description=AI model name,group=provider"`
+	Checks       []string       `json:"checks,omitempty"       schema:"description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
+}
+
+// AIQASchema returns the auto-generated schema for the AI QA tool.
+func AIQASchema() *schema.ComponentSchema {
+	return schema.FromStruct(&AIQAConfig{}, schema.ToolMeta{
+		ID:          "ai-qa",
+		Category:    schema.CategoryValidate,
+		DisplayName: "AI QA Check",
+		Description: "Check translation quality using an LLM provider",
+		Inputs:      []string{schema.PartTypeBlock},
+		Tags:        []string{"ai-powered"},
+		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresCredentials},
+	})
+}
+
+// NewAIQAFromConfig creates an AI QA tool from a config map.
+func NewAIQAFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg AIQAConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("ai-qa config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	p, err := ProviderFromConfig(cfg.Provider, provider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
+	if err != nil {
+		return nil, err
+	}
+	return NewAIQACheckTool(p, cfg), nil
 }
 
 // NewAIQACheckTool creates a new AI quality check tool.
