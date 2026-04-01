@@ -35,8 +35,13 @@ export type {
   ToolCategory,
   ComponentSchema,
   ComponentMeta,
+  FormatMeta,
+  FormatPreset,
+  ToolMeta,
   ParameterGroup,
   PropertySchema,
+  EditorMeta,
+  EditorWidget,
   ToolDoc,
   ToolDocParam,
 } from "./types";

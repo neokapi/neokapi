@@ -6,8 +6,157 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import type { ComponentSchema, PropertySchema, ParameterGroup, ToolDocParam } from "./types";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { ComponentSchema, PropertySchema, ParameterGroup, ToolDocParam, EditorMeta } from "./types";
 import { theme } from "./theme";
+
+// ─── Styled Markdown ───────────────────────────────────────
+// Wraps react-markdown with theme-aware inline styles for use in schema forms.
+
+function Md({ text, style }: { text: string; style?: React.CSSProperties }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => <p style={{ ...style, margin: "0 0 4px 0" }}>{children}</p>,
+        strong: ({ children }) => <strong>{children}</strong>,
+        em: ({ children }) => <em>{children}</em>,
+        code: ({ children }) => (
+          <code
+            style={{
+              padding: "1px 4px",
+              borderRadius: 3,
+              background: theme.bgMuted,
+              fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+              fontSize: "0.9em",
+            }}
+          >
+            {children}
+          </code>
+        ),
+        a: ({ href, children }) => (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: theme.ring,
+              textDecoration: "underline",
+              textDecorationColor: `color-mix(in oklch, ${theme.ring} 40%, transparent)`,
+            }}
+          >
+            {children}
+          </a>
+        ),
+        ul: ({ children }) => (
+          <ul style={{ margin: "4px 0", paddingLeft: 16, listStyleType: "disc" }}>{children}</ul>
+        ),
+        ol: ({ children }) => (
+          <ol style={{ margin: "4px 0", paddingLeft: 16 }}>{children}</ol>
+        ),
+        li: ({ children }) => <li style={{ marginBottom: 2 }}>{children}</li>,
+        table: ({ children }) => (
+          <table
+            style={{
+              margin: "6px 0",
+              borderCollapse: "collapse",
+              fontSize: "0.95em",
+              width: "100%",
+            }}
+          >
+            {children}
+          </table>
+        ),
+        thead: ({ children }) => (
+          <thead style={{ borderBottom: `2px solid ${theme.border}` }}>{children}</thead>
+        ),
+        th: ({ children }) => (
+          <th
+            style={{
+              textAlign: "left",
+              padding: "3px 8px 3px 0",
+              fontWeight: 600,
+              fontSize: "0.9em",
+              color: theme.fgSecondary,
+            }}
+          >
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td
+            style={{
+              padding: "2px 8px 2px 0",
+              borderBottom: `1px solid ${theme.border}`,
+              verticalAlign: "top",
+            }}
+          >
+            {children}
+          </td>
+        ),
+      }}
+    >
+      {text}
+    </Markdown>
+  );
+}
+
+// ─── $ref Resolver ─────────────────────────────────────────
+// Resolves JSON Schema $ref pointers against the schema's $defs.
+
+function resolveSchemaRef(schema: PropertySchema, defs: Record<string, PropertySchema> | undefined): PropertySchema {
+  if (!schema.$ref || !defs) return schema;
+  // Handle "#/$defs/name" format
+  const match = schema.$ref.match(/^#\/\$defs\/(.+)$/);
+  if (!match) return schema;
+  const resolved = defs[match[1]];
+  if (!resolved) return schema;
+  // Merge: the referencing schema's own fields override the $def
+  const { $ref: _, ...rest } = schema;
+  return { ...resolved, ...rest };
+}
+
+// ─── x-editor → x-widget Bridge ───────────────────────────
+// Maps x-editor.widget to x-widget equivalents, and extracts the effective
+// widget name considering both old x-widget and new x-editor.
+
+function getEffectiveWidget(schema: PropertySchema): string | undefined {
+  // x-widget takes precedence for backwards compatibility
+  if (schema["x-widget"]) return schema["x-widget"];
+  const editor = schema["x-editor"];
+  if (!editor) return undefined;
+  // Map x-editor.widget values to x-widget equivalents where they exist
+  switch (editor.widget) {
+    case "codeFinder": return "codeFinderRules";
+    case "path": return "path";
+    case "folder": return "folder";
+    case "checkList": return "checkList";
+    case "text": return editor.text?.height && editor.text.height > 1 ? "multilineText" : editor.text?.password ? "password" : undefined;
+    case "dropdown": return undefined; // handled by enum dispatch
+    case "select": return "select";
+    case "spin": return undefined; // handled by number dispatch
+    case "checkbox": return undefined; // handled by boolean dispatch
+    default: return undefined;
+  }
+}
+
+// ─── enabledBy Evaluation ──────────────────────────────────
+// Evaluates x-editor.enabledBy to determine if a field should be disabled.
+
+function isDisabledByMaster(
+  editor: EditorMeta | undefined,
+  allValues: Record<string, unknown> | undefined,
+  allProperties: Record<string, PropertySchema> | undefined,
+): boolean {
+  if (!editor?.enabledBy || !allValues) return false;
+  const { parameter, enabledWhenSelected } = editor.enabledBy;
+  const rawVal = allValues[parameter];
+  const defaultVal = allProperties?.[parameter]?.default;
+  const masterVal = rawVal ?? defaultVal;
+  const isTruthy = masterVal === true || masterVal === "true" || (typeof masterVal === "number" && masterVal !== 0);
+  return enabledWhenSelected ? !isTruthy : isTruthy;
+}
 
 // ─── Public API ─────────────────────────────────────────────
 
@@ -29,6 +178,7 @@ interface SchemaFormProps {
  * dynamic maps, and x-widget hints.
  */
 export function SchemaForm({ schema, values, onChange, compact = false, presetValues, paramDocs }: SchemaFormProps) {
+  const defs = schema.$defs;
   const { properties, groups, ungrouped } = useMemo(() => {
     const props = schema.properties || {};
     const grps = schema["x-groups"] || [];
@@ -144,6 +294,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
               allProperties={drillProperties}
               depth={0}
               onDrillDown={handleDrillDown}
+              defs={defs}
             />
           ))}
         </div>
@@ -166,7 +317,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
           onDrillDown={handleDrillDown}
           presetValues={presetValues}
           paramDocs={paramDocs}
-
+          defs={defs}
         />
       ))}
 
@@ -203,7 +354,7 @@ export function SchemaForm({ schema, values, onChange, compact = false, presetVa
                 onDrillDown={handleDrillDown}
                 presetValues={presetValues}
                 docParam={paramDocs?.[key]}
-      
+                defs={defs}
               />
             ))}
           </div>
@@ -231,6 +382,7 @@ function FieldGroup({
   onDrillDown,
   presetValues,
   paramDocs,
+  defs,
 }: {
   group: ParameterGroup;
   groupIndex: number;
@@ -241,6 +393,7 @@ function FieldGroup({
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   presetValues?: Record<string, unknown>;
   paramDocs?: Record<string, ToolDocParam>;
+  defs?: Record<string, PropertySchema>;
 }) {
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
   if (fields.length === 0) return null;
@@ -328,7 +481,7 @@ function FieldGroup({
               onDrillDown={onDrillDown}
               presetValues={presetValues}
               docParam={paramDocs?.[key]}
-    
+              defs={defs}
             />
           ))}
         </div>
@@ -363,7 +516,7 @@ function PresetDot({ visible }: { visible: boolean }) {
 
 function PropertyField({
   name,
-  schema,
+  schema: rawSchema,
   value,
   onChange,
   compact,
@@ -373,6 +526,7 @@ function PropertyField({
   onDrillDown,
   presetValues,
   docParam,
+  defs,
 }: {
   name: string;
   schema: PropertySchema;
@@ -385,7 +539,17 @@ function PropertyField({
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   presetValues?: Record<string, unknown>;
   docParam?: ToolDocParam;
+  defs?: Record<string, PropertySchema>;
 }) {
+  // Resolve $ref if present
+  const schema = rawSchema.$ref ? resolveSchemaRef(rawSchema, defs) : rawSchema;
+
+  // x-editor metadata
+  const editor = schema["x-editor"];
+
+  // enabledBy: disable field when master parameter doesn't match
+  const disabled = isDisabledByMaster(editor, allValues, allProperties);
+
   // x-showIf conditional visibility
   const showIf = schema["x-showIf"] as { field: string; value?: unknown; empty?: boolean } | undefined;
   if (showIf && allValues) {
@@ -405,7 +569,17 @@ function PropertyField({
 
   const label = schema.title || formatLabel(name);
   const resolved = value ?? schema.default;
-  const widget = schema["x-widget"] as string | undefined;
+  const widget = getEffectiveWidget(schema);
+  const enumLabels = schema["x-enumLabels"];
+
+  // Suppress description when it's redundant with the label (same text, case-insensitive).
+  const description = schema.description && label.toLowerCase() !== schema.description.toLowerCase()
+    ? schema.description
+    : undefined;
+
+  // Layout hints from x-editor
+  const showLabel = editor?.layout?.withLabel !== false;
+  const verticalLayout = editor?.layout?.vertical ?? false;
 
   // Preset-modified indicator: compare current value with preset value.
   const isModifiedFromPreset = useMemo(() => {
@@ -462,7 +636,7 @@ function PropertyField({
 
   if (widget === "code-editor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "// Enter JavaScript code..."}
@@ -486,7 +660,7 @@ function PropertyField({
 
   if (widget === "file-picker") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <div style={{ display: "flex", gap: 4 }}>
           <input
             type="text"
@@ -536,7 +710,7 @@ function PropertyField({
     return (
       <CodeFinderRulesEditor
         label={label}
-        description={schema.description}
+        description={description}
         value={resolved as Record<string, unknown> | undefined}
         presets={schema["x-presets"]}
         onChange={onChange}
@@ -547,7 +721,7 @@ function PropertyField({
 
   if (widget === "simplifierRulesEditor") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <textarea
           value={String(resolved ?? "")}
           placeholder={schema["x-placeholder"] || "One rule per line..."}
@@ -569,7 +743,7 @@ function PropertyField({
     return (
       <MapEditor
         label={label}
-        description={schema.description}
+        description={description}
         value={resolved as Record<string, unknown> | undefined}
         itemSchema={resolveRef(schema)}
         onChange={onChange}
@@ -582,7 +756,7 @@ function PropertyField({
 
   if (widget === "regexBuilder" || widget === "tagList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -604,7 +778,7 @@ function PropertyField({
 
   if (widget === "numberList") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="text"
           value={String(resolved ?? "")}
@@ -612,6 +786,236 @@ function PropertyField({
           onChange={(e) => onChange(e.target.value || undefined)}
           style={inputStyle(compact)}
         />
+      </FieldWrapper>
+    );
+  }
+
+  // ── x-editor widget dispatch (new structured metadata) ──
+
+  if (widget === "path") {
+    const pathMeta = editor?.path;
+    return (
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+        <div style={{ display: "flex", gap: 4 }}>
+          <input
+            type="text"
+            value={String(resolved ?? "")}
+            placeholder={schema["x-placeholder"] || pathMeta?.browseTitle || "/path/to/file..."}
+            onChange={(e) => onChange(e.target.value || undefined)}
+            disabled={disabled}
+            style={{
+              ...inputStyle(compact),
+              flex: 1,
+              fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+              fontSize: compact ? 10 : 11,
+              opacity: disabled ? 0.5 : 1,
+            }}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              const input = document.createElement("input");
+              input.type = "file";
+              if (pathMeta?.filters?.length) {
+                // Build accept string from filter extensions
+                const exts = pathMeta.filters
+                  .map((f) => f.extensions.replace(/\*\./g, ".").replace(/\*/g, ""))
+                  .filter((e) => e && e !== ".")
+                  .join(",");
+                if (exts) input.accept = exts;
+              }
+              input.onchange = () => {
+                const file = input.files?.[0];
+                if (file) onChange(file.name);
+              };
+              input.click();
+            }}
+            style={{
+              padding: compact ? "2px 6px" : "4px 8px",
+              borderRadius: 4,
+              border: `1px solid ${theme.border}`,
+              background: theme.bgSecondary,
+              color: theme.fgMuted,
+              fontSize: compact ? 10 : 11,
+              cursor: disabled ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              opacity: disabled ? 0.5 : 1,
+            }}
+          >
+            Browse
+          </button>
+        </div>
+        {pathMeta?.filters && pathMeta.filters.length > 0 && (
+          <div style={{ fontSize: 9, color: theme.fgMuted, marginTop: 2 }}>
+            {pathMeta.filters.map((f) => f.name).join(", ")}
+          </div>
+        )}
+      </FieldWrapper>
+    );
+  }
+
+  if (widget === "folder") {
+    const folderMeta = editor?.folder;
+    return (
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+        <div style={{ display: "flex", gap: 4 }}>
+          <input
+            type="text"
+            value={String(resolved ?? "")}
+            placeholder={schema["x-placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."}
+            onChange={(e) => onChange(e.target.value || undefined)}
+            disabled={disabled}
+            style={{
+              ...inputStyle(compact),
+              flex: 1,
+              fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+              fontSize: compact ? 10 : 11,
+              opacity: disabled ? 0.5 : 1,
+            }}
+          />
+          <button
+            type="button"
+            disabled={disabled}
+            style={{
+              padding: compact ? "2px 6px" : "4px 8px",
+              borderRadius: 4,
+              border: `1px solid ${theme.border}`,
+              background: theme.bgSecondary,
+              color: theme.fgMuted,
+              fontSize: compact ? 10 : 11,
+              cursor: disabled ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              opacity: disabled ? 0.5 : 1,
+            }}
+          >
+            Browse
+          </button>
+        </div>
+      </FieldWrapper>
+    );
+  }
+
+  if (widget === "multilineText") {
+    const textMeta = editor?.text;
+    return (
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+        <textarea
+          value={String(resolved ?? "")}
+          placeholder={schema["x-placeholder"] || ""}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          disabled={disabled}
+          rows={textMeta?.height || 4}
+          style={{
+            ...inputStyle(compact),
+            minHeight: (textMeta?.height || 4) * 20,
+            resize: "vertical",
+            fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+            fontSize: compact ? 10 : 11,
+            lineHeight: 1.5,
+            opacity: disabled ? 0.5 : 1,
+          }}
+        />
+      </FieldWrapper>
+    );
+  }
+
+  if (widget === "password") {
+    return (
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+        <input
+          type="password"
+          value={String(resolved ?? "")}
+          placeholder={schema["x-placeholder"]}
+          onChange={(e) => onChange(e.target.value || undefined)}
+          disabled={disabled}
+          style={{ ...inputStyle(compact), opacity: disabled ? 0.5 : 1 }}
+        />
+      </FieldWrapper>
+    );
+  }
+
+  if (widget === "checkList" && editor?.checkList?.entries) {
+    const entries = editor.checkList.entries;
+    const current = (resolved as Record<string, boolean>) ?? {};
+    return (
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {entries.map((entry) => (
+            <label
+              key={entry.name}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                cursor: disabled ? "not-allowed" : "pointer",
+                opacity: disabled ? 0.5 : 1,
+              }}
+            >
+              <ToggleSwitch
+                checked={current[entry.name] ?? false}
+                onToggle={(v) => onChange({ ...current, [entry.name]: v })}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: compact ? 11 : 12, color: theme.fg, fontWeight: 500 }}>
+                  {entry.title}
+                </div>
+                {entry.description && !compact && (
+                  <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 1 }}>
+                    {entry.description}
+                  </div>
+                )}
+              </div>
+            </label>
+          ))}
+        </div>
+      </FieldWrapper>
+    );
+  }
+
+  if (widget === "select" && schema.enum && schema.enum.length > 0) {
+    // x-editor "select" = scrollable list (vs "dropdown" which uses standard <select>)
+    const current = String(resolved ?? "");
+    return (
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} vertical={verticalLayout} disabled={disabled}>
+        <div style={{
+          border: `1px solid ${theme.border}`,
+          borderRadius: 4,
+          maxHeight: 120,
+          overflowY: "auto",
+          background: theme.bgCard,
+          opacity: disabled ? 0.5 : 1,
+        }}>
+          {schema.enum.map((v) => {
+            const val = String(v);
+            const isActive = current === val;
+            const displayLabel = enumLabels?.[val] ?? val;
+            return (
+              <button
+                key={val}
+                onClick={() => !disabled && onChange(val)}
+                disabled={disabled}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  padding: "4px 8px",
+                  textAlign: "left",
+                  background: isActive ? theme.accent : "transparent",
+                  color: isActive ? theme.accentFg : theme.fg,
+                  border: "none",
+                  borderBottom: `1px solid ${theme.border}`,
+                  cursor: disabled ? "not-allowed" : "pointer",
+                  fontSize: compact ? 10 : 11,
+                  fontWeight: isActive ? 600 : 400,
+                }}
+              >
+                {displayLabel}
+              </button>
+            );
+          })}
+        </div>
       </FieldWrapper>
     );
   }
@@ -626,10 +1030,11 @@ function PropertyField({
           alignItems: "center",
           gap: 8,
           padding: "2px 0",
-          cursor: "pointer",
+          cursor: disabled ? "not-allowed" : "pointer",
+          opacity: disabled ? 0.5 : 1,
         }}
       >
-        <ToggleSwitch checked={(resolved as boolean) ?? false} onToggle={(v) => onChange(v)} />
+        <ToggleSwitch checked={(resolved as boolean) ?? false} onToggle={(v) => !disabled && onChange(v)} />
         <div style={{ flex: 1 }}>
           <div
             style={{
@@ -640,9 +1045,9 @@ function PropertyField({
           >
             <PresetDot visible={isModifiedFromPreset} />{label}
           </div>
-          {!compact && schema.description && (
+          {!compact && description && (
             <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 1 }}>
-              {schema.description}
+              <Md text={description} style={{ fontSize: 10, color: theme.fgMuted }} />
             </div>
           )}
         </div>
@@ -652,26 +1057,38 @@ function PropertyField({
 
   if (schema.enum && schema.enum.length > 0) {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled}>
         <select
           value={String(resolved ?? "")}
           onChange={(e) => onChange(e.target.value)}
-          style={inputStyle(compact)}
+          disabled={disabled}
+          style={{ ...inputStyle(compact), opacity: disabled ? 0.5 : 1 }}
         >
           <option value="">—</option>
-          {schema.enum.map((v) => (
-            <option key={String(v)} value={String(v)}>
-              {String(v)}
-            </option>
-          ))}
+          {schema.enum.map((v) => {
+            const val = String(v);
+            return (
+              <option key={val} value={val}>
+                {enumLabels?.[val] ?? val}
+              </option>
+            );
+          })}
         </select>
+        {(() => {
+          const desc = resolved != null ? schema["x-enumDescriptions"]?.[String(resolved)] : undefined;
+          return desc ? (
+            <div style={{ fontSize: 9, color: theme.fgMuted, marginTop: 2, fontStyle: "italic" }}>
+              {desc}
+            </div>
+          ) : null;
+        })()}
       </FieldWrapper>
     );
   }
 
   if (schema.type === "integer" || schema.type === "number") {
     return (
-      <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+      <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
         <input
           type="number"
           value={resolved != null ? String(resolved) : ""}
@@ -699,7 +1116,7 @@ function PropertyField({
       return (
         <NestedObjectEditor
           label={label}
-          description={schema.description}
+          description={description}
           schema={schema}
           value={resolved as Record<string, unknown> | undefined}
           onChange={onChange}
@@ -707,6 +1124,7 @@ function PropertyField({
           depth={depth}
           name={name}
           onDrillDown={onDrillDown}
+          defs={defs}
         />
       );
     }
@@ -716,7 +1134,7 @@ function PropertyField({
       return (
         <MapEditor
           label={label}
-          description={schema.description}
+          description={description}
           value={resolved as Record<string, unknown> | undefined}
           itemSchema={resolveRef(schema)}
           onChange={onChange}
@@ -730,7 +1148,7 @@ function PropertyField({
     return (
       <JsonEditor
         label={label}
-        description={schema.description}
+        description={description}
         value={resolved}
         onChange={onChange}
       />
@@ -744,7 +1162,7 @@ function PropertyField({
       return (
         <ArrayEditor
           label={label}
-          description={schema.description}
+          description={description}
           itemSchema={schema.items}
           value={resolved as unknown[] | undefined}
           onChange={onChange}
@@ -758,7 +1176,7 @@ function PropertyField({
     return (
       <JsonEditor
         label={label}
-        description={schema.description}
+        description={description}
         value={resolved}
         onChange={onChange}
       />
@@ -767,7 +1185,7 @@ function PropertyField({
 
   // Default: string input
   return (
-    <FieldWrapper label={label} description={schema.description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
+    <FieldWrapper label={label} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam}>
       <input
         type="text"
         value={String(resolved ?? "")}
@@ -793,6 +1211,7 @@ function NestedObjectEditor({
   depth,
   name,
   onDrillDown,
+  defs,
 }: {
   label: string;
   description?: string;
@@ -803,6 +1222,7 @@ function NestedObjectEditor({
   depth: number;
   name: string;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
+  defs?: Record<string, PropertySchema>;
 }) {
   const current = value ?? {};
   const properties = schema.properties || {};
@@ -869,6 +1289,7 @@ function NestedObjectEditor({
             allValues={current}
             depth={depth + 1}
             onDrillDown={onDrillDown}
+            defs={defs}
           />
         ))}
       </div>
@@ -1901,6 +2322,8 @@ function FieldWrapper({
   isModified,
   docParam,
   children,
+  vertical: _vertical,
+  disabled,
 }: {
   label: string;
   description?: string;
@@ -1908,15 +2331,20 @@ function FieldWrapper({
   isModified?: boolean;
   docParam?: ToolDocParam;
   children: React.ReactNode;
+  /** When true, label is positioned above the input instead of beside. */
+  vertical?: boolean;
+  /** Visual disabled state (reduces opacity). */
+  disabled?: boolean;
 }) {
   const [showMore, setShowMore] = useState(false);
-  const docDesc = docParam?.description;
+  // Accept both "description" and "help" field names (okapi-bridge docs use "help")
+  const docDesc = docParam?.description || docParam?.help;
   const hasNotes = docParam?.notes && docParam.notes.length > 0;
   const hasDeps = docParam?.dependsOn && docParam.dependsOn.length > 0;
   const hasExtra = hasNotes || hasDeps || docParam?.introducedIn;
 
   return (
-    <div style={{ display: "flex", gap: 16 }}>
+    <div style={{ display: "flex", gap: 16, opacity: disabled ? 0.5 : 1, transition: "opacity 150ms" }}>
       {/* Left: label + control */}
       <div style={{ flex: "1 1 0%", minWidth: 0, display: "flex", flexDirection: "column", gap: 3 }}>
         <div
@@ -1931,7 +2359,7 @@ function FieldWrapper({
         </div>
         {description && !compact && !docDesc && (
           <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.3, marginBottom: 2 }}>
-            {description}
+            <Md text={description} style={{ fontSize: 10, color: theme.fgMuted, lineHeight: "1.3" }} />
           </div>
         )}
         {children}
@@ -1939,36 +2367,40 @@ function FieldWrapper({
 
       {/* Right: doc description */}
       {docDesc && !compact && (
-        <div style={{ flex: "0 0 42%", minWidth: 0, paddingTop: 2 }}>
+        <div style={{ flex: "0 0 42%", minWidth: 0, paddingTop: 18 }}>
           <div
             style={{
               fontSize: 10,
               color: theme.fgMuted,
               lineHeight: 1.5,
-              display: "-webkit-box",
+              display: showMore ? "block" : "-webkit-box",
               WebkitLineClamp: showMore ? undefined : 3,
               WebkitBoxOrient: "vertical" as const,
               overflow: showMore ? "visible" : "hidden",
+              overflowWrap: "break-word",
+              wordBreak: "break-word",
             }}
           >
-            {docDesc}
+            <Md text={docDesc} style={{ fontSize: 10, color: theme.fgMuted, lineHeight: "1.5" }} />
           </div>
           {(hasExtra || (docDesc && docDesc.length > 120)) && (
-            <button
-              onClick={() => setShowMore((v) => !v)}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 0,
-                marginTop: 3,
-                fontSize: 9,
-                color: theme.ring,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {showMore ? "Show less" : "Show more"}
-            </button>
+            <div style={{ textAlign: "right" }}>
+              <button
+                onClick={() => setShowMore((v) => !v)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  marginTop: 3,
+                  fontSize: 9,
+                  color: theme.ring,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {showMore ? "Show less" : "Show more"}
+              </button>
+            </div>
           )}
           {showMore && hasNotes && (
             <div style={{ marginTop: 6, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -1984,7 +2416,7 @@ function FieldWrapper({
                     borderLeft: `2px solid color-mix(in oklch, ${theme.accent} 30%, transparent)`,
                   }}
                 >
-                  {note}
+                  <Md text={note} style={{ fontSize: 9, color: theme.fgMuted }} />
                 </div>
               ))}
             </div>

@@ -2,10 +2,10 @@ import { useState, useCallback, useMemo } from "react";
 import { cn } from "../../lib/utils";
 import {
   ComponentSchema,
-  FilterSchema,
+  FormatSchema,
   ParameterGroup,
   PropertySchema,
-  FilterParamsValue,
+  FormatParamsValue,
 } from "./types";
 
 // UI components from the ui directory
@@ -18,11 +18,11 @@ import { ChevronDown, ChevronRight } from "../icons";
 
 interface FilterConfigEditorProps {
   /** The filter or tool schema */
-  schema: FilterSchema | ComponentSchema;
+  schema: FormatSchema | ComponentSchema;
   /** Current parameter values */
-  value: FilterParamsValue;
+  value: FormatParamsValue;
   /** Called when any parameter changes */
-  onChange: (params: FilterParamsValue) => void;
+  onChange: (params: FormatParamsValue) => void;
   /** Optional CSS class */
   className?: string;
 }
@@ -126,7 +126,7 @@ export function FilterConfigEditor({
 interface ParameterGroupSectionProps {
   group: ParameterGroup;
   properties: Record<string, PropertySchema>;
-  values: FilterParamsValue;
+  values: FormatParamsValue;
   collapsed: boolean;
   onToggle: () => void;
   onChange: (field: string, value: unknown) => void;
