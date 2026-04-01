@@ -22,8 +22,8 @@ type AITerminologyTool struct {
 
 // AITerminologyConfig holds configuration for the terminology tool.
 type AITerminologyConfig struct {
-	Locale model.LocaleID
-	Domain string
+	Locale model.LocaleID `schema:"description=Locale of the source content"`
+	Domain string         `schema:"description=Subject domain for terminology extraction (e.g. medical legal technology)"`
 }
 
 // NewAITerminologyTool creates a new AI terminology extraction tool.

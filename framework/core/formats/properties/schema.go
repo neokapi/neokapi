@@ -1,6 +1,9 @@
 package properties
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the Java Properties format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -24,16 +27,16 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"separator": {
+			"separator": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     "=",
 				Description: "Key-value separator character (typically '=' or ':')",
-			},
-			"useJavaEscapes": {
+			}),
+			"useJavaEscapes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Decode additional Java escapes (\\: \\= \\# \\!) in values",
-			},
+			}),
 		},
 	}
 }

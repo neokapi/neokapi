@@ -65,7 +65,7 @@ function buildToolEntries(): ToolEntry[] {
       displayName: t.display_name || t.name,
       description: t.description || "",
       category: t.category || "other",
-      source: "okapi-bridge",
+      source: "okapi",
       tags: t.tags || [],
       inputs: t.inputs || [],
       schema: schema || undefined,
@@ -79,7 +79,7 @@ function ToolBrowser() {
   const tools = useMemo(buildToolEntries, []);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "built-in" | "okapi-bridge">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "built-in" | "okapi">("all");
   const [selected, setSelected] = useState<ToolEntry | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
 
@@ -118,7 +118,7 @@ function ToolBrowser() {
 
   if (selected) {
     return (
-      <div style={{ maxWidth: 700 }}>
+      <div style={{ maxWidth: 1100 }}>
         <button
           onClick={() => { setSelected(null); setConfigValues({}); }}
           className="text-sm text-primary hover:underline mb-4"
@@ -134,7 +134,7 @@ function ToolBrowser() {
             <span className={`rounded-full px-2 py-0.5 text-[10px] ${
               selected.source === "built-in" ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
             }`}>
-              {selected.source === "built-in" ? "native" : "bridge"}
+              {selected.source === "built-in" ? "native" : "okapi"}
             </span>
           </div>
           {selected.description && <p className="text-sm text-muted-foreground">{selected.description}</p>}
@@ -146,18 +146,29 @@ function ToolBrowser() {
             </div>
           )}
         </div>
-        {selected.schema && Object.keys(selected.schema.properties || {}).length > 0 ? (
-          <>
-            <SchemaForm schema={selected.schema} values={configValues} onChange={setConfigValues} />
-            <pre className="mt-4 rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
-              {JSON.stringify(configValues, null, 2)}
-            </pre>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {selected.schema ? "This tool has no configurable parameters." : "No schema available."}
-          </p>
-        )}
+        <div style={{ display: "grid", gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr", gap: 24 }}>
+          <div>
+            {selected.schema && Object.keys(selected.schema.properties || {}).length > 0 ? (
+              <SchemaForm schema={selected.schema} values={configValues} onChange={setConfigValues} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {selected.schema ? "This tool has no configurable parameters." : "No schema available."}
+              </p>
+            )}
+          </div>
+          {selected.schema && (
+            <div style={{ minWidth: 0 }}>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema (JSON)</h4>
+              <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-96">
+                {JSON.stringify(selected.schema, null, 2)}
+              </pre>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Config Values</h4>
+              <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
+                {JSON.stringify(configValues, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -174,12 +185,12 @@ function ToolBrowser() {
         />
         <select
           value={sourceFilter}
-          onChange={(e) => setSourceFilter(e.target.value as "all" | "built-in" | "okapi-bridge")}
+          onChange={(e) => setSourceFilter(e.target.value as "all" | "built-in" | "okapi")}
           className="rounded-md border bg-background px-2 py-2 text-xs"
         >
           <option value="all">All sources</option>
           <option value="built-in">Built-in</option>
-          <option value="okapi-bridge">Bridge</option>
+          <option value="okapi">Okapi</option>
         </select>
       </div>
 
@@ -226,7 +237,7 @@ function ToolBrowser() {
                     <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${
                       t.source === "built-in" ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
                     }`}>
-                      {t.source === "built-in" ? "native" : "bridge"}
+                      {t.source === "built-in" ? "native" : "okapi"}
                     </span>
                   </div>
                   {!t.schema && <span className="text-[10px] text-muted-foreground/50">no schema</span>}
@@ -244,7 +255,7 @@ function ToolBrowser() {
 }
 
 const meta: Meta<typeof ToolBrowser> = {
-  title: "Browsers/Tool Browser",
+  title: "Formats & Tools/Browsers/Tool Browser",
   component: ToolBrowser,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

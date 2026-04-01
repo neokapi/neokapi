@@ -17,8 +17,8 @@ const DefaultMyMemoryBaseURL = "https://api.mymemory.translated.net"
 
 // MyMemoryConfig holds configuration for the MyMemory provider.
 type MyMemoryConfig struct {
-	Email   string // Optional; provides higher rate limits when set
-	BaseURL string // Override for testing
+	Email   string `schema:"description=Email address for higher API rate limits (optional)"` // Optional; provides higher rate limits when set
+	BaseURL string `schema:"description=API base URL override for testing"` // Override for testing
 }
 
 // Validate checks configuration validity.
@@ -103,8 +103,8 @@ func (p *MyMemoryProvider) Close() error { return nil }
 // MyMemoryToolConfig holds configuration for the MyMemory MT tool (provider config + locale overrides).
 type MyMemoryToolConfig struct {
 	MyMemoryConfig
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 }
 
 // ToolName returns the tool name this config applies to.

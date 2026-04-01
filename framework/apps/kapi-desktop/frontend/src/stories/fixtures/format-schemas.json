@@ -211,7 +211,12 @@
       "properties": {
         "codeFinderRules": {
           "description": "Regex patterns that match inline codes within translatable text",
-          "type": "array"
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
         },
         "escapeForwardSlashes": {
           "default": true,
@@ -220,7 +225,8 @@
         },
         "exceptions": {
           "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "extractAllPairs": {
           "default": true,
@@ -235,28 +241,36 @@
         "extractionRules": {
           "description": "Regex pattern limiting which keys are extracted. Only matching keys are extracted.",
           "type": "string",
-          "ui:widget": "regexBuilder"
+          "ui:widget": "regex"
         },
         "genericMetaRules": {
           "description": "Regex pattern for key names whose values become metadata annotations",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "idRules": {
           "description": "Regex pattern for key names whose values are used as block names/IDs",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "maxwidthRules": {
           "description": "Regex pattern for key names whose numeric values set MAX_WIDTH on the next block",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "maxwidthSizeUnit": {
           "default": "pixel",
-          "description": "Size unit for maxwidth: 'pixel' or 'char'",
+          "description": "Size unit for maxwidth",
+          "enum": [
+            "pixel",
+            "char"
+          ],
           "type": "string"
         },
         "noteRules": {
           "description": "Regex pattern for key names whose values become notes on the next translatable block",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "subfilter": {
           "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings",
@@ -264,7 +278,12 @@
         },
         "subfilterRules": {
           "description": "Regex pattern for key names processed by the subfilter. Only used when subfilter is set.",
-          "type": "string"
+          "type": "string",
+          "ui:visible": {
+            "empty": false,
+            "field": "subfilter"
+          },
+          "ui:widget": "regex"
         },
         "subfilters": {
           "description": "Array of {pattern, format} mappings for embedded content in specific keys",
@@ -14374,7 +14393,12 @@
       "properties": {
         "codeFinderRules": {
           "description": "Regex patterns that match inline codes within translatable text",
-          "type": "array"
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
         },
         "escapeForwardSlashes": {
           "default": true,
@@ -14383,7 +14407,8 @@
         },
         "exceptions": {
           "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "extractAllPairs": {
           "default": true,
@@ -14398,28 +14423,36 @@
         "extractionRules": {
           "description": "Regex pattern limiting which keys are extracted. Only matching keys are extracted.",
           "type": "string",
-          "ui:widget": "regexBuilder"
+          "ui:widget": "regex"
         },
         "genericMetaRules": {
           "description": "Regex pattern for key names whose values become metadata annotations",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "idRules": {
           "description": "Regex pattern for key names whose values are used as block names/IDs",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "maxwidthRules": {
           "description": "Regex pattern for key names whose numeric values set MAX_WIDTH on the next block",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "maxwidthSizeUnit": {
           "default": "pixel",
-          "description": "Size unit for maxwidth: 'pixel' or 'char'",
+          "description": "Size unit for maxwidth",
+          "enum": [
+            "pixel",
+            "char"
+          ],
           "type": "string"
         },
         "noteRules": {
           "description": "Regex pattern for key names whose values become notes on the next translatable block",
-          "type": "string"
+          "type": "string",
+          "ui:widget": "regex"
         },
         "subfilter": {
           "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings",
@@ -14427,7 +14460,12 @@
         },
         "subfilterRules": {
           "description": "Regex pattern for key names processed by the subfilter. Only used when subfilter is set.",
-          "type": "string"
+          "type": "string",
+          "ui:visible": {
+            "empty": false,
+            "field": "subfilter"
+          },
+          "ui:widget": "regex"
         },
         "subfilters": {
           "description": "Array of {pattern, format} mappings for embedded content in specific keys",

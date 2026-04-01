@@ -1,6 +1,9 @@
 package wiki
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the Wiki format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -23,11 +26,11 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"variant": {
+			"variant": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     "mediawiki",
 				Description: "Wiki markup variant: mediawiki or dokuwiki.",
-			},
+			}),
 		},
 	}
 }

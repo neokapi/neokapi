@@ -1,6 +1,9 @@
 package csv
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the CSV format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -31,43 +34,43 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"separator": {
+			"separator": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     ",",
 				Description: "Field delimiter character",
-			},
-			"hasHeader": {
+			}),
+			"hasHeader": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "If true, the first row is treated as headers (non-translatable)",
-			},
-			"translatableColumns": {
+			}),
+			"translatableColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.",
-			},
-			"keyColumns": {
+			}),
+			"keyColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Column indices (0-based) that provide the block ID (source ID / record ID).",
-			},
-			"commentColumns": {
+			}),
+			"commentColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Column indices (0-based) that contain comments or notes.",
-			},
-			"trimValues": {
+			}),
+			"trimValues": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "If true, leading and trailing whitespace is removed from cell values.",
-			},
-			"columnNamesRow": {
+			}),
+			"columnNamesRow": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Default:     0,
 				Description: "1-based row number containing column names. 0 means auto-detect.",
-			},
-			"valuesStartRow": {
+			}),
+			"valuesStartRow": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Default:     0,
 				Description: "1-based row number where data values begin. 0 means auto-detect.",
-			},
+			}),
 		},
 	}
 }

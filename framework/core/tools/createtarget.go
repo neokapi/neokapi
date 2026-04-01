@@ -9,9 +9,9 @@ import (
 
 // CreateTargetConfig holds configuration for the create-target tool.
 type CreateTargetConfig struct {
-	TargetLocale model.LocaleID // Target locale to create (required)
-	CopySource   bool           // Whether to copy source text to target (default: false)
-	Overwrite    bool           // Whether to overwrite existing targets (default: false)
+	TargetLocale model.LocaleID `schema:"description=Target locale to create"` // Target locale to create (required)
+	CopySource   bool           `schema:"description=Copy source text to the new target segment"` // Whether to copy source text to target (default: false)
+	Overwrite    bool           `schema:"description=Overwrite existing target segments if they already exist"` // Whether to overwrite existing targets (default: false)
 }
 
 // ToolName returns the tool name this config applies to.

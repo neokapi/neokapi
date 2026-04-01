@@ -1,10 +1,15 @@
 import type { Preview, ReactRenderer } from "@storybook/react-vite";
 import { withThemeByClassName } from "@storybook/addon-themes";
+import { themes } from "storybook/theming";
 import "../src/index.css";
+
+// Detect system preference for default theme
+const prefersDark = typeof window !== "undefined"
+  && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 function ThemeDecorator(Story: React.ComponentType) {
   return (
-    <div className="bg-background text-foreground p-4">
+    <div className="bg-background text-foreground min-h-screen p-4">
       <Story />
     </div>
   );
@@ -18,14 +23,17 @@ const preview: Preview = {
         light: "",
         dark: "dark",
       },
-      defaultTheme: "dark",
+      defaultTheme: prefersDark ? "dark" : "light",
     }),
   ],
   parameters: {
     layout: "fullscreen",
+    docs: {
+      theme: prefersDark ? themes.dark : themes.light,
+    },
     options: {
       storySort: {
-        order: ["Schema Language", "Browsers", "Foundations", "Flow Editor", "Pages", "Components"],
+        order: ["Foundations", "Formats & Tools", ["Browsers", "Schema", "Formats", "Tools"], "Flow Editor", "Pages", "Components", "Interactions"],
       },
     },
   },

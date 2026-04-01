@@ -27,12 +27,12 @@ type AITranslateTool struct {
 
 // AITranslateConfig holds configuration for the AI translate tool.
 type AITranslateConfig struct {
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
-	Glossary     map[string]string
-	SkipMatched  bool
-	BatchSize    int // Blocks per LLM call. 0 or 1 = one block per call.
-	Concurrency  int // Concurrent batch calls. 0 or 1 = sequential.
+	SourceLocale model.LocaleID   `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID   `schema:"description=Target locale for processing"`
+	Glossary     map[string]string `schema:"description=Glossary mapping source terms to target translations"`
+	SkipMatched  bool              `schema:"description=Skip blocks that already have a target translation"`
+	BatchSize    int               `schema:"description=Number of blocks per LLM call (0 or 1 = one block per call),default=1,min=1"` // Blocks per LLM call. 0 or 1 = one block per call.
+	Concurrency  int               `schema:"description=Number of concurrent batch calls (0 or 1 = sequential),default=1,min=1"` // Concurrent batch calls. 0 or 1 = sequential.
 }
 
 // NewAITranslateTool creates a new AI translation tool.

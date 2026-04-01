@@ -1,6 +1,9 @@
 package markdown
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the Markdown format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -25,36 +28,36 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"translateCodeBlocks": {
+			"translateCodeBlocks": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "If true, fenced/indented code blocks are translatable. If false, emitted as non-translatable data.",
-			},
-			"translateFrontMatter": {
+			}),
+			"translateFrontMatter": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
-			},
-			"translateImageAlt": {
+			}),
+			"translateImageAlt": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "If true, image alt text is included in translatable content.",
-			},
-			"translateURLs": {
+			}),
+			"translateURLs": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "If true, link and image URLs are translatable.",
-			},
-			"translateBlockQuotes": {
+			}),
+			"translateBlockQuotes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "If true, blockquote content is translatable.",
-			},
-			"translateHTMLBlocks": {
+			}),
+			"translateHTMLBlocks": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
-			},
+			}),
 		},
 	}
 }

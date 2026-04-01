@@ -15,7 +15,7 @@ const (
 
 // SegCountConfig holds configuration for the segment count tool.
 type SegCountConfig struct {
-	Locale model.LocaleID // Target locale for counting target segments
+	Locale model.LocaleID `schema:"description=Target locale for counting target segments"` // Target locale for counting target segments
 }
 
 // ToolName returns the tool name this config applies to.

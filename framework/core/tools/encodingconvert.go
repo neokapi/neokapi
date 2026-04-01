@@ -14,10 +14,10 @@ const PropEncodingTarget = "encoding-target"
 
 // EncodingConvertConfig holds configuration for the encoding conversion tool.
 type EncodingConvertConfig struct {
-	TargetEncoding string         // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
-	ApplySource    bool           // Apply to source (default: false)
-	ApplyTarget    bool           // Apply to target (default: true)
-	TargetLocale   model.LocaleID // Required when ApplyTarget is true
+	TargetEncoding string         `schema:"description=Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"` // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
+	ApplySource    bool           `schema:"description=Apply encoding conversion to source text"` // Apply to source (default: false)
+	ApplyTarget    bool           `schema:"description=Apply encoding conversion to target text,default=true"` // Apply to target (default: true)
+	TargetLocale   model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Required when ApplyTarget is true
 }
 
 // ToolName returns the tool name this config applies to.

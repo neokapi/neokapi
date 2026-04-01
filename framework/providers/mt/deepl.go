@@ -27,9 +27,9 @@ const (
 
 // DeepLConfig holds configuration for the DeepL provider.
 type DeepLConfig struct {
-	APIKey    string
-	Formality string // "default", "more", "less", "prefer_more", "prefer_less"
-	BaseURL   string // Override for testing
+	APIKey    string `schema:"description=DeepL API authentication key,widget=password"`
+	Formality string `schema:"description=Formality level for translations,enum=default|more|less|prefer_more|prefer_less,default=default"` // "default", "more", "less", "prefer_more", "prefer_less"
+	BaseURL   string `schema:"description=API base URL override for testing"` // Override for testing
 }
 
 // Validate checks configuration validity.
@@ -113,8 +113,8 @@ func (p *DeepLProvider) Close() error { return nil }
 // DeepLToolConfig holds configuration for the DeepL MT tool (provider config + locale overrides).
 type DeepLToolConfig struct {
 	DeepLConfig
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 }
 
 // ToolName returns the tool name this config applies to.

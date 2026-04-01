@@ -18,8 +18,8 @@ type ReplacePair struct {
 
 // SearchReplaceConfig holds configuration for the search-and-replace tool.
 type SearchReplaceConfig struct {
-	Pairs        []ReplacePair  // The search/replace pairs to apply
-	TargetLocale model.LocaleID // If set, also apply to target text for this locale
+	Pairs        []ReplacePair  `schema:"description=Search/replace pairs to apply"` // The search/replace pairs to apply
+	TargetLocale model.LocaleID `schema:"description=Target locale; if set replacements also apply to target text"` // If set, also apply to target text for this locale
 }
 
 // ToolName returns the tool name this config applies to.

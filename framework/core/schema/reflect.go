@@ -149,10 +149,10 @@ func fieldToProperty(field reflect.StructField, val reflect.Value) *PropertySche
 		applyTag(prop, tag)
 	}
 
-	// Use field comment/name as fallback description
-	if prop.Description == "" {
-		prop.Description = fieldDescription(field)
-	}
+	// Don't auto-generate Title or Description from the field name.
+	// The frontend derives a label from the JSON key via formatLabel(),
+	// and auto-generated descriptions just duplicate that label.
+	// Authors should use schema:"description=..." for meaningful help text.
 
 	return prop
 }
@@ -222,38 +222,6 @@ func toLower(r rune) rune {
 		return r + ('a' - 'A')
 	}
 	return r
-}
-
-// fieldDescription generates a human-readable description from a field name.
-func fieldDescription(f reflect.StructField) string {
-	return splitCamelCase(f.Name)
-}
-
-// splitCamelCase splits "FuzzyThreshold" into "Fuzzy threshold".
-func splitCamelCase(s string) string {
-	if s == "" {
-		return ""
-	}
-	var words []string
-	start := 0
-	runes := []rune(s)
-	for i := 1; i < len(runes); i++ {
-		if isUpper(runes[i]) && (i+1 >= len(runes) || isLower(runes[i+1]) || isLower(runes[i-1])) {
-			words = append(words, string(runes[start:i]))
-			start = i
-		}
-	}
-	words = append(words, string(runes[start:]))
-
-	if len(words) == 0 {
-		return s
-	}
-	// Lowercase all but first word
-	result := words[0]
-	for i := 1; i < len(words); i++ {
-		result += " " + strings.ToLower(words[i])
-	}
-	return result
 }
 
 func goTypeToSchemaType(t reflect.Type) string {

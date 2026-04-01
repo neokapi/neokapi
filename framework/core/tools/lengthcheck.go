@@ -16,11 +16,11 @@ const (
 
 // LengthCheckConfig holds configuration for the length check tool.
 type LengthCheckConfig struct {
-	TargetLocale  model.LocaleID // Required
-	MaxChars      int            // Max character count (0 = disabled)
-	MaxWords      int            // Max word count (0 = disabled)
-	MaxPercentage float64        // Max target/source ratio as percentage (0 = disabled, e.g. 150.0 = 150%)
-	MinPercentage float64        // Min target/source ratio as percentage (0 = disabled, e.g. 50.0 = 50%)
+	TargetLocale  model.LocaleID `schema:"description=Target locale for processing"` // Required
+	MaxChars      int            `schema:"description=Maximum character count for target text (0 = disabled),default=0,min=0"` // Max character count (0 = disabled)
+	MaxWords      int            `schema:"description=Maximum word count for target text (0 = disabled),default=0,min=0"` // Max word count (0 = disabled)
+	MaxPercentage float64        `schema:"description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"` // Max target/source ratio as percentage (0 = disabled, e.g. 150.0 = 150%)
+	MinPercentage float64        `schema:"description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"` // Min target/source ratio as percentage (0 = disabled, e.g. 50.0 = 50%)
 }
 
 // ToolName returns the tool name this config applies to.

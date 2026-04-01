@@ -15,9 +15,9 @@ const (
 
 // CharsListingConfig holds configuration for the chars listing tool.
 type CharsListingConfig struct {
-	IncludeSource bool           // Include source text (default: true)
-	IncludeTarget bool           // Include target text (default: true)
-	TargetLocale  model.LocaleID // Target locale (required when IncludeTarget)
+	IncludeSource bool           `schema:"description=Include source text in character listing,default=true"` // Include source text (default: true)
+	IncludeTarget bool           `schema:"description=Include target text in character listing,default=true"` // Include target text (default: true)
+	TargetLocale  model.LocaleID `schema:"description=Target locale for processing,showIfSet=IncludeTarget"` // Target locale (required when IncludeTarget)
 }
 
 // ToolName returns the tool name this config applies to.

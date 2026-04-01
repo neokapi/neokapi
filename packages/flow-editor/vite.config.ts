@@ -2,7 +2,7 @@ import { defineConfig } from "vite-plus";
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
+    environment: "node",
     exclude: ["dist/**", "storybook-static/**", "node_modules/**"],
   },
   lint: {

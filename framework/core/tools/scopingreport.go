@@ -20,7 +20,7 @@ const (
 
 // ScopingReportConfig holds configuration for the scoping report tool.
 type ScopingReportConfig struct {
-	TargetLocale model.LocaleID // Optional — if set, includes target word counts
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing; if set includes target word counts"` // Optional — if set, includes target word counts
 }
 
 // ToolName returns the tool name this config applies to.

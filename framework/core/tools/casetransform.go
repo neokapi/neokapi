@@ -19,10 +19,10 @@ const (
 
 // CaseTransformConfig holds configuration for the case transform tool.
 type CaseTransformConfig struct {
-	Mode         CaseMode       // upper, lower, or title
-	ApplySource  bool           // Apply to source text
-	ApplyTarget  bool           // Apply to target text
-	TargetLocale model.LocaleID // Required if ApplyTarget is true
+	Mode         CaseMode       `schema:"description=Case transformation mode,enum=upper|lower|title,default=upper"` // upper, lower, or title
+	ApplySource  bool           `schema:"description=Apply to source text"` // Apply to source text
+	ApplyTarget  bool           `schema:"description=Apply to target text"` // Apply to target text
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Required if ApplyTarget is true
 }
 
 // ToolName returns the tool name this config applies to.

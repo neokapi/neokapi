@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/preset"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -384,8 +385,8 @@ func TestSchemaRegistry_RegisterSchema(t *testing.T) {
 			MimeTypes:  []string{"application/json"},
 		},
 		Properties: map[string]PropertySchema{
-			"extractAllPairs": {Type: "boolean", Default: true, Description: "Extract all pairs"},
-			"useKeyAsName":    {Type: "boolean", Default: true, Description: "Use key as name"},
+			"extractAllPairs": Prop(coreschema.PropertySchema{Type: "boolean", Default: true, Description: "Extract all pairs"}),
+			"useKeyAsName":    Prop(coreschema.PropertySchema{Type: "boolean", Default: true, Description: "Use key as name"}),
 		},
 	})
 

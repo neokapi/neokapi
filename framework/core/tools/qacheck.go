@@ -32,16 +32,16 @@ type QAIssue struct {
 
 // QACheckConfig holds configuration for the QA check tool.
 type QACheckConfig struct {
-	TargetLocale model.LocaleID
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 
 	// Individual check toggles; all default to true.
-	CheckLeadingWhitespace  bool
-	CheckTrailingWhitespace bool
-	CheckDoubleSpaces       bool
-	CheckEmptyTarget        bool
-	CheckTargetSameAsSource bool
-	CheckTerminology        bool // Placeholder for future terminology integration
-	CheckSpanConstraints    bool // Check non-deletable/non-cloneable span constraint violations
+	CheckLeadingWhitespace  bool `schema:"description=Check for leading whitespace mismatches between source and target,default=true"`
+	CheckTrailingWhitespace bool `schema:"description=Check for trailing whitespace mismatches between source and target,default=true"`
+	CheckDoubleSpaces       bool `schema:"description=Check for double spaces in target text,default=true"`
+	CheckEmptyTarget        bool `schema:"description=Check for empty target when source has content,default=true"`
+	CheckTargetSameAsSource bool `schema:"description=Check when target text is identical to source text,default=true"`
+	CheckTerminology        bool `schema:"description=Enable terminology checks"` // Placeholder for future terminology integration
+	CheckSpanConstraints    bool `schema:"description=Check non-deletable and non-cloneable span constraint violations,default=true"` // Check non-deletable/non-cloneable span constraint violations
 }
 
 // ToolName returns the tool name this config applies to.

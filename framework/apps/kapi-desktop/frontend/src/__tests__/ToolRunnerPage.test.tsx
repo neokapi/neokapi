@@ -33,6 +33,16 @@ const sampleTools: ToolInfo[] = [
     tags: ["reporting"],
     requires: [],
   },
+  {
+    name: "search-and-replace",
+    description: "Search and replace text patterns",
+    category: "transform",
+    has_schema: true,
+    source: "okapi",
+    inputs: ["block"],
+    tags: ["text-processing", "regex"],
+    requires: [],
+  },
 ];
 
 const sampleDocs: PluginDocs = {
@@ -69,7 +79,7 @@ describe("ToolRunnerPage", () => {
   it("shows tool count in empty state", () => {
     renderPage({ tools: sampleTools });
     expect(
-      screen.getByText(/3 tools available/),
+      screen.getByText(/4 tools available/),
     ).toBeInTheDocument();
   });
 
@@ -159,4 +169,18 @@ describe("ToolRunnerPage", () => {
     const matches = screen.getAllByText("Batch translation tool");
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
+
+  it("shows source badge for plugin tools", () => {
+    renderPage({ tools: sampleTools });
+    // "okapi" source badge should appear on the search-and-replace tool
+    expect(screen.getByText("okapi")).toBeInTheDocument();
+  });
+
+  it("does not show source badge for built-in tools", () => {
+    renderPage({ tools: sampleTools });
+    // Built-in tools have no source or source="built-in", no badge rendered
+    const badges = screen.queryAllByText("built-in");
+    expect(badges).toHaveLength(0);
+  });
+
 });

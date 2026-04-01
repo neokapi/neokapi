@@ -20,8 +20,8 @@ type AIReviewTool struct {
 
 // AIReviewConfig holds configuration for the review tool.
 type AIReviewConfig struct {
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 }
 
 // NewAIReviewTool creates a new AI translation review tool.

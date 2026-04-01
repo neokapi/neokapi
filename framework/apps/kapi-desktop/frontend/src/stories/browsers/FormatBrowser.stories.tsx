@@ -50,7 +50,7 @@ function buildFormatEntries(): FormatEntry[] {
     entries.push({
       name: f.name,
       displayName: f.display_name || f.name,
-      source: "okapi-bridge",
+      source: "okapi",
       extensions: f.extensions || [],
       mimeTypes: f.mime_types || [],
       schema: schema || undefined,
@@ -63,7 +63,7 @@ function buildFormatEntries(): FormatEntry[] {
 function FormatBrowser() {
   const formats = useMemo(buildFormatEntries, []);
   const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<"all" | "built-in" | "okapi-bridge">("all");
+  const [sourceFilter, setSourceFilter] = useState<"all" | "built-in" | "okapi">("all");
   const [selected, setSelected] = useState<FormatEntry | null>(null);
   const [configValues, setConfigValues] = useState<Record<string, unknown>>({});
 
@@ -84,30 +84,43 @@ function FormatBrowser() {
   }, [formats, search, sourceFilter]);
 
   const builtInCount = formats.filter((f) => f.source === "built-in").length;
-  const bridgeCount = formats.filter((f) => f.source === "okapi-bridge").length;
+  const okapiCount = formats.filter((f) => f.source === "okapi").length;
 
   if (selected) {
     return (
-      <div style={{ maxWidth: 700 }}>
+      <div style={{ maxWidth: 1100 }}>
         <button
           onClick={() => { setSelected(null); setConfigValues({}); }}
           className="text-sm text-primary hover:underline mb-4"
         >
           &larr; Back to format list
         </button>
-        {selected.schema ? (
-          <FormatConfigEditor
-            schema={selected.schema}
-            values={configValues}
-            onChange={setConfigValues}
-            title={selected.displayName}
-          />
-        ) : (
-          <p className="text-muted-foreground">No schema available for this format.</p>
-        )}
-        <pre className="mt-4 rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-60">
-          {JSON.stringify(configValues, null, 2)}
-        </pre>
+        <div style={{ display: "grid", gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr", gap: 24 }}>
+          <div>
+            {selected.schema ? (
+              <FormatConfigEditor
+                schema={selected.schema}
+                values={configValues}
+                onChange={setConfigValues}
+                title={selected.displayName}
+              />
+            ) : (
+              <p className="text-muted-foreground">No schema available for this format.</p>
+            )}
+          </div>
+          {selected.schema && (
+            <div style={{ minWidth: 0 }}>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema (JSON)</h4>
+              <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-96">
+                {JSON.stringify(selected.schema, null, 2)}
+              </pre>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Config Values</h4>
+              <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
+                {JSON.stringify(configValues, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -123,7 +136,7 @@ function FormatBrowser() {
           className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
         />
         <div className="flex gap-1">
-          {(["all", "built-in", "okapi-bridge"] as const).map((s) => (
+          {(["all", "built-in", "okapi"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setSourceFilter(s)}
@@ -133,7 +146,7 @@ function FormatBrowser() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {s === "all" ? `All (${formats.length})` : s === "built-in" ? `Built-in (${builtInCount})` : `Bridge (${bridgeCount})`}
+              {s === "all" ? `All (${formats.length})` : s === "built-in" ? `Built-in (${builtInCount})` : `Okapi (${okapiCount})`}
             </button>
           ))}
         </div>
@@ -157,7 +170,7 @@ function FormatBrowser() {
                   ? "bg-emerald-500/10 text-emerald-500"
                   : "bg-blue-500/10 text-blue-500"
               }`}>
-                {f.source === "built-in" ? "native" : "bridge"}
+                {f.source === "built-in" ? "native" : "okapi"}
               </span>
             </div>
             <div className="flex flex-wrap gap-1 mt-1.5">
@@ -179,7 +192,7 @@ function FormatBrowser() {
 }
 
 const meta: Meta<typeof FormatBrowser> = {
-  title: "Browsers/Format Browser",
+  title: "Formats & Tools/Browsers/Format Browser",
   component: FormatBrowser,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

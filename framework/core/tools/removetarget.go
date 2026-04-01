@@ -7,7 +7,7 @@ import (
 
 // RemoveTargetConfig holds configuration for the remove-target tool.
 type RemoveTargetConfig struct {
-	TargetLocale model.LocaleID // Target locale to remove (if empty, removes ALL targets)
+	TargetLocale model.LocaleID `schema:"description=Target locale to remove (if empty all targets are removed)"` // Target locale to remove (if empty, removes ALL targets)
 }
 
 // ToolName returns the tool name this config applies to.

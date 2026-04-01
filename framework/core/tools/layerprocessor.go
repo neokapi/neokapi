@@ -13,7 +13,7 @@ type LayerProcessorConfig struct {
 	// Pipelines maps format names to tool chains. When a child layer with
 	// the given format is encountered, its parts are processed through the
 	// corresponding tool chain before being emitted to the output.
-	Pipelines map[string][]tool.Tool
+	Pipelines map[string][]tool.Tool `schema:"description=Map of format names to tool chains applied to child layers with that format"`
 }
 
 // ToolName returns the config's tool name.

@@ -35,7 +35,7 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
 }
 
 const meta: Meta<typeof SchemaStory> = {
-  title: "Schema Language/Property Types",
+  title: "Formats & Tools/Schema/Property Types",
   component: SchemaStory,
   tags: ["autodocs"],
   parameters: { layout: "padded" },
@@ -172,6 +172,37 @@ export const ArrayProperty: Story = {
           title: "Extraction Rules",
           description: "Regex patterns for content extraction",
           items: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
+export const DuplicateLabelSuppression: Story = {
+  name: "Duplicate Label Suppression",
+  args: {
+    description: "When `title` and `description` are the same (case-insensitive), the description is suppressed to avoid visual duplication. Compare the first two fields (title === description) with the third (different description).",
+    schema: {
+      title: "Label Suppression Demo",
+      type: "object",
+      properties: {
+        expansionPercent: {
+          type: "integer",
+          title: "Expansion Percent",
+          description: "Expansion percent",
+          default: 30,
+        },
+        prefix: {
+          type: "string",
+          title: "Prefix",
+          description: "Prefix",
+          default: "[",
+        },
+        suffix: {
+          type: "string",
+          title: "Suffix",
+          description: "Character appended after each translated segment",
+          default: "]",
         },
       },
     },

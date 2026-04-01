@@ -14,7 +14,7 @@ import (
 
 // BrandVocabConfig holds configuration for the brand vocabulary check tool.
 type BrandVocabConfig struct {
-	Profile *brand.VoiceProfile
+	Profile *brand.VoiceProfile `schema:"description=Brand voice profile containing vocabulary rules"`
 }
 
 func (c *BrandVocabConfig) ToolName() string { return "brand-vocab-check" }

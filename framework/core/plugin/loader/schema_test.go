@@ -5,6 +5,8 @@ package loader
 import (
 	"testing"
 
+	fmtschema "github.com/neokapi/neokapi/core/format/schema"
+	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +20,7 @@ func TestSchemaAliases(t *testing.T) {
 	s := &FormatSchema{
 		Title: "Test",
 		Properties: map[string]PropertySchema{
-			"foo": {Type: "boolean"},
+			"foo": fmtschema.Prop(coreschema.PropertySchema{Type: "boolean"}),
 		},
 	}
 	assert.Equal(t, "Test", s.Title)

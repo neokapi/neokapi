@@ -1,5 +1,5 @@
 import type { PropertySchema, ToolDocParam } from "./types";
-import { theme, inputStyle, formatLabel, resolveRef, hasAdditionalProperties } from "./utils";
+import { theme, inputStyle, resolveRef, hasAdditionalProperties } from "./utils";
 import { resolveSchemaRef } from "./hooks/useSchemaResolution";
 import { evaluateCondition } from "./hooks/useConditionalVisibility";
 import { useFieldEnabled } from "./hooks/useFieldEnabled";
@@ -55,7 +55,7 @@ export function PropertyField({
   const visible = evaluateCondition(schema["ui:visible"], allValues, allProperties);
   if (!visible) return null;
 
-  const label = schema.title || formatLabel(name);
+  const label = schema.title || name;
   const resolved = value ?? schema.default;
   const widget = resolveWidgetName(schema["ui:widget"]);
   const enumLabels = schema["ui:enum-labels"];

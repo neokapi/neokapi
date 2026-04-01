@@ -1,6 +1,9 @@
 package ttml
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the TTML format.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -14,16 +17,16 @@ func (c *Config) Schema() *schema.FormatSchema {
 			MimeTypes:  []string{"application/ttml+xml"},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"mergeAdjacentCaptions": {
+			"mergeAdjacentCaptions": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Description: "Merge adjacent <p> elements ending with trailing punctuation into one block",
 				Default:     false,
-			},
-			"escapeBR": {
+			}),
+			"escapeBR": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Description: "When true, <br/> elements are removed and text is joined with spaces; when false, <br/> is preserved as literal text",
 				Default:     true,
-			},
+			}),
 		},
 	}
 }

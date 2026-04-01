@@ -18,10 +18,10 @@ const (
 
 // InconsistencyCheckConfig holds configuration for the inconsistency check tool.
 type InconsistencyCheckConfig struct {
-	TargetLocale             model.LocaleID // Required
-	CaseSensitive            bool           // Whether comparison is case-sensitive (default: true)
-	CheckTargetInconsistency bool           // Same source, different target (default: true)
-	CheckSourceInconsistency bool           // Different source, same target (default: false)
+	TargetLocale             model.LocaleID `schema:"description=Target locale for processing"` // Required
+	CaseSensitive            bool           `schema:"description=Whether comparison is case-sensitive,default=true"` // Whether comparison is case-sensitive (default: true)
+	CheckTargetInconsistency bool           `schema:"description=Flag when the same source has different translations,default=true"` // Same source, different target (default: true)
+	CheckSourceInconsistency bool           `schema:"description=Flag when different sources share the same translation"` // Different source, same target (default: false)
 }
 
 // ToolName returns the tool name this config applies to.

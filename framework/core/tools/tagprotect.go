@@ -16,7 +16,7 @@ const (
 
 // TagProtectConfig holds configuration for the tag protection tool.
 type TagProtectConfig struct {
-	Patterns []string // Regex patterns for tags to protect
+	Patterns []string `schema:"description=Regex patterns for tags and placeholders to protect,widget=regex"` // Regex patterns for tags to protect
 }
 
 // ToolName returns the tool name this config applies to.

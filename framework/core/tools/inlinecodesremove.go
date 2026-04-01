@@ -9,9 +9,9 @@ import (
 
 // InlineCodesRemoveConfig holds configuration for the inline codes remove tool.
 type InlineCodesRemoveConfig struct {
-	ApplySource  bool           // Apply to source segments (default: false)
-	ApplyTarget  bool           // Apply to target segments (default: true)
-	TargetLocale model.LocaleID // Target locale (required when ApplyTarget is true)
+	ApplySource  bool           `schema:"description=Apply to source segments"` // Apply to source segments (default: false)
+	ApplyTarget  bool           `schema:"description=Apply to target segments,default=true"` // Apply to target segments (default: true)
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale (required when ApplyTarget is true)
 }
 
 // ToolName returns the tool name this config applies to.

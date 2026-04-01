@@ -19,9 +19,9 @@ const (
 
 // LineBreakConvertConfig holds configuration for the line break conversion tool.
 type LineBreakConvertConfig struct {
-	Mode        LineBreakMode // Target line break style (default: "lf")
-	ApplySource bool          // Apply to source text (default: true)
-	ApplyTarget bool          // Apply to target text (default: true)
+	Mode        LineBreakMode `schema:"description=Target line break style,enum=lf|crlf|cr,default=lf"` // Target line break style (default: "lf")
+	ApplySource bool          `schema:"description=Apply to source text,default=true"` // Apply to source text (default: true)
+	ApplyTarget bool          `schema:"description=Apply to target text,default=true"` // Apply to target text (default: true)
 }
 
 // ToolName returns the tool name this config applies to.

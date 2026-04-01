@@ -21,13 +21,13 @@ const (
 
 // ExternalCommandConfig holds configuration for the external command tool.
 type ExternalCommandConfig struct {
-	Command      string         // The command to execute (required)
-	Args         []string       // Command arguments. Use "${source}" and "${target}" as placeholders.
-	ApplySource  bool           // Process source text (default: false)
-	ApplyTarget  bool           // Process target text (default: true)
-	TargetLocale model.LocaleID // Target locale (required when ApplyTarget)
-	SendAsStdin  bool           // Send text via stdin instead of args (default: true)
-	Timeout      int            // Timeout in seconds (default: 30)
+	Command      string         `schema:"description=The command to execute"` // The command to execute (required)
+	Args         []string       `schema:"description=Command arguments; use ${source} and ${target} as placeholders"` // Command arguments. Use "${source}" and "${target}" as placeholders.
+	ApplySource  bool           `schema:"description=Process source text"` // Process source text (default: false)
+	ApplyTarget  bool           `schema:"description=Process target text,default=true"` // Process target text (default: true)
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale (required when ApplyTarget)
+	SendAsStdin  bool           `schema:"description=Send text via stdin instead of command arguments,default=true"` // Send text via stdin instead of args (default: true)
+	Timeout      int            `schema:"description=Timeout in seconds,default=30,min=1"` // Timeout in seconds (default: 30)
 }
 
 // ToolName returns the tool name this config applies to.

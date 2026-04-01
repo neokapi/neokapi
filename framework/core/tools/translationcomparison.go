@@ -15,8 +15,8 @@ const (
 
 // TranslationComparisonConfig holds configuration for the translation comparison tool.
 type TranslationComparisonConfig struct {
-	Locale1 model.LocaleID // First target locale to compare (required)
-	Locale2 model.LocaleID // Second target locale to compare (required)
+	Locale1 model.LocaleID `schema:"description=First target locale to compare"` // First target locale to compare (required)
+	Locale2 model.LocaleID `schema:"description=Second target locale to compare"` // Second target locale to compare (required)
 }
 
 // ToolName returns the tool name this config applies to.

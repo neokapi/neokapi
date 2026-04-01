@@ -8,8 +8,16 @@ import (
 	"strings"
 	"sync"
 
+	coreschema "github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/preset"
 )
+
+// Re-export shared types from core/schema for convenience.
+// These are the authoritative definitions — format/schema consumers
+// can use them without importing core/schema directly.
+type ParameterGroup = coreschema.ParameterGroup
+type ConditionExpr = coreschema.ConditionExpr
+type LayoutHints = coreschema.LayoutHints
 
 // FormatSchema represents a JSON Schema for a format's parameters.
 type FormatSchema struct {
@@ -54,36 +62,26 @@ type FormatMeta struct {
 	Class string `json:"class,omitempty"`
 }
 
-// ParameterGroup defines a UI grouping of parameters.
-type ParameterGroup struct {
-	ID          string   `json:"id"`
-	Label       string   `json:"label"`
-	Description string   `json:"description,omitempty"`
-	Collapsible *bool    `json:"collapsible,omitempty"`
-	Collapsed   bool     `json:"collapsed,omitempty"`
-	Icon        string   `json:"icon,omitempty"`
-	Fields      []string `json:"fields"`
-}
-
-// PropertySchema represents a single parameter's schema.
+// PropertySchema extends core/schema.PropertySchema with okapi-bridge fields.
+// All standard JSON Schema fields and ui:* rendering hints come from the
+// embedded core type. Only bridge-specific extensions are added here.
 type PropertySchema struct {
-	Type        string `json:"type"`
-	Title       string `json:"title,omitempty"`
-	Description string `json:"description,omitempty"`
-	Default     any    `json:"default,omitempty"`
-	Deprecated  bool   `json:"deprecated,omitempty"`
-
-	// UI rendering hints (ui: prefix)
-	Widget      string         `json:"ui:widget,omitempty"`
-	Placeholder string         `json:"ui:placeholder,omitempty"`
-	UIPresets   map[string]any `json:"ui:presets,omitempty"` // widget-level presets (e.g., regex samples)
+	coreschema.PropertySchema
 
 	// Okapi bridge extensions (x-okapi- prefix, only in bridge schemas)
 	OkapiFormat string `json:"x-okapi-format,omitempty"`
 	FlattenPath string `json:"x-okapi-flatten-path,omitempty"`
 
-	// Nested properties for object types
+	// Nested properties for object types — redeclared to use this type
+	// so recursive structures use PropertySchema (with bridge fields),
+	// not the embedded core type's Properties.
 	Properties map[string]PropertySchema `json:"properties,omitempty"`
+}
+
+// Prop wraps a core PropertySchema into a format PropertySchema.
+// Keeps native format schema.go files concise.
+func Prop(p coreschema.PropertySchema) PropertySchema {
+	return PropertySchema{PropertySchema: p}
 }
 
 // SchemaRegistry manages filter parameter schemas.

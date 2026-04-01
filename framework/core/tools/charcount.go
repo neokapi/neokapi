@@ -19,7 +19,7 @@ const (
 
 // CharCountConfig holds configuration for the character count tool.
 type CharCountConfig struct {
-	Locale model.LocaleID // Target locale for counting target characters
+	Locale model.LocaleID `schema:"description=Target locale for counting target characters"` // Target locale for counting target characters
 }
 
 // ToolName returns the tool name this config applies to.
