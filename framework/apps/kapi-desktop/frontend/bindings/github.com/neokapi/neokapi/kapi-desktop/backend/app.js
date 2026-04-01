@@ -399,6 +399,10 @@ export function GetFlow(tabID, name) {
 
 /**
  * GetFormatSchema returns the configuration schema for a format.
+ * GetFormatSchema returns the configuration schema for a format filter.
+ * When the schema has pre-built RawJSON (e.g. loaded from a plugin schema file),
+ * it is used directly so that all extension metadata (x-editor, x-enumLabels,
+ * x-filter, $defs, etc.) passes through to the frontend unchanged.
  * @param {string} formatName
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
@@ -542,8 +546,10 @@ export function GetTheme() {
 }
 
 /**
- * GetToolSchema returns the component schema for a tool's parameters.
  * GetToolSchema returns the configuration schema for a tool.
+ * When the schema has pre-built RawJSON (e.g. from a plugin schema file),
+ * it is used directly so that all extension metadata (x-editor, x-enumLabels,
+ * x-step, $defs, etc.) passes through to the frontend unchanged.
  * @param {string} name
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */

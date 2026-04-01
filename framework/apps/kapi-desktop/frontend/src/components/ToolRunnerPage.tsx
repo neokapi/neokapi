@@ -212,6 +212,11 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                           <span className={`text-xs font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
                             {tool.display_name || tool.name}
                           </span>
+                          {tool.source && tool.source !== "built-in" && (
+                            <span className="text-[8px] px-1 py-px rounded bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0 font-medium">
+                              {tool.source}
+                            </span>
+                          )}
                           {tool.has_schema && (
                             <Settings2 size={9} className="text-muted-foreground shrink-0" />
                           )}
@@ -392,6 +397,9 @@ function ToolDetail({
 
       {/* Configuration form + run controls */}
       <div className="space-y-4">
+          {/* Step metadata (I/O types, pipeline params) */}
+          {!loadingSchema && schema && <ToolMetadataPanel schema={schema} />}
+
           {loadingSchema && (
             <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
               Loading configuration...
@@ -455,6 +463,50 @@ function ToolDetail({
             </button>
           </div>
       </div>
+    </div>
+  );
+}
+
+// --- Step Metadata Panel ---
+
+const ioTypeLabels: Record<string, string> = {
+  "filter-events": "Filter Events",
+  "raw-document": "Raw Document",
+  file: "File",
+};
+
+function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
+  const stepMeta = schema["x-tool"];
+  if (!stepMeta) return null;
+
+  const hasIO = stepMeta.inputType || stepMeta.outputType;
+  const hasMappings = stepMeta.parameterMappings && stepMeta.parameterMappings.length > 0;
+
+  if (!hasIO && !hasMappings) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-[10px]">
+      {stepMeta.inputType && (
+        <span className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400">
+          <FileInput size={9} />
+          In: {ioTypeLabels[stepMeta.inputType] || stepMeta.inputType}
+        </span>
+      )}
+      {stepMeta.outputType && (
+        <span className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400">
+          <Play size={9} />
+          Out: {ioTypeLabels[stepMeta.outputType] || stepMeta.outputType}
+        </span>
+      )}
+      {hasMappings &&
+        stepMeta.parameterMappings!.map((pm) => (
+          <span
+            key={pm}
+            className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground font-mono"
+          >
+            {pm.toLowerCase().replace(/_/g, "-")}
+          </span>
+        ))}
     </div>
   );
 }

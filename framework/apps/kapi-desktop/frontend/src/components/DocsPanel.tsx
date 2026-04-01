@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   BookOpen,
   ChevronDown,
@@ -81,9 +83,9 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
           expanded={isExpanded("overview")}
           onToggle={toggleSection}
         >
-          <p className="text-[13px] leading-relaxed text-foreground/85">
-            {doc.overview}
-          </p>
+          <div className="text-[13px] leading-relaxed text-foreground/85">
+            <Md>{doc.overview}</Md>
+          </div>
           {wikiUrl && (
             <a
               href={wikiUrl}
@@ -173,7 +175,7 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
                   className="flex items-start gap-2 text-[12px] text-foreground/80"
                 >
                   <span className="mt-1.5 h-1 w-1 rounded-full bg-chart-5/60 shrink-0" />
-                  {lim}
+                  <Md>{lim}</Md>
                 </li>
               ))}
             </ul>
@@ -196,7 +198,7 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
                   className="flex items-start gap-2 text-[12px] text-foreground/80"
                 >
                   <span className="mt-1.5 h-1 w-1 rounded-full bg-chart-3/60 shrink-0" />
-                  {note}
+                  <Md>{note}</Md>
                 </li>
               ))}
             </ul>
@@ -301,9 +303,11 @@ function ParameterEntry({
                 </span>
               )}
             </div>
-            <p className="mt-1 text-[11px] leading-relaxed text-foreground/75">
-              {doc.description}
-            </p>
+            {(doc.description || doc.help) && (
+              <div className="mt-1 text-[11px] leading-relaxed text-foreground/75">
+                <Md>{doc.description || doc.help || ""}</Md>
+              </div>
+            )}
 
             {/* Notes */}
             {doc.notes && doc.notes.length > 0 && (
@@ -314,7 +318,7 @@ function ParameterEntry({
                     className="flex items-start gap-1.5 text-[10px] text-chart-4"
                   >
                     <Lightbulb size={9} className="mt-0.5 shrink-0" />
-                    <span>{note}</span>
+                    <span><Md>{note}</Md></span>
                   </div>
                 ))}
               </div>
@@ -367,9 +371,9 @@ function ExampleEntry({
           {example.title}
         </h4>
         {example.description && (
-          <p className="mt-0.5 text-[11px] text-foreground/70">
-            {example.description}
-          </p>
+          <div className="mt-0.5 text-[11px] text-foreground/70">
+            <Md>{example.description}</Md>
+          </div>
         )}
       </div>
       {(example.input || example.output) && (
@@ -397,6 +401,44 @@ function ExampleEntry({
         </div>
       )}
     </div>
+  );
+}
+
+// --- Markdown renderer (Tailwind-styled) ---
+
+function Md({ children }: { children: string }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children: c }) => <p className="mb-1 last:mb-0">{c}</p>,
+        a: ({ href, children: c }) => (
+          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline underline-offset-2 decoration-primary/30">
+            {c}
+          </a>
+        ),
+        code: ({ children: c }) => (
+          <code className="px-1 py-px rounded bg-muted text-[0.9em] font-mono">{c}</code>
+        ),
+        strong: ({ children: c }) => <strong className="font-semibold">{c}</strong>,
+        ul: ({ children: c }) => <ul className="mt-1 ml-3 list-disc space-y-0.5">{c}</ul>,
+        ol: ({ children: c }) => <ol className="mt-1 ml-3 list-decimal space-y-0.5">{c}</ol>,
+        table: ({ children: c }) => (
+          <table className="my-2 w-full text-[0.95em] border-collapse">{c}</table>
+        ),
+        thead: ({ children: c }) => (
+          <thead className="border-b-2 border-border">{c}</thead>
+        ),
+        th: ({ children: c }) => (
+          <th className="text-left py-1 pr-3 font-semibold text-[0.9em] text-muted-foreground">{c}</th>
+        ),
+        td: ({ children: c }) => (
+          <td className="py-1 pr-3 border-b border-border align-top">{c}</td>
+        ),
+      }}
+    >
+      {children}
+    </Markdown>
   );
 }
 
@@ -434,17 +476,17 @@ export function ParamHelp({ paramKey, doc }: ParamHelpProps) {
       </button>
       {open && (
         <div className="absolute left-0 top-5 z-50 w-64 rounded-md border border-border bg-popover p-3 shadow-lg">
-          <p className="text-[11px] leading-relaxed text-popover-foreground">
-            {paramDoc.description}
-          </p>
+          <div className="text-[11px] leading-relaxed text-popover-foreground">
+            <Md>{paramDoc.description || paramDoc.help || ""}</Md>
+          </div>
           {paramDoc.notes?.map((note, i) => (
-            <p
+            <div
               key={i}
               className="mt-1.5 text-[10px] text-chart-4 flex items-start gap-1"
             >
               <Lightbulb size={9} className="mt-0.5 shrink-0" />
-              {note}
-            </p>
+              <Md>{note}</Md>
+            </div>
           ))}
           {paramDoc.dependsOn?.map((dep, i) => (
             <p

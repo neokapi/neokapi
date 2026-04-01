@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useWailsEvent } from "../hooks/useWailsEvent";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   FileText,
   ArrowLeft,
@@ -489,10 +491,8 @@ function FormatDetail({
 
       {/* Overview from docs */}
       {filterDoc && (
-        <div className="mb-6 rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3">
-          <p className="text-[13px] leading-relaxed text-foreground/85">
-            {filterDoc.overview}
-          </p>
+        <div className="mb-6 rounded-lg border border-primary/15 bg-primary/[0.03] px-4 py-3 text-[13px] leading-relaxed text-foreground/85 [&_a]:text-primary/80 [&_a]:underline [&_a]:underline-offset-2 [&_code]:px-1 [&_code]:py-px [&_code]:rounded [&_code]:bg-muted [&_code]:text-[0.9em] [&_code]:font-mono">
+          <Markdown remarkPlugins={[remarkGfm]}>{filterDoc.overview}</Markdown>
         </div>
       )}
 

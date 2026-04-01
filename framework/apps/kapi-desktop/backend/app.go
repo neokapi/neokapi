@@ -503,6 +503,7 @@ type ToolInfo struct {
 	DisplayName string   `json:"display_name,omitempty"`
 	Description string   `json:"description"`
 	Category    string   `json:"category"`
+	Source      string   `json:"source,omitempty"` // "built-in" or plugin name
 	HasSchema   bool     `json:"has_schema"`
 	Inputs      []string `json:"inputs,omitempty"`
 	Outputs     []string `json:"outputs,omitempty"`
@@ -520,6 +521,7 @@ func (a *App) ListTools() []ToolInfo {
 			DisplayName: info.DisplayName,
 			Description: info.Description,
 			Category:    info.Category,
+			Source:      info.Source,
 			HasSchema:   info.HasSchema,
 			Inputs:      info.Inputs,
 			Outputs:     info.Outputs,
@@ -531,16 +533,23 @@ func (a *App) ListTools() []ToolInfo {
 	return infos
 }
 
-// GetToolSchema returns the component schema for a tool's parameters.
 // GetToolSchema returns the configuration schema for a tool.
+// When the schema has pre-built RawJSON (e.g. from a plugin schema file),
+// it is used directly so that all extension metadata (x-editor, x-enumLabels,
+// x-step, $defs, etc.) passes through to the frontend unchanged.
 func (a *App) GetToolSchema(name string) map[string]any {
 	s := a.toolReg.GetSchema(name)
 	if s == nil {
 		return nil
 	}
-	data, err := json.Marshal(s)
-	if err != nil {
-		return nil
+	// Prefer raw JSON to preserve all extension fields.
+	data := s.RawJSON
+	if len(data) == 0 {
+		var err error
+		data, err = json.Marshal(s)
+		if err != nil {
+			return nil
+		}
 	}
 	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
@@ -596,14 +605,23 @@ func (a *App) ListFormats() []FormatInfo {
 }
 
 // GetFormatSchema returns the configuration schema for a format.
+// GetFormatSchema returns the configuration schema for a format filter.
+// When the schema has pre-built RawJSON (e.g. loaded from a plugin schema file),
+// it is used directly so that all extension metadata (x-editor, x-enumLabels,
+// x-format, $defs, etc.) passes through to the frontend unchanged.
 func (a *App) GetFormatSchema(formatName string) map[string]any {
 	s, ok := a.schemaReg.GetSchema(formatName)
 	if !ok {
 		return nil
 	}
-	data, err := json.Marshal(s)
-	if err != nil {
-		return nil
+	// Prefer raw JSON to preserve all extension fields.
+	data := s.RawJSON
+	if len(data) == 0 {
+		var err error
+		data, err = json.Marshal(s)
+		if err != nil {
+			return nil
+		}
 	}
 	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
