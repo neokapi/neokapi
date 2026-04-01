@@ -208,9 +208,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
       </div>
 
       {/* Error */}
-      {error && (
-        <p className="text-xs text-destructive">{error}</p>
-      )}
+      {error && <p className="text-xs text-destructive">{error}</p>}
 
       {/* Results */}
       {matches.length > 0 && (
