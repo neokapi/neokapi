@@ -4,9 +4,8 @@
       "$id": "pseudo-translate",
       "title": "Pseudo Translate",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "pseudo-translate",
-        "type": "tool",
         "category": "transform",
         "displayName": "Pseudo Translate",
         "inputs": [
@@ -52,9 +51,8 @@
       "$id": "tm-leverage",
       "title": "TM Leverage",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "tm-leverage",
-        "type": "tool",
         "category": "enrich",
         "displayName": "TM Leverage",
         "inputs": [
@@ -96,9 +94,8 @@
       "$id": "diff-leverage",
       "title": "Diff Leverage",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "diff-leverage",
-        "type": "tool",
         "category": "enrich",
         "displayName": "Diff Leverage",
         "inputs": [
@@ -141,9 +138,8 @@
       "$id": "qa-check",
       "title": "QA Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "qa-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "QA Check",
         "inputs": [
@@ -211,9 +207,8 @@
       "$id": "term-check",
       "title": "Terminology Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "term-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Terminology Check",
         "inputs": [
@@ -268,9 +263,8 @@
       "$id": "inconsistency-check",
       "title": "Inconsistency Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "inconsistency-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Inconsistency Check",
         "inputs": [
@@ -318,9 +312,8 @@
       "$id": "length-check",
       "title": "Length Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "length-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Length Check",
         "inputs": [
@@ -368,9 +361,8 @@
       "$id": "chars-check",
       "title": "Characters Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "chars-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Characters Check",
         "inputs": [
@@ -416,9 +408,8 @@
       "$id": "pattern-check",
       "title": "Pattern Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "pattern-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Pattern Check",
         "inputs": [
@@ -478,9 +469,8 @@
       "$id": "word-count",
       "title": "Word Count",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "word-count",
-        "type": "tool",
         "category": "validate",
         "displayName": "Word Count",
         "inputs": [
@@ -503,9 +493,8 @@
       "$id": "char-count",
       "title": "Character Count",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "char-count",
-        "type": "tool",
         "category": "validate",
         "displayName": "Character Count",
         "inputs": [
@@ -534,9 +523,8 @@
       "$id": "segment-count",
       "title": "Segment Count",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "segment-count",
-        "type": "tool",
         "category": "validate",
         "displayName": "Segment Count",
         "inputs": [
@@ -565,9 +553,8 @@
       "$id": "scoping-report",
       "title": "Scoping Report",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "scoping-report",
-        "type": "tool",
         "category": "validate",
         "displayName": "Scoping Report",
         "inputs": [
@@ -596,9 +583,8 @@
       "$id": "repetition-analysis",
       "title": "Repetition Analysis",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "repetition-analysis",
-        "type": "tool",
         "category": "validate",
         "displayName": "Repetition Analysis",
         "inputs": [
@@ -628,9 +614,8 @@
       "$id": "chars-listing",
       "title": "Characters Listing",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "chars-listing",
-        "type": "tool",
         "category": "validate",
         "displayName": "Characters Listing",
         "inputs": [
@@ -669,9 +654,8 @@
       "$id": "translation-comparison",
       "title": "Translation Comparison",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "translation-comparison",
-        "type": "tool",
         "category": "validate",
         "displayName": "Translation Comparison",
         "inputs": [
@@ -707,9 +691,8 @@
       "$id": "encoding-detect",
       "title": "Encoding Detect",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "encoding-detect",
-        "type": "tool",
         "category": "convert",
         "displayName": "Encoding Detect",
         "inputs": [
@@ -730,9 +713,8 @@
       "$id": "search-replace",
       "title": "Search and Replace",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "search-replace",
-        "type": "tool",
         "category": "transform",
         "displayName": "Search and Replace",
         "inputs": [
@@ -784,9 +766,8 @@
       "$id": "case-transform",
       "title": "Case Transform",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "case-transform",
-        "type": "tool",
         "category": "transform",
         "displayName": "Case Transform",
         "inputs": [
@@ -830,9 +811,8 @@
       "$id": "segmentation",
       "title": "Segmentation",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "segmentation",
-        "type": "tool",
         "category": "transform",
         "displayName": "Segmentation",
         "inputs": [
@@ -883,9 +863,8 @@
       "$id": "script",
       "title": "Script",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "script",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "Script",
         "inputs": [
@@ -900,19 +879,19 @@
         "code": {
           "type": "string",
           "description": "Inline ES5 JavaScript code",
-          "x-widget": "code-editor",
-          "x-showIf": {
+          "ui:widget": "code-editor",
+          "ui:visible": {
             "field": "source",
-            "value": "inline"
+            "eq": "inline"
           }
         },
         "scriptFile": {
           "type": "string",
           "description": "Path to a .js file",
-          "x-widget": "file-picker",
-          "x-showIf": {
+          "ui:widget": "file-picker",
+          "ui:visible": {
             "field": "source",
-            "value": "file"
+            "eq": "file"
           }
         },
         "source": {
@@ -923,7 +902,7 @@
             "inline",
             "file"
           ],
-          "x-widget": "segmented"
+          "ui:widget": "segmented"
         }
       },
       "x-source": "built-in",
@@ -939,9 +918,8 @@
       "$id": "batch",
       "title": "Batch Collector",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "batch",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "Batch Collector",
         "inputs": [
@@ -972,9 +950,8 @@
       "$id": "bom-convert",
       "title": "BOM Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "bom-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "BOM Convert",
         "inputs": [
@@ -1002,9 +979,8 @@
       "$id": "create-target",
       "title": "Create Target",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "create-target",
-        "type": "tool",
         "category": "transform",
         "displayName": "Create Target",
         "inputs": [
@@ -1043,9 +1019,8 @@
       "$id": "encoding-convert",
       "title": "Encoding Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "encoding-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "Encoding Convert",
         "inputs": [
@@ -1086,9 +1061,8 @@
       "$id": "external-command",
       "title": "External Command",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "external-command",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "External Command",
         "inputs": [
@@ -1148,9 +1122,8 @@
       "$id": "fullwidth-convert",
       "title": "Full Width Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "fullwidth-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "Full Width Convert",
         "inputs": [
@@ -1194,9 +1167,8 @@
       "$id": "inline-codes-remove",
       "title": "Inline Codes Remove",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "inline-codes-remove",
-        "type": "tool",
         "category": "transform",
         "displayName": "Inline Codes Remove",
         "inputs": [
@@ -1235,9 +1207,8 @@
       "$id": "linebreak-convert",
       "title": "Line Break Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "linebreak-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "Line Break Convert",
         "inputs": [
@@ -1274,9 +1245,8 @@
       "$id": "properties-set",
       "title": "Properties Set",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "properties-set",
-        "type": "tool",
         "category": "transform",
         "displayName": "Properties Set",
         "inputs": [
@@ -1315,9 +1285,8 @@
       "$id": "remove-target",
       "title": "Remove Target",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "remove-target",
-        "type": "tool",
         "category": "transform",
         "displayName": "Remove Target",
         "inputs": [
@@ -1346,9 +1315,8 @@
       "$id": "span-classify",
       "title": "Span Classify",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "span-classify",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "Span Classify",
         "inputs": [
@@ -1371,9 +1339,8 @@
       "$id": "tag-protect",
       "title": "Tag Protect",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "tag-protect",
-        "type": "tool",
         "category": "transform",
         "displayName": "Tag Protect",
         "inputs": [
@@ -1406,9 +1373,8 @@
       "$id": "uri-convert",
       "title": "URI Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "uri-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "URI Convert",
         "inputs": [
@@ -1452,9 +1418,8 @@
       "$id": "whitespace-correct",
       "title": "Whitespace Correct",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "whitespace-correct",
-        "type": "tool",
         "category": "transform",
         "displayName": "Whitespace Correct",
         "inputs": [
@@ -1511,9 +1476,8 @@
       "$id": "xml-validation",
       "title": "XML Validation",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "xml-validation",
-        "type": "tool",
         "category": "validate",
         "displayName": "XML Validation",
         "inputs": [
@@ -1557,9 +1521,8 @@
       "$id": "xslt-transform",
       "title": "XSLT Transform",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "xslt-transform",
-        "type": "tool",
         "category": "transform",
         "displayName": "XSLT Transform",
         "inputs": [
@@ -1614,7 +1577,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "BOM Conversion",
         "category": "transform",
         "tags": [
@@ -1639,7 +1602,7 @@
       "$id": "batch-tm-leveraging",
       "title": "Simple Batch Leveraging Step",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Simple Batch Leveraging Step",
         "category": "translate",
         "inputs": [
@@ -1732,7 +1695,7 @@
           "description": "Full path of the segmentation rules file to use"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Batch Translation",
         "category": "translate",
         "tags": [
@@ -1768,7 +1731,7 @@
           "title": "Open the result file after completion"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Used Characters Listing",
         "category": "validate",
         "inputs": [
@@ -1822,7 +1785,7 @@
           "title": "Size of text buffer:"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Character Count",
         "category": "validate",
         "inputs": [
@@ -1867,7 +1830,7 @@
           "default": ""
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Characters Quality Check",
         "category": "validate",
         "inputs": [
@@ -1926,7 +1889,7 @@
           "title": "Keep CR and NL characters intact. They are not normalized to an ASCII space with spaces and tabs."
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Cleanup",
         "category": "transform",
         "inputs": [
@@ -1959,7 +1922,7 @@
           "title": "Merge codes"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inline Codes Simplifier",
         "category": "transform",
         "inputs": [
@@ -2009,7 +1972,7 @@
           "title": "Replace line break codes with spaces (When removing content AND marker)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inline Codes Removal",
         "category": "transform",
         "inputs": [
@@ -2031,7 +1994,7 @@
       "$id": "concordance-character-count",
       "title": "Concordance Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Concordance Character Count",
         "category": "translate",
         "inputs": [
@@ -2054,7 +2017,7 @@
       "$id": "concordance-word-count",
       "title": "Concordance Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Concordance Word Count",
         "category": "translate",
         "inputs": [
@@ -2077,7 +2040,7 @@
       "$id": "convert-segments-to-text-units",
       "title": "Segments to Text Units Converter",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Segments to Text Units Converter",
         "category": "transform",
         "inputs": [
@@ -2099,7 +2062,7 @@
       "$id": "copy-or-move",
       "title": "Copy Or Move",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Copy Or Move",
         "category": "pipeline",
         "description": "Copies or moves the listed files to the specified location. Expects: raw documents. Sends back: raw documents.",
@@ -2121,7 +2084,7 @@
       "$id": "copy-source-on-empty-target",
       "title": "copy-source-on-empty-target",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "copy-source-on-empty-target",
         "category": "pipeline",
         "inputs": [
@@ -2161,7 +2124,7 @@
           "title": "Creates target for non-translatable text units"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Create Target",
         "category": "transform",
         "inputs": [
@@ -2200,7 +2163,7 @@
           "title": "Restore original IDs to renumbered codes"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Desegmentation",
         "category": "transform",
         "inputs": [
@@ -2248,7 +2211,7 @@
           "title": "Copy to/over the target? (WARNING: Copied target will not be segmented!)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Diff Leverage",
         "category": "translate",
         "inputs": [
@@ -2310,7 +2273,7 @@
           "default": true
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Encoding Conversion",
         "category": "convert",
         "tags": [
@@ -2348,7 +2311,7 @@
           "title": "Events buffer"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Enrycher",
         "category": "pipeline",
         "inputs": [
@@ -2367,7 +2330,7 @@
       "$id": "exact-document-context-match-character-count",
       "title": "Exact Document Context Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Document Context Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2390,7 +2353,7 @@
       "$id": "exact-document-context-match-word-count",
       "title": "Exact Document Context Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Document Context Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2413,7 +2376,7 @@
       "$id": "exact-local-context-match-character-count",
       "title": "Exact Local Context Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Local Context Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2436,7 +2399,7 @@
       "$id": "exact-local-context-match-word-count",
       "title": "Exact Local Context Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Local Context Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2459,7 +2422,7 @@
       "$id": "exact-match-character-count",
       "title": "Exact Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2482,7 +2445,7 @@
       "$id": "exact-match-word-count",
       "title": "Exact Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2505,7 +2468,7 @@
       "$id": "exact-previous-version-match-character-count",
       "title": "Exact Previous Version Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Previous Version Match Character Count",
         "category": "translate",
         "inputs": [
@@ -2528,7 +2491,7 @@
       "$id": "exact-previous-version-match-word-count",
       "title": "Exact Previous Version Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Previous Version Match Word Count",
         "category": "translate",
         "inputs": [
@@ -2551,7 +2514,7 @@
       "$id": "exact-repaired-character-count",
       "title": "Exact Repaired Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Repaired Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2574,7 +2537,7 @@
       "$id": "exact-repaired-word-count",
       "title": "Exact Repaired Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Repaired Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2597,7 +2560,7 @@
       "$id": "exact-structural-match-character-count",
       "title": "Exact Structural Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Structural Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2620,7 +2583,7 @@
       "$id": "exact-structural-match-word-count",
       "title": "Exact Structural Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Structural Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2643,7 +2606,7 @@
       "$id": "exact-text-only-character-count",
       "title": "Exact Text Only Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2666,7 +2629,7 @@
       "$id": "exact-text-only-previous-version-match-character-count",
       "title": "Exact Text Only Previous Version Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Previous Version Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2689,7 +2652,7 @@
       "$id": "exact-text-only-previous-version-match-word-count",
       "title": "Exact Text Only Previous Version Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Previous Version Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2712,7 +2675,7 @@
       "$id": "exact-text-only-unique-id-match-character-count",
       "title": "Exact Text Only Unique Id Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Unique Id Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2735,7 +2698,7 @@
       "$id": "exact-text-only-unique-id-match-word-count",
       "title": "Exact Text Only Unique Id Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Unique Id Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2758,7 +2721,7 @@
       "$id": "exact-text-only-word-count",
       "title": "Exact Text Only Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2781,7 +2744,7 @@
       "$id": "exact-unique-id-match-character-count",
       "title": "Exact Unique Id Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Unique Id Match Character Count",
         "category": "validate",
         "inputs": [
@@ -2803,7 +2766,7 @@
       "$id": "exact-unique-id-match-word-count",
       "title": "Exact Unique Id Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Unique Id Match Word Count",
         "category": "validate",
         "inputs": [
@@ -2839,7 +2802,7 @@
           "title": "Timeout"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "External Command",
         "category": "pipeline",
         "description": "Execute an external command line.",
@@ -2888,7 +2851,7 @@
           "title": "Interrupt after reaching the maximum number of warnings"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Extraction Verification",
         "category": "validate",
         "tags": [
@@ -2944,7 +2907,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Rainbow Translation Kit Creation",
         "category": "translate",
         "tags": [
@@ -2970,7 +2933,7 @@
       "$id": "filter-events-to-raw-document",
       "title": "Filter Events to Raw Document",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Filter Events to Raw Document",
         "category": "pipeline",
         "inputs": [
@@ -2992,7 +2955,7 @@
       "$id": "filter-events-writer",
       "title": "Filter Events Writer",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Filter Events Writer",
         "category": "pipeline",
         "inputs": [
@@ -3064,7 +3027,7 @@
           "title": "Overwrite if source is the same (for Pensieve TM)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Format Conversion",
         "category": "convert",
         "inputs": [
@@ -3116,7 +3079,7 @@
           "default": true
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Full-Width Conversion",
         "category": "convert",
         "inputs": [
@@ -3138,7 +3101,7 @@
       "$id": "fuzzy-match-character-count",
       "title": "Fuzzy Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Character Count",
         "category": "validate",
         "inputs": [
@@ -3161,7 +3124,7 @@
       "$id": "fuzzy-match-word-count",
       "title": "Fuzzy Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Word Count",
         "category": "validate",
         "inputs": [
@@ -3184,7 +3147,7 @@
       "$id": "fuzzy-previous-version-match-character-count",
       "title": "Fuzzy Previous Version Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Previous Version Match Character Count",
         "category": "validate",
         "inputs": [
@@ -3206,7 +3169,7 @@
       "$id": "fuzzy-previous-version-match-word-count",
       "title": "Fuzzy Previous Version Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Previous Version Match Word Count",
         "category": "validate",
         "inputs": [
@@ -3228,7 +3191,7 @@
       "$id": "fuzzy-repaired-character-count",
       "title": "Fuzzy Repaired Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Repaired Match Character Count",
         "category": "validate",
         "inputs": [
@@ -3251,7 +3214,7 @@
       "$id": "fuzzy-repaired-word-count",
       "title": "Fuzzy Repaired Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Repaired Match Word Count",
         "category": "validate",
         "inputs": [
@@ -3274,7 +3237,7 @@
       "$id": "fuzzy-unique-id-match-character-count",
       "title": "Fuzzy Unique Id Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Unique Id Match Character Count",
         "category": "validate",
         "inputs": [
@@ -3296,7 +3259,7 @@
       "$id": "fuzzy-unique-id-match-word-count",
       "title": "Fuzzy Unique Id Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Unique Id Match Word Count",
         "category": "validate",
         "inputs": [
@@ -3318,7 +3281,7 @@
       "$id": "g-m-x-alphanumeric-only-text-unit-character-count",
       "title": "GMX Alphanumeric Only Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Alphanumeric Only Character Count",
         "category": "validate",
         "inputs": [
@@ -3341,7 +3304,7 @@
       "$id": "g-m-x-alphanumeric-only-text-unit-word-count",
       "title": "GMX Alphanumeric Only Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Alphanumeric Only Word Count",
         "category": "validate",
         "inputs": [
@@ -3364,7 +3327,7 @@
       "$id": "g-m-x-exact-matched-character-count",
       "title": "GMX Exact Matched Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Exact Matched Character Count",
         "category": "translate",
         "inputs": [
@@ -3388,7 +3351,7 @@
       "$id": "g-m-x-exact-matched-word-count",
       "title": "GMX Exact Matched Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Exact Matched Word Count",
         "category": "translate",
         "inputs": [
@@ -3412,7 +3375,7 @@
       "$id": "g-m-x-fuzzy-match-character-count",
       "title": "Fuzzy Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Character Count",
         "category": "translate",
         "inputs": [
@@ -3436,7 +3399,7 @@
       "$id": "g-m-x-fuzzy-match-word-count",
       "title": "Fuzzy Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Word Count",
         "category": "translate",
         "inputs": [
@@ -3460,7 +3423,7 @@
       "$id": "g-m-x-leveraged-matched-character-count",
       "title": "GMX Leveraged Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Leveraged Character Count",
         "category": "translate",
         "inputs": [
@@ -3484,7 +3447,7 @@
       "$id": "g-m-x-leveraged-matched-word-count",
       "title": "GMX Leveraged Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Leveraged Word Count",
         "category": "translate",
         "inputs": [
@@ -3508,7 +3471,7 @@
       "$id": "g-m-x-measurement-only-text-unit-character-count",
       "title": "GMX Measurement Only Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Measurement Only Character Count",
         "category": "validate",
         "inputs": [
@@ -3531,7 +3494,7 @@
       "$id": "g-m-x-measurement-only-text-unit-word-count",
       "title": "GMX Measurement Only Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Measurement Only Word Count",
         "category": "validate",
         "inputs": [
@@ -3554,7 +3517,7 @@
       "$id": "g-m-x-numeric-only-text-unit-character-count",
       "title": "GMX Numeric Only Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Numeric Only Character Count",
         "category": "validate",
         "inputs": [
@@ -3577,7 +3540,7 @@
       "$id": "g-m-x-numeric-only-text-unit-word-count",
       "title": "GMX Numeric Only Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Numeric Only Word Count",
         "category": "validate",
         "inputs": [
@@ -3600,7 +3563,7 @@
       "$id": "g-m-x-protected-character-count",
       "title": "GMX Protected Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Protected Character Count",
         "category": "translate",
         "inputs": [
@@ -3624,7 +3587,7 @@
       "$id": "g-m-x-protected-word-count",
       "title": "GMX Protected Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Protected Word Count",
         "category": "translate",
         "inputs": [
@@ -3648,7 +3611,7 @@
       "$id": "g-m-x-repetition-matched-character-count",
       "title": "GMX Repetition Matched Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Repetition Matched Character Count",
         "category": "validate",
         "inputs": [
@@ -3671,7 +3634,7 @@
       "$id": "g-m-x-repetition-matched-word-count",
       "title": "GMX Repetition Matched Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Repetition Matched Word Count",
         "category": "validate",
         "inputs": [
@@ -3732,7 +3695,7 @@
           "default": "sie;vous;nous"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "General Quality Check",
         "category": "validate",
         "inputs": [
@@ -3798,7 +3761,7 @@
           "title": "Align based on TextUnit IDs"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Id-Based Aligner",
         "category": "pipeline",
         "inputs": [
@@ -3832,7 +3795,7 @@
           "title": "Set the target property 'approved' to 'yes'"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Id-Based Copy",
         "category": "pipeline",
         "inputs": [
@@ -3879,7 +3842,7 @@
           "title": "Convert to gray scale"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Image Modification",
         "category": "pipeline",
         "description": "Create a modified copy of image files. Expects: image raw document. Sends back: image raw document.",
@@ -3928,7 +3891,7 @@
           "title": "Open the report file after completion"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inconsistency Check",
         "category": "translate",
         "inputs": [
@@ -3973,7 +3936,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inline Codes Quality Check",
         "category": "validate",
         "inputs": [
@@ -4041,7 +4004,7 @@
           "default": 255
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Length Quality Check",
         "category": "validate",
         "inputs": [
@@ -4129,7 +4092,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Leveraging",
         "category": "translate",
         "inputs": [
@@ -4160,7 +4123,7 @@
           "title": "Convert line-breaks to the following type"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Line-Break Conversion",
         "category": "convert",
         "tags": [
@@ -4185,7 +4148,7 @@
       "$id": "localizable-checker",
       "title": "Localizable Quality Check",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Localizable Quality Check",
         "category": "validate",
         "inputs": [
@@ -4298,7 +4261,7 @@
           "title": "Target prefix"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Microsoft Batch Translation",
         "category": "translate",
         "inputs": [
@@ -4322,7 +4285,7 @@
       "$id": "m-t-character-count",
       "title": "MT Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "MT Character Count",
         "category": "translate",
         "inputs": [
@@ -4345,7 +4308,7 @@
       "$id": "m-t-word-count",
       "title": "MT Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "MT Word Count",
         "category": "translate",
         "inputs": [
@@ -4395,7 +4358,7 @@
           "title": "Copy the code metadata from the original file"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Rainbow Translation Kit Merging",
         "category": "translate",
         "inputs": [
@@ -4431,7 +4394,7 @@
           "title": "Use Skeleton Alignment? (Experimental)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Paragraph Alignment",
         "category": "pipeline",
         "inputs": [
@@ -4656,7 +4619,7 @@
           "default": "Tripled letter"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Pattern (regex) Quality Check",
         "category": "validate",
         "inputs": [
@@ -4679,7 +4642,7 @@
       "$id": "phrase-assembled-character-count",
       "title": "Phrase Assembled Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Phrase Assembled Character Count",
         "category": "translate",
         "inputs": [
@@ -4702,7 +4665,7 @@
       "$id": "phrase-assembled-word-count",
       "title": "Phrase Assembled Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Phrase Assembled Word Count",
         "category": "translate",
         "inputs": [
@@ -4739,7 +4702,7 @@
           "title": "Merge codes"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Post-segmentation Inline Codes Simplifier",
         "category": "transform",
         "inputs": [
@@ -5215,7 +5178,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Quality Check",
         "category": "validate",
         "inputs": [
@@ -5255,7 +5218,7 @@
           "title": "Try to update the encoding declarations (when detected)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "RTF Conversion",
         "category": "transform",
         "tags": [
@@ -5280,7 +5243,7 @@
       "$id": "raw-document-to-filter-events",
       "title": "Raw Document to Filter Events",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Raw Document to Filter Events",
         "category": "convert",
         "inputs": [
@@ -5299,7 +5262,7 @@
       "$id": "raw-document-to-output-stream",
       "title": "RawDocument To OutputStream",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "RawDocument To OutputStream",
         "category": "pipeline",
         "description": "Write a RawDocument to an output stream.",
@@ -5318,7 +5281,7 @@
       "$id": "raw-document-writer",
       "title": "RawDocument Writer",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "RawDocument Writer",
         "category": "pipeline",
         "description": "Write a RawDocument to an output file.",
@@ -5362,7 +5325,7 @@
           "title": "If true remove the Text Unit if it has no remaining targets, if false do nothing"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Remove Target",
         "category": "transform",
         "inputs": [
@@ -5384,7 +5347,7 @@
       "$id": "repetition-analysis",
       "title": "Repetition Analysis",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Repetition Analysis",
         "category": "translate",
         "inputs": [
@@ -5407,7 +5370,7 @@
       "$id": "resource-simplifier",
       "title": "Resource Simplifier",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Resource Simplifier",
         "category": "transform",
         "inputs": [
@@ -5602,7 +5565,7 @@
           "title": "Concordance"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Scoping Report",
         "category": "translate",
         "inputs": [
@@ -5674,7 +5637,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Search and Replace",
         "category": "transform",
         "inputs": [
@@ -5753,7 +5716,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Segmentation",
         "category": "transform",
         "inputs": [
@@ -5839,7 +5802,7 @@
           "title": "Force Simple One to One Alignment"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Sentence Alignment",
         "category": "pipeline",
         "inputs": [
@@ -5861,7 +5824,7 @@
       "$id": "simple-word-count",
       "title": "Simple Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Simple Word Count",
         "category": "validate",
         "inputs": [
@@ -5885,7 +5848,7 @@
       "$id": "space-check",
       "title": "Space Quality Check",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Space Quality Check",
         "category": "validate",
         "inputs": [
@@ -5920,7 +5883,7 @@
           "title": "Overwrite if source is the same"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "TM Import",
         "category": "translate",
         "inputs": [
@@ -5950,7 +5913,7 @@
           "title": "Optional suffix to place at the end of the result files"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "TTX Joiner",
         "category": "pipeline",
         "description": "Rebuilds previously split TTX documents into their original documents. Expects: raw document. Sends back: raw document.",
@@ -5976,7 +5939,7 @@
           "title": "Number of output files"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "TTX Splitter",
         "category": "validate",
         "tags": [
@@ -6077,7 +6040,7 @@
           "title": "Use tokens-grouping statistics"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Term Extraction",
         "category": "pipeline",
         "inputs": [
@@ -6096,7 +6059,7 @@
       "$id": "terminology-leveraging",
       "title": "Terminology Leveraging",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Terminology Leveraging",
         "category": "translate",
         "inputs": [
@@ -6169,7 +6132,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Text Modification",
         "category": "pipeline",
         "inputs": [
@@ -6307,7 +6270,7 @@
           "title": "IDEOGRAM"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Tokenization Step",
         "category": "pipeline",
         "inputs": [
@@ -6425,7 +6388,7 @@
           "title": "Value in origin attribute"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Translation Comparison",
         "category": "translate",
         "inputs": [
@@ -6448,7 +6411,7 @@
       "$id": "tu-filtering",
       "title": "Text Unit Filtering",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Text Unit Filtering",
         "category": "translate",
         "inputs": [
@@ -6485,7 +6448,7 @@
           "default": "%{}[]()&"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "URI Conversion",
         "category": "convert",
         "inputs": [
@@ -6514,7 +6477,7 @@
           "default": "LINE_FEED,LINE_TABULATION,FORM_FEED,CARRIAGE_RETURN,NEXT_LINE,LINE_SEPARATOR,PARAGRAPH_SEPARATOR,CHARACTER_TABULATION,SPACE,NO_BREAK_SPACE,EN_QUAD,EM_QUAD,EN_SPACE,EM_SPACE,THREE_PER_EM_SPACE,FOUR_PER_EM_SPACER,SIX_PER_EM_SPACE,FIGURE_SPACE,PUNCUATION_SPACE,THIS_SPACE,HAIR_SPACE,NAORROW_NO_BREAK_SPACE,MEDIUM_MATHEMATICAL_SPACE,IDEOGRAPHIC_SPACE,ZERO_WIDTH_SPACE,ZERO_WIDTH_NON_BREAKING_SPACE"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Whitespace Correction",
         "category": "translate",
         "inputs": [
@@ -6569,7 +6532,7 @@
           "title": "Size of text buffer:"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Word Count",
         "category": "validate",
         "inputs": [
@@ -6605,7 +6568,7 @@
           "title": "Open the result file after completion"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XML Analysis",
         "category": "pipeline",
         "tags": [
@@ -6635,7 +6598,7 @@
           "title": "Replacement string"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XML Characters Fixing",
         "category": "pipeline",
         "description": "Fixes invalid characters in XML documents. Expects: raw document. Sends back: raw document.",
@@ -6681,7 +6644,7 @@
           "title": "Use DTD declarations found in the input documents"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XML Validation",
         "category": "pipeline",
         "description": "Validate XML documents. Expects: raw XML document. Sends back: raw XML document.",
@@ -6726,7 +6689,7 @@
           "default": true
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XSL Transformation",
         "category": "convert",
         "description": "Apply an XSLT template to an XML document. Expects: raw XML document. Sends back: raw document.",
@@ -6760,7 +6723,7 @@
           "title": "Output file marker"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XLIFF Joiner",
         "category": "pipeline",
         "description": "Join multiple XLIFF documents into one. Expects: raw document. Sends back: raw document.",
@@ -6816,7 +6779,7 @@
           "title": "Restore original file names"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XLIFF Splitter",
         "category": "pipeline",
         "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
@@ -6845,7 +6808,7 @@
           "title": "Maximum word-count per part:"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XLIFF Word-Count Splitter",
         "category": "validate",
         "tags": [
@@ -6869,9 +6832,8 @@
       "$id": "pseudo-translate",
       "title": "Pseudo Translate",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "pseudo-translate",
-        "type": "tool",
         "category": "transform",
         "displayName": "Pseudo Translate",
         "inputs": [
@@ -6917,9 +6879,8 @@
       "$id": "tm-leverage",
       "title": "TM Leverage",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "tm-leverage",
-        "type": "tool",
         "category": "enrich",
         "displayName": "TM Leverage",
         "inputs": [
@@ -6961,9 +6922,8 @@
       "$id": "diff-leverage",
       "title": "Diff Leverage",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "diff-leverage",
-        "type": "tool",
         "category": "enrich",
         "displayName": "Diff Leverage",
         "inputs": [
@@ -7006,9 +6966,8 @@
       "$id": "qa-check",
       "title": "QA Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "qa-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "QA Check",
         "inputs": [
@@ -7076,9 +7035,8 @@
       "$id": "term-check",
       "title": "Terminology Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "term-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Terminology Check",
         "inputs": [
@@ -7133,9 +7091,8 @@
       "$id": "inconsistency-check",
       "title": "Inconsistency Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "inconsistency-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Inconsistency Check",
         "inputs": [
@@ -7183,9 +7140,8 @@
       "$id": "length-check",
       "title": "Length Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "length-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Length Check",
         "inputs": [
@@ -7233,9 +7189,8 @@
       "$id": "chars-check",
       "title": "Characters Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "chars-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Characters Check",
         "inputs": [
@@ -7281,9 +7236,8 @@
       "$id": "pattern-check",
       "title": "Pattern Check",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "pattern-check",
-        "type": "tool",
         "category": "validate",
         "displayName": "Pattern Check",
         "inputs": [
@@ -7343,9 +7297,8 @@
       "$id": "word-count",
       "title": "Word Count",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "word-count",
-        "type": "tool",
         "category": "validate",
         "displayName": "Word Count",
         "inputs": [
@@ -7368,9 +7321,8 @@
       "$id": "char-count",
       "title": "Character Count",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "char-count",
-        "type": "tool",
         "category": "validate",
         "displayName": "Character Count",
         "inputs": [
@@ -7399,9 +7351,8 @@
       "$id": "segment-count",
       "title": "Segment Count",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "segment-count",
-        "type": "tool",
         "category": "validate",
         "displayName": "Segment Count",
         "inputs": [
@@ -7430,9 +7381,8 @@
       "$id": "scoping-report",
       "title": "Scoping Report",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "scoping-report",
-        "type": "tool",
         "category": "validate",
         "displayName": "Scoping Report",
         "inputs": [
@@ -7461,9 +7411,8 @@
       "$id": "repetition-analysis",
       "title": "Repetition Analysis",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "repetition-analysis",
-        "type": "tool",
         "category": "validate",
         "displayName": "Repetition Analysis",
         "inputs": [
@@ -7493,9 +7442,8 @@
       "$id": "chars-listing",
       "title": "Characters Listing",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "chars-listing",
-        "type": "tool",
         "category": "validate",
         "displayName": "Characters Listing",
         "inputs": [
@@ -7534,9 +7482,8 @@
       "$id": "translation-comparison",
       "title": "Translation Comparison",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "translation-comparison",
-        "type": "tool",
         "category": "validate",
         "displayName": "Translation Comparison",
         "inputs": [
@@ -7572,9 +7519,8 @@
       "$id": "encoding-detect",
       "title": "Encoding Detect",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "encoding-detect",
-        "type": "tool",
         "category": "convert",
         "displayName": "Encoding Detect",
         "inputs": [
@@ -7595,9 +7541,8 @@
       "$id": "search-replace",
       "title": "Search and Replace",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "search-replace",
-        "type": "tool",
         "category": "transform",
         "displayName": "Search and Replace",
         "inputs": [
@@ -7649,9 +7594,8 @@
       "$id": "case-transform",
       "title": "Case Transform",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "case-transform",
-        "type": "tool",
         "category": "transform",
         "displayName": "Case Transform",
         "inputs": [
@@ -7695,9 +7639,8 @@
       "$id": "segmentation",
       "title": "Segmentation",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "segmentation",
-        "type": "tool",
         "category": "transform",
         "displayName": "Segmentation",
         "inputs": [
@@ -7748,9 +7691,8 @@
       "$id": "script",
       "title": "Script",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "script",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "Script",
         "inputs": [
@@ -7765,19 +7707,19 @@
         "code": {
           "type": "string",
           "description": "Inline ES5 JavaScript code",
-          "x-widget": "code-editor",
-          "x-showIf": {
+          "ui:widget": "code-editor",
+          "ui:visible": {
             "field": "source",
-            "value": "inline"
+            "eq": "inline"
           }
         },
         "scriptFile": {
           "type": "string",
           "description": "Path to a .js file",
-          "x-widget": "file-picker",
-          "x-showIf": {
+          "ui:widget": "file-picker",
+          "ui:visible": {
             "field": "source",
-            "value": "file"
+            "eq": "file"
           }
         },
         "source": {
@@ -7788,7 +7730,7 @@
             "inline",
             "file"
           ],
-          "x-widget": "segmented"
+          "ui:widget": "segmented"
         }
       },
       "x-source": "built-in",
@@ -7804,9 +7746,8 @@
       "$id": "batch",
       "title": "Batch Collector",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "batch",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "Batch Collector",
         "inputs": [
@@ -7837,9 +7778,8 @@
       "$id": "bom-convert",
       "title": "BOM Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "bom-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "BOM Convert",
         "inputs": [
@@ -7867,9 +7807,8 @@
       "$id": "create-target",
       "title": "Create Target",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "create-target",
-        "type": "tool",
         "category": "transform",
         "displayName": "Create Target",
         "inputs": [
@@ -7908,9 +7847,8 @@
       "$id": "encoding-convert",
       "title": "Encoding Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "encoding-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "Encoding Convert",
         "inputs": [
@@ -7951,9 +7889,8 @@
       "$id": "external-command",
       "title": "External Command",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "external-command",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "External Command",
         "inputs": [
@@ -8013,9 +7950,8 @@
       "$id": "fullwidth-convert",
       "title": "Full Width Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "fullwidth-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "Full Width Convert",
         "inputs": [
@@ -8059,9 +7995,8 @@
       "$id": "inline-codes-remove",
       "title": "Inline Codes Remove",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "inline-codes-remove",
-        "type": "tool",
         "category": "transform",
         "displayName": "Inline Codes Remove",
         "inputs": [
@@ -8100,9 +8035,8 @@
       "$id": "linebreak-convert",
       "title": "Line Break Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "linebreak-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "Line Break Convert",
         "inputs": [
@@ -8139,9 +8073,8 @@
       "$id": "properties-set",
       "title": "Properties Set",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "properties-set",
-        "type": "tool",
         "category": "transform",
         "displayName": "Properties Set",
         "inputs": [
@@ -8180,9 +8113,8 @@
       "$id": "remove-target",
       "title": "Remove Target",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "remove-target",
-        "type": "tool",
         "category": "transform",
         "displayName": "Remove Target",
         "inputs": [
@@ -8211,9 +8143,8 @@
       "$id": "span-classify",
       "title": "Span Classify",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "span-classify",
-        "type": "tool",
         "category": "pipeline",
         "displayName": "Span Classify",
         "inputs": [
@@ -8236,9 +8167,8 @@
       "$id": "tag-protect",
       "title": "Tag Protect",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "tag-protect",
-        "type": "tool",
         "category": "transform",
         "displayName": "Tag Protect",
         "inputs": [
@@ -8271,9 +8201,8 @@
       "$id": "uri-convert",
       "title": "URI Convert",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "uri-convert",
-        "type": "tool",
         "category": "convert",
         "displayName": "URI Convert",
         "inputs": [
@@ -8317,9 +8246,8 @@
       "$id": "whitespace-correct",
       "title": "Whitespace Correct",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "whitespace-correct",
-        "type": "tool",
         "category": "transform",
         "displayName": "Whitespace Correct",
         "inputs": [
@@ -8376,9 +8304,8 @@
       "$id": "xml-validation",
       "title": "XML Validation",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "xml-validation",
-        "type": "tool",
         "category": "validate",
         "displayName": "XML Validation",
         "inputs": [
@@ -8422,9 +8349,8 @@
       "$id": "xslt-transform",
       "title": "XSLT Transform",
       "type": "object",
-      "x-component": {
+      "toolMeta": {
         "id": "xslt-transform",
-        "type": "tool",
         "category": "transform",
         "displayName": "XSLT Transform",
         "inputs": [
@@ -8477,7 +8403,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "BOM Conversion",
         "category": "transform",
         "tags": [
@@ -8502,7 +8428,7 @@
       "$id": "batch-tm-leveraging",
       "title": "Simple Batch Leveraging Step",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Simple Batch Leveraging Step",
         "category": "translate",
         "inputs": [
@@ -8595,7 +8521,7 @@
           "description": "Full path of the segmentation rules file to use"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Batch Translation",
         "category": "translate",
         "tags": [
@@ -8631,7 +8557,7 @@
           "title": "Open the result file after completion"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Used Characters Listing",
         "category": "validate",
         "inputs": [
@@ -8685,7 +8611,7 @@
           "title": "Size of text buffer:"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Character Count",
         "category": "validate",
         "inputs": [
@@ -8730,7 +8656,7 @@
           "default": ""
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Characters Quality Check",
         "category": "validate",
         "inputs": [
@@ -8789,7 +8715,7 @@
           "title": "Keep CR and NL characters intact. They are not normalized to an ASCII space with spaces and tabs."
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Cleanup",
         "category": "transform",
         "inputs": [
@@ -8822,7 +8748,7 @@
           "title": "Merge codes"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inline Codes Simplifier",
         "category": "transform",
         "inputs": [
@@ -8872,7 +8798,7 @@
           "title": "Replace line break codes with spaces (When removing content AND marker)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inline Codes Removal",
         "category": "transform",
         "inputs": [
@@ -8894,7 +8820,7 @@
       "$id": "concordance-character-count",
       "title": "Concordance Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Concordance Character Count",
         "category": "translate",
         "inputs": [
@@ -8917,7 +8843,7 @@
       "$id": "concordance-word-count",
       "title": "Concordance Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Concordance Word Count",
         "category": "translate",
         "inputs": [
@@ -8940,7 +8866,7 @@
       "$id": "convert-segments-to-text-units",
       "title": "Segments to Text Units Converter",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Segments to Text Units Converter",
         "category": "transform",
         "inputs": [
@@ -8962,7 +8888,7 @@
       "$id": "copy-or-move",
       "title": "Copy Or Move",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Copy Or Move",
         "category": "pipeline",
         "description": "Copies or moves the listed files to the specified location. Expects: raw documents. Sends back: raw documents.",
@@ -8984,7 +8910,7 @@
       "$id": "copy-source-on-empty-target",
       "title": "copy-source-on-empty-target",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "copy-source-on-empty-target",
         "category": "pipeline",
         "inputs": [
@@ -9024,7 +8950,7 @@
           "title": "Creates target for non-translatable text units"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Create Target",
         "category": "transform",
         "inputs": [
@@ -9063,7 +8989,7 @@
           "title": "Restore original IDs to renumbered codes"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Desegmentation",
         "category": "transform",
         "inputs": [
@@ -9111,7 +9037,7 @@
           "title": "Copy to/over the target? (WARNING: Copied target will not be segmented!)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Diff Leverage",
         "category": "translate",
         "inputs": [
@@ -9173,7 +9099,7 @@
           "default": true
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Encoding Conversion",
         "category": "convert",
         "tags": [
@@ -9211,7 +9137,7 @@
           "title": "Events buffer"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Enrycher",
         "category": "pipeline",
         "inputs": [
@@ -9230,7 +9156,7 @@
       "$id": "exact-document-context-match-character-count",
       "title": "Exact Document Context Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Document Context Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9253,7 +9179,7 @@
       "$id": "exact-document-context-match-word-count",
       "title": "Exact Document Context Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Document Context Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9276,7 +9202,7 @@
       "$id": "exact-local-context-match-character-count",
       "title": "Exact Local Context Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Local Context Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9299,7 +9225,7 @@
       "$id": "exact-local-context-match-word-count",
       "title": "Exact Local Context Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Local Context Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9322,7 +9248,7 @@
       "$id": "exact-match-character-count",
       "title": "Exact Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9345,7 +9271,7 @@
       "$id": "exact-match-word-count",
       "title": "Exact Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9368,7 +9294,7 @@
       "$id": "exact-previous-version-match-character-count",
       "title": "Exact Previous Version Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Previous Version Match Character Count",
         "category": "translate",
         "inputs": [
@@ -9391,7 +9317,7 @@
       "$id": "exact-previous-version-match-word-count",
       "title": "Exact Previous Version Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Previous Version Match Word Count",
         "category": "translate",
         "inputs": [
@@ -9414,7 +9340,7 @@
       "$id": "exact-repaired-character-count",
       "title": "Exact Repaired Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Repaired Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9437,7 +9363,7 @@
       "$id": "exact-repaired-word-count",
       "title": "Exact Repaired Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Repaired Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9460,7 +9386,7 @@
       "$id": "exact-structural-match-character-count",
       "title": "Exact Structural Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Structural Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9483,7 +9409,7 @@
       "$id": "exact-structural-match-word-count",
       "title": "Exact Structural Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Structural Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9506,7 +9432,7 @@
       "$id": "exact-text-only-character-count",
       "title": "Exact Text Only Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9529,7 +9455,7 @@
       "$id": "exact-text-only-previous-version-match-character-count",
       "title": "Exact Text Only Previous Version Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Previous Version Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9552,7 +9478,7 @@
       "$id": "exact-text-only-previous-version-match-word-count",
       "title": "Exact Text Only Previous Version Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Previous Version Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9575,7 +9501,7 @@
       "$id": "exact-text-only-unique-id-match-character-count",
       "title": "Exact Text Only Unique Id Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Unique Id Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9598,7 +9524,7 @@
       "$id": "exact-text-only-unique-id-match-word-count",
       "title": "Exact Text Only Unique Id Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Unique Id Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9621,7 +9547,7 @@
       "$id": "exact-text-only-word-count",
       "title": "Exact Text Only Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Text Only Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9644,7 +9570,7 @@
       "$id": "exact-unique-id-match-character-count",
       "title": "Exact Unique Id Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Unique Id Match Character Count",
         "category": "validate",
         "inputs": [
@@ -9666,7 +9592,7 @@
       "$id": "exact-unique-id-match-word-count",
       "title": "Exact Unique Id Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Exact Unique Id Match Word Count",
         "category": "validate",
         "inputs": [
@@ -9702,7 +9628,7 @@
           "title": "Timeout"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "External Command",
         "category": "pipeline",
         "description": "Execute an external command line.",
@@ -9751,7 +9677,7 @@
           "title": "Interrupt after reaching the maximum number of warnings"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Extraction Verification",
         "category": "validate",
         "tags": [
@@ -9807,7 +9733,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Rainbow Translation Kit Creation",
         "category": "translate",
         "tags": [
@@ -9833,7 +9759,7 @@
       "$id": "filter-events-to-raw-document",
       "title": "Filter Events to Raw Document",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Filter Events to Raw Document",
         "category": "pipeline",
         "inputs": [
@@ -9855,7 +9781,7 @@
       "$id": "filter-events-writer",
       "title": "Filter Events Writer",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Filter Events Writer",
         "category": "pipeline",
         "inputs": [
@@ -9927,7 +9853,7 @@
           "title": "Overwrite if source is the same (for Pensieve TM)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Format Conversion",
         "category": "convert",
         "inputs": [
@@ -9979,7 +9905,7 @@
           "default": true
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Full-Width Conversion",
         "category": "convert",
         "inputs": [
@@ -10001,7 +9927,7 @@
       "$id": "fuzzy-match-character-count",
       "title": "Fuzzy Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Character Count",
         "category": "validate",
         "inputs": [
@@ -10024,7 +9950,7 @@
       "$id": "fuzzy-match-word-count",
       "title": "Fuzzy Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Word Count",
         "category": "validate",
         "inputs": [
@@ -10047,7 +9973,7 @@
       "$id": "fuzzy-previous-version-match-character-count",
       "title": "Fuzzy Previous Version Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Previous Version Match Character Count",
         "category": "validate",
         "inputs": [
@@ -10069,7 +9995,7 @@
       "$id": "fuzzy-previous-version-match-word-count",
       "title": "Fuzzy Previous Version Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Previous Version Match Word Count",
         "category": "validate",
         "inputs": [
@@ -10091,7 +10017,7 @@
       "$id": "fuzzy-repaired-character-count",
       "title": "Fuzzy Repaired Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Repaired Match Character Count",
         "category": "validate",
         "inputs": [
@@ -10114,7 +10040,7 @@
       "$id": "fuzzy-repaired-word-count",
       "title": "Fuzzy Repaired Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Repaired Match Word Count",
         "category": "validate",
         "inputs": [
@@ -10137,7 +10063,7 @@
       "$id": "fuzzy-unique-id-match-character-count",
       "title": "Fuzzy Unique Id Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Unique Id Match Character Count",
         "category": "validate",
         "inputs": [
@@ -10159,7 +10085,7 @@
       "$id": "fuzzy-unique-id-match-word-count",
       "title": "Fuzzy Unique Id Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Unique Id Match Word Count",
         "category": "validate",
         "inputs": [
@@ -10181,7 +10107,7 @@
       "$id": "g-m-x-alphanumeric-only-text-unit-character-count",
       "title": "GMX Alphanumeric Only Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Alphanumeric Only Character Count",
         "category": "validate",
         "inputs": [
@@ -10204,7 +10130,7 @@
       "$id": "g-m-x-alphanumeric-only-text-unit-word-count",
       "title": "GMX Alphanumeric Only Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Alphanumeric Only Word Count",
         "category": "validate",
         "inputs": [
@@ -10227,7 +10153,7 @@
       "$id": "g-m-x-exact-matched-character-count",
       "title": "GMX Exact Matched Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Exact Matched Character Count",
         "category": "translate",
         "inputs": [
@@ -10251,7 +10177,7 @@
       "$id": "g-m-x-exact-matched-word-count",
       "title": "GMX Exact Matched Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Exact Matched Word Count",
         "category": "translate",
         "inputs": [
@@ -10275,7 +10201,7 @@
       "$id": "g-m-x-fuzzy-match-character-count",
       "title": "Fuzzy Match Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Character Count",
         "category": "translate",
         "inputs": [
@@ -10299,7 +10225,7 @@
       "$id": "g-m-x-fuzzy-match-word-count",
       "title": "Fuzzy Match Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Fuzzy Match Word Count",
         "category": "translate",
         "inputs": [
@@ -10323,7 +10249,7 @@
       "$id": "g-m-x-leveraged-matched-character-count",
       "title": "GMX Leveraged Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Leveraged Character Count",
         "category": "translate",
         "inputs": [
@@ -10347,7 +10273,7 @@
       "$id": "g-m-x-leveraged-matched-word-count",
       "title": "GMX Leveraged Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Leveraged Word Count",
         "category": "translate",
         "inputs": [
@@ -10371,7 +10297,7 @@
       "$id": "g-m-x-measurement-only-text-unit-character-count",
       "title": "GMX Measurement Only Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Measurement Only Character Count",
         "category": "validate",
         "inputs": [
@@ -10394,7 +10320,7 @@
       "$id": "g-m-x-measurement-only-text-unit-word-count",
       "title": "GMX Measurement Only Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Measurement Only Word Count",
         "category": "validate",
         "inputs": [
@@ -10417,7 +10343,7 @@
       "$id": "g-m-x-numeric-only-text-unit-character-count",
       "title": "GMX Numeric Only Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Numeric Only Character Count",
         "category": "validate",
         "inputs": [
@@ -10440,7 +10366,7 @@
       "$id": "g-m-x-numeric-only-text-unit-word-count",
       "title": "GMX Numeric Only Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Numeric Only Word Count",
         "category": "validate",
         "inputs": [
@@ -10463,7 +10389,7 @@
       "$id": "g-m-x-protected-character-count",
       "title": "GMX Protected Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Protected Character Count",
         "category": "translate",
         "inputs": [
@@ -10487,7 +10413,7 @@
       "$id": "g-m-x-protected-word-count",
       "title": "GMX Protected Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Protected Word Count",
         "category": "translate",
         "inputs": [
@@ -10511,7 +10437,7 @@
       "$id": "g-m-x-repetition-matched-character-count",
       "title": "GMX Repetition Matched Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Repetition Matched Character Count",
         "category": "validate",
         "inputs": [
@@ -10534,7 +10460,7 @@
       "$id": "g-m-x-repetition-matched-word-count",
       "title": "GMX Repetition Matched Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "GMX Repetition Matched Word Count",
         "category": "validate",
         "inputs": [
@@ -10595,7 +10521,7 @@
           "default": "sie;vous;nous"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "General Quality Check",
         "category": "validate",
         "inputs": [
@@ -10661,7 +10587,7 @@
           "title": "Align based on TextUnit IDs"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Id-Based Aligner",
         "category": "pipeline",
         "inputs": [
@@ -10695,7 +10621,7 @@
           "title": "Set the target property 'approved' to 'yes'"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Id-Based Copy",
         "category": "pipeline",
         "inputs": [
@@ -10742,7 +10668,7 @@
           "title": "Convert to gray scale"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Image Modification",
         "category": "pipeline",
         "description": "Create a modified copy of image files. Expects: image raw document. Sends back: image raw document.",
@@ -10791,7 +10717,7 @@
           "title": "Open the report file after completion"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inconsistency Check",
         "category": "translate",
         "inputs": [
@@ -10836,7 +10762,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Inline Codes Quality Check",
         "category": "validate",
         "inputs": [
@@ -10904,7 +10830,7 @@
           "default": 255
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Length Quality Check",
         "category": "validate",
         "inputs": [
@@ -10992,7 +10918,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Leveraging",
         "category": "translate",
         "inputs": [
@@ -11023,7 +10949,7 @@
           "title": "Convert line-breaks to the following type"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Line-Break Conversion",
         "category": "convert",
         "tags": [
@@ -11048,7 +10974,7 @@
       "$id": "localizable-checker",
       "title": "Localizable Quality Check",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Localizable Quality Check",
         "category": "validate",
         "inputs": [
@@ -11161,7 +11087,7 @@
           "title": "Target prefix"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Microsoft Batch Translation",
         "category": "translate",
         "inputs": [
@@ -11185,7 +11111,7 @@
       "$id": "m-t-character-count",
       "title": "MT Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "MT Character Count",
         "category": "translate",
         "inputs": [
@@ -11208,7 +11134,7 @@
       "$id": "m-t-word-count",
       "title": "MT Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "MT Word Count",
         "category": "translate",
         "inputs": [
@@ -11258,7 +11184,7 @@
           "title": "Copy the code metadata from the original file"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Rainbow Translation Kit Merging",
         "category": "translate",
         "inputs": [
@@ -11294,7 +11220,7 @@
           "title": "Use Skeleton Alignment? (Experimental)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Paragraph Alignment",
         "category": "pipeline",
         "inputs": [
@@ -11519,7 +11445,7 @@
           "default": "Tripled letter"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Pattern (regex) Quality Check",
         "category": "validate",
         "inputs": [
@@ -11542,7 +11468,7 @@
       "$id": "phrase-assembled-character-count",
       "title": "Phrase Assembled Character Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Phrase Assembled Character Count",
         "category": "translate",
         "inputs": [
@@ -11565,7 +11491,7 @@
       "$id": "phrase-assembled-word-count",
       "title": "Phrase Assembled Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Phrase Assembled Word Count",
         "category": "translate",
         "inputs": [
@@ -11602,7 +11528,7 @@
           "title": "Merge codes"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Post-segmentation Inline Codes Simplifier",
         "category": "transform",
         "inputs": [
@@ -12078,7 +12004,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Quality Check",
         "category": "validate",
         "inputs": [
@@ -12118,7 +12044,7 @@
           "title": "Try to update the encoding declarations (when detected)"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "RTF Conversion",
         "category": "transform",
         "tags": [
@@ -12143,7 +12069,7 @@
       "$id": "raw-document-to-filter-events",
       "title": "Raw Document to Filter Events",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Raw Document to Filter Events",
         "category": "convert",
         "inputs": [
@@ -12162,7 +12088,7 @@
       "$id": "raw-document-to-output-stream",
       "title": "RawDocument To OutputStream",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "RawDocument To OutputStream",
         "category": "pipeline",
         "description": "Write a RawDocument to an output stream.",
@@ -12181,7 +12107,7 @@
       "$id": "raw-document-writer",
       "title": "RawDocument Writer",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "RawDocument Writer",
         "category": "pipeline",
         "description": "Write a RawDocument to an output file.",
@@ -12225,7 +12151,7 @@
           "title": "If true remove the Text Unit if it has no remaining targets, if false do nothing"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Remove Target",
         "category": "transform",
         "inputs": [
@@ -12247,7 +12173,7 @@
       "$id": "repetition-analysis",
       "title": "Repetition Analysis",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Repetition Analysis",
         "category": "translate",
         "inputs": [
@@ -12270,7 +12196,7 @@
       "$id": "resource-simplifier",
       "title": "Resource Simplifier",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Resource Simplifier",
         "category": "transform",
         "inputs": [
@@ -12465,7 +12391,7 @@
           "title": "Concordance"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Scoping Report",
         "category": "translate",
         "inputs": [
@@ -12537,7 +12463,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Search and Replace",
         "category": "transform",
         "inputs": [
@@ -12616,7 +12542,7 @@
           "default": false
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Segmentation",
         "category": "transform",
         "inputs": [
@@ -12702,7 +12628,7 @@
           "title": "Force Simple One to One Alignment"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Sentence Alignment",
         "category": "pipeline",
         "inputs": [
@@ -12724,7 +12650,7 @@
       "$id": "simple-word-count",
       "title": "Simple Word Count",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Simple Word Count",
         "category": "validate",
         "inputs": [
@@ -12748,7 +12674,7 @@
       "$id": "space-check",
       "title": "Space Quality Check",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Space Quality Check",
         "category": "validate",
         "inputs": [
@@ -12783,7 +12709,7 @@
           "title": "Overwrite if source is the same"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "TM Import",
         "category": "translate",
         "inputs": [
@@ -12813,7 +12739,7 @@
           "title": "Optional suffix to place at the end of the result files"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "TTX Joiner",
         "category": "pipeline",
         "description": "Rebuilds previously split TTX documents into their original documents. Expects: raw document. Sends back: raw document.",
@@ -12839,7 +12765,7 @@
           "title": "Number of output files"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "TTX Splitter",
         "category": "validate",
         "tags": [
@@ -12940,7 +12866,7 @@
           "title": "Use tokens-grouping statistics"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Term Extraction",
         "category": "pipeline",
         "inputs": [
@@ -12959,7 +12885,7 @@
       "$id": "terminology-leveraging",
       "title": "Terminology Leveraging",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Terminology Leveraging",
         "category": "translate",
         "inputs": [
@@ -13032,7 +12958,7 @@
           "default": 0
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Text Modification",
         "category": "pipeline",
         "inputs": [
@@ -13170,7 +13096,7 @@
           "title": "IDEOGRAM"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Tokenization Step",
         "category": "pipeline",
         "inputs": [
@@ -13288,7 +13214,7 @@
           "title": "Value in origin attribute"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Translation Comparison",
         "category": "translate",
         "inputs": [
@@ -13311,7 +13237,7 @@
       "$id": "tu-filtering",
       "title": "Text Unit Filtering",
       "type": "object",
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Text Unit Filtering",
         "category": "translate",
         "inputs": [
@@ -13348,7 +13274,7 @@
           "default": "%{}[]()&"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "URI Conversion",
         "category": "convert",
         "inputs": [
@@ -13377,7 +13303,7 @@
           "default": "LINE_FEED,LINE_TABULATION,FORM_FEED,CARRIAGE_RETURN,NEXT_LINE,LINE_SEPARATOR,PARAGRAPH_SEPARATOR,CHARACTER_TABULATION,SPACE,NO_BREAK_SPACE,EN_QUAD,EM_QUAD,EN_SPACE,EM_SPACE,THREE_PER_EM_SPACE,FOUR_PER_EM_SPACER,SIX_PER_EM_SPACE,FIGURE_SPACE,PUNCUATION_SPACE,THIS_SPACE,HAIR_SPACE,NAORROW_NO_BREAK_SPACE,MEDIUM_MATHEMATICAL_SPACE,IDEOGRAPHIC_SPACE,ZERO_WIDTH_SPACE,ZERO_WIDTH_NON_BREAKING_SPACE"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Whitespace Correction",
         "category": "translate",
         "inputs": [
@@ -13432,7 +13358,7 @@
           "title": "Size of text buffer:"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "Word Count",
         "category": "validate",
         "inputs": [
@@ -13468,7 +13394,7 @@
           "title": "Open the result file after completion"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XML Analysis",
         "category": "pipeline",
         "tags": [
@@ -13498,7 +13424,7 @@
           "title": "Replacement string"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XML Characters Fixing",
         "category": "pipeline",
         "description": "Fixes invalid characters in XML documents. Expects: raw document. Sends back: raw document.",
@@ -13544,7 +13470,7 @@
           "title": "Use DTD declarations found in the input documents"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XML Validation",
         "category": "pipeline",
         "description": "Validate XML documents. Expects: raw XML document. Sends back: raw XML document.",
@@ -13589,7 +13515,7 @@
           "default": true
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XSL Transformation",
         "category": "convert",
         "description": "Apply an XSLT template to an XML document. Expects: raw XML document. Sends back: raw document.",
@@ -13623,7 +13549,7 @@
           "title": "Output file marker"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XLIFF Joiner",
         "category": "pipeline",
         "description": "Join multiple XLIFF documents into one. Expects: raw document. Sends back: raw document.",
@@ -13679,7 +13605,7 @@
           "title": "Restore original file names"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XLIFF Splitter",
         "category": "pipeline",
         "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
@@ -13708,7 +13634,7 @@
           "title": "Maximum word-count per part:"
         }
       },
-      "x-tool": {
+      "toolMeta": {
         "displayName": "XLIFF Word-Count Splitter",
         "category": "validate",
         "tags": [
