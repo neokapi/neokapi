@@ -246,6 +246,12 @@ tools: ## Install development tools
 setup-remote: ## Install dependencies for cloud environments
 	CLAUDE_CODE_REMOTE=true bash scripts/setup-remote.sh
 
+pre-push: ## Run checks relevant to your changes (mirrors CI)
+	@./scripts/pre-push-check.sh
+
+pre-push-all: ## Run all checks regardless of changes
+	@./scripts/pre-push-check.sh --all
+
 gha-lint: ## Lint GitHub Actions workflow files
 	@command -v actionlint >/dev/null 2>&1 || { echo "actionlint not installed."; exit 1; }
 	actionlint
