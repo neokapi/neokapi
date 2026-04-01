@@ -3,16 +3,16 @@ package json
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the JSON format's parameters.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "JSON Format",
 		Description: "Configuration for the native JSON format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "json",
 			Extensions: []string{".json"},
 			MimeTypes:  []string{"application/json"},
-			Configurations: []schema.FilterConfiguration{
+			Configurations: []schema.FormatConfiguration{
 				{
 					ConfigID:    "json-i18next",
 					Name:        "i18next",

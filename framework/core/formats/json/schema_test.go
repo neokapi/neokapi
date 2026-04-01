@@ -61,7 +61,7 @@ func TestSchemaHasPresets(t *testing.T) {
 	cfg := &Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)
-	assert.GreaterOrEqual(t, len(s.FilterMeta.Configurations), 2,
+	assert.GreaterOrEqual(t, len(s.FormatMeta.Configurations), 2,
 		"expected at least i18next and chrome-extension presets")
 }
 

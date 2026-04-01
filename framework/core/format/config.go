@@ -26,7 +26,7 @@ type DataFormatConfig interface {
 // Formats that implement this interface enable CLI introspection (formats info,
 // formats schema) and schema-based validation without requiring bridge plugins.
 type SchemaProvider interface {
-	Schema() *schema.FilterSchema
+	Schema() *schema.FormatSchema
 }
 
 // ConfigKindProvider is an optional interface that DataFormatConfig

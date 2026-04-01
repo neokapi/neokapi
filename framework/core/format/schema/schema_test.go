@@ -22,7 +22,7 @@ func TestSchemaRegistry_LoadFromDirectory(t *testing.T) {
 		"title": "JSON Filter",
 		"description": "Configuration for the Okapi JSON Filter",
 		"type": "object",
-		"x-filter": {
+		"x-format": {
 			"id": "okf_json",
 			"class": "net.sf.okapi.filters.json.JSONFilter",
 			"extensions": [".json"],
@@ -71,10 +71,10 @@ func TestSchemaRegistry_LoadFromDirectory(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "JSON Filter", s.Title)
 	assert.Equal(t, "1.0.0", s.Version)
-	assert.Equal(t, "okf_json", s.FilterMeta.ID)
-	assert.Equal(t, "net.sf.okapi.filters.json.JSONFilter", s.FilterMeta.Class)
-	assert.Contains(t, s.FilterMeta.Extensions, ".json")
-	assert.Contains(t, s.FilterMeta.MimeTypes, "application/json")
+	assert.Equal(t, "okf_json", s.FormatMeta.ID)
+	assert.Equal(t, "net.sf.okapi.filters.json.JSONFilter", s.FormatMeta.Class)
+	assert.Contains(t, s.FormatMeta.Extensions, ".json")
+	assert.Contains(t, s.FormatMeta.MimeTypes, "application/json")
 
 	// Verify properties
 	assert.Len(t, s.Properties, 3)
@@ -100,7 +100,7 @@ func TestSchemaRegistry_GetSchemaExactMatch(t *testing.T) {
 		"$version": "1.0.0",
 		"title": "HTML Filter",
 		"type": "object",
-		"x-filter": { "id": "okf_html", "class": "HtmlFilter", "extensions": [], "mimeTypes": [] },
+		"x-format": { "id": "okf_html", "class": "HtmlFilter", "extensions": [], "mimeTypes": [] },
 		"properties": {}
 	}`
 
@@ -127,7 +127,7 @@ func TestSchemaRegistry_ValidateParams(t *testing.T) {
 		"$version": "1.0.0",
 		"title": "Test Filter",
 		"type": "object",
-		"x-filter": { "id": "okf_test", "class": "Test", "extensions": [], "mimeTypes": [] },
+		"x-format": { "id": "okf_test", "class": "Test", "extensions": [], "mimeTypes": [] },
 		"properties": {
 			"enabled": { "type": "boolean" },
 			"count": { "type": "integer" },
@@ -187,7 +187,7 @@ func TestSchemaRegistry_NonexistentDirectory(t *testing.T) {
 	assert.Equal(t, 0, reg.Count())
 }
 
-func TestSchemaRegistry_ListFilters(t *testing.T) {
+func TestSchemaRegistry_ListFormats(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create two schema files
@@ -196,7 +196,7 @@ func TestSchemaRegistry_ListFilters(t *testing.T) {
 			"$version": "1.0.0",
 			"title": "Filter",
 			"type": "object",
-			"x-filter": { "id": "` + id + `", "class": "Filter", "extensions": [], "mimeTypes": [] },
+			"x-format": { "id": "` + id + `", "class": "Filter", "extensions": [], "mimeTypes": [] },
 			"properties": {}
 		}`
 		err := os.WriteFile(filepath.Join(dir, id+".schema.json"), []byte(schema), 0644)
@@ -207,18 +207,18 @@ func TestSchemaRegistry_ListFilters(t *testing.T) {
 	err := reg.LoadFromDirectory(dir)
 	require.NoError(t, err)
 
-	filters := reg.ListFilters()
+	filters := reg.ListFormats()
 	assert.Len(t, filters, 2)
 }
 
 // TestSchemaRegistry_LoadCompositeSchemas verifies loading schemas in the
-// composite format that okapi-bridge produces — with x-filter metadata,
+// composite format that okapi-bridge produces — with x-format metadata,
 // configurations, and multiple properties.
 func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 	dir := t.TempDir()
 
 	// Simulate a composite schema like those produced by okapi-bridge's
-	// SchemaGenerator: includes x-filter with class/extensions/mimeTypes,
+	// SchemaGenerator: includes x-format with class/extensions/mimeTypes,
 	// multiple property types, and x-groups for UI.
 	htmlSchema := `{
 		"$schema": "http://json-schema.org/draft-07/schema#",
@@ -227,7 +227,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 		"title": "HTML Filter",
 		"description": "Configuration for the Okapi HTML Filter",
 		"type": "object",
-		"x-filter": {
+		"x-format": {
 			"id": "okf_html",
 			"class": "net.sf.okapi.filters.html.HtmlFilter",
 			"extensions": [".html", ".htm"],
@@ -265,7 +265,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 		"title": "XML Filter",
 		"description": "Configuration for the Okapi XML Filter",
 		"type": "object",
-		"x-filter": {
+		"x-format": {
 			"id": "okf_xml",
 			"class": "net.sf.okapi.filters.xml.XMLFilter",
 			"extensions": [".xml"],
@@ -292,18 +292,18 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "HTML Filter", html.Title)
 	assert.Equal(t, "1.47.0", html.Version)
-	assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", html.FilterMeta.Class)
-	assert.Contains(t, html.FilterMeta.Extensions, ".html")
-	assert.Contains(t, html.FilterMeta.Extensions, ".htm")
-	assert.Contains(t, html.FilterMeta.MimeTypes, "text/html")
+	assert.Equal(t, "net.sf.okapi.filters.html.HtmlFilter", html.FormatMeta.Class)
+	assert.Contains(t, html.FormatMeta.Extensions, ".html")
+	assert.Contains(t, html.FormatMeta.Extensions, ".htm")
+	assert.Contains(t, html.FormatMeta.MimeTypes, "text/html")
 	assert.Len(t, html.Properties, 3)
 	assert.Len(t, html.Groups, 1)
 
 	// Verify XML schema
 	xml, ok := reg.GetSchema("okf_xml")
 	require.True(t, ok)
-	assert.Equal(t, "net.sf.okapi.filters.xml.XMLFilter", xml.FilterMeta.Class)
-	assert.Contains(t, xml.FilterMeta.MimeTypes, "application/xml")
+	assert.Equal(t, "net.sf.okapi.filters.xml.XMLFilter", xml.FormatMeta.Class)
+	assert.Contains(t, xml.FormatMeta.MimeTypes, "application/xml")
 
 	// Verify configuration extraction: ValidateParams should accept valid params
 	err := reg.ValidateParams("okf_html", map[string]any{
@@ -314,7 +314,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 }
 
 // TestSchemaRegistry_ExtractPresets verifies that filter configurations
-// in x-filter.configurations are correctly extracted into the PresetRegistry.
+// in x-format.configurations are correctly extracted into the PresetRegistry.
 func TestSchemaRegistry_ExtractPresets(t *testing.T) {
 	dir := t.TempDir()
 
@@ -322,7 +322,7 @@ func TestSchemaRegistry_ExtractPresets(t *testing.T) {
 		"$version": "1.47.0",
 		"title": "HTML Filter",
 		"type": "object",
-		"x-filter": {
+		"x-format": {
 			"id": "okf_html",
 			"class": "net.sf.okapi.filters.html.HtmlFilter",
 			"extensions": [".html"],
@@ -391,10 +391,10 @@ func TestSchemaRegistry_ExtractPresets(t *testing.T) {
 func TestSchemaRegistry_RegisterSchema(t *testing.T) {
 	reg := NewSchemaRegistry()
 
-	reg.RegisterSchema("json", &FilterSchema{
+	reg.RegisterSchema("json", &FormatSchema{
 		Title: "JSON Format",
 		Type:  "object",
-		FilterMeta: FilterSchemaMeta{
+		FormatMeta: FormatSchemaMeta{
 			ID:         "json",
 			Extensions: []string{".json"},
 			MimeTypes:  []string{"application/json"},

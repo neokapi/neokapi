@@ -3,12 +3,12 @@ package wiki
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the Wiki format's parameters.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "Wiki Format",
 		Description: "Configuration for the Wiki (MediaWiki/DokuWiki) format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "wiki",
 			Extensions: []string{".wiki", ".mediawiki"},
 			MimeTypes:  []string{"text/x-wiki"},

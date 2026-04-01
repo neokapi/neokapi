@@ -124,7 +124,7 @@ func (a *App) Init() {
 	}
 
 	// Merge plugin schemas into the unified registry.
-	for _, id := range a.PluginLoader.Schemas().FilterIDs() {
+	for _, id := range a.PluginLoader.Schemas().FormatIDs() {
 		if s, ok := a.PluginLoader.Schemas().GetSchema(id); ok {
 			if !a.SchemaReg.HasSchema(id) {
 				a.SchemaReg.RegisterSchema(id, s)

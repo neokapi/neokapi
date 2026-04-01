@@ -678,5 +678,5 @@ func TestConfig(t *testing.T) {
 
 	s := cfg.Schema()
 	assert.Equal(t, "Doxygen Comments", s.Title)
-	assert.Equal(t, "doxygen", s.FilterMeta.ID)
+	assert.Equal(t, "doxygen", s.FormatMeta.ID)
 }

@@ -98,6 +98,7 @@ type ShowIfRule struct {
 // PropertySchema represents a single parameter's schema.
 type PropertySchema struct {
 	Type        string `json:"type"`
+	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
 	Default     any    `json:"default,omitempty"`
 	Deprecated  bool   `json:"deprecated,omitempty"`

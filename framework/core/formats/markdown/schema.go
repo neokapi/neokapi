@@ -3,12 +3,12 @@ package markdown
 import "github.com/neokapi/neokapi/core/format/schema"
 
 // Schema returns the JSON Schema metadata for the Markdown format's parameters.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "Markdown Format",
 		Description: "Configuration for the Markdown format reader/writer",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "markdown",
 			Extensions: []string{".md", ".markdown"},
 			MimeTypes:  []string{"text/markdown"},

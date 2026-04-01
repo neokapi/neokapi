@@ -11,16 +11,16 @@ import (
 	"github.com/neokapi/neokapi/core/preset"
 )
 
-// FilterSchema represents a JSON Schema for a filter's parameters.
-type FilterSchema struct {
+// FormatSchema represents a JSON Schema for a format's parameters.
+type FormatSchema struct {
 	ID          string `json:"$id"`
 	Version     string `json:"$version"`
 	Title       string `json:"title"`
 	Description string `json:"description"`
 	Type        string `json:"type"`
 
-	// Filter metadata
-	FilterMeta FilterSchemaMeta `json:"x-filter"`
+	// Format metadata
+	FormatMeta FormatSchemaMeta `json:"x-format"`
 
 	// Parameter groupings for UI
 	Groups []ParameterGroup `json:"x-groups,omitempty"`
@@ -41,17 +41,17 @@ type FilterSchema struct {
 	RawJSON json.RawMessage `json:"-"`
 }
 
-// FilterSchemaMeta contains filter identification metadata.
-type FilterSchemaMeta struct {
+// FormatSchemaMeta contains format identification metadata.
+type FormatSchemaMeta struct {
 	ID             string                `json:"id"`
 	Class          string                `json:"class"`
 	Extensions     []string              `json:"extensions"`
 	MimeTypes      []string              `json:"mimeTypes"`
-	Configurations []FilterConfiguration `json:"configurations,omitempty"`
+	Configurations []FormatConfiguration `json:"configurations,omitempty"`
 }
 
-// FilterConfiguration represents a named configuration from x-filter.configurations.
-type FilterConfiguration struct {
+// FormatConfiguration represents a named configuration from x-format.configurations.
+type FormatConfiguration struct {
 	ConfigID    string         `json:"configId"`
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
@@ -73,6 +73,7 @@ type ParameterGroup struct {
 // PropertySchema represents a single parameter's schema.
 type PropertySchema struct {
 	Type        string `json:"type"`
+	Title       string `json:"title,omitempty"`
 	Description string `json:"description,omitempty"`
 	Default     any    `json:"default,omitempty"`
 	Deprecated  bool   `json:"deprecated,omitempty"`
@@ -93,21 +94,21 @@ type PropertySchema struct {
 // SchemaRegistry manages filter parameter schemas.
 type SchemaRegistry struct {
 	mu            sync.RWMutex
-	schemas       map[string]*FilterSchema     // filterID -> schema
+	schemas       map[string]*FormatSchema     // formatID -> schema
 	classSections map[string]map[string]string // filterClass -> sectionMap
 }
 
 // NewSchemaRegistry creates a new schema registry.
 func NewSchemaRegistry() *SchemaRegistry {
 	return &SchemaRegistry{
-		schemas:       make(map[string]*FilterSchema),
+		schemas:       make(map[string]*FormatSchema),
 		classSections: make(map[string]map[string]string),
 	}
 }
 
-// RegisterSchema programmatically registers a schema for a filter ID.
+// RegisterSchema programmatically registers a schema for a format ID.
 // Used by native formats to register their schemas without loading from files.
-func (r *SchemaRegistry) RegisterSchema(filterID string, schema *FilterSchema) {
+func (r *SchemaRegistry) RegisterSchema(formatID string, schema *FormatSchema) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -136,11 +137,11 @@ func (r *SchemaRegistry) RegisterSchema(filterID string, schema *FilterSchema) {
 		}
 	}
 
-	if schema.FilterMeta.Class != "" {
-		r.classSections[schema.FilterMeta.Class] = schema.SectionMap
+	if schema.FormatMeta.Class != "" {
+		r.classSections[schema.FormatMeta.Class] = schema.SectionMap
 	}
 
-	r.schemas[filterID] = schema
+	r.schemas[formatID] = schema
 }
 
 // GetSectionMap returns the flat-param → section-key mapping for a filter class.
@@ -183,14 +184,27 @@ func (r *SchemaRegistry) LoadFromDirectory(dir string) error {
 	return nil
 }
 
-// loadSchemaFile loads a single schema file.
+// LoadSchemaFile loads a single schema file and registers it under the given format ID.
+// If formatID is empty, the ID is derived from x-format.id or the filename.
+func (r *SchemaRegistry) LoadSchemaFile(path string, formatID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.loadSchemaFileWithID(path, formatID)
+}
+
+// loadSchemaFile loads a single schema file (internal, no lock).
 func (r *SchemaRegistry) loadSchemaFile(path string) error {
+	return r.loadSchemaFileWithID(path, "")
+}
+
+// loadSchemaFileWithID loads a single schema file with an optional explicit ID.
+func (r *SchemaRegistry) loadSchemaFileWithID(path string, explicitID string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("reading schema file: %w", err)
 	}
 
-	var s FilterSchema
+	var s FormatSchema
 	if err := json.Unmarshal(data, &s); err != nil {
 		return fmt.Errorf("parsing schema JSON: %w", err)
 	}
@@ -215,70 +229,73 @@ func (r *SchemaRegistry) loadSchemaFile(path string) error {
 		}
 	}
 
-	// Use the filter ID from x-filter.id, or derive from filename
-	filterID := s.FilterMeta.ID
-	if filterID == "" {
+	// Use explicit ID, then x-format.id, then derive from filename
+	formatID := explicitID
+	if formatID == "" {
+		formatID = s.FormatMeta.ID
+	}
+	if formatID == "" {
 		// Derive from filename: okf_json.v4.schema.json -> okf_json
 		base := filepath.Base(path)
-		filterID = strings.TrimSuffix(base, ".schema.json")
+		formatID = strings.TrimSuffix(base, ".schema.json")
 		// Strip version suffix: okf_json.v4 -> okf_json
-		if idx := strings.LastIndex(filterID, ".v"); idx > 0 {
-			filterID = filterID[:idx]
+		if idx := strings.LastIndex(formatID, ".v"); idx > 0 {
+			formatID = formatID[:idx]
 		}
 	}
 
 	// Index by filter class for bridge lookups.
-	if s.FilterMeta.Class != "" {
-		r.classSections[s.FilterMeta.Class] = s.SectionMap
+	if s.FormatMeta.Class != "" {
+		r.classSections[s.FormatMeta.Class] = s.SectionMap
 	}
 
-	r.schemas[filterID] = &s
+	r.schemas[formatID] = &s
 	return nil
 }
 
-// GetSchema returns the schema for a filter ID (exact match only).
-func (r *SchemaRegistry) GetSchema(filterID string) (*FilterSchema, bool) {
+// GetSchema returns the schema for a format ID (exact match only).
+func (r *SchemaRegistry) GetSchema(formatID string) (*FormatSchema, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	s, ok := r.schemas[filterID]
+	s, ok := r.schemas[formatID]
 	return s, ok
 }
 
-// GetSchemaJSON returns the raw JSON schema for a filter ID.
-func (r *SchemaRegistry) GetSchemaJSON(filterID string) (json.RawMessage, bool) {
-	s, ok := r.GetSchema(filterID)
+// GetSchemaJSON returns the raw JSON schema for a format ID.
+func (r *SchemaRegistry) GetSchemaJSON(formatID string) (json.RawMessage, bool) {
+	s, ok := r.GetSchema(formatID)
 	if !ok {
 		return nil, false
 	}
 	return s.RawJSON, true
 }
 
-// ListFilters returns metadata for all registered filter schemas.
-func (r *SchemaRegistry) ListFilters() []FilterSchemaMeta {
+// ListFormats returns metadata for all registered format schemas.
+func (r *SchemaRegistry) ListFormats() []FormatSchemaMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	result := make([]FilterSchemaMeta, 0, len(r.schemas))
+	result := make([]FormatSchemaMeta, 0, len(r.schemas))
 	for _, s := range r.schemas {
-		result = append(result, s.FilterMeta)
+		result = append(result, s.FormatMeta)
 	}
 	return result
 }
 
-// AllSchemas returns a copy of all registered schemas keyed by filter ID.
-func (r *SchemaRegistry) AllSchemas() map[string]*FilterSchema {
+// AllSchemas returns a copy of all registered schemas keyed by format ID.
+func (r *SchemaRegistry) AllSchemas() map[string]*FormatSchema {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	result := make(map[string]*FilterSchema, len(r.schemas))
+	result := make(map[string]*FormatSchema, len(r.schemas))
 	for id, s := range r.schemas {
 		result[id] = s
 	}
 	return result
 }
 
-// FilterIDSet returns a snapshot of all registered filter IDs as a set.
+// FormatIDSet returns a snapshot of all registered format IDs as a set.
 // Used to diff before/after schema loading.
-func (r *SchemaRegistry) FilterIDSet() map[string]struct{} {
+func (r *SchemaRegistry) FormatIDSet() map[string]struct{} {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	s := make(map[string]struct{}, len(r.schemas))
@@ -288,8 +305,8 @@ func (r *SchemaRegistry) FilterIDSet() map[string]struct{} {
 	return s
 }
 
-// FilterIDs returns all registered filter IDs (e.g., "okf_html", "okf_json").
-func (r *SchemaRegistry) FilterIDs() []string {
+// FormatIDs returns all registered format IDs (e.g., "okf_html", "okf_json").
+func (r *SchemaRegistry) FormatIDs() []string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	ids := make([]string, 0, len(r.schemas))
@@ -299,9 +316,9 @@ func (r *SchemaRegistry) FilterIDs() []string {
 	return ids
 }
 
-// HasSchema returns true if a schema exists for the filter ID.
-func (r *SchemaRegistry) HasSchema(filterID string) bool {
-	_, ok := r.GetSchema(filterID)
+// HasSchema returns true if a schema exists for the format ID.
+func (r *SchemaRegistry) HasSchema(formatID string) bool {
+	_, ok := r.GetSchema(formatID)
 	return ok
 }
 
@@ -312,10 +329,10 @@ func (r *SchemaRegistry) Count() int {
 	return len(r.schemas)
 }
 
-// ValidateParams validates filter parameters against the schema.
+// ValidateParams validates format parameters against the schema.
 // Returns nil if valid, or an error describing validation failures.
-func (r *SchemaRegistry) ValidateParams(filterID string, params map[string]any) error {
-	s, ok := r.GetSchema(filterID)
+func (r *SchemaRegistry) ValidateParams(formatID string, params map[string]any) error {
+	s, ok := r.GetSchema(formatID)
 	if !ok {
 		// No schema available - skip validation
 		return nil
@@ -350,14 +367,14 @@ func (r *SchemaRegistry) ValidateParams(filterID string, params map[string]any) 
 	}
 
 	if len(errors) > 0 {
-		return fmt.Errorf("invalid filter parameters for %s:\n  %s", filterID, strings.Join(errors, "\n  "))
+		return fmt.Errorf("invalid format parameters for %s:\n  %s", formatID, strings.Join(errors, "\n  "))
 	}
 
 	return nil
 }
 
 // findSimilarParam finds a similar parameter name for suggestions.
-func (r *SchemaRegistry) findSimilarParam(s *FilterSchema, name string) string {
+func (r *SchemaRegistry) findSimilarParam(s *FormatSchema, name string) string {
 	props := s.FlatProperties
 	if len(props) == 0 {
 		props = s.Properties
@@ -420,29 +437,29 @@ func validateType(paramName string, value any, expectedType string) error {
 	return nil
 }
 
-// ExtractPresets extracts format presets from x-filter.configurations in loaded schemas.
+// ExtractPresets extracts format presets from x-format.configurations in loaded schemas.
 // For each configuration, it strips the format prefix from configId to get the preset name.
 // E.g., "okf_html-wellFormed" → format "okf_html", preset name "wellFormed".
 func (r *SchemaRegistry) ExtractPresets(reg *preset.PresetRegistry) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	for filterID, s := range r.schemas {
-		for _, cfg := range s.FilterMeta.Configurations {
+	for formatID, s := range r.schemas {
+		for _, cfg := range s.FormatMeta.Configurations {
 			presetName := cfg.ConfigID
 			// Strip format prefix: "okf_html-wellFormed" → "wellFormed"
-			if strings.HasPrefix(cfg.ConfigID, filterID+"-") {
-				presetName = cfg.ConfigID[len(filterID)+1:]
+			if strings.HasPrefix(cfg.ConfigID, formatID+"-") {
+				presetName = cfg.ConfigID[len(formatID)+1:]
 			}
 
 			source := "schema"
-			if s.FilterMeta.Class != "" {
+			if s.FormatMeta.Class != "" {
 				source = "bridge"
 			}
 
-			reg.RegisterFormatPreset(filterID, presetName, &preset.FormatPreset{
+			reg.RegisterFormatPreset(formatID, presetName, &preset.FormatPreset{
 				Name:        presetName,
 				Description: cfg.Description,
-				Format:      filterID,
+				Format:      formatID,
 				Config:      cfg.Parameters,
 				Source:      source,
 				IsDefault:   cfg.IsDefault,

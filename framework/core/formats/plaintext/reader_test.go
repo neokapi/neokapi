@@ -1040,7 +1040,7 @@ func TestRead_Schema(t *testing.T) {
 	cfg := &plaintext.Config{}
 	schema := cfg.Schema()
 	assert.Equal(t, "Plain Text Format", schema.Title)
-	assert.Equal(t, "plaintext", schema.FilterMeta.ID)
-	assert.Contains(t, schema.FilterMeta.MimeTypes, "text/plain")
+	assert.Equal(t, "plaintext", schema.FormatMeta.ID)
+	assert.Contains(t, schema.FormatMeta.MimeTypes, "text/plain")
 	assert.Contains(t, schema.Properties, "segmentByLine")
 }

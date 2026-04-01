@@ -27,12 +27,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 }
 
 // Schema returns the JSON Schema metadata for the Doxygen format.
-func (c *Config) Schema() *schema.FilterSchema {
-	return &schema.FilterSchema{
+func (c *Config) Schema() *schema.FormatSchema {
+	return &schema.FormatSchema{
 		Title:       "Doxygen Comments",
 		Description: "Extracts translatable text from Doxygen/Javadoc comments in source code",
 		Type:        "object",
-		FilterMeta: schema.FilterSchemaMeta{
+		FormatMeta: schema.FormatSchemaMeta{
 			ID:         "doxygen",
 			Extensions: []string{".c", ".cpp", ".h", ".java", ".m", ".py"},
 			MimeTypes:  []string{"text/x-doxygen-txt"},

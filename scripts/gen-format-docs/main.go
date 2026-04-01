@@ -86,14 +86,14 @@ func main() {
 					doc.Description = s.Description
 					doc.Properties = convertProperties(s.Properties)
 					doc.Groups = convertGroups(s.Groups, s.Properties)
-					doc.Presets = convertPresets(s.FilterMeta.Configurations)
+					doc.Presets = convertPresets(s.FormatMeta.Configurations)
 
 					// Use schema extensions/mimeTypes if the reader didn't provide them.
 					if len(doc.Extensions) == 0 {
-						doc.Extensions = s.FilterMeta.Extensions
+						doc.Extensions = s.FormatMeta.Extensions
 					}
 					if len(doc.MIMETypes) == 0 {
-						doc.MIMETypes = s.FilterMeta.MimeTypes
+						doc.MIMETypes = s.FormatMeta.MimeTypes
 					}
 				}
 
@@ -213,7 +213,7 @@ func hasAnyFlattened(props map[string]schema.PropertySchema) bool {
 	return false
 }
 
-func convertPresets(configs []schema.FilterConfiguration) []PresetDoc {
+func convertPresets(configs []schema.FormatConfiguration) []PresetDoc {
 	if len(configs) == 0 {
 		return nil
 	}
