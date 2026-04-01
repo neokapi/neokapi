@@ -13,7 +13,7 @@ import (
 // Since Go has no built-in XSLT engine, this provides a lightweight
 // tag-transformation approach using regex-based rules.
 type XSLTTransformConfig struct {
-	Rules []TransformRule
+	Rules []TransformRule `schema:"description=Regex-based tag and text transformation rules"`
 }
 
 // TransformRule defines a single tag or text transformation rule.

@@ -21,16 +21,22 @@ export function useValidation(
   return useMemo(() => {
     if (!zodSchema) return {};
 
-    const result = zodSchema.safeParse(values);
-    if (result.success) return {};
+    try {
+      const result = zodSchema.safeParse(values);
+      if (result.success) return {};
 
-    const errors: FieldErrors = {};
-    for (const issue of result.error.issues) {
-      const path = issue.path.join(".");
-      if (path && !errors[path]) {
-        errors[path] = issue.message;
+      const errors: FieldErrors = {};
+      for (const issue of result.error.issues) {
+        const path = issue.path.join(".");
+        if (path && !errors[path]) {
+          errors[path] = issue.message;
+        }
       }
+      return errors;
+    } catch {
+      // Zod instance mismatch (e.g., Storybook prebundling creates a
+      // separate copy). Validation is best-effort — degrade gracefully.
+      return {};
     }
-    return errors;
   }, [zodSchema, values]);
 }

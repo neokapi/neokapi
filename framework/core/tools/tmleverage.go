@@ -41,10 +41,10 @@ func (NullTMProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (
 
 // TMLeverageConfig holds configuration for the TM leverage tool.
 type TMLeverageConfig struct {
-	TargetLocale   model.LocaleID
-	SourceLocale   model.LocaleID
-	FuzzyThreshold int        // 0-100; minimum score for fuzzy matches (default: 70)
-	Provider       TMProvider // TM provider for lookups
+	TargetLocale   model.LocaleID `schema:"description=Target locale for processing"`
+	SourceLocale   model.LocaleID `schema:"description=Source locale of the content"`
+	FuzzyThreshold int            `schema:"description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"` // 0-100; minimum score for fuzzy matches (default: 70)
+	Provider       TMProvider     `schema:"description=Translation memory provider for lookups"` // TM provider for lookups
 }
 
 // ToolName returns the tool name this config applies to.

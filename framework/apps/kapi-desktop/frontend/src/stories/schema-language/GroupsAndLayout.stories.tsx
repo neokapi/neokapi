@@ -28,7 +28,7 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
 }
 
 const meta: Meta<typeof SchemaStory> = {
-  title: "Schema Language/Groups & Layout",
+  title: "Formats & Tools/Schema/Groups & Layout",
   component: SchemaStory,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

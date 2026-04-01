@@ -23,9 +23,9 @@ type AIQACheckTool struct {
 
 // AIQAConfig holds configuration for the QA check tool.
 type AIQAConfig struct {
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
-	Checks       []string
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
+	Checks       []string       `schema:"description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }
 
 // NewAIQACheckTool creates a new AI quality check tool.

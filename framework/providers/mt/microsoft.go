@@ -17,9 +17,9 @@ const DefaultMicrosoftBaseURL = "https://api.cognitive.microsofttranslator.com"
 
 // MicrosoftConfig holds configuration for the Microsoft Translator provider.
 type MicrosoftConfig struct {
-	SubscriptionKey string
-	Region          string
-	BaseURL         string // Override for testing
+	SubscriptionKey string `schema:"description=Azure Cognitive Services subscription key,widget=password"`
+	Region          string `schema:"description=Azure region for the Translator resource (e.g. westeurope)"`
+	BaseURL         string `schema:"description=API base URL override for testing"` // Override for testing
 }
 
 // Validate checks configuration validity.
@@ -106,8 +106,8 @@ func (p *MicrosoftProvider) Close() error { return nil }
 // MicrosoftToolConfig holds configuration for the Microsoft MT tool (provider config + locale overrides).
 type MicrosoftToolConfig struct {
 	MicrosoftConfig
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 }
 
 // ToolName returns the tool name this config applies to.

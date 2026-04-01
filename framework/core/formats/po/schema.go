@@ -1,6 +1,9 @@
 package po
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the PO format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -23,11 +26,11 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"preserveUntranslated": {
+			"preserveUntranslated": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped.",
-			},
+			}),
 		},
 	}
 }

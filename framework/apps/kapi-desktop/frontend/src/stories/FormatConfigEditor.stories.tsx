@@ -36,7 +36,7 @@ function FormatConfigWrapper({
 }
 
 const meta: Meta<typeof FormatConfigWrapper> = {
-  title: "Components/FormatConfigEditor",
+  title: "Formats & Tools/Formats/Format Config Editor",
   component: FormatConfigWrapper,
   tags: ["autodocs"],
   parameters: { layout: "padded" },
@@ -131,13 +131,13 @@ export const CSVFilter: Story = {
   },
 };
 
-// Story showing all available filters
+// Story showing ALL available filters as a scrollable catalog
 export const FilterCatalog: Story = {
+  name: "All Filters (Catalog)",
   render: () => {
-    const filters = filterSchemas.slice(0, 20);
     return (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 900 }}>
-        {filters.map((schema, i) => (
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 1000 }}>
+        {filterSchemas.map((schema, i) => (
           <div key={i} className="rounded-lg border border-border p-4">
             <FormatConfigWrapper schema={schema} />
           </div>

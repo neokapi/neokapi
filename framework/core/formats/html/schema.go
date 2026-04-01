@@ -1,6 +1,9 @@
 package html
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the HTML format's parameters.
 // The schema mirrors the okf_html bridge schema structure so that presets
@@ -34,36 +37,48 @@ func (c *Config) Schema() *schema.FormatSchema {
 		},
 		Properties: map[string]schema.PropertySchema{
 			"parser": {
-				Type:        "object",
-				Description: "Parser settings",
+				PropertySchema: coreschema.PropertySchema{
+					Type:        "object",
+					Description: "Parser settings",
+				},
 				Properties: map[string]schema.PropertySchema{
 					"preserveWhitespace": {
-						Type:        "boolean",
-						Default:     false,
-						Description: "Preserve significant whitespace in text nodes",
+						PropertySchema: coreschema.PropertySchema{
+							Type:        "boolean",
+							Default:     false,
+							Description: "Preserve significant whitespace in text nodes",
+						},
 						FlattenPath: "preserveWhitespace",
 					},
 				},
 			},
 			"elements": {
-				Type:        "object",
-				Description: "Map of element names to extraction rules (ruleTypes, conditions, idAttributes, translatableAttributes)",
+				PropertySchema: coreschema.PropertySchema{
+					Type:        "object",
+					Description: "Map of element names to extraction rules (ruleTypes, conditions, idAttributes, translatableAttributes)",
+				},
 				FlattenPath: "elements",
 			},
 			"attributes": {
-				Type:        "object",
-				Description: "Map of attribute names to extraction rules (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+				PropertySchema: coreschema.PropertySchema{
+					Type:        "object",
+					Description: "Map of attribute names to extraction rules (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+				},
 				FlattenPath: "attributes",
 			},
 			"useCodeFinder": {
-				Type:        "boolean",
-				Default:     false,
-				Description: "Enable regex-based inline code detection",
+				PropertySchema: coreschema.PropertySchema{
+					Type:        "boolean",
+					Default:     false,
+					Description: "Enable regex-based inline code detection",
+				},
 				FlattenPath: "useCodeFinder",
 			},
 			"codeFinderRules": {
-				Type:        "array",
-				Description: "Regex patterns that match inline codes within translatable text",
+				PropertySchema: coreschema.PropertySchema{
+					Type:        "array",
+					Description: "Regex patterns that match inline codes within translatable text",
+				},
 				FlattenPath: "codeFinderRules",
 			},
 		},

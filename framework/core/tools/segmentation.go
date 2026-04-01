@@ -25,8 +25,8 @@ type SegmentationRule struct {
 
 // SegmentationConfig holds configuration for the segmentation tool.
 type SegmentationConfig struct {
-	TargetLocale model.LocaleID
-	Rules        []SegmentationRule // Custom rules; if empty, defaults are used
+	TargetLocale model.LocaleID    `schema:"description=Target locale for processing"`
+	Rules        []SegmentationRule `schema:"description=Custom segmentation rules; if empty defaults are used"` // Custom rules; if empty, defaults are used
 }
 
 // ToolName returns the tool name this config applies to.

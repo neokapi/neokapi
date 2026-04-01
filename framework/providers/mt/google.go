@@ -17,9 +17,9 @@ const DefaultGoogleBaseURL = "https://translation.googleapis.com"
 
 // GoogleConfig holds configuration for the Google Translate provider.
 type GoogleConfig struct {
-	APIKey    string
-	ProjectID string
-	BaseURL   string // Override for testing
+	APIKey    string `schema:"description=Google Cloud API key,widget=password"`
+	ProjectID string `schema:"description=Google Cloud project ID"`
+	BaseURL   string `schema:"description=API base URL override for testing"` // Override for testing
 }
 
 // Validate checks configuration validity.
@@ -106,8 +106,8 @@ func (p *GoogleProvider) Close() error { return nil }
 // GoogleToolConfig holds configuration for the Google MT tool (provider config + locale overrides).
 type GoogleToolConfig struct {
 	GoogleConfig
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 }
 
 // ToolName returns the tool name this config applies to.

@@ -25,8 +25,8 @@ type PatternRule struct {
 
 // PatternCheckConfig holds configuration for the pattern check tool.
 type PatternCheckConfig struct {
-	TargetLocale model.LocaleID // Required
-	Patterns     []PatternRule  // Patterns to check
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"` // Required
+	Patterns     []PatternRule  `schema:"description=Regex pattern rules to validate in translations"` // Patterns to check
 }
 
 // ToolName returns the tool name this config applies to.

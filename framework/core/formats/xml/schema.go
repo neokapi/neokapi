@@ -1,6 +1,9 @@
 package xml
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the XML format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -30,18 +33,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"translatableElements": {
+			"translatableElements": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Element names whose text content is translatable. If empty, all text content is translatable.",
-			},
-			"translatableAttributes": {
+			}),
+			"translatableAttributes": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Attribute names that are translatable.",
-			},
-			"subfilters": {
+			}),
+			"subfilters": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support.",
-			},
+			}),
 		},
 	}
 }

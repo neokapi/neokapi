@@ -785,10 +785,6 @@ func (l *PluginLoader) loadBridgeStepTools(versionDir string, reg *bridge.Bridge
 			l.logf("parsing step schema %s: %v", entry.Name(), err)
 			continue
 		}
-		// Preserve the raw JSON so that GetToolSchema can return it with
-		// all extension metadata (x-editor, x-step, title, etc.) intact.
-		cs.RawJSON = data
-
 		if cs.ToolMeta == nil || cs.ToolMeta.ID == "" {
 			continue
 		}
@@ -854,13 +850,6 @@ func capabilityToComponentSchema(cap pluginreg.Capability, fs *fmtschema.FormatS
 		}
 
 		// If the FormatSchema has pre-built RawJSON (loaded from a schema file),
-		// preserve it on the ComponentSchema so that GetToolSchema can return the
-		// full JSON with all extension metadata (x-editor, x-step, title, etc.)
-		// intact rather than re-serializing through the Go struct.
-		if len(fs.RawJSON) > 0 {
-			cs.RawJSON = fs.RawJSON
-		}
-
 		// Convert FormatSchema properties/groups via JSON round-trip.
 		data, err := json.Marshal(fs)
 		if err == nil {

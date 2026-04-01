@@ -32,7 +32,7 @@ function SchemaStory({ schema, description, initialValues }: { schema: Component
 }
 
 const meta: Meta<typeof SchemaStory> = {
-  title: "Schema Language/Conditional Visibility",
+  title: "Formats & Tools/Schema/Conditional Visibility",
   component: SchemaStory,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

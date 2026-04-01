@@ -1,6 +1,10 @@
 package json
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the JSON format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -72,92 +76,104 @@ func (c *Config) Schema() *schema.FormatSchema {
 			},
 		},
 		Properties: map[string]schema.PropertySchema{
-			"extractAllPairs": {
+			"extractAllPairs": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract all string key-value pairs as translatable blocks",
-			},
-			"exceptions": {
+			}),
+			"exceptions": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.",
-			},
-			"extractIsolatedStrings": {
+				Widget:      "regex",
+			}),
+			"extractIsolatedStrings": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract standalone string values inside arrays as translatable blocks",
-			},
-			"useKeyAsName": {
+			}),
+			"useKeyAsName": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Use the JSON key as the block name/ID",
-			},
-			"useFullKeyPath": {
+			}),
+			"useFullKeyPath": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Use hierarchical paths (parent/child) as block names",
-			},
-			"useLeadingSlashOnKeyPath": {
+			}),
+			"useLeadingSlashOnKeyPath": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Prepend / to full key paths",
-			},
-			"escapeForwardSlashes": {
+			}),
+			"escapeForwardSlashes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Escape / as \\/ in JSON output",
-			},
-			"subfilters": {
+			}),
+			"subfilters": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Array of {pattern, format} mappings for embedded content in specific keys",
-			},
-			"subfilter": {
+			}),
+			"subfilter": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings",
-			},
-			"subfilterRules": {
+			}),
+			"subfilterRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern for key names processed by the subfilter. Only used when subfilter is set.",
-			},
-			"noteRules": {
+				Widget:      "regex",
+				Visible:     &coreschema.ConditionExpr{Field: "subfilter", Empty: boolPtr(false)},
+			}),
+			"noteRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern for key names whose values become notes on the next translatable block",
-			},
-			"idRules": {
+				Widget:      "regex",
+			}),
+			"idRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern for key names whose values are used as block names/IDs",
-			},
-			"useIdStack": {
+				Widget:      "regex",
+			}),
+			"useIdStack": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Stack IDs for nested structures, producing compound IDs",
-			},
-			"genericMetaRules": {
+			}),
+			"genericMetaRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern for key names whose values become metadata annotations",
-			},
-			"extractionRules": {
+				Widget:      "regex",
+			}),
+			"extractionRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern limiting which keys are extracted. Only matching keys are extracted.",
-				Widget:      "regexBuilder",
-			},
-			"maxwidthRules": {
+				Widget:      "regex",
+			}),
+			"maxwidthRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Description: "Regex pattern for key names whose numeric values set MAX_WIDTH on the next block",
-			},
-			"maxwidthSizeUnit": {
+				Widget:      "regex",
+			}),
+			"maxwidthSizeUnit": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     "pixel",
-				Description: "Size unit for maxwidth: 'pixel' or 'char'",
-			},
-			"useCodeFinder": {
+				Description: "Size unit for maxwidth",
+				Enum:        []any{"pixel", "char"},
+			}),
+			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Enable regex-based inline code detection",
-			},
-			"codeFinderRules": {
+			}),
+			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Regex patterns that match inline codes within translatable text",
-			},
+				Widget:      "code-finder",
+				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
+			}),
 		},
 	}
 }
+
+func boolPtr(v bool) *bool { return &v }

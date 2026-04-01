@@ -17,10 +17,10 @@ const (
 
 // CharsCheckConfig holds configuration for the character check tool.
 type CharsCheckConfig struct {
-	TargetLocale   model.LocaleID // Required
-	ForbiddenChars string         // Characters that should not appear (e.g., "{}[]")
-	RequiredChars  string         // Characters that must appear if in source (e.g., punctuation)
-	CheckCorrupted bool           // Check for common corruption patterns (default: true)
+	TargetLocale   model.LocaleID `schema:"description=Target locale for processing"` // Required
+	ForbiddenChars string         `schema:"description=Characters that should not appear in target text (e.g. {}[])"` // Characters that should not appear (e.g., "{}[]")
+	RequiredChars  string         `schema:"description=Characters that must appear in target if present in source (e.g. punctuation)"` // Characters that must appear if in source (e.g., punctuation)
+	CheckCorrupted bool           `schema:"description=Check for common corruption patterns such as mojibake,default=true"` // Check for common corruption patterns (default: true)
 }
 
 // ToolName returns the tool name this config applies to.

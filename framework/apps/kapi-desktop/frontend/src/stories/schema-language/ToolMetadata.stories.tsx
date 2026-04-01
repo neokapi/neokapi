@@ -65,7 +65,7 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
 }
 
 const meta: Meta<typeof SchemaStory> = {
-  title: "Schema Language/Tool Metadata",
+  title: "Formats & Tools/Schema/Tool Metadata",
   component: SchemaStory,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

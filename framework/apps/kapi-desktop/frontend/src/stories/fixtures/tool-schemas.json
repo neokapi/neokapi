@@ -21,21 +21,23 @@
       "properties": {
         "expansionPercent": {
           "type": "integer",
-          "description": "Expansion percent"
+          "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)",
+          "default": 0,
+          "minimum": 0
         },
         "prefix": {
           "type": "string",
-          "description": "Prefix",
+          "description": "Characters prepended before each translated segment",
           "default": "["
         },
         "suffix": {
           "type": "string",
-          "description": "Suffix",
+          "description": "Characters appended after each translated segment",
           "default": "]"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for the pseudo-translated content"
         }
       },
       "x-source": "built-in",
@@ -69,16 +71,18 @@
       "properties": {
         "fuzzyThreshold": {
           "type": "integer",
-          "description": "Fuzzy threshold",
-          "default": 70
+          "description": "Minimum score for fuzzy matches (0-100)",
+          "default": 70,
+          "minimum": 0,
+          "maximum": 100
         },
         "sourceLocale": {
           "type": "string",
-          "description": "Source locale"
+          "description": "Source locale of the content"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -108,21 +112,21 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether comparison is case-sensitive",
           "default": true
         },
         "fuzzyMatch": {
           "type": "boolean",
-          "description": "Fuzzy match",
+          "description": "Enable fuzzy matching for similar texts",
           "default": false
         },
         "previousTexts": {
           "type": "object",
-          "description": "Previous texts"
+          "description": "Map of block ID to previous source text and translation"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -155,42 +159,42 @@
       "properties": {
         "checkDoubleSpaces": {
           "type": "boolean",
-          "description": "Check double spaces",
+          "description": "Check for double spaces in target text",
           "default": true
         },
         "checkEmptyTarget": {
           "type": "boolean",
-          "description": "Check empty target",
+          "description": "Check for empty target when source has content",
           "default": true
         },
         "checkLeadingWhitespace": {
           "type": "boolean",
-          "description": "Check leading whitespace",
+          "description": "Check for leading whitespace mismatches between source and target",
           "default": true
         },
         "checkSpanConstraints": {
           "type": "boolean",
-          "description": "Check span constraints",
+          "description": "Check non-deletable and non-cloneable span constraint violations",
           "default": true
         },
         "checkTargetSameAsSource": {
           "type": "boolean",
-          "description": "Check target same as source",
+          "description": "Check when target text is identical to source text",
           "default": true
         },
         "checkTerminology": {
           "type": "boolean",
-          "description": "Check terminology",
+          "description": "Enable terminology checks",
           "default": false
         },
         "checkTrailingWhitespace": {
           "type": "boolean",
-          "description": "Check trailing whitespace",
+          "description": "Check for trailing whitespace mismatches between source and target",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale",
+          "description": "Target locale for processing",
           "default": "en"
         }
       },
@@ -225,29 +229,27 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether term matching is case-sensitive",
           "default": false
         },
         "glossary": {
           "type": "array",
-          "description": "Glossary",
+          "description": "Glossary entries mapping source terms to required target translations",
           "items": {
             "type": "object",
             "properties": {
               "source": {
-                "type": "string",
-                "description": "Source"
+                "type": "string"
               },
               "target": {
-                "type": "string",
-                "description": "Target"
+                "type": "string"
               }
             }
           }
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -280,22 +282,22 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether comparison is case-sensitive",
           "default": true
         },
         "checkSourceInconsistency": {
           "type": "boolean",
-          "description": "Check source inconsistency",
+          "description": "Flag when different sources share the same translation",
           "default": false
         },
         "checkTargetInconsistency": {
           "type": "boolean",
-          "description": "Check target inconsistency",
+          "description": "Flag when the same source has different translations",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale",
+          "description": "Target locale for processing",
           "default": "en"
         }
       },
@@ -329,23 +331,31 @@
       "properties": {
         "maxChars": {
           "type": "integer",
-          "description": "Max chars"
+          "description": "Maximum character count for target text (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "maxPercentage": {
           "type": "number",
-          "description": "Max percentage"
+          "description": "Maximum target/source length ratio as percentage (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "maxWords": {
           "type": "integer",
-          "description": "Max words"
+          "description": "Maximum word count for target text (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "minPercentage": {
           "type": "number",
-          "description": "Min percentage"
+          "description": "Minimum target/source length ratio as percentage (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -378,20 +388,20 @@
       "properties": {
         "checkCorrupted": {
           "type": "boolean",
-          "description": "Check corrupted",
+          "description": "Check for common corruption patterns such as mojibake",
           "default": true
         },
         "forbiddenChars": {
           "type": "string",
-          "description": "Forbidden chars"
+          "description": "Characters that should not appear in target text (e.g. {}[])"
         },
         "requiredChars": {
           "type": "string",
-          "description": "Required chars"
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale",
+          "description": "Target locale for processing",
           "default": "en"
         }
       },
@@ -426,34 +436,30 @@
       "properties": {
         "patterns": {
           "type": "array",
-          "description": "Patterns",
+          "description": "Regex pattern rules to validate in translations",
           "items": {
             "type": "object",
             "properties": {
               "mustMatch": {
                 "type": "boolean",
-                "description": "Must match",
                 "default": false
               },
               "mustNotMatch": {
                 "type": "boolean",
-                "description": "Must not match",
                 "default": false
               },
               "name": {
-                "type": "string",
-                "description": "Name"
+                "type": "string"
               },
               "pattern": {
-                "type": "string",
-                "description": "Pattern"
+                "type": "string"
               }
             }
           }
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -507,7 +513,7 @@
       "properties": {
         "locale": {
           "type": "string",
-          "description": "Locale"
+          "description": "Target locale for counting target characters"
         }
       },
       "x-source": "built-in",
@@ -537,7 +543,7 @@
       "properties": {
         "locale": {
           "type": "string",
-          "description": "Locale"
+          "description": "Target locale for counting target segments"
         }
       },
       "x-source": "built-in",
@@ -567,7 +573,7 @@
       "properties": {
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing; if set includes target word counts"
         }
       },
       "x-source": "built-in",
@@ -597,7 +603,7 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether comparison is case-sensitive",
           "default": true
         }
       },
@@ -628,17 +634,21 @@
       "properties": {
         "includeSource": {
           "type": "boolean",
-          "description": "Include source",
+          "description": "Include source text in character listing",
           "default": true
         },
         "includeTarget": {
           "type": "boolean",
-          "description": "Include target",
+          "description": "Include target text in character listing",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "IncludeTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -671,11 +681,11 @@
       "properties": {
         "locale1": {
           "type": "string",
-          "description": "Locale1"
+          "description": "First target locale to compare"
         },
         "locale2": {
           "type": "string",
-          "description": "Locale2"
+          "description": "Second target locale to compare"
         }
       },
       "x-source": "built-in",
@@ -728,29 +738,26 @@
       "properties": {
         "pairs": {
           "type": "array",
-          "description": "Pairs",
+          "description": "Search/replace pairs to apply",
           "items": {
             "type": "object",
             "properties": {
               "isRegex": {
                 "type": "boolean",
-                "description": "Is regex",
                 "default": false
               },
               "replace": {
-                "type": "string",
-                "description": "Replace"
+                "type": "string"
               },
               "search": {
-                "type": "string",
-                "description": "Search"
+                "type": "string"
               }
             }
           }
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale; if set replacements also apply to target text"
         }
       },
       "x-source": "built-in",
@@ -780,22 +787,31 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": true
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": false
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "lower"
+          "description": "Case transformation mode",
+          "default": "upper",
+          "enum": [
+            "upper",
+            "lower",
+            "title"
+          ]
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -825,21 +841,18 @@
       "properties": {
         "rules": {
           "type": "array",
-          "description": "Rules",
+          "description": "Custom segmentation rules; if empty defaults are used",
           "items": {
             "type": "object",
             "properties": {
               "afterBreak": {
-                "type": "string",
-                "description": "After break"
+                "type": "string"
               },
               "beforeBreak": {
-                "type": "string",
-                "description": "Before break"
+                "type": "string"
               },
               "isBreak": {
                 "type": "boolean",
-                "description": "Is break",
                 "default": false
               }
             }
@@ -847,7 +860,7 @@
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -962,7 +975,7 @@
       "properties": {
         "addBOM": {
           "type": "boolean",
-          "description": "Add bo m",
+          "description": "When true the Unicode BOM is added; when false it is removed",
           "default": false
         }
       },
@@ -993,17 +1006,17 @@
       "properties": {
         "copySource": {
           "type": "boolean",
-          "description": "Copy source",
+          "description": "Copy source text to the new target segment",
           "default": false
         },
         "overwrite": {
           "type": "boolean",
-          "description": "Overwrite",
+          "description": "Overwrite existing target segments if they already exist",
           "default": false
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale to create"
         }
       },
       "x-source": "built-in",
@@ -1031,21 +1044,25 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply encoding conversion to source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply encoding conversion to target text",
           "default": true
         },
         "targetEncoding": {
           "type": "string",
-          "description": "Target encoding"
+          "description": "Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -1075,38 +1092,43 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Process source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Process target text",
           "default": true
         },
         "args": {
           "type": "array",
-          "description": "Args",
+          "description": "Command arguments; use ${source} and ${target} as placeholders",
           "items": {
             "type": "string"
           }
         },
         "command": {
           "type": "string",
-          "description": "Command"
+          "description": "The command to execute"
         },
         "sendAsStdin": {
           "type": "boolean",
-          "description": "Send as stdin",
+          "description": "Send text via stdin instead of command arguments",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         },
         "timeout": {
           "type": "integer",
-          "description": "Timeout",
-          "default": 30
+          "description": "Timeout in seconds",
+          "default": 30,
+          "minimum": 1
         }
       },
       "x-source": "built-in",
@@ -1136,22 +1158,30 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": true
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "to-half"
+          "description": "Conversion direction between half-width and full-width characters",
+          "default": "to-half",
+          "enum": [
+            "to-half",
+            "to-full"
+          ]
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -1181,17 +1211,21 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source segments",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target segments",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -1218,18 +1252,23 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": true
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": true
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "lf"
+          "description": "Target line break style",
+          "default": "lf",
+          "enum": [
+            "lf",
+            "crlf",
+            "cr"
+          ]
         }
       },
       "x-source": "built-in",
@@ -1259,17 +1298,17 @@
       "properties": {
         "onlyTranslatable": {
           "type": "boolean",
-          "description": "Only translatable",
+          "description": "Only set properties on translatable blocks",
           "default": true
         },
         "overwrite": {
           "type": "boolean",
-          "description": "Overwrite",
+          "description": "Overwrite existing properties with the same key",
           "default": true
         },
         "properties": {
           "type": "object",
-          "description": "Properties"
+          "description": "Key-value pairs to set on each block"
         }
       },
       "x-source": "built-in",
@@ -1299,7 +1338,7 @@
       "properties": {
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale to remove (if empty all targets are removed)"
         }
       },
       "x-source": "built-in",
@@ -1354,7 +1393,8 @@
       "properties": {
         "patterns": {
           "type": "array",
-          "description": "Patterns",
+          "description": "Regex patterns for tags and placeholders to protect",
+          "ui:widget": "regex",
           "items": {
             "type": "string"
           }
@@ -1387,22 +1427,30 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": true
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "decode"
+          "description": "URI conversion direction",
+          "default": "decode",
+          "enum": [
+            "encode",
+            "decode"
+          ]
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -1435,31 +1483,31 @@
       "properties": {
         "matchSourceWhitespace": {
           "type": "boolean",
-          "description": "Match source whitespace",
+          "description": "Copy source leading/trailing whitespace to target",
           "default": true
         },
         "normalizeSpaces": {
           "type": "boolean",
-          "description": "Normalize spaces",
+          "description": "Collapse multiple spaces to a single space",
           "default": true
         },
         "removeZeroWidthChars": {
           "type": "boolean",
-          "description": "Remove zero width chars",
+          "description": "Remove zero-width spaces and joiners",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         },
         "trimLeading": {
           "type": "boolean",
-          "description": "Trim leading",
+          "description": "Remove leading whitespace from target text",
           "default": false
         },
         "trimTrailing": {
           "type": "boolean",
-          "description": "Trim trailing",
+          "description": "Remove trailing whitespace from target text",
           "default": false
         }
       },
@@ -1490,21 +1538,25 @@
       "properties": {
         "checkSource": {
           "type": "boolean",
-          "description": "Check source",
+          "description": "Validate source text for XML well-formedness",
           "default": true
         },
         "checkTarget": {
           "type": "boolean",
-          "description": "Check target",
+          "description": "Validate target text for XML well-formedness",
           "default": false
         },
         "locale": {
           "type": "string",
-          "description": "Locale"
+          "description": "Target locale for validation",
+          "ui:visible": {
+            "field": "CheckTarget",
+            "empty": false
+          }
         },
         "wrapRoot": {
           "type": "boolean",
-          "description": "Wrap root",
+          "description": "Wrap text in a root element before validating",
           "default": true
         }
       },
@@ -1536,17 +1588,15 @@
       "properties": {
         "rules": {
           "type": "array",
-          "description": "Rules",
+          "description": "Regex-based tag and text transformation rules",
           "items": {
             "type": "object",
             "properties": {
               "pattern": {
-                "type": "string",
-                "description": "Pattern"
+                "type": "string"
               },
               "replace": {
-                "type": "string",
-                "description": "Replace"
+                "type": "string"
               }
             }
           }
@@ -6849,21 +6899,23 @@
       "properties": {
         "expansionPercent": {
           "type": "integer",
-          "description": "Expansion percent"
+          "description": "Extra padding percentage added to simulate translation expansion (0 = no padding)",
+          "default": 0,
+          "minimum": 0
         },
         "prefix": {
           "type": "string",
-          "description": "Prefix",
+          "description": "Characters prepended before each translated segment",
           "default": "["
         },
         "suffix": {
           "type": "string",
-          "description": "Suffix",
+          "description": "Characters appended after each translated segment",
           "default": "]"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for the pseudo-translated content"
         }
       },
       "x-source": "built-in",
@@ -6897,16 +6949,18 @@
       "properties": {
         "fuzzyThreshold": {
           "type": "integer",
-          "description": "Fuzzy threshold",
-          "default": 70
+          "description": "Minimum score for fuzzy matches (0-100)",
+          "default": 70,
+          "minimum": 0,
+          "maximum": 100
         },
         "sourceLocale": {
           "type": "string",
-          "description": "Source locale"
+          "description": "Source locale of the content"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -6936,21 +6990,21 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether comparison is case-sensitive",
           "default": true
         },
         "fuzzyMatch": {
           "type": "boolean",
-          "description": "Fuzzy match",
+          "description": "Enable fuzzy matching for similar texts",
           "default": false
         },
         "previousTexts": {
           "type": "object",
-          "description": "Previous texts"
+          "description": "Map of block ID to previous source text and translation"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -6983,42 +7037,42 @@
       "properties": {
         "checkDoubleSpaces": {
           "type": "boolean",
-          "description": "Check double spaces",
+          "description": "Check for double spaces in target text",
           "default": true
         },
         "checkEmptyTarget": {
           "type": "boolean",
-          "description": "Check empty target",
+          "description": "Check for empty target when source has content",
           "default": true
         },
         "checkLeadingWhitespace": {
           "type": "boolean",
-          "description": "Check leading whitespace",
+          "description": "Check for leading whitespace mismatches between source and target",
           "default": true
         },
         "checkSpanConstraints": {
           "type": "boolean",
-          "description": "Check span constraints",
+          "description": "Check non-deletable and non-cloneable span constraint violations",
           "default": true
         },
         "checkTargetSameAsSource": {
           "type": "boolean",
-          "description": "Check target same as source",
+          "description": "Check when target text is identical to source text",
           "default": true
         },
         "checkTerminology": {
           "type": "boolean",
-          "description": "Check terminology",
+          "description": "Enable terminology checks",
           "default": false
         },
         "checkTrailingWhitespace": {
           "type": "boolean",
-          "description": "Check trailing whitespace",
+          "description": "Check for trailing whitespace mismatches between source and target",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale",
+          "description": "Target locale for processing",
           "default": "en"
         }
       },
@@ -7053,29 +7107,27 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether term matching is case-sensitive",
           "default": false
         },
         "glossary": {
           "type": "array",
-          "description": "Glossary",
+          "description": "Glossary entries mapping source terms to required target translations",
           "items": {
             "type": "object",
             "properties": {
               "source": {
-                "type": "string",
-                "description": "Source"
+                "type": "string"
               },
               "target": {
-                "type": "string",
-                "description": "Target"
+                "type": "string"
               }
             }
           }
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -7108,22 +7160,22 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether comparison is case-sensitive",
           "default": true
         },
         "checkSourceInconsistency": {
           "type": "boolean",
-          "description": "Check source inconsistency",
+          "description": "Flag when different sources share the same translation",
           "default": false
         },
         "checkTargetInconsistency": {
           "type": "boolean",
-          "description": "Check target inconsistency",
+          "description": "Flag when the same source has different translations",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale",
+          "description": "Target locale for processing",
           "default": "en"
         }
       },
@@ -7157,23 +7209,31 @@
       "properties": {
         "maxChars": {
           "type": "integer",
-          "description": "Max chars"
+          "description": "Maximum character count for target text (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "maxPercentage": {
           "type": "number",
-          "description": "Max percentage"
+          "description": "Maximum target/source length ratio as percentage (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "maxWords": {
           "type": "integer",
-          "description": "Max words"
+          "description": "Maximum word count for target text (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "minPercentage": {
           "type": "number",
-          "description": "Min percentage"
+          "description": "Minimum target/source length ratio as percentage (0 = disabled)",
+          "default": 0,
+          "minimum": 0
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -7206,20 +7266,20 @@
       "properties": {
         "checkCorrupted": {
           "type": "boolean",
-          "description": "Check corrupted",
+          "description": "Check for common corruption patterns such as mojibake",
           "default": true
         },
         "forbiddenChars": {
           "type": "string",
-          "description": "Forbidden chars"
+          "description": "Characters that should not appear in target text (e.g. {}[])"
         },
         "requiredChars": {
           "type": "string",
-          "description": "Required chars"
+          "description": "Characters that must appear in target if present in source (e.g. punctuation)"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale",
+          "description": "Target locale for processing",
           "default": "en"
         }
       },
@@ -7254,34 +7314,30 @@
       "properties": {
         "patterns": {
           "type": "array",
-          "description": "Patterns",
+          "description": "Regex pattern rules to validate in translations",
           "items": {
             "type": "object",
             "properties": {
               "mustMatch": {
                 "type": "boolean",
-                "description": "Must match",
                 "default": false
               },
               "mustNotMatch": {
                 "type": "boolean",
-                "description": "Must not match",
                 "default": false
               },
               "name": {
-                "type": "string",
-                "description": "Name"
+                "type": "string"
               },
               "pattern": {
-                "type": "string",
-                "description": "Pattern"
+                "type": "string"
               }
             }
           }
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -7335,7 +7391,7 @@
       "properties": {
         "locale": {
           "type": "string",
-          "description": "Locale"
+          "description": "Target locale for counting target characters"
         }
       },
       "x-source": "built-in",
@@ -7365,7 +7421,7 @@
       "properties": {
         "locale": {
           "type": "string",
-          "description": "Locale"
+          "description": "Target locale for counting target segments"
         }
       },
       "x-source": "built-in",
@@ -7395,7 +7451,7 @@
       "properties": {
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing; if set includes target word counts"
         }
       },
       "x-source": "built-in",
@@ -7425,7 +7481,7 @@
       "properties": {
         "caseSensitive": {
           "type": "boolean",
-          "description": "Case sensitive",
+          "description": "Whether comparison is case-sensitive",
           "default": true
         }
       },
@@ -7456,17 +7512,21 @@
       "properties": {
         "includeSource": {
           "type": "boolean",
-          "description": "Include source",
+          "description": "Include source text in character listing",
           "default": true
         },
         "includeTarget": {
           "type": "boolean",
-          "description": "Include target",
+          "description": "Include target text in character listing",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "IncludeTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -7499,11 +7559,11 @@
       "properties": {
         "locale1": {
           "type": "string",
-          "description": "Locale1"
+          "description": "First target locale to compare"
         },
         "locale2": {
           "type": "string",
-          "description": "Locale2"
+          "description": "Second target locale to compare"
         }
       },
       "x-source": "built-in",
@@ -7556,29 +7616,26 @@
       "properties": {
         "pairs": {
           "type": "array",
-          "description": "Pairs",
+          "description": "Search/replace pairs to apply",
           "items": {
             "type": "object",
             "properties": {
               "isRegex": {
                 "type": "boolean",
-                "description": "Is regex",
                 "default": false
               },
               "replace": {
-                "type": "string",
-                "description": "Replace"
+                "type": "string"
               },
               "search": {
-                "type": "string",
-                "description": "Search"
+                "type": "string"
               }
             }
           }
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale; if set replacements also apply to target text"
         }
       },
       "x-source": "built-in",
@@ -7608,22 +7665,31 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": true
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": false
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "lower"
+          "description": "Case transformation mode",
+          "default": "upper",
+          "enum": [
+            "upper",
+            "lower",
+            "title"
+          ]
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -7653,21 +7719,18 @@
       "properties": {
         "rules": {
           "type": "array",
-          "description": "Rules",
+          "description": "Custom segmentation rules; if empty defaults are used",
           "items": {
             "type": "object",
             "properties": {
               "afterBreak": {
-                "type": "string",
-                "description": "After break"
+                "type": "string"
               },
               "beforeBreak": {
-                "type": "string",
-                "description": "Before break"
+                "type": "string"
               },
               "isBreak": {
                 "type": "boolean",
-                "description": "Is break",
                 "default": false
               }
             }
@@ -7675,7 +7738,7 @@
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         }
       },
       "x-source": "built-in",
@@ -7790,7 +7853,7 @@
       "properties": {
         "addBOM": {
           "type": "boolean",
-          "description": "Add bo m",
+          "description": "When true the Unicode BOM is added; when false it is removed",
           "default": false
         }
       },
@@ -7821,17 +7884,17 @@
       "properties": {
         "copySource": {
           "type": "boolean",
-          "description": "Copy source",
+          "description": "Copy source text to the new target segment",
           "default": false
         },
         "overwrite": {
           "type": "boolean",
-          "description": "Overwrite",
+          "description": "Overwrite existing target segments if they already exist",
           "default": false
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale to create"
         }
       },
       "x-source": "built-in",
@@ -7859,21 +7922,25 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply encoding conversion to source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply encoding conversion to target text",
           "default": true
         },
         "targetEncoding": {
           "type": "string",
-          "description": "Target encoding"
+          "description": "Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -7903,38 +7970,43 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Process source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Process target text",
           "default": true
         },
         "args": {
           "type": "array",
-          "description": "Args",
+          "description": "Command arguments; use ${source} and ${target} as placeholders",
           "items": {
             "type": "string"
           }
         },
         "command": {
           "type": "string",
-          "description": "Command"
+          "description": "The command to execute"
         },
         "sendAsStdin": {
           "type": "boolean",
-          "description": "Send as stdin",
+          "description": "Send text via stdin instead of command arguments",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         },
         "timeout": {
           "type": "integer",
-          "description": "Timeout",
-          "default": 30
+          "description": "Timeout in seconds",
+          "default": 30,
+          "minimum": 1
         }
       },
       "x-source": "built-in",
@@ -7964,22 +8036,30 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": true
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "to-half"
+          "description": "Conversion direction between half-width and full-width characters",
+          "default": "to-half",
+          "enum": [
+            "to-half",
+            "to-full"
+          ]
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -8009,17 +8089,21 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source segments",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target segments",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -8046,18 +8130,23 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": true
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": true
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "lf"
+          "description": "Target line break style",
+          "default": "lf",
+          "enum": [
+            "lf",
+            "crlf",
+            "cr"
+          ]
         }
       },
       "x-source": "built-in",
@@ -8087,17 +8176,17 @@
       "properties": {
         "onlyTranslatable": {
           "type": "boolean",
-          "description": "Only translatable",
+          "description": "Only set properties on translatable blocks",
           "default": true
         },
         "overwrite": {
           "type": "boolean",
-          "description": "Overwrite",
+          "description": "Overwrite existing properties with the same key",
           "default": true
         },
         "properties": {
           "type": "object",
-          "description": "Properties"
+          "description": "Key-value pairs to set on each block"
         }
       },
       "x-source": "built-in",
@@ -8127,7 +8216,7 @@
       "properties": {
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale to remove (if empty all targets are removed)"
         }
       },
       "x-source": "built-in",
@@ -8182,7 +8271,8 @@
       "properties": {
         "patterns": {
           "type": "array",
-          "description": "Patterns",
+          "description": "Regex patterns for tags and placeholders to protect",
+          "ui:widget": "regex",
           "items": {
             "type": "string"
           }
@@ -8215,22 +8305,30 @@
       "properties": {
         "applySource": {
           "type": "boolean",
-          "description": "Apply source",
+          "description": "Apply to source text",
           "default": false
         },
         "applyTarget": {
           "type": "boolean",
-          "description": "Apply target",
+          "description": "Apply to target text",
           "default": true
         },
         "mode": {
           "type": "string",
-          "description": "Mode",
-          "default": "decode"
+          "description": "URI conversion direction",
+          "default": "decode",
+          "enum": [
+            "encode",
+            "decode"
+          ]
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing",
+          "ui:visible": {
+            "field": "ApplyTarget",
+            "empty": false
+          }
         }
       },
       "x-source": "built-in",
@@ -8263,31 +8361,31 @@
       "properties": {
         "matchSourceWhitespace": {
           "type": "boolean",
-          "description": "Match source whitespace",
+          "description": "Copy source leading/trailing whitespace to target",
           "default": true
         },
         "normalizeSpaces": {
           "type": "boolean",
-          "description": "Normalize spaces",
+          "description": "Collapse multiple spaces to a single space",
           "default": true
         },
         "removeZeroWidthChars": {
           "type": "boolean",
-          "description": "Remove zero width chars",
+          "description": "Remove zero-width spaces and joiners",
           "default": true
         },
         "targetLocale": {
           "type": "string",
-          "description": "Target locale"
+          "description": "Target locale for processing"
         },
         "trimLeading": {
           "type": "boolean",
-          "description": "Trim leading",
+          "description": "Remove leading whitespace from target text",
           "default": false
         },
         "trimTrailing": {
           "type": "boolean",
-          "description": "Trim trailing",
+          "description": "Remove trailing whitespace from target text",
           "default": false
         }
       },
@@ -8318,21 +8416,25 @@
       "properties": {
         "checkSource": {
           "type": "boolean",
-          "description": "Check source",
+          "description": "Validate source text for XML well-formedness",
           "default": true
         },
         "checkTarget": {
           "type": "boolean",
-          "description": "Check target",
+          "description": "Validate target text for XML well-formedness",
           "default": false
         },
         "locale": {
           "type": "string",
-          "description": "Locale"
+          "description": "Target locale for validation",
+          "ui:visible": {
+            "field": "CheckTarget",
+            "empty": false
+          }
         },
         "wrapRoot": {
           "type": "boolean",
-          "description": "Wrap root",
+          "description": "Wrap text in a root element before validating",
           "default": true
         }
       },
@@ -8364,17 +8466,15 @@
       "properties": {
         "rules": {
           "type": "array",
-          "description": "Rules",
+          "description": "Regex-based tag and text transformation rules",
           "items": {
             "type": "object",
             "properties": {
               "pattern": {
-                "type": "string",
-                "description": "Pattern"
+                "type": "string"
               },
               "replace": {
-                "type": "string",
-                "description": "Replace"
+                "type": "string"
               }
             }
           }

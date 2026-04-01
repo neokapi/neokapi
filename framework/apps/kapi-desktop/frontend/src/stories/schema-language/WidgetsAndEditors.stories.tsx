@@ -32,7 +32,7 @@ function SchemaStory({ schema, description }: { schema: ComponentSchema; descrip
 }
 
 const meta: Meta<typeof SchemaStory> = {
-  title: "Schema Language/Widgets & Editors",
+  title: "Formats & Tools/Schema/Widgets & Editors",
   component: SchemaStory,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

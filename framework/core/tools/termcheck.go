@@ -22,9 +22,9 @@ type GlossaryEntry struct {
 
 // TermCheckConfig holds configuration for the terminology check tool.
 type TermCheckConfig struct {
-	Glossary      []GlossaryEntry
-	TargetLocale  model.LocaleID
-	CaseSensitive bool
+	Glossary      []GlossaryEntry `schema:"description=Glossary entries mapping source terms to required target translations"`
+	TargetLocale  model.LocaleID  `schema:"description=Target locale for processing"`
+	CaseSensitive bool            `schema:"description=Whether term matching is case-sensitive"`
 }
 
 // ToolName returns the tool name this config applies to.

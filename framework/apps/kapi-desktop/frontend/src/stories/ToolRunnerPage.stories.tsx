@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { ToolRunnerPage } from "../components/ToolRunnerPage";
+import { ErrorProvider } from "../components/ErrorBanner";
 import pluginDocs from "./fixtures/plugin-docs.json";
 import toolsData from "./fixtures/tools-metadata.json";
 import type { PluginDocs, ToolInfo } from "../types/api";
@@ -29,9 +30,11 @@ const meta: Meta<typeof ToolRunnerPage> = {
   },
   decorators: [
     (Story) => (
-      <div style={{ height: 700 }}>
-        <Story />
-      </div>
+      <ErrorProvider>
+        <div style={{ height: 700 }}>
+          <Story />
+        </div>
+      </ErrorProvider>
     ),
   ],
 };

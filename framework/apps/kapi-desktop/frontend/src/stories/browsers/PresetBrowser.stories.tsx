@@ -7,11 +7,8 @@
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import presets from "../fixtures/presets.json";
-import formatSchemas from "../fixtures/format-schemas.json";
-import type { ComponentSchema } from "@neokapi/flow-editor";
 
-const allPresets = presets as Record<string, Record<string, Record<string, unknown>>>;
-const allSchemas = formatSchemas.all as unknown as ComponentSchema[];
+const allPresets = presets as Record<string, Record<string, Record<string, unknown> | null>>;
 
 interface PresetEntry {
   formatId: string;
@@ -26,7 +23,12 @@ function PresetBrowser() {
 
   const formatIds = useMemo(() => {
     return Object.keys(allPresets)
-      .filter((id) => Object.keys(allPresets[id]).length > 0)
+      .filter((id) => {
+        const fp = allPresets[id];
+        if (!fp) return false;
+        // Filter out formats where all presets have null params
+        return Object.values(fp).some((v) => v != null);
+      })
       .sort();
   }, []);
 
@@ -37,7 +39,10 @@ function PresetBrowser() {
   }, [formatIds, search]);
 
   const totalPresets = useMemo(
-    () => formatIds.reduce((sum, id) => sum + Object.keys(allPresets[id]).length, 0),
+    () => formatIds.reduce((sum, id) => {
+      const fp = allPresets[id];
+      return sum + (fp ? Object.values(fp).filter((v) => v != null).length : 0);
+    }, 0),
     [formatIds],
   );
 
@@ -113,7 +118,10 @@ function PresetBrowser() {
   }
 
   if (selectedFormat) {
-    const formatPresets = allPresets[selectedFormat] || {};
+    const rawPresets = allPresets[selectedFormat] || {};
+    const formatPresets = Object.fromEntries(
+      Object.entries(rawPresets).filter(([, v]) => v != null),
+    );
     const presetNames = Object.keys(formatPresets).sort();
 
     return (
@@ -131,7 +139,7 @@ function PresetBrowser() {
 
         <div className="space-y-2">
           {presetNames.map((presetId) => {
-            const values = formatPresets[presetId];
+            const values = formatPresets[presetId] as Record<string, unknown>;
             const paramCount = Object.keys(values).length;
             const defaultPreset = getDefaultPreset(selectedFormat);
             const diffCount = defaultPreset && presetId !== "default"
@@ -179,7 +187,8 @@ function PresetBrowser() {
 
       <div className="space-y-1">
         {filteredFormats.map((formatId) => {
-          const presetCount = Object.keys(allPresets[formatId]).length;
+          const fp = allPresets[formatId] || {};
+          const presetCount = Object.values(fp).filter((v) => v != null).length;
           return (
             <button
               key={formatId}
@@ -201,7 +210,7 @@ function PresetBrowser() {
 }
 
 const meta: Meta<typeof PresetBrowser> = {
-  title: "Browsers/Preset Browser",
+  title: "Formats & Tools/Browsers/Preset Browser",
   component: PresetBrowser,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

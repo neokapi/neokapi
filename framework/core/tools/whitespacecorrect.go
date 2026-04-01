@@ -18,12 +18,12 @@ const (
 
 // WhitespaceCorrectConfig holds configuration for the whitespace correction tool.
 type WhitespaceCorrectConfig struct {
-	TargetLocale          model.LocaleID // Required
-	NormalizeSpaces       bool           // Collapse multiple spaces to single (default: true)
-	TrimLeading           bool           // Remove leading whitespace (default: false)
-	TrimTrailing          bool           // Remove trailing whitespace (default: false)
-	MatchSourceWhitespace bool           // Copy source leading/trailing whitespace to target (default: true)
-	RemoveZeroWidthChars  bool           // Remove zero-width spaces/joiners (default: true)
+	TargetLocale          model.LocaleID `schema:"description=Target locale for processing"` // Required
+	NormalizeSpaces       bool           `schema:"description=Collapse multiple spaces to a single space,default=true"` // Collapse multiple spaces to single (default: true)
+	TrimLeading           bool           `schema:"description=Remove leading whitespace from target text"` // Remove leading whitespace (default: false)
+	TrimTrailing          bool           `schema:"description=Remove trailing whitespace from target text"` // Remove trailing whitespace (default: false)
+	MatchSourceWhitespace bool           `schema:"description=Copy source leading/trailing whitespace to target,default=true"` // Copy source leading/trailing whitespace to target (default: true)
+	RemoveZeroWidthChars  bool           `schema:"description=Remove zero-width spaces and joiners,default=true"` // Remove zero-width spaces/joiners (default: true)
 }
 
 // ToolName returns the tool name this config applies to.

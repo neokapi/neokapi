@@ -1,6 +1,9 @@
 package openxml
 
-import "github.com/neokapi/neokapi/core/format/schema"
+import (
+	coreschema "github.com/neokapi/neokapi/core/schema"
+	"github.com/neokapi/neokapi/core/format/schema"
+)
 
 // Schema returns the JSON Schema metadata for the OpenXML format's parameters.
 func (c *Config) Schema() *schema.FormatSchema {
@@ -83,156 +86,156 @@ func (c *Config) Schema() *schema.FormatSchema {
 		},
 		Properties: map[string]schema.PropertySchema{
 			// Common extraction
-			"translateDocProperties": {
+			"translateDocProperties": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract title, subject, keywords from document properties",
-			},
-			"translateHiddenText": {
+			}),
+			"translateHiddenText": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract text with the vanish (hidden) property",
-			},
-			"translateHeadersFooters": {
+			}),
+			"translateHeadersFooters": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract headers and footers",
-			},
-			"translateFootnotes": {
+			}),
+			"translateFootnotes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract footnotes and endnotes",
-			},
-			"translateComments": {
+			}),
+			"translateComments": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract comment text",
-			},
-			"translateHyperlinks": {
+			}),
+			"translateHyperlinks": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract hyperlink text",
-			},
+			}),
 			// Formatting control
-			"aggressiveCleanup": {
+			"aggressiveCleanup": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Strip revision IDs, proofing errors, and other noise before merging runs",
-			},
-			"tabAsCharacter": {
+			}),
+			"tabAsCharacter": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Treat tab elements as tab characters instead of placeholder spans",
-			},
+			}),
 			// PPTX options
-			"translateSlideNotes": {
+			"translateSlideNotes": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract slide notes",
-			},
-			"translateSlideMasters": {
+			}),
+			"translateSlideMasters": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract text from slide masters",
-			},
-			"translateHiddenSlides": {
+			}),
+			"translateHiddenSlides": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract content from hidden slides",
-			},
-			"translateCharts": {
+			}),
+			"translateCharts": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract strings from embedded charts",
-			},
-			"translateDiagrams": {
+			}),
+			"translateDiagrams": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract text from SmartArt diagrams",
-			},
-			"includedSlides": {
+			}),
+			"includedSlides": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "If non-empty, only extract these slide numbers (1-based)",
-			},
+			}),
 			// XLSX options
-			"translateSheetNames": {
+			"translateSheetNames": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Extract sheet names as translatable content",
-			},
-			"translateSharedStrings": {
+			}),
+			"translateSharedStrings": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
 				Description: "Extract shared strings",
-			},
-			"excludedSheets": {
+			}),
+			"excludedSheets": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Sheet names to exclude from extraction",
-			},
-			"excludedColumns": {
+			}),
+			"excludedColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")",
-			},
+			}),
 			// Style/color filtering
-			"excludeColors": {
+			"excludeColors": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)",
-			},
-			"excludeHighlightColors": {
+			}),
+			"excludeHighlightColors": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Highlight colors to exclude (e.g., \"yellow\", \"red\")",
-			},
-			"includeHighlightColors": {
+			}),
+			"includeHighlightColors": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "If non-empty, only extract text with these highlight colors",
-			},
-			"excludeStyles": {
+			}),
+			"excludeStyles": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Paragraph/character style names to exclude",
-			},
-			"includeStyles": {
+			}),
+			"includeStyles": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "If non-empty, only extract text with these styles",
-			},
+			}),
 			// Code finder
-			"useCodeFinder": {
+			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Enable regex-based inline code detection",
-			},
-			"codeFinderRules": {
+			}),
+			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Regex patterns that match inline codes within translatable text",
-			},
+			}),
 			// Advanced
-			"complexFieldDefinitionsToExtract": {
+			"complexFieldDefinitionsToExtract": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
 				Description: "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")",
-			},
-			"optimiseWordStyles": {
+			}),
+			"optimiseWordStyles": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Resolve style inheritance and strip redundant run properties",
-			},
-			"fontMappings": {
+			}),
+			"fontMappings": schema.Prop(coreschema.PropertySchema{
 				Type:        "object",
 				Description: "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")",
-			},
-			"extractRunFontsInfo": {
+			}),
+			"extractRunFontsInfo": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Emit font metadata as annotations on blocks",
-			},
-			"replaceLineSeparator": {
+			}),
+			"replaceLineSeparator": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
 				Description: "Replace Unicode line separator (U+2028) in output",
-			},
-			"lineSeparatorReplacement": {
+			}),
+			"lineSeparatorReplacement": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     "\n",
 				Description: "Replacement string for line separator characters",
-			},
+			}),
 		},
 	}
 }

@@ -7,7 +7,7 @@ import (
 
 // BOMConvertConfig holds configuration for the BOM conversion tool.
 type BOMConvertConfig struct {
-	AddBOM bool // true = ensure BOM is present, false = remove BOM
+	AddBOM bool `schema:"description=When true the Unicode BOM is added; when false it is removed"` // true = ensure BOM is present, false = remove BOM
 }
 
 // ToolName returns the tool name this config applies to.

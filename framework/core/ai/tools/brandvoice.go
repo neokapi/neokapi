@@ -25,7 +25,7 @@ type BrandVoiceCheckTool struct {
 
 // BrandVoiceCheckConfig holds configuration for the brand voice check tool.
 type BrandVoiceCheckConfig struct {
-	Profile *brand.VoiceProfile
+	Profile *brand.VoiceProfile `schema:"description=Brand voice profile containing tone and style guidelines"`
 }
 
 func (c *BrandVoiceCheckConfig) ToolName() string { return "brand-voice-check" }

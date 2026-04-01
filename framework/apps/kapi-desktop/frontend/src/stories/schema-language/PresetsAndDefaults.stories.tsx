@@ -45,7 +45,7 @@ function PresetStory({
 }
 
 const meta: Meta<typeof PresetStory> = {
-  title: "Schema Language/Presets & Defaults",
+  title: "Formats & Tools/Schema/Presets & Defaults",
   component: PresetStory,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

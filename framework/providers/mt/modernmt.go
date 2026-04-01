@@ -17,9 +17,9 @@ const DefaultModernMTBaseURL = "https://api.modernmt.com"
 
 // ModernMTConfig holds configuration for the ModernMT provider.
 type ModernMTConfig struct {
-	APIKey  string
-	Hints   []int64 // Optional memory IDs to bias translations
-	BaseURL string  // Override for testing
+	APIKey  string  `schema:"description=ModernMT API key,widget=password"`
+	Hints   []int64 `schema:"description=Optional memory IDs to bias translations"` // Optional memory IDs to bias translations
+	BaseURL string  `schema:"description=API base URL override for testing"` // Override for testing
 }
 
 // Validate checks configuration validity.
@@ -109,8 +109,8 @@ func (p *ModernMTProvider) Close() error { return nil }
 // ModernMTToolConfig holds configuration for the ModernMT tool (provider config + locale overrides).
 type ModernMTToolConfig struct {
 	ModernMTConfig
-	SourceLocale model.LocaleID
-	TargetLocale model.LocaleID
+	SourceLocale model.LocaleID `schema:"description=Source locale of the content"`
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
 }
 
 // ToolName returns the tool name this config applies to.

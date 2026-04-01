@@ -18,10 +18,10 @@ const (
 
 // URIConvertConfig holds configuration for the URI conversion tool.
 type URIConvertConfig struct {
-	Mode         URIConvertMode // encode or decode (default: "decode")
-	ApplySource  bool           // Apply to source (default: false)
-	ApplyTarget  bool           // Apply to target (default: true)
-	TargetLocale model.LocaleID // Target locale to process (required when ApplyTarget)
+	Mode         URIConvertMode `schema:"description=URI conversion direction,enum=encode|decode,default=decode"` // encode or decode (default: "decode")
+	ApplySource  bool           `schema:"description=Apply to source text"` // Apply to source (default: false)
+	ApplyTarget  bool           `schema:"description=Apply to target text,default=true"` // Apply to target (default: true)
+	TargetLocale model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale to process (required when ApplyTarget)
 }
 
 // ToolName returns the tool name this config applies to.
