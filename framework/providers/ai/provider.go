@@ -91,6 +91,60 @@ type ChatResponse struct {
 	Usage   TokenUsage `json:"usage"`
 }
 
+// StreamEventType identifies the kind of streaming event.
+type StreamEventType int
+
+const (
+	// StreamEventThinking indicates the model is reasoning. Content holds the
+	// incremental thinking summary (Gemini) or chain-of-thought text.
+	StreamEventThinking StreamEventType = iota
+
+	// StreamEventContent carries a chunk of the actual response text.
+	StreamEventContent
+
+	// StreamEventDone signals the stream has completed. Usage is populated.
+	StreamEventDone
+)
+
+// ChatStreamEvent represents one event in a streaming LLM response.
+type ChatStreamEvent struct {
+	Type    StreamEventType
+	Content string     // text chunk (thinking summary or output content)
+	Usage   TokenUsage // cumulative usage; populated on StreamEventDone
+	Model   string     // model name; populated on StreamEventDone
+}
+
+// StreamingLLMProvider extends LLMProvider with streaming variants of Chat.
+// Providers that support streaming implement this interface in addition to
+// LLMProvider. Consumers can type-assert:
+//
+//	if sp, ok := provider.(StreamingLLMProvider); ok { ... }
+type StreamingLLMProvider interface {
+	LLMProvider
+
+	// ChatStream sends a chat message and streams the response.
+	// onEvent is called synchronously for each chunk; it must not block.
+	// The final complete ChatResponse is returned when the stream ends.
+	ChatStream(ctx context.Context, messages []Message, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
+
+	// ChatStructuredStream is ChatStructured with streaming progress.
+	ChatStructuredStream(ctx context.Context, messages []Message, schema JSONSchema, onEvent func(ChatStreamEvent)) (*ChatResponse, error)
+}
+
+// ProgressEvent reports translation progress from an AI tool. It is emitted
+// once per block and, when streaming is available, includes live thinking
+// status from the model.
+type ProgressEvent struct {
+	// Block is the 1-based index of the block being processed.
+	Block int
+	// TotalBlocks is the total number of translatable blocks (0 if unknown).
+	TotalBlocks int
+	// Thinking is the latest thinking summary from the model (empty when not streaming).
+	Thinking string
+	// Done is true when this block's translation is complete.
+	Done bool
+}
+
 // QAIssue represents a quality assurance issue found in a translation.
 type QAIssue struct {
 	Type        string `json:"type"`     // "terminology", "fluency", "accuracy", "consistency"

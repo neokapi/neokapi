@@ -3,7 +3,9 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 
+	"github.com/mattn/go-isatty"
 	aitools "github.com/neokapi/neokapi/core/ai/tools"
 	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/model"
@@ -54,18 +56,10 @@ var BuiltinToolCommands = []ToolCommandDef{
 		Short:        "Translate content using AI/LLM",
 		Category:     "translation",
 		WritesOutput: true,
-		NewTool: func(cmd *cobra.Command, targetLang string) (tool.Tool, error) {
-			p, err := providerFromFlags(cmd)
-			if err != nil {
-				return nil, err
-			}
-			sourceLang, _ := cmd.Flags().GetString("source-lang")
-			return aitools.NewAITranslateTool(p, aitools.AITranslateConfig{
-				SourceLocale: model.LocaleID(sourceLang),
-				TargetLocale: model.LocaleID(targetLang),
-			}), nil
+		Schema:       aitools.AITranslateSchema(),
+		NewToolFromConfig: func(config map[string]any, targetLang string) (tool.Tool, error) {
+			return aitools.NewAITranslateFromConfig(config, targetLang)
 		},
-		AddFlags: addProviderFlags,
 	},
 	{
 		Use:               "pseudo-translate",
@@ -365,7 +359,7 @@ var BuiltinToolCommands = []ToolCommandDef{
 
 // addProviderFlags registers AI provider flags on a cobra command.
 func addProviderFlags(cmd *cobra.Command) {
-	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, ollama)")
+	cmd.Flags().String("provider", "anthropic", "AI provider (anthropic, openai, gemini, ollama)")
 	cmd.Flags().String("api-key", "", "API key for the AI provider")
 	cmd.Flags().String("model", "", "AI model name")
 }
@@ -386,10 +380,41 @@ func providerFromFlags(cmd *cobra.Command) (provider.LLMProvider, error) {
 		return provider.NewAnthropicProvider(cfg), nil
 	case "openai":
 		return provider.NewOpenAIProvider(cfg), nil
+	case "gemini":
+		return provider.NewGeminiProvider(cfg), nil
 	case "ollama":
 		return provider.NewOllamaProvider(cfg), nil
 	default:
-		return nil, fmt.Errorf("unknown AI provider: %s (supported: anthropic, openai, ollama)", providerName)
+		return nil, fmt.Errorf("unknown AI provider: %s (supported: anthropic, openai, gemini, ollama)", providerName)
+	}
+}
+
+// aiProgressWriter returns a ProgressEvent callback that writes a single
+// rewriting status line to w. Thinking summaries and block counters are
+// shown while running; the line is cleared when the final block completes.
+func aiProgressWriter(w *os.File) func(provider.ProgressEvent) {
+	return func(e provider.ProgressEvent) {
+		if e.Done && e.Thinking == "" {
+			// Block done — update counter.
+			if e.TotalBlocks > 0 {
+				fmt.Fprintf(w, "\r\033[K  Translating [%d/%d]", e.Block, e.TotalBlocks)
+			} else {
+				fmt.Fprintf(w, "\r\033[K  Translating [%d]", e.Block)
+			}
+			return
+		}
+		if e.Thinking != "" {
+			// Truncate long thinking summaries to fit a terminal line.
+			think := e.Thinking
+			if len(think) > 60 {
+				think = think[:57] + "..."
+			}
+			if e.TotalBlocks > 0 {
+				fmt.Fprintf(w, "\r\033[K  [%d/%d] thinking: %s", e.Block, e.TotalBlocks, think)
+			} else {
+				fmt.Fprintf(w, "\r\033[K  [%d] thinking: %s", e.Block, think)
+			}
+		}
 	}
 }
 
@@ -437,7 +462,20 @@ func (a *App) NewToolCommands() []*cobra.Command {
 				tracePath, _ := cmd.Flags().GetString("trace")
 				parallelBlocks, _ := cmd.Flags().GetInt("parallel-blocks")
 
-				return a.RunToolOnFiles(context.Background(), ToolRunConfig{
+				// Build the tool factory: prefer schema-driven path over legacy.
+				newTool := func() (tool.Tool, error) {
+					if d.Schema != nil && d.NewToolFromConfig != nil {
+						config := ReadAllSchemaFlags(cmd, d.Schema)
+						// Inject progress callback for AI tools on a TTY.
+						if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
+							config["onProgress"] = aiProgressWriter(os.Stderr)
+						}
+						return d.NewToolFromConfig(config, effectiveLang)
+					}
+					return d.NewTool(cmd, effectiveLang)
+				}
+
+				rc := ToolRunConfig{
 					ToolName:       d.Use,
 					Files:          args,
 					FormatMappings: mappings,
@@ -450,11 +488,18 @@ func (a *App) NewToolCommands() []*cobra.Command {
 					TargetLang:     effectiveLang,
 					TracePath:      tracePath,
 					ParallelBlocks: parallelBlocks,
-					NewTool: func() (tool.Tool, error) {
-						return d.NewTool(cmd, effectiveLang)
-					},
-					NewCollector: d.NewCollector,
-				})
+					NewTool:        newTool,
+					NewCollector:   d.NewCollector,
+				}
+
+				// Clear the AI progress status line after tool execution.
+				if !jsonOut && isatty.IsTerminal(os.Stderr.Fd()) {
+					rc.AfterTool = func() {
+						fmt.Fprint(os.Stderr, "\r\033[K")
+					}
+				}
+
+				return a.RunToolOnFiles(context.Background(), rc)
 			},
 		}
 		a.AddProcessingFlags(cmd)
@@ -468,7 +513,9 @@ func (a *App) NewToolCommands() []*cobra.Command {
 		if d.WritesOutput {
 			cmd.Flags().StringP("output", "o", "", "output path template (variables: {name}, {ext}, {lang})")
 		}
-		if d.AddFlags != nil {
+		if d.Schema != nil {
+			RegisterSchemaFlags(cmd, d.Schema)
+		} else if d.AddFlags != nil {
 			d.AddFlags(cmd)
 		}
 		cmd.Flags().String("trace", "", "write flow trace JSON to file (for flow visualization)")

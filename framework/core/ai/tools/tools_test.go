@@ -390,7 +390,7 @@ func TestAITranslateBatchMode(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		BatchSize:    10,
-		Concurrency:  2,
+		BatchConcurrency:  2,
 	})
 
 	ctx := context.Background()
@@ -443,7 +443,7 @@ func TestAITranslateBatchSplitsIntoBatches(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		BatchSize:    2, // 5 blocks → 3 batches (2+2+1)
-		Concurrency:  3,
+		BatchConcurrency:  3,
 	})
 
 	ctx := context.Background()
@@ -490,7 +490,7 @@ func TestAITranslateBatchPreservesNonBlockParts(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		BatchSize:    10,
-		Concurrency:  2,
+		BatchConcurrency:  2,
 	})
 
 	ctx := context.Background()
@@ -535,7 +535,7 @@ func TestAITranslateBatchSkipsNonTranslatable(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		BatchSize:    10,
-		Concurrency:  1,
+		BatchConcurrency:  1,
 	})
 
 	ctx := context.Background()
@@ -586,7 +586,7 @@ func TestAITranslateBatchStructuredSchema(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: "es",
 		BatchSize:    10,
-		Concurrency:  1,
+		BatchConcurrency:  1,
 	})
 
 	ctx := context.Background()

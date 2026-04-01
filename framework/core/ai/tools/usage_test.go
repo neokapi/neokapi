@@ -90,7 +90,7 @@ func TestTranslateToolBatchAccumulatesUsage(t *testing.T) {
 		SourceLocale: model.LocaleEnglish,
 		TargetLocale: model.LocaleFrench,
 		BatchSize:    10,
-		Concurrency:  2,
+		BatchConcurrency:  2,
 	})
 
 	ctx := context.Background()
