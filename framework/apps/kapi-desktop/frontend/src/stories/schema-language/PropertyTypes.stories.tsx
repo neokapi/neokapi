@@ -53,7 +53,7 @@ export const StringProperty: Story = {
       properties: {
         name: { type: "string", title: "Name", description: "A simple text field" },
         pattern: { type: "string", title: "Regex Pattern", description: "With placeholder text", "ui:placeholder": "e.g., ^[A-Z].*" },
-        notes: { type: "string", title: "Notes", description: "Multiline when x-widget is set to 'textarea'", "ui:widget": "textarea" },
+        notes: { type: "string", title: "Notes", description: "Multiline when ui:widget is set to 'textarea'", "ui:widget": "textarea" },
       },
     },
   },
@@ -92,7 +92,7 @@ export const NumberProperty: Story = {
 export const EnumProperty: Story = {
   name: "enum — Dropdown Select",
   args: {
-    description: "String properties with `enum` render as dropdown selects. Use `x-enumLabels` for display names and `x-enumDescriptions` for tooltips.",
+    description: "String properties with `enum` render as dropdown selects. Use `ui:enum-labels` for display names and `ui:enum-descriptions` for tooltips.",
     schema: {
       title: "Enum Properties",
       type: "object",

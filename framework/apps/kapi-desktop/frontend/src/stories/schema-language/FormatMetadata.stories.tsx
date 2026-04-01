@@ -1,7 +1,7 @@
 /**
  * Schema Language: Format Metadata
  *
- * Demonstrates x-format, presets, and how format-specific metadata
+ * Demonstrates formatMeta, presets, and how format-specific metadata
  * translates to UI elements in the FormatConfigEditor.
  */
 import { useState } from "react";
@@ -43,10 +43,10 @@ export default meta;
 type Story = StoryObj<typeof SchemaStory>;
 
 export const FormatIdentification: Story = {
-  name: "x-format — Format ID, Extensions, MIME Types",
+  name: "formatMeta — Format ID, Extensions, MIME Types",
   args: {
     description:
-      'The `x-format` block identifies a format: its ID, supported file extensions, and MIME types. The FormatConfigEditor renders these as badges in the header.',
+      'The `formatMeta` block identifies a format: its ID, supported file extensions, and MIME types. The FormatConfigEditor renders these as badges in the header.',
     schema: {
       title: "JSON Format",
       description: "Configuration for the JSON file format reader/writer",
@@ -78,7 +78,7 @@ export const RealBuiltInFormat: Story = {
 export const RealBridgeFormat: Story = {
   name: "Real Example: Okapi Bridge HTML Schema",
   args: {
-    description: "A real Okapi bridge format schema with x-format metadata, x-editor hints, and complex nested properties.",
+    description: "A real Okapi bridge format schema with formatMeta, ui:widget hints, and complex nested properties.",
     schema: (formatSchemas.bridge.find((f: Record<string, unknown>) => f["x-name"] === "okf_html") ?? {
       title: "HTML (not found)",
       type: "object",

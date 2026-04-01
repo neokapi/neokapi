@@ -1,7 +1,7 @@
 /**
  * Schema Language: Groups and Layout
  *
- * Demonstrates x-groups for organizing parameters into collapsible sections,
+ * Demonstrates ui:groups for organizing parameters into collapsible sections,
  * and how group configuration affects the rendered form layout.
  */
 import { useState } from "react";
@@ -37,10 +37,10 @@ export default meta;
 type Story = StoryObj<typeof SchemaStory>;
 
 export const BasicGroups: Story = {
-  name: "x-groups — Parameter Grouping",
+  name: "ui:groups — Parameter Grouping",
   args: {
     description:
-      'The `x-groups` array organizes properties into labeled, collapsible sections. Each group has an `id`, `label`, and a `fields` array referencing property names. Groups with 4 or fewer fields stay open by default.',
+      'The `ui:groups` array organizes properties into labeled, collapsible sections. Each group has an `id`, `label`, and a `fields` array referencing property names. Groups with 4 or fewer fields stay open by default.',
     schema: {
       title: "Format with Groups",
       type: "object",
