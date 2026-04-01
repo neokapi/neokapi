@@ -8,7 +8,7 @@ describe("SchemaForm field derivation", () => {
   const schema: ComponentSchema = {
     title: "Test Tool",
     type: "object",
-    "x-groups": [{ id: "output", label: "Output", fields: ["prefix", "suffix"] }],
+    "ui:groups": [{ id: "output", label: "Output", fields: ["prefix", "suffix"] }],
     properties: {
       prefix: { type: "string", default: "[" },
       suffix: { type: "string", default: "]" },
@@ -18,7 +18,7 @@ describe("SchemaForm field derivation", () => {
   };
 
   it("identifies grouped fields", () => {
-    const groups = schema["x-groups"] || [];
+    const groups = schema["ui:groups"] || [];
     const groupedFields = new Set(groups.flatMap((g) => g.fields));
     expect(groupedFields.has("prefix")).toBe(true);
     expect(groupedFields.has("suffix")).toBe(true);
@@ -27,7 +27,7 @@ describe("SchemaForm field derivation", () => {
 
   it("identifies ungrouped non-deprecated fields", () => {
     const properties = schema.properties || {};
-    const groups = schema["x-groups"] || [];
+    const groups = schema["ui:groups"] || [];
     const groupedFields = new Set(groups.flatMap((g) => g.fields));
     const ungrouped = Object.keys(properties).filter(
       (k) => !groupedFields.has(k) && !properties[k].deprecated,
@@ -37,7 +37,7 @@ describe("SchemaForm field derivation", () => {
 
   it("filters out deprecated fields from ungrouped", () => {
     const properties = schema.properties || {};
-    const groups = schema["x-groups"] || [];
+    const groups = schema["ui:groups"] || [];
     const groupedFields = new Set(groups.flatMap((g) => g.fields));
     const ungrouped = Object.keys(properties).filter(
       (k) => !groupedFields.has(k) && !properties[k].deprecated,
@@ -96,34 +96,34 @@ describe("formatLabel", () => {
   });
 });
 
-describe("x-showIf logic", () => {
+describe("ui:visible logic", () => {
   it("hides field when condition is not met", () => {
     const schema: PropertySchema = {
       type: "number",
-      "x-showIf": { field: "mode", value: "advanced" },
+      "ui:visible": { field: "mode", eq: "advanced" },
     };
     const allValues: Record<string, unknown> = { mode: "simple" };
-    const showIf = schema["x-showIf"];
-    const visible = !showIf || allValues[showIf.field] === showIf.value;
+    const cond = schema["ui:visible"];
+    const visible = !cond || ("field" in cond && "eq" in cond && allValues[cond.field] === cond.eq);
     expect(visible).toBe(false);
   });
 
   it("shows field when condition is met", () => {
     const schema: PropertySchema = {
       type: "number",
-      "x-showIf": { field: "mode", value: "advanced" },
+      "ui:visible": { field: "mode", eq: "advanced" },
     };
     const allValues: Record<string, unknown> = { mode: "advanced" };
-    const showIf = schema["x-showIf"];
-    const visible = !showIf || allValues[showIf.field] === showIf.value;
+    const cond = schema["ui:visible"];
+    const visible = !cond || ("field" in cond && "eq" in cond && allValues[cond.field] === cond.eq);
     expect(visible).toBe(true);
   });
 
-  it("shows field when no x-showIf is set", () => {
+  it("shows field when no ui:visible is set", () => {
     const schema: PropertySchema = { type: "string" };
     const allValues: Record<string, unknown> = { mode: "simple" };
-    const showIf = schema["x-showIf"];
-    const visible = !showIf || allValues[showIf.field] === showIf.value;
+    const cond = schema["ui:visible"];
+    const visible = !cond || ("field" in cond && "eq" in cond && allValues[cond.field] === cond.eq);
     expect(visible).toBe(true);
   });
 });

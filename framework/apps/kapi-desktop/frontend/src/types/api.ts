@@ -103,7 +103,8 @@ export interface TabInfo {
 // Schema types — re-exported from the flow-editor package (single source of truth)
 export type {
   ComponentSchema,
-  ComponentMeta,
+  FormatMeta,
+  ToolMeta,
   ParameterGroup,
   PropertySchema,
 } from "@neokapi/flow-editor";

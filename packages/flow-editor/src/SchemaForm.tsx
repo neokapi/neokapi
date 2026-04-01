@@ -558,6 +558,11 @@ function PropertyField({
   const showLabel = !layoutHints?.hideLabel;
   const verticalLayout = layoutHints?.vertical ?? false;
 
+  // Widget options (path/folder/text metadata)
+  const editor = schema["ui:widget-options"] as
+    | { path?: { browseTitle?: string; forSaveAs?: boolean; allowEmpty?: boolean; filters?: Array<{ name: string; extensions: string }> }; folder?: { browseTitle?: string }; text?: { password?: boolean; allowEmpty?: boolean; height?: number } }
+    | undefined;
+
   // Preset-modified indicator: compare current value with preset value.
   const isModifiedFromPreset = useMemo(() => {
     if (!presetValues) return false;
@@ -797,8 +802,8 @@ function PropertyField({
               if (pathMeta?.filters?.length) {
                 // Build accept string from filter extensions
                 const exts = pathMeta.filters
-                  .map((f) => f.extensions.replace(/\*\./g, ".").replace(/\*/g, ""))
-                  .filter((e) => e && e !== ".")
+                  .map((f: { name: string; extensions: string }) => f.extensions.replace(/\*\./g, ".").replace(/\*/g, ""))
+                  .filter((e: string) => e && e !== ".")
                   .join(",");
                 if (exts) input.accept = exts;
               }
@@ -826,7 +831,7 @@ function PropertyField({
         </div>
         {pathMeta?.filters && pathMeta.filters.length > 0 && (
           <div style={{ fontSize: 9, color: theme.fgMuted, marginTop: 2 }}>
-            {pathMeta.filters.map((f) => f.name).join(", ")}
+            {pathMeta.filters.map((f: { name: string; extensions: string }) => f.name).join(", ")}
           </div>
         )}
       </FieldWrapper>

@@ -1,8 +1,8 @@
 /**
  * Schema Language: Conditional Visibility
  *
- * Demonstrates x-showIf for showing/hiding fields based on other field values,
- * and x-editor.enabledBy for enabling/disabling fields.
+ * Demonstrates ui:visible for showing/hiding fields based on other field values,
+ * and ui:enabled.enabledBy for enabling/disabling fields.
  */
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
@@ -41,10 +41,10 @@ export default meta;
 type Story = StoryObj<typeof SchemaStory>;
 
 export const ShowIfBoolean: Story = {
-  name: "x-showIf — Toggle Field Visibility",
+  name: "ui:visible — Toggle Field Visibility",
   args: {
     description:
-      'The `x-showIf` rule on a property controls its visibility based on another field\'s value. Toggle "Use Code Finder" to show/hide the rules field.',
+      'The `ui:visible` rule on a property controls its visibility based on another field\'s value. Toggle "Use Code Finder" to show/hide the rules field.',
     schema: {
       title: "Conditional Fields",
       type: "object",
@@ -54,8 +54,8 @@ export const ShowIfBoolean: Story = {
           type: "string",
           title: "Code Finder Rules",
           description: "Regex patterns for inline codes (one per line)",
-          "x-widget": "textarea",
-          "x-showIf": { field: "useCodeFinder", value: true },
+          "ui:widget": "textarea",
+          "ui:visible": { field: "useCodeFinder", eq: true },
         },
       },
     },
@@ -63,7 +63,7 @@ export const ShowIfBoolean: Story = {
 };
 
 export const ShowIfEnum: Story = {
-  name: "x-showIf — Enum-Driven Visibility",
+  name: "ui:visible — Enum-Driven Visibility",
   args: {
     description:
       'Fields can be shown conditionally based on an enum value. Select different output modes to see different options appear.',
@@ -82,19 +82,19 @@ export const ShowIfEnum: Story = {
           type: "string",
           title: "Output Path",
           description: "File path for output",
-          "x-showIf": { field: "outputMode", value: "file" },
+          "ui:visible": { field: "outputMode", eq: "file" },
         },
         apiEndpoint: {
           type: "string",
           title: "API Endpoint",
           description: "URL to POST results to",
-          "x-placeholder": "https://api.example.com/results",
-          "x-showIf": { field: "outputMode", value: "api" },
+          "ui:placeholder": "https://api.example.com/results",
+          "ui:visible": { field: "outputMode", eq: "api" },
         },
         apiKey: {
           type: "string",
           title: "API Key",
-          "x-showIf": { field: "outputMode", value: "api" },
+          "ui:visible": { field: "outputMode", eq: "api" },
         },
       },
     },
@@ -102,10 +102,10 @@ export const ShowIfEnum: Story = {
 };
 
 export const ShowIfEmpty: Story = {
-  name: "x-showIf empty — Show When Field is Unset",
+  name: "ui:visible empty — Show When Field is Unset",
   args: {
     description:
-      'Setting `empty: true` in x-showIf shows the field when the referenced field is empty or unset. Clear the "Override Path" to see the default path message.',
+      'Setting `empty: true` in ui:visible shows the field when the referenced field is empty or unset. Clear the "Override Path" to see the default path message.',
     schema: {
       title: "Empty-Based Visibility",
       type: "object",
@@ -115,7 +115,7 @@ export const ShowIfEmpty: Story = {
           type: "string",
           title: "Default Path",
           description: "Using auto-generated path based on input file",
-          "x-showIf": { field: "overridePath", empty: true },
+          "ui:visible": { field: "overridePath", empty: true },
         },
       },
     },
@@ -123,10 +123,10 @@ export const ShowIfEmpty: Story = {
 };
 
 export const EditorEnabledBy: Story = {
-  name: "x-editor.enabledBy — Master/Slave Fields",
+  name: "ui:enabled.enabledBy — Master/Slave Fields",
   args: {
     description:
-      'The `x-editor.enabledBy` metadata from Okapi controls whether a field is enabled or disabled based on a master field. The field remains visible but grayed out when disabled.',
+      'The `ui:enabled.enabledBy` metadata from Okapi controls whether a field is enabled or disabled based on a master field. The field remains visible but grayed out when disabled.',
     schema: {
       title: "Enabled-By Dependencies",
       type: "object",
@@ -136,13 +136,13 @@ export const EditorEnabledBy: Story = {
           type: "string",
           title: "Source Language",
           default: "en",
-          "x-editor": { widget: "text", enabledBy: { parameter: "useTranslation", enabledWhenSelected: true } },
+          "ui:enabled": { field: "useTranslation", eq: true },
         },
         targetLanguage: {
           type: "string",
           title: "Target Language",
-          "x-placeholder": "e.g., fr",
-          "x-editor": { widget: "text", enabledBy: { parameter: "useTranslation", enabledWhenSelected: true } },
+          "ui:placeholder": "e.g., fr",
+          "ui:enabled": { field: "useTranslation", eq: true },
         },
       },
     },

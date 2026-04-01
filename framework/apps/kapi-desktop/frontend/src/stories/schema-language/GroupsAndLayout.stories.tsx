@@ -44,7 +44,7 @@ export const BasicGroups: Story = {
     schema: {
       title: "Format with Groups",
       type: "object",
-      "x-groups": [
+      "ui:groups": [
         { id: "extraction", label: "Extraction", fields: ["extractAll", "exceptions"] },
         { id: "output", label: "Output", fields: ["encoding", "lineBreak", "bom"] },
       ],
@@ -67,7 +67,7 @@ export const CollapsedGroups: Story = {
     schema: {
       title: "Format with Many Groups",
       type: "object",
-      "x-groups": [
+      "ui:groups": [
         {
           id: "basic",
           label: "Basic Settings",
@@ -102,7 +102,7 @@ export const GroupDescription: Story = {
     schema: {
       title: "Groups with Descriptions",
       type: "object",
-      "x-groups": [
+      "ui:groups": [
         {
           id: "extraction",
           label: "Extraction Rules",
@@ -121,7 +121,7 @@ export const GroupDescription: Story = {
         pathRules: { type: "string", title: "Path Rules", description: "JSONPath expressions for selective extraction" },
         exceptions: { type: "string", title: "Exceptions", description: "Regex for keys to exclude" },
         useCodeFinder: { type: "boolean", title: "Enable Code Finder", default: false },
-        codeFinderRules: { type: "string", title: "Rules", description: "Regex patterns (one per line)", "x-widget": "textarea" },
+        codeFinderRules: { type: "string", title: "Rules", description: "Regex patterns (one per line)", "ui:widget": "textarea" },
       },
     },
   },
@@ -135,7 +135,7 @@ export const UngroupedFields: Story = {
     schema: {
       title: "Partial Grouping",
       type: "object",
-      "x-groups": [
+      "ui:groups": [
         { id: "main", label: "Main Settings", fields: ["extractAll"] },
       ],
       properties: {

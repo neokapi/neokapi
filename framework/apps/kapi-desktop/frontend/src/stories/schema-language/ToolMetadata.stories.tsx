@@ -12,9 +12,7 @@ import toolSchemas from "../fixtures/tool-schemas.json";
 
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
-  const toolMeta = (schema as Record<string, unknown>)["x-tool"] as Record<string, unknown> | undefined;
-  const componentMeta = (schema as Record<string, unknown>)["x-component"] as Record<string, unknown> | undefined;
-  const meta = toolMeta || componentMeta;
+  const meta = schema.toolMeta as Record<string, unknown> | undefined;
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
@@ -83,7 +81,7 @@ export const ToolIdentification: Story = {
     schema: {
       title: "Word Count",
       type: "object",
-      "x-tool": {
+      toolMeta: {
         id: "word-count",
         displayName: "Word Count",
         description: "Count translatable words and segments for cost estimation",

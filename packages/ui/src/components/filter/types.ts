@@ -1,8 +1,8 @@
 /**
  * Component Parameter Schema Types
  *
- * These types match the JSON Schema format produced by the okapi-bridge
- * transformation pipeline, with x-* extensions for UI rendering.
+ * These types match the schema language produced by the okapi-bridge
+ * transformation pipeline, with ui: extensions for UI rendering.
  *
  * Both formats and tools use the same schema format. FormatSchema is a
  * specialization of ComponentSchema with format-specific metadata.
@@ -10,49 +10,33 @@
 
 /** Generalized component schema — works for both formats and tools. */
 export interface ComponentSchema {
-  $id: string;
+  $id?: string;
   $version?: string;
   title: string;
   description?: string;
   type: string;
-  "x-component"?: ComponentMeta;
-  "x-format"?: FormatMeta;
-  "x-tool"?: ToolMeta;
-  "x-groups"?: ParameterGroup[];
-  properties: Record<string, PropertySchema>;
-}
-
-/** Component metadata (for tools, formats, etc.) */
-export interface ComponentMeta {
-  id: string;
-  type: string; // "format" | "tool"
-  category?: string; // "transform" | "validate" | "enrich" | "convert" | "pipeline"
-  displayName?: string;
-  description?: string;
+  formatMeta?: FormatMeta;
+  toolMeta?: ToolMeta;
+  presets?: Record<string, Record<string, unknown>>;
+  "ui:groups"?: ParameterGroup[];
+  properties?: Record<string, PropertySchema>;
+  $defs?: Record<string, PropertySchema>;
 }
 
 /** Format-specific schema. */
 export interface FormatSchema extends ComponentSchema {
-  "x-format": FormatMeta;
+  formatMeta: FormatMeta;
 }
 
 export interface FormatMeta {
   id: string;
   extensions?: string[];
   mimeTypes?: string[];
-  presets?: FormatPreset[];
 }
 
-export interface FormatPreset {
-  id: string;
-  name: string;
-  description?: string;
-  parameters?: Record<string, unknown>;
-  isDefault?: boolean;
-}
-
-/** Tool metadata from x-tool. */
+/** Tool metadata. */
 export interface ToolMeta {
+  id?: string;
   displayName?: string;
   description?: string;
   category?: string;
@@ -66,43 +50,53 @@ export interface ParameterGroup {
   id: string;
   label: string;
   description?: string;
+  collapsible?: boolean;
   collapsed?: boolean;
+  icon?: string;
   fields: string[];
 }
 
+/**
+ * Condition expression for ui:visible and ui:enabled.
+ */
+export type ConditionExpr =
+  | { field: string; eq: unknown }
+  | { field: string; empty: boolean }
+  | { all: ConditionExpr[] }
+  | { any: ConditionExpr[] }
+  | { not: ConditionExpr };
+
 export interface PropertySchema {
   type: string;
+  title?: string;
   description?: string;
   default?: unknown;
   deprecated?: boolean;
-  enum?: string[];
+  enum?: unknown[];
+  minimum?: number;
+  maximum?: number;
 
   // Nested object properties
   properties?: Record<string, PropertySchema>;
   additionalProperties?: PropertySchema | boolean;
   items?: PropertySchema;
   required?: string[];
+  $ref?: string;
 
-  // UI hints (x-* extensions)
-  "x-widget"?: WidgetType;
-  "x-placeholder"?: string;
-  "x-presets"?: Record<string, unknown>;
-  "x-okapiFormat"?: string;
-  "x-order"?: number;
-  "x-showIf"?: ShowIfCondition;
-}
+  // UI hints (ui: prefix)
+  "ui:widget"?: string;
+  "ui:placeholder"?: string;
+  "ui:presets"?: Record<string, unknown>;
+  "ui:order"?: number;
+  "ui:visible"?: ConditionExpr;
+  "ui:enabled"?: ConditionExpr;
+  "ui:enum-labels"?: Record<string, string>;
+  "ui:enum-descriptions"?: Record<string, string>;
+  "ui:introduced-in"?: string;
 
-export type WidgetType =
-  | "regexBuilder"
-  | "codeFinderRules"
-  | "tagList"
-  | "numberList"
-  | "simplifierRulesEditor"
-  | "filterSelector";
-
-export interface ShowIfCondition {
-  field: string;
-  value: unknown;
+  // Okapi bridge extensions
+  "x-okapi-flatten-path"?: string;
+  "x-okapi-format"?: string;
 }
 
 /**

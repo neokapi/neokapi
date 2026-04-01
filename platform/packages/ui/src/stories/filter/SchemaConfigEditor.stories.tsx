@@ -10,9 +10,8 @@ const pseudoTranslateSchema: ComponentSchema = {
   title: "Pseudo Translate",
   description: "Generate pseudo-translations for testing",
   type: "object",
-  "x-component": {
+  toolMeta: {
     id: "pseudo-translate",
-    type: "tool",
     category: "transform",
     displayName: "Pseudo Translate",
   },
@@ -43,7 +42,7 @@ const searchReplaceSchema: ComponentSchema = {
   $id: "search-and-replace",
   title: "Search and Replace",
   type: "object",
-  "x-component": { id: "search-and-replace", type: "tool" },
+  toolMeta: { id: "search-and-replace" },
   properties: {
     regEx: {
       type: "boolean",
@@ -79,8 +78,8 @@ const groupedSchema: ComponentSchema = {
   $id: "quality-check",
   title: "Quality Check",
   type: "object",
-  "x-component": { id: "quality-check", type: "tool", category: "validate" },
-  "x-groups": [
+  toolMeta: { id: "quality-check", category: "validate" },
+  "ui:groups": [
     {
       id: "whitespace",
       label: "Whitespace Checks",

@@ -42,7 +42,7 @@ export function FilterConfigEditor({
   onChange,
   className,
 }: FilterConfigEditorProps) {
-  const groups = schema["x-groups"] ?? [];
+  const groups = schema["ui:groups"] ?? [];
   const properties = schema.properties ?? {};
 
   // Track which groups are collapsed
@@ -192,12 +192,12 @@ function ParameterField({
   allValues,
   depth = 0,
 }: ParameterFieldProps) {
-  const widget = schema["x-widget"];
+  const widget = schema["ui:widget"];
 
-  // x-showIf conditional visibility
-  const showIf = schema["x-showIf"];
-  if (showIf && allValues) {
-    if (allValues[showIf.field] !== showIf.value) return null;
+  // ui:visible conditional visibility
+  const cond = schema["ui:visible"];
+  if (cond && allValues && "field" in cond && "eq" in cond) {
+    if (allValues[cond.field] !== cond.eq) return null;
   }
 
   // ── x-widget dispatch ──
@@ -220,7 +220,7 @@ function ParameterField({
         name={name}
         description={schema.description}
         value={value as Record<string, unknown> | undefined}
-        presets={schema["x-presets"]}
+        presets={schema["ui:presets"]}
         onChange={onChange}
       />
     );
@@ -236,7 +236,7 @@ function ParameterField({
           id={name}
           className="w-full min-h-[60px] p-2 text-xs font-mono rounded border bg-background border-input focus:border-ring focus:outline-none resize-y"
           value={String(value ?? schema.default ?? "")}
-          placeholder={schema["x-placeholder"] || "One rule per line..."}
+          placeholder={schema["ui:placeholder"] || "One rule per line..."}
           onChange={(e) => onChange(e.target.value || undefined)}
         />
         {schema.description && (
@@ -266,7 +266,7 @@ function ParameterField({
         name={name}
         description={schema.description}
         placeholder={
-          schema["x-placeholder"] || (widget === "tagList" ? "tag1, tag2, ..." : "pattern...")
+          schema["ui:placeholder"] || (widget === "tagList" ? "tag1, tag2, ..." : "pattern...")
         }
         value={value as string | undefined}
         defaultValue={schema.default as string | undefined}
@@ -281,7 +281,7 @@ function ParameterField({
       <TextField
         name={name}
         description={schema.description}
-        placeholder={schema["x-placeholder"] || "1, 2, 3, ..."}
+        placeholder={schema["ui:placeholder"] || "1, 2, 3, ..."}
         value={value as string | undefined}
         defaultValue={schema.default as string | undefined}
         onChange={onChange}
@@ -322,7 +322,7 @@ function ParameterField({
       <TextField
         name={name}
         description={schema.description}
-        placeholder={schema["x-placeholder"]}
+        placeholder={schema["ui:placeholder"]}
         value={value as string | number | undefined}
         defaultValue={schema.default as string | number | undefined}
         onChange={onChange}
@@ -730,7 +730,7 @@ function ArrayField({
                 <Input
                   type={itemSchema.type === "string" ? "text" : "number"}
                   value={String(item ?? "")}
-                  placeholder={itemSchema["x-placeholder"]}
+                  placeholder={itemSchema["ui:placeholder"]}
                   className={cn("text-xs h-7", itemSchema.type === "string" && "font-mono")}
                   onChange={(e) => {
                     const v = e.target.value;

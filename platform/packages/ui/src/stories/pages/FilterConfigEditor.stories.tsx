@@ -13,13 +13,12 @@ const htmlFilterSchema: FilterSchema = {
   title: "HTML Filter",
   description: "Configures how HTML files are parsed for translatable content.",
   type: "object",
-  "x-filter": {
+  formatMeta: {
     id: "okf_html",
-    class: "net.sf.okapi.filters.html.HtmlFilter",
     extensions: [".html", ".htm"],
     mimeTypes: ["text/html"],
   },
-  "x-groups": [
+  "ui:groups": [
     {
       id: "extraction",
       label: "Extraction",
@@ -59,7 +58,7 @@ const htmlFilterSchema: FilterSchema = {
       type: "integer",
       description: "Maximum segment length (0 = no limit).",
       default: 0,
-      "x-placeholder": "0",
+      "ui:placeholder": "0",
     },
   },
 };
@@ -75,13 +74,12 @@ const jsonFilterSchema: FilterSchema = {
   description:
     "Configuration for the JSON filter. Use the inline code finder to detect markup patterns (e.g. HTML tags) within JSON string values.",
   type: "object",
-  "x-filter": {
+  formatMeta: {
     id: "okf_json",
-    class: "net.sf.okapi.filters.json.JSONFilter",
     extensions: [".json", ".jsonc"],
     mimeTypes: ["application/json"],
   },
-  "x-groups": [
+  "ui:groups": [
     {
       id: "extraction",
       label: "Extraction",
@@ -106,8 +104,8 @@ const jsonFilterSchema: FilterSchema = {
       type: "string",
       description: "Extraction key patterns (regex). Leave empty to extract everything.",
       default: "",
-      "x-widget": "regexBuilder",
-      "x-placeholder": "e.g. ^(title|description|label)$",
+      "ui:widget": "regexBuilder",
+      "ui:placeholder": "e.g. ^(title|description|label)$",
     },
     useCodeFinder: {
       type: "boolean",
@@ -119,9 +117,9 @@ const jsonFilterSchema: FilterSchema = {
       type: "object",
       description:
         "Regex patterns that identify inline markup within translatable blocks. Each rule defines a pattern; matched text becomes an inline code (span) in the editor.",
-      "x-widget": "codeFinderRules",
-      "x-okapiFormat": "inlineCodeFinder",
-      "x-presets": {
+      "ui:widget": "codeFinderRules",
+      "x-okapi-format": "inlineCodeFinder",
+      "ui:presets": {
         htmlTags: {
           rules: [{ pattern: "</?[a-zA-Z][a-zA-Z0-9]*[^>]*/?>" }, { pattern: "&[a-zA-Z]+;" }],
           sample: "Click <b>here</b> for &mdash; details",
@@ -158,13 +156,12 @@ const plainTextFilterSchema: FilterSchema = {
   description:
     "Configuration for plain-text files. The inline code finder detects markup or placeholder patterns embedded in text content.",
   type: "object",
-  "x-filter": {
+  formatMeta: {
     id: "okf_plaintext",
-    class: "net.sf.okapi.filters.plaintext.PlainTextFilter",
     extensions: [".txt", ".text"],
     mimeTypes: ["text/plain"],
   },
-  "x-groups": [
+  "ui:groups": [
     {
       id: "general",
       label: "General",
@@ -209,9 +206,9 @@ const plainTextFilterSchema: FilterSchema = {
       type: "object",
       description:
         "Regex rules for inline code detection. Matched patterns become non-translatable spans.",
-      "x-widget": "codeFinderRules",
-      "x-okapiFormat": "inlineCodeFinder",
-      "x-presets": {
+      "ui:widget": "codeFinderRules",
+      "x-okapi-format": "inlineCodeFinder",
+      "ui:presets": {
         variablePlaceholders: {
           rules: [
             { pattern: "\\$\\{[^}]+\\}" },
@@ -230,13 +227,13 @@ const plainTextFilterSchema: FilterSchema = {
       type: "string",
       description: "Character encoding of the input file.",
       default: "UTF-8",
-      "x-placeholder": "UTF-8",
+      "ui:placeholder": "UTF-8",
     },
     outputEncoding: {
       type: "string",
       description: "Character encoding of the output file.",
       default: "UTF-8",
-      "x-placeholder": "UTF-8",
+      "ui:placeholder": "UTF-8",
     },
   },
 };
@@ -252,13 +249,12 @@ const xmlFilterSchema: FilterSchema = {
   description:
     "Configuration for XML files. Supports inline code detection for mixed-content elements.",
   type: "object",
-  "x-filter": {
+  formatMeta: {
     id: "okf_xml",
-    class: "net.sf.okapi.filters.xml.XMLFilter",
     extensions: [".xml", ".resx", ".svg"],
     mimeTypes: ["application/xml", "text/xml"],
   },
-  "x-groups": [
+  "ui:groups": [
     {
       id: "general",
       label: "General",
@@ -297,9 +293,9 @@ const xmlFilterSchema: FilterSchema = {
     codeFinderRules: {
       type: "object",
       description: "Patterns for detecting inline codes in mixed-content XML text nodes.",
-      "x-widget": "codeFinderRules",
-      "x-okapiFormat": "inlineCodeFinder",
-      "x-presets": {
+      "ui:widget": "codeFinderRules",
+      "x-okapi-format": "inlineCodeFinder",
+      "ui:presets": {
         commonInlineElements: {
           rules: [
             { pattern: "<(b|i|u|em|strong|code|a|span)[^>]*>" },
