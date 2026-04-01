@@ -3,7 +3,9 @@ package cli
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
+	"github.com/neokapi/neokapi/core/flow"
 	"github.com/neokapi/neokapi/core/project"
 	"github.com/spf13/cobra"
 )
@@ -112,5 +114,13 @@ func (a *App) runFromProject(cmd *cobra.Command, flowName, projectPath string, o
 		return fmt.Errorf("--input (-i) is required (content pattern resolution not yet implemented)")
 	}
 
-	return a.runProjectSteps(context.Background(), cmd, flowName, spec)
+	// Build resource context from project file location.
+	absProjectPath, _ := filepath.Abs(projectPath)
+	rCtx := flow.ResourceContext{
+		ProjectDir:   filepath.Dir(absProjectPath),
+		SourceLocale: a.SourceLang,
+		TargetLocale: a.TargetLang,
+	}
+
+	return a.runProjectSteps(context.Background(), cmd, flowName, spec, &rCtx)
 }

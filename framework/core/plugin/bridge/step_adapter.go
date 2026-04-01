@@ -15,13 +15,15 @@ import (
 // running in the Java bridge via the ProcessStep gRPC RPC.
 type BridgeStepTool struct {
 	tool.BaseTool
-	registry     *BridgeRegistry
-	bridgeCfg    BridgeConfig
-	stepClass    string
-	stepParams   map[string]any
-	toolSchema   *schema.ComponentSchema
-	sourceLocale string
-	targetLocale string
+	registry           *BridgeRegistry
+	bridgeCfg          BridgeConfig
+	stepClass          string
+	stepParams         map[string]any
+	toolSchema         *schema.ComponentSchema
+	sourceLocale       string
+	targetLocale       string
+	rootDirectory      string
+	inputRootDirectory string
 }
 
 var _ tool.Tool = (*BridgeStepTool)(nil)
@@ -60,6 +62,16 @@ func (t *BridgeStepTool) SetLocales(source, target string) {
 	t.targetLocale = target
 }
 
+// SetRootDirectory sets the project root directory for ${rootDir} resolution.
+func (t *BridgeStepTool) SetRootDirectory(dir string) {
+	t.rootDirectory = dir
+}
+
+// SetInputRootDirectory sets the input root directory for ${inputRootDir} resolution.
+func (t *BridgeStepTool) SetInputRootDirectory(dir string) {
+	t.inputRootDirectory = dir
+}
+
 // Process reads Parts from the input channel, sends them through the Java bridge
 // step via ProcessStep gRPC, and writes processed parts to the output channel.
 func (t *BridgeStepTool) Process(ctx context.Context, in <-chan *model.Part, out chan<- *model.Part) error {
@@ -96,10 +108,12 @@ func (t *BridgeStepTool) processWithBridge(
 
 	// 1. Send header.
 	header := &pb.StepHeader{
-		StepClass:    t.stepClass,
-		StepParams:   encodeFilterParams(t.stepParams),
-		SourceLocale: t.sourceLocale,
-		TargetLocale: t.targetLocale,
+		StepClass:          t.stepClass,
+		StepParams:         encodeFilterParams(t.stepParams),
+		SourceLocale:       t.sourceLocale,
+		TargetLocale:       t.targetLocale,
+		RootDirectory:      t.rootDirectory,
+		InputRootDirectory: t.inputRootDirectory,
 	}
 	if err := stream.Send(&pb.StepRequest{
 		Request: &pb.StepRequest_Header{Header: header},
