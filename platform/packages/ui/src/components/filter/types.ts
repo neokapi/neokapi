@@ -112,7 +112,12 @@ export interface EditorMeta {
     vertical?: boolean;
   };
   text?: { password?: boolean; allowEmpty?: boolean; height?: number };
-  path?: { browseTitle?: string; forSaveAs?: boolean; allowEmpty?: boolean; filters?: Array<{ name: string; extensions: string }> };
+  path?: {
+    browseTitle?: string;
+    forSaveAs?: boolean;
+    allowEmpty?: boolean;
+    filters?: Array<{ name: string; extensions: string }>;
+  };
   folder?: { browseTitle?: string };
   checkList?: { entries: Array<{ name: string; title: string; description?: string }> };
 }
