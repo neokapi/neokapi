@@ -15,6 +15,7 @@ export function FieldGroup({
   presetValues,
   paramDocs,
   defs,
+  fieldErrors,
 }: {
   group: ParameterGroup;
   groupIndex: number;
@@ -26,20 +27,27 @@ export function FieldGroup({
   presetValues?: Record<string, unknown>;
   paramDocs?: Record<string, ToolDocParam>;
   defs?: Record<string, PropertySchema>;
+  fieldErrors?: Record<string, string | undefined>;
 }) {
   const fields = group.fields.filter((f) => properties[f] && !properties[f].deprecated);
   if (fields.length === 0) return null;
 
-  // Groups with <= 4 fields: always open, no collapse
-  // Groups with 5+ fields: collapsible, first 2 groups default open, rest collapsed
-  const isSmallGroup = fields.length <= 4;
-  const defaultCollapsed = isSmallGroup ? false : (group.collapsed ?? groupIndex >= 2);
+  // Sort fields by ui:order if specified
+  const sortedFields = [...fields].sort((a, b) => {
+    const orderA = properties[a]?.["ui:order"] ?? Infinity;
+    const orderB = properties[b]?.["ui:order"] ?? Infinity;
+    return orderA - orderB;
+  });
+
+  // Use explicit collapsible flag, or fall back to heuristic (5+ fields)
+  const isCollapsible = group.collapsible ?? fields.length > 4;
+  const defaultCollapsed = isCollapsible ? (group.collapsed ?? groupIndex >= 2) : false;
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   return (
     <div style={{ marginTop: groupIndex === 0 ? 0 : 20 }}>
       {/* Section header */}
-      {isSmallGroup ? (
+      {!isCollapsible ? (
         /* Non-collapsible header */
         <div
           style={{
@@ -100,7 +108,7 @@ export function FieldGroup({
             gap: compact ? 2 : 6,
           }}
         >
-          {fields.map((key) => (
+          {sortedFields.map((key) => (
             <PropertyField
               key={key}
               name={key}
@@ -114,6 +122,7 @@ export function FieldGroup({
               presetValues={presetValues}
               docParam={paramDocs?.[key]}
               defs={defs}
+              error={fieldErrors?.[key]}
             />
           ))}
         </div>
