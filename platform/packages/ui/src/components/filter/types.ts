@@ -19,7 +19,10 @@ export interface ComponentSchema {
   "x-component"?: ComponentMeta;
   "x-filter"?: FilterMeta;
   "x-groups"?: ParameterGroup[];
+  "x-apiVersion"?: string;
+  "x-introducedInOkapi"?: string;
   properties: Record<string, PropertySchema>;
+  $defs?: Record<string, PropertySchema>;
 }
 
 /** Component metadata (for tools, steps, etc.) */
@@ -41,6 +44,16 @@ export interface FilterMeta {
   class: string;
   extensions: string[];
   mimeTypes: string[];
+  serializationFormat?: "stringParameters" | "yaml" | "xml-its";
+  configurations?: FilterConfiguration[];
+}
+
+export interface FilterConfiguration {
+  configId: string;
+  name: string;
+  description?: string;
+  parameters?: Record<string, unknown>;
+  isDefault?: boolean;
 }
 
 export interface ParameterGroup {
@@ -57,11 +70,16 @@ export interface PropertySchema {
   default?: unknown;
   deprecated?: boolean;
   enum?: string[];
+  title?: string;
+  minimum?: number;
+  maximum?: number;
 
   // Nested object properties
   properties?: Record<string, PropertySchema>;
+  additionalProperties?: PropertySchema | boolean;
   items?: PropertySchema;
   required?: string[];
+  $ref?: string;
 
   // UI hints (x-* extensions)
   "x-widget"?: WidgetType;
@@ -70,6 +88,33 @@ export interface PropertySchema {
   "x-okapiFormat"?: string;
   "x-order"?: number;
   "x-showIf"?: ShowIfCondition;
+  /** Structured UI editor metadata from Okapi EditorDescription. */
+  "x-editor"?: EditorMeta;
+  /** Display labels for enum values, keyed by enum value. */
+  "x-enumLabels"?: Record<string, string>;
+  /** Descriptions for enum values, keyed by enum value. */
+  "x-enumDescriptions"?: Record<string, string>;
+  /** Original Okapi parameter name when schema uses a cleaner name. */
+  "x-flattenPath"?: string;
+  /** Okapi version where this parameter was introduced. */
+  "x-introducedInOkapi"?: string;
+}
+
+/** Structured UI editor metadata from x-editor. */
+export interface EditorMeta {
+  widget: string;
+  enabledBy?: {
+    parameter: string;
+    enabledWhenSelected: boolean;
+  };
+  layout?: {
+    withLabel?: boolean;
+    vertical?: boolean;
+  };
+  text?: { password?: boolean; allowEmpty?: boolean; height?: number };
+  path?: { browseTitle?: string; forSaveAs?: boolean; allowEmpty?: boolean; filters?: Array<{ name: string; extensions: string }> };
+  folder?: { browseTitle?: string };
+  checkList?: { entries: Array<{ name: string; title: string; description?: string }> };
 }
 
 export type WidgetType =
@@ -78,7 +123,10 @@ export type WidgetType =
   | "tagList"
   | "numberList"
   | "simplifierRulesEditor"
-  | "filterSelector";
+  | "filterSelector"
+  | "elementRulesEditor"
+  | "attributeRulesEditor"
+  | "code-editor";
 
 export interface ShowIfCondition {
   field: string;
