@@ -1,11 +1,13 @@
 package tools
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -19,7 +21,7 @@ const (
 
 // CharCountConfig holds configuration for the character count tool.
 type CharCountConfig struct {
-	Locale model.LocaleID `schema:"description=Target locale for counting target characters"` // Target locale for counting target characters
+	Locale model.LocaleID `json:"locale,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -33,6 +35,29 @@ func (c *CharCountConfig) Reset() {
 // Validate checks configuration validity.
 func (c *CharCountConfig) Validate() error {
 	return nil
+}
+
+// CharCountSchema returns the auto-generated schema for the char-count tool.
+func CharCountSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&CharCountConfig{}, schema.ToolMeta{
+		ID:          "char-count",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Char Count",
+		Description: "Count characters in source and target text",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewCharCountFromConfig creates a char-count tool from a config map.
+func NewCharCountFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg CharCountConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("char-count config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.Locale = model.LocaleID(targetLang)
+	}
+	return NewCharCountTool(&cfg), nil
 }
 
 // NewCharCountTool creates a new character count tool.

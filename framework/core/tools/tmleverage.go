@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -41,10 +42,10 @@ func (NullTMProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (
 
 // TMLeverageConfig holds configuration for the TM leverage tool.
 type TMLeverageConfig struct {
-	TargetLocale   model.LocaleID `schema:"description=Target locale for processing"`
-	SourceLocale   model.LocaleID `schema:"description=Source locale of the content"`
-	FuzzyThreshold int            `schema:"description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"` // 0-100; minimum score for fuzzy matches (default: 70)
-	Provider       TMProvider     `schema:"description=Translation memory provider for lookups"` // TM provider for lookups
+	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
+	SourceLocale   model.LocaleID `json:"sourceLocale,omitempty"   schema:"-"`
+	FuzzyThreshold int            `json:"fuzzyThreshold,omitempty" schema:"description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
+	Provider       TMProvider     `json:"-"                        schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -70,6 +71,34 @@ func (c *TMLeverageConfig) Validate() error {
 		return fmt.Errorf("tm-leverage: Provider is required")
 	}
 	return nil
+}
+
+// TMLeverageSchema returns the auto-generated schema for the TM leverage tool.
+func TMLeverageSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&TMLeverageConfig{}, schema.ToolMeta{
+		ID:          "tm-leverage",
+		Category:    schema.CategoryTranslate,
+		DisplayName: "TM Leverage",
+		Description: "Pre-fill translations from translation memory",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage, schema.RequiresSourceLanguage, schema.RequiresTM},
+	})
+}
+
+// NewTMLeverageFromConfig creates a TM leverage tool from a config map.
+func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg TMLeverageConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("tm-leverage config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	if cfg.FuzzyThreshold == 0 {
+		cfg.FuzzyThreshold = 70
+	}
+	cfg.Provider = NullTMProvider{}
+	return NewTMLeverageTool(&cfg), nil
 }
 
 // NewTMLeverageTool creates a TM leveraging tool that pre-fills translations

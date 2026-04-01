@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -17,10 +18,10 @@ const (
 
 // CharsCheckConfig holds configuration for the character check tool.
 type CharsCheckConfig struct {
-	TargetLocale   model.LocaleID `schema:"description=Target locale for processing"` // Required
-	ForbiddenChars string         `schema:"description=Characters that should not appear in target text (e.g. {}[])"` // Characters that should not appear (e.g., "{}[]")
-	RequiredChars  string         `schema:"description=Characters that must appear in target if present in source (e.g. punctuation)"` // Characters that must appear if in source (e.g., punctuation)
-	CheckCorrupted bool           `schema:"description=Check for common corruption patterns such as mojibake,default=true"` // Check for common corruption patterns (default: true)
+	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
+	ForbiddenChars string         `json:"forbiddenChars,omitempty" schema:"description=Characters that should not appear in target text (e.g. {}[])"`
+	RequiredChars  string         `json:"requiredChars,omitempty"  schema:"description=Characters that must appear in target if present in source (e.g. punctuation)"`
+	CheckCorrupted bool           `json:"checkCorrupted,omitempty" schema:"description=Check for common corruption patterns such as mojibake,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -48,6 +49,30 @@ func NewCharsCheckConfig(targetLocale model.LocaleID) *CharsCheckConfig {
 		TargetLocale:   targetLocale,
 		CheckCorrupted: true,
 	}
+}
+
+// CharsCheckSchema returns the auto-generated schema for the chars-check tool.
+func CharsCheckSchema() *schema.ComponentSchema {
+	return schema.FromStruct(NewCharsCheckConfig(""), schema.ToolMeta{
+		ID:          "chars-check",
+		Category:    schema.CategoryValidate,
+		DisplayName: "Chars Check",
+		Description: "Check for invalid or unexpected Unicode characters",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewCharsCheckFromConfig creates a chars-check tool from a config map.
+func NewCharsCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewCharsCheckConfig(model.LocaleID(targetLang))
+	if err := schema.ApplyConfig(config, cfg); err != nil {
+		return nil, fmt.Errorf("chars-check config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewCharsCheckTool(cfg), nil
 }
 
 // mojibakePatterns are common sequences that indicate UTF-8 decoded as Latin-1.

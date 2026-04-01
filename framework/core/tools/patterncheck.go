@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -25,8 +26,8 @@ type PatternRule struct {
 
 // PatternCheckConfig holds configuration for the pattern check tool.
 type PatternCheckConfig struct {
-	TargetLocale model.LocaleID `schema:"description=Target locale for processing"` // Required
-	Patterns     []PatternRule  `schema:"description=Regex pattern rules to validate in translations"` // Patterns to check
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+	Patterns     []PatternRule  `json:"patterns,omitempty"     schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -55,6 +56,30 @@ func (c *PatternCheckConfig) Validate() error {
 		}
 	}
 	return nil
+}
+
+// PatternCheckSchema returns the auto-generated schema for the pattern-check tool.
+func PatternCheckSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&PatternCheckConfig{}, schema.ToolMeta{
+		ID:          "pattern-check",
+		Category:    schema.CategoryValidate,
+		DisplayName: "Pattern Check",
+		Description: "Validate content against custom regex patterns",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewPatternCheckFromConfig creates a pattern-check tool from a config map.
+func NewPatternCheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg PatternCheckConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("pattern-check config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewPatternCheckTool(&cfg), nil
 }
 
 // NewPatternCheckTool creates a pattern validation tool for translations.

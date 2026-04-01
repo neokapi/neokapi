@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -32,16 +33,16 @@ type QAIssue struct {
 
 // QACheckConfig holds configuration for the QA check tool.
 type QACheckConfig struct {
-	TargetLocale model.LocaleID `schema:"description=Target locale for processing"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
 	// Individual check toggles; all default to true.
-	CheckLeadingWhitespace  bool `schema:"description=Check for leading whitespace mismatches between source and target,default=true"`
-	CheckTrailingWhitespace bool `schema:"description=Check for trailing whitespace mismatches between source and target,default=true"`
-	CheckDoubleSpaces       bool `schema:"description=Check for double spaces in target text,default=true"`
-	CheckEmptyTarget        bool `schema:"description=Check for empty target when source has content,default=true"`
-	CheckTargetSameAsSource bool `schema:"description=Check when target text is identical to source text,default=true"`
-	CheckTerminology        bool `schema:"description=Enable terminology checks"` // Placeholder for future terminology integration
-	CheckSpanConstraints    bool `schema:"description=Check non-deletable and non-cloneable span constraint violations,default=true"` // Check non-deletable/non-cloneable span constraint violations
+	CheckLeadingWhitespace  bool `json:"checkLeadingWhitespace,omitempty"  schema:"description=Check for leading whitespace mismatches between source and target,default=true"`
+	CheckTrailingWhitespace bool `json:"checkTrailingWhitespace,omitempty" schema:"description=Check for trailing whitespace mismatches between source and target,default=true"`
+	CheckDoubleSpaces       bool `json:"checkDoubleSpaces,omitempty"       schema:"description=Check for double spaces in target text,default=true"`
+	CheckEmptyTarget        bool `json:"checkEmptyTarget,omitempty"        schema:"description=Check for empty target when source has content,default=true"`
+	CheckTargetSameAsSource bool `json:"checkTargetSameAsSource,omitempty" schema:"description=Check when target text is identical to source text,default=true"`
+	CheckTerminology        bool `json:"checkTerminology,omitempty"        schema:"description=Enable terminology checks"`
+	CheckSpanConstraints    bool `json:"checkSpanConstraints,omitempty"    schema:"description=Check non-deletable and non-cloneable span constraint violations,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -79,6 +80,30 @@ func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
 		CheckTerminology:        false,
 		CheckSpanConstraints:    true,
 	}
+}
+
+// QACheckSchema returns the auto-generated schema for the qa-check tool.
+func QACheckSchema() *schema.ComponentSchema {
+	return schema.FromStruct(NewQACheckConfig(""), schema.ToolMeta{
+		ID:          "qa-check",
+		Category:    schema.CategoryValidate,
+		DisplayName: "QA Check",
+		Description: "Run rule-based quality checks on translations",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewQACheckFromConfig creates a qa-check tool from a config map.
+func NewQACheckFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	cfg := NewQACheckConfig(model.LocaleID(targetLang))
+	if err := schema.ApplyConfig(config, cfg); err != nil {
+		return nil, fmt.Errorf("qa-check config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewQACheckTool(cfg), nil
 }
 
 // NewQACheckTool creates a rule-based QA check tool.

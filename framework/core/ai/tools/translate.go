@@ -62,27 +62,21 @@ func AITranslateSchema() *schema.ComponentSchema {
 	})
 }
 
-// ProviderFromConfig creates an LLM provider from config map fields.
-func ProviderFromConfig(cfg AITranslateConfig) (provider.LLMProvider, error) {
-	name := cfg.Provider
+// ProviderFromConfig creates an LLM provider from a provider name and config.
+func ProviderFromConfig(name string, cfg provider.Config) (provider.LLMProvider, error) {
 	if name == "" {
 		name = "anthropic"
 	}
 
-	pcfg := provider.Config{
-		APIKey: cfg.APIKey,
-		Model:  cfg.Model,
-	}
-
 	switch name {
 	case "anthropic":
-		return provider.NewAnthropicProvider(pcfg), nil
+		return provider.NewAnthropicProvider(cfg), nil
 	case "openai":
-		return provider.NewOpenAIProvider(pcfg), nil
+		return provider.NewOpenAIProvider(cfg), nil
 	case "gemini":
-		return provider.NewGeminiProvider(pcfg), nil
+		return provider.NewGeminiProvider(cfg), nil
 	case "ollama":
-		return provider.NewOllamaProvider(pcfg), nil
+		return provider.NewOllamaProvider(cfg), nil
 	default:
 		return nil, fmt.Errorf("unknown AI provider: %s (supported: anthropic, openai, gemini, ollama)", name)
 	}
@@ -112,7 +106,7 @@ func NewAITranslateFromConfig(config map[string]any, targetLang string) (tool.To
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
 
-	p, err := ProviderFromConfig(cfg)
+	p, err := ProviderFromConfig(cfg.Provider, provider.Config{APIKey: cfg.APIKey, Model: cfg.Model})
 	if err != nil {
 		return nil, err
 	}

@@ -6,8 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
+
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // Repetition analysis property keys stored on Block.Properties.
@@ -20,7 +22,7 @@ const (
 
 // RepetitionAnalysisConfig holds configuration for the repetition analysis tool.
 type RepetitionAnalysisConfig struct {
-	CaseSensitive bool `schema:"description=Whether comparison is case-sensitive,default=true"` // Whether comparison is case-sensitive (default: true)
+	CaseSensitive bool `json:"caseSensitive,omitempty" schema:"description=Whether comparison is case-sensitive,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -34,6 +36,26 @@ func (c *RepetitionAnalysisConfig) Reset() {
 // Validate checks configuration validity.
 func (c *RepetitionAnalysisConfig) Validate() error {
 	return nil
+}
+
+// RepetitionAnalysisSchema returns the auto-generated schema for the repetition-analysis tool.
+func RepetitionAnalysisSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&RepetitionAnalysisConfig{}, schema.ToolMeta{
+		ID:          "repetition-analysis",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Repetition Analysis",
+		Description: "Identify repeated segments across files for TM leverage",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewRepetitionAnalysisFromConfig creates a repetition-analysis tool from a config map.
+func NewRepetitionAnalysisFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg RepetitionAnalysisConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("repetition-analysis config: %w", err)
+	}
+	return NewRepetitionAnalysisTool(&cfg), nil
 }
 
 // repGroup tracks a group of blocks that share the same normalized source text.

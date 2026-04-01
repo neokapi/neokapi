@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -15,8 +16,8 @@ const (
 
 // TranslationComparisonConfig holds configuration for the translation comparison tool.
 type TranslationComparisonConfig struct {
-	Locale1 model.LocaleID `schema:"description=First target locale to compare"` // First target locale to compare (required)
-	Locale2 model.LocaleID `schema:"description=Second target locale to compare"` // Second target locale to compare (required)
+	Locale1 model.LocaleID `json:"locale1,omitempty" schema:"-"`
+	Locale2 model.LocaleID `json:"locale2,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -37,6 +38,26 @@ func (c *TranslationComparisonConfig) Validate() error {
 		return fmt.Errorf("translation-comparison: Locale2 is required")
 	}
 	return nil
+}
+
+// TranslationComparisonSchema returns the auto-generated schema for the translation-comparison tool.
+func TranslationComparisonSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&TranslationComparisonConfig{}, schema.ToolMeta{
+		ID:          "translation-comparison",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Translation Comparison",
+		Description: "Compare translations across locales or versions",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewTranslationComparisonFromConfig creates a translation-comparison tool from a config map.
+func NewTranslationComparisonFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg TranslationComparisonConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("translation-comparison config: %w", err)
+	}
+	return NewTranslationComparisonTool(&cfg), nil
 }
 
 // NewTranslationComparisonTool creates a tool that compares translations across

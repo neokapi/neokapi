@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -19,10 +20,10 @@ const (
 
 // CaseTransformConfig holds configuration for the case transform tool.
 type CaseTransformConfig struct {
-	Mode         CaseMode       `schema:"description=Case transformation mode,enum=upper|lower|title,default=upper"` // upper, lower, or title
-	ApplySource  bool           `schema:"description=Apply to source text"` // Apply to source text
-	ApplyTarget  bool           `schema:"description=Apply to target text"` // Apply to target text
-	TargetLocale model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Required if ApplyTarget is true
+	Mode         CaseMode       `json:"mode,omitempty"         schema:"description=Case transformation mode,enum=upper|lower|title,default=upper"`
+	ApplySource  bool           `json:"applySource,omitempty"  schema:"description=Apply to source text"`
+	ApplyTarget  bool           `json:"applyTarget,omitempty"  schema:"description=Apply to target text"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -47,6 +48,29 @@ func (c *CaseTransformConfig) Validate() error {
 		return fmt.Errorf("case-transform: TargetLocale required when ApplyTarget is true")
 	}
 	return nil
+}
+
+// CaseTransformSchema returns the auto-generated schema for the case-transform tool.
+func CaseTransformSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&CaseTransformConfig{}, schema.ToolMeta{
+		ID:          "case-transform",
+		Category:    schema.CategoryTransform,
+		DisplayName: "Case Transform",
+		Description: "Transform text case (upper, lower, title)",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewCaseTransformFromConfig creates a case-transform tool from a config map.
+func NewCaseTransformFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg CaseTransformConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("case-transform config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewCaseTransformTool(&cfg), nil
 }
 
 // NewCaseTransformTool creates a tool that transforms the case of text in blocks.

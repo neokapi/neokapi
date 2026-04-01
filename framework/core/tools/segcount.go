@@ -1,9 +1,11 @@
 package tools
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -15,7 +17,7 @@ const (
 
 // SegCountConfig holds configuration for the segment count tool.
 type SegCountConfig struct {
-	Locale model.LocaleID `schema:"description=Target locale for counting target segments"` // Target locale for counting target segments
+	Locale model.LocaleID `json:"locale,omitempty" schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -28,6 +30,29 @@ func (c *SegCountConfig) Reset() {
 
 // Validate checks configuration validity.
 func (c *SegCountConfig) Validate() error { return nil }
+
+// SegCountSchema returns the auto-generated schema for the segment-count tool.
+func SegCountSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&SegCountConfig{}, schema.ToolMeta{
+		ID:          "segment-count",
+		Category:    schema.CategoryEnrich,
+		DisplayName: "Segment Count",
+		Description: "Count translatable segments",
+		Inputs:      []string{schema.PartTypeBlock},
+	})
+}
+
+// NewSegCountFromConfig creates a segment-count tool from a config map.
+func NewSegCountFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg SegCountConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("segment-count config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.Locale = model.LocaleID(targetLang)
+	}
+	return NewSegCountTool(&cfg), nil
+}
 
 // NewSegCountTool creates a tool that counts source and target segments
 // in blocks and stores the counts in properties.

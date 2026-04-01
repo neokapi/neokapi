@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
@@ -67,10 +68,10 @@ var accentMap = map[rune]rune{
 
 // PseudoConfig holds configuration for the pseudo-translation tool.
 type PseudoConfig struct {
-	ExpansionPercent int            `schema:"description=Extra padding percentage added to simulate translation expansion (0 = no padding),default=0,min=0"`
-	Prefix           string         `schema:"description=Characters prepended before each translated segment,default=["`
-	Suffix           string         `schema:"description=Characters appended after each translated segment,default=]"`
-	TargetLocale     model.LocaleID `schema:"description=Target locale for the pseudo-translated content"`
+	ExpansionPercent int            `json:"expansionPercent,omitempty" schema:"description=Extra padding percentage added to simulate translation expansion (0 = no padding),default=0,min=0"`
+	Prefix           string         `json:"prefix,omitempty"           schema:"description=Characters prepended before each translated segment,default=["`
+	Suffix           string         `json:"suffix,omitempty"           schema:"description=Characters appended after each translated segment,default=]"`
+	TargetLocale     model.LocaleID `json:"targetLocale,omitempty"     schema:"-"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -93,6 +94,30 @@ func (c *PseudoConfig) Validate() error {
 		return fmt.Errorf("pseudo: TargetLocale is required")
 	}
 	return nil
+}
+
+// PseudoTranslateSchema returns the auto-generated schema for the pseudo-translate tool.
+func PseudoTranslateSchema() *schema.ComponentSchema {
+	return schema.FromStruct(&PseudoConfig{}, schema.ToolMeta{
+		ID:          "pseudo-translate",
+		Category:    schema.CategoryTranslate,
+		DisplayName: "Pseudo Translate",
+		Description: "Generate pseudo-translations for localization testing",
+		Inputs:      []string{schema.PartTypeBlock},
+		Requires:    []string{schema.RequiresTargetLanguage},
+	})
+}
+
+// NewPseudoTranslateFromConfig creates a pseudo-translate tool from a config map.
+func NewPseudoTranslateFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
+	var cfg PseudoConfig
+	if err := schema.ApplyConfig(config, &cfg); err != nil {
+		return nil, fmt.Errorf("pseudo-translate config: %w", err)
+	}
+	if targetLang != "" {
+		cfg.TargetLocale = model.LocaleID(targetLang)
+	}
+	return NewPseudoTranslateTool(&cfg), nil
 }
 
 // NewPseudoTranslateTool creates a new pseudo-translation tool.
