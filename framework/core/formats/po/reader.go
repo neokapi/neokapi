@@ -24,7 +24,11 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new PO reader.
 func NewReader() *Reader {
-	cfg := &Config{PreserveUntranslated: true}
+	cfg := &Config{
+		PreserveUntranslated: true,
+		BilingualMode:        true,
+		WrapContent:          true,
+	}
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "po",
@@ -210,6 +214,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 					singularBlock.SetTargetText(targetLocale, val)
 				}
 			}
+			if r.cfg.UseCodeFinder {
+				r.applyCodeFinder(singularBlock)
+			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: singularBlock}) {
 				return
 			}
@@ -225,6 +232,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 				if val, ok := entry.msgstrPlurals[1]; ok && val != "" && !targetLocale.IsEmpty() {
 					pluralBlock.SetTargetText(targetLocale, val)
 				}
+			}
+			if r.cfg.UseCodeFinder {
+				r.applyCodeFinder(pluralBlock)
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: pluralBlock}) {
 				return
@@ -244,6 +254,9 @@ func (r *Reader) readContentNormal(ctx context.Context, ch chan<- model.PartResu
 			}
 			if entry.msgstr != "" && !targetLocale.IsEmpty() {
 				block.SetTargetText(targetLocale, entry.msgstr)
+			}
+			if r.cfg.UseCodeFinder {
+				r.applyCodeFinder(block)
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
@@ -594,6 +607,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 					singularBlock.SetTargetText(targetLocale, val)
 				}
 			}
+			if r.cfg.UseCodeFinder {
+				r.applyCodeFinder(singularBlock)
+			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: singularBlock}) {
 				return
 			}
@@ -609,6 +625,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				if val, ok := entry.msgstrPlurals[1]; ok && val != "" && !targetLocale.IsEmpty() {
 					pluralBlock.SetTargetText(targetLocale, val)
 				}
+			}
+			if r.cfg.UseCodeFinder {
+				r.applyCodeFinder(pluralBlock)
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: pluralBlock}) {
 				return
@@ -627,6 +646,9 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 			block.Properties["raw-msgstr"] = buildRawMsgstr(-1)
 			if entry.msgstr != "" && !targetLocale.IsEmpty() {
 				block.SetTargetText(targetLocale, entry.msgstr)
+			}
+			if r.cfg.UseCodeFinder {
+				r.applyCodeFinder(block)
 			}
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
@@ -841,6 +863,62 @@ func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *mod
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+// applyCodeFinder applies code finder patterns to a block's fragments.
+func (r *Reader) applyCodeFinder(block *model.Block) {
+	patterns := r.cfg.GetCodeFinderPatterns()
+	if len(patterns) == 0 {
+		return
+	}
+
+	for _, seg := range block.Source {
+		if seg.Content == nil {
+			continue
+		}
+		text := seg.Content.Text()
+
+		type matchRange struct {
+			start, end int
+		}
+		var matches []matchRange
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, matchRange{loc[0], loc[1]})
+			}
+		}
+		if len(matches) == 0 {
+			continue
+		}
+
+		// Sort matches by start position
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+
+		newFrag := &model.Fragment{}
+		lastEnd := 0
+		spanID := 1
+		for _, m := range matches {
+			if m.start > lastEnd {
+				newFrag.AppendText(text[lastEnd:m.start])
+			}
+			newFrag.AppendSpan(&model.Span{
+				ID:       fmt.Sprintf("c%d", spanID),
+				SpanType: model.SpanPlaceholder,
+				Type:     "code",
+				Data:     text[m.start:m.end],
+			})
+			lastEnd = m.end
+			spanID++
+		}
+		if lastEnd < len(text) {
+			newFrag.AppendText(text[lastEnd:])
+		}
+		seg.Content = newFrag
 	}
 }
 

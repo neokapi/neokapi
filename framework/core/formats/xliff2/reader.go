@@ -73,6 +73,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // NewReader creates a new XLIFF 2.0 reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "xliff2",

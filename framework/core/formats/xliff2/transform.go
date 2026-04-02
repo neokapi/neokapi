@@ -3,8 +3,6 @@ package xliff2
 import "github.com/neokapi/neokapi/core/config"
 
 // okapiXLIFF2Transformer converts OkfXliff2FilterConfig specs to Xliff2FormatConfig.
-// XLIFF 2.0 has no configurable parameters in the native implementation,
-// so the transformer drops all Okapi-only parameters silently.
 type okapiXLIFF2Transformer struct{}
 
 func (okapiXLIFF2Transformer) Transform(spec map[string]any) (map[string]any, error) {
@@ -12,15 +10,24 @@ func (okapiXLIFF2Transformer) Transform(spec map[string]any) (map[string]any, er
 
 	for key, val := range spec {
 		switch key {
+		// Supported native params — pass through
+		case "forceUniqueIds", "ignoreTagTypeMatch",
+			"discardInvalidTargets",
+			"writeOriginalData",
+			"useCodeFinder", "codeFinderRules":
+			result[key] = val
+
 		// Okapi-only params — drop silently (no native equivalent)
-		case "useCodeFinder", "codeFinderRules",
+		case "needsSegmentation", "simplifyTags",
+			"subfilterOverwriteTarget", "maxValidation",
 			"useSubfilter", "subfilterConfig",
-			"maxValidation", "outputSegmentationType",
+			"outputSegmentationType",
 			"quoteMode", "quoteModeDefined",
-			"copySource", "includeNoTranslate":
+			"copySource", "includeNoTranslate",
+			"mergeAdjacentCodes",
+			"moveLeadingAndTrailingCodesToSkeleton", "simplifierRules":
 			continue
 
-		// Shared params — keep as-is
 		default:
 			result[key] = val
 		}

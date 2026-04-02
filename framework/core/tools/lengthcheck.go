@@ -17,11 +17,26 @@ const (
 
 // LengthCheckConfig holds configuration for the length check tool.
 type LengthCheckConfig struct {
-	TargetLocale  model.LocaleID `json:"targetLocale,omitempty"  schema:"-"`
-	MaxChars      int            `json:"maxChars,omitempty"      schema:"description=Maximum character count for target text (0 = disabled),default=0,min=0"`
-	MaxWords      int            `json:"maxWords,omitempty"      schema:"description=Maximum word count for target text (0 = disabled),default=0,min=0"`
-	MaxPercentage float64        `json:"maxPercentage,omitempty" schema:"description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
-	MinPercentage float64        `json:"minPercentage,omitempty" schema:"description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+
+	// Absolute limits (simple mode).
+	MaxChars int `json:"maxChars,omitempty" schema:"description=Absolute maximum character count for target text (0 = disabled),default=0,min=0"`
+	MaxWords int `json:"maxWords,omitempty" schema:"description=Maximum word count for target text (0 = disabled),default=0,min=0"`
+
+	// Percentage-based limits (simple mode).
+	MaxPercentage float64 `json:"maxPercentage,omitempty" schema:"description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
+	MinPercentage float64 `json:"minPercentage,omitempty" schema:"description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
+
+	// Long/short threshold model (mirrors bridge length-checker).
+	CheckMaxCharLength bool `json:"checkMaxCharLength,omitempty" schema:"description=Warn if target exceeds a percentage of source character length,default=true"`
+	MaxCharLengthBreak int  `json:"maxCharLengthBreak,omitempty" schema:"description=Character count threshold between short and long text for max check,default=20,min=0"`
+	MaxCharLengthAbove int  `json:"maxCharLengthAbove,omitempty" schema:"description=Max percentage of source length allowed for long text,default=200,min=0"`
+	MaxCharLengthBelow int  `json:"maxCharLengthBelow,omitempty" schema:"description=Max percentage of source length allowed for short text,default=350,min=0"`
+
+	CheckMinCharLength bool `json:"checkMinCharLength,omitempty" schema:"description=Warn if target is shorter than a percentage of source character length,default=true"`
+	MinCharLengthBreak int  `json:"minCharLengthBreak,omitempty" schema:"description=Character count threshold between short and long text for min check,default=20,min=0"`
+	MinCharLengthAbove int  `json:"minCharLengthAbove,omitempty" schema:"description=Min percentage of source length allowed for long text,default=45,min=0"`
+	MinCharLengthBelow int  `json:"minCharLengthBelow,omitempty" schema:"description=Min percentage of source length allowed for short text,default=30,min=0"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -34,6 +49,14 @@ func (c *LengthCheckConfig) Reset() {
 	c.MaxWords = 0
 	c.MaxPercentage = 0
 	c.MinPercentage = 0
+	c.CheckMaxCharLength = true
+	c.MaxCharLengthBreak = 20
+	c.MaxCharLengthAbove = 200
+	c.MaxCharLengthBelow = 350
+	c.CheckMinCharLength = true
+	c.MinCharLengthBreak = 20
+	c.MinCharLengthAbove = 45
+	c.MinCharLengthBelow = 30
 }
 
 // Validate checks configuration validity.
@@ -158,6 +181,40 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 					Message:  fmt.Sprintf("Target is %.0f%% of source length, below minimum of %.0f%%", ratio, conf.MinPercentage),
 				})
 			}
+
+			// Long/short threshold checks: use different percentage limits
+			// depending on whether the source text is "long" or "short".
+			if conf.CheckMaxCharLength {
+				var maxPct int
+				if sourceLen > conf.MaxCharLengthBreak {
+					maxPct = conf.MaxCharLengthAbove
+				} else {
+					maxPct = conf.MaxCharLengthBelow
+				}
+				if maxPct > 0 && ratio > float64(maxPct) {
+					issues = append(issues, QAIssue{
+						Type:     "max-char-length-exceeded",
+						Severity: QASeverityWarning,
+						Message:  fmt.Sprintf("Target is %.0f%% of source length, exceeds %d%% threshold for %s text", ratio, maxPct, longOrShort(sourceLen, conf.MaxCharLengthBreak)),
+					})
+				}
+			}
+
+			if conf.CheckMinCharLength {
+				var minPct int
+				if sourceLen > conf.MinCharLengthBreak {
+					minPct = conf.MinCharLengthAbove
+				} else {
+					minPct = conf.MinCharLengthBelow
+				}
+				if minPct > 0 && ratio < float64(minPct) {
+					issues = append(issues, QAIssue{
+						Type:     "min-char-length-exceeded",
+						Severity: QASeverityWarning,
+						Message:  fmt.Sprintf("Target is %.0f%% of source length, below %d%% threshold for %s text", ratio, minPct, longOrShort(sourceLen, conf.MinCharLengthBreak)),
+					})
+				}
+			}
 		}
 
 		storeLengthCheckIssues(block, issues)
@@ -165,6 +222,15 @@ func NewLengthCheckTool(cfg *LengthCheckConfig) *tool.BaseTool {
 		return part, nil
 	}
 	return t
+}
+
+// longOrShort returns "long" or "short" depending on whether the given length
+// exceeds the breakpoint threshold.
+func longOrShort(length, breakpoint int) string {
+	if length > breakpoint {
+		return "long"
+	}
+	return "short"
 }
 
 // storeLengthCheckIssues writes length check findings to Block.Properties.

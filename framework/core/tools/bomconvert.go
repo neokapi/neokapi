@@ -7,7 +7,8 @@ import (
 
 // BOMConvertConfig holds configuration for the BOM conversion tool.
 type BOMConvertConfig struct {
-	AddBOM bool `schema:"description=When true the Unicode BOM is added; when false it is removed"` // true = ensure BOM is present, false = remove BOM
+	AddBOM      bool `schema:"description=When true the Unicode BOM is added; when false it is removed"`     // true = ensure BOM is present, false = remove BOM
+	AlsoNonUTF8 bool `schema:"description=Also remove the BOM from UTF-16 files not just UTF-8"` // Also handle UTF-16 BOMs
 }
 
 // ToolName returns the tool name this config applies to.
@@ -16,6 +17,7 @@ func (c *BOMConvertConfig) ToolName() string { return "bom-convert" }
 // Reset restores default values.
 func (c *BOMConvertConfig) Reset() {
 	c.AddBOM = false
+	c.AlsoNonUTF8 = false
 }
 
 // Validate checks configuration validity.

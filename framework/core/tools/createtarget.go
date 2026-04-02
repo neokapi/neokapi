@@ -9,9 +9,10 @@ import (
 
 // CreateTargetConfig holds configuration for the create-target tool.
 type CreateTargetConfig struct {
-	TargetLocale model.LocaleID `schema:"description=Target locale to create"` // Target locale to create (required)
-	CopySource   bool           `schema:"description=Copy source text to the new target segment"` // Whether to copy source text to target (default: false)
-	Overwrite    bool           `schema:"description=Overwrite existing target segments if they already exist"` // Whether to overwrite existing targets (default: false)
+	TargetLocale          model.LocaleID `schema:"description=Target locale to create"`                                                   // Target locale to create (required)
+	CopySource            bool           `schema:"description=Copy source text to the new target segment"`                                // Whether to copy source text to target (default: false)
+	Overwrite             bool           `schema:"description=Overwrite existing target segments if they already exist"`                   // Whether to overwrite existing targets (default: false)
+	CreateOnNonTranslatable bool         `schema:"description=Create a target container even for non-translatable text units,default=true"` // Create targets on non-translatable blocks
 }
 
 // ToolName returns the tool name this config applies to.
@@ -22,6 +23,7 @@ func (c *CreateTargetConfig) Reset() {
 	c.TargetLocale = ""
 	c.CopySource = false
 	c.Overwrite = false
+	c.CreateOnNonTranslatable = true
 }
 
 // Validate checks configuration validity.
@@ -46,11 +48,12 @@ func NewCreateTargetTool(cfg *CreateTargetConfig) *tool.BaseTool {
 		if !ok {
 			return part, nil
 		}
-		if !block.Translatable {
-			return part, nil
-		}
 
 		conf := t.Cfg.(*CreateTargetConfig)
+
+		if !block.Translatable && !conf.CreateOnNonTranslatable {
+			return part, nil
+		}
 
 		// Skip if target already exists and we're not overwriting.
 		if block.HasTarget(conf.TargetLocale) && !conf.Overwrite {

@@ -23,6 +23,8 @@ type InconsistencyCheckConfig struct {
 	CaseSensitive            bool           `json:"caseSensitive,omitempty"            schema:"description=Whether comparison is case-sensitive,default=true"`
 	CheckTargetInconsistency bool           `json:"checkTargetInconsistency,omitempty" schema:"description=Flag when the same source has different translations,default=true"`
 	CheckSourceInconsistency bool           `json:"checkSourceInconsistency,omitempty" schema:"description=Flag when different sources share the same translation"`
+	CheckPerFile             bool           `json:"checkPerFile,omitempty"             schema:"description=Process each input file individually instead of comparing segments across all documents"`
+	DisplayOption            string         `json:"displayOption,omitempty"            schema:"description=Controls how inline codes are represented: original codes or generic markers or plain text,enum=original|generic|plain,default=generic"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -34,6 +36,8 @@ func (c *InconsistencyCheckConfig) Reset() {
 	c.CaseSensitive = true
 	c.CheckTargetInconsistency = true
 	c.CheckSourceInconsistency = false
+	c.CheckPerFile = false
+	c.DisplayOption = "generic"
 }
 
 // Validate checks configuration validity.
@@ -51,6 +55,8 @@ func NewInconsistencyCheckConfig(targetLocale model.LocaleID) *InconsistencyChec
 		CaseSensitive:            true,
 		CheckTargetInconsistency: true,
 		CheckSourceInconsistency: false,
+		CheckPerFile:             false,
+		DisplayOption:            "generic",
 	}
 }
 
@@ -90,6 +96,19 @@ func NewInconsistencyCheckTool(cfg *InconsistencyCheckConfig) *tool.BaseTool {
 		ToolName:        "inconsistency-check",
 		ToolDescription: "Checks for translation inconsistencies across blocks",
 		Cfg:             cfg,
+	}
+	// When checking per file, reset state maps at the start of each document layer.
+	t.HandleLayerStartFn = func(part *model.Part) (*model.Part, error) {
+		conf := t.Cfg.(*InconsistencyCheckConfig)
+		if conf.CheckPerFile {
+			for k := range sourceToTargets {
+				delete(sourceToTargets, k)
+			}
+			for k := range targetToSources {
+				delete(targetToSources, k)
+			}
+		}
+		return part, nil
 	}
 	t.HandleBlockFn = func(part *model.Part) (*model.Part, error) {
 		block, ok := part.Resource.(*model.Block)

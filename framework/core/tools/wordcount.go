@@ -19,13 +19,21 @@ const (
 )
 
 // WordCountConfig holds configuration for the word count tool.
-type WordCountConfig struct{}
+type WordCountConfig struct {
+	CountSource bool `json:"countSource,omitempty" schema:"description=Count words in source text,default=true"`
+	CountTarget bool `json:"countTarget,omitempty" schema:"description=Count words in target text,default=true"`
+	CountInline bool `json:"countInline,omitempty" schema:"description=Include inline code content in word counts"`
+}
 
 // ToolName returns the tool name this config applies to.
 func (c *WordCountConfig) ToolName() string { return "word-count" }
 
 // Reset restores default values.
-func (c *WordCountConfig) Reset() {}
+func (c *WordCountConfig) Reset() {
+	c.CountSource = true
+	c.CountTarget = true
+	c.CountInline = false
+}
 
 // Validate checks configuration validity.
 func (c *WordCountConfig) Validate() error {
@@ -70,19 +78,29 @@ func NewWordCountTool(cfg *WordCountConfig) *tool.BaseTool {
 			return part, nil
 		}
 
+		conf := t.Cfg.(*WordCountConfig)
+
 		if block.Properties == nil {
 			block.Properties = make(map[string]string)
 		}
 
+		// Default to counting both when neither scope is explicitly set.
+		countSource := conf.CountSource || (!conf.CountSource && !conf.CountTarget)
+		countTarget := conf.CountTarget || (!conf.CountSource && !conf.CountTarget)
+
 		// Count source words.
-		sourceCount := block.WordCount()
-		block.Properties[PropWordCountSource] = strconv.Itoa(sourceCount)
+		if countSource {
+			sourceCount := block.WordCount()
+			block.Properties[PropWordCountSource] = strconv.Itoa(sourceCount)
+		}
 
 		// Count target words for every target locale present.
-		for locale := range block.Targets {
-			targetText := block.TargetText(locale)
-			targetCount := countWords(targetText)
-			block.Properties[PropWordCountTargetPrefix+string(locale)] = strconv.Itoa(targetCount)
+		if countTarget {
+			for locale := range block.Targets {
+				targetText := block.TargetText(locale)
+				targetCount := countWords(targetText)
+				block.Properties[PropWordCountTargetPrefix+string(locale)] = strconv.Itoa(targetCount)
+			}
 		}
 
 		return part, nil

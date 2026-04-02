@@ -39,14 +39,16 @@ func (c *Config) Schema() *schema.FormatSchema {
 			"parser": {
 				PropertySchema: coreschema.PropertySchema{
 					Type:        "object",
-					Description: "Parser settings",
+					Title:       "Parser behavior",
+					Description: "Settings that control how the HTML parser reads input",
 				},
 				Properties: map[string]schema.PropertySchema{
 					"preserveWhitespace": {
 						PropertySchema: coreschema.PropertySchema{
 							Type:        "boolean",
 							Default:     false,
-							Description: "Preserve significant whitespace in text nodes",
+							Title:       "Preserve whitespace",
+							Description: "Preserve original whitespace in extracted text instead of collapsing it",
 						},
 						FlattenPath: "preserveWhitespace",
 					},
@@ -55,14 +57,16 @@ func (c *Config) Schema() *schema.FormatSchema {
 			"elements": {
 				PropertySchema: coreschema.PropertySchema{
 					Type:        "object",
-					Description: "Map of element names to extraction rules (ruleTypes, conditions, idAttributes, translatableAttributes)",
+					Title:       "Element Rules",
+					Description: "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)",
 				},
 				FlattenPath: "elements",
 			},
 			"attributes": {
 				PropertySchema: coreschema.PropertySchema{
 					Type:        "object",
-					Description: "Map of attribute names to extraction rules (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+					Title:       "Attribute Rules",
+					Description: "Global attribute extraction rules -- maps attribute names to their rule configuration (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
 				},
 				FlattenPath: "attributes",
 			},
@@ -70,14 +74,18 @@ func (c *Config) Schema() *schema.FormatSchema {
 				PropertySchema: coreschema.PropertySchema{
 					Type:        "boolean",
 					Default:     false,
-					Description: "Enable regex-based inline code detection",
+					Title:       "Enable inline code detection",
+					Description: "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text",
 				},
 				FlattenPath: "useCodeFinder",
 			},
 			"codeFinderRules": {
 				PropertySchema: coreschema.PropertySchema{
 					Type:        "array",
+					Title:       "Code finder rules",
 					Description: "Regex patterns that match inline codes within translatable text",
+					Widget:      "code-finder",
+					Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
 				},
 				FlattenPath: "codeFinderRules",
 			},

@@ -26,7 +26,8 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 
 // NewReader creates a new PHP content reader.
 func NewReader() *Reader {
-	cfg := &Config{UseDirectives: true}
+	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "phpcontent",
@@ -517,6 +518,12 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 	blockCounter := 0
 	dataCounter := 0
 	skipMode := false
+	// When useDirectives is on and extractOutsideDirectives is false,
+	// start in skip mode — only _btext_ regions are extracted.
+	textMode := true
+	if r.cfg.UseDirectives && !r.cfg.ExtractOutsideDirectives {
+		textMode = false
+	}
 	lastArrayKey := ""
 
 	i := 0
@@ -528,8 +535,12 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 			lower := tok.directive
 			if strings.Contains(lower, "_bskip_") {
 				skipMode = true
-			} else if strings.Contains(lower, "_eskip_") || strings.Contains(lower, "_etext_") {
+			} else if strings.Contains(lower, "_eskip_") {
 				skipMode = false
+			} else if strings.Contains(lower, "_btext_") {
+				textMode = true
+			} else if strings.Contains(lower, "_etext_") {
+				textMode = false
 			} else if strings.Contains(lower, "_skip_") {
 				// Skip next string
 				r.skelText(content[tok.startPos:tok.endPos])
@@ -549,7 +560,6 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 				i = nextI
 				continue
 			}
-			// _btext_ just continues normal extraction mode (no special handling needed)
 		}
 
 		// Handle comments as Data
@@ -604,7 +614,7 @@ func (r *Reader) emitParts(ctx context.Context, ch chan<- model.PartResult, toke
 
 		// Handle string (possibly concatenated)
 		if tok.typ == tokString {
-			if skipMode {
+			if skipMode || !textMode {
 				r.skelText(content[tok.startPos:tok.endPos])
 				dataCounter++
 				if !r.emit(ctx, ch, &model.Part{

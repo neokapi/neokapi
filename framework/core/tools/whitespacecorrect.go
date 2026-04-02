@@ -18,12 +18,22 @@ const (
 
 // WhitespaceCorrectConfig holds configuration for the whitespace correction tool.
 type WhitespaceCorrectConfig struct {
-	TargetLocale          model.LocaleID `schema:"description=Target locale for processing"` // Required
-	NormalizeSpaces       bool           `schema:"description=Collapse multiple spaces to a single space,default=true"` // Collapse multiple spaces to single (default: true)
-	TrimLeading           bool           `schema:"description=Remove leading whitespace from target text"` // Remove leading whitespace (default: false)
-	TrimTrailing          bool           `schema:"description=Remove trailing whitespace from target text"` // Remove trailing whitespace (default: false)
-	MatchSourceWhitespace bool           `schema:"description=Copy source leading/trailing whitespace to target,default=true"` // Copy source leading/trailing whitespace to target (default: true)
-	RemoveZeroWidthChars  bool           `schema:"description=Remove zero-width spaces and joiners,default=true"` // Remove zero-width spaces/joiners (default: true)
+	TargetLocale          model.LocaleID `json:"targetLocale,omitempty"          schema:"description=Target locale for processing"` // Required
+	NormalizeSpaces       bool           `json:"normalizeSpaces,omitempty"       schema:"description=Collapse multiple spaces to a single space,default=true"` // Collapse multiple spaces to single (default: true)
+	TrimLeading           bool           `json:"trimLeading,omitempty"           schema:"description=Remove leading whitespace from target text"` // Remove leading whitespace (default: false)
+	TrimTrailing          bool           `json:"trimTrailing,omitempty"          schema:"description=Remove trailing whitespace from target text"` // Remove trailing whitespace (default: false)
+	MatchSourceWhitespace bool           `json:"matchSourceWhitespace,omitempty" schema:"description=Copy source leading/trailing whitespace to target,default=true"` // Copy source leading/trailing whitespace to target (default: true)
+	RemoveZeroWidthChars  bool           `json:"removeZeroWidthChars,omitempty"  schema:"description=Remove zero-width spaces and joiners,default=true"` // Remove zero-width spaces/joiners (default: true)
+
+	// Punctuation-specific correction toggles (CJK full-width/ASCII conversion).
+	CorrectFullStop    bool `json:"correctFullStop,omitempty"    schema:"description=Correct whitespace after full stops (periods),default=true,group=punctuation"`
+	CorrectComma       bool `json:"correctComma,omitempty"       schema:"description=Correct whitespace after commas,default=true,group=punctuation"`
+	CorrectExclamation bool `json:"correctExclamation,omitempty" schema:"description=Correct whitespace after exclamation marks,default=true,group=punctuation"`
+	CorrectQuestion    bool `json:"correctQuestion,omitempty"    schema:"description=Correct whitespace after question marks,default=true,group=punctuation"`
+
+	// Whitespace type toggles for which whitespace characters to remove.
+	IncludeVerticalWS   bool `json:"includeVerticalWS,omitempty"   schema:"description=Include vertical whitespace (line feeds and carriage returns) in corrections,default=true,group=whitespace-types"`
+	IncludeHorizontalWS bool `json:"includeHorizontalWS,omitempty" schema:"description=Include horizontal tab characters in corrections,default=true,group=whitespace-types"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -37,6 +47,12 @@ func (c *WhitespaceCorrectConfig) Reset() {
 	c.TrimTrailing = false
 	c.MatchSourceWhitespace = true
 	c.RemoveZeroWidthChars = true
+	c.CorrectFullStop = true
+	c.CorrectComma = true
+	c.CorrectExclamation = true
+	c.CorrectQuestion = true
+	c.IncludeVerticalWS = true
+	c.IncludeHorizontalWS = true
 }
 
 // Validate checks configuration validity.
@@ -92,6 +108,10 @@ func NewWhitespaceCorrectTool(cfg *WhitespaceCorrectConfig) *tool.BaseTool {
 			targetText = matchSourceWhitespace(sourceText, targetText)
 		}
 
+		// Punctuation-specific whitespace correction: remove trailing whitespace
+		// after specific punctuation marks (useful for CJK targets).
+		targetText = correctPunctuationWhitespace(targetText, conf)
+
 		block.SetTargetText(conf.TargetLocale, targetText)
 		return part, nil
 	}
@@ -130,6 +150,62 @@ func normalizeSpaces(text string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// correctPunctuationWhitespace removes whitespace immediately following
+// specific punctuation marks, based on configuration. This is primarily
+// useful when translating from space-delimited to non-space-delimited languages.
+func correctPunctuationWhitespace(text string, conf *WhitespaceCorrectConfig) string {
+	var punctChars []rune
+	if conf.CorrectFullStop {
+		punctChars = append(punctChars, '.', '\uFF0E') // ASCII + fullwidth
+	}
+	if conf.CorrectComma {
+		punctChars = append(punctChars, ',', '\uFF0C')
+	}
+	if conf.CorrectExclamation {
+		punctChars = append(punctChars, '!', '\uFF01')
+	}
+	if conf.CorrectQuestion {
+		punctChars = append(punctChars, '?', '\uFF1F')
+	}
+	if len(punctChars) == 0 {
+		return text
+	}
+
+	punctSet := make(map[rune]bool, len(punctChars))
+	for _, r := range punctChars {
+		punctSet[r] = true
+	}
+
+	runes := []rune(text)
+	var b strings.Builder
+	b.Grow(len(text))
+	for i := 0; i < len(runes); i++ {
+		b.WriteRune(runes[i])
+		if punctSet[runes[i]] {
+			// Skip whitespace after this punctuation.
+			for i+1 < len(runes) && isConfiguredWhitespace(runes[i+1], conf) {
+				i++
+			}
+		}
+	}
+	return b.String()
+}
+
+// isConfiguredWhitespace checks if a rune is whitespace that the config
+// includes for removal.
+func isConfiguredWhitespace(r rune, conf *WhitespaceCorrectConfig) bool {
+	switch r {
+	case ' ':
+		return true
+	case '\t':
+		return conf.IncludeHorizontalWS
+	case '\n', '\r', '\v', '\f':
+		return conf.IncludeVerticalWS
+	default:
+		return false
+	}
 }
 
 // matchSourceWhitespace copies the leading and trailing whitespace pattern

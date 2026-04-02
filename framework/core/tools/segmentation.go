@@ -28,6 +28,15 @@ type SegmentationRule struct {
 type SegmentationConfig struct {
 	TargetLocale model.LocaleID    `json:"targetLocale,omitempty" schema:"-"`
 	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
+
+	// Schema-visible properties matching the bridge schema.
+	SegmentSource                  bool   `json:"segmentSource,omitempty"                  schema:"description=Segment the source text using SRX rules,default=true"`
+	SegmentTarget                  bool   `json:"segmentTarget,omitempty"                  schema:"description=Segment existing target text using SRX rules"`
+	SourceSrxPath                  string `json:"sourceSrxPath,omitempty"                  schema:"description=Path to SRX segmentation rules file for source text"`
+	TargetSrxPath                  string `json:"targetSrxPath,omitempty"                  schema:"description=Path to SRX segmentation rules file for target text"`
+	OverwriteSegmentation          bool   `json:"overwriteSegmentation,omitempty"          schema:"description=Re-segment already-segmented text units replacing previous segmentation"`
+	TreatIsolatedCodesAsWhitespace bool   `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"description=Treat isolated inline codes as whitespace during segmentation"`
+	RenumberCodes                  bool   `json:"renumberCodes,omitempty"                  schema:"description=Renumber inline code IDs in each segment to start at 1"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -37,6 +46,13 @@ func (c *SegmentationConfig) ToolName() string { return "segmentation" }
 func (c *SegmentationConfig) Reset() {
 	c.TargetLocale = ""
 	c.Rules = nil
+	c.SegmentSource = true
+	c.SegmentTarget = false
+	c.SourceSrxPath = ""
+	c.TargetSrxPath = ""
+	c.OverwriteSegmentation = false
+	c.TreatIsolatedCodesAsWhitespace = false
+	c.RenumberCodes = false
 }
 
 // Validate checks configuration validity.
@@ -61,7 +77,9 @@ func (c *SegmentationConfig) Validate() error {
 
 // SegmentationSchema returns the auto-generated schema for the segmentation tool.
 func SegmentationSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&SegmentationConfig{}, schema.ToolMeta{
+	cfg := &SegmentationConfig{}
+	cfg.Reset()
+	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "segmentation",
 		Category:    schema.CategoryTransform,
 		DisplayName: "Segmentation",
@@ -72,14 +90,15 @@ func SegmentationSchema() *schema.ComponentSchema {
 
 // NewSegmentationFromConfig creates a segmentation tool from a config map.
 func NewSegmentationFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	var cfg SegmentationConfig
-	if err := schema.ApplyConfig(config, &cfg); err != nil {
+	cfg := &SegmentationConfig{}
+	cfg.Reset()
+	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("segmentation config: %w", err)
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
-	return NewSegmentationTool(&cfg), nil
+	return NewSegmentationTool(cfg), nil
 }
 
 // defaultSegmentationRules returns SRX-like rules for common sentence boundaries.
@@ -228,6 +247,11 @@ func sortPositions(a []int) {
 // NewSegmentationTool creates a sentence segmentation tool that splits Block
 // source text into segments using SRX-like regex rules.
 func NewSegmentationTool(cfg *SegmentationConfig) *tool.BaseTool {
+	// Default: segment source if neither flag is explicitly set.
+	if !cfg.SegmentSource && !cfg.SegmentTarget {
+		cfg.SegmentSource = true
+	}
+
 	rules := cfg.Rules
 	if len(rules) == 0 {
 		rules = defaultSegmentationRules()
@@ -253,29 +277,53 @@ func NewSegmentationTool(cfg *SegmentationConfig) *tool.BaseTool {
 			return part, nil
 		}
 
+		conf := t.Cfg.(*SegmentationConfig)
+
 		if block.Properties == nil {
 			block.Properties = make(map[string]string)
 		}
 
-		sourceText := block.SourceText()
-		if sourceText == "" {
-			block.Properties[PropSegmentCount] = "0"
-			return part, nil
-		}
-
-		segments := segmentText(sourceText, compiled)
-
-		// Rebuild source segments from the split text.
-		newSource := make([]*model.Segment, len(segments))
-		for i, seg := range segments {
-			newSource[i] = &model.Segment{
-				ID:      fmt.Sprintf("s%d", i+1),
-				Content: model.NewFragment(seg),
+		// Segment source text.
+		if conf.SegmentSource {
+			alreadySegmented := len(block.Source) > 1
+			if !alreadySegmented || conf.OverwriteSegmentation {
+				sourceText := block.SourceText()
+				if sourceText == "" {
+					block.Properties[PropSegmentCount] = "0"
+				} else {
+					segments := segmentText(sourceText, compiled)
+					newSource := make([]*model.Segment, len(segments))
+					for i, seg := range segments {
+						newSource[i] = &model.Segment{
+							ID:      fmt.Sprintf("s%d", i+1),
+							Content: model.NewFragment(seg),
+						}
+					}
+					block.Source = newSource
+					block.Properties[PropSegmentCount] = strconv.Itoa(len(segments))
+				}
 			}
 		}
-		block.Source = newSource
 
-		block.Properties[PropSegmentCount] = strconv.Itoa(len(segments))
+		// Segment target text if enabled.
+		if conf.SegmentTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
+			targetSegs := block.Targets[conf.TargetLocale]
+			alreadySegmented := len(targetSegs) > 1
+			if !alreadySegmented || conf.OverwriteSegmentation {
+				targetText := block.TargetText(conf.TargetLocale)
+				if targetText != "" {
+					segments := segmentText(targetText, compiled)
+					newTarget := make([]*model.Segment, len(segments))
+					for i, seg := range segments {
+						newTarget[i] = &model.Segment{
+							ID:      fmt.Sprintf("s%d", i+1),
+							Content: model.NewFragment(seg),
+						}
+					}
+					block.Targets[conf.TargetLocale] = newTarget
+				}
+			}
+		}
 
 		return part, nil
 	}

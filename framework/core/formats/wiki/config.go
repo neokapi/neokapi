@@ -16,6 +16,10 @@ const (
 type Config struct {
 	// Variant selects the wiki markup dialect (mediawiki or dokuwiki).
 	Variant Variant
+
+	// PreserveWhitespace preserves original whitespace in wiki markup
+	// instead of normalizing it during extraction.
+	PreserveWhitespace bool
 }
 
 // FormatName returns the format this config applies to.
@@ -24,6 +28,7 @@ func (c *Config) FormatName() string { return "wiki" }
 // Reset restores default values.
 func (c *Config) Reset() {
 	c.Variant = VariantMediaWiki
+	c.PreserveWhitespace = false
 }
 
 // Validate checks configuration validity.
@@ -46,6 +51,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("variant: expected string, got %T", val)
 			}
 			c.Variant = Variant(s)
+		case "preserveWhitespace":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("preserveWhitespace: expected bool, got %T", val)
+			}
+			c.PreserveWhitespace = b
 		default:
 			return fmt.Errorf("wiki: unknown parameter: %s", key)
 		}

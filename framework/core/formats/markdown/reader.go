@@ -1098,11 +1098,73 @@ func (r *Reader) buildStrikethroughSpan(frag *model.Fragment, node ast.Node, sou
 // --- Emit helper ---
 
 func (r *Reader) emit(ctx context.Context, ch chan<- model.PartResult, part *model.Part) bool {
+	// Apply inline code finder to blocks if enabled
+	if part.Type == model.PartBlock && r.cfg.UseCodeFinder {
+		if block, ok := part.Resource.(*model.Block); ok {
+			r.applyCodeFinder(block)
+		}
+	}
 	select {
 	case ch <- model.PartResult{Part: part}:
 		return true
 	case <-ctx.Done():
 		return false
+	}
+}
+
+// applyCodeFinder applies code finder patterns to a block's fragments.
+func (r *Reader) applyCodeFinder(block *model.Block) {
+	patterns := r.cfg.GetCodeFinderPatterns()
+	if len(patterns) == 0 {
+		return
+	}
+
+	for _, seg := range block.Source {
+		if seg.Content == nil {
+			continue
+		}
+		text := seg.Content.Text()
+
+		type matchRange struct {
+			start, end int
+		}
+		var matches []matchRange
+		for _, re := range patterns {
+			for _, loc := range re.FindAllStringIndex(text, -1) {
+				matches = append(matches, matchRange{loc[0], loc[1]})
+			}
+		}
+		if len(matches) == 0 {
+			continue
+		}
+
+		// Sort matches by start position
+		for i := 1; i < len(matches); i++ {
+			for j := i; j > 0 && matches[j].start < matches[j-1].start; j-- {
+				matches[j], matches[j-1] = matches[j-1], matches[j]
+			}
+		}
+
+		newFrag := &model.Fragment{}
+		lastEnd := 0
+		spanID := 1
+		for _, m := range matches {
+			if m.start > lastEnd {
+				newFrag.AppendText(text[lastEnd:m.start])
+			}
+			newFrag.AppendSpan(&model.Span{
+				ID:       fmt.Sprintf("c%d", spanID),
+				SpanType: model.SpanPlaceholder,
+				Type:     "code",
+				Data:     text[m.start:m.end],
+			})
+			lastEnd = m.end
+			spanID++
+		}
+		if lastEnd < len(text) {
+			newFrag.AppendText(text[lastEnd:])
+		}
+		seg.Content = newFrag
 	}
 }
 

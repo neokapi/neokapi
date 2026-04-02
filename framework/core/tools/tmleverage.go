@@ -44,8 +44,17 @@ func (NullTMProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (
 type TMLeverageConfig struct {
 	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
 	SourceLocale   model.LocaleID `json:"sourceLocale,omitempty"   schema:"-"`
-	FuzzyThreshold int            `json:"fuzzyThreshold,omitempty" schema:"description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
 	Provider       TMProvider     `json:"-"                        schema:"-"`
+
+	// Schema-visible properties matching the bridge schema.
+	FuzzyThreshold   int  `json:"fuzzyThreshold,omitempty"   schema:"description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
+	FillTarget       bool `json:"fillTarget,omitempty"       schema:"description=Copy the best translation candidate into the target content,default=true"`
+	FillTargetThreshold int `json:"fillTargetThreshold,omitempty" schema:"description=Minimum match score required to fill the target,default=95,min=0,max=100"`
+	FillIfTargetIsEmpty bool `json:"fillIfTargetIsEmpty,omitempty" schema:"description=Fill the target only when it has no existing content"`
+	NoQueryThreshold int  `json:"noQueryThreshold,omitempty" schema:"description=Skip TM query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
+	MakeTMX          bool `json:"makeTmx,omitempty"          schema:"description=Create a TMX file with all leveraged matches"`
+	TMXPath          string `json:"tmxPath,omitempty"         schema:"description=File path for the generated TMX document"`
+	DowngradeIdenticalBestMatches bool `json:"downgradeIdenticalBestMatches,omitempty" schema:"description=Reduce score by 1%% when multiple identical exact matches are returned"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -55,8 +64,15 @@ func (c *TMLeverageConfig) ToolName() string { return "tm-leverage" }
 func (c *TMLeverageConfig) Reset() {
 	c.TargetLocale = ""
 	c.SourceLocale = ""
-	c.FuzzyThreshold = 70
 	c.Provider = nil
+	c.FuzzyThreshold = 70
+	c.FillTarget = true
+	c.FillTargetThreshold = 95
+	c.FillIfTargetIsEmpty = false
+	c.NoQueryThreshold = 101
+	c.MakeTMX = false
+	c.TMXPath = ""
+	c.DowngradeIdenticalBestMatches = false
 }
 
 // Validate checks configuration validity.
@@ -75,7 +91,9 @@ func (c *TMLeverageConfig) Validate() error {
 
 // TMLeverageSchema returns the auto-generated schema for the TM leverage tool.
 func TMLeverageSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&TMLeverageConfig{}, schema.ToolMeta{
+	cfg := &TMLeverageConfig{}
+	cfg.Reset()
+	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "tm-leverage",
 		Category:    schema.CategoryTranslate,
 		DisplayName: "TM Leverage",
@@ -87,8 +105,9 @@ func TMLeverageSchema() *schema.ComponentSchema {
 
 // NewTMLeverageFromConfig creates a TM leverage tool from a config map.
 func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	var cfg TMLeverageConfig
-	if err := schema.ApplyConfig(config, &cfg); err != nil {
+	cfg := &TMLeverageConfig{}
+	cfg.Reset()
+	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("tm-leverage config: %w", err)
 	}
 	if targetLang != "" {
@@ -98,7 +117,7 @@ func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Too
 		cfg.FuzzyThreshold = 70
 	}
 	cfg.Provider = NullTMProvider{}
-	return NewTMLeverageTool(&cfg), nil
+	return NewTMLeverageTool(cfg), nil
 }
 
 // NewTMLeverageTool creates a TM leveraging tool that pre-fills translations
@@ -107,6 +126,11 @@ func NewTMLeverageFromConfig(config map[string]any, targetLang string) (tool.Too
 func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 	if cfg.FuzzyThreshold == 0 {
 		cfg.FuzzyThreshold = 70
+	}
+	// Default FillTarget to true if not explicitly configured (backward compat).
+	if !cfg.FillTarget && cfg.FillTargetThreshold == 0 {
+		cfg.FillTarget = true
+		cfg.FillTargetThreshold = 0 // 0 means accept any score
 	}
 
 	t := &tool.BaseTool{
@@ -137,17 +161,32 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 			return part, nil
 		}
 
+		// Check no-query threshold: skip TM query if an existing match scores at/above.
+		if existingScore, ok := block.Properties[PropTMMatchScore]; ok && conf.NoQueryThreshold <= 101 {
+			if score, err := strconv.Atoi(existingScore); err == nil && score >= conf.NoQueryThreshold {
+				return part, nil
+			}
+		}
+
 		// Try exact match first.
 		if translation, found := conf.Provider.LookupExact(sourceText, conf.SourceLocale, conf.TargetLocale); found {
-			block.SetTargetText(conf.TargetLocale, translation)
-			block.Properties[PropTMMatchScore] = "100"
+			score := 100
+			if conf.DowngradeIdenticalBestMatches {
+				score = 99
+			}
+			if shouldFillTarget(conf, block, score) {
+				block.SetTargetText(conf.TargetLocale, translation)
+			}
+			block.Properties[PropTMMatchScore] = strconv.Itoa(score)
 			block.Properties[PropTMMatchType] = "exact"
 			return part, nil
 		}
 
 		// Try fuzzy match.
 		if translation, score, found := conf.Provider.LookupFuzzy(sourceText, conf.SourceLocale, conf.TargetLocale, conf.FuzzyThreshold); found {
-			block.SetTargetText(conf.TargetLocale, translation)
+			if shouldFillTarget(conf, block, score) {
+				block.SetTargetText(conf.TargetLocale, translation)
+			}
 			block.Properties[PropTMMatchScore] = strconv.Itoa(score)
 			block.Properties[PropTMMatchType] = "fuzzy"
 			return part, nil
@@ -156,4 +195,21 @@ func NewTMLeverageTool(cfg *TMLeverageConfig) *tool.BaseTool {
 		return part, nil
 	}
 	return t
+}
+
+// shouldFillTarget decides whether to copy the translation into the target based on config.
+func shouldFillTarget(conf *TMLeverageConfig, block *model.Block, score int) bool {
+	if !conf.FillTarget {
+		return false
+	}
+	if score < conf.FillTargetThreshold {
+		return false
+	}
+	if conf.FillIfTargetIsEmpty {
+		// Only fill if target is empty.
+		if block.HasTarget(conf.TargetLocale) && block.TargetText(conf.TargetLocale) != "" {
+			return false
+		}
+	}
+	return true
 }
