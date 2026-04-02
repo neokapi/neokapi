@@ -90,27 +90,34 @@ export const NumberProperty: Story = {
 };
 
 export const EnumProperty: Story = {
-  name: "enum — Dropdown Select",
+  name: "options — Labeled Dropdown Select",
   args: {
-    description: "String properties with `enum` render as dropdown selects. Use `ui:enum-labels` for display names and `ui:enum-descriptions` for tooltips.",
+    description: "Properties with `options` render as dropdown selects with labeled values. Each option has a `value` and a `label`. Use `ui:enum-descriptions` for tooltips.",
     schema: {
-      title: "Enum Properties",
+      title: "Options Properties",
       type: "object",
       properties: {
         outputFormat: {
           type: "string",
           title: "Output Format",
           description: "Choose the output format",
-          enum: ["json", "yaml", "xml"],
+          options: [
+            { value: "json", label: "JSON" },
+            { value: "yaml", label: "YAML" },
+            { value: "xml", label: "XML" },
+          ],
           default: "json",
         },
         severity: {
           type: "string",
           title: "Severity Level",
           description: "With custom labels and descriptions",
-          enum: ["error", "warning", "info"],
+          options: [
+            { value: "error", label: "Error (fail build)" },
+            { value: "warning", label: "Warning (report only)" },
+            { value: "info", label: "Informational" },
+          ],
           default: "warning",
-          "ui:enum-labels": { error: "Error (fail build)", warning: "Warning (report only)", info: "Informational" },
           "ui:enum-descriptions": {
             error: "Stops processing and reports the issue as a build failure",
             warning: "Reports the issue but continues processing",
