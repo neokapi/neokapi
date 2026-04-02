@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SchemaForm } from "../SchemaForm";
+import { SchemaForm } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "../types";
 
 function SchemaFormWrapper({
@@ -47,10 +47,11 @@ const pseudoTranslateSchema: ComponentSchema = {
     { id: "behavior", label: "Behavior", fields: ["applyAccents", "padWithX"] },
   ],
   properties: {
-    prefix: { type: "string", default: "[", description: "Prefix added to translations" },
-    suffix: { type: "string", default: "]", description: "Suffix added to translations" },
+    prefix: { type: "string", title: "Prefix", default: "[", description: "Prefix added to translations" },
+    suffix: { type: "string", title: "Suffix", default: "]", description: "Suffix added to translations" },
     expansionPercent: {
       type: "integer",
+      title: "Expansion Percent",
       default: 30,
       minimum: 0,
       maximum: 200,
@@ -58,11 +59,13 @@ const pseudoTranslateSchema: ComponentSchema = {
     },
     applyAccents: {
       type: "boolean",
+      title: "Apply Accents",
       default: true,
       description: "Apply diacritical marks to simulate translated text",
     },
     padWithX: {
       type: "boolean",
+      title: "Pad with X",
       default: false,
       description: "Pad expansion with 'x' characters instead of spaces",
     },
@@ -88,38 +91,45 @@ const qaCheckSchema: ComponentSchema = {
   properties: {
     checkLeadingWhitespace: {
       type: "boolean",
+      title: "Check Leading Whitespace",
       default: true,
       description: "Check for leading whitespace mismatches",
     },
     checkTrailingWhitespace: {
       type: "boolean",
+      title: "Check Trailing Whitespace",
       default: true,
       description: "Check trailing whitespace",
     },
     checkDoubleSpaces: {
       type: "boolean",
+      title: "Check Double Spaces",
       default: true,
       description: "Flag double spaces in target",
     },
     checkMissingTranslation: {
       type: "boolean",
+      title: "Check Missing Translation",
       default: true,
       description: "Flag empty translations",
     },
     checkInlineCodes: {
       type: "boolean",
+      title: "Check Inline Codes",
       default: true,
       description: "Verify inline codes are preserved",
     },
-    checkPatterns: { type: "boolean", default: false, description: "Check for pattern mismatches" },
+    checkPatterns: { type: "boolean", title: "Check Patterns", default: false, description: "Check for pattern mismatches" },
     severityLevel: {
       type: "string",
+      title: "Severity Level",
       default: "warning",
       enum: ["error", "warning", "info"],
       description: "Default severity level",
     },
     maxIssues: {
       type: "integer",
+      title: "Max Issues",
       default: 100,
       minimum: 1,
       maximum: 10000,
@@ -133,13 +143,13 @@ const searchReplaceSchema: ComponentSchema = {
   type: "object",
   toolMeta: { id: "search-replace", category: "transform" },
   properties: {
-    search: { type: "string", description: "Search pattern or literal text" },
-    replace: { type: "string", description: "Replacement text" },
-    regEx: { type: "boolean", default: false, description: "Treat search as a regular expression" },
-    target: { type: "boolean", default: true, description: "Apply to target text" },
-    source: { type: "boolean", default: false, description: "Apply to source text" },
-    dotAll: { type: "boolean", default: false, description: "Dot matches newlines in regex" },
-    caseInsensitive: { type: "boolean", default: false, description: "Case-insensitive matching" },
+    search: { type: "string", title: "Search", description: "Search pattern or literal text" },
+    replace: { type: "string", title: "Replace", description: "Replacement text" },
+    regEx: { type: "boolean", title: "Regular Expression", default: false, description: "Treat search as a regular expression" },
+    target: { type: "boolean", title: "Apply to Target", default: true, description: "Apply to target text" },
+    source: { type: "boolean", title: "Apply to Source", default: false, description: "Apply to source text" },
+    dotAll: { type: "boolean", title: "Dot All", default: false, description: "Dot matches newlines in regex" },
+    caseInsensitive: { type: "boolean", title: "Case Insensitive", default: false, description: "Case-insensitive matching" },
   },
 };
 
@@ -157,16 +167,19 @@ const nestedObjectSchema: ComponentSchema = {
   properties: {
     parser: {
       type: "object",
+      title: "Parser",
       description: "Parser behavior settings",
       properties: {
         assumeWellformed: {
           type: "boolean",
+          title: "Assume Wellformed",
           default: false,
           description:
             "Assume input HTML is well-formed XML. Faster but may fail on non-conforming HTML.",
         },
         preserveWhitespace: {
           type: "boolean",
+          title: "Preserve Whitespace",
           default: false,
           description: "Preserve original whitespace in extracted text",
         },
@@ -174,6 +187,7 @@ const nestedObjectSchema: ComponentSchema = {
     },
     elements: {
       type: "object",
+      title: "Elements",
       description: "Element extraction rules",
       "ui:widget": "elementRulesEditor",
       additionalProperties: {
@@ -181,6 +195,7 @@ const nestedObjectSchema: ComponentSchema = {
         properties: {
           ruleTypes: {
             type: "array",
+            title: "Rule Types",
             items: {
               type: "string",
               enum: ["INLINE", "TEXTUNIT", "EXCLUDE", "INCLUDE", "ATTRIBUTES_ONLY"],
@@ -191,6 +206,7 @@ const nestedObjectSchema: ComponentSchema = {
     },
     attributes: {
       type: "object",
+      title: "Attributes",
       description: "Global attribute extraction rules",
       "ui:widget": "attributeRulesEditor",
       additionalProperties: {
@@ -198,6 +214,7 @@ const nestedObjectSchema: ComponentSchema = {
         properties: {
           ruleTypes: {
             type: "array",
+            title: "Rule Types",
             items: {
               type: "string",
               enum: ["ATTRIBUTE_TRANS", "ATTRIBUTE_WRITABLE", "ATTRIBUTE_READONLY", "ATTRIBUTE_ID"],
@@ -205,6 +222,7 @@ const nestedObjectSchema: ComponentSchema = {
           },
           allElementsExcept: {
             type: "array",
+            title: "All Elements Except",
             items: { type: "string" },
           },
         },
@@ -212,6 +230,7 @@ const nestedObjectSchema: ComponentSchema = {
     },
     inlineCodes: {
       type: "object",
+      title: "Inline Codes",
       description: "Inline code detection and handling",
       "ui:widget": "codeFinderRules",
       "ui:presets": {
@@ -219,9 +238,10 @@ const nestedObjectSchema: ComponentSchema = {
         "Printf Placeholders": { rules: [{ pattern: "%[\\w.]*[dsfx]" }] },
       },
     },
-    editorTitle: { type: "string", description: "Display title in editor" },
+    editorTitle: { type: "string", title: "Editor Title", description: "Display title in editor" },
     simplifierRules: {
       type: "string",
+      title: "Simplifier Rules",
       "ui:widget": "simplifierRulesEditor",
       description: "Rules for simplifying inline code representation",
     },
@@ -235,15 +255,17 @@ const arraySchema: ComponentSchema = {
   properties: {
     columns: {
       type: "array",
+      title: "Columns",
       description: "Column definitions for fixed-width parsing",
       items: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Column name" },
-          start: { type: "integer", minimum: 0, description: "Start position (0-based)" },
-          width: { type: "integer", minimum: 1, description: "Column width" },
+          name: { type: "string", title: "Name", description: "Column name" },
+          start: { type: "integer", title: "Start", minimum: 0, description: "Start position (0-based)" },
+          width: { type: "integer", title: "Width", minimum: 1, description: "Column width" },
           translatable: {
             type: "boolean",
+            title: "Translatable",
             default: false,
             description: "Whether to extract for translation",
           },
@@ -252,11 +274,12 @@ const arraySchema: ComponentSchema = {
     },
     encoding: {
       type: "string",
+      title: "Encoding",
       default: "UTF-8",
       enum: ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252"],
       description: "File character encoding",
     },
-    skipLines: { type: "integer", default: 0, minimum: 0, description: "Header lines to skip" },
+    skipLines: { type: "integer", title: "Skip Lines", default: 0, minimum: 0, description: "Header lines to skip" },
   },
 };
 
@@ -267,10 +290,11 @@ const simpleArraySchema: ComponentSchema = {
   properties: {
     patterns: {
       type: "array",
+      title: "Patterns",
       description: "Extraction patterns (regex)",
       items: { type: "string" },
     },
-    caseSensitive: { type: "boolean", default: true },
+    caseSensitive: { type: "boolean", title: "Case Sensitive", default: true },
   },
 };
 
@@ -279,13 +303,15 @@ const jsonFallbackSchema: ComponentSchema = {
   type: "object",
   toolMeta: { id: "custom", category: "pipeline" },
   properties: {
-    name: { type: "string", description: "Configuration name" },
+    name: { type: "string", title: "Name", description: "Configuration name" },
     settings: {
       type: "object",
+      title: "Settings",
       description: "Arbitrary settings (JSON)",
     },
     tags: {
       type: "array",
+      title: "Tags",
       description: "Tags for this configuration",
     },
   },
@@ -298,24 +324,28 @@ const showIfSchema: ComponentSchema = {
   properties: {
     mode: {
       type: "string",
+      title: "Mode",
       default: "simple",
       enum: ["simple", "advanced"],
       description: "Processing mode",
     },
     threshold: {
       type: "number",
+      title: "Threshold",
       default: 0.8,
       description: "Match threshold (only in advanced mode)",
       "ui:visible": { field: "mode", eq: "advanced" },
     },
     maxResults: {
       type: "integer",
+      title: "Max Results",
       default: 100,
       description: "Maximum results (only in advanced mode)",
       "ui:visible": { field: "mode", eq: "advanced" },
     },
     caseSensitive: {
       type: "boolean",
+      title: "Case Sensitive",
       default: false,
       description: "Case-sensitive matching",
     },
@@ -333,41 +363,46 @@ const deeplyNestedSchema: ComponentSchema = {
     { id: "codes", label: "Inline Codes", fields: ["codeFinderRules", "useCodeFinder"] },
   ],
   properties: {
-    preserveWhitespace: { type: "boolean", default: false, description: "Preserve significant whitespace in text nodes" },
+    preserveWhitespace: { type: "boolean", title: "Preserve Whitespace", default: false, description: "Preserve significant whitespace in text nodes" },
     elements: {
       type: "object",
+      title: "Elements",
       description: "Map of element names to extraction rules",
       additionalProperties: {
         type: "object",
         properties: {
-          ruleType: { type: "string", enum: ["INLINE", "GROUP", "EXCLUDE", "TEXTUNIT", "PRESERVE_WHITESPACE"], default: "INLINE" },
-          translatable: { type: "boolean", default: true },
+          ruleType: { type: "string", title: "Rule Type", enum: ["INLINE", "GROUP", "EXCLUDE", "TEXTUNIT", "PRESERVE_WHITESPACE"], default: "INLINE" },
+          translatable: { type: "boolean", title: "Translatable", default: true },
         },
       } as unknown as boolean,
     },
     attributes: {
       type: "object",
+      title: "Attributes",
       description: "Map of attribute names to extraction rules",
       additionalProperties: { type: "string" } as unknown as boolean,
     },
     codeFinderRules: {
       type: "object",
+      title: "Code Finder Rules",
       description: "Rules for identifying inline codes",
       properties: {
-        useAllRulesWhenTesting: { type: "boolean", default: true },
+        useAllRulesWhenTesting: { type: "boolean", title: "Use All Rules When Testing", default: true },
         includes: {
           type: "array",
+          title: "Includes",
           items: { type: "string" },
           description: "Regex patterns to include as inline codes",
         },
         excludes: {
           type: "array",
+          title: "Excludes",
           items: { type: "string" },
           description: "Regex patterns to exclude from inline codes",
         },
       },
     },
-    useCodeFinder: { type: "boolean", default: true, description: "Enable the inline code finder" },
+    useCodeFinder: { type: "boolean", title: "Use Code Finder", default: true, description: "Enable the inline code finder" },
   },
 };
 
@@ -384,27 +419,30 @@ const mapEditorSchema: ComponentSchema = {
   properties: {
     variables: {
       type: "object",
+      title: "Variables",
       description: "Environment variables (key-value pairs)",
       additionalProperties: { type: "string" } as unknown as boolean,
     },
     secrets: {
       type: "object",
+      title: "Secrets",
       description: "Secret variables (masked in output)",
       additionalProperties: { type: "string" } as unknown as boolean,
     },
     overrides: {
       type: "object",
+      title: "Overrides",
       description: "Per-locale variable overrides",
       additionalProperties: {
         type: "object",
         properties: {
-          value: { type: "string", description: "Override value" },
-          locales: { type: "string", description: "Comma-separated locale list" },
+          value: { type: "string", title: "Value", description: "Override value" },
+          locales: { type: "string", title: "Locales", description: "Comma-separated locale list" },
         },
       } as unknown as boolean,
     },
-    expandVars: { type: "boolean", default: true, description: "Expand ${VAR} references in values" },
-    caseSensitiveKeys: { type: "boolean", default: true, description: "Treat variable names as case-sensitive" },
+    expandVars: { type: "boolean", title: "Expand Vars", default: true, description: "Expand ${VAR} references in values" },
+    caseSensitiveKeys: { type: "boolean", title: "Case Sensitive Keys", default: true, description: "Treat variable names as case-sensitive" },
   },
 };
 
@@ -422,33 +460,39 @@ const formatsPageSchema: ComponentSchema = {
   properties: {
     keyStyle: {
       type: "string",
+      title: "Key Style",
       default: "nested",
       enum: ["nested", "flat", "auto"],
       description: "How to interpret JSON key paths",
     },
     arrayHandling: {
       type: "string",
+      title: "Array Handling",
       default: "index",
       enum: ["index", "content", "skip"],
       description: "How to handle array elements",
     },
     preserveOrder: {
       type: "boolean",
+      title: "Preserve Order",
       default: true,
       description: "Preserve original key order in output",
     },
     extractPaths: {
       type: "array",
+      title: "Extract Paths",
       items: { type: "string" },
       description: "JSON paths to extract (empty = extract all)",
     },
     excludePaths: {
       type: "array",
+      title: "Exclude Paths",
       items: { type: "string" },
       description: "JSON paths to exclude from extraction",
     },
     indentation: {
       type: "integer",
+      title: "Indentation",
       default: 2,
       minimum: 0,
       maximum: 8,
@@ -456,11 +500,13 @@ const formatsPageSchema: ComponentSchema = {
     },
     trailingNewline: {
       type: "boolean",
+      title: "Trailing Newline",
       default: true,
       description: "Add trailing newline to output",
     },
     sortKeys: {
       type: "boolean",
+      title: "Sort Keys",
       default: false,
       description: "Alphabetically sort keys in output",
     },

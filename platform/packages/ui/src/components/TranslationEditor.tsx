@@ -26,10 +26,10 @@ import { EntityMarkPopover } from "./editor/EntityMarkPopover";
 import { VisualEditorLayout } from "./editor/VisualEditorLayout";
 import { DocumentPreview } from "./editor/DocumentPreview";
 import type { VisualEditorMode, PreviewContentMode } from "./editor/visual-editor-types";
-import { Button } from "./ui/button";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { Alert, AlertDescription } from "./ui/alert";
-import { cn } from "../lib/utils";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@neokapi/ui-primitives/components/ui/select";
+import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
+import { cn } from "@neokapi/ui-primitives";
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowDown, AlertTriangle } from "./icons";
 
 interface TranslationEditorProps {

@@ -6,7 +6,7 @@ import {
   InputGroupText,
   InputGroupInput,
   InputGroupTextarea,
-} from "../../components/ui/input-group";
+} from "@neokapi/ui-primitives/components/ui/input-group";
 import { SearchIcon, XIcon } from "lucide-react";
 
 const meta: Meta<typeof InputGroup> = {

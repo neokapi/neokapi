@@ -1,4 +1,4 @@
-import { Button } from "../ui/button";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { AlertTriangle } from "../icons";
 
 interface BravoStepUpCardProps {

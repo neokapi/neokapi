@@ -1,6 +1,5 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { LucideIcon } from "lucide-react";
-import { theme } from "../theme";
 
 interface TerminalNodeConfig {
   accent: string;
@@ -17,19 +16,9 @@ export function createTerminalNode(config: TerminalNodeConfig) {
 
   return function TerminalNode({ data }: NodeProps) {
     return (
-      <div
-        style={{
-          display: "flex",
-          minWidth: 160,
-          borderRadius: 8,
-          overflow: "hidden",
-          border: `2px solid ${theme.border}`,
-          background: theme.bgCard,
-          boxShadow: "0 2px 8px oklch(0 0 0 / 0.2)",
-        }}
-      >
-        <div style={{ width: 4, background: accent, flexShrink: 0 }} />
-        <div style={{ flex: 1, padding: "8px 12px" }}>
+      <div className="flex min-w-[160px] overflow-hidden rounded-lg border-2 border-border bg-card shadow-[0_2px_8px_oklch(0_0_0/0.2)]">
+        <div className="w-1 shrink-0" style={{ background: accent }} />
+        <div className="flex-1 px-3 py-2">
           <Handle
             type={handleType}
             position={handlePosition}
@@ -37,29 +26,24 @@ export function createTerminalNode(config: TerminalNodeConfig) {
               width: 10,
               height: 10,
               background: accent,
-              border: `2px solid ${theme.bgCard}`,
+              border: "2px solid var(--card)",
               ...handleSide,
             }}
           />
-          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
+          <div className="mb-0.5 flex items-center gap-1">
             <Icon size={11} style={{ color: accent }} />
             <span
-              style={{
-                fontSize: 9,
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                color: accent,
-              }}
+              className="text-[9px] font-bold uppercase tracking-wider"
+              style={{ color: accent }}
             >
               {typeLabel}
             </span>
           </div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: theme.fg }}>
+          <div className="text-[13px] font-semibold text-foreground">
             {String(data.label || defaultLabel)}
           </div>
           {!!data.formatName && (
-            <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 2 }}>
+            <div className="mt-0.5 text-[10px] text-muted-foreground">
               {String(data.formatName)}
             </div>
           )}

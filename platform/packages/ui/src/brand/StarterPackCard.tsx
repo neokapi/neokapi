@@ -1,6 +1,6 @@
 import type { StarterPackMeta } from "./data/starter-packs";
-import { Badge } from "../components/ui/badge";
-import { Card } from "../components/ui/card";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
 import { Briefcase, Heart, Pencil, Headset, FileCode } from "../components/icons";
 
 const iconMap = {

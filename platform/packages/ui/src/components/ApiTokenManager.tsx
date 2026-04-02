@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ApiToken, CreateApiTokenResponse, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Card } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@neokapi/ui-primitives/components/ui/select";
+import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { KeyRound, Trash2, Copy, Clock, Shield } from "./icons";
 
 interface ApiTokenManagerProps {

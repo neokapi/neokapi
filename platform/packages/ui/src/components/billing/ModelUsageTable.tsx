@@ -1,5 +1,5 @@
 import type { ModelUsage, RunnerUsage } from "../../types/api";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 export interface ModelUsageTableProps {
   entries: ModelUsage[];

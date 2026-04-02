@@ -19,10 +19,10 @@ import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { InlineCodeLegend } from "./InlineCodeLegend";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
-import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { cn } from "../../lib/utils";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@neokapi/ui-primitives/components/ui/tabs";
+import { cn } from "@neokapi/ui-primitives";
 import {
   Check,
   X,

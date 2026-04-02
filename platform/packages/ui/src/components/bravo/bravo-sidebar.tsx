@@ -8,7 +8,7 @@
 
 import { type FC } from "react";
 import { AssistantRuntimeProvider, type AssistantRuntime } from "@assistant-ui/react";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 import { BravoAssistantThread } from "./bravo-thread";
 import { BravoConversationList, type BravoConversationListProps } from "./BravoConversationList";
 import { BravoModeSelector, type BravoMode } from "./BravoModeSelector";

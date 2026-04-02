@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Badge } from "./ui/badge";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { X, Search, Check, ChevronDown } from "./icons";
 
 // ---------------------------------------------------------------------------

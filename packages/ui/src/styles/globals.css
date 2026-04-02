@@ -175,10 +175,32 @@
 
 @theme inline {
   --animate-shimmer: shimmer 1.5s infinite;
+  --animate-indeterminate: indeterminate 1.5s ease-in-out infinite;
+  --animate-slide-up: slideUp 0.2s ease-out;
 }
 
 @keyframes shimmer {
   100% {
     translate: 100% 0;
+  }
+}
+
+@keyframes indeterminate {
+  0% {
+    translate: -100% 0;
+  }
+  100% {
+    translate: 300% 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    translate: 0 8px;
+    opacity: 0;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
   }
 }

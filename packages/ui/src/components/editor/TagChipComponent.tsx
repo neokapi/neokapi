@@ -1,6 +1,7 @@
 import type { SpanInfo } from "../../types/span";
 import { tagColors, semanticLabel, semanticTooltip, semanticCategory } from "./tagSemantics";
 import { resolveConstraints } from "./tagConstraints";
+import { cn } from "../../lib/utils";
 
 interface TagChipComponentProps {
   spanInfo: SpanInfo;
@@ -29,14 +30,16 @@ export function TagChipComponent({
 
   return (
     <span
+      className={cn(
+        "inline-flex items-center gap-0.5 px-1 mx-px rounded-sm border text-[11px] font-mono font-medium leading-[18px] align-middle cursor-default select-none whitespace-nowrap transition-[box-shadow,opacity] duration-150 ease-in-out",
+        autoLocked ? "border-dashed" : "border-solid",
+        dimmed && "opacity-40",
+      )}
       style={{
-        ...chipStyle,
         backgroundColor: colors.bg,
         borderColor: colors.border,
-        borderStyle: autoLocked ? "dashed" : "solid",
         color: colors.text,
         boxShadow: highlighted ? `0 0 0 2px ${colors.border}` : undefined,
-        opacity: dimmed ? 0.4 : undefined,
       }}
       title={tooltip}
       contentEditable={false}
@@ -44,14 +47,14 @@ export function TagChipComponent({
       data-span-type={spanInfo.type}
       data-category={semanticCategory(spanInfo)}
     >
-      {index !== undefined && <span style={indexStyle}>{index}</span>}
+      {index !== undefined && <span className="text-[9px] font-bold opacity-60 mr-px">{index}</span>}
       {label}
       {showConstraints && !constraints.deletable && (
-        <span style={constraintIconStyle} aria-label="required">
+        <span className="text-[9px] font-bold opacity-70 ml-px leading-none" aria-label="required">
           *
         </span>
       )}
-      {pairIndex !== undefined && <span style={pairBadgeStyle}>{pairIndex}</span>}
+      {pairIndex !== undefined && <span className="text-[8px] font-bold opacity-50 ml-0.5 align-super leading-none">{pairIndex}</span>}
     </span>
   );
 }
@@ -70,46 +73,3 @@ function buildTooltip(
   if (hints.length === 0) return base;
   return `${base}\n${hints.join(" · ")}`;
 }
-
-const chipStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 2,
-  padding: "0 4px",
-  margin: "0 1px",
-  borderRadius: 3,
-  border: "1px solid",
-  fontSize: 11,
-  fontFamily: "monospace",
-  fontWeight: 500,
-  lineHeight: "18px",
-  verticalAlign: "middle",
-  cursor: "default",
-  userSelect: "none",
-  whiteSpace: "nowrap",
-  transition: "box-shadow 0.15s ease, opacity 0.15s ease",
-};
-
-const indexStyle: React.CSSProperties = {
-  fontSize: 9,
-  fontWeight: 700,
-  opacity: 0.6,
-  marginRight: 1,
-};
-
-const pairBadgeStyle: React.CSSProperties = {
-  fontSize: 8,
-  fontWeight: 700,
-  opacity: 0.5,
-  marginLeft: 2,
-  verticalAlign: "super",
-  lineHeight: 1,
-};
-
-const constraintIconStyle: React.CSSProperties = {
-  fontSize: 9,
-  fontWeight: 700,
-  opacity: 0.7,
-  marginLeft: 1,
-  lineHeight: 1,
-};

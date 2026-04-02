@@ -1,7 +1,7 @@
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from "recharts";
 import type { LocaleTranslationStats } from "../types/api";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { ChartContainer, ChartLegendContent, type ChartConfig } from "./ui/chart";
+import { Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives/components/ui/card";
+import { ChartContainer, ChartLegendContent, type ChartConfig } from "@neokapi/ui-primitives/components/ui/chart";
 
 interface WordCountChartProps {
   localeStats: LocaleTranslationStats[];

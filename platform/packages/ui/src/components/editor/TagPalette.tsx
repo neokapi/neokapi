@@ -3,6 +3,7 @@ import type { SpanInfo } from "../../types/api";
 import { TagChipComponent } from "./TagChipComponent";
 import { buildPairs, semanticLabel, semanticCategory } from "./tagSemantics";
 import { isCloneable } from "./tagConstraints";
+import { cn } from "@neokapi/ui-primitives";
 
 interface TagPaletteProps {
   sourceSpans: SpanInfo[];
@@ -109,22 +110,24 @@ export function TagPalette({
   let lastCategory = "";
 
   return (
-    <div style={paletteStyle}>
-      <span style={labelStyle}>Tags:</span>
+    <div className="flex items-center gap-1 px-2 py-1 bg-[var(--bg-tertiary)] rounded mt-1 flex-wrap">
+      <span className="text-[11px] text-[var(--text-secondary)] mr-1 font-medium">Tags:</span>
       {groups.map((group) => {
         const showSep = multiCategory && group.category !== lastCategory;
         lastCategory = group.category;
 
         return (
-          <div key={group.pairIndex} style={{ display: "contents" }}>
+          <div key={group.pairIndex} className="contents">
             {/* Category separator */}
             {showSep && (
-              <span style={categorySepStyle}>
+              <span className="text-[9px] font-semibold text-[var(--text-secondary)] opacity-60 uppercase tracking-[0.05em] px-0.5">
                 {categoryShortLabels[group.category] || group.category}
               </span>
             )}
-            <div style={groupContainerStyle}>
-              <span style={pairLabelStyle}>{group.pairIndex}</span>
+            <div className="inline-flex items-center gap-0.5 px-1 py-px rounded-sm bg-black/[0.06] border border-black/10">
+              <span className="text-[8px] font-bold text-[var(--text-secondary)] opacity-50 mr-0.5 min-w-[8px] text-center">
+                {group.pairIndex}
+              </span>
               {group.spans.map(({ span, sourceIndex }) => {
                 const dimmed = isDimmed(span);
                 const blocked = dimmed && !isCloneable(span);
@@ -137,7 +140,10 @@ export function TagPalette({
                     }}
                     onMouseEnter={() => setHoveredPairIndex(group.pairIndex)}
                     onMouseLeave={() => setHoveredPairIndex(null)}
-                    style={{ ...buttonStyle, cursor: blocked ? "not-allowed" : "pointer" }}
+                    className={cn(
+                      "bg-none border-none p-0 inline-flex",
+                      blocked ? "cursor-not-allowed" : "cursor-pointer",
+                    )}
                     title={
                       blocked
                         ? `"${label}" cannot be duplicated`
@@ -165,58 +171,3 @@ export function TagPalette({
   );
 }
 
-const paletteStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  padding: "4px 8px",
-  backgroundColor: "var(--bg-tertiary)",
-  borderRadius: 4,
-  marginTop: 4,
-  flexWrap: "wrap",
-};
-
-const labelStyle: React.CSSProperties = {
-  fontSize: 11,
-  color: "var(--text-secondary)",
-  marginRight: 4,
-  fontWeight: 500,
-};
-
-const groupContainerStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 2,
-  padding: "1px 4px",
-  borderRadius: 3,
-  backgroundColor: "rgba(128, 128, 128, 0.06)",
-  border: "1px solid rgba(128, 128, 128, 0.1)",
-};
-
-const pairLabelStyle: React.CSSProperties = {
-  fontSize: 8,
-  fontWeight: 700,
-  color: "var(--text-secondary)",
-  opacity: 0.5,
-  marginRight: 2,
-  minWidth: 8,
-  textAlign: "center",
-};
-
-const buttonStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  padding: 0,
-  cursor: "pointer",
-  display: "inline-flex",
-};
-
-const categorySepStyle: React.CSSProperties = {
-  fontSize: 9,
-  fontWeight: 600,
-  color: "var(--text-secondary)",
-  opacity: 0.6,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  padding: "0 2px",
-};

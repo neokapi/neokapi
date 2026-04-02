@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 import type { VocabularyRules, TermRule } from "./types";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Plus, Trash2 } from "../components/icons";
 
 interface VocabularyEditorProps {

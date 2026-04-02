@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 interface AdminUser {
   id: string;

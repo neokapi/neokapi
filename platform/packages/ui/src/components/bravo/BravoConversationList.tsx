@@ -1,4 +1,4 @@
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 import type { BravoConversation } from "../../types/api";
 
 export interface BravoConversationListProps {

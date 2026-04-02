@@ -7,8 +7,8 @@ import {
   DialogFooter,
   DialogTitle,
   DialogDescription,
-} from "../../components/ui/dialog";
-import { Button } from "../../components/ui/button";
+} from "@neokapi/ui-primitives/components/ui/dialog";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof Dialog> = {
   title: "Foundations/Dialog",

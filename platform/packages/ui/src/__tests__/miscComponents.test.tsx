@@ -602,8 +602,8 @@ describe("FilterBar", () => {
 // ---------------------------------------------------------------------------
 
 import { WorkspaceSwitcher } from "../components/WorkspaceSwitcher";
-import { SidebarProvider } from "../components/ui/sidebar";
-import { TooltipProvider } from "../components/ui/tooltip";
+import { SidebarProvider } from "@neokapi/ui-primitives/components/ui/sidebar";
+import { TooltipProvider } from "@neokapi/ui-primitives/components/ui/tooltip";
 import type { Workspace } from "../types/api";
 
 function makeWorkspace(overrides: Partial<Workspace> = {}): Workspace {

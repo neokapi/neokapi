@@ -1,5 +1,5 @@
 import type { User } from "../types/api";
-import { cn } from "../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 import { LogOut, Settings } from "./icons";
 import {
   DropdownMenu,
@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
-} from "./ui/dropdown-menu";
+} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 
 type AvatarStatus = "online" | "offline" | "away" | "busy";
 

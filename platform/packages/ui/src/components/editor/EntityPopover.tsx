@@ -62,8 +62,7 @@ export function EntityPopover({
   return (
     <div
       ref={ref}
-      className="absolute z-50 mt-1 left-0 w-56 rounded-md border border-border bg-popover text-popover-foreground shadow-lg p-3 text-xs"
-      style={{ top: "100%" }}
+      className="absolute z-50 mt-1 left-0 top-full w-56 rounded-md border border-border bg-popover text-popover-foreground shadow-lg p-3 text-xs"
     >
       {/* Header */}
       <div className="font-medium text-sm mb-2 truncate" title={entity.text}>

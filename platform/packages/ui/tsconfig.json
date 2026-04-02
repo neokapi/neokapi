@@ -8,17 +8,14 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "dist",
-    "rootDir": "src",
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@neokapi/ui-primitives": ["../../../packages/ui/src"],
+      "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"]
     }
   },
-  "include": ["src", "src/**/*.json"],
+  "include": ["src", "src/**/*.json", "../../../packages/ui/src"],
   "exclude": ["src/__tests__"]
 }

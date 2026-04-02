@@ -17,7 +17,7 @@ import { WriterNode } from "./nodes/WriterNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
-import { SchemaForm } from "./SchemaForm";
+import { cn, SchemaForm, Button, Badge } from "@neokapi/ui-primitives";
 import { stepsToGraph, graphToSteps } from "./conversion";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
@@ -25,13 +25,273 @@ import { TraceTimeline } from "./TraceTimeline";
 import { PartInspector } from "./PartInspector";
 import { PreviewPanel } from "./PreviewPanel";
 import { computeNodeStats } from "./traceTypes";
-import { theme } from "./theme";
+import type { ToolDoc, ToolDocParam } from "./types";
 
 const nodeTypes: NodeTypes = {
   reader: ReaderNode,
   writer: WriterNode,
   tool: ToolNode,
 };
+
+// ---------------------------------------------------------------------------
+// Extracted components
+// ---------------------------------------------------------------------------
+
+interface FlowToolbarProps {
+  stepCount: number;
+  showPreview: boolean;
+  onTogglePreview: () => void;
+  onRun?: (flow: FlowSpec) => void;
+  flow: FlowSpec;
+}
+
+function FlowToolbar({ stepCount, showPreview, onTogglePreview, onRun, flow }: FlowToolbarProps) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-background">
+      <span className="text-xs font-semibold text-muted-foreground">
+        {stepCount} step{stepCount !== 1 ? "s" : ""}
+      </span>
+
+      <div className="flex-1" />
+
+      <Button
+        variant={showPreview ? "outline" : "ghost"}
+        size="xs"
+        onClick={onTogglePreview}
+        className={cn(showPreview && "border-accent text-accent-foreground")}
+        aria-label="Toggle preview"
+      >
+        <Eye size={12} />
+        Preview
+      </Button>
+
+      {onRun && (
+        <Button
+          size="xs"
+          onClick={() => onRun(flow)}
+          aria-label="Run flow"
+        >
+          <Play size={12} />
+          Run
+        </Button>
+      )}
+    </div>
+  );
+}
+
+interface ParallelSuggestionBannerProps {
+  suggestion: ParallelSuggestion;
+  onParallelize: (suggestion: ParallelSuggestion) => void;
+  onDismiss: () => void;
+}
+
+function ParallelSuggestionBanner({ suggestion, onParallelize, onDismiss }: ParallelSuggestionBannerProps) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-secondary text-[11px]">
+      <Zap size={13} className="text-accent-foreground shrink-0" />
+      <span className="text-muted-foreground flex-1">
+        <strong className="text-foreground">{suggestion.toolNames.join(", ")}</strong> can
+        run in parallel &mdash; {suggestion.reason}
+      </span>
+      <Button
+        size="xs"
+        onClick={() => onParallelize(suggestion)}
+        className="text-[11px]"
+      >
+        <GitBranch size={11} />
+        Parallelize
+      </Button>
+      <button
+        onClick={onDismiss}
+        className="bg-transparent border-none cursor-pointer p-0.5"
+        aria-label="Dismiss suggestion"
+      >
+        <X size={12} className="text-muted-foreground" />
+      </button>
+    </div>
+  );
+}
+
+function EmptyFlowMessage() {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
+      <p>Add tools from the palette to build your flow.</p>
+    </div>
+  );
+}
+
+interface StepConfigPanelProps {
+  step: { tool: string };
+  toolInfo: ToolInfo | null | undefined;
+  schema: ComponentSchema | null | undefined;
+  doc: ToolDoc | null | undefined;
+  config: Record<string, unknown>;
+  onConfigChange: (config: Record<string, unknown>) => void;
+  onClose: () => void;
+  onRemove?: () => void;
+}
+
+function StepConfigPanel({
+  step,
+  toolInfo,
+  schema,
+  doc,
+  config,
+  onConfigChange,
+  onClose,
+  onRemove,
+}: StepConfigPanelProps) {
+  const [showDocs, setShowDocs] = useState(false);
+  const category = toolInfo?.category || "pipeline";
+  const catStyle = getCategoryStyle(category);
+  const Icon = catStyle.icon;
+  const displayName = toolInfo?.display_name || step.tool;
+
+  // Local config state -- owns the values to prevent parent re-renders from
+  // resetting inputs. Syncs to parent via debounced onConfigChange.
+  const [localConfig, setLocalConfig] = useState(config);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Re-initialize when the selected tool changes (not on every config update).
+  const toolRef = useRef(step.tool);
+  if (step.tool !== toolRef.current) {
+    toolRef.current = step.tool;
+    setLocalConfig(config);
+  }
+
+  const handleLocalChange = useCallback(
+    (newConfig: Record<string, unknown>) => {
+      setLocalConfig(newConfig);
+      clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => onConfigChange(newConfig), 300);
+    },
+    [onConfigChange],
+  );
+
+  // Flush on unmount.
+  useEffect(() => {
+    return () => clearTimeout(syncTimerRef.current);
+  }, []);
+
+  return (
+    <div className="w-[280px] flex flex-col border-l border-border bg-background overflow-hidden">
+      {/* Header */}
+      <div className="px-3 py-2.5 border-b border-border flex flex-col gap-1.5">
+        <div className="flex items-center gap-1.5">
+          <div
+            className="w-[3px] h-5 rounded-sm shrink-0"
+            style={{ background: catStyle.color }}
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1 mb-0.5">
+              <Icon size={11} style={{ color: catStyle.text }} />
+              <span
+                className="text-[9px] font-bold tracking-wide uppercase"
+                style={{ color: catStyle.text }}
+              >
+                {catStyle.label}
+              </span>
+            </div>
+            <div className="text-sm font-semibold text-foreground">
+              {displayName}
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onClose}
+            className="self-start"
+            aria-label="Close panel"
+          >
+            <X size={14} className="text-muted-foreground" />
+          </Button>
+        </div>
+
+        {/* Description -- prefer doc overview, fall back to ToolInfo.description */}
+        {(doc?.overview || toolInfo?.description) && (
+          <div
+            className={cn(
+              "text-[11px] text-muted-foreground leading-relaxed",
+              !showDocs && "line-clamp-3",
+            )}
+          >
+            {doc?.overview || toolInfo?.description}
+          </div>
+        )}
+
+        {/* Requirements badges + docs toggle */}
+        <div className="flex gap-1 flex-wrap items-center">
+          {toolInfo?.requires?.map((req) => (
+            <Badge key={req} variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+              {req}
+            </Badge>
+          ))}
+          {doc && (
+            <Button
+              variant={showDocs ? "outline" : "ghost"}
+              size="xs"
+              onClick={() => setShowDocs((v) => !v)}
+              className={cn(
+                "ml-auto text-[9px] h-5 px-2",
+                showDocs && "border-ring text-ring",
+              )}
+            >
+              {showDocs ? "Hide Docs" : "Docs"}
+            </Button>
+          )}
+          {doc?.wikiUrl && (
+            <a
+              href={doc.wikiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[9px] text-muted-foreground no-underline px-1"
+              title="Open wiki documentation"
+            >
+              Wiki ↗
+            </a>
+          )}
+        </div>
+      </div>
+
+      {/* Docs panel (collapsible) */}
+      {showDocs && doc && (
+        <div className="max-h-[260px] overflow-auto px-3 py-2 border-b border-border text-[11px] leading-relaxed">
+          <DocsSidebar doc={doc} />
+        </div>
+      )}
+
+      {/* Config form */}
+      <div className="flex-1 overflow-auto px-3 py-2">
+        {schema ? (
+          <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact paramDocs={doc?.parameters} />
+        ) : (
+          <div className="text-[11px] text-muted-foreground text-center py-5 italic">
+            {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      {onRemove && (
+        <div className="px-3 py-2 border-t border-border">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="w-full"
+            onClick={onRemove}
+            aria-label="Remove tool from flow"
+          >
+            Remove from flow
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main FlowEditor
+// ---------------------------------------------------------------------------
 
 /**
  * Visual flow editor with tool palette and schema-driven config panel.
@@ -103,7 +363,7 @@ export function FlowEditor({
     return m;
   }, [initial.nodes]);
 
-  // Ref for remove handler — breaks circular dependency with enrichedNodes.
+  // Ref for remove handler -- breaks circular dependency with enrichedNodes.
   const removeNodeRef = useRef<(nodeId: string) => void>(() => {});
 
   // Enrich nodes with execution state and remove handler.
@@ -272,7 +532,7 @@ export function FlowEditor({
     onChange(updated);
   }, [nodes, onChange]);
 
-  // Connection validation — only allow connecting compatible port types.
+  // Connection validation -- only allow connecting compatible port types.
   const isValidConnection = useCallback(
     (connection: { source: string | null; target: string | null }) => {
       const sourceNode = nodes.find((n) => n.id === connection.source);
@@ -286,7 +546,7 @@ export function FlowEditor({
     [nodes],
   );
 
-  // Config panel state — resolve from node data, not step index,
+  // Config panel state -- resolve from node data, not step index,
   // because node IDs don't map 1:1 to step indices when parallel steps exist.
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
   const selectedToolName = selectedNode?.data?.toolName as string | undefined;
@@ -315,7 +575,7 @@ export function FlowEditor({
   // Template library covers the full editor when shown.
   if (showTemplates) {
     return (
-      <div style={{ display: "flex", height: "100%", overflow: "auto", background: theme.bg }}>
+      <div className="flex h-full overflow-auto bg-background">
         <FlowTemplateLibrary
           onSelect={handleSelectTemplate}
           onDismiss={() => setDismissedTemplates(true)}
@@ -325,136 +585,33 @@ export function FlowEditor({
   }
 
   return (
-    <div style={{ display: "flex", height: "100%", overflow: "hidden" }}>
+    <div className="flex h-full overflow-hidden">
       {/* Tool Palette (left) */}
       {!readOnly && <ToolPalette tools={tools} onAddTool={handleAddTool} />}
 
       {/* Canvas (center) */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div className="flex-1 flex flex-col">
         {/* Toolbar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "6px 12px",
-            borderBottom: `1px solid ${theme.border}`,
-            background: theme.bg,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: theme.fgMuted,
-            }}
-          >
-            {flow.steps.length} step{flow.steps.length !== 1 ? "s" : ""}
-          </span>
-
-          <div style={{ flex: 1 }} />
-
-          <button
-            onClick={() => setShowPreview((p) => !p)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "5px 10px",
-              borderRadius: 6,
-              border: `1px solid ${showPreview ? theme.accent : theme.border}`,
-              background: showPreview ? `${theme.accent}18` : "transparent",
-              color: showPreview ? theme.accent : theme.fgMuted,
-              fontSize: 12,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-            aria-label="Toggle preview"
-          >
-            <Eye size={12} />
-            Preview
-          </button>
-
-          {onRun && (
-            <button
-              onClick={() => onRun(flow)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "5px 14px",
-                borderRadius: 6,
-                border: "none",
-                background: theme.accent,
-                color: theme.accentFg,
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              aria-label="Run flow"
-            >
-              <Play size={12} />
-              Run
-            </button>
-          )}
-        </div>
+        <FlowToolbar
+          stepCount={flow.steps.length}
+          showPreview={showPreview}
+          onTogglePreview={() => setShowPreview((p) => !p)}
+          onRun={onRun}
+          flow={flow}
+        />
 
         {/* Parallelization suggestion banner */}
         {suggestions.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "6px 12px",
-              borderBottom: `1px solid ${theme.border}`,
-              background: theme.bgSecondary,
-              fontSize: 11,
-            }}
-          >
-            <Zap size={13} style={{ color: theme.accent, flexShrink: 0 }} />
-            <span style={{ color: theme.fgMuted, flex: 1 }}>
-              <strong style={{ color: theme.fg }}>{suggestions[0].toolNames.join(", ")}</strong> can
-              run in parallel &mdash; {suggestions[0].reason}
-            </span>
-            <button
-              onClick={() => handleParallelize(suggestions[0])}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 10px",
-                borderRadius: 4,
-                border: "none",
-                background: theme.accent,
-                color: theme.accentFg,
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <GitBranch size={11} />
-              Parallelize
-            </button>
-            <button
-              onClick={() => setDismissedSuggestions(true)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 2,
-              }}
-              aria-label="Dismiss suggestion"
-            >
-              <X size={12} style={{ color: theme.fgMuted }} />
-            </button>
-          </div>
+          <ParallelSuggestionBanner
+            suggestion={suggestions[0]}
+            onParallelize={handleParallelize}
+            onDismiss={() => setDismissedSuggestions(true)}
+          />
         )}
 
         {/* Graph canvas */}
         {!showTemplates && (
-          <div style={{ flex: 1 }} onDrop={handleDrop} onDragOver={handleDragOver}>
+          <div className="flex-1" onDrop={handleDrop} onDragOver={handleDragOver}>
             <ReactFlow
               nodes={nodes}
               edges={edges}
@@ -471,11 +628,11 @@ export function FlowEditor({
               fitViewOptions={{ padding: 0.3 }}
               proOptions={{ hideAttribution: true }}
               defaultEdgeOptions={{
-                style: { stroke: theme.fgMuted, strokeWidth: 2 },
+                style: { stroke: "var(--muted-foreground)", strokeWidth: 2 },
                 animated: false,
               }}
             >
-              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color={theme.border} />
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
             </ReactFlow>
           </div>
         )}
@@ -491,26 +648,12 @@ export function FlowEditor({
 
         {/* Preview panel (bottom of canvas column) */}
         {showPreview && (
-          <div
-            style={{
-              borderTop: `1px solid ${theme.border}`,
-              background: theme.bg,
-              padding: "12px 16px",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-              <Eye size={12} style={{ color: theme.accent }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Preview</span>
+          <div className="border-t border-border bg-background px-4 py-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Eye size={12} className="text-accent-foreground" />
+              <span className="text-[11px] font-semibold text-foreground">Preview</span>
             </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: theme.fgMuted,
-                fontStyle: "italic",
-                textAlign: "center",
-                padding: "12px 0",
-              }}
-            >
+            <div className="text-[11px] text-muted-foreground italic text-center py-3">
               Connect to a running project to preview
             </div>
           </div>
@@ -528,7 +671,7 @@ export function FlowEditor({
 
       {/* Config Panel (right) */}
       {selectedStep && (
-        <ConfigPanel
+        <StepConfigPanel
           step={selectedStep}
           toolInfo={selectedToolInfo}
           schema={selectedSchema}
@@ -569,276 +712,9 @@ function findStepIndex(steps: FlowStep[], toolName: string): number {
   return NaN;
 }
 
-function ConfigPanel({
-  step,
-  toolInfo,
-  schema,
-  doc,
-  config,
-  onConfigChange,
-  onClose,
-  onRemove,
-}: {
-  step: { tool: string };
-  toolInfo: ToolInfo | null | undefined;
-  schema: ComponentSchema | null | undefined;
-  doc: import("./types").ToolDoc | null | undefined;
-  config: Record<string, unknown>;
-  onConfigChange: (config: Record<string, unknown>) => void;
-  onClose: () => void;
-  onRemove?: () => void;
-}) {
-  const [showDocs, setShowDocs] = useState(false);
-  const category = toolInfo?.category || "pipeline";
-  const catStyle = getCategoryStyle(category);
-  const Icon = catStyle.icon;
-  const displayName = toolInfo?.display_name || step.tool;
-
-  // Local config state — owns the values to prevent parent re-renders from
-  // resetting inputs. Syncs to parent via debounced onConfigChange.
-  const [localConfig, setLocalConfig] = useState(config);
-  const syncTimerRef = useRef<ReturnType<typeof setTimeout>>();
-
-  // Re-initialize when the selected tool changes (not on every config update).
-  const toolRef = useRef(step.tool);
-  if (step.tool !== toolRef.current) {
-    toolRef.current = step.tool;
-    setLocalConfig(config);
-  }
-
-  const handleLocalChange = useCallback(
-    (newConfig: Record<string, unknown>) => {
-      setLocalConfig(newConfig);
-      clearTimeout(syncTimerRef.current);
-      syncTimerRef.current = setTimeout(() => onConfigChange(newConfig), 300);
-    },
-    [onConfigChange],
-  );
-
-  // Flush on unmount.
-  useEffect(() => {
-    return () => clearTimeout(syncTimerRef.current);
-  }, []);
-
-  return (
-    <div
-      style={{
-        width: 280,
-        display: "flex",
-        flexDirection: "column",
-        borderLeft: `1px solid ${theme.border}`,
-        background: theme.bg,
-        overflow: "hidden",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: "10px 12px",
-          borderBottom: `1px solid ${theme.border}`,
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div
-            style={{
-              width: 3,
-              height: 20,
-              borderRadius: 2,
-              background: catStyle.color,
-              flexShrink: 0,
-            }}
-          />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                marginBottom: 2,
-              }}
-            >
-              <Icon size={11} style={{ color: catStyle.text }} />
-              <span
-                style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  letterSpacing: "0.06em",
-                  textTransform: "uppercase",
-                  color: catStyle.text,
-                }}
-              >
-                {catStyle.label}
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: theme.fg,
-              }}
-            >
-              {displayName}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: 4,
-              borderRadius: 4,
-              alignSelf: "flex-start",
-            }}
-            aria-label="Close panel"
-          >
-            <X size={14} style={{ color: theme.fgMuted }} />
-          </button>
-        </div>
-
-        {/* Description — prefer doc overview, fall back to ToolInfo.description */}
-        {(doc?.overview || toolInfo?.description) && (
-          <div
-            style={{
-              fontSize: 11,
-              color: theme.fgMuted,
-              lineHeight: 1.5,
-              display: "-webkit-box",
-              WebkitLineClamp: showDocs ? undefined : 3,
-              WebkitBoxOrient: "vertical",
-              overflow: showDocs ? "visible" : "hidden",
-            }}
-          >
-            {doc?.overview || toolInfo?.description}
-          </div>
-        )}
-
-        {/* Requirements badges + docs toggle */}
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-          {toolInfo?.requires?.map((req) => (
-            <span
-              key={req}
-              style={{
-                fontSize: 9,
-                padding: "2px 6px",
-                borderRadius: 4,
-                background: theme.bgSecondary,
-                color: theme.fgMuted,
-                fontWeight: 500,
-              }}
-            >
-              {req}
-            </span>
-          ))}
-          {doc && (
-            <button
-              onClick={() => setShowDocs((v) => !v)}
-              style={{
-                marginLeft: "auto",
-                fontSize: 9,
-                padding: "2px 8px",
-                borderRadius: 4,
-                border: `1px solid ${showDocs ? theme.ring : theme.border}`,
-                background: showDocs ? `color-mix(in oklch, ${theme.ring} 10%, transparent)` : "transparent",
-                color: showDocs ? theme.ring : theme.fgMuted,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {showDocs ? "Hide Docs" : "Docs"}
-            </button>
-          )}
-          {doc?.wikiUrl && (
-            <a
-              href={doc.wikiUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: 9,
-                color: theme.fgMuted,
-                textDecoration: "none",
-                padding: "2px 4px",
-              }}
-              title="Open wiki documentation"
-            >
-              Wiki ↗
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* Docs panel (collapsible) */}
-      {showDocs && doc && (
-        <div
-          style={{
-            maxHeight: 260,
-            overflow: "auto",
-            padding: "8px 12px",
-            borderBottom: `1px solid ${theme.border}`,
-            fontSize: 11,
-            lineHeight: 1.5,
-          }}
-        >
-          <DocsSidebar doc={doc} />
-        </div>
-      )}
-
-      {/* Config form */}
-      <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
-        {schema ? (
-          <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact paramDocs={doc?.parameters} />
-        ) : (
-          <div
-            style={{
-              fontSize: 11,
-              color: theme.fgMuted,
-              textAlign: "center",
-              padding: "20px 0",
-              fontStyle: "italic",
-            }}
-          >
-            {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      {onRemove && (
-        <div
-          style={{
-            padding: "8px 12px",
-            borderTop: `1px solid ${theme.border}`,
-          }}
-        >
-          <button
-            onClick={onRemove}
-            style={{
-              width: "100%",
-              padding: "5px 0",
-              borderRadius: 4,
-              border: `1px solid ${theme.destructive}44`,
-              background: `${theme.destructive}18`,
-              color: theme.destructive,
-              fontSize: 11,
-              fontWeight: 500,
-              cursor: "pointer",
-            }}
-            aria-label="Remove tool from flow"
-          >
-            Remove from flow
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// --- Inline documentation sidebar for the config panel ---
-
-import type { ToolDoc, ToolDocParam } from "./types";
+// ---------------------------------------------------------------------------
+// Inline documentation sidebar for the config panel
+// ---------------------------------------------------------------------------
 
 function DocsSidebar({ doc }: { doc: ToolDoc }) {
   const params = doc.parameters ? Object.entries(doc.parameters) : [];
@@ -847,11 +723,11 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
   const hasNotes = doc.processingNotes && doc.processingNotes.length > 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+    <div className="flex flex-col gap-2.5">
       {/* Parameters */}
       {params.length > 0 && (
         <DocSection title="Parameters">
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {params.map(([key, p]) => (
               <DocParamRow key={key} name={key} param={p} />
             ))}
@@ -865,36 +741,21 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
           {doc.examples!.map((ex, i) => (
             <div
               key={i}
-              style={{
-                padding: "6px 8px",
-                borderRadius: 4,
-                background: theme.bgSecondary,
-                marginBottom: i < doc.examples!.length - 1 ? 4 : 0,
-              }}
+              className={cn(
+                "px-2 py-1.5 rounded bg-secondary",
+                i < doc.examples!.length - 1 && "mb-1",
+              )}
             >
-              <div style={{ fontWeight: 600, fontSize: 10, color: theme.fg }}>
+              <div className="font-semibold text-[10px] text-foreground">
                 {ex.title}
               </div>
               {ex.description && (
-                <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 2 }}>
+                <div className="text-[10px] text-muted-foreground mt-0.5">
                   {ex.description}
                 </div>
               )}
               {ex.input && (
-                <pre
-                  style={{
-                    fontSize: 9,
-                    fontFamily: "monospace",
-                    background: theme.bg,
-                    borderRadius: 3,
-                    padding: "4px 6px",
-                    marginTop: 4,
-                    overflow: "auto",
-                    maxHeight: 60,
-                    whiteSpace: "pre-wrap",
-                    color: theme.fg,
-                  }}
-                >
+                <pre className="text-[9px] font-mono bg-background rounded-sm px-1.5 py-1 mt-1 overflow-auto max-h-[60px] whitespace-pre-wrap text-foreground">
                   {ex.input}
                 </pre>
               )}
@@ -909,13 +770,8 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
           {doc.limitations!.map((lim, i) => (
             <div
               key={i}
-              style={{
-                fontSize: 10,
-                color: theme.fgMuted,
-                paddingLeft: 8,
-                borderLeft: `2px solid color-mix(in oklch, ${theme.ring} 30%, transparent)`,
-                marginBottom: 3,
-              }}
+              className="text-[10px] text-muted-foreground pl-2 mb-0.5"
+              style={{ borderLeft: "2px solid color-mix(in oklch, var(--ring) 30%, transparent)" }}
             >
               {lim}
             </div>
@@ -929,13 +785,8 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
           {doc.processingNotes!.map((note, i) => (
             <div
               key={i}
-              style={{
-                fontSize: 10,
-                color: theme.fgMuted,
-                paddingLeft: 8,
-                borderLeft: `2px solid color-mix(in oklch, ${theme.accent} 40%, transparent)`,
-                marginBottom: 3,
-              }}
+              className="text-[10px] text-muted-foreground pl-2 mb-0.5"
+              style={{ borderLeft: "2px solid color-mix(in oklch, var(--accent) 40%, transparent)" }}
             >
               {note}
             </div>
@@ -955,16 +806,7 @@ function DocSection({
 }) {
   return (
     <div>
-      <div
-        style={{
-          fontSize: 9,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: theme.fgMuted,
-          marginBottom: 4,
-        }}
-      >
+      <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
         {title}
       </div>
       {children}
@@ -974,54 +816,33 @@ function DocSection({
 
 function DocParamRow({ name, param }: { name: string; param: ToolDocParam }) {
   return (
-    <div
-      style={{
-        padding: "4px 8px",
-        borderRadius: 4,
-        background: theme.bgSecondary,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+    <div className="px-2 py-1 rounded bg-secondary">
+      <div className="flex items-center gap-1 mb-0.5">
         <code
+          className="text-[10px] font-semibold px-1.5 py-px rounded-sm"
           style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: theme.ring,
-            background: `color-mix(in oklch, ${theme.ring} 8%, transparent)`,
-            padding: "1px 5px",
-            borderRadius: 3,
+            color: "var(--ring)",
+            background: "color-mix(in oklch, var(--ring) 8%, transparent)",
           }}
         >
           {name}
         </code>
         {param.introducedIn && (
           <span
-            style={{
-              fontSize: 8,
-              padding: "1px 4px",
-              borderRadius: 3,
-              background: `color-mix(in oklch, ${theme.accent} 20%, transparent)`,
-              color: theme.fgMuted,
-              fontWeight: 500,
-            }}
+            className="text-[8px] px-1 py-px rounded-sm text-muted-foreground font-medium"
+            style={{ background: "color-mix(in oklch, var(--accent) 20%, transparent)" }}
           >
             {param.introducedIn}
           </span>
         )}
       </div>
-      <div style={{ fontSize: 10, color: theme.fgMuted, lineHeight: 1.4 }}>
+      <div className="text-[10px] text-muted-foreground leading-snug">
         {param.description}
       </div>
       {param.notes?.map((note, i) => (
         <div
           key={i}
-          style={{
-            fontSize: 9,
-            color: theme.fgMuted,
-            marginTop: 3,
-            fontStyle: "italic",
-            opacity: 0.8,
-          }}
+          className="text-[9px] text-muted-foreground mt-0.5 italic opacity-80"
         >
           {note}
         </div>
@@ -1029,17 +850,11 @@ function DocParamRow({ name, param }: { name: string; param: ToolDocParam }) {
       {param.dependsOn?.map((dep, i) => (
         <div
           key={i}
-          style={{
-            fontSize: 9,
-            marginTop: 3,
-            display: "flex",
-            alignItems: "center",
-            gap: 3,
-          }}
+          className="text-[9px] mt-0.5 flex items-center gap-0.5"
         >
-          <GitBranch size={8} style={{ color: theme.fgMuted }} />
-          <code style={{ fontWeight: 600, color: theme.fgMuted }}>{dep.property}</code>
-          <span style={{ color: theme.fgMuted, opacity: 0.7 }}>{dep.condition}</span>
+          <GitBranch size={8} className="text-muted-foreground" />
+          <code className="font-semibold text-muted-foreground">{dep.property}</code>
+          <span className="text-muted-foreground opacity-70">{dep.condition}</span>
         </div>
       ))}
     </div>

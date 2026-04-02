@@ -1,67 +1,46 @@
-// Utilities
-export { cn } from "./lib/utils";
-
-// UI primitives (shadcn/ui)
+// All UI primitives from the single source of truth: @neokapi/ui-primitives
 export {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarSeparator,
-  SidebarTrigger,
-  useSidebar,
-} from "./components/ui/sidebar";
-export { TooltipProvider } from "./components/ui/tooltip";
-export { Button, buttonVariants } from "./components/ui/button";
-export {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardAction,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "./components/ui/card";
-export { Input } from "./components/ui/input";
-export { Label } from "./components/ui/label";
-export { Badge, badgeVariants } from "./components/ui/badge";
-export { Separator } from "./components/ui/separator";
-export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
-export {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "./components/ui/select";
-export { Switch } from "./components/ui/switch";
-export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
-export {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-} from "./components/ui/combobox";
-export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
-export {
-  Dialog,
-  DialogTrigger,
-  DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-  DialogClose,
-} from "./components/ui/dialog";
+  // Utilities
+  cn,
+  useIsMobile,
+  // Form layout primitives
+  FormItem, FormLabel, FormDescription, FormMessage, FormControl,
+  FormToggle, FormInputAction, FormFieldGroup, FormHelpText,
+  // Code editor & tag input
+  CodeInput,
+  TagInput,
+  // Primitives
+  Alert, AlertTitle, AlertDescription,
+  Avatar, AvatarImage, AvatarFallback,
+  Button, buttonVariants,
+  Badge, badgeVariants,
+  Card, CardHeader, CardTitle, CardAction, CardDescription, CardContent, CardFooter,
+  ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent,
+  Collapsible, CollapsibleTrigger, CollapsibleContent,
+  Combobox, ComboboxInput, ComboboxContent, ComboboxList, ComboboxItem, ComboboxEmpty,
+  Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut, CommandSeparator,
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut,
+  DropdownMenuGroup, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuRadioGroup,
+  Input,
+  InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupInput, InputGroupTextarea,
+  Label,
+  Popover, PopoverTrigger, PopoverContent, PopoverAnchor,
+  ScrollArea, ScrollBar,
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Separator,
+  Sheet, SheetTrigger, SheetContent, SheetHeader, SheetFooter, SheetTitle, SheetDescription, SheetClose,
+  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader,
+  SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarSeparator,
+  SidebarTrigger, useSidebar,
+  Skeleton,
+  Switch,
+  Tabs, TabsList, TabsTrigger, TabsContent,
+  Textarea,
+  TooltipProvider, Tooltip, TooltipTrigger, TooltipContent,
+} from "@neokapi/ui-primitives";
+export type { ChartConfig } from "@neokapi/ui-primitives";
 
 // Icons (Lucide)
 export * from "./components/icons";
@@ -93,14 +72,7 @@ export { LocaleCompletionChart } from "./components/LocaleCompletionChart";
 export { WordCountChart } from "./components/WordCountChart";
 export { CollectionHeatmap } from "./components/CollectionHeatmap";
 export { FileProgressTable } from "./components/FileProgressTable";
-export {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent,
-  type ChartConfig,
-} from "./components/ui/chart";
+// Chart components re-exported from @neokapi/ui-primitives above
 export { TMExplorer } from "./components/tm/TMExplorer";
 export { TermExplorer } from "./components/terms/TermExplorer";
 export { InviteManager } from "./components/InviteManager";
@@ -248,7 +220,7 @@ export { useNotificationApi } from "./hooks/useNotificationApi";
 export { useActivities } from "./hooks/useActivities";
 export { useTasks } from "./hooks/useTasks";
 export { useNotifications } from "./hooks/useNotifications";
-export { useIsMobile } from "./hooks/useIsMobile";
+// useIsMobile re-exported from @neokapi/ui-primitives above
 
 // Types
 export type {
@@ -481,17 +453,32 @@ export type {
   ModelUsageTableProps,
 } from "./components/billing";
 
-// Filter and tool config editors
+// CodeFinder editor (from primitives)
+export {
+  CodeFinderEditor,
+  type CodeFinderEditorProps,
+  type CodeFinderRulesValue,
+} from "@neokapi/ui-primitives";
+
+// Schema-driven form (from primitives)
+export {
+  SchemaForm,
+  type SchemaFormProps,
+  type ComponentSchema,
+  type PropertySchema,
+  type ParameterGroup,
+  type ConditionExpr,
+  type LayoutHints,
+  type FormatMeta,
+  type ToolMeta,
+  type ToolDoc,
+  type ToolDocParam,
+} from "@neokapi/ui-primitives";
+
+// Filter and tool config editors (legacy aliases — prefer SchemaForm)
 export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
 export type {
-  ComponentSchema,
   FilterSchema,
-  FormatMeta,
-  ToolMeta,
-  ConditionExpr,
-  ParameterGroup,
-  PropertySchema,
-  CodeFinderRulesValue,
   FilterParamsValue,
 } from "./components/filter";
 

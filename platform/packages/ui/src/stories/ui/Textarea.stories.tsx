@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Textarea } from "../../components/ui/textarea";
-import { Label } from "../../components/ui/label";
+import { Textarea } from "@neokapi/ui-primitives/components/ui/textarea";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
 
 const meta: Meta<typeof Textarea> = {
   title: "Foundations/Textarea",

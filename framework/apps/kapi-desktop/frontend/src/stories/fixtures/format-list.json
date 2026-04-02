@@ -882,6 +882,13 @@
       "mime_types": []
     },
     {
+      "name": "okf_versifiedtext",
+      "display_name": "Versified Text Filter",
+      "source": "okapi-bridge",
+      "extensions": [],
+      "mime_types": []
+    },
+    {
       "name": "okf_vignette",
       "display_name": "Vignette Filter",
       "source": "okapi-bridge",

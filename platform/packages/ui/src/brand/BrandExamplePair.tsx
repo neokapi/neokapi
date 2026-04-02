@@ -1,5 +1,5 @@
 import type { VoiceExample } from "./types";
-import { cn } from "../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 interface BrandExamplePairProps {
   example: VoiceExample;

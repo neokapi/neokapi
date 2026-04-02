@@ -1,7 +1,7 @@
 {
   "name": "okapi",
-  "version": "2.39.0-SNAPSHOT",
-  "framework_version": "1.47.0",
+  "version": "2.40.0",
+  "framework_version": "1.48.0",
   "plugin_type": "bundle",
   "install_type": "bridge",
   "command": "java",
@@ -837,6 +837,21 @@
       "schema": "formats/okf_txml/schema.json",
       "doc": "formats/okf_txml/doc.json",
       "presets_dir": "formats/okf_txml/presets/"
+    },
+    {
+      "type": "format",
+      "id": "okf_versifiedtext",
+      "name": "okf_versifiedtext",
+      "display_name": "Versified Text Filter",
+      "capabilities": [
+        "read",
+        "write"
+      ],
+      "mime_types": [
+        "text/x-versified-txt"
+      ],
+      "schema": "formats/okf_versifiedtext/schema.json",
+      "presets_dir": "formats/okf_versifiedtext/presets/"
     },
     {
       "type": "format",

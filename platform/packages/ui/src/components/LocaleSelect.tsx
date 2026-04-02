@@ -8,7 +8,8 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
-} from "./ui/combobox";
+} from "@neokapi/ui-primitives/components/ui/combobox";
+import { cn } from "@neokapi/ui-primitives";
 
 interface LocaleSelectProps {
   value: string;
@@ -136,12 +137,7 @@ export function MultiLocaleSelect({
   return (
     <div ref={wrapperRef} className="relative" style={style} data-testid={rest["data-testid"]}>
       <div
-        className="flex flex-wrap gap-2 px-4 py-2.5 rounded-xl min-h-[44px] items-center cursor-pointer transition-all duration-300 backdrop-blur-sm"
-        style={{
-          background: "var(--input-bg)",
-          border: "1px solid var(--input-border)",
-          color: "var(--input-text)",
-        }}
+        className="flex flex-wrap gap-2 px-4 py-2.5 rounded-xl min-h-[44px] items-center cursor-pointer transition-all duration-300 backdrop-blur-sm bg-[var(--input-bg)] border border-[var(--input-border)] text-[var(--input-text)]"
         onClick={() => setOpen(!open)}
         data-testid={rest["data-testid"] ? `${rest["data-testid"]}-chips` : undefined}
       >
@@ -179,21 +175,14 @@ export function MultiLocaleSelect({
       </div>
       {open && (
         <div
-          className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-md z-50 overflow-hidden backdrop-blur-md"
-          style={{
-            background: "var(--dropdown-bg)",
-            border: "1px solid var(--dropdown-border)",
-            boxShadow: "var(--dropdown-glow)",
-          }}
+          className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-md z-50 overflow-hidden backdrop-blur-md bg-[var(--dropdown-bg)] border border-[var(--dropdown-border)] shadow-[var(--dropdown-glow)]"
           onMouseDown={(e) => e.preventDefault()}
         >
           <div
-            className="flex items-center gap-2 px-3 py-2"
-            style={{ borderBottom: "1px solid var(--dropdown-border)" }}
+            className="flex items-center gap-2 px-3 py-2 border-b border-[var(--dropdown-border)]"
           >
             <Search
-              className="h-4 w-4 shrink-0"
-              style={{ color: "var(--text-muted)", opacity: 0.8 }}
+              className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-80"
             />
             <input
               ref={searchRef}
@@ -201,8 +190,7 @@ export function MultiLocaleSelect({
               placeholder="Search locales..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 border-none bg-transparent text-sm outline-none font-medium"
-              style={{ color: "var(--input-text)" }}
+              className="flex-1 border-none bg-transparent text-sm outline-none font-medium text-[var(--input-text)]"
               data-testid={rest["data-testid"] ? `${rest["data-testid"]}-search` : undefined}
             />
           </div>
@@ -215,8 +203,7 @@ export function MultiLocaleSelect({
                   e.stopPropagation();
                   addLocale(l.code);
                 }}
-                className="block w-full px-3 py-1.5 border-none bg-transparent text-sm cursor-pointer text-left rounded-lg"
-                style={{ color: "var(--dropdown-item-text)" }}
+                className="block w-full px-3 py-1.5 border-none bg-transparent text-sm cursor-pointer text-left rounded-lg text-[var(--dropdown-item-text)]"
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "var(--dropdown-item-hover)";
                 }}
@@ -231,7 +218,7 @@ export function MultiLocaleSelect({
               </button>
             ))}
             {available.length === 0 && (
-              <div className="px-3 py-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              <div className="px-3 py-2 text-xs text-[var(--text-muted)]">
                 {search ? "No matching locales" : "All locales selected"}
               </div>
             )}

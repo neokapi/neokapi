@@ -8,7 +8,7 @@ import {
   CommandItem,
   CommandSeparator,
   CommandShortcut,
-} from "../../components/ui/command";
+} from "@neokapi/ui-primitives/components/ui/command";
 
 const meta: Meta<typeof Command> = {
   title: "Foundations/Command",

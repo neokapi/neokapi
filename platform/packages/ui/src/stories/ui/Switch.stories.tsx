@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Switch } from "../../components/ui/switch";
-import { Label } from "../../components/ui/label";
+import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
 
 const meta: Meta<typeof Switch> = {
   title: "Foundations/Switch",

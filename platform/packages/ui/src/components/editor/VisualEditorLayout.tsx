@@ -17,9 +17,9 @@ import { VisualEditorCard } from "./VisualEditorCard";
 import { TermSidebar } from "./TermSidebar";
 import { ProblemsPanel } from "./ProblemsPanel";
 import { useVisualEditorKeyboard } from "./useVisualEditorKeyboard";
-import { Tabs, TabsList, TabsTrigger } from "../ui/tabs";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { Tabs, TabsList, TabsTrigger } from "@neokapi/ui-primitives/components/ui/tabs";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { cn } from "@neokapi/ui-primitives";
 import { AlertTriangle } from "../icons";
 
 // ---------------------------------------------------------------------------
@@ -361,8 +361,8 @@ export function VisualEditorLayout({
         {/* ── Inline editor card ────────────────────────────────── */}
         <div
           ref={cardRef}
-          className="absolute z-10 left-0 right-0 px-4"
-          style={{ top: spacerY + 32, transition: "top 0.25s ease" }}
+          className="absolute z-10 left-0 right-0 px-4 transition-[top] duration-[250ms] ease-in-out"
+          style={{ top: spacerY + 32 }}
         >
           <VisualEditorCard
             block={currentBlock}

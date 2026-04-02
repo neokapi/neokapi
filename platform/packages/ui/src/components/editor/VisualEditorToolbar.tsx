@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import type { SpanInfo } from "../../types/api";
 import { getDefaultRegistry } from "../../vocabularies";
-import { Button } from "../ui/button";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { tagColors, type TagColorScheme } from "./tagSemantics";
 
 interface VisualEditorToolbarProps {
@@ -56,7 +56,7 @@ export function VisualEditorToolbar({
   if (entries.length === 0) return null;
 
   return (
-    <div style={toolbarStyle}>
+    <div className="flex items-center gap-px">
       {entries.map((entry) => (
         <Button
           key={entry.typeName}
@@ -65,10 +65,8 @@ export function VisualEditorToolbar({
           disabled={disabled}
           onClick={() => onInsertTag(entry.span)}
           title={`${entry.label} (${entry.shortcut})`}
-          style={{
-            color: disabled ? undefined : entry.colors.text,
-            minWidth: 28,
-          }}
+          className="min-w-7"
+          style={disabled ? undefined : { color: entry.colors.text }}
           data-testid={`toolbar-${entry.typeName}`}
         >
           {entry.label}
@@ -77,9 +75,3 @@ export function VisualEditorToolbar({
     </div>
   );
 }
-
-const toolbarStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 1,
-};

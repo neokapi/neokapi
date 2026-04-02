@@ -8,10 +8,10 @@ import type {
   RunStatus,
   StepStatus,
 } from "../types/api";
-import { Card } from "./ui/card";
-import { Badge } from "./ui/badge";
-import { Button } from "./ui/button";
-import { cn } from "../lib/utils";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Status helpers

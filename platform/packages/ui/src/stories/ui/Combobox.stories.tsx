@@ -6,7 +6,7 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
-} from "../../components/ui/combobox";
+} from "@neokapi/ui-primitives/components/ui/combobox";
 
 const meta: Meta = {
   title: "Foundations/Combobox",

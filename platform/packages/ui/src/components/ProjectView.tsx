@@ -1,19 +1,19 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import type { ProjectInfo, CollectionInfo, StreamInfo } from "../types/api";
 import { useLocales } from "../hooks/useLocales";
-import { useIsMobile } from "../hooks/useIsMobile";
+import { useIsMobile } from "@neokapi/ui-primitives";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 import { useStream } from "../context/StreamContext";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
-import { Card } from "./ui/card";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
+} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 import { OpenInDesktop } from "./OpenInDesktop";
 import { CollectionTabs } from "./CollectionTabs";
 import { FormattedFileName } from "./FormattedFileName";

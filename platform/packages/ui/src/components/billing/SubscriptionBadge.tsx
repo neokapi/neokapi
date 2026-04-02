@@ -1,5 +1,5 @@
 import type { BillingPlan, BillingStatus } from "../../types/api";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 export interface SubscriptionBadgeProps {
   plan: BillingPlan;

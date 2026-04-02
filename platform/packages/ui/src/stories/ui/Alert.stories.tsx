@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Alert, AlertTitle, AlertDescription } from "../../components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 
 const meta: Meta<typeof Alert> = {
   title: "Foundations/Alert",

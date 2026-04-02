@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Eye, Loader2 } from "lucide-react";
+import { cn, Button, Textarea } from "@neokapi/ui-primitives";
 import type { PartSnapshotSet } from "./traceTypes";
-import { theme } from "./theme";
 
 interface PreviewPanelProps {
   /** Called to run a preview with sample text. Returns per-node snapshots. */
@@ -15,6 +15,62 @@ interface PreviewPanelProps {
 export interface PreviewResult {
   parts: Record<string, PartSnapshotSet>;
   nodeOrder: string[]; // ordered node IDs
+}
+
+/** Single preview card showing source/target text after a node. */
+function PreviewSegment({
+  label,
+  sourceText,
+  targetText,
+  changed,
+  isFirst,
+  index = 0,
+}: {
+  label: string;
+  sourceText: string;
+  targetText: string;
+  changed?: boolean;
+  isFirst?: boolean;
+  index?: number;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-[140px] max-w-[200px] shrink-0 rounded-md border bg-card p-2 opacity-0",
+        changed ? "border-accent" : "border-border",
+        (changed || isFirst) ? "border-l-[3px] border-l-accent" : "",
+      )}
+      style={{
+        animation: "cardReveal 0.25s ease-out forwards",
+        animationDelay: `${index * 60}ms`,
+      }}
+    >
+      <div className="mb-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
+      {sourceText && (
+        <div className="mb-0.5 text-[10px] leading-tight text-foreground">
+          {sourceText.length > 60 ? sourceText.slice(0, 60) + "..." : sourceText}
+        </div>
+      )}
+      {!isFirst && (
+        <div
+          className={cn(
+            "text-[10px] leading-tight",
+            changed
+              ? "font-medium text-accent-foreground"
+              : "text-muted-foreground",
+          )}
+        >
+          {targetText
+            ? targetText.length > 60
+              ? targetText.slice(0, 60) + "..."
+              : targetText
+            : "(no target)"}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -64,71 +120,40 @@ export function PreviewPanel({
   const snapshots = blockPart?.[1];
 
   return (
-    <div
-      style={{
-        borderTop: `1px solid ${theme.border}`,
-        background: theme.bg,
-        padding: "8px 12px",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <Eye size={12} style={{ color: theme.accent }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Preview</span>
+    <div className="border-t border-border bg-background px-3 py-2">
+      <div className="mb-2 flex items-center gap-1.5">
+        <Eye size={12} className="text-accent-foreground" />
+        <span className="text-[11px] font-semibold text-foreground">Preview</span>
       </div>
 
       {/* Input area */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <textarea
+      <div className="mb-2 flex gap-1.5">
+        <Textarea
           value={sampleText}
           onChange={handleTextChange}
           placeholder="Enter sample text to preview..."
           rows={2}
-          style={{
-            flex: 1,
-            padding: "6px 8px",
-            borderRadius: 4,
-            border: `1px solid ${theme.border}`,
-            background: theme.bgCard,
-            color: theme.fg,
-            fontSize: 11,
-            fontFamily: "inherit",
-            resize: "none",
-            outline: "none",
-          }}
+          className="min-h-0 flex-1 resize-none rounded border-border bg-card py-1.5 px-2 text-[11px]"
         />
-        <button
+        <Button
           onClick={handlePreview}
           disabled={loading || !sampleText.trim()}
-          style={{
-            padding: "4px 10px",
-            borderRadius: 4,
-            border: "none",
-            background: theme.accent,
-            color: theme.accentFg,
-            fontSize: 11,
-            fontWeight: 600,
-            cursor: "pointer",
-            opacity: loading || !sampleText.trim() ? 0.5 : 1,
-            alignSelf: "flex-start",
-          }}
+          size="sm"
+          className="self-start"
         >
-          {loading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : "Run"}
-        </button>
+          {loading ? (
+            <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+          ) : (
+            "Run"
+          )}
+        </Button>
       </div>
 
       {/* Per-node results */}
       {snapshots && (
-        <div
-          style={{
-            display: "flex",
-            gap: 0,
-            overflowX: "auto",
-            paddingBottom: 4,
-            alignItems: "center",
-          }}
-        >
+        <div className="flex items-center gap-0 overflow-x-auto pb-1">
           {/* Initial state */}
-          <PreviewCard
+          <PreviewSegment
             label="Input"
             sourceText={snapshots.initial.sourceText ?? ""}
             targetText=""
@@ -147,13 +172,11 @@ export function PreviewPanel({
             const changed = after.targetText !== prevTarget;
 
             return (
-              <div key={nodeId} style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                <span
-                  style={{ fontSize: 14, color: theme.fgMuted, padding: "0 4px", flexShrink: 0 }}
-                >
+              <div key={nodeId} className="flex items-center gap-0">
+                <span className="shrink-0 px-1 text-sm text-muted-foreground">
                   &rarr;
                 </span>
-                <PreviewCard
+                <PreviewSegment
                   label={nodeNames.get(nodeId) ?? nodeId}
                   sourceText={after.sourceText ?? ""}
                   targetText={after.targetText ?? ""}
@@ -163,74 +186,6 @@ export function PreviewPanel({
               </div>
             );
           })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PreviewCard({
-  label,
-  sourceText,
-  targetText,
-  changed,
-  isFirst,
-  index = 0,
-}: {
-  label: string;
-  sourceText: string;
-  targetText: string;
-  changed?: boolean;
-  isFirst?: boolean;
-  index?: number;
-}) {
-  return (
-    <div
-      style={{
-        minWidth: 140,
-        maxWidth: 200,
-        padding: 8,
-        borderRadius: 6,
-        border: `1px solid ${changed ? theme.accent : theme.border}`,
-        borderLeft: changed || isFirst ? `3px solid ${theme.accent}` : `1px solid ${theme.border}`,
-        background: theme.bgCard,
-        flexShrink: 0,
-        animation: "cardReveal 0.25s ease-out forwards",
-        animationDelay: `${index * 60}ms`,
-        opacity: 0,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 9,
-          fontWeight: 600,
-          color: theme.fgMuted,
-          marginBottom: 4,
-          textTransform: "uppercase",
-          letterSpacing: "0.04em",
-        }}
-      >
-        {label}
-      </div>
-      {sourceText && (
-        <div style={{ fontSize: 10, color: theme.fg, lineHeight: 1.3, marginBottom: 2 }}>
-          {sourceText.length > 60 ? sourceText.slice(0, 60) + "..." : sourceText}
-        </div>
-      )}
-      {!isFirst && (
-        <div
-          style={{
-            fontSize: 10,
-            color: changed ? theme.accent : theme.fgMuted,
-            lineHeight: 1.3,
-            fontWeight: changed ? 500 : 400,
-          }}
-        >
-          {targetText
-            ? targetText.length > 60
-              ? targetText.slice(0, 60) + "..."
-              : targetText
-            : "(no target)"}
         </div>
       )}
     </div>

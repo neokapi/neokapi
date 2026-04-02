@@ -2,8 +2,8 @@ import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } fr
 import { MarkdownText } from "./markdown-text";
 import { ToolFallback } from "./tool-fallback";
 import { TooltipIconButton } from "./tooltip-icon-button";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { cn } from "@neokapi/ui-primitives";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,

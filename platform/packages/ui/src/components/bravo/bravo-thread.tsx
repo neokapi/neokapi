@@ -40,8 +40,8 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "../assistant-ui/attachment";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { cn } from "@neokapi/ui-primitives";
 import { BravoColdStart } from "./BravoColdStart";
 
 // ---------------------------------------------------------------------------

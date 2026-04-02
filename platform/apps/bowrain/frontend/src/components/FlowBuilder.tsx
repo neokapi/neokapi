@@ -28,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  FilterConfigEditor,
+  SchemaForm,
 } from "@neokapi/ui";
 import { useFlowDefinitions, useFlowDefinitionApi, useTools, useToolSchema } from "../hooks/useApi";
 import type { FlowDefinitionInfo, FlowNodeInfo, FlowEdgeInfo, ToolInfo } from "../types/api";
@@ -304,10 +304,9 @@ function ToolConfigPanel({
           <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
         )}
       </div>
-      <FilterConfigEditor
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        schema={schema as any}
-        value={config}
+      <SchemaForm
+        schema={schema}
+        values={config}
         onChange={onChange}
       />
     </div>

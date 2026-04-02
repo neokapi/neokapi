@@ -1,11 +1,78 @@
-import type { PartSnapshotSet } from "./traceTypes";
-import { theme } from "./theme";
+import { cn } from "@neokapi/ui-primitives";
+import type { PartSnapshotSet, PartSnapshot } from "./traceTypes";
 
 interface PartInspectorProps {
   nodeId: string;
   nodeName: string;
   /** All part snapshot sets from the trace. */
   parts: Record<string, PartSnapshotSet>;
+}
+
+/** Single row showing before/after state for a block part. */
+function PartRow({
+  before,
+  after,
+}: {
+  before: PartSnapshot;
+  after: PartSnapshot;
+}) {
+  const sourceChanged = before.sourceText !== after.sourceText;
+  const targetChanged = before.targetText !== after.targetText;
+
+  return (
+    <div className="mb-2.5 rounded-md border border-border p-2">
+      <div className="mb-1.5 text-[10px] text-muted-foreground">
+        {before.summary}
+      </div>
+
+      {/* Source text */}
+      {before.sourceText && (
+        <div className="mb-1">
+          <div className="mb-0.5 text-[9px] font-semibold text-muted-foreground">
+            SOURCE
+          </div>
+          <div className="text-[11px] leading-snug text-foreground">
+            {after.sourceText || before.sourceText}
+            {sourceChanged && (
+              <span className="ml-1 text-[9px] text-accent-foreground">
+                changed
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Target text */}
+      <div>
+        <div className="mb-0.5 text-[9px] font-semibold text-muted-foreground">
+          TARGET
+        </div>
+        {before.targetText || after.targetText ? (
+          <div className="flex flex-col gap-0.5">
+            {before.targetText && before.targetText !== after.targetText && (
+              <div className="text-[11px] text-muted-foreground line-through opacity-60">
+                {before.targetText}
+              </div>
+            )}
+            <div
+              className={cn(
+                "text-[11px] leading-snug",
+                targetChanged
+                  ? "text-accent-foreground"
+                  : "text-foreground",
+              )}
+            >
+              {after.targetText || "(empty)"}
+            </div>
+          </div>
+        ) : (
+          <div className="text-[11px] italic text-muted-foreground">
+            (no target)
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -19,122 +86,28 @@ export function PartInspector({ nodeId, nodeName, parts }: PartInspectorProps) {
   );
 
   return (
-    <div
-      style={{
-        width: 300,
-        display: "flex",
-        flexDirection: "column",
-        borderLeft: `1px solid ${theme.border}`,
-        background: theme.bg,
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          padding: "10px 12px",
-          borderBottom: `1px solid ${theme.border}`,
-        }}
-      >
-        <div style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Part Inspector</div>
-        <div style={{ fontSize: 10, color: theme.fgMuted, marginTop: 2 }}>
+    <div className="flex w-[300px] flex-col overflow-hidden border-l border-border bg-background">
+      <div className="border-b border-border px-3 py-2.5">
+        <div className="text-[11px] font-semibold text-foreground">Part Inspector</div>
+        <div className="mt-0.5 text-[10px] text-muted-foreground">
           {nodeName} &mdash; {relevantParts.length} block{relevantParts.length !== 1 ? "s" : ""}
         </div>
       </div>
 
-      <div style={{ flex: 1, overflow: "auto", padding: "8px 12px" }}>
+      <div className="flex-1 overflow-auto px-3 py-2">
         {relevantParts.length === 0 && (
-          <div
-            style={{
-              fontSize: 11,
-              color: theme.fgMuted,
-              textAlign: "center",
-              padding: "20px 0",
-              fontStyle: "italic",
-            }}
-          >
+          <div className="py-5 text-center text-[11px] italic text-muted-foreground">
             No block data for this node.
           </div>
         )}
 
-        {relevantParts.map(([partId, ss]) => {
-          const before = ss.initial;
-          const after = ss.afterNode![nodeId];
-          const sourceChanged = before.sourceText !== after.sourceText;
-          const targetChanged = before.targetText !== after.targetText;
-
-          return (
-            <div
-              key={partId}
-              style={{
-                marginBottom: 10,
-                padding: 8,
-                borderRadius: 6,
-                border: `1px solid ${theme.border}`,
-              }}
-            >
-              <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 6 }}>
-                {before.summary}
-              </div>
-
-              {/* Source text */}
-              {before.sourceText && (
-                <div style={{ marginBottom: 4 }}>
-                  <div
-                    style={{ fontSize: 9, color: theme.fgMuted, fontWeight: 600, marginBottom: 2 }}
-                  >
-                    SOURCE
-                  </div>
-                  <div style={{ fontSize: 11, color: theme.fg, lineHeight: 1.4 }}>
-                    {after.sourceText || before.sourceText}
-                    {sourceChanged && (
-                      <span style={{ fontSize: 9, color: theme.accent, marginLeft: 4 }}>
-                        changed
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Target text */}
-              <div>
-                <div
-                  style={{ fontSize: 9, color: theme.fgMuted, fontWeight: 600, marginBottom: 2 }}
-                >
-                  TARGET
-                </div>
-                {before.targetText || after.targetText ? (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                    {before.targetText && before.targetText !== after.targetText && (
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: theme.fgMuted,
-                          textDecoration: "line-through",
-                          opacity: 0.6,
-                        }}
-                      >
-                        {before.targetText}
-                      </div>
-                    )}
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: targetChanged ? theme.accent : theme.fg,
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      {after.targetText || "(empty)"}
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 11, color: theme.fgMuted, fontStyle: "italic" }}>
-                    (no target)
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {relevantParts.map(([partId, ss]) => (
+          <PartRow
+            key={partId}
+            before={ss.initial}
+            after={ss.afterNode![nodeId]}
+          />
+        ))}
       </div>
     </div>
   );

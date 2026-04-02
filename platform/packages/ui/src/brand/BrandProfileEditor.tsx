@@ -8,20 +8,20 @@ import type {
   Pattern,
   VoiceExample,
 } from "./types";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Badge } from "../components/ui/badge";
-import { Card } from "../components/ui/card";
-import { Switch } from "../components/ui/switch";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "../components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+} from "@neokapi/ui-primitives/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives/components/ui/tabs";
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
 
 interface BrandProfileEditorProps {

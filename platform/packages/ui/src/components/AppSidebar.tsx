@@ -32,7 +32,7 @@ import {
   SidebarMenuItem,
   SidebarSeparator,
   useSidebar,
-} from "./ui/sidebar";
+} from "@neokapi/ui-primitives/components/ui/sidebar";
 
 // ---------------------------------------------------------------------------
 // Types

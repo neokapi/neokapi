@@ -8,8 +8,8 @@ import {
   X,
 } from "lucide-react";
 import type { FlowSpec, FlowInfo } from "../types/api";
-import { FlowEditor } from "@neokapi/flow-editor";
-import type { ToolInfo } from "@neokapi/flow-editor";
+import { FlowEditor } from "@neokapi/ui-primitives";
+import type { ToolInfo } from "@neokapi/ui-primitives";
 import toolsData from "./fixtures/tools-metadata.json";
 
 const tools = toolsData as ToolInfo[];

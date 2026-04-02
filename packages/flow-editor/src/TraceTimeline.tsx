@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { Clock, AlertCircle, CheckCircle2 } from "lucide-react";
+import { cn } from "@neokapi/ui-primitives";
 import type { TraceEvent, NodeTraceStats } from "./traceTypes";
 import { computeNodeStats } from "./traceTypes";
-import { theme } from "./theme";
 
 interface TraceTimelineProps {
   events: TraceEvent[];
@@ -15,6 +15,68 @@ function formatDuration(us: number): string {
   if (us < 1000) return `${us}µs`;
   if (us < 1_000_000) return `${(us / 1000).toFixed(1)}ms`;
   return `${(us / 1_000_000).toFixed(2)}s`;
+}
+
+/** Single bar in the trace timeline showing a node's execution stats. */
+function TimelineBar({
+  name,
+  stats: s,
+  maxDuration,
+}: {
+  name: string;
+  stats: NodeTraceStats;
+  maxDuration: number;
+}) {
+  const barWidth = Math.max(2, (s.durationUs / maxDuration) * 100);
+
+  return (
+    <div className="flex items-center gap-2">
+      {/* Status icon */}
+      {s.hasError ? (
+        <AlertCircle size={12} className="shrink-0 text-destructive" />
+      ) : (
+        <CheckCircle2
+          size={12}
+          className="shrink-0"
+          style={{ color: "oklch(0.65 0.15 145)" }}
+        />
+      )}
+
+      {/* Node name */}
+      <span
+        className={cn(
+          "w-[100px] shrink-0 truncate text-[11px] font-medium",
+          s.hasError ? "text-destructive" : "text-foreground",
+        )}
+        title={name}
+      >
+        {name}
+      </span>
+
+      {/* Duration bar */}
+      <div className="flex-1 h-1.5 rounded-sm overflow-hidden bg-muted">
+        <div
+          className={cn(
+            "h-full rounded-sm",
+            s.hasError ? "bg-destructive" : "bg-accent",
+          )}
+          style={{
+            width: `${barWidth}%`,
+            animation: "barFill 0.3s ease-out",
+            transition: "width 300ms ease",
+          }}
+        />
+      </div>
+
+      {/* Stats */}
+      <span className="w-[50px] shrink-0 text-right text-[10px] text-muted-foreground">
+        {formatDuration(s.durationUs)}
+      </span>
+      <span className="w-[40px] shrink-0 text-right text-[10px] text-muted-foreground">
+        {s.partsProcessed} pts
+      </span>
+    </div>
+  );
 }
 
 /**
@@ -41,102 +103,28 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
 
   return (
     <div
-      style={{
-        borderTop: `1px solid ${theme.border}`,
-        background: theme.bg,
-        padding: "8px 12px",
-        animation: "slideDrawer 0.2s ease-out",
-      }}
+      className="border-t border-border bg-background px-3 py-2"
+      style={{ animation: "slideDrawer 0.2s ease-out" }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <Clock size={12} style={{ color: theme.fgMuted }} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: theme.fg }}>Trace</span>
+      <div className="mb-2 flex items-center gap-1.5">
+        <Clock size={12} className="text-muted-foreground" />
+        <span className="text-[11px] font-semibold text-foreground">Trace</span>
         {totalDurationUs !== undefined && (
-          <span style={{ fontSize: 10, color: theme.fgMuted, marginLeft: "auto" }}>
+          <span className="ml-auto text-[10px] text-muted-foreground">
             Total: {formatDuration(totalDurationUs)}
           </span>
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {sortedNodes.map(([nodeId, s]) => {
-          const name = nodeNames?.get(nodeId) ?? nodeId;
-          const barWidth = Math.max(2, (s.durationUs / maxDuration) * 100);
-
-          return (
-            <div key={nodeId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              {/* Status icon */}
-              {s.hasError ? (
-                <AlertCircle size={12} style={{ color: theme.destructive, flexShrink: 0 }} />
-              ) : (
-                <CheckCircle2 size={12} style={{ color: "oklch(0.65 0.15 145)", flexShrink: 0 }} />
-              )}
-
-              {/* Node name */}
-              <span
-                style={{
-                  fontSize: 11,
-                  color: s.hasError ? theme.destructive : theme.fg,
-                  fontWeight: 500,
-                  width: 100,
-                  flexShrink: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-                title={name}
-              >
-                {name}
-              </span>
-
-              {/* Duration bar */}
-              <div
-                style={{
-                  flex: 1,
-                  height: 6,
-                  borderRadius: 3,
-                  background: theme.bgMuted,
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${barWidth}%`,
-                    borderRadius: 3,
-                    background: s.hasError ? theme.destructive : theme.accent,
-                    animation: "barFill 0.3s ease-out",
-                    transition: "width 300ms ease",
-                  }}
-                />
-              </div>
-
-              {/* Stats */}
-              <span
-                style={{
-                  fontSize: 10,
-                  color: theme.fgMuted,
-                  width: 50,
-                  textAlign: "right",
-                  flexShrink: 0,
-                }}
-              >
-                {formatDuration(s.durationUs)}
-              </span>
-              <span
-                style={{
-                  fontSize: 10,
-                  color: theme.fgMuted,
-                  width: 40,
-                  textAlign: "right",
-                  flexShrink: 0,
-                }}
-              >
-                {s.partsProcessed} pts
-              </span>
-            </div>
-          );
-        })}
+      <div className="flex flex-col gap-1">
+        {sortedNodes.map(([nodeId, s]) => (
+          <TimelineBar
+            key={nodeId}
+            name={nodeNames?.get(nodeId) ?? nodeId}
+            stats={s}
+            maxDuration={maxDuration}
+          />
+        ))}
       </div>
     </div>
   );

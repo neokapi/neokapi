@@ -3,6 +3,7 @@ import { useEditorApi } from "../../hooks/useEditorApi";
 import type { BlockInfo } from "../../types/api";
 import type { PreviewContentMode } from "./visual-editor-types";
 import { pseudoTranslate, pseudoTranslateCoded } from "./pseudoTranslate";
+import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -242,7 +243,10 @@ export function DocumentPreview({
 
   if (loading) {
     return (
-      <div style={loadingStyle} data-testid="preview-loading">
+      <div
+        className="flex items-center justify-center h-full text-[var(--text-secondary)] text-sm"
+        data-testid="preview-loading"
+      >
         Loading preview...
       </div>
     );
@@ -250,33 +254,30 @@ export function DocumentPreview({
 
   if (!previewHTML) {
     return (
-      <div style={emptyStyle} data-testid="preview-empty">
+      <div
+        className="flex items-center justify-center h-full text-[var(--text-secondary)] text-sm"
+        data-testid="preview-empty"
+      >
         No preview available
       </div>
     );
   }
 
-  // In inline mode, iframe fills available space but expands for tall content
-  const effectiveIframeStyle: React.CSSProperties = inlineMode
-    ? {
-        ...iframeStyle,
-        height: "100%",
-        minHeight: iframeContentHeight > 0 ? iframeContentHeight : undefined,
-      }
-    : iframeStyle;
-
-  const effectiveContainerStyle: React.CSSProperties = inlineMode ? containerStyle : containerStyle;
-
   return (
     <div
-      style={effectiveContainerStyle}
+      className="relative w-full h-full"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <iframe
         ref={iframeRef}
         srcDoc={previewHTML}
-        style={effectiveIframeStyle}
+        className="w-full h-full border border-[var(--border)] rounded-lg bg-white"
+        style={
+          inlineMode && iframeContentHeight > 0
+            ? { minHeight: iframeContentHeight }
+            : undefined
+        }
         sandbox="allow-scripts"
         title="Document Preview"
         data-testid="preview-iframe"
@@ -284,17 +285,16 @@ export function DocumentPreview({
       />
       {!isControlled && (
         <div
-          style={{
-            ...overlayStyle,
-            opacity: hovered ? 1 : 0,
-            pointerEvents: hovered ? "auto" : "none",
-          }}
+          className={cn(
+            "absolute top-2 right-2 flex gap-1 transition-opacity duration-200",
+            hovered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+          )}
           data-testid="preview-overlay"
         >
           <button
             onClick={() => setInternalMode(internalMode === "source" ? "target" : "source")}
+            className="px-3 py-1 text-white border-none rounded text-xs font-semibold cursor-pointer shadow-[0_1px_4px_rgba(0,0,0,0.3)]"
             style={{
-              ...toggleBtnStyle,
               backgroundColor: internalMode === "target" ? "var(--accent)" : "rgba(30,30,46,0.85)",
             }}
             data-testid="preview-target-toggle"
@@ -306,55 +306,3 @@ export function DocumentPreview({
     </div>
   );
 }
-
-const containerStyle: React.CSSProperties = {
-  position: "relative",
-  width: "100%",
-  height: "100%",
-};
-
-const iframeStyle: React.CSSProperties = {
-  width: "100%",
-  height: "100%",
-  border: "1px solid var(--border)",
-  borderRadius: 8,
-  backgroundColor: "#fff",
-};
-
-const overlayStyle: React.CSSProperties = {
-  position: "absolute",
-  top: 8,
-  right: 8,
-  transition: "opacity 0.2s ease",
-  display: "flex",
-  gap: 4,
-};
-
-const toggleBtnStyle: React.CSSProperties = {
-  padding: "4px 12px",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4,
-  fontSize: 12,
-  fontWeight: 600,
-  cursor: "pointer",
-  boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-};
-
-const loadingStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  height: "100%",
-  color: "var(--text-secondary)",
-  fontSize: 14,
-};
-
-const emptyStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  height: "100%",
-  color: "var(--text-secondary)",
-  fontSize: 14,
-};

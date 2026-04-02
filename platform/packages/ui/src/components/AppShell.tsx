@@ -1,7 +1,7 @@
 import { useRef, type ReactNode } from "react";
-import { cn } from "../lib/utils";
-import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { Separator } from "./ui/separator";
+import { cn } from "@neokapi/ui-primitives";
+import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from "@neokapi/ui-primitives/components/ui/sidebar";
+import { Separator } from "@neokapi/ui-primitives/components/ui/separator";
 import { AppSidebar, type AppSidebarProps, type SubNavItem, subNavConfig } from "./AppSidebar";
 import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";
 
@@ -63,7 +63,7 @@ function SecondaryPanel({
       )}
       style={{ width: open ? 208 : 0 }}
     >
-      <div className="flex flex-col h-full" style={{ width: 208 }}>
+      <div className="flex flex-col h-full w-52">
         <div className="px-4 py-3">
           <h2 className="text-sm font-medium whitespace-nowrap">{title}</h2>
         </div>

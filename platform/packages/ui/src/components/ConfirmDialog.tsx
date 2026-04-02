@@ -1,4 +1,4 @@
-import { Button } from "./ui/button";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "./ui/dialog";
+} from "@neokapi/ui-primitives/components/ui/dialog";
 
 export interface ConfirmDialogProps {
   open: boolean;

@@ -1,4 +1,4 @@
-import { SchemaForm } from "@neokapi/flow-editor";
+import { SchemaForm } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "../types/api";
 
 interface FormatConfigEditorProps {

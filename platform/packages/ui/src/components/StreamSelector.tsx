@@ -17,7 +17,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
+} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 
 export interface StreamSelectorProps {
   streams: StreamInfo[];

@@ -3,7 +3,7 @@ import { useTheme, type Theme } from "../context/ThemeContext";
 import { Sun, Moon, Monitor, WifiOff, LogOut, Settings } from "./icons";
 import { NotificationCenter } from "./NotificationCenter";
 import { ActivityIndicator, TaskIndicator } from "./ActivityTaskIndicators";
-import { Button } from "./ui/button";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 

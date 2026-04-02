@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TaskInfo, CreateTaskRequest, TaskStatus, TaskPriority } from "../types/api";
-import { cn } from "../lib/utils";
-import { Badge } from "./ui/badge";
+import { cn } from "@neokapi/ui-primitives";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 
 export interface TaskBoardProps {
   tasks: TaskInfo[];

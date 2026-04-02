@@ -13,7 +13,7 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
-} from "../../components/ui/sidebar";
+} from "@neokapi/ui-primitives/components/ui/sidebar";
 
 const meta: Meta<typeof Sidebar> = {
   title: "Foundations/Sidebar",

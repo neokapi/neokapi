@@ -3,8 +3,8 @@ import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
-} from "../../components/ui/collapsible";
-import { Button } from "../../components/ui/button";
+} from "@neokapi/ui-primitives/components/ui/collapsible";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof Collapsible> = {
   title: "Foundations/Collapsible",
