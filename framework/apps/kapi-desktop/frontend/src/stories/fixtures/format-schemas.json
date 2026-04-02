@@ -1063,8 +1063,8 @@
   "bridge": [
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v6.schema.json",
+      "version": 6,
       "title": "Archive Filter",
       "type": "object",
       "properties": {
@@ -1208,18 +1208,34 @@
         "okf_archive": null
       },
       "x-okapi-kind": "OkfArchiveFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "79e4ee060dc7",
-      "x-okapi-composite-hash": "8c5659e646b3",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "c83a78314db8",
+      "x-okapi-composite-hash": "593bd5d6999a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "File identification",
+          "fields": [
+            "identification"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_archive"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_autoxliff.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_autoxliff.v5.schema.json",
+      "version": 5,
       "title": "XLIFF 1.2 and 2.0 Filter",
       "type": "object",
       "properties": {
@@ -1259,18 +1275,27 @@
         "okf_autoxliff": null
       },
       "x-okapi-kind": "OkfAutoxliffFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 4,
-      "x-okapi-base-hash": "dc57d40fac4b",
-      "x-okapi-composite-hash": "dc57d40fac4b",
+      "x-okapi-api-version": "v5",
+      "x-okapi-base-version": 5,
+      "x-okapi-base-hash": "25fda8a2a6d9",
+      "x-okapi-composite-hash": "25fda8a2a6d9",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "general",
+          "label": "Configuration selection",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_autoxliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v7.schema.json",
+      "version": 7,
       "title": "Plain Text (Line-Based)",
       "type": "object",
       "properties": {
@@ -1436,18 +1461,34 @@
         }
       },
       "x-okapi-kind": "OkfBaseplaintextFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "f5c65cee944a",
-      "x-okapi-composite-hash": "04ba42f23919",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "390d112f92cc",
+      "x-okapi-composite-hash": "51b0ee4840a8",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_baseplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v8.schema.json",
+      "version": 8,
       "title": "Table (Generic)",
       "type": "object",
       "properties": {
@@ -1769,18 +1810,48 @@
         }
       },
       "x-okapi-kind": "OkfBasetableFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "92849668f02c",
-      "x-okapi-composite-hash": "0622b6627a5b",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "6360d1071986",
+      "x-okapi-composite-hash": "846beed03c8e",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "columns",
+          "label": "Column configuration",
+          "fields": [
+            "columns"
+          ]
+        },
+        {
+          "id": "references",
+          "label": "Source reference columns",
+          "fields": [
+            "references"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_basetable"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v8.schema.json",
+      "version": 8,
       "title": "CSV (Comma-Separated Values)",
       "type": "object",
       "properties": {
@@ -2138,18 +2209,34 @@
         }
       },
       "x-okapi-kind": "OkfCommaseparatedvaluesFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "7dc116767ef3",
-      "x-okapi-composite-hash": "2812e506e1d9",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "319399d6a7e2",
+      "x-okapi-composite-hash": "c13cf6b1aee7",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "format",
+          "label": "CSV format settings",
+          "fields": [
+            "format"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_commaseparatedvalues"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v7.schema.json",
+      "version": 7,
       "title": "Doxygen Filter",
       "type": "object",
       "properties": {
@@ -3828,11 +3915,27 @@
         }
       },
       "x-okapi-kind": "OkfDoxygenFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "1a42d7e1bb4e",
-      "x-okapi-composite-hash": "38be3a3233a9",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "9da434918713",
+      "x-okapi-composite-hash": "c64de8a49563",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser configuration",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_doxygen"
     },
@@ -3881,8 +3984,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v8.schema.json",
+      "version": 8,
       "title": "Fixed-Width Columns",
       "type": "object",
       "properties": {
@@ -4153,18 +4256,34 @@
         }
       },
       "x-okapi-kind": "OkfFixedwidthcolumnsFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "ce8b713f324e",
-      "x-okapi-composite-hash": "8a7e39c683eb",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "1e4a39598074",
+      "x-okapi-composite-hash": "2b20d1445194",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "columns",
+          "label": "Column position settings",
+          "fields": [
+            "columns"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_fixedwidthcolumns"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_html.v13.schema.json",
-      "version": 13,
+      "$id": "https://neokapi.dev/schemas/filters/okf_html.v15.schema.json",
+      "version": 15,
       "title": "HTML/XHTML Filter",
       "type": "object",
       "properties": {
@@ -6708,11 +6827,27 @@
         }
       },
       "x-okapi-kind": "OkfHtmlFilterConfig",
-      "x-okapi-api-version": "v13",
-      "x-okapi-base-version": 19,
-      "x-okapi-base-hash": "84fded264bbd",
-      "x-okapi-composite-hash": "52df0112e3d3",
+      "x-okapi-api-version": "v15",
+      "x-okapi-base-version": 21,
+      "x-okapi-base-hash": "497794d2d1db",
+      "x-okapi-composite-hash": "ca52eda3e614",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser behavior",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_html"
     },
@@ -6760,8 +6895,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v6.schema.json",
+      "version": 6,
       "title": "ICML Filter",
       "type": "object",
       "properties": {
@@ -6921,18 +7056,34 @@
         "okf_icml": null
       },
       "x-okapi-kind": "OkfIcmlFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 10,
-      "x-okapi-base-hash": "c35f5cf73b2f",
-      "x-okapi-composite-hash": "14aabb40a433",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 12,
+      "x-okapi-base-hash": "bd65c816e34e",
+      "x-okapi-composite-hash": "0cc17840c532",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_icml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v10.schema.json",
+      "version": 10,
       "title": "IDML Filter",
       "type": "object",
       "properties": {
@@ -7218,18 +7369,41 @@
         "okf_idml": null
       },
       "x-okapi-kind": "OkfIdmlFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "8ad51d4e05ed",
-      "x-okapi-composite-hash": "4247899ba992",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "e06ca80f09d2",
+      "x-okapi-composite-hash": "badd3ee8edff",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "formatting",
+          "label": "Formatting tolerance thresholds",
+          "fields": [
+            "formatting"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_idml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_json.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_json.v10.schema.json",
+      "version": 10,
       "title": "Json Filter",
       "type": "object",
       "properties": {
@@ -7500,18 +7674,55 @@
         "okf_json": null
       },
       "x-okapi-kind": "OkfJsonFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "13f6509bbcfc",
-      "x-okapi-composite-hash": "83f203bf8c77",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "a919c2c33418",
+      "x-okapi-composite-hash": "18b0b4756a9a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted for translation",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "keys",
+          "label": "Configure how JSON keys map to text unit identification",
+          "fields": [
+            "keys"
+          ]
+        },
+        {
+          "id": "metadata",
+          "label": "Configure metadata extraction rules",
+          "fields": [
+            "metadata"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting options",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_json"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v10.schema.json",
+      "version": 10,
       "title": "Markdown Filter",
       "type": "object",
       "properties": {
@@ -7740,18 +7951,48 @@
         "okf_markdown": null
       },
       "x-okapi-kind": "OkfMarkdownFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "0aa93e2c0250",
-      "x-okapi-composite-hash": "4c89ed75986b",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "f72e57671f34",
+      "x-okapi-composite-hash": "e42fc0796d6c",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Content extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Sub-filter configuration",
+          "fields": [
+            "subfilters"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_markdown"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v10.schema.json",
+      "version": 10,
       "title": "MIF Filter",
       "type": "object",
       "properties": {
@@ -7931,11 +8172,27 @@
         "okf_mif": null
       },
       "x-okapi-kind": "OkfMifFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "8b7aa6f3933e",
-      "x-okapi-composite-hash": "3fe8a63dba16",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "4855dff9d63f",
+      "x-okapi-composite-hash": "5e884cb669f7",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_mif"
     },
@@ -7970,8 +8227,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_multiparsers.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_multiparsers.v4.schema.json",
+      "version": 4,
       "title": "Multi-Parsers Filter",
       "type": "object",
       "properties": {
@@ -8067,18 +8324,27 @@
         "okf_multiparsers": null
       },
       "x-okapi-kind": "OkfMultiparsersFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "68574149fa9d",
-      "x-okapi-composite-hash": "68574149fa9d",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "6b2d538db79a",
+      "x-okapi-composite-hash": "6b2d538db79a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "extraction",
+          "label": "CSV extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_multiparsers"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v7.schema.json",
+      "version": 7,
       "title": "ODF-Content Filter",
       "type": "object",
       "properties": {
@@ -8216,18 +8482,34 @@
         "okf_odf": null
       },
       "x-okapi-kind": "OkfOdfFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "025be8e8617c",
-      "x-okapi-composite-hash": "7ab6c1224a2e",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "ebd2e524618f",
+      "x-okapi-composite-hash": "abf9bd856b59",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_odf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v7.schema.json",
+      "version": 7,
       "title": "OpenOffice.org Filter",
       "type": "object",
       "properties": {
@@ -8377,18 +8659,34 @@
         "okf_openoffice": null
       },
       "x-okapi-kind": "OkfOpenofficeFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "c3a0225ef506",
-      "x-okapi-composite-hash": "680541b2d824",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "9c60f731045a",
+      "x-okapi-composite-hash": "742df2f000ce",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_openoffice"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v13.schema.json",
+      "version": 13,
       "title": "OpenXML Filter",
       "type": "object",
       "properties": {
@@ -8844,18 +9142,55 @@
         "okf_openxml": null
       },
       "x-okapi-kind": "OkfOpenxmlFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "a19fddf8d21e",
-      "x-okapi-composite-hash": "194608ebb952",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "04bdd71ffe01",
+      "x-okapi-composite-hash": "e4f00f7a8b4a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "word",
+          "label": "Word document settings",
+          "fields": [
+            "word"
+          ]
+        },
+        {
+          "id": "excel",
+          "label": "Excel spreadsheet settings",
+          "fields": [
+            "excel"
+          ]
+        },
+        {
+          "id": "powerpoint",
+          "label": "PowerPoint presentation settings",
+          "fields": [
+            "powerpoint"
+          ]
+        },
+        {
+          "id": "general",
+          "label": "General settings",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_openxml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v7.schema.json",
+      "version": 7,
       "title": "Plain Text (Paragraph-Based)",
       "type": "object",
       "properties": {
@@ -9023,18 +9358,41 @@
         "okf_plaintext_paragraphs_lines": null
       },
       "x-okapi-kind": "OkfParaplaintextFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "26e27df18874",
-      "x-okapi-composite-hash": "7ea310d62197",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "fbfdd3ab1c65",
+      "x-okapi-composite-hash": "8ed3e93c0ca6",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_paraplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v6.schema.json",
+      "version": 6,
       "title": "PDF Filter",
       "type": "object",
       "properties": {
@@ -9235,11 +9593,41 @@
         "okf_pdf": null
       },
       "x-okapi-kind": "OkfPdfFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "6b2a3574f6d5",
-      "x-okapi-composite-hash": "fd2de77f8f9c",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "79318cd70e42",
+      "x-okapi-composite-hash": "5fd6daef2de6",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "whitespace",
+          "label": "Whitespace",
+          "fields": [
+            "whitespace"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_pdf"
     },
@@ -9274,8 +9662,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v6.schema.json",
+      "version": 6,
       "title": "PHP Content Filter",
       "type": "object",
       "properties": {
@@ -9410,11 +9798,27 @@
         "okf_phpcontent": null
       },
       "x-okapi-kind": "OkfPhpcontentFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "df27521a4fed",
-      "x-okapi-composite-hash": "f95ab39c0f3a",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "ac1c97127134",
+      "x-okapi-composite-hash": "9324a19b401b",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_phpcontent"
     },
@@ -9551,8 +9955,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_po.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_po.v9.schema.json",
+      "version": 9,
       "title": "PO Filter",
       "type": "object",
       "properties": {
@@ -9750,18 +10154,48 @@
         }
       },
       "x-okapi-kind": "OkfPoFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "b4746f4ffed2",
-      "x-okapi-composite-hash": "ce500f89ee37",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 9,
+      "x-okapi-base-hash": "1dece57f7e8e",
+      "x-okapi-composite-hash": "2809826df97c",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Processing mode",
+          "fields": [
+            "mode"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "ID and naming",
+          "fields": [
+            "identification"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_po"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v8.schema.json",
+      "version": 8,
       "title": "Properties Filter",
       "type": "object",
       "properties": {
@@ -10050,18 +10484,55 @@
         }
       },
       "x-okapi-kind": "OkfPropertiesFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "5827f9f5602c",
-      "x-okapi-composite-hash": "7be4778c40a4",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "7df855e59458",
+      "x-okapi-composite-hash": "753ac1d81882",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "notes",
+          "label": "Comment/note handling",
+          "fields": [
+            "notes"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "ID and naming",
+          "fields": [
+            "identification"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_properties"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_rainbowkit.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_rainbowkit.v4.schema.json",
+      "version": 4,
       "title": "Rainbow Translation Kit Filter",
       "type": "object",
       "properties": {
@@ -10101,18 +10572,27 @@
         }
       },
       "x-okapi-kind": "OkfRainbowkitFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "35b9fdac8211",
-      "x-okapi-composite-hash": "35b9fdac8211",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "81933a2d657e",
+      "x-okapi-composite-hash": "81933a2d657e",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "general",
+          "label": "General settings",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_rainbowkit"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v11.schema.json",
+      "version": 11,
       "title": "Regex Filter",
       "type": "object",
       "properties": {
@@ -10527,18 +11007,48 @@
         }
       },
       "x-okapi-kind": "OkfRegexFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "3cba67894be2",
-      "x-okapi-composite-hash": "fe38f5b22816",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "5db0c9b14d2e",
+      "x-okapi-composite-hash": "b746fc0cea85",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Regex extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Sub-filter configuration",
+          "fields": [
+            "subfilters"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_regex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v7.schema.json",
+      "version": 7,
       "title": "okf_plaintext_regex",
       "type": "object",
       "properties": {
@@ -10740,11 +11250,34 @@
         }
       },
       "x-okapi-kind": "OkfRegexplaintextFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "eccfb4096704",
-      "x-okapi-composite-hash": "876108bd53ba",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "4336ed19f289",
+      "x-okapi-composite-hash": "2f7c4682eaaf",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_regexplaintext"
     },
@@ -10779,8 +11312,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v6.schema.json",
+      "version": 6,
       "title": "SDLPPX and SDLRPX Filter",
       "type": "object",
       "properties": {
@@ -10923,18 +11456,34 @@
         "okf_sdlpackage": null
       },
       "x-okapi-kind": "OkfSdlpackageFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "edf1a6a52a88",
-      "x-okapi-composite-hash": "79f74daafa27",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "bd27d12b08c3",
+      "x-okapi-composite-hash": "8fa653da66d5",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "File identification",
+          "fields": [
+            "identification"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_sdlpackage"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v7.schema.json",
+      "version": 7,
       "title": "Plain Text (Spliced Lines)",
       "type": "object",
       "properties": {
@@ -11131,11 +11680,34 @@
         }
       },
       "x-okapi-kind": "OkfSplicedlinesFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "957e4ff8e965",
-      "x-okapi-composite-hash": "8a219ea141ce",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "6855472e3c57",
+      "x-okapi-composite-hash": "dd91dbac21b5",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_splicedlines"
     },
@@ -11555,8 +12127,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v6.schema.json",
+      "version": 6,
       "title": "TMX Filter",
       "type": "object",
       "properties": {
@@ -11712,18 +12284,41 @@
         "okf_tmx": null
       },
       "x-okapi-kind": "OkfTmxFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 4,
-      "x-okapi-base-hash": "d4a3bd3d7431",
-      "x-okapi-composite-hash": "106f63cb1161",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "099806b34843",
+      "x-okapi-composite-hash": "49bb3f2fea08",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "TMX processing settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_tmx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v6.schema.json",
+      "version": 6,
       "title": "Transifex Filter",
       "type": "object",
       "properties": {
@@ -11848,11 +12443,27 @@
         }
       },
       "x-okapi-kind": "OkfTransifexFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "6c49f9332103",
-      "x-okapi-composite-hash": "e724fcb068e5",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "c4a1a6175068",
+      "x-okapi-composite-hash": "4952552918dd",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "general",
+          "label": "General settings",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_transifex"
     },
@@ -11885,8 +12496,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v7.schema.json",
+      "version": 7,
       "title": "TS Filter",
       "type": "object",
       "properties": {
@@ -12011,18 +12622,34 @@
         "okf_ts": null
       },
       "x-okapi-kind": "OkfTsFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "eec0fc54284b",
-      "x-okapi-composite-hash": "88173ff87724",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "a3533e73e996",
+      "x-okapi-composite-hash": "e4d392db8a80",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_ts"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ttml.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ttml.v4.schema.json",
+      "version": 4,
       "title": "TTML Filter",
       "type": "object",
       "properties": {
@@ -12112,18 +12739,27 @@
         }
       },
       "x-okapi-kind": "OkfTtmlFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "d1ca0b20c647",
-      "x-okapi-composite-hash": "d1ca0b20c647",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "c161cf39c660",
+      "x-okapi-composite-hash": "c161cf39c660",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_ttml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v6.schema.json",
+      "version": 6,
       "title": "TTX Filter",
       "type": "object",
       "properties": {
@@ -12276,18 +12912,41 @@
         "okf_ttx": null
       },
       "x-okapi-kind": "OkfTtxFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "12f614639256",
-      "x-okapi-composite-hash": "74ca0373a2f6",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "bfcd5dd632fe",
+      "x-okapi-composite-hash": "f252a56fe9fa",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Processing mode",
+          "fields": [
+            "mode"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_ttx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v6.schema.json",
+      "version": 6,
       "title": "TXML Filter",
       "type": "object",
       "properties": {
@@ -12413,18 +13072,34 @@
         }
       },
       "x-okapi-kind": "OkfTxmlFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "47acfeda7f23",
-      "x-okapi-composite-hash": "95f0ce27546d",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "4b0cc8d483e4",
+      "x-okapi-composite-hash": "06136cce6e42",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_txml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v6.schema.json",
+      "version": 6,
       "title": "Vignette Filter",
       "type": "object",
       "properties": {
@@ -12637,18 +13312,41 @@
         }
       },
       "x-okapi-kind": "OkfVignetteFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "50990a432cb0",
-      "x-okapi-composite-hash": "64cbc28c83c5",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "373a357fb65a",
+      "x-okapi-composite-hash": "acb2715fe809",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Processing mode",
+          "fields": [
+            "mode"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "Content identification",
+          "fields": [
+            "identification"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_vignette"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_vtt.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_vtt.v4.schema.json",
+      "version": 4,
       "title": "VTT Filter",
       "type": "object",
       "properties": {
@@ -12769,11 +13467,27 @@
         }
       },
       "x-okapi-kind": "OkfVttFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "bf5be390c157",
-      "x-okapi-composite-hash": "bf5be390c157",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "74eb154b42f2",
+      "x-okapi-composite-hash": "74eb154b42f2",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_vtt"
     },
@@ -12828,8 +13542,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v6.schema.json",
+      "version": 6,
       "title": "XINI Filter",
       "type": "object",
       "properties": {
@@ -12952,11 +13666,27 @@
         }
       },
       "x-okapi-kind": "OkfXiniFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 4,
-      "x-okapi-base-hash": "16c43f330462",
-      "x-okapi-composite-hash": "e7006229a2cd",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "bb2e29b5574f",
+      "x-okapi-composite-hash": "084f6246c31c",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "segmentation",
+          "label": "Segmentation settings",
+          "fields": [
+            "segmentation"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xini"
     },
@@ -12989,8 +13719,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v12.schema.json",
-      "version": 12,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v14.schema.json",
+      "version": 14,
       "title": "XLIFF Filter",
       "type": "object",
       "properties": {
@@ -13512,18 +14242,76 @@
         }
       },
       "x-okapi-kind": "OkfXliffFilterConfig",
-      "x-okapi-api-version": "v12",
-      "x-okapi-base-version": 12,
-      "x-okapi-base-hash": "0b31c7ccab6e",
-      "x-okapi-composite-hash": "74e771508c0a",
+      "x-okapi-api-version": "v14",
+      "x-okapi-base-version": 14,
+      "x-okapi-base-hash": "f30d7f2e2478",
+      "x-okapi-composite-hash": "4f94dcd89569",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "states",
+          "label": "Translation state handling",
+          "fields": [
+            "states"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting and behavior",
+          "fields": [
+            "output"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Sub-filter configuration",
+          "fields": [
+            "subfilters"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        },
+        {
+          "id": "sdl",
+          "label": "SDL XLIFF extensions",
+          "fields": [
+            "sdl"
+          ]
+        },
+        {
+          "id": "iws",
+          "label": "Idiom WorldServer extensions",
+          "fields": [
+            "iws"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v6.schema.json",
+      "version": 6,
       "title": "XLIFF-2 Filter",
       "type": "object",
       "properties": {
@@ -13720,11 +14508,41 @@
         "okf_xliff2": null
       },
       "x-okapi-kind": "OkfXliff2FilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 18,
-      "x-okapi-base-hash": "488fc8b65f48",
-      "x-okapi-composite-hash": "467b0ec6db05",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 20,
+      "x-okapi-base-hash": "f00255340817",
+      "x-okapi-composite-hash": "904461c20a50",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "states",
+          "label": "Translation state handling",
+          "fields": [
+            "states"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xliff2"
     },
@@ -13782,8 +14600,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v10.schema.json",
+      "version": 10,
       "title": "XML Stream Filter",
       "type": "object",
       "properties": {
@@ -14650,18 +15468,34 @@
         }
       },
       "x-okapi-kind": "OkfXmlstreamFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 10,
-      "x-okapi-base-hash": "f79ec29702bb",
-      "x-okapi-composite-hash": "92764a7ee204",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 12,
+      "x-okapi-base-hash": "cdc8ea8dc1c7",
+      "x-okapi-composite-hash": "b489684d4be4",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser behavior",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xmlstream"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v7.schema.json",
+      "version": 7,
       "title": "YAML Filter",
       "type": "object",
       "properties": {
@@ -14858,11 +15692,41 @@
         "okf_yaml": null
       },
       "x-okapi-kind": "OkfYamlFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "f4907b3a1b46",
-      "x-okapi-composite-hash": "85a791a9f8a3",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "b72c8828df42",
+      "x-okapi-composite-hash": "d982eef01620",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted for translation",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "keys",
+          "label": "Configure how YAML keys map to text unit identification",
+          "fields": [
+            "keys"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting options",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_yaml"
     }
@@ -15929,8 +16793,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v6.schema.json",
+      "version": 6,
       "title": "Archive Filter",
       "type": "object",
       "properties": {
@@ -16074,18 +16938,34 @@
         "okf_archive": null
       },
       "x-okapi-kind": "OkfArchiveFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "79e4ee060dc7",
-      "x-okapi-composite-hash": "8c5659e646b3",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "c83a78314db8",
+      "x-okapi-composite-hash": "593bd5d6999a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "File identification",
+          "fields": [
+            "identification"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_archive"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_autoxliff.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_autoxliff.v5.schema.json",
+      "version": 5,
       "title": "XLIFF 1.2 and 2.0 Filter",
       "type": "object",
       "properties": {
@@ -16125,18 +17005,27 @@
         "okf_autoxliff": null
       },
       "x-okapi-kind": "OkfAutoxliffFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 4,
-      "x-okapi-base-hash": "dc57d40fac4b",
-      "x-okapi-composite-hash": "dc57d40fac4b",
+      "x-okapi-api-version": "v5",
+      "x-okapi-base-version": 5,
+      "x-okapi-base-hash": "25fda8a2a6d9",
+      "x-okapi-composite-hash": "25fda8a2a6d9",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "general",
+          "label": "Configuration selection",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_autoxliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v7.schema.json",
+      "version": 7,
       "title": "Plain Text (Line-Based)",
       "type": "object",
       "properties": {
@@ -16302,18 +17191,34 @@
         }
       },
       "x-okapi-kind": "OkfBaseplaintextFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "f5c65cee944a",
-      "x-okapi-composite-hash": "04ba42f23919",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "390d112f92cc",
+      "x-okapi-composite-hash": "51b0ee4840a8",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_baseplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v8.schema.json",
+      "version": 8,
       "title": "Table (Generic)",
       "type": "object",
       "properties": {
@@ -16635,18 +17540,48 @@
         }
       },
       "x-okapi-kind": "OkfBasetableFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "92849668f02c",
-      "x-okapi-composite-hash": "0622b6627a5b",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "6360d1071986",
+      "x-okapi-composite-hash": "846beed03c8e",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "columns",
+          "label": "Column configuration",
+          "fields": [
+            "columns"
+          ]
+        },
+        {
+          "id": "references",
+          "label": "Source reference columns",
+          "fields": [
+            "references"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_basetable"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v8.schema.json",
+      "version": 8,
       "title": "CSV (Comma-Separated Values)",
       "type": "object",
       "properties": {
@@ -17004,18 +17939,34 @@
         }
       },
       "x-okapi-kind": "OkfCommaseparatedvaluesFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "7dc116767ef3",
-      "x-okapi-composite-hash": "2812e506e1d9",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "319399d6a7e2",
+      "x-okapi-composite-hash": "c13cf6b1aee7",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "format",
+          "label": "CSV format settings",
+          "fields": [
+            "format"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_commaseparatedvalues"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v7.schema.json",
+      "version": 7,
       "title": "Doxygen Filter",
       "type": "object",
       "properties": {
@@ -18694,11 +19645,27 @@
         }
       },
       "x-okapi-kind": "OkfDoxygenFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "1a42d7e1bb4e",
-      "x-okapi-composite-hash": "38be3a3233a9",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "9da434918713",
+      "x-okapi-composite-hash": "c64de8a49563",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser configuration",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_doxygen"
     },
@@ -18747,8 +19714,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v8.schema.json",
+      "version": 8,
       "title": "Fixed-Width Columns",
       "type": "object",
       "properties": {
@@ -19019,18 +19986,34 @@
         }
       },
       "x-okapi-kind": "OkfFixedwidthcolumnsFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "ce8b713f324e",
-      "x-okapi-composite-hash": "8a7e39c683eb",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "1e4a39598074",
+      "x-okapi-composite-hash": "2b20d1445194",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "columns",
+          "label": "Column position settings",
+          "fields": [
+            "columns"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_fixedwidthcolumns"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_html.v13.schema.json",
-      "version": 13,
+      "$id": "https://neokapi.dev/schemas/filters/okf_html.v15.schema.json",
+      "version": 15,
       "title": "HTML/XHTML Filter",
       "type": "object",
       "properties": {
@@ -21574,11 +22557,27 @@
         }
       },
       "x-okapi-kind": "OkfHtmlFilterConfig",
-      "x-okapi-api-version": "v13",
-      "x-okapi-base-version": 19,
-      "x-okapi-base-hash": "84fded264bbd",
-      "x-okapi-composite-hash": "52df0112e3d3",
+      "x-okapi-api-version": "v15",
+      "x-okapi-base-version": 21,
+      "x-okapi-base-hash": "497794d2d1db",
+      "x-okapi-composite-hash": "ca52eda3e614",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser behavior",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_html"
     },
@@ -21626,8 +22625,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v6.schema.json",
+      "version": 6,
       "title": "ICML Filter",
       "type": "object",
       "properties": {
@@ -21787,18 +22786,34 @@
         "okf_icml": null
       },
       "x-okapi-kind": "OkfIcmlFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 10,
-      "x-okapi-base-hash": "c35f5cf73b2f",
-      "x-okapi-composite-hash": "14aabb40a433",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 12,
+      "x-okapi-base-hash": "bd65c816e34e",
+      "x-okapi-composite-hash": "0cc17840c532",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_icml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v10.schema.json",
+      "version": 10,
       "title": "IDML Filter",
       "type": "object",
       "properties": {
@@ -22084,18 +23099,41 @@
         "okf_idml": null
       },
       "x-okapi-kind": "OkfIdmlFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "8ad51d4e05ed",
-      "x-okapi-composite-hash": "4247899ba992",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "e06ca80f09d2",
+      "x-okapi-composite-hash": "badd3ee8edff",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "formatting",
+          "label": "Formatting tolerance thresholds",
+          "fields": [
+            "formatting"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_idml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_json.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_json.v10.schema.json",
+      "version": 10,
       "title": "Json Filter",
       "type": "object",
       "properties": {
@@ -22366,18 +23404,55 @@
         "okf_json": null
       },
       "x-okapi-kind": "OkfJsonFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "13f6509bbcfc",
-      "x-okapi-composite-hash": "83f203bf8c77",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "a919c2c33418",
+      "x-okapi-composite-hash": "18b0b4756a9a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted for translation",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "keys",
+          "label": "Configure how JSON keys map to text unit identification",
+          "fields": [
+            "keys"
+          ]
+        },
+        {
+          "id": "metadata",
+          "label": "Configure metadata extraction rules",
+          "fields": [
+            "metadata"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting options",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_json"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v10.schema.json",
+      "version": 10,
       "title": "Markdown Filter",
       "type": "object",
       "properties": {
@@ -22606,18 +23681,48 @@
         "okf_markdown": null
       },
       "x-okapi-kind": "OkfMarkdownFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "0aa93e2c0250",
-      "x-okapi-composite-hash": "4c89ed75986b",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "f72e57671f34",
+      "x-okapi-composite-hash": "e42fc0796d6c",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Content extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Sub-filter configuration",
+          "fields": [
+            "subfilters"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_markdown"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v10.schema.json",
+      "version": 10,
       "title": "MIF Filter",
       "type": "object",
       "properties": {
@@ -22797,11 +23902,27 @@
         "okf_mif": null
       },
       "x-okapi-kind": "OkfMifFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "8b7aa6f3933e",
-      "x-okapi-composite-hash": "3fe8a63dba16",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "4855dff9d63f",
+      "x-okapi-composite-hash": "5e884cb669f7",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_mif"
     },
@@ -22836,8 +23957,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_multiparsers.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_multiparsers.v4.schema.json",
+      "version": 4,
       "title": "Multi-Parsers Filter",
       "type": "object",
       "properties": {
@@ -22933,18 +24054,27 @@
         "okf_multiparsers": null
       },
       "x-okapi-kind": "OkfMultiparsersFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "68574149fa9d",
-      "x-okapi-composite-hash": "68574149fa9d",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "6b2d538db79a",
+      "x-okapi-composite-hash": "6b2d538db79a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "extraction",
+          "label": "CSV extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_multiparsers"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v7.schema.json",
+      "version": 7,
       "title": "ODF-Content Filter",
       "type": "object",
       "properties": {
@@ -23082,18 +24212,34 @@
         "okf_odf": null
       },
       "x-okapi-kind": "OkfOdfFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "025be8e8617c",
-      "x-okapi-composite-hash": "7ab6c1224a2e",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "ebd2e524618f",
+      "x-okapi-composite-hash": "abf9bd856b59",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_odf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v7.schema.json",
+      "version": 7,
       "title": "OpenOffice.org Filter",
       "type": "object",
       "properties": {
@@ -23243,18 +24389,34 @@
         "okf_openoffice": null
       },
       "x-okapi-kind": "OkfOpenofficeFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "c3a0225ef506",
-      "x-okapi-composite-hash": "680541b2d824",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "9c60f731045a",
+      "x-okapi-composite-hash": "742df2f000ce",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_openoffice"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v13.schema.json",
+      "version": 13,
       "title": "OpenXML Filter",
       "type": "object",
       "properties": {
@@ -23710,18 +24872,55 @@
         "okf_openxml": null
       },
       "x-okapi-kind": "OkfOpenxmlFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "a19fddf8d21e",
-      "x-okapi-composite-hash": "194608ebb952",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "04bdd71ffe01",
+      "x-okapi-composite-hash": "e4f00f7a8b4a",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "word",
+          "label": "Word document settings",
+          "fields": [
+            "word"
+          ]
+        },
+        {
+          "id": "excel",
+          "label": "Excel spreadsheet settings",
+          "fields": [
+            "excel"
+          ]
+        },
+        {
+          "id": "powerpoint",
+          "label": "PowerPoint presentation settings",
+          "fields": [
+            "powerpoint"
+          ]
+        },
+        {
+          "id": "general",
+          "label": "General settings",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_openxml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v7.schema.json",
+      "version": 7,
       "title": "Plain Text (Paragraph-Based)",
       "type": "object",
       "properties": {
@@ -23889,18 +25088,41 @@
         "okf_plaintext_paragraphs_lines": null
       },
       "x-okapi-kind": "OkfParaplaintextFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "26e27df18874",
-      "x-okapi-composite-hash": "7ea310d62197",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "fbfdd3ab1c65",
+      "x-okapi-composite-hash": "8ed3e93c0ca6",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_paraplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v6.schema.json",
+      "version": 6,
       "title": "PDF Filter",
       "type": "object",
       "properties": {
@@ -24101,11 +25323,41 @@
         "okf_pdf": null
       },
       "x-okapi-kind": "OkfPdfFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "6b2a3574f6d5",
-      "x-okapi-composite-hash": "fd2de77f8f9c",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "79318cd70e42",
+      "x-okapi-composite-hash": "5fd6daef2de6",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "whitespace",
+          "label": "Whitespace",
+          "fields": [
+            "whitespace"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_pdf"
     },
@@ -24140,8 +25392,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v6.schema.json",
+      "version": 6,
       "title": "PHP Content Filter",
       "type": "object",
       "properties": {
@@ -24276,11 +25528,27 @@
         "okf_phpcontent": null
       },
       "x-okapi-kind": "OkfPhpcontentFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "df27521a4fed",
-      "x-okapi-composite-hash": "f95ab39c0f3a",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "ac1c97127134",
+      "x-okapi-composite-hash": "9324a19b401b",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_phpcontent"
     },
@@ -24417,8 +25685,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_po.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_po.v9.schema.json",
+      "version": 9,
       "title": "PO Filter",
       "type": "object",
       "properties": {
@@ -24616,18 +25884,48 @@
         }
       },
       "x-okapi-kind": "OkfPoFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "b4746f4ffed2",
-      "x-okapi-composite-hash": "ce500f89ee37",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 9,
+      "x-okapi-base-hash": "1dece57f7e8e",
+      "x-okapi-composite-hash": "2809826df97c",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Processing mode",
+          "fields": [
+            "mode"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "ID and naming",
+          "fields": [
+            "identification"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_po"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v6.schema.json",
-      "version": 6,
+      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v8.schema.json",
+      "version": 8,
       "title": "Properties Filter",
       "type": "object",
       "properties": {
@@ -24916,18 +26214,55 @@
         }
       },
       "x-okapi-kind": "OkfPropertiesFilterConfig",
-      "x-okapi-api-version": "v6",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "5827f9f5602c",
-      "x-okapi-composite-hash": "7be4778c40a4",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "7df855e59458",
+      "x-okapi-composite-hash": "753ac1d81882",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "notes",
+          "label": "Comment/note handling",
+          "fields": [
+            "notes"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "ID and naming",
+          "fields": [
+            "identification"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_properties"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_rainbowkit.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_rainbowkit.v4.schema.json",
+      "version": 4,
       "title": "Rainbow Translation Kit Filter",
       "type": "object",
       "properties": {
@@ -24967,18 +26302,27 @@
         }
       },
       "x-okapi-kind": "OkfRainbowkitFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "35b9fdac8211",
-      "x-okapi-composite-hash": "35b9fdac8211",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "81933a2d657e",
+      "x-okapi-composite-hash": "81933a2d657e",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "general",
+          "label": "General settings",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_rainbowkit"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v11.schema.json",
+      "version": 11,
       "title": "Regex Filter",
       "type": "object",
       "properties": {
@@ -25393,18 +26737,48 @@
         }
       },
       "x-okapi-kind": "OkfRegexFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "3cba67894be2",
-      "x-okapi-composite-hash": "fe38f5b22816",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "5db0c9b14d2e",
+      "x-okapi-composite-hash": "b746fc0cea85",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Regex extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Sub-filter configuration",
+          "fields": [
+            "subfilters"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_regex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v7.schema.json",
+      "version": 7,
       "title": "okf_plaintext_regex",
       "type": "object",
       "properties": {
@@ -25606,11 +26980,34 @@
         }
       },
       "x-okapi-kind": "OkfRegexplaintextFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "eccfb4096704",
-      "x-okapi-composite-hash": "876108bd53ba",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "4336ed19f289",
+      "x-okapi-composite-hash": "2f7c4682eaaf",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_regexplaintext"
     },
@@ -25645,8 +27042,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v6.schema.json",
+      "version": 6,
       "title": "SDLPPX and SDLRPX Filter",
       "type": "object",
       "properties": {
@@ -25789,18 +27186,34 @@
         "okf_sdlpackage": null
       },
       "x-okapi-kind": "OkfSdlpackageFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "edf1a6a52a88",
-      "x-okapi-composite-hash": "79f74daafa27",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "bd27d12b08c3",
+      "x-okapi-composite-hash": "8fa653da66d5",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "File identification",
+          "fields": [
+            "identification"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_sdlpackage"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v7.schema.json",
+      "version": 7,
       "title": "Plain Text (Spliced Lines)",
       "type": "object",
       "properties": {
@@ -25997,11 +27410,34 @@
         }
       },
       "x-okapi-kind": "OkfSplicedlinesFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "957e4ff8e965",
-      "x-okapi-composite-hash": "8a219ea141ce",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "6855472e3c57",
+      "x-okapi-composite-hash": "dd91dbac21b5",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_splicedlines"
     },
@@ -26421,8 +27857,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v6.schema.json",
+      "version": 6,
       "title": "TMX Filter",
       "type": "object",
       "properties": {
@@ -26578,18 +28014,41 @@
         "okf_tmx": null
       },
       "x-okapi-kind": "OkfTmxFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 4,
-      "x-okapi-base-hash": "d4a3bd3d7431",
-      "x-okapi-composite-hash": "106f63cb1161",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "099806b34843",
+      "x-okapi-composite-hash": "49bb3f2fea08",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "TMX processing settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_tmx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v6.schema.json",
+      "version": 6,
       "title": "Transifex Filter",
       "type": "object",
       "properties": {
@@ -26714,11 +28173,27 @@
         }
       },
       "x-okapi-kind": "OkfTransifexFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "6c49f9332103",
-      "x-okapi-composite-hash": "e724fcb068e5",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "c4a1a6175068",
+      "x-okapi-composite-hash": "4952552918dd",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "general",
+          "label": "General settings",
+          "fields": [
+            "general"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_transifex"
     },
@@ -26751,8 +28226,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v7.schema.json",
+      "version": 7,
       "title": "TS Filter",
       "type": "object",
       "properties": {
@@ -26877,18 +28352,34 @@
         "okf_ts": null
       },
       "x-okapi-kind": "OkfTsFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "eec0fc54284b",
-      "x-okapi-composite-hash": "88173ff87724",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "a3533e73e996",
+      "x-okapi-composite-hash": "e4d392db8a80",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_ts"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ttml.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ttml.v4.schema.json",
+      "version": 4,
       "title": "TTML Filter",
       "type": "object",
       "properties": {
@@ -26978,18 +28469,27 @@
         }
       },
       "x-okapi-kind": "OkfTtmlFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "d1ca0b20c647",
-      "x-okapi-composite-hash": "d1ca0b20c647",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "c161cf39c660",
+      "x-okapi-composite-hash": "c161cf39c660",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_ttml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v6.schema.json",
+      "version": 6,
       "title": "TTX Filter",
       "type": "object",
       "properties": {
@@ -27142,18 +28642,41 @@
         "okf_ttx": null
       },
       "x-okapi-kind": "OkfTtxFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "12f614639256",
-      "x-okapi-composite-hash": "74ca0373a2f6",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "bfcd5dd632fe",
+      "x-okapi-composite-hash": "f252a56fe9fa",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Processing mode",
+          "fields": [
+            "mode"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_ttx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v6.schema.json",
+      "version": 6,
       "title": "TXML Filter",
       "type": "object",
       "properties": {
@@ -27279,18 +28802,34 @@
         }
       },
       "x-okapi-kind": "OkfTxmlFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "47acfeda7f23",
-      "x-okapi-composite-hash": "95f0ce27546d",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "4b0cc8d483e4",
+      "x-okapi-composite-hash": "06136cce6e42",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_txml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v6.schema.json",
+      "version": 6,
       "title": "Vignette Filter",
       "type": "object",
       "properties": {
@@ -27503,18 +29042,41 @@
         }
       },
       "x-okapi-kind": "OkfVignetteFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 6,
-      "x-okapi-base-hash": "50990a432cb0",
-      "x-okapi-composite-hash": "64cbc28c83c5",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "373a357fb65a",
+      "x-okapi-composite-hash": "acb2715fe809",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "mode",
+          "label": "Processing mode",
+          "fields": [
+            "mode"
+          ]
+        },
+        {
+          "id": "identification",
+          "label": "Content identification",
+          "fields": [
+            "identification"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_vignette"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_vtt.v3.schema.json",
-      "version": 3,
+      "$id": "https://neokapi.dev/schemas/filters/okf_vtt.v4.schema.json",
+      "version": 4,
       "title": "VTT Filter",
       "type": "object",
       "properties": {
@@ -27635,11 +29197,27 @@
         }
       },
       "x-okapi-kind": "OkfVttFilterConfig",
-      "x-okapi-api-version": "v3",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "bf5be390c157",
-      "x-okapi-composite-hash": "bf5be390c157",
+      "x-okapi-api-version": "v4",
+      "x-okapi-base-version": 8,
+      "x-okapi-base-hash": "74eb154b42f2",
+      "x-okapi-composite-hash": "74eb154b42f2",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "extraction",
+          "label": "Extraction settings",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_vtt"
     },
@@ -27694,8 +29272,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v6.schema.json",
+      "version": 6,
       "title": "XINI Filter",
       "type": "object",
       "properties": {
@@ -27818,11 +29396,27 @@
         }
       },
       "x-okapi-kind": "OkfXiniFilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 4,
-      "x-okapi-base-hash": "16c43f330462",
-      "x-okapi-composite-hash": "e7006229a2cd",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 6,
+      "x-okapi-base-hash": "bb2e29b5574f",
+      "x-okapi-composite-hash": "084f6246c31c",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "segmentation",
+          "label": "Segmentation settings",
+          "fields": [
+            "segmentation"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xini"
     },
@@ -27855,8 +29449,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v12.schema.json",
-      "version": 12,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v14.schema.json",
+      "version": 14,
       "title": "XLIFF Filter",
       "type": "object",
       "properties": {
@@ -28378,18 +29972,76 @@
         }
       },
       "x-okapi-kind": "OkfXliffFilterConfig",
-      "x-okapi-api-version": "v12",
-      "x-okapi-base-version": 12,
-      "x-okapi-base-hash": "0b31c7ccab6e",
-      "x-okapi-composite-hash": "74e771508c0a",
+      "x-okapi-api-version": "v14",
+      "x-okapi-base-version": 14,
+      "x-okapi-base-hash": "f30d7f2e2478",
+      "x-okapi-composite-hash": "4f94dcd89569",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "states",
+          "label": "Translation state handling",
+          "fields": [
+            "states"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting and behavior",
+          "fields": [
+            "output"
+          ]
+        },
+        {
+          "id": "subfilters",
+          "label": "Sub-filter configuration",
+          "fields": [
+            "subfilters"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser settings",
+          "fields": [
+            "parser"
+          ]
+        },
+        {
+          "id": "sdl",
+          "label": "SDL XLIFF extensions",
+          "fields": [
+            "sdl"
+          ]
+        },
+        {
+          "id": "iws",
+          "label": "Idiom WorldServer extensions",
+          "fields": [
+            "iws"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v4.schema.json",
-      "version": 4,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v6.schema.json",
+      "version": 6,
       "title": "XLIFF-2 Filter",
       "type": "object",
       "properties": {
@@ -28586,11 +30238,41 @@
         "okf_xliff2": null
       },
       "x-okapi-kind": "OkfXliff2FilterConfig",
-      "x-okapi-api-version": "v4",
-      "x-okapi-base-version": 18,
-      "x-okapi-base-hash": "488fc8b65f48",
-      "x-okapi-composite-hash": "467b0ec6db05",
+      "x-okapi-api-version": "v6",
+      "x-okapi-base-version": 20,
+      "x-okapi-base-hash": "f00255340817",
+      "x-okapi-composite-hash": "904461c20a50",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "states",
+          "label": "Translation state handling",
+          "fields": [
+            "states"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output settings",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xliff2"
     },
@@ -28648,8 +30330,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v10.schema.json",
+      "version": 10,
       "title": "XML Stream Filter",
       "type": "object",
       "properties": {
@@ -29516,18 +31198,34 @@
         }
       },
       "x-okapi-kind": "OkfXmlstreamFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 10,
-      "x-okapi-base-hash": "f79ec29702bb",
-      "x-okapi-composite-hash": "92764a7ee204",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 12,
+      "x-okapi-base-hash": "cdc8ea8dc1c7",
+      "x-okapi-composite-hash": "b489684d4be4",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "parser",
+          "label": "Parser behavior",
+          "fields": [
+            "parser"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_xmlstream"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v5.schema.json",
-      "version": 5,
+      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v7.schema.json",
+      "version": 7,
       "title": "YAML Filter",
       "type": "object",
       "properties": {
@@ -29724,11 +31422,41 @@
         "okf_yaml": null
       },
       "x-okapi-kind": "OkfYamlFilterConfig",
-      "x-okapi-api-version": "v5",
-      "x-okapi-base-version": 5,
-      "x-okapi-base-hash": "f4907b3a1b46",
-      "x-okapi-composite-hash": "85a791a9f8a3",
+      "x-okapi-api-version": "v7",
+      "x-okapi-base-version": 7,
+      "x-okapi-base-hash": "b72c8828df42",
+      "x-okapi-composite-hash": "d982eef01620",
       "ui:introduced-in": "1.47.0",
+      "ui:groups": [
+        {
+          "id": "inlineCodes",
+          "label": "Inline Codes",
+          "fields": [
+            "inlineCodes"
+          ]
+        },
+        {
+          "id": "extraction",
+          "label": "Control what content is extracted for translation",
+          "fields": [
+            "extraction"
+          ]
+        },
+        {
+          "id": "keys",
+          "label": "Configure how YAML keys map to text unit identification",
+          "fields": [
+            "keys"
+          ]
+        },
+        {
+          "id": "output",
+          "label": "Output formatting options",
+          "fields": [
+            "output"
+          ]
+        }
+      ],
       "x-source": "okapi-bridge",
       "x-name": "okf_yaml"
     }
