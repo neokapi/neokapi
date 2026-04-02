@@ -1063,8 +1063,8 @@
   "bridge": [
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v9.schema.json",
+      "version": 9,
       "title": "Archive Filter",
       "type": "object",
       "properties": {
@@ -1128,6 +1128,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -1212,10 +1213,10 @@
         "okf_archive": null
       },
       "x-okapi-kind": "OkfArchiveFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "cd2492bba765",
-      "x-okapi-composite-hash": "773e9edb0df7",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "1f1d49034073",
+      "x-okapi-composite-hash": "42bac0f4a306",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -1298,8 +1299,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v10.schema.json",
+      "version": 10,
       "title": "Plain Text (Line-Based)",
       "type": "object",
       "properties": {
@@ -1368,6 +1369,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -1469,10 +1471,10 @@
         }
       },
       "x-okapi-kind": "OkfBaseplaintextFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "47456203276b",
-      "x-okapi-composite-hash": "21284f500cf8",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "ec11d07e5653",
+      "x-okapi-composite-hash": "72a301314888",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -1495,8 +1497,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v11.schema.json",
+      "version": 11,
       "title": "Table (Generic)",
       "type": "object",
       "properties": {
@@ -1685,6 +1687,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -1822,10 +1825,10 @@
         }
       },
       "x-okapi-kind": "OkfBasetableFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "cb4eb1de255a",
-      "x-okapi-composite-hash": "60fab805edb8",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "58725c806882",
+      "x-okapi-composite-hash": "35f5b56e2e79",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -1862,8 +1865,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v11.schema.json",
+      "version": 11,
       "title": "CSV (Comma-Separated Values)",
       "type": "object",
       "properties": {
@@ -2047,6 +2050,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -2225,10 +2229,10 @@
         }
       },
       "x-okapi-kind": "OkfCommaseparatedvaluesFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "a7e492366a3b",
-      "x-okapi-composite-hash": "c9c0895eb20b",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "7d883daffa0c",
+      "x-okapi-composite-hash": "265721c5912b",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -2251,8 +2255,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v10.schema.json",
+      "version": 10,
       "title": "Doxygen Filter",
       "type": "object",
       "properties": {
@@ -2307,6 +2311,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -3935,10 +3940,10 @@
         }
       },
       "x-okapi-kind": "OkfDoxygenFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "75a465f13240",
-      "x-okapi-composite-hash": "e18687c69389",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "30d2bd53429f",
+      "x-okapi-composite-hash": "026ac7feebbd",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -4004,8 +4009,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v11.schema.json",
+      "version": 11,
       "title": "Fixed-Width Columns",
       "type": "object",
       "properties": {
@@ -4171,6 +4176,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -4280,10 +4286,10 @@
         }
       },
       "x-okapi-kind": "OkfFixedwidthcolumnsFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "f21b8698e1fb",
-      "x-okapi-composite-hash": "978b9a524237",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "bb035b701b20",
+      "x-okapi-composite-hash": "829253a2f562",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -4306,8 +4312,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_html.v16.schema.json",
-      "version": 16,
+      "$id": "https://neokapi.dev/schemas/filters/okf_html.v18.schema.json",
+      "version": 18,
       "title": "HTML/XHTML Filter",
       "type": "object",
       "properties": {
@@ -5312,6 +5318,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regular expression rules in Okapi #v1 format for identifying inline codes.",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "entities": {
                   "rules": [
@@ -6855,10 +6862,10 @@
         }
       },
       "x-okapi-kind": "OkfHtmlFilterConfig",
-      "x-okapi-api-version": "v16",
-      "x-okapi-base-version": 22,
-      "x-okapi-base-hash": "d1553d5080b4",
-      "x-okapi-composite-hash": "258b070e0082",
+      "x-okapi-api-version": "v18",
+      "x-okapi-base-version": 24,
+      "x-okapi-base-hash": "49e723efc3b0",
+      "x-okapi-composite-hash": "6ae2c497b3bc",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -6923,8 +6930,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v9.schema.json",
+      "version": 9,
       "title": "ICML Filter",
       "type": "object",
       "properties": {
@@ -7004,6 +7011,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -7088,10 +7096,10 @@
         "okf_icml": null
       },
       "x-okapi-kind": "OkfIcmlFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 13,
-      "x-okapi-base-hash": "ede2379c9536",
-      "x-okapi-composite-hash": "1c3d555a5d7b",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 15,
+      "x-okapi-base-hash": "dd30af34a33c",
+      "x-okapi-composite-hash": "63a7e8ce0c4c",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -7114,8 +7122,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v13.schema.json",
+      "version": 13,
       "title": "IDML Filter",
       "type": "object",
       "properties": {
@@ -7322,6 +7330,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -7405,10 +7414,10 @@
         "okf_idml": null
       },
       "x-okapi-kind": "OkfIdmlFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 14,
-      "x-okapi-base-hash": "284e7ca18369",
-      "x-okapi-composite-hash": "6d78bbf95a0a",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 16,
+      "x-okapi-base-hash": "7b562da2524c",
+      "x-okapi-composite-hash": "b113f6296a61",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -7438,8 +7447,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_json.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_json.v13.schema.json",
+      "version": 13,
       "title": "Json Filter",
       "type": "object",
       "properties": {
@@ -7602,6 +7611,7 @@
             "rules": {
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "html": {
                   "rules": [
@@ -7711,10 +7721,10 @@
         "okf_json": null
       },
       "x-okapi-kind": "OkfJsonFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "d3a8f442713c",
-      "x-okapi-composite-hash": "285585fe3f33",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "06b61ad9ed17",
+      "x-okapi-composite-hash": "9adc7770d794",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -7758,8 +7768,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v13.schema.json",
+      "version": 13,
       "title": "Markdown Filter",
       "type": "object",
       "properties": {
@@ -7908,6 +7918,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -7992,10 +8003,10 @@
         "okf_markdown": null
       },
       "x-okapi-kind": "OkfMarkdownFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "837a5048ef6d",
-      "x-okapi-composite-hash": "79b6ddf8be24",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "f62763d25de8",
+      "x-okapi-composite-hash": "1065f7ef4579",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -8032,8 +8043,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v13.schema.json",
+      "version": 13,
       "title": "MIF Filter",
       "type": "object",
       "properties": {
@@ -8134,6 +8145,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -8217,10 +8229,10 @@
         "okf_mif": null
       },
       "x-okapi-kind": "OkfMifFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "4328269274a4",
-      "x-okapi-composite-hash": "a635f1c1d74c",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "7b1927631b78",
+      "x-okapi-composite-hash": "374279190afc",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -8388,8 +8400,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v10.schema.json",
+      "version": 10,
       "title": "ODF-Content Filter",
       "type": "object",
       "properties": {
@@ -8450,6 +8462,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -8531,10 +8544,10 @@
         "okf_odf": null
       },
       "x-okapi-kind": "OkfOdfFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "603db5f155a1",
-      "x-okapi-composite-hash": "38a397198bb1",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "30ef43597467",
+      "x-okapi-composite-hash": "5a1a1165920b",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -8557,8 +8570,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v10.schema.json",
+      "version": 10,
       "title": "OpenOffice.org Filter",
       "type": "object",
       "properties": {
@@ -8618,6 +8631,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -8712,10 +8726,10 @@
         "okf_openoffice": null
       },
       "x-okapi-kind": "OkfOpenofficeFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "ba0963fc9afe",
-      "x-okapi-composite-hash": "5da72f9e0256",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "9ae838126881",
+      "x-okapi-composite-hash": "19096df2a8fb",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -8738,8 +8752,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v14.schema.json",
-      "version": 14,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v16.schema.json",
+      "version": 16,
       "title": "OpenXML Filter",
       "type": "object",
       "properties": {
@@ -9083,6 +9097,7 @@
             "rules": {
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "mergeFields": {
                   "rules": [
@@ -9199,10 +9214,10 @@
         "okf_openxml": null
       },
       "x-okapi-kind": "OkfOpenxmlFilterConfig",
-      "x-okapi-api-version": "v14",
-      "x-okapi-base-version": 14,
-      "x-okapi-base-hash": "d197d9633ed0",
-      "x-okapi-composite-hash": "9712af4312fd",
+      "x-okapi-api-version": "v16",
+      "x-okapi-base-version": 16,
+      "x-okapi-base-hash": "2989b500eed1",
+      "x-okapi-composite-hash": "b6219c1db4ff",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -9246,8 +9261,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v10.schema.json",
+      "version": 10,
       "title": "Plain Text (Paragraph-Based)",
       "type": "object",
       "properties": {
@@ -9328,6 +9343,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -9419,10 +9435,10 @@
         "okf_plaintext_paragraphs_lines": null
       },
       "x-okapi-kind": "OkfParaplaintextFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "18ff6ced6e40",
-      "x-okapi-composite-hash": "f2aa99b9d803",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "d0a4c6f1893a",
+      "x-okapi-composite-hash": "70ed2239bc8c",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -9452,8 +9468,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v9.schema.json",
+      "version": 9,
       "title": "PDF Filter",
       "type": "object",
       "properties": {
@@ -9544,6 +9560,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -9658,10 +9675,10 @@
         "okf_pdf": null
       },
       "x-okapi-kind": "OkfPdfFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "274bc81e89dc",
-      "x-okapi-composite-hash": "54a89d1a6b2e",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "7a317914682f",
+      "x-okapi-composite-hash": "78f8ed4b461a",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -9727,8 +9744,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v9.schema.json",
+      "version": 9,
       "title": "PHP Content Filter",
       "type": "object",
       "properties": {
@@ -9784,6 +9801,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -9867,10 +9885,10 @@
         "okf_phpcontent": null
       },
       "x-okapi-kind": "OkfPhpcontentFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "754d7bbca8c7",
-      "x-okapi-composite-hash": "84b5abbd0e3b",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "e7d18e25879f",
+      "x-okapi-composite-hash": "d6f9a84502ca",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -10024,8 +10042,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_po.v10.schema.json",
-      "version": 10,
+      "$id": "https://neokapi.dev/schemas/filters/okf_po.v12.schema.json",
+      "version": 12,
       "title": "PO Filter",
       "type": "object",
       "properties": {
@@ -10126,6 +10144,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -10224,10 +10243,10 @@
         }
       },
       "x-okapi-kind": "OkfPoFilterConfig",
-      "x-okapi-api-version": "v10",
-      "x-okapi-base-version": 10,
-      "x-okapi-base-hash": "0c4c7e764832",
-      "x-okapi-composite-hash": "d113385b3482",
+      "x-okapi-api-version": "v12",
+      "x-okapi-base-version": 12,
+      "x-okapi-base-hash": "4114465b3759",
+      "x-okapi-composite-hash": "e0774a2ab913",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -10264,8 +10283,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v11.schema.json",
+      "version": 11,
       "title": "Properties Filter",
       "type": "object",
       "properties": {
@@ -10404,6 +10423,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -10554,10 +10574,10 @@
         }
       },
       "x-okapi-kind": "OkfPropertiesFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "fc3ee9a45549",
-      "x-okapi-composite-hash": "5afb12b96e4d",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "6833f75dc11e",
+      "x-okapi-composite-hash": "3e2647b5d2e0",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -10661,8 +10681,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v12.schema.json",
-      "version": 12,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v14.schema.json",
+      "version": 14,
       "title": "Regex Filter",
       "type": "object",
       "properties": {
@@ -10785,6 +10805,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Extraction Rules",
               "description": "Ordered list of regex-based rules with actions and capturing group assignments.",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -11081,10 +11102,10 @@
         }
       },
       "x-okapi-kind": "OkfRegexFilterConfig",
-      "x-okapi-api-version": "v12",
-      "x-okapi-base-version": 12,
-      "x-okapi-base-hash": "091ae3ebff42",
-      "x-okapi-composite-hash": "ca411c072542",
+      "x-okapi-api-version": "v14",
+      "x-okapi-base-version": 14,
+      "x-okapi-base-hash": "d64eb6c9a4a0",
+      "x-okapi-composite-hash": "f7b0d881b66d",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -11121,8 +11142,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v10.schema.json",
+      "version": 10,
       "title": "okf_plaintext_regex",
       "type": "object",
       "properties": {
@@ -11221,6 +11242,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -11328,10 +11350,10 @@
         }
       },
       "x-okapi-kind": "OkfRegexplaintextFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "9edda167a6b1",
-      "x-okapi-composite-hash": "7f01bbcfecd9",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "5027cb5fe900",
+      "x-okapi-composite-hash": "1f3df83e0b27",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -11390,8 +11412,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v9.schema.json",
+      "version": 9,
       "title": "SDLPPX and SDLRPX Filter",
       "type": "object",
       "properties": {
@@ -11454,6 +11476,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -11538,10 +11561,10 @@
         "okf_sdlpackage": null
       },
       "x-okapi-kind": "OkfSdlpackageFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "b2351a915a92",
-      "x-okapi-composite-hash": "4fec453494ef",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "5984f480497f",
+      "x-okapi-composite-hash": "e616e123d0c2",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -11564,8 +11587,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v10.schema.json",
+      "version": 10,
       "title": "Plain Text (Spliced Lines)",
       "type": "object",
       "properties": {
@@ -11652,6 +11675,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -11766,10 +11790,10 @@
         }
       },
       "x-okapi-kind": "OkfSplicedlinesFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "46defc28d84f",
-      "x-okapi-composite-hash": "33970f1b1219",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "f1efc2626eab",
+      "x-okapi-composite-hash": "81f0f48335df",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -12213,8 +12237,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v9.schema.json",
+      "version": 9,
       "title": "TMX Filter",
       "type": "object",
       "properties": {
@@ -12291,6 +12315,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -12374,10 +12399,10 @@
         "okf_tmx": null
       },
       "x-okapi-kind": "OkfTmxFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "b365d284d313",
-      "x-okapi-composite-hash": "de9c25adbb9b",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 9,
+      "x-okapi-base-hash": "aa00d72b2995",
+      "x-okapi-composite-hash": "40b7feb4fd1c",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -12407,8 +12432,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v9.schema.json",
+      "version": 9,
       "title": "Transifex Filter",
       "type": "object",
       "properties": {
@@ -12451,6 +12476,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -12537,10 +12563,10 @@
         }
       },
       "x-okapi-kind": "OkfTransifexFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "ea66d3aaa231",
-      "x-okapi-composite-hash": "7a910d49a8f6",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "e1e463dcd7af",
+      "x-okapi-composite-hash": "987ea4649da0",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -12590,8 +12616,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v10.schema.json",
+      "version": 10,
       "title": "TS Filter",
       "type": "object",
       "properties": {
@@ -12637,6 +12663,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -12720,10 +12747,10 @@
         "okf_ts": null
       },
       "x-okapi-kind": "OkfTsFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "a2730d734f54",
-      "x-okapi-composite-hash": "bbc04713d2b6",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "e8197b16e03b",
+      "x-okapi-composite-hash": "7d6a4db67e65",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -12856,8 +12883,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v9.schema.json",
+      "version": 9,
       "title": "TTX Filter",
       "type": "object",
       "properties": {
@@ -12931,6 +12958,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -13014,10 +13042,10 @@
         "okf_ttx": null
       },
       "x-okapi-kind": "OkfTtxFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "2f8d79670818",
-      "x-okapi-composite-hash": "f090369be545",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "8e38496eed94",
+      "x-okapi-composite-hash": "ebc4fd696311",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -13047,8 +13075,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v9.schema.json",
+      "version": 9,
       "title": "TXML Filter",
       "type": "object",
       "properties": {
@@ -13092,6 +13120,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -13178,10 +13207,10 @@
         }
       },
       "x-okapi-kind": "OkfTxmlFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "face2134a9be",
-      "x-okapi-composite-hash": "4024a9cee601",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "c858f597182f",
+      "x-okapi-composite-hash": "ed4d90745967",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -13204,8 +13233,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v9.schema.json",
+      "version": 9,
       "title": "Vignette Filter",
       "type": "object",
       "properties": {
@@ -13331,6 +13360,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -13422,10 +13452,10 @@
         }
       },
       "x-okapi-kind": "OkfVignetteFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "f5308612f19b",
-      "x-okapi-composite-hash": "35d5584a1915",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "4025a18bc15c",
+      "x-okapi-composite-hash": "269c6a43f1bf",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -13652,8 +13682,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v9.schema.json",
+      "version": 9,
       "title": "XINI Filter",
       "type": "object",
       "properties": {
@@ -13694,6 +13724,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -13780,10 +13811,10 @@
         }
       },
       "x-okapi-kind": "OkfXiniFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "441f9919f7d0",
-      "x-okapi-composite-hash": "3f312f8b90c3",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 9,
+      "x-okapi-base-hash": "d588d092d96c",
+      "x-okapi-composite-hash": "8e84763154e9",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -13833,8 +13864,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v15.schema.json",
-      "version": 15,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v17.schema.json",
+      "version": 17,
       "title": "XLIFF Filter",
       "type": "object",
       "properties": {
@@ -14162,6 +14193,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -14342,10 +14374,10 @@
         }
       },
       "x-okapi-kind": "OkfXliffFilterConfig",
-      "x-okapi-api-version": "v15",
-      "x-okapi-base-version": 15,
-      "x-okapi-base-hash": "f17f726c05c0",
-      "x-okapi-composite-hash": "09037011b6a9",
+      "x-okapi-api-version": "v17",
+      "x-okapi-base-version": 17,
+      "x-okapi-base-hash": "7fa410f3a90b",
+      "x-okapi-composite-hash": "b58b00ca33b0",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -14410,8 +14442,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v9.schema.json",
+      "version": 9,
       "title": "XLIFF-2 Filter",
       "type": "object",
       "properties": {
@@ -14526,6 +14558,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -14612,10 +14645,10 @@
         "okf_xliff2": null
       },
       "x-okapi-kind": "OkfXliff2FilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 21,
-      "x-okapi-base-hash": "04e7df0d6cf2",
-      "x-okapi-composite-hash": "5bd20d9e1caf",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 23,
+      "x-okapi-base-hash": "219b518f4ca5",
+      "x-okapi-composite-hash": "0955ecb7d6e8",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -14704,8 +14737,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v13.schema.json",
+      "version": 13,
       "title": "XML Stream Filter",
       "type": "object",
       "properties": {
@@ -15032,6 +15065,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -15576,10 +15610,10 @@
         }
       },
       "x-okapi-kind": "OkfXmlstreamFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 13,
-      "x-okapi-base-hash": "26b23e12bb3b",
-      "x-okapi-composite-hash": "84a387dea312",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 15,
+      "x-okapi-base-hash": "615b19767951",
+      "x-okapi-composite-hash": "7ed8d998179a",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -15602,8 +15636,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v10.schema.json",
+      "version": 10,
       "title": "YAML Filter",
       "type": "object",
       "properties": {
@@ -15702,6 +15736,7 @@
             "rules": {
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "rubyI18n": {
                   "rules": [
@@ -15804,10 +15839,10 @@
         "okf_yaml": null
       },
       "x-okapi-kind": "OkfYamlFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "58c4eab051e1",
-      "x-okapi-composite-hash": "b9934c4d72b1",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "33fad4270b2c",
+      "x-okapi-composite-hash": "3fb3c31c8765",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -16905,8 +16940,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_archive.v9.schema.json",
+      "version": 9,
       "title": "Archive Filter",
       "type": "object",
       "properties": {
@@ -16970,6 +17005,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -17054,10 +17090,10 @@
         "okf_archive": null
       },
       "x-okapi-kind": "OkfArchiveFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "cd2492bba765",
-      "x-okapi-composite-hash": "773e9edb0df7",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "1f1d49034073",
+      "x-okapi-composite-hash": "42bac0f4a306",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -17140,8 +17176,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_baseplaintext.v10.schema.json",
+      "version": 10,
       "title": "Plain Text (Line-Based)",
       "type": "object",
       "properties": {
@@ -17210,6 +17246,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -17311,10 +17348,10 @@
         }
       },
       "x-okapi-kind": "OkfBaseplaintextFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "47456203276b",
-      "x-okapi-composite-hash": "21284f500cf8",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "ec11d07e5653",
+      "x-okapi-composite-hash": "72a301314888",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -17337,8 +17374,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_basetable.v11.schema.json",
+      "version": 11,
       "title": "Table (Generic)",
       "type": "object",
       "properties": {
@@ -17527,6 +17564,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -17664,10 +17702,10 @@
         }
       },
       "x-okapi-kind": "OkfBasetableFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "cb4eb1de255a",
-      "x-okapi-composite-hash": "60fab805edb8",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "58725c806882",
+      "x-okapi-composite-hash": "35f5b56e2e79",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -17704,8 +17742,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_commaseparatedvalues.v11.schema.json",
+      "version": 11,
       "title": "CSV (Comma-Separated Values)",
       "type": "object",
       "properties": {
@@ -17889,6 +17927,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -18067,10 +18106,10 @@
         }
       },
       "x-okapi-kind": "OkfCommaseparatedvaluesFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "a7e492366a3b",
-      "x-okapi-composite-hash": "c9c0895eb20b",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "7d883daffa0c",
+      "x-okapi-composite-hash": "265721c5912b",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -18093,8 +18132,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_doxygen.v10.schema.json",
+      "version": 10,
       "title": "Doxygen Filter",
       "type": "object",
       "properties": {
@@ -18149,6 +18188,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -19777,10 +19817,10 @@
         }
       },
       "x-okapi-kind": "OkfDoxygenFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "75a465f13240",
-      "x-okapi-composite-hash": "e18687c69389",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "30d2bd53429f",
+      "x-okapi-composite-hash": "026ac7feebbd",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -19846,8 +19886,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_fixedwidthcolumns.v11.schema.json",
+      "version": 11,
       "title": "Fixed-Width Columns",
       "type": "object",
       "properties": {
@@ -20013,6 +20053,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -20122,10 +20163,10 @@
         }
       },
       "x-okapi-kind": "OkfFixedwidthcolumnsFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "f21b8698e1fb",
-      "x-okapi-composite-hash": "978b9a524237",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "bb035b701b20",
+      "x-okapi-composite-hash": "829253a2f562",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -20148,8 +20189,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_html.v16.schema.json",
-      "version": 16,
+      "$id": "https://neokapi.dev/schemas/filters/okf_html.v18.schema.json",
+      "version": 18,
       "title": "HTML/XHTML Filter",
       "type": "object",
       "properties": {
@@ -21154,6 +21195,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regular expression rules in Okapi #v1 format for identifying inline codes.",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "entities": {
                   "rules": [
@@ -22697,10 +22739,10 @@
         }
       },
       "x-okapi-kind": "OkfHtmlFilterConfig",
-      "x-okapi-api-version": "v16",
-      "x-okapi-base-version": 22,
-      "x-okapi-base-hash": "d1553d5080b4",
-      "x-okapi-composite-hash": "258b070e0082",
+      "x-okapi-api-version": "v18",
+      "x-okapi-base-version": 24,
+      "x-okapi-base-hash": "49e723efc3b0",
+      "x-okapi-composite-hash": "6ae2c497b3bc",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -22765,8 +22807,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_icml.v9.schema.json",
+      "version": 9,
       "title": "ICML Filter",
       "type": "object",
       "properties": {
@@ -22846,6 +22888,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -22930,10 +22973,10 @@
         "okf_icml": null
       },
       "x-okapi-kind": "OkfIcmlFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 13,
-      "x-okapi-base-hash": "ede2379c9536",
-      "x-okapi-composite-hash": "1c3d555a5d7b",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 15,
+      "x-okapi-base-hash": "dd30af34a33c",
+      "x-okapi-composite-hash": "63a7e8ce0c4c",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -22956,8 +22999,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_idml.v13.schema.json",
+      "version": 13,
       "title": "IDML Filter",
       "type": "object",
       "properties": {
@@ -23164,6 +23207,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -23247,10 +23291,10 @@
         "okf_idml": null
       },
       "x-okapi-kind": "OkfIdmlFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 14,
-      "x-okapi-base-hash": "284e7ca18369",
-      "x-okapi-composite-hash": "6d78bbf95a0a",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 16,
+      "x-okapi-base-hash": "7b562da2524c",
+      "x-okapi-composite-hash": "b113f6296a61",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -23280,8 +23324,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_json.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_json.v13.schema.json",
+      "version": 13,
       "title": "Json Filter",
       "type": "object",
       "properties": {
@@ -23444,6 +23488,7 @@
             "rules": {
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "html": {
                   "rules": [
@@ -23553,10 +23598,10 @@
         "okf_json": null
       },
       "x-okapi-kind": "OkfJsonFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "d3a8f442713c",
-      "x-okapi-composite-hash": "285585fe3f33",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "06b61ad9ed17",
+      "x-okapi-composite-hash": "9adc7770d794",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -23600,8 +23645,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_markdown.v13.schema.json",
+      "version": 13,
       "title": "Markdown Filter",
       "type": "object",
       "properties": {
@@ -23750,6 +23795,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -23834,10 +23880,10 @@
         "okf_markdown": null
       },
       "x-okapi-kind": "OkfMarkdownFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "837a5048ef6d",
-      "x-okapi-composite-hash": "79b6ddf8be24",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "f62763d25de8",
+      "x-okapi-composite-hash": "1065f7ef4579",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -23874,8 +23920,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_mif.v13.schema.json",
+      "version": 13,
       "title": "MIF Filter",
       "type": "object",
       "properties": {
@@ -23976,6 +24022,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -24059,10 +24106,10 @@
         "okf_mif": null
       },
       "x-okapi-kind": "OkfMifFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "4328269274a4",
-      "x-okapi-composite-hash": "a635f1c1d74c",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "7b1927631b78",
+      "x-okapi-composite-hash": "374279190afc",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -24230,8 +24277,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_odf.v10.schema.json",
+      "version": 10,
       "title": "ODF-Content Filter",
       "type": "object",
       "properties": {
@@ -24292,6 +24339,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -24373,10 +24421,10 @@
         "okf_odf": null
       },
       "x-okapi-kind": "OkfOdfFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "603db5f155a1",
-      "x-okapi-composite-hash": "38a397198bb1",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "30ef43597467",
+      "x-okapi-composite-hash": "5a1a1165920b",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -24399,8 +24447,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openoffice.v10.schema.json",
+      "version": 10,
       "title": "OpenOffice.org Filter",
       "type": "object",
       "properties": {
@@ -24460,6 +24508,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -24554,10 +24603,10 @@
         "okf_openoffice": null
       },
       "x-okapi-kind": "OkfOpenofficeFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "ba0963fc9afe",
-      "x-okapi-composite-hash": "5da72f9e0256",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "9ae838126881",
+      "x-okapi-composite-hash": "19096df2a8fb",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -24580,8 +24629,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v14.schema.json",
-      "version": 14,
+      "$id": "https://neokapi.dev/schemas/filters/okf_openxml.v16.schema.json",
+      "version": 16,
       "title": "OpenXML Filter",
       "type": "object",
       "properties": {
@@ -24925,6 +24974,7 @@
             "rules": {
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "mergeFields": {
                   "rules": [
@@ -25041,10 +25091,10 @@
         "okf_openxml": null
       },
       "x-okapi-kind": "OkfOpenxmlFilterConfig",
-      "x-okapi-api-version": "v14",
-      "x-okapi-base-version": 14,
-      "x-okapi-base-hash": "d197d9633ed0",
-      "x-okapi-composite-hash": "9712af4312fd",
+      "x-okapi-api-version": "v16",
+      "x-okapi-base-version": 16,
+      "x-okapi-base-hash": "2989b500eed1",
+      "x-okapi-composite-hash": "b6219c1db4ff",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -25088,8 +25138,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_paraplaintext.v10.schema.json",
+      "version": 10,
       "title": "Plain Text (Paragraph-Based)",
       "type": "object",
       "properties": {
@@ -25170,6 +25220,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -25261,10 +25312,10 @@
         "okf_plaintext_paragraphs_lines": null
       },
       "x-okapi-kind": "OkfParaplaintextFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "18ff6ced6e40",
-      "x-okapi-composite-hash": "f2aa99b9d803",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "d0a4c6f1893a",
+      "x-okapi-composite-hash": "70ed2239bc8c",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -25294,8 +25345,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_pdf.v9.schema.json",
+      "version": 9,
       "title": "PDF Filter",
       "type": "object",
       "properties": {
@@ -25386,6 +25437,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -25500,10 +25552,10 @@
         "okf_pdf": null
       },
       "x-okapi-kind": "OkfPdfFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "274bc81e89dc",
-      "x-okapi-composite-hash": "54a89d1a6b2e",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "7a317914682f",
+      "x-okapi-composite-hash": "78f8ed4b461a",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -25569,8 +25621,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_phpcontent.v9.schema.json",
+      "version": 9,
       "title": "PHP Content Filter",
       "type": "object",
       "properties": {
@@ -25626,6 +25678,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -25709,10 +25762,10 @@
         "okf_phpcontent": null
       },
       "x-okapi-kind": "OkfPhpcontentFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "754d7bbca8c7",
-      "x-okapi-composite-hash": "84b5abbd0e3b",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "e7d18e25879f",
+      "x-okapi-composite-hash": "d6f9a84502ca",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -25866,8 +25919,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_po.v10.schema.json",
-      "version": 10,
+      "$id": "https://neokapi.dev/schemas/filters/okf_po.v12.schema.json",
+      "version": 12,
       "title": "PO Filter",
       "type": "object",
       "properties": {
@@ -25968,6 +26021,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -26066,10 +26120,10 @@
         }
       },
       "x-okapi-kind": "OkfPoFilterConfig",
-      "x-okapi-api-version": "v10",
-      "x-okapi-base-version": 10,
-      "x-okapi-base-hash": "0c4c7e764832",
-      "x-okapi-composite-hash": "d113385b3482",
+      "x-okapi-api-version": "v12",
+      "x-okapi-base-version": 12,
+      "x-okapi-base-hash": "4114465b3759",
+      "x-okapi-composite-hash": "e0774a2ab913",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -26106,8 +26160,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v9.schema.json",
-      "version": 9,
+      "$id": "https://neokapi.dev/schemas/filters/okf_properties.v11.schema.json",
+      "version": 11,
       "title": "Properties Filter",
       "type": "object",
       "properties": {
@@ -26246,6 +26300,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -26396,10 +26451,10 @@
         }
       },
       "x-okapi-kind": "OkfPropertiesFilterConfig",
-      "x-okapi-api-version": "v9",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "fc3ee9a45549",
-      "x-okapi-composite-hash": "5afb12b96e4d",
+      "x-okapi-api-version": "v11",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "6833f75dc11e",
+      "x-okapi-composite-hash": "3e2647b5d2e0",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -26503,8 +26558,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v12.schema.json",
-      "version": 12,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regex.v14.schema.json",
+      "version": 14,
       "title": "Regex Filter",
       "type": "object",
       "properties": {
@@ -26627,6 +26682,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Extraction Rules",
               "description": "Ordered list of regex-based rules with actions and capturing group assignments.",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -26923,10 +26979,10 @@
         }
       },
       "x-okapi-kind": "OkfRegexFilterConfig",
-      "x-okapi-api-version": "v12",
-      "x-okapi-base-version": 12,
-      "x-okapi-base-hash": "091ae3ebff42",
-      "x-okapi-composite-hash": "ca411c072542",
+      "x-okapi-api-version": "v14",
+      "x-okapi-base-version": 14,
+      "x-okapi-base-hash": "d64eb6c9a4a0",
+      "x-okapi-composite-hash": "f7b0d881b66d",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -26963,8 +27019,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_regexplaintext.v10.schema.json",
+      "version": 10,
       "title": "okf_plaintext_regex",
       "type": "object",
       "properties": {
@@ -27063,6 +27119,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -27170,10 +27227,10 @@
         }
       },
       "x-okapi-kind": "OkfRegexplaintextFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "9edda167a6b1",
-      "x-okapi-composite-hash": "7f01bbcfecd9",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "5027cb5fe900",
+      "x-okapi-composite-hash": "1f3df83e0b27",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -27232,8 +27289,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_sdlpackage.v9.schema.json",
+      "version": 9,
       "title": "SDLPPX and SDLRPX Filter",
       "type": "object",
       "properties": {
@@ -27296,6 +27353,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -27380,10 +27438,10 @@
         "okf_sdlpackage": null
       },
       "x-okapi-kind": "OkfSdlpackageFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 11,
-      "x-okapi-base-hash": "b2351a915a92",
-      "x-okapi-composite-hash": "4fec453494ef",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 13,
+      "x-okapi-base-hash": "5984f480497f",
+      "x-okapi-composite-hash": "e616e123d0c2",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -27406,8 +27464,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_splicedlines.v10.schema.json",
+      "version": 10,
       "title": "Plain Text (Spliced Lines)",
       "type": "object",
       "properties": {
@@ -27494,6 +27552,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -27608,10 +27667,10 @@
         }
       },
       "x-okapi-kind": "OkfSplicedlinesFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "46defc28d84f",
-      "x-okapi-composite-hash": "33970f1b1219",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "f1efc2626eab",
+      "x-okapi-composite-hash": "81f0f48335df",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -28055,8 +28114,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_tmx.v9.schema.json",
+      "version": 9,
       "title": "TMX Filter",
       "type": "object",
       "properties": {
@@ -28133,6 +28192,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -28216,10 +28276,10 @@
         "okf_tmx": null
       },
       "x-okapi-kind": "OkfTmxFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "b365d284d313",
-      "x-okapi-composite-hash": "de9c25adbb9b",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 9,
+      "x-okapi-base-hash": "aa00d72b2995",
+      "x-okapi-composite-hash": "40b7feb4fd1c",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -28249,8 +28309,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_transifex.v9.schema.json",
+      "version": 9,
       "title": "Transifex Filter",
       "type": "object",
       "properties": {
@@ -28293,6 +28353,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -28379,10 +28440,10 @@
         }
       },
       "x-okapi-kind": "OkfTransifexFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "ea66d3aaa231",
-      "x-okapi-composite-hash": "7a910d49a8f6",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "e1e463dcd7af",
+      "x-okapi-composite-hash": "987ea4649da0",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -28432,8 +28493,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ts.v10.schema.json",
+      "version": 10,
       "title": "TS Filter",
       "type": "object",
       "properties": {
@@ -28479,6 +28540,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -28562,10 +28624,10 @@
         "okf_ts": null
       },
       "x-okapi-kind": "OkfTsFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "a2730d734f54",
-      "x-okapi-composite-hash": "bbc04713d2b6",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "e8197b16e03b",
+      "x-okapi-composite-hash": "7d6a4db67e65",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -28698,8 +28760,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_ttx.v9.schema.json",
+      "version": 9,
       "title": "TTX Filter",
       "type": "object",
       "properties": {
@@ -28773,6 +28835,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -28856,10 +28919,10 @@
         "okf_ttx": null
       },
       "x-okapi-kind": "OkfTtxFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "2f8d79670818",
-      "x-okapi-composite-hash": "f090369be545",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "8e38496eed94",
+      "x-okapi-composite-hash": "ebc4fd696311",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -28889,8 +28952,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_txml.v9.schema.json",
+      "version": 9,
       "title": "TXML Filter",
       "type": "object",
       "properties": {
@@ -28934,6 +28997,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -29020,10 +29084,10 @@
         }
       },
       "x-okapi-kind": "OkfTxmlFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "face2134a9be",
-      "x-okapi-composite-hash": "4024a9cee601",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "c858f597182f",
+      "x-okapi-composite-hash": "ed4d90745967",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -29046,8 +29110,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_vignette.v9.schema.json",
+      "version": 9,
       "title": "Vignette Filter",
       "type": "object",
       "properties": {
@@ -29173,6 +29237,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -29264,10 +29329,10 @@
         }
       },
       "x-okapi-kind": "OkfVignetteFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "f5308612f19b",
-      "x-okapi-composite-hash": "35d5584a1915",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 11,
+      "x-okapi-base-hash": "4025a18bc15c",
+      "x-okapi-composite-hash": "269c6a43f1bf",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -29494,8 +29559,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xini.v9.schema.json",
+      "version": 9,
       "title": "XINI Filter",
       "type": "object",
       "properties": {
@@ -29536,6 +29601,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -29622,10 +29688,10 @@
         }
       },
       "x-okapi-kind": "OkfXiniFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 7,
-      "x-okapi-base-hash": "441f9919f7d0",
-      "x-okapi-composite-hash": "3f312f8b90c3",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 9,
+      "x-okapi-base-hash": "d588d092d96c",
+      "x-okapi-composite-hash": "8e84763154e9",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -29675,8 +29741,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v15.schema.json",
-      "version": 15,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff.v17.schema.json",
+      "version": 17,
       "title": "XLIFF Filter",
       "type": "object",
       "properties": {
@@ -30004,6 +30070,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -30184,10 +30251,10 @@
         }
       },
       "x-okapi-kind": "OkfXliffFilterConfig",
-      "x-okapi-api-version": "v15",
-      "x-okapi-base-version": 15,
-      "x-okapi-base-hash": "f17f726c05c0",
-      "x-okapi-composite-hash": "09037011b6a9",
+      "x-okapi-api-version": "v17",
+      "x-okapi-base-version": 17,
+      "x-okapi-base-hash": "7fa410f3a90b",
+      "x-okapi-composite-hash": "b58b00ca33b0",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -30252,8 +30319,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xliff2.v9.schema.json",
+      "version": 9,
       "title": "XLIFF-2 Filter",
       "type": "object",
       "properties": {
@@ -30368,6 +30435,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -30454,10 +30522,10 @@
         "okf_xliff2": null
       },
       "x-okapi-kind": "OkfXliff2FilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 21,
-      "x-okapi-base-hash": "04e7df0d6cf2",
-      "x-okapi-composite-hash": "5bd20d9e1caf",
+      "x-okapi-api-version": "v9",
+      "x-okapi-base-version": 23,
+      "x-okapi-base-hash": "219b518f4ca5",
+      "x-okapi-composite-hash": "0955ecb7d6e8",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -30546,8 +30614,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v11.schema.json",
-      "version": 11,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v13.schema.json",
+      "version": 13,
       "title": "XML Stream Filter",
       "type": "object",
       "properties": {
@@ -30874,6 +30942,7 @@
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
               "description": "Regex patterns to identify inline codes in translatable text",
+              "ui:widget": "codeFinderRules",
               "x-okapi-flatten-path": "codeFinderRules",
               "ui:enabled": {
                 "field": "enabled",
@@ -31418,10 +31487,10 @@
         }
       },
       "x-okapi-kind": "OkfXmlstreamFilterConfig",
-      "x-okapi-api-version": "v11",
-      "x-okapi-base-version": 13,
-      "x-okapi-base-hash": "26b23e12bb3b",
-      "x-okapi-composite-hash": "84a387dea312",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 15,
+      "x-okapi-base-hash": "615b19767951",
+      "x-okapi-composite-hash": "7ed8d998179a",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
@@ -31444,8 +31513,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v8.schema.json",
-      "version": 8,
+      "$id": "https://neokapi.dev/schemas/filters/okf_yaml.v10.schema.json",
+      "version": 10,
       "title": "YAML Filter",
       "type": "object",
       "properties": {
@@ -31544,6 +31613,7 @@
             "rules": {
               "$ref": "#/$defs/codeFinderRules",
               "title": "Code Finder Rules",
+              "ui:widget": "codeFinderRules",
               "ui:presets": {
                 "rubyI18n": {
                   "rules": [
@@ -31646,10 +31716,10 @@
         "okf_yaml": null
       },
       "x-okapi-kind": "OkfYamlFilterConfig",
-      "x-okapi-api-version": "v8",
-      "x-okapi-base-version": 8,
-      "x-okapi-base-hash": "58c4eab051e1",
-      "x-okapi-composite-hash": "b9934c4d72b1",
+      "x-okapi-api-version": "v10",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "33fad4270b2c",
+      "x-okapi-composite-hash": "3fb3c31c8765",
       "ui:introduced-in": "1.47.0",
       "ui:groups": [
         {
