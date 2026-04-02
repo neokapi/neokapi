@@ -1,6 +1,6 @@
 {
   "name": "okapi",
-  "version": "2.32.0-SNAPSHOT",
+  "version": "2.33.0-SNAPSHOT",
   "framework_version": "1.47.0",
   "plugin_type": "bundle",
   "install_type": "bridge",
