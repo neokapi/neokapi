@@ -268,7 +268,8 @@ func applyTag(prop *PropertySchema, tag string) {
 			prop.Placeholder = val
 		case "enum":
 			for _, e := range strings.Split(val, "|") {
-				prop.Enum = append(prop.Enum, strings.TrimSpace(e))
+				v := strings.TrimSpace(e)
+				prop.Options = append(prop.Options, OptionItem{Value: v, Label: v})
 			}
 		case "min":
 			if f, err := parseFloat(val); err == nil {

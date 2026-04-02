@@ -15,7 +15,7 @@ func TestComponentSchema_Validate(t *testing.T) {
 			"name":      {Type: "string"},
 			"count":     {Type: "integer"},
 			"threshold": {Type: "number"},
-			"mode":      {Type: "string", Enum: []any{"fast", "slow"}},
+			"mode":      {Type: "string", Options: []OptionItem{{Value: "fast", Label: "Fast"}, {Value: "slow", Label: "Slow"}}},
 		},
 	}
 
@@ -50,7 +50,7 @@ func TestComponentSchema_Validate(t *testing.T) {
 		"mode": "invalid",
 	})
 	require.Len(t, errs, 1)
-	assert.Contains(t, errs[0].Message, "enum")
+	assert.Contains(t, errs[0].Message, "options")
 }
 
 func TestComponentSchema_Validate_NilSchema(t *testing.T) {
@@ -211,7 +211,7 @@ func TestPropertySchema_UIExtensions_Roundtrip(t *testing.T) {
 		Widget:      "segmented",
 		Placeholder: "select...",
 		Order:       &order,
-		EnumLabels:  map[string]string{"json": "JSON", "yaml": "YAML"},
+		Options: []OptionItem{{Value: "json", Label: "JSON"}, {Value: "yaml", Label: "YAML"}},
 		EnumDescriptions: map[string]string{"json": "Standard JSON"},
 		Layout:      &LayoutHints{HideLabel: true, Columns: 2},
 		Visible:     &ConditionExpr{Field: "mode", Eq: "advanced"},
@@ -226,7 +226,7 @@ func TestPropertySchema_UIExtensions_Roundtrip(t *testing.T) {
 	assert.Contains(t, raw, `"ui:widget"`)
 	assert.Contains(t, raw, `"ui:placeholder"`)
 	assert.Contains(t, raw, `"ui:order"`)
-	assert.Contains(t, raw, `"ui:enum-labels"`)
+	assert.Contains(t, raw, `"options"`)
 	assert.Contains(t, raw, `"ui:enum-descriptions"`)
 	assert.Contains(t, raw, `"ui:layout"`)
 	assert.Contains(t, raw, `"ui:visible"`)
@@ -239,7 +239,8 @@ func TestPropertySchema_UIExtensions_Roundtrip(t *testing.T) {
 	assert.Equal(t, "select...", decoded.Placeholder)
 	require.NotNil(t, decoded.Order)
 	assert.Equal(t, 3, *decoded.Order)
-	assert.Equal(t, "JSON", decoded.EnumLabels["json"])
+	require.Len(t, decoded.Options, 2)
+	assert.Equal(t, "JSON", decoded.Options[0].Label)
 	require.NotNil(t, decoded.Layout)
 	assert.True(t, decoded.Layout.HideLabel)
 	assert.Equal(t, 2, decoded.Layout.Columns)

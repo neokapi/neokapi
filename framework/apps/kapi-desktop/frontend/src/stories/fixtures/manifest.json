@@ -1,6 +1,6 @@
 {
   "name": "okapi",
-  "version": "2.29.0",
+  "version": "2.32.0-SNAPSHOT",
   "framework_version": "1.47.0",
   "plugin_type": "bundle",
   "install_type": "bridge",
@@ -14,7 +14,7 @@
       "type": "format",
       "id": "okf_archive",
       "name": "okf_archive",
-      "display_name": "Archive Filter Filter",
+      "display_name": "Archive Filter",
       "capabilities": [
         "read",
         "write"
@@ -34,7 +34,7 @@
       "type": "format",
       "id": "okf_autoxliff",
       "name": "okf_autoxliff",
-      "display_name": "XLIFF 1.2 and 2.0 Filter Filter",
+      "display_name": "XLIFF 1.2 and 2.0 Filter",
       "capabilities": [
         "read",
         "write"
@@ -55,7 +55,7 @@
       "type": "format",
       "id": "okf_baseplaintext",
       "name": "okf_baseplaintext",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "Plain Text (Line-Based)",
       "capabilities": [
         "read",
         "write"
@@ -73,7 +73,7 @@
       "type": "format",
       "id": "okf_basetable",
       "name": "okf_basetable",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "Table (Generic)",
       "capabilities": [
         "read",
         "write"
@@ -91,7 +91,7 @@
       "type": "format",
       "id": "okf_commaseparatedvalues",
       "name": "okf_commaseparatedvalues",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "CSV (Comma-Separated Values)",
       "capabilities": [
         "read",
         "write"
@@ -109,7 +109,7 @@
       "type": "format",
       "id": "okf_doxygen",
       "name": "okf_doxygen",
-      "display_name": "Doxygen Filter Filter",
+      "display_name": "Doxygen Filter",
       "capabilities": [
         "read",
         "write"
@@ -133,7 +133,7 @@
       "type": "format",
       "id": "okf_dtd",
       "name": "okf_dtd",
-      "display_name": "DTD Filter Filter",
+      "display_name": "DTD Filter",
       "capabilities": [
         "read",
         "write"
@@ -153,7 +153,7 @@
       "type": "format",
       "id": "okf_fixedwidthcolumns",
       "name": "okf_fixedwidthcolumns",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "Fixed-Width Columns",
       "capabilities": [
         "read",
         "write"
@@ -168,7 +168,7 @@
       "type": "format",
       "id": "okf_html",
       "name": "okf_html",
-      "display_name": "HTML/XHTML Filter Filter",
+      "display_name": "HTML/XHTML Filter",
       "capabilities": [
         "read",
         "write"
@@ -189,7 +189,7 @@
       "type": "format",
       "id": "okf_html5",
       "name": "okf_html5",
-      "display_name": "HTML5-ITS Filter Filter",
+      "display_name": "HTML5-ITS Filter",
       "capabilities": [
         "read",
         "write"
@@ -209,7 +209,7 @@
       "type": "format",
       "id": "okf_icml",
       "name": "okf_icml",
-      "display_name": "ICML Filter Filter",
+      "display_name": "ICML Filter",
       "capabilities": [
         "read",
         "write"
@@ -229,7 +229,7 @@
       "type": "format",
       "id": "okf_idml",
       "name": "okf_idml",
-      "display_name": "IDML Filter Filter",
+      "display_name": "IDML Filter",
       "capabilities": [
         "read",
         "write"
@@ -248,7 +248,7 @@
       "type": "format",
       "id": "okf_json",
       "name": "okf_json",
-      "display_name": "Json Filter Filter",
+      "display_name": "Json Filter",
       "capabilities": [
         "read",
         "write"
@@ -267,7 +267,7 @@
       "type": "format",
       "id": "okf_markdown",
       "name": "okf_markdown",
-      "display_name": "Markdown Filter Filter",
+      "display_name": "Markdown Filter",
       "capabilities": [
         "read",
         "write"
@@ -287,7 +287,7 @@
       "type": "format",
       "id": "okf_mif",
       "name": "okf_mif",
-      "display_name": "MIF Filter Filter",
+      "display_name": "MIF Filter",
       "capabilities": [
         "read",
         "write"
@@ -306,7 +306,7 @@
       "type": "format",
       "id": "okf_mosestext",
       "name": "okf_mosestext",
-      "display_name": "Moses Text Filter Filter",
+      "display_name": "Moses Text Filter",
       "capabilities": [
         "read",
         "write"
@@ -325,7 +325,7 @@
       "type": "format",
       "id": "okf_multiparsers",
       "name": "okf_multiparsers",
-      "display_name": "Multi-Parsers Filter Filter",
+      "display_name": "Multi-Parsers Filter",
       "capabilities": [
         "read",
         "write"
@@ -344,7 +344,7 @@
       "type": "format",
       "id": "okf_odf",
       "name": "okf_odf",
-      "display_name": "ODF-Content Filter Filter",
+      "display_name": "ODF-Content Filter",
       "capabilities": [
         "read",
         "write"
@@ -360,7 +360,7 @@
       "type": "format",
       "id": "okf_openoffice",
       "name": "okf_openoffice",
-      "display_name": "OpenOffice.org Filter Filter",
+      "display_name": "OpenOffice.org Filter",
       "capabilities": [
         "read",
         "write"
@@ -389,7 +389,7 @@
       "type": "format",
       "id": "okf_openxml",
       "name": "okf_openxml",
-      "display_name": "OpenXML Filter Filter",
+      "display_name": "OpenXML Filter",
       "capabilities": [
         "read",
         "write"
@@ -423,7 +423,7 @@
       "type": "format",
       "id": "okf_paraplaintext",
       "name": "okf_paraplaintext",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "Plain Text (Paragraph-Based)",
       "capabilities": [
         "read",
         "write"
@@ -438,7 +438,7 @@
       "type": "format",
       "id": "okf_pdf",
       "name": "okf_pdf",
-      "display_name": "PDF Filter Filter",
+      "display_name": "PDF Filter",
       "capabilities": [
         "read",
         "write"
@@ -457,7 +457,7 @@
       "type": "format",
       "id": "okf_pensieve",
       "name": "okf_pensieve",
-      "display_name": "Pensieve TM Filter Filter",
+      "display_name": "Pensieve TM Filter",
       "capabilities": [
         "read",
         "write"
@@ -476,7 +476,7 @@
       "type": "format",
       "id": "okf_phpcontent",
       "name": "okf_phpcontent",
-      "display_name": "PHP Content Filter Filter",
+      "display_name": "PHP Content Filter",
       "capabilities": [
         "read",
         "write"
@@ -495,7 +495,7 @@
       "type": "format",
       "id": "okf_plaintext",
       "name": "okf_plaintext",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "Plain Text",
       "capabilities": [
         "read",
         "write"
@@ -514,7 +514,7 @@
       "type": "format",
       "id": "okf_po",
       "name": "okf_po",
-      "display_name": "PO Filter Filter",
+      "display_name": "PO Filter",
       "capabilities": [
         "read",
         "write"
@@ -533,7 +533,7 @@
       "type": "format",
       "id": "okf_properties",
       "name": "okf_properties",
-      "display_name": "Properties Filter Filter",
+      "display_name": "Properties Filter",
       "capabilities": [
         "read",
         "write"
@@ -553,7 +553,7 @@
       "type": "format",
       "id": "okf_rainbowkit",
       "name": "okf_rainbowkit",
-      "display_name": "Rainbow Translation Kit Filter Filter",
+      "display_name": "Rainbow Translation Kit Filter",
       "capabilities": [
         "read",
         "write"
@@ -574,7 +574,7 @@
       "type": "format",
       "id": "okf_regex",
       "name": "okf_regex",
-      "display_name": "Regex Filter Filter",
+      "display_name": "Regex Filter",
       "capabilities": [
         "read",
         "write"
@@ -594,7 +594,7 @@
       "type": "format",
       "id": "okf_regexplaintext",
       "name": "okf_regexplaintext",
-      "display_name": "okf_plaintext_regex Filter",
+      "display_name": "okf_plaintext_regex",
       "capabilities": [
         "read",
         "write"
@@ -609,7 +609,7 @@
       "type": "format",
       "id": "okf_rtf",
       "name": "okf_rtf",
-      "display_name": "Trados-Tagged RTF Filter - READING ONLY Filter",
+      "display_name": "Trados-Tagged RTF Filter - READING ONLY",
       "capabilities": [
         "read",
         "write"
@@ -627,7 +627,7 @@
       "type": "format",
       "id": "okf_sdlpackage",
       "name": "okf_sdlpackage",
-      "display_name": "SDLPPX and SDLRPX Filter Filter",
+      "display_name": "SDLPPX and SDLRPX Filter",
       "capabilities": [
         "read",
         "write"
@@ -647,7 +647,7 @@
       "type": "format",
       "id": "okf_splicedlines",
       "name": "okf_splicedlines",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "Plain Text (Spliced Lines)",
       "capabilities": [
         "read",
         "write"
@@ -662,7 +662,7 @@
       "type": "format",
       "id": "okf_table",
       "name": "okf_table",
-      "display_name": "Table Filter Filter",
+      "display_name": "Table Filter",
       "capabilities": [
         "read",
         "write"
@@ -681,7 +681,7 @@
       "type": "format",
       "id": "okf_tabseparatedvalues",
       "name": "okf_tabseparatedvalues",
-      "display_name": "Plain Text Filter Filter",
+      "display_name": "TSV (Tab-Separated Values)",
       "capabilities": [
         "read",
         "write"
@@ -696,7 +696,7 @@
       "type": "format",
       "id": "okf_tex",
       "name": "okf_tex",
-      "display_name": "TEX Filter Filter",
+      "display_name": "TEX Filter",
       "capabilities": [
         "read",
         "write"
@@ -714,7 +714,7 @@
       "type": "format",
       "id": "okf_tmx",
       "name": "okf_tmx",
-      "display_name": "TMX Filter Filter",
+      "display_name": "TMX Filter",
       "capabilities": [
         "read",
         "write"
@@ -733,7 +733,7 @@
       "type": "format",
       "id": "okf_transifex",
       "name": "okf_transifex",
-      "display_name": "Transifex Filter Filter",
+      "display_name": "Transifex Filter",
       "capabilities": [
         "read",
         "write"
@@ -752,7 +752,7 @@
       "type": "format",
       "id": "okf_transtable",
       "name": "okf_transtable",
-      "display_name": "TransTable Filter Filter",
+      "display_name": "TransTable Filter",
       "capabilities": [
         "read",
         "write"
@@ -767,7 +767,7 @@
       "type": "format",
       "id": "okf_ts",
       "name": "okf_ts",
-      "display_name": "TS Filter Filter",
+      "display_name": "TS Filter",
       "capabilities": [
         "read",
         "write"
@@ -786,7 +786,7 @@
       "type": "format",
       "id": "okf_ttml",
       "name": "okf_ttml",
-      "display_name": "TTML Filter Filter",
+      "display_name": "TTML Filter",
       "capabilities": [
         "read",
         "write"
@@ -804,7 +804,7 @@
       "type": "format",
       "id": "okf_ttx",
       "name": "okf_ttx",
-      "display_name": "TTX Filter Filter",
+      "display_name": "TTX Filter",
       "capabilities": [
         "read",
         "write"
@@ -823,7 +823,7 @@
       "type": "format",
       "id": "okf_txml",
       "name": "okf_txml",
-      "display_name": "TXML Filter Filter",
+      "display_name": "TXML Filter",
       "capabilities": [
         "read",
         "write"
@@ -842,7 +842,7 @@
       "type": "format",
       "id": "okf_vignette",
       "name": "okf_vignette",
-      "display_name": "Vignette Filter Filter",
+      "display_name": "Vignette Filter",
       "capabilities": [
         "read",
         "write"
@@ -858,7 +858,7 @@
       "type": "format",
       "id": "okf_vtt",
       "name": "okf_vtt",
-      "display_name": "VTT Filter Filter",
+      "display_name": "VTT Filter",
       "capabilities": [
         "read",
         "write"
@@ -877,7 +877,7 @@
       "type": "format",
       "id": "okf_wiki",
       "name": "okf_wiki",
-      "display_name": "Wiki Filter Filter",
+      "display_name": "Wiki Filter",
       "capabilities": [
         "read",
         "write"
@@ -896,7 +896,7 @@
       "type": "format",
       "id": "okf_xini",
       "name": "okf_xini",
-      "display_name": "XINI Filter Filter",
+      "display_name": "XINI Filter",
       "capabilities": [
         "read",
         "write"
@@ -914,7 +914,7 @@
       "type": "format",
       "id": "okf_xinirainbowkit",
       "name": "okf_xinirainbowkit",
-      "display_name": "XINI RainbowKit Filter Filter",
+      "display_name": "XINI RainbowKit Filter",
       "capabilities": [
         "read",
         "write"
@@ -929,7 +929,7 @@
       "type": "format",
       "id": "okf_xliff",
       "name": "okf_xliff",
-      "display_name": "XLIFF Filter Filter",
+      "display_name": "XLIFF Filter",
       "capabilities": [
         "read",
         "write"
@@ -953,7 +953,7 @@
       "type": "format",
       "id": "okf_xliff2",
       "name": "okf_xliff2",
-      "display_name": "XLIFF-2 Filter Filter",
+      "display_name": "XLIFF-2 Filter",
       "capabilities": [
         "read",
         "write"
@@ -975,7 +975,7 @@
       "type": "format",
       "id": "okf_xml",
       "name": "okf_xml",
-      "display_name": "XML Filter Filter",
+      "display_name": "XML Filter",
       "capabilities": [
         "read",
         "write"
@@ -998,7 +998,7 @@
       "type": "format",
       "id": "okf_xmlstream",
       "name": "okf_xmlstream",
-      "display_name": "XML Stream Filter Filter",
+      "display_name": "XML Stream Filter",
       "capabilities": [
         "read",
         "write"
@@ -1018,7 +1018,7 @@
       "type": "format",
       "id": "okf_yaml",
       "name": "okf_yaml",
-      "display_name": "YAML Filter Filter",
+      "display_name": "YAML Filter",
       "capabilities": [
         "read",
         "write"

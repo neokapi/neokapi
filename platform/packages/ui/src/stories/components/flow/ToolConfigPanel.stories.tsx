@@ -22,65 +22,167 @@ const meta: Meta<typeof ToolConfigPanel> = {
 export default meta;
 type Story = StoryObj<typeof ToolConfigPanel>;
 
-const sampleTMs = [
-  { name: "project-memory", entryCount: 12450 },
-  { name: "legacy-tm", entryCount: 85000 },
-];
-
 const sampleTermbases = [
   { name: "glossary", entryCount: 340 },
   { name: "brand-terms", entryCount: 52 },
 ];
 
 function StatefulPanel(
-  props: Omit<ToolConfigPanelProps, "onChange"> & { initialConfig?: Record<string, unknown> },
+  props: Omit<ToolConfigPanelProps, "onChange"> & {
+    initialConfig?: Record<string, unknown>;
+  },
 ) {
   const [config, setConfig] = useState(props.initialConfig ?? props.config);
   return <ToolConfigPanel {...props} config={config} onChange={setConfig} />;
 }
 
-// --- Quality Check Step ---
+// --- Quality Check Step (nested groups, options, ui:enabled) ---
 
 const qualityCheckSchema: ComponentSchema = {
   $id: "quality-check",
   title: "Quality Check",
-  description: "Compare source and target for quality.",
+  description:
+    "Configurable quality assurance checks for bilingual content.",
   properties: {
-    outputPath: {
-      type: "string",
-      title: "Report Output",
-      default: "${rootDir}/qa-report.html",
-      "x-path": { type: "file", role: "output", accepts: ["html"] },
+    whitespace: {
+      type: "object",
+      title: "Whitespace",
+      description: "Whitespace consistency checks",
+      properties: {
+        leadingWS: {
+          type: "boolean",
+          title: "Check Leading Whitespace",
+          description:
+            "Flag text units where leading whitespace differs between source and target.",
+          default: true,
+        },
+        trailingWS: {
+          type: "boolean",
+          title: "Check Trailing Whitespace",
+          description:
+            "Flag text units where trailing whitespace differs between source and target.",
+          default: true,
+        },
+      },
     },
-    termsPath: {
-      type: "string",
-      title: "Terminology File",
-      "x-path": { type: "file", role: "input", resourceKind: "termbase" },
+    completeness: {
+      type: "object",
+      title: "Completeness",
+      description: "Empty target/source checks",
+      properties: {
+        emptyTarget: {
+          type: "boolean",
+          title: "Warn on Empty Target",
+          description:
+            "Flag segments where the target is empty while the source is not.",
+          default: true,
+        },
+        emptySource: {
+          type: "boolean",
+          title: "Warn on Empty Source",
+          description:
+            "Flag segments where the target is not empty while the source is empty.",
+          default: true,
+        },
+      },
     },
-    checkTerms: {
-      type: "boolean",
-      title: "Check terms",
-      default: false,
+    length: {
+      type: "object",
+      title: "Length",
+      description: "Character length validation",
+      properties: {
+        checkMaxCharLength: {
+          type: "boolean",
+          title: "Check Maximum Character Length",
+          description:
+            "Flag target text longer than a given percentage of source character length.",
+          default: true,
+        },
+        maxCharLengthBreak: {
+          type: "integer",
+          title: "Long Text Threshold",
+          description:
+            'Character count above which text is considered "long".',
+          default: 20,
+          "ui:enabled": { field: "checkMaxCharLength", eq: true },
+        },
+        maxCharLengthAbove: {
+          type: "integer",
+          title: "Percentage for Long Text",
+          description:
+            "Maximum allowed percentage of source length for long text.",
+          default: 200,
+          "ui:enabled": { field: "checkMaxCharLength", eq: true },
+        },
+        maxCharLengthBelow: {
+          type: "integer",
+          title: "Percentage for Short Text",
+          description:
+            "Maximum allowed percentage of source length for short text.",
+          default: 350,
+          "ui:enabled": { field: "checkMaxCharLength", eq: true },
+        },
+      },
     },
-    leadingWS: {
-      type: "boolean",
-      title: "Check leading whitespace",
-      default: true,
+    report: {
+      type: "object",
+      title: "Report",
+      description: "Output report settings",
+      properties: {
+        outputPath: {
+          type: "string",
+          title: "Report File",
+          description: "Path for the quality check report.",
+          default: "${rootDir}/qa-report.html",
+          "x-path": {
+            type: "file",
+            role: "output",
+            accepts: ["html"],
+            browseTitle: "Quality Check Report",
+            forSaveAs: true,
+          },
+        },
+        outputType: {
+          type: "integer",
+          title: "Report Format",
+          description: "Format of the quality check report.",
+          default: 0,
+          options: [
+            { value: 0, label: "HTML file" },
+            { value: 1, label: "Tab-delimited file" },
+            { value: 2, label: "XML file" },
+          ],
+        },
+        autoOpen: {
+          type: "boolean",
+          title: "Open After Completion",
+          default: true,
+        },
+      },
     },
-    trailingWS: {
-      type: "boolean",
-      title: "Check trailing whitespace",
-      default: true,
-    },
-    emptyTarget: {
-      type: "boolean",
-      title: "Flag empty targets",
-      default: true,
-    },
-    codeDifference: {
-      type: "boolean",
-      title: "Check inline code differences",
-      default: true,
+    terminology: {
+      type: "object",
+      title: "Terminology",
+      description: "Terminology verification",
+      properties: {
+        checkTerms: {
+          type: "boolean",
+          title: "Check Terminology",
+          description:
+            "Verify glossary terminology is used correctly.",
+          default: false,
+        },
+        termsPath: {
+          type: "string",
+          title: "Terminology File",
+          "x-path": {
+            type: "file",
+            role: "input",
+            resourceKind: "termbase",
+          },
+          "ui:enabled": { field: "checkTerms", eq: true },
+        },
+      },
     },
   },
 };
@@ -90,99 +192,88 @@ export const QualityCheckStep: Story = {
     <StatefulPanel
       schema={qualityCheckSchema}
       config={{
-        termsPath: "termbase:glossary",
-        checkTerms: true,
-        leadingWS: true,
-        trailingWS: true,
-        emptyTarget: true,
+        whitespace: { leadingWS: true, trailingWS: true },
+        completeness: { emptyTarget: true, emptySource: true },
+        length: {
+          checkMaxCharLength: true,
+          maxCharLengthBreak: 20,
+          maxCharLengthAbove: 200,
+          maxCharLengthBelow: 350,
+        },
+        report: { outputType: 0, autoOpen: true },
+        terminology: { checkTerms: false },
       }}
       resources={{ termbase: sampleTermbases }}
     />
   ),
 };
 
-// --- Batch Translation Step ---
+// --- Codes Removal Step (options from consolidated enum) ---
 
-const batchTranslationSchema: ComponentSchema = {
-  $id: "batch-translation",
-  title: "Batch Translation",
-  description: "Creates translations from an external program.",
+const codesRemovalSchema: ComponentSchema = {
+  $id: "codes-removal",
+  title: "Inline Codes Removal",
   properties: {
-    command: {
+    mode: {
       type: "string",
-      title: "Command line",
-      description: "Command line to execute the batch translation",
+      title: "Removal Mode",
+      description: "What to remove from inline codes",
+      default: "0",
+      options: [
+        { value: "0", label: "Remove marker, keep content" },
+        { value: "1", label: "Remove content, keep marker" },
+        { value: "2", label: "Remove marker and content" },
+      ],
     },
-    tmDirectory: {
-      type: "string",
-      title: "TM Directory",
-      "x-path": { type: "directory", role: "input", resourceKind: "tm" },
-    },
-    tmxPath: {
-      type: "string",
-      title: "TMX Output",
-      "x-path": { type: "file", role: "output", accepts: ["tmx"] },
-    },
-    srxPath: {
-      type: "string",
-      title: "SRX Rules",
-      description: "Segmentation rules file",
-      "x-path": { type: "file", role: "input", resourceKind: "srx", accepts: ["srx"] },
-    },
-    makeTMX: {
+    stripSource: {
       type: "boolean",
-      title: "Create TMX document",
+      title: "Strip Codes in Source",
       default: false,
     },
-    blockSize: {
-      type: "integer",
-      title: "Block size",
-      description: "Maximum text units per batch",
-      default: 1000,
+    stripTarget: {
+      type: "boolean",
+      title: "Strip Codes in Target",
+      default: true,
     },
   },
 };
 
-export const BatchTranslationStep: Story = {
+export const CodesRemovalStep: Story = {
   render: () => (
     <StatefulPanel
-      schema={batchTranslationSchema}
-      config={{
-        command: "apertium -f html en-fr",
-        tmDirectory: "tm:project-memory",
-        makeTMX: true,
-        blockSize: 1000,
-      }}
-      resources={{ tm: sampleTMs }}
+      schema={codesRemovalSchema}
+      config={{ mode: "0", stripSource: false, stripTarget: true }}
     />
   ),
 };
 
-// --- Segmentation Step ---
+// --- Segmentation Step (simple booleans) ---
 
 const segmentationSchema: ComponentSchema = {
   $id: "segmentation",
   title: "Segmentation",
-  description: "Apply SRX segmentation.",
   properties: {
     segmentSource: {
       type: "boolean",
-      title: "Segment source",
+      title: "Segment Source Text",
+      description: "Segment the source text using SRX rules.",
       default: true,
     },
     segmentTarget: {
       type: "boolean",
-      title: "Segment target",
+      title: "Segment Target Text",
+      description:
+        "Segment existing target text using SRX rules.",
       default: false,
     },
     overwriteSegmentation: {
       type: "boolean",
-      title: "Overwrite existing segmentation",
+      title: "Overwrite Existing Segmentation",
       default: false,
     },
     forceSegmentedOutput: {
       type: "boolean",
-      title: "Force segmented output",
+      title: "Force Segmented Output",
       default: true,
     },
   },
@@ -197,65 +288,6 @@ export const SegmentationStep: Story = {
   ),
 };
 
-// --- Search and Replace Step ---
-
-const searchReplaceSchema: ComponentSchema = {
-  $id: "search-and-replace",
-  title: "Search and Replace",
-  description: "Performs search and replace.",
-  properties: {
-    replacementsPath: {
-      type: "string",
-      title: "Replacements File",
-      "x-path": { type: "file", role: "input" },
-    },
-    logPath: {
-      type: "string",
-      title: "Log Output",
-      default: "${rootDir}/replacementsLog.txt",
-      "x-path": { type: "file", role: "output", accepts: ["txt"] },
-    },
-    regEx: {
-      type: "boolean",
-      title: "Use regular expressions",
-      default: false,
-    },
-    ignoreCase: {
-      type: "boolean",
-      title: "Ignore case",
-      default: false,
-    },
-    target: {
-      type: "boolean",
-      title: "Apply to target",
-      default: true,
-    },
-    source: {
-      type: "boolean",
-      title: "Apply to source",
-      default: false,
-    },
-    saveLog: {
-      type: "boolean",
-      title: "Save log",
-      default: false,
-    },
-  },
-};
-
-export const SearchAndReplaceStep: Story = {
-  render: () => (
-    <StatefulPanel
-      schema={searchReplaceSchema}
-      config={{
-        replacementsPath: "./replacements.txt",
-        target: true,
-        regEx: true,
-      }}
-    />
-  ),
-};
-
 // --- Read-Only Mode ---
 
 export const ReadOnly: Story = {
@@ -263,9 +295,8 @@ export const ReadOnly: Story = {
     <StatefulPanel
       schema={qualityCheckSchema}
       config={{
-        termsPath: "termbase:glossary",
-        checkTerms: true,
-        leadingWS: true,
+        whitespace: { leadingWS: true },
+        terminology: { checkTerms: true },
       }}
       resources={{ termbase: sampleTermbases }}
       readOnly
