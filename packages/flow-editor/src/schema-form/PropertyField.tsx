@@ -627,6 +627,7 @@ export function PropertyField({
           name={name}
           onDrillDown={onDrillDown}
           defs={defs}
+          disabled={disabled}
         />
       );
     }

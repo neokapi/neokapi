@@ -15,6 +15,7 @@ export function NestedObjectEditor({
   name,
   onDrillDown,
   defs,
+  disabled = false,
 }: {
   label: string;
   description?: string;
@@ -26,6 +27,7 @@ export function NestedObjectEditor({
   name: string;
   onDrillDown?: (label: string, key: string, schema: PropertySchema, values: Record<string, unknown>) => void;
   defs?: Record<string, PropertySchema>;
+  disabled?: boolean;
 }) {
   const current = value ?? {};
   const properties = schema.properties || {};
@@ -65,7 +67,7 @@ export function NestedObjectEditor({
   // Depth 0: render flat, no label (the parent group is the label)
   // Depth 1: render flat, show a subtle sub-label if informative
   return (
-    <div>
+    <div style={disabled ? { opacity: 0.4, pointerEvents: "none" } : undefined}>
       {depth === 1 && (
         <div style={{ fontSize: 10, color: theme.fgMuted, marginBottom: 4 }}>
           {label}
