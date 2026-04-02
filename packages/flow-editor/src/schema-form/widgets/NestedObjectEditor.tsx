@@ -90,6 +90,7 @@ export function NestedObjectEditor({
             onChange={(v) => handleFieldChange(key, v)}
             compact={compact}
             allValues={current}
+            allProperties={properties}
             depth={depth + 1}
             onDrillDown={onDrillDown}
             defs={defs}

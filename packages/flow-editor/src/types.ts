@@ -138,6 +138,9 @@ export interface PropertySchema {
   minLength?: number;
   maxLength?: number;
 
+  // Labeled enum options (consolidated from enum + ui:enum-labels)
+  options?: { value: unknown; label: string }[];
+
   // UI rendering hints (ui: prefix)
   "ui:widget"?: string;
   "ui:widget-options"?: Record<string, unknown>;
@@ -146,6 +149,7 @@ export interface PropertySchema {
   "ui:visible"?: ConditionExpr;
   "ui:enabled"?: ConditionExpr;
   "ui:layout"?: LayoutHints;
+  /** @deprecated Use options instead */
   "ui:enum-labels"?: Record<string, string>;
   "ui:enum-descriptions"?: Record<string, string>;
   "ui:order"?: number;

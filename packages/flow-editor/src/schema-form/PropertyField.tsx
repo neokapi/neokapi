@@ -58,7 +58,19 @@ export function PropertyField({
   const label = schema.title || name;
   const resolved = value ?? schema.default;
   const widget = resolveWidgetName(schema["ui:widget"]);
+  // Resolve options: prefer consolidated options array, fall back to enum + ui:enum-labels
+  const options = schema.options;
   const enumLabels = schema["ui:enum-labels"];
+  // Build effective enum array for backward compat
+  const effectiveEnum = options ? options.map(o => o.value) : schema.enum;
+  // Build label lookup: options[].label or ui:enum-labels[value]
+  const getLabel = (val: unknown): string => {
+    if (options) {
+      const opt = options.find(o => String(o.value) === String(val));
+      return opt?.label ?? String(val);
+    }
+    return enumLabels?.[String(val)] ?? String(val);
+  };
 
   // Suppress description when it's redundant with the label (same text, case-insensitive).
   const description = schema.description && label.toLowerCase() !== schema.description.toLowerCase()
@@ -80,15 +92,15 @@ export function PropertyField({
 
   // ── x-widget dispatch ──
 
-  if (widget === "segmented" && schema.enum && schema.enum.length >= 2) {
-    const current = String(resolved ?? schema.enum[0]);
+  if (widget === "segmented" && effectiveEnum && effectiveEnum.length >= 2) {
+    const current = String(resolved ?? effectiveEnum[0]);
     return (
       <div style={{ display: "flex", marginBottom: compact ? 4 : 6 }}>
-        {schema.enum.map((opt, i) => {
+        {effectiveEnum.map((opt, i) => {
           const val = String(opt);
           const isActive = current === val;
           const isFirst = i === 0;
-          const isLast = i === schema.enum!.length - 1;
+          const isLast = i === effectiveEnum!.length - 1;
           return (
             <button
               key={val}
@@ -113,7 +125,7 @@ export function PropertyField({
                 textTransform: "capitalize",
               }}
             >
-              {val === "inline" ? "Inline Code" : val.charAt(0).toUpperCase() + val.slice(1)}
+              {getLabel(val)}
             </button>
           );
         })}
@@ -464,7 +476,7 @@ export function PropertyField({
     );
   }
 
-  if (widget === "select" && schema.enum && schema.enum.length > 0) {
+  if (widget === "select" && effectiveEnum && effectiveEnum.length > 0) {
     // x-editor "select" = scrollable list (vs "dropdown" which uses standard <select>)
     const current = String(resolved ?? "");
     return (
@@ -477,10 +489,10 @@ export function PropertyField({
           background: theme.bgCard,
           opacity: disabled ? 0.5 : 1,
         }}>
-          {schema.enum.map((v) => {
+          {effectiveEnum.map((v) => {
             const val = String(v);
             const isActive = current === val;
-            const displayLabel = enumLabels?.[val] ?? val;
+            const displayLabel = getLabel(val);
             return (
               <button
                 key={val}
@@ -544,7 +556,7 @@ export function PropertyField({
     );
   }
 
-  if (schema.enum && schema.enum.length > 0) {
+  if (effectiveEnum && effectiveEnum.length > 0) {
     return (
       <FieldWrapper label={showLabel ? label : ""} description={description} compact={compact} isModified={isModifiedFromPreset} docParam={docParam} disabled={disabled} error={error}>
         <select
@@ -554,11 +566,11 @@ export function PropertyField({
           style={{ ...inputStyle(compact), opacity: disabled ? 0.5 : 1 }}
         >
           <option value="">—</option>
-          {schema.enum.map((v) => {
+          {effectiveEnum.map((v) => {
             const val = String(v);
             return (
               <option key={val} value={val}>
-                {enumLabels?.[val] ?? val}
+                {getLabel(val)}
               </option>
             );
           })}
