@@ -122,11 +122,11 @@ export const ShowIfEmpty: Story = {
   },
 };
 
-export const EditorEnabledBy: Story = {
-  name: "ui:enabled.enabledBy — Master/Slave Fields",
+export const EnabledBy: Story = {
+  name: "ui:enabled — Enable/Disable Fields",
   args: {
     description:
-      'The `ui:enabled.enabledBy` metadata from Okapi controls whether a field is enabled or disabled based on a master field. The field remains visible but grayed out when disabled.',
+      'The `ui:enabled` condition controls whether a field is interactive. The field remains visible but grayed out and non-interactive when disabled. Toggle "Enable Translation" to see the language fields enable/disable.',
     schema: {
       title: "Enabled-By Dependencies",
       type: "object",
@@ -143,6 +143,46 @@ export const EditorEnabledBy: Story = {
           title: "Target Language",
           "ui:placeholder": "e.g., fr",
           "ui:enabled": { field: "useTranslation", eq: true },
+        },
+      },
+    },
+  },
+};
+
+export const EnabledByNested: Story = {
+  name: "ui:enabled — Nested Object (Real Filter Pattern)",
+  args: {
+    description:
+      'In real filter schemas, related settings are grouped in nested objects (often via `$defs`). The `ui:enabled` condition references sibling fields within the same nested scope. Toggle "Enable Inline Code Detection" to enable/disable the rules and merge settings.',
+    schema: {
+      title: "Nested Enabled-By",
+      type: "object",
+      properties: {
+        inlineCodes: {
+          type: "object",
+          title: "Inline Codes",
+          description: "Pattern-based detection of inline codes within translatable text.",
+          properties: {
+            enabled: {
+              type: "boolean",
+              title: "Enable Inline Code Detection",
+              description: "Enable pattern-based detection of inline codes",
+              default: false,
+            },
+            rules: {
+              type: "string",
+              title: "Code Finder Rules",
+              description: "Regex patterns for inline codes (one per line)",
+              "ui:widget": "textarea",
+              "ui:enabled": { field: "enabled", eq: true },
+            },
+            mergeAdjacent: {
+              type: "boolean",
+              title: "Merge Adjacent Codes",
+              description: "Merge consecutive inline codes into a single placeholder",
+              "ui:enabled": { field: "enabled", eq: true },
+            },
+          },
         },
       },
     },
