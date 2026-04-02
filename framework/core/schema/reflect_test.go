@@ -67,7 +67,9 @@ func TestFromStruct_SchemaTags(t *testing.T) {
 
 	mode := s.Properties["mode"]
 	assert.Equal(t, "Processing mode", mode.Description)
-	assert.Equal(t, []any{"upper", "lower", "title"}, mode.Enum)
+	require.Len(t, mode.Options, 3)
+	assert.Equal(t, "upper", mode.Options[0].Value)
+	assert.Equal(t, "upper", mode.Options[0].Label)
 	assert.Equal(t, "lower", mode.Default)
 
 	expansion := s.Properties["expansion"]

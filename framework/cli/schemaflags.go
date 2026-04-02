@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/schema"
@@ -22,11 +21,11 @@ func RegisterSchemaFlags(cmd *cobra.Command, s *schema.ComponentSchema) {
 			desc = name
 		}
 
-		// Append enum values to description
-		if len(prop.Enum) > 0 {
-			vals := make([]string, len(prop.Enum))
-			for i, v := range prop.Enum {
-				vals[i] = fmt.Sprintf("%v", v)
+		// Append option labels to description
+		if len(prop.Options) > 0 {
+			vals := make([]string, len(prop.Options))
+			for i, opt := range prop.Options {
+				vals[i] = opt.Label
 			}
 			desc += " (" + strings.Join(vals, ", ") + ")"
 		}

@@ -121,11 +121,14 @@ type PropertySchema struct {
 	Deprecated  bool   `json:"deprecated,omitempty"`
 
 	// Validation constraints
-	Enum      []any    `json:"enum,omitempty"`
 	Min       *float64 `json:"minimum,omitempty"`
 	Max       *float64 `json:"maximum,omitempty"`
 	MinLength *int     `json:"minLength,omitempty"`
 	MaxLength *int     `json:"maxLength,omitempty"`
+
+	// Labeled enum options (consolidated from enum + ui:enum-labels).
+	// Each option has a value and a human label.
+	Options []OptionItem `json:"options,omitempty"`
 
 	// UI rendering hints (ui: prefix)
 	Widget             string            `json:"ui:widget,omitempty"`
@@ -134,7 +137,6 @@ type PropertySchema struct {
 	Visible            *ConditionExpr    `json:"ui:visible,omitempty"`
 	Enabled            *ConditionExpr    `json:"ui:enabled,omitempty"`
 	Layout             *LayoutHints      `json:"ui:layout,omitempty"`
-	EnumLabels         map[string]string `json:"ui:enum-labels,omitempty"`
 	EnumDescriptions   map[string]string `json:"ui:enum-descriptions,omitempty"`
 	Order              *int              `json:"ui:order,omitempty"`
 	DeprecatedMessage  string            `json:"ui:deprecated-message,omitempty"`
@@ -148,6 +150,12 @@ type PropertySchema struct {
 
 	// Path annotation for resource/file path properties
 	PathInfo *PathAnnotation `json:"x-path,omitempty"`
+}
+
+// OptionItem represents a labeled enum value for select/radio properties.
+type OptionItem struct {
+	Value any    `json:"value"`
+	Label string `json:"label"`
 }
 
 // PathAnnotation describes a property that references a file path or named resource.
@@ -165,6 +173,21 @@ type PathAnnotation struct {
 
 	// Accepts lists file extensions for validation and UI filtering (e.g. ["html", "txt"]).
 	Accepts []string `json:"accepts,omitempty"`
+
+	// BrowseTitle is the file dialog title for file/folder picker UI.
+	BrowseTitle string `json:"browseTitle,omitempty"`
+
+	// ForSaveAs indicates the file dialog should be a save-as dialog.
+	ForSaveAs bool `json:"forSaveAs,omitempty"`
+
+	// Filters lists file type filters for the file dialog (e.g. [{name: "HTML", extensions: "*.html"}]).
+	Filters []FileFilter `json:"filters,omitempty"`
+}
+
+// FileFilter describes a file type filter for file picker dialogs.
+type FileFilter struct {
+	Name       string `json:"name"`
+	Extensions string `json:"extensions"`
 }
 
 // LayoutHints controls field-level layout.
@@ -220,8 +243,8 @@ func validateValue(name string, value any, prop *PropertySchema) *ValidationErro
 		if !ok {
 			return &ValidationError{Field: name, Message: "expected string"}
 		}
-		if len(prop.Enum) > 0 && !enumContains(prop.Enum, s) {
-			return &ValidationError{Field: name, Message: "value not in allowed enum"}
+		if len(prop.Options) > 0 && !optionContains(prop.Options, s) {
+			return &ValidationError{Field: name, Message: "value not in allowed options"}
 		}
 	case "integer":
 		switch v := value.(type) {
@@ -255,9 +278,9 @@ func validateValue(name string, value any, prop *PropertySchema) *ValidationErro
 	return nil
 }
 
-func enumContains(enum []any, value any) bool {
-	for _, v := range enum {
-		if v == value {
+func optionContains(options []OptionItem, value any) bool {
+	for _, opt := range options {
+		if opt.Value == value {
 			return true
 		}
 	}

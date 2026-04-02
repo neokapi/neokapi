@@ -159,7 +159,7 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Type:        "string",
 				Default:     "pixel",
 				Description: "Size unit for maxwidth",
-				Enum:        []any{"pixel", "char"},
+				Options:     []coreschema.OptionItem{{Value: "pixel", Label: "Pixel"}, {Value: "char", Label: "Character"}},
 			}),
 			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
