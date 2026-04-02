@@ -4,8 +4,8 @@ import {
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "../../components/ui/tooltip";
-import { Button } from "../../components/ui/button";
+} from "@neokapi/ui-primitives/components/ui/tooltip";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof Tooltip> = {
   title: "Foundations/Tooltip",

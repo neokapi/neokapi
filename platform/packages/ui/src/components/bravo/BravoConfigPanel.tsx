@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { BravoConfig, BravoToolInfo } from "../../types/api";
-import { Button } from "../ui/button";
-import { Switch } from "../ui/switch";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 
 export interface BravoConfigPanelProps {
   config: BravoConfig;

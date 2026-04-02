@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Label } from "../../components/ui/label";
-import { Input } from "../../components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
 
 const meta: Meta<typeof Label> = {
   title: "Foundations/Label",

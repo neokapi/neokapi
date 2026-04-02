@@ -5,7 +5,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
+} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
 import { Plus, Pencil, Trash2, Plug } from "./icons";
 
 export interface CollectionTabsProps {

@@ -1,5 +1,5 @@
 import type { CreditLedgerEntry } from "../../types/api";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 import { useState } from "react";
 
 export interface CreditLedgerProps {

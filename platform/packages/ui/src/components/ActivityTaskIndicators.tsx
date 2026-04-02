@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { ActivityInfo, TaskInfo } from "../types/api";
 import { Clock, CircleCheck } from "./icons";
-import { Badge } from "./ui/badge";
-import { cn } from "../lib/utils";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Shared helpers

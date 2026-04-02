@@ -1,5 +1,5 @@
 import type { StreamMergeResult } from "../types/api";
-import { Button } from "./ui/button";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Plus, ArrowRight, Trash2, Check } from "./icons";
 import {
   Dialog,
@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "./ui/dialog";
+} from "@neokapi/ui-primitives/components/ui/dialog";
 
 export interface StreamMergeDialogProps {
   /** Dry-run merge result with block counts. */

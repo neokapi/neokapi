@@ -5,10 +5,10 @@ import {
   GripVerticalIcon,
 } from "lucide-react";
 
-import { cn } from "../../lib/utils";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { ToolConfigPanel, type ComponentSchema, type PropertySchema } from "./ToolConfigPanel";
+import { cn } from "@neokapi/ui-primitives";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { SchemaForm, type ComponentSchema, type PropertySchema } from "@neokapi/ui-primitives";
 import type { ResourceOption } from "../ResourcePicker";
 
 export interface FlowStepInfo {
@@ -131,9 +131,9 @@ export function FlowStepList({
 
             {isExpanded && schema && (
               <div className="border-t px-3 py-4">
-                <ToolConfigPanel
+                <SchemaForm
                   schema={schema}
-                  config={step.config}
+                  values={step.config}
                   onChange={(config) => onStepConfigChange(index, config)}
                   resources={resources}
                 />

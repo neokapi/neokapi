@@ -2,8 +2,8 @@ import { useState, useMemo } from "react";
 import type { ItemTranslationStats } from "../types/api";
 import { LanguageLabel } from "./LanguageLabel";
 import { FormattedFileName } from "./FormattedFileName";
-import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
-import { cn } from "../lib/utils";
+import { Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives/components/ui/card";
+import { cn } from "@neokapi/ui-primitives";
 
 interface FileProgressTableProps {
   itemStats: ItemTranslationStats[];

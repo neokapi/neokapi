@@ -2,10 +2,10 @@ import { useState, useCallback, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import type { AutomationRule, AutomationCondition, AutomationAction } from "../types/api";
-import { Button } from "./ui/button";
-import { Card } from "./ui/card";
-import { Switch } from "./ui/switch";
-import { Badge } from "./ui/badge";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { AutomationRuleEditor } from "./AutomationRuleEditor";
 import { AutomationHistory } from "./AutomationHistory";
 

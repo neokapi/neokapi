@@ -6,8 +6,8 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverDescription,
-} from "../../components/ui/popover";
-import { Button } from "../../components/ui/button";
+} from "@neokapi/ui-primitives/components/ui/popover";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof Popover> = {
   title: "Foundations/Popover",

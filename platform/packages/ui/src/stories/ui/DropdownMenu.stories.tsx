@@ -9,8 +9,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuCheckboxItem,
-} from "../../components/ui/dropdown-menu";
-import { Button } from "../../components/ui/button";
+} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof DropdownMenu> = {
   title: "Foundations/DropdownMenu",

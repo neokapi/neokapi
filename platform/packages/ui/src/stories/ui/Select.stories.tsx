@@ -7,7 +7,7 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "@neokapi/ui-primitives/components/ui/select";
 
 const meta: Meta<typeof Select> = {
   title: "Foundations/Select",

@@ -1,9 +1,9 @@
 import { useState, useMemo } from "react";
 import { GitBranch, Layers } from "lucide-react";
+import { cn } from "@neokapi/ui-primitives";
 import type { FlowSpec } from "./types";
 import { FLOW_TEMPLATES, type FlowTemplate } from "./templates";
 import { getCategoryStyle } from "./category";
-import { theme } from "./theme";
 
 interface FlowTemplateLibraryProps {
   onSelect: (spec: FlowSpec) => void;
@@ -28,81 +28,57 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
   }, []);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding: "32px 24px",
-        gap: 20,
-        maxWidth: 640,
-        margin: "0 auto",
-      }}
-    >
-      <div style={{ textAlign: "center" }}>
-        <h2 style={{ fontSize: 16, fontWeight: 700, color: theme.fg, margin: 0 }}>
+    <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 px-6 py-8">
+      <div className="text-center">
+        <h2 className="m-0 text-base font-bold text-foreground">
           Start from a template
         </h2>
-        <p style={{ fontSize: 12, color: theme.fgMuted, margin: "6px 0 0" }}>
+        <p className="mt-1.5 mb-0 text-xs text-muted-foreground">
           Choose a common flow pattern or start with an empty canvas.
         </p>
       </div>
 
       {/* Category filter pills */}
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "center" }}>
+      <div className="flex flex-wrap justify-center gap-1.5">
         <button
           onClick={() => setFilter(null)}
-          style={{
-            padding: "3px 10px",
-            borderRadius: 12,
-            border: `1px solid ${filter === null ? theme.accent : theme.border}`,
-            background: filter === null ? theme.accent : "transparent",
-            color: filter === null ? theme.accentFg : theme.fgMuted,
-            fontSize: 11,
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
+          className={cn(
+            "cursor-pointer rounded-xl border px-2.5 py-0.5 text-[11px] font-medium",
+            filter === null
+              ? "border-accent bg-accent text-accent-foreground"
+              : "border-border bg-transparent text-muted-foreground",
+          )}
         >
           All
         </button>
         {categories.map((cat) => {
-          const style = getCategoryStyle(cat);
+          const catStyle = getCategoryStyle(cat);
           const active = filter === cat;
           return (
             <button
               key={cat}
               onClick={() => setFilter(active ? null : cat)}
-              style={{
-                padding: "3px 10px",
-                borderRadius: 12,
-                border: `1px solid ${active ? style.color : theme.border}`,
-                background: active ? style.bg : "transparent",
-                color: active ? style.text : theme.fgMuted,
-                fontSize: 11,
-                fontWeight: 500,
-                cursor: "pointer",
-              }}
+              className={cn(
+                "cursor-pointer rounded-xl border px-2.5 py-0.5 text-[11px] font-medium",
+                !active && "border-border bg-transparent text-muted-foreground",
+              )}
+              style={
+                active
+                  ? { borderColor: catStyle.color, background: catStyle.bg, color: catStyle.text }
+                  : undefined
+              }
             >
-              {style.label}
+              {catStyle.label}
             </button>
           );
         })}
       </div>
 
       {/* Divider */}
-      <div style={{ width: "100%", borderTop: "1px dashed var(--border)", paddingTop: 4 }} />
+      <div className="w-full border-t border-dashed border-border pt-1" />
 
       {/* Template cards */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: 10,
-          width: "100%",
-          maxWidth: 560,
-          margin: "0 auto",
-        }}
-      >
+      <div className="mx-auto grid w-full max-w-xl grid-cols-2 gap-2.5">
         {filtered.map((tmpl, index) => (
           <TemplateCard
             key={tmpl.id}
@@ -117,15 +93,7 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
       {onDismiss && (
         <button
           onClick={onDismiss}
-          style={{
-            padding: "6px 16px",
-            borderRadius: 6,
-            border: `1px solid ${theme.border}`,
-            background: "transparent",
-            color: theme.fgMuted,
-            fontSize: 11,
-            cursor: "pointer",
-          }}
+          className="cursor-pointer rounded-md border border-border bg-transparent px-4 py-1.5 text-[11px] text-muted-foreground"
         >
           Start with empty canvas
         </button>
@@ -149,17 +117,8 @@ function TemplateCard({
   return (
     <button
       onClick={onSelect}
+      className="flex cursor-pointer flex-col gap-2 rounded-lg border border-border bg-card p-3.5 text-left transition-[transform,border-color,box-shadow] duration-150"
       style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 8,
-        padding: 14,
-        borderRadius: 8,
-        border: `1px solid ${theme.border}`,
-        background: theme.bgCard,
-        textAlign: "left",
-        cursor: "pointer",
-        transition: "transform 150ms, border-color 150ms, box-shadow 150ms",
         animation: "cardReveal 0.25s ease-out forwards",
         animationDelay: `${index * 60}ms`,
         opacity: 0,
@@ -173,34 +132,26 @@ function TemplateCard({
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex items-center gap-1.5">
         <Icon size={13} style={{ color: catStyle.color }} />
-        <span style={{ fontSize: 13, fontWeight: 600, color: theme.fg }}>{template.name}</span>
+        <span className="text-[13px] font-semibold text-foreground">{template.name}</span>
         {template.hasParallel && (
-          <GitBranch
-            size={11}
-            style={{ color: theme.accent, marginLeft: "auto" }}
-            title="Includes parallel steps"
-          />
+          <span title="Includes parallel steps" className="ml-auto">
+            <GitBranch size={11} className="text-accent-foreground" />
+          </span>
         )}
       </div>
-      <p style={{ fontSize: 11, color: theme.fgMuted, lineHeight: 1.4, margin: 0 }}>
+      <p className="m-0 text-[11px] leading-snug text-muted-foreground">
         {template.description}
       </p>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <Layers size={10} style={{ color: theme.fgMuted }} />
-        <span style={{ fontSize: 10, color: theme.fgMuted }}>
+      <div className="flex items-center gap-1.5">
+        <Layers size={10} className="text-muted-foreground" />
+        <span className="text-[10px] text-muted-foreground">
           {template.stepCount} step{template.stepCount !== 1 ? "s" : ""}
         </span>
         <span
-          style={{
-            fontSize: 9,
-            padding: "1px 6px",
-            borderRadius: 8,
-            background: catStyle.bg,
-            color: catStyle.text,
-            fontWeight: 500,
-          }}
+          className="rounded-lg px-1.5 py-px text-[9px] font-medium"
+          style={{ background: catStyle.bg, color: catStyle.text }}
         >
           {catStyle.label}
         </span>

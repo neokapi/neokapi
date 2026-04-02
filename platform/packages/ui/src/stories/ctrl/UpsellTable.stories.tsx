@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import type { BillingPlan } from "../../types/api";
-import { Badge } from "../../components/ui/badge";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { SubscriptionBadge } from "../../components/billing/SubscriptionBadge";
 
 type UpsellSignal =

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { WorkspaceSwitcher } from "../../components/WorkspaceSwitcher";
-import { SidebarProvider } from "../../components/ui/sidebar";
+import { SidebarProvider } from "@neokapi/ui-primitives/components/ui/sidebar";
 import type { Workspace } from "../../types/api";
 
 const workspaces: Workspace[] = [

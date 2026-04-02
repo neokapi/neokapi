@@ -6,8 +6,8 @@
  */
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SchemaForm } from "@neokapi/flow-editor";
-import type { ComponentSchema } from "@neokapi/flow-editor";
+import { SchemaForm } from "@neokapi/ui-primitives";
+import type { ComponentSchema } from "@neokapi/ui-primitives";
 
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});

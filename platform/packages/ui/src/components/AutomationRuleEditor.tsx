@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import type { AutomationCondition, AutomationAction, AutomationRule } from "../types/api";
-import { Button } from "./ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { Switch } from "./ui/switch";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@neokapi/ui-primitives/components/ui/select";
+import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 
 const OPERATORS = ["equals", "contains", "exists"] as const;
 const ACTION_TYPES = [

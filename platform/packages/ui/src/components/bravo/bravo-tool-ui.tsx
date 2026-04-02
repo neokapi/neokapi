@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
+import { cn } from "@neokapi/ui-primitives";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 // ---------------------------------------------------------------------------
 // Generic tool-call renderer

@@ -19,8 +19,8 @@ import {
   Lock,
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
-import type { ComponentSchema } from "@neokapi/flow-editor";
-import { SchemaForm } from "@neokapi/flow-editor";
+import type { ComponentSchema } from "@neokapi/ui-primitives";
+import { SchemaForm } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 

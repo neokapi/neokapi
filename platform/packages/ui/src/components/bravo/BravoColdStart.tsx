@@ -6,8 +6,7 @@ export function BravoColdStart() {
       <div className="relative">
         <svg
           viewBox="0 0 48 48"
-          className="size-16 text-primary/70 animate-bounce"
-          style={{ animationDuration: "2s" }}
+          className="size-16 text-primary/70 animate-bounce duration-[2s]"
           fill="none"
           stroke="currentColor"
           strokeWidth={1.5}
@@ -23,8 +22,7 @@ export function BravoColdStart() {
         </svg>
         {/* Pulse ring */}
         <div
-          className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping"
-          style={{ animationDuration: "2s" }}
+          className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping duration-[2s]"
         />
       </div>
 
@@ -40,8 +38,8 @@ export function BravoColdStart() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="size-1.5 rounded-full bg-primary/50 animate-pulse"
-            style={{ animationDelay: `${i * 300}ms`, animationDuration: "1.2s" }}
+            className="size-1.5 rounded-full bg-primary/50 animate-pulse duration-[1.2s]"
+            style={{ animationDelay: `${i * 300}ms` }}
           />
         ))}
       </div>

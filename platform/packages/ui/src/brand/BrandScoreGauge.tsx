@@ -1,4 +1,4 @@
-import { cn } from "../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 interface BrandScoreGaugeProps {
   score: number;
@@ -36,12 +36,11 @@ export function BrandScoreGauge({ score, size = 120, className, label }: BrandSc
           cy="50"
           r={radius}
           fill="none"
-          className={strokeColor(clamped)}
+          className={cn(strokeColor(clamped), "transition-[stroke-dashoffset] duration-[600ms] ease-in-out")}
           strokeWidth="8"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          style={{ transition: "stroke-dashoffset 0.6s ease" }}
         />
       </svg>
       <div

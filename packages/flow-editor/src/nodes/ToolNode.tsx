@@ -1,7 +1,45 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
+import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
-import { theme } from "../theme";
+
+/** Status badge shown at top-right of a node (complete/error/active). */
+function NodeStatusBadge({ execState }: { execState: string }) {
+  const base = "absolute -top-1 -right-1 size-3.5 rounded-full flex items-center justify-center z-[1]";
+  if (execState === "complete") {
+    return (
+      <div className={cn(base, "bg-[oklch(0.65_0.15_145)]")}>
+        <CheckCircle2 size={10} className="text-white" />
+      </div>
+    );
+  }
+  if (execState === "error") {
+    return (
+      <div className={cn(base, "bg-destructive")}>
+        <AlertCircle size={10} className="text-white" />
+      </div>
+    );
+  }
+  if (execState === "active") {
+    return (
+      <div className={cn(base, "bg-accent")}>
+        <Loader2 size={10} className="text-white animate-spin" />
+      </div>
+    );
+  }
+  return null;
+}
+
+const PORT_COLORS: Record<string, string> = {
+  block: "oklch(0.75 0.12 85)",
+  data: "oklch(0.6 0.02 260)",
+  media: "oklch(0.7 0.12 180)",
+  layer: "oklch(0.65 0.14 300)",
+};
+
+function portColor(type: string): string {
+  return PORT_COLORS[type] ?? "var(--muted-foreground)";
+}
 
 export function ToolNode({ data, selected }: NodeProps) {
   const category = (data.category as string) || "pipeline";
@@ -18,144 +56,89 @@ export function ToolNode({ data, selected }: NodeProps) {
 
   return (
     <div
+      className="relative flex min-w-[180px] rounded-lg overflow-visible bg-card transition-[border-color,box-shadow] duration-150"
       style={{
-        position: "relative",
-        display: "flex",
-        minWidth: 180,
-        borderRadius: 8,
-        overflow: "visible",
         border:
           execState === "error"
-            ? `2px solid ${theme.destructive}`
+            ? "2px solid var(--destructive)"
             : execState === "complete"
-              ? `2px solid oklch(0.65 0.15 145)`
+              ? "2px solid oklch(0.65 0.15 145)"
               : selected
                 ? `2px solid ${style.color}`
-                : `2px solid ${theme.border}`,
-        background: theme.bgCard,
+                : "2px solid var(--border)",
         boxShadow: selected
           ? `0 0 0 3px ${style.color}33, 0 4px 12px oklch(0 0 0 / 0.3)`
           : "0 2px 8px oklch(0 0 0 / 0.2)",
         animation: execState === "active" ? "nodePulse 1.5s ease-in-out infinite" : undefined,
-        transition: "border-color 150ms, box-shadow 150ms",
       }}
     >
       {/* Category rail */}
       <div
-        style={{
-          width: 4,
-          background: style.color,
-          flexShrink: 0,
-          borderRadius: "6px 0 0 6px",
-        }}
+        className="w-1 shrink-0 rounded-l-[6px]"
+        style={{ background: style.color }}
       />
 
-      <div style={{ flex: 1, padding: "8px 12px", position: "relative" }}>
+      <div className="flex-1 px-3 py-2 relative">
         <Handle
           type="target"
           position={Position.Left}
           style={{
-            width: 10,
-            height: 10,
+            width: 10, height: 10,
             background: style.color,
-            border: `2px solid ${theme.bgCard}`,
+            border: "2px solid var(--card)",
             left: -9,
           }}
         />
 
-        {/* Header row: icon + category label */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            marginBottom: 3,
-          }}
-        >
+        {/* Header row */}
+        <div className="flex items-center gap-1 mb-0.5">
           <Icon size={11} style={{ color: style.text }} />
           <span
-            style={{
-              fontSize: 9,
-              fontWeight: 700,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: style.text,
-            }}
+            className="text-[9px] font-bold tracking-wider uppercase"
+            style={{ color: style.text }}
           >
             {style.label}
           </span>
           {isParallel && (
-            <GitBranch
-              size={10}
-              style={{ color: theme.accent, marginLeft: "auto" }}
-              title="Runs in parallel"
-            />
+            <GitBranch size={10} className="text-accent ml-auto" title="Runs in parallel" />
           )}
           {hasConfig && !isParallel && (
-            <Settings2 size={10} style={{ color: theme.fgMuted, marginLeft: "auto" }} />
+            <Settings2 size={10} className="text-muted-foreground ml-auto" />
           )}
         </div>
 
         {/* Tool name */}
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: theme.fg,
-            lineHeight: 1.25,
-          }}
-        >
+        <div className="text-[13px] font-semibold text-foreground leading-tight">
           {String(data.label || data.toolName || "")}
         </div>
 
-        {/* Description (truncated) */}
+        {/* Description */}
         {!!data.description && (
-          <div
-            style={{
-              fontSize: 10,
-              color: theme.fgMuted,
-              marginTop: 2,
-              lineHeight: 1.3,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              maxWidth: 160,
-            }}
-          >
+          <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight truncate max-w-[160px]">
             {String(data.description)}
           </div>
         )}
 
         {/* Port type indicators */}
         {(inputs?.length || outputs?.length) && (
-          <div style={{ display: "flex", alignItems: "center", gap: 3, marginTop: 4 }}>
+          <div className="flex items-center gap-0.5 mt-1">
             {inputs?.map((t) => (
               <span
                 key={`in-${t}`}
                 title={`Input: ${t}`}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  background: portColor(t),
-                  opacity: 0.7,
-                }}
+                className="size-1.5 rounded-full opacity-70"
+                style={{ background: portColor(t) }}
               />
             ))}
             {inputs?.length && outputs?.length ? (
-              <span style={{ fontSize: 8, color: theme.fgMuted }}>&rarr;</span>
+              <span className="text-[8px] text-muted-foreground">&rarr;</span>
             ) : null}
             {outputs?.map((t) => (
               <span
                 key={`out-${t}`}
                 title={`Output: ${t}`}
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: 3,
-                  background: portColor(t),
-                  opacity: 0.7,
-                }}
+                className="size-1.5 rounded-full opacity-70"
+                style={{ background: portColor(t) }}
               />
             ))}
           </div>
@@ -165,160 +148,51 @@ export function ToolNode({ data, selected }: NodeProps) {
           type="source"
           position={Position.Right}
           style={{
-            width: 10,
-            height: 10,
+            width: 10, height: 10,
             background: style.color,
-            border: `2px solid ${theme.bgCard}`,
+            border: "2px solid var(--card)",
             right: -9,
           }}
         />
       </div>
 
-      {/* Remove button (top-left, visible on hover/select) */}
+      {/* Remove button */}
       {onRemove && (
         <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="nopan"
-          style={{
-            position: "absolute",
-            top: -6,
-            left: -6,
-            width: 16,
-            height: 16,
-            borderRadius: 8,
-            background: theme.bgSecondary,
-            border: `1px solid ${theme.border}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            opacity: selected ? 1 : 0,
-            transition: "opacity 150ms",
-            zIndex: 2,
-          }}
+          className={cn(
+            "nopan absolute -top-1.5 -left-1.5 size-4 rounded-full",
+            "bg-secondary border border-border",
+            "flex items-center justify-center cursor-pointer z-[2]",
+            "transition-opacity duration-150",
+            selected ? "opacity-100" : "opacity-0",
+          )}
           title="Remove tool (Delete)"
           aria-label="Remove tool"
         >
-          <X size={10} style={{ color: theme.fgMuted }} />
+          <X size={10} className="text-muted-foreground" />
         </button>
       )}
 
-      {/* Complete badge (top-right) */}
-      {execState === "complete" && (
-        <div
-          style={{
-            position: "absolute",
-            top: -4,
-            right: -4,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            background: "oklch(0.65 0.15 145)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1,
-          }}
-        >
-          <CheckCircle2 size={10} style={{ color: "white" }} />
-        </div>
-      )}
+      {/* Status badge */}
+      {execState && <NodeStatusBadge execState={execState} />}
 
-      {/* Error badge (top-right) */}
-      {execState === "error" && (
-        <div
-          style={{
-            position: "absolute",
-            top: -4,
-            right: -4,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            background: theme.destructive,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1,
-          }}
-        >
-          <AlertCircle size={10} style={{ color: "white" }} />
-        </div>
-      )}
-
-      {/* Active spinner (top-right) */}
-      {execState === "active" && (
-        <div
-          style={{
-            position: "absolute",
-            top: -4,
-            right: -4,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            background: theme.accent,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1,
-          }}
-        >
-          <Loader2 size={10} style={{ color: "white", animation: "spin 1s linear infinite" }} />
-        </div>
-      )}
-
-      {/* Part count badge (bottom-center) */}
+      {/* Part count badge */}
       {partCount !== undefined && partCount > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: -6,
-            left: "50%",
-            transform: "translateX(-50%)",
-            fontSize: 9,
-            fontWeight: 700,
-            padding: "1px 5px",
-            borderRadius: 8,
-            background: theme.bgSecondary,
-            color: theme.fgMuted,
-            zIndex: 1,
-          }}
-        >
+        <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold px-1.5 py-px rounded-full bg-secondary text-muted-foreground z-[1]">
           {partCount} pts
         </div>
       )}
 
-      {/* Retry badge (bottom-left, in category rail area) */}
+      {/* Retry badge */}
       {retryConfig && (
         <div
-          style={{
-            position: "absolute",
-            bottom: -4,
-            left: -2,
-            width: 14,
-            height: 14,
-            borderRadius: 7,
-            background: theme.bgSecondary,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1,
-          }}
+          className="absolute -bottom-1 -left-0.5 size-3.5 rounded-full bg-secondary flex items-center justify-center z-[1]"
           title="Has retry policy"
         >
-          <RefreshCw size={10} style={{ color: theme.fgMuted }} />
+          <RefreshCw size={10} className="text-muted-foreground" />
         </div>
       )}
     </div>
   );
-}
-
-const PORT_COLORS: Record<string, string> = {
-  block: "oklch(0.75 0.12 85)", // amber
-  data: "oklch(0.6 0.02 260)", // slate
-  media: "oklch(0.7 0.12 180)", // teal
-  layer: "oklch(0.65 0.14 300)", // violet
-};
-
-function portColor(type: string): string {
-  return PORT_COLORS[type] ?? theme.fgMuted;
 }

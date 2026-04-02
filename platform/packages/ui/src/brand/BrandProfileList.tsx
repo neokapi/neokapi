@@ -1,15 +1,15 @@
 import { useState, useCallback, useMemo } from "react";
 import type { VoiceProfile } from "./types";
 import { BrandProfileCard } from "./BrandProfileCard";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "../components/ui/dialog";
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { Plus, Search } from "../components/icons";
 import { useSetBreadcrumb } from "../context/BreadcrumbContext";
 

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Switch } from "../../components/ui/switch";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "../../components/ui/dialog";
+} from "@neokapi/ui-primitives/components/ui/dialog";
 
 const FEATURES = [
   "bravo-code-exec",

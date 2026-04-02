@@ -1,6 +1,6 @@
 import type { BrandVoiceFinding, BrandSeverity } from "./types";
-import { Badge } from "../components/ui/badge";
-import { cn } from "../lib/utils";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { cn } from "@neokapi/ui-primitives";
 
 interface BrandFindingsListProps {
   findings: BrandVoiceFinding[];

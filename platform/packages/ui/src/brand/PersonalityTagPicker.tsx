@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { Badge } from "../components/ui/badge";
-import { Input } from "../components/ui/input";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { X } from "../components/icons";
 import { personalityTagCategories } from "./data/personality-tags";
 

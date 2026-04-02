@@ -6,7 +6,7 @@ import {
   AvatarBadge,
   AvatarGroup,
   AvatarGroupCount,
-} from "../../components/ui/avatar";
+} from "@neokapi/ui-primitives/components/ui/avatar";
 
 const meta: Meta<typeof Avatar> = {
   title: "Foundations/Avatar",

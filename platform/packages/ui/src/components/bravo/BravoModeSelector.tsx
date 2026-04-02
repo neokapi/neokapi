@@ -1,4 +1,4 @@
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 export type BravoMode = "ask" | "coworker" | "bravo";
 

@@ -12,7 +12,11 @@
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": false,
-    "noUnusedParameters": false
+    "noUnusedParameters": false,
+    "paths": {
+      "@neokapi/ui-primitives": ["../ui/src"],
+      "@neokapi/ui-primitives/*": ["../ui/src/*"]
+    }
   },
   "include": ["src"]
 }

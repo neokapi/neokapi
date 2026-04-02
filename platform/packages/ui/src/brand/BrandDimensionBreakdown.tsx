@@ -1,5 +1,5 @@
 import type { DimensionScore } from "./types";
-import { cn } from "../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 interface BrandDimensionBreakdownProps {
   dimensions: DimensionScore[];

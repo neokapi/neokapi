@@ -4,7 +4,7 @@ import {
   FlowStepList,
   type FlowStepInfo,
 } from "../../../components/flow/FlowStepList";
-import type { ComponentSchema } from "../../../components/flow/ToolConfigPanel";
+import type { ComponentSchema } from "@neokapi/ui-primitives";
 
 const meta: Meta<typeof FlowStepList> = {
   title: "Workspace/Flow/FlowStepList",
@@ -35,6 +35,7 @@ const sampleTermbases = [
 const leveragingSchema: ComponentSchema = {
   $id: "leveraging",
   title: "Leveraging",
+  type: "object",
   description: "Leverage existing translations.",
   properties: {
     tmxPath: {
@@ -59,6 +60,7 @@ const leveragingSchema: ComponentSchema = {
 const qualityCheckSchema: ComponentSchema = {
   $id: "quality-check",
   title: "Quality Check",
+  type: "object",
   description: "Compare source and target for quality.",
   properties: {
     termsPath: {
@@ -88,6 +90,7 @@ const qualityCheckSchema: ComponentSchema = {
 const segmentationSchema: ComponentSchema = {
   $id: "segmentation",
   title: "Segmentation",
+  type: "object",
   description: "Apply SRX segmentation to text units.",
   properties: {
     segmentSource: {

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import type { StreamInfo, StreamVisibility } from "../types/api";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@neokapi/ui-primitives/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
 
 export interface StreamCreateDialogProps {
   /** Existing streams for parent selection. */

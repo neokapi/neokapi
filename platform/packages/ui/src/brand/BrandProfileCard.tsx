@@ -1,7 +1,7 @@
 import type { VoiceProfile } from "./types";
-import { Card } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Trash2 } from "../components/icons";
 
 interface BrandProfileCardProps {

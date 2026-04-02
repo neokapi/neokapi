@@ -1,5 +1,5 @@
 import type { BillingPlan } from "../../types/api";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 import { Check, X } from "lucide-react";
 
 export interface ComparisonFeature {

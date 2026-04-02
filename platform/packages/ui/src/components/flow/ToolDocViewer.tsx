@@ -1,8 +1,8 @@
 import * as React from "react";
 import { ExternalLinkIcon } from "lucide-react";
 
-import { cn } from "../../lib/utils";
-import { Button } from "../ui/button";
+import { cn } from "@neokapi/ui-primitives";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 export interface ToolDocViewerProps {
   /** Markdown content from fullDoc. */

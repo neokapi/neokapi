@@ -131,7 +131,10 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
           // Line break — render as return symbol + actual break
           elements.push(
             <span key={i}>
-              <span style={lineBreakSymbolStyle} title="Line break">
+              <span
+                className="text-gray-500/80 text-xs select-none cursor-default"
+                title="Line break"
+              >
                 {"\u23CE"}
               </span>
               <br />
@@ -145,8 +148,8 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
           elements.push(
             <span
               key={i}
+              className="inline-flex items-center px-1 mx-px rounded-sm border text-[10px] font-mono font-medium leading-4 align-middle cursor-default select-none whitespace-nowrap"
               style={{
-                ...placeholderStyle,
                 backgroundColor: colors.bg,
                 borderColor: colors.border,
                 color: colors.text,
@@ -166,26 +169,3 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
   return <span>{rendered}</span>;
 }
 
-const lineBreakSymbolStyle: React.CSSProperties = {
-  color: "rgba(107,114,128,0.8)",
-  fontSize: 12,
-  userSelect: "none",
-  cursor: "default",
-};
-
-const placeholderStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "0 4px",
-  margin: "0 1px",
-  borderRadius: 3,
-  border: "1px solid",
-  fontSize: 10,
-  fontFamily: "monospace",
-  fontWeight: 500,
-  lineHeight: "16px",
-  verticalAlign: "middle",
-  cursor: "default",
-  userSelect: "none",
-  whiteSpace: "nowrap",
-};

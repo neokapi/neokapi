@@ -3,7 +3,7 @@ import { getDefaultRegistry, type SpanTypeInfo, type ColorScheme } from "../../v
 import { TagChipComponent } from "./TagChipComponent";
 import type { SpanInfo } from "../../types/api";
 import { ChevronDown } from "../icons";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 
 // ---------------------------------------------------------------------------
 // Types

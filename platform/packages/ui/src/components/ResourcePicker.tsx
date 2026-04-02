@@ -1,10 +1,10 @@
 import * as React from "react";
 import { DatabaseIcon, FileIcon, FolderIcon } from "lucide-react";
 
-import { cn } from "../lib/utils";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
+import { cn } from "@neokapi/ui-primitives";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives/components/ui/tabs";
 import {
   Combobox,
   ComboboxInput,
@@ -12,7 +12,7 @@ import {
   ComboboxList,
   ComboboxItem,
   ComboboxEmpty,
-} from "./ui/combobox";
+} from "@neokapi/ui-primitives/components/ui/combobox";
 
 export type ResourceKind = "tm" | "termbase" | "srx";
 

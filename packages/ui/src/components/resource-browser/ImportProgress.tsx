@@ -22,8 +22,7 @@ export function ImportProgress({ active, fileName, importedCount, onClose }: Imp
         {/* Indeterminate progress bar */}
         <div className="relative h-1.5 rounded-full bg-muted overflow-hidden mb-3">
           <div
-            className="absolute inset-y-0 w-1/3 rounded-full bg-primary"
-            style={{ animation: "indeterminate 1.5s ease-in-out infinite" }}
+            className="absolute inset-y-0 w-1/3 rounded-full bg-primary animate-indeterminate"
           />
         </div>
 

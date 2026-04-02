@@ -1,8 +1,13 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import {
+  cn,
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
-import { theme } from "./theme";
 
 interface ToolPaletteProps {
   tools: ToolInfo[];
@@ -50,50 +55,12 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
   };
 
   return (
-    <div
-      style={{
-        width: 240,
-        display: "flex",
-        flexDirection: "column",
-        borderRight: `1px solid ${theme.border}`,
-        background: theme.bg,
-        overflow: "hidden",
-      }}
-    >
+    <div className="flex w-60 flex-col overflow-hidden border-r border-border bg-background">
       {/* Search */}
-      <div style={{ padding: "8px 8px 4px" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "5px 8px",
-            borderRadius: 6,
-            border: `1px solid ${theme.border}`,
-            background: theme.bgCard,
-          }}
-        >
-          <Search size={13} style={{ color: theme.fgMuted, flexShrink: 0 }} />
-          <input
-            type="text"
-            placeholder="Search tools..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              flex: 1,
-              background: "transparent",
-              border: "none",
-              outline: "none",
-              fontSize: 12,
-              color: theme.fg,
-              fontFamily: "inherit",
-            }}
-          />
-        </div>
-      </div>
+      <PaletteSearchBar value={search} onChange={setSearch} />
 
       {/* Categories */}
-      <div style={{ flex: 1, overflow: "auto", padding: "4px 0" }}>
+      <div className="flex-1 overflow-auto py-1">
         {ALL_CATEGORIES.map((cat) => {
           const items = grouped[cat.id] || [];
           if (items.length === 0 && search) return null;
@@ -105,50 +72,30 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
               {/* Category header */}
               <button
                 onClick={() => toggle(cat.id)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  width: "100%",
-                  padding: "6px 10px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
+                className="flex w-full items-center gap-1.5 border-none bg-transparent px-2.5 py-1.5 text-left cursor-pointer"
               >
                 {isCollapsed ? (
-                  <ChevronRight size={12} style={{ color: theme.fgMuted }} />
+                  <ChevronRight size={12} className="text-muted-foreground" />
                 ) : (
-                  <ChevronDown size={12} style={{ color: theme.fgMuted }} />
+                  <ChevronDown size={12} className="text-muted-foreground" />
                 )}
                 <Icon size={13} style={{ color: cat.color }} />
                 <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: cat.text,
-                    letterSpacing: "0.02em",
-                  }}
+                  className="text-[11px] font-semibold tracking-wide"
+                  style={{ color: cat.text }}
                 >
                   {cat.label}
                 </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: theme.fgMuted,
-                    marginLeft: "auto",
-                  }}
-                >
+                <span className="ml-auto text-[10px] text-muted-foreground">
                   {items.length}
                 </span>
               </button>
 
               {/* Tool items */}
               {!isCollapsed && (
-                <div style={{ paddingBottom: 4 }}>
+                <div className="pb-1">
                   {items.map((tool) => (
-                    <ToolItem
+                    <PaletteItem
                       key={tool.name}
                       tool={tool}
                       categoryColor={cat.color}
@@ -157,14 +104,7 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                     />
                   ))}
                   {items.length === 0 && (
-                    <div
-                      style={{
-                        padding: "4px 10px 4px 36px",
-                        fontSize: 11,
-                        color: theme.fgMuted,
-                        fontStyle: "italic",
-                      }}
-                    >
+                    <div className="pl-9 pr-2.5 py-1 text-[11px] italic text-muted-foreground">
                       No tools
                     </div>
                   )}
@@ -178,7 +118,31 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
   );
 }
 
-function ToolItem({
+function PaletteSearchBar({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="px-2 pt-2 pb-1">
+      <InputGroup className="h-7">
+        <InputGroupAddon>
+          <Search size={13} />
+        </InputGroupAddon>
+        <InputGroupInput
+          placeholder="Search tools..."
+          value={value}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
+          className="text-xs"
+        />
+      </InputGroup>
+    </div>
+  );
+}
+
+function PaletteItem({
   tool,
   categoryColor,
   onAdd,
@@ -189,7 +153,6 @@ function ToolItem({
   onAdd: () => void;
   onDragStart: (e: React.DragEvent<HTMLButtonElement>) => void;
 }) {
-  const [hovered, setHovered] = useState(false);
   const displayName = tool.display_name || tool.name;
 
   return (
@@ -197,66 +160,26 @@ function ToolItem({
       draggable
       onDragStart={onDragStart}
       onClick={onAdd}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        gap: 6,
-        width: "100%",
-        padding: "5px 10px 5px 20px",
-        background: hovered ? theme.bgSecondary : "none",
-        border: "none",
-        cursor: "grab",
-        textAlign: "left",
-      }}
+      className="flex w-full items-start gap-1.5 border-none bg-transparent py-1.5 pl-5 pr-2.5 text-left cursor-grab hover:bg-secondary"
       title={tool.description}
     >
-      <GripVertical
-        size={11}
-        style={{
-          color: theme.border,
-          marginTop: 2,
-          flexShrink: 0,
-        }}
-      />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 11.5,
-            fontWeight: 500,
-            color: theme.fg,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
+      <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[11.5px] font-medium text-foreground">
           {displayName}
         </div>
-        <div
-          style={{
-            fontSize: 10,
-            color: theme.fgMuted,
-            lineHeight: 1.3,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
+        <div className="truncate text-[10px] leading-tight text-muted-foreground">
           {tool.description}
         </div>
         {tool.tags && tool.tags.length > 0 && (
-          <div style={{ display: "flex", gap: 3, marginTop: 2, flexWrap: "wrap" }}>
+          <div className="mt-0.5 flex flex-wrap gap-0.5">
             {tool.tags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
+                className="rounded-sm px-1 py-px text-[9px] font-medium"
                 style={{
-                  fontSize: 9,
-                  padding: "1px 4px",
-                  borderRadius: 3,
                   background: `${categoryColor}22`,
                   color: categoryColor,
-                  fontWeight: 500,
                 }}
               >
                 {tag}

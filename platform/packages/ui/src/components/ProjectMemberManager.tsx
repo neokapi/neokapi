@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import type { ProjectMembership, RoleTemplate, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Badge } from "./ui/badge";
-import { Card } from "./ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "./ui/select";
-import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@neokapi/ui-primitives/components/ui/select";
+import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { Users, UserPlus, Trash2, Pencil } from "./icons";
 
 interface ProjectMemberManagerProps {

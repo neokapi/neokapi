@@ -1,7 +1,7 @@
 import type { ArchivedProject } from "../types/api";
-import { Card } from "./ui/card";
-import { Button } from "./ui/button";
-import { Badge } from "./ui/badge";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { Trash2, ArrowLeft } from "./icons";
 
 export interface RecycleBinViewProps {

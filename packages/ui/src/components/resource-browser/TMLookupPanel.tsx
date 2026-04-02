@@ -137,8 +137,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
         {/* Entity popover — positioned below the textarea near the selection */}
         {showEntityPopover && selectionRange && (
           <div
-            className="absolute z-50 rounded-md border border-border bg-popover shadow-lg p-1.5 flex flex-wrap gap-1"
-            style={{ top: "100%", left: 0, marginTop: 4, maxWidth: "100%" }}
+            className="absolute z-50 top-full left-0 mt-1 max-w-full rounded-md border border-border bg-popover shadow-lg p-1.5 flex flex-wrap gap-1"
           >
             <span className="text-[10px] text-muted-foreground px-1 py-0.5 w-full">
               Mark &ldquo;{selectionRange.text}&rdquo; as:

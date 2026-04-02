@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useApi } from "../context/ApiContext";
 import type { AutomationHistoryEntry } from "../types/api";
-import { Badge } from "./ui/badge";
-import { Card } from "./ui/card";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Card } from "@neokapi/ui-primitives/components/ui/card";
 
 // ---------------------------------------------------------------------------
 // Status badge

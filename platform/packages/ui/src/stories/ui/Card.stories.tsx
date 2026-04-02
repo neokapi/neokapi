@@ -6,8 +6,8 @@ import {
   CardDescription,
   CardContent,
   CardFooter,
-} from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
+} from "@neokapi/ui-primitives/components/ui/card";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof Card> = {
   title: "Foundations/Card",

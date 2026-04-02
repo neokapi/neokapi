@@ -1,11 +1,11 @@
 import { useState } from "react";
 import type { Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
-import { Alert, AlertDescription } from "./ui/alert";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { Input } from "@neokapi/ui-primitives/components/ui/input";
+import { Label } from "@neokapi/ui-primitives/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 
 export interface CreateWorkspaceDialogProps {
   open: boolean;

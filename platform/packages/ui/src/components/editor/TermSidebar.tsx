@@ -1,8 +1,8 @@
 import { ArrowRight, Plus, BookOpen } from "lucide-react";
 import { BlockTermMatch } from "../../types/api";
-import { Badge } from "../ui/badge";
-import { Button } from "../ui/button";
-import { cn } from "../../lib/utils";
+import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
+import { cn } from "@neokapi/ui-primitives";
 import type { VisualEditorMode } from "./visual-editor-types";
 
 export interface TermSidebarProps {

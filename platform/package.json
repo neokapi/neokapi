@@ -15,5 +15,6 @@
   "overrides": {
     "@tanstack/react-query": "5.94.5",
     "vite": "^8.0.0"
-  }
+  },
+  "packageManager": "npm@11.12.1"
 }

@@ -2,8 +2,8 @@ import type { BrandComplianceScore, ScoreTrend, StoredScore } from "./types";
 import { BrandScoreGauge } from "./BrandScoreGauge";
 import { BrandDimensionBreakdown } from "./BrandDimensionBreakdown";
 import { BrandFindingsList } from "./BrandFindingsList";
-import { Card, CardHeader, CardTitle, CardContent } from "../components/ui/card";
-import { cn } from "../lib/utils";
+import { Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives/components/ui/card";
+import { cn } from "@neokapi/ui-primitives";
 
 interface BrandDashboardProps {
   score: BrandComplianceScore | null;

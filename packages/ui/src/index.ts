@@ -1,10 +1,28 @@
-// Shared UI primitives — used by both framework (kapi-desktop) and platform (bowrain).
-// This package contains only framework-safe components with zero platform dependencies.
+// Shared UI primitives — single source of truth for all neokapi UI.
+// Used by both framework (kapi-desktop) and platform (bowrain).
 
 // Utility
 export { cn } from "./lib/utils";
 
+// Hooks
+export { useIsMobile } from "./hooks/use-mobile";
+
+// Form layout primitives
+export {
+  FormItem,
+  FormLabel,
+  FormDescription,
+  FormMessage,
+  FormControl,
+  FormToggle,
+  FormInputAction,
+  FormFieldGroup,
+  FormHelpText,
+} from "./components/ui/form";
+
 // shadcn/ui primitives
+export { Alert, AlertTitle, AlertDescription } from "./components/ui/alert";
+export { Avatar, AvatarImage, AvatarFallback } from "./components/ui/avatar";
 export { Button, buttonVariants } from "./components/ui/button";
 export {
   Card,
@@ -15,20 +33,33 @@ export {
   CardContent,
   CardFooter,
 } from "./components/ui/card";
-export { Input } from "./components/ui/input";
-export { Label } from "./components/ui/label";
-export { Badge, badgeVariants } from "./components/ui/badge";
-export { Separator } from "./components/ui/separator";
-export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "./components/ui/select";
-export { Switch } from "./components/ui/switch";
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  type ChartConfig,
+} from "./components/ui/chart";
 export { Collapsible, CollapsibleTrigger, CollapsibleContent } from "./components/ui/collapsible";
+export {
+  Combobox,
+  ComboboxInput,
+  ComboboxContent,
+  ComboboxList,
+  ComboboxItem,
+  ComboboxEmpty,
+} from "./components/ui/combobox";
+export {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+  CommandShortcut,
+  CommandSeparator,
+} from "./components/ui/command";
 export {
   Dialog,
   DialogTrigger,
@@ -39,9 +70,80 @@ export {
   DialogDescription,
   DialogClose,
 } from "./components/ui/dialog";
+export {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuGroup,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuRadioGroup,
+} from "./components/ui/dropdown-menu";
+export { Input } from "./components/ui/input";
+export { InputGroup, InputGroupAddon, InputGroupButton, InputGroupText, InputGroupInput, InputGroupTextarea } from "./components/ui/input-group";
+export { Label } from "./components/ui/label";
+export { Badge, badgeVariants } from "./components/ui/badge";
+export {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+  PopoverAnchor,
+} from "./components/ui/popover";
+export { ScrollArea, ScrollBar } from "./components/ui/scroll-area";
+export {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "./components/ui/select";
+export { Separator } from "./components/ui/separator";
+export {
+  Sheet,
+  SheetTrigger,
+  SheetContent,
+  SheetHeader,
+  SheetFooter,
+  SheetTitle,
+  SheetDescription,
+  SheetClose,
+} from "./components/ui/sheet";
+export {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "./components/ui/sidebar";
 export { Skeleton } from "./components/ui/skeleton";
+export { Switch } from "./components/ui/switch";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./components/ui/tabs";
 export { Textarea } from "./components/ui/textarea";
-export { TooltipProvider } from "./components/ui/tooltip";
+export { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
+
+// Code editor (CodeMirror 6)
+export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/ui/code-input";
+
+// Tag input (chip-based)
+export { TagInput, type TagInputProps } from "./components/ui/tag-input";
+
+
 
 // Types
 export type { SpanInfo } from "./types/span";
@@ -108,15 +210,31 @@ export type {
   ResourceInfo,
 } from "./components/resource-browser";
 
-// Filter config editor (dynamic forms from JSON schema)
-export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
+// CodeFinder editor
+export {
+  CodeFinderEditor,
+  type CodeFinderEditorProps,
+  type CodeFinderRulesValue,
+} from "./components/ui/code-finder-editor";
+
+// Schema-driven form (canonical form renderer for filters, tools, formats)
+export { SchemaForm } from "./components/schema-form";
 export type {
+  SchemaFormProps,
   ComponentSchema,
-  FormatSchema,
+  PropertySchema,
+  ParameterGroup,
+  ConditionExpr,
+  LayoutHints,
   FormatMeta,
   ToolMeta,
-  ConditionExpr,
-  ParameterGroup,
-  PropertySchema,
+  ToolDoc,
+  ToolDocParam,
+} from "./components/schema-form";
+
+// Filter config editor (legacy — prefer SchemaForm)
+export { FilterConfigEditor, SchemaConfigEditor } from "./components/filter";
+export type {
+  FormatSchema,
   FormatParamsValue,
 } from "./components/filter/types";

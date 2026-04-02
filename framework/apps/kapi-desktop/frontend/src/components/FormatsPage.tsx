@@ -17,8 +17,8 @@ import {
   BookOpen,
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
-import type { ComponentSchema } from "@neokapi/flow-editor";
-import { SchemaForm } from "@neokapi/flow-editor";
+import type { ComponentSchema } from "@neokapi/ui-primitives";
+import { SchemaForm } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";

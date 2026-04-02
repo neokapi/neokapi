@@ -3,7 +3,7 @@ import type { SpanInfo } from "../../types/api";
 import { getDefaultRegistry } from "../../vocabularies";
 import { TagChipComponent } from "./TagChipComponent";
 import { resolveConstraints } from "./tagConstraints";
-import { cn } from "../../lib/utils";
+import { cn } from "@neokapi/ui-primitives";
 import { X, Lock, Copy, Shuffle } from "../icons";
 
 // ---------------------------------------------------------------------------

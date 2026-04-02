@@ -6,7 +6,7 @@ import {
   type ResourceBrowserProps,
   type ResourceInfo,
 } from "../../components/ResourceBrowser";
-import { Button } from "../../components/ui/button";
+import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof ResourceBrowser> = {
   title: "Workspace/Resources/ResourceBrowser",

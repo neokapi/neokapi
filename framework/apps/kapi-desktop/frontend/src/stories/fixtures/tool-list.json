@@ -239,7 +239,7 @@
     {
       "name": "b-o-m-conversion",
       "display_name": "BOM Conversion",
-      "description": "Add or remove Unicode Byte-Order-Mark (BOM) in a text-based file. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -249,7 +249,7 @@
     {
       "name": "batch-tm-leveraging",
       "display_name": "Simple Batch Leveraging Step",
-      "description": "Simple and fast batch leveraging step that delegates to connectors",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -259,7 +259,7 @@
     {
       "name": "batch-translation",
       "display_name": "Batch Translation",
-      "description": "Creates translations from an external program for a given input document. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -269,7 +269,7 @@
     {
       "name": "char-listing",
       "display_name": "Used Characters Listing",
-      "description": "Generate a list of all the characters in the source content of a set of documents. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -279,7 +279,7 @@
     {
       "name": "character-count",
       "display_name": "Character Count",
-      "description": "Count the number of characters in the text units of a set of documents or/and in its parts. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -288,8 +288,8 @@
     },
     {
       "name": "characters-checker",
-      "display_name": "Characters Checker",
-      "description": "Compare source and target for character inconsistencies. Expects: filter events. Sends back: filter events.",
+      "display_name": "Characters Quality Check",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -299,7 +299,7 @@
     {
       "name": "cleanup",
       "display_name": "Cleanup",
-      "description": "Cleans strings by normalizing quotes, punctuation, etc. ready for further processing. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -309,7 +309,7 @@
     {
       "name": "code-simplifier",
       "display_name": "Inline Codes Simplifier",
-      "description": "Merges adjacent inline codes in the source part of a text unit. Also where possible, moves leading and trailing codes of the source to the skeleton (Only for GenericSkeleton!). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -319,7 +319,7 @@
     {
       "name": "codes-removal",
       "display_name": "Inline Codes Removal",
-      "description": "Removes inline codes from the text units content of a document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -329,7 +329,7 @@
     {
       "name": "concordance-character-count",
       "display_name": "Concordance Character Count",
-      "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -339,7 +339,7 @@
     {
       "name": "concordance-word-count",
       "display_name": "Concordance Word Count",
-      "description": "TM concordance or phrase match (usually a word or term only) Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -349,7 +349,7 @@
     {
       "name": "convert-segments-to-text-units",
       "display_name": "Segments to Text Units Converter",
-      "description": "Convert each aligned segment pair (for all target locales) to its own complete text unit Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -359,7 +359,7 @@
     {
       "name": "copy-or-move",
       "display_name": "Copy Or Move",
-      "description": "Copies or moves the listed files to the specified location. Expects: raw documents. Sends back: raw documents.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -379,7 +379,7 @@
     {
       "name": "create-target",
       "display_name": "Create Target",
-      "description": "Create target segment container. Optionally copy source content to the target. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -389,7 +389,7 @@
     {
       "name": "desegmentation",
       "display_name": "Desegmentation",
-      "description": "Joins all segments into a single content. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -399,7 +399,7 @@
     {
       "name": "diff-leverage",
       "display_name": "Diff Leverage",
-      "description": "Compare two source documents (i.e., different versions) and copy the old target content when we find a match. Can be a monolingual and bi-lingual input or three monolingual inputs. Paragraphs (TextUnits) must align in all cases",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -409,7 +409,7 @@
     {
       "name": "encoding-conversion",
       "display_name": "Encoding Conversion",
-      "description": "Convert the character set encoding of a text-based file. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -419,7 +419,7 @@
     {
       "name": "enrycher",
       "display_name": "Enrycher",
-      "description": "Applies Enrycher ITS annotations to the source content. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -429,7 +429,7 @@
     {
       "name": "exact-document-context-match-character-count",
       "display_name": "Exact Document Context Match Character Count",
-      "description": "Matches EXACT and comes from a repeated segment in the same document or a different version of the same document. See also EXACT_PREVIOUS_VERSION Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -439,7 +439,7 @@
     {
       "name": "exact-document-context-match-word-count",
       "display_name": "Exact Document Context Match Word Count",
-      "description": "Matches EXACT and comes from a repeated segment in the same document or a different version of the same document. See also EXACT_PREVIOUS_VERSION Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -449,7 +449,7 @@
     {
       "name": "exact-local-context-match-character-count",
       "display_name": "Exact Local Context Match Character Count",
-      "description": "Matches EXACT and a small number of segments before and/or after. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -459,7 +459,7 @@
     {
       "name": "exact-local-context-match-word-count",
       "display_name": "Exact Local Context Match Word Count",
-      "description": "Matches EXACT and a small number of segments before and/or after. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -469,7 +469,7 @@
     {
       "name": "exact-match-character-count",
       "display_name": "Exact Match Character Count",
-      "description": "Matches text and codes exactly. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -479,7 +479,7 @@
     {
       "name": "exact-match-word-count",
       "display_name": "Exact Match Word Count",
-      "description": "Matches text and codes exactly. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -489,7 +489,7 @@
     {
       "name": "exact-previous-version-match-character-count",
       "display_name": "Exact Previous Version Match Character Count",
-      "description": "Matches EXACT and comes from the preceding version of the same document (i.e., if v4 is leveraged this match must come from v3, not v2 or v1!!). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -499,7 +499,7 @@
     {
       "name": "exact-previous-version-match-word-count",
       "display_name": "Exact Previous Version Match Word Count",
-      "description": "Matches EXACT and comes from the preceding version of the same document (i.e., if v4 is leveraged this match must come from v3, not v2 or v1!!). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -509,7 +509,7 @@
     {
       "name": "exact-repaired-character-count",
       "display_name": "Exact Repaired Match Character Count",
-      "description": "Matches text and codes exactly, but only after the result of some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc.) Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -519,7 +519,7 @@
     {
       "name": "exact-repaired-word-count",
       "display_name": "Exact Repaired Match Word Count",
-      "description": "Matches text and codes exactly, but only after the result of some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc.) Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -529,7 +529,7 @@
     {
       "name": "exact-structural-match-character-count",
       "display_name": "Exact Structural Match Character Count",
-      "description": "Matches EXACT and the structural type of the segment (title, paragraph, list element etc.) Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -539,7 +539,7 @@
     {
       "name": "exact-structural-match-word-count",
       "display_name": "Exact Structural Match Word Count",
-      "description": "Matches EXACT and the structural type of the segment (title, paragraph, list element etc.) Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -549,7 +549,7 @@
     {
       "name": "exact-text-only-character-count",
       "display_name": "Exact Text Only Match Character Count",
-      "description": "Matches text exactly, but there is a difference in one or more codes. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -559,7 +559,7 @@
     {
       "name": "exact-text-only-previous-version-match-character-count",
       "display_name": "Exact Text Only Previous Version Match Character Count",
-      "description": "Matches EXACT_TEXT_ONLY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -569,7 +569,7 @@
     {
       "name": "exact-text-only-previous-version-match-word-count",
       "display_name": "Exact Text Only Previous Version Match Word Count",
-      "description": "Matches EXACT_TEXT_ONLY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -579,7 +579,7 @@
     {
       "name": "exact-text-only-unique-id-match-character-count",
       "display_name": "Exact Text Only Unique Id Match Character Count",
-      "description": "Matches EXACT_TEXT_ONLY and matches a unique id. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -589,7 +589,7 @@
     {
       "name": "exact-text-only-unique-id-match-word-count",
       "display_name": "Exact Text Only Unique Id Match Word Count",
-      "description": "Matches EXACT_TEXT_ONLY and matches a unique id. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -599,7 +599,7 @@
     {
       "name": "exact-text-only-word-count",
       "display_name": "Exact Text Only Match Word Count",
-      "description": "Matches text exactly, but there is a difference in one or more codes. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -609,7 +609,7 @@
     {
       "name": "exact-unique-id-match-character-count",
       "display_name": "Exact Unique Id Match Character Count",
-      "description": "Matches EXACT and matches a unique id. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -619,7 +619,7 @@
     {
       "name": "exact-unique-id-match-word-count",
       "display_name": "Exact Unique Id Match Word Count",
-      "description": "Matches EXACT and matches a unique id. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -629,7 +629,7 @@
     {
       "name": "external-command",
       "display_name": "External Command",
-      "description": "Execute an external command line.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -639,7 +639,7 @@
     {
       "name": "extraction-verification",
       "display_name": "Extraction Verification",
-      "description": "Verifies a raw document can be extracted, merged, then extracted again and produces the same set of events during both extractions. Expects: raw document. Sends back: unmodified raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -649,7 +649,7 @@
     {
       "name": "extraction",
       "display_name": "Rainbow Translation Kit Creation",
-      "description": "Generates a Rainbow translation kit for a batch of input documents. Expects: filter events. Sends back: filter events or raw document",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -659,7 +659,7 @@
     {
       "name": "filter-events-to-raw-document",
       "display_name": "Filter Events to Raw Document",
-      "description": "Combine filter events into a full document and pass it along as a raw document. Expects: filter events. Sends back: raw document or NO_OP if writing to a stream.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -669,7 +669,7 @@
     {
       "name": "filter-events-writer",
       "display_name": "Filter Events Writer",
-      "description": "Write out filter events into a document or stream.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -679,7 +679,7 @@
     {
       "name": "format-conversion",
       "display_name": "Format Conversion",
-      "description": "Converts the output of a filter into a specified file format. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -689,7 +689,7 @@
     {
       "name": "full-width-conversion",
       "display_name": "Full-Width Conversion",
-      "description": "Convert the text units content of a document to or from full-width characters (zenkaku). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -699,7 +699,7 @@
     {
       "name": "fuzzy-match-character-count",
       "display_name": "Fuzzy Match Character Count",
-      "description": "Matches both text and/or codes partially. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -709,7 +709,7 @@
     {
       "name": "fuzzy-match-word-count",
       "display_name": "Fuzzy Match Word Count",
-      "description": "Matches both text and/or codes partially. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -719,7 +719,7 @@
     {
       "name": "fuzzy-previous-version-match-character-count",
       "display_name": "Fuzzy Previous Version Match Character Count",
-      "description": "Matches FUZZY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -729,7 +729,7 @@
     {
       "name": "fuzzy-previous-version-match-word-count",
       "display_name": "Fuzzy Previous Version Match Word Count",
-      "description": "Matches FUZZY and comes from a previous version of the same document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -739,7 +739,7 @@
     {
       "name": "fuzzy-repaired-character-count",
       "display_name": "Fuzzy Repaired Match Character Count",
-      "description": "Matches both text and/or codes partially and some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc..) was applied to the target. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -749,7 +749,7 @@
     {
       "name": "fuzzy-repaired-word-count",
       "display_name": "Fuzzy Repaired Match Word Count",
-      "description": "Matches both text and/or codes partially and some automated repair (e.g. number replacement, code repair, capitalization, punctuation etc..) was applied to the target. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -759,7 +759,7 @@
     {
       "name": "fuzzy-unique-id-match-character-count",
       "display_name": "Fuzzy Unique Id Match Character Count",
-      "description": "Matches FUZZY and matches a unique id. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -769,7 +769,7 @@
     {
       "name": "fuzzy-unique-id-match-word-count",
       "display_name": "Fuzzy Unique Id Match Word Count",
-      "description": "Matches FUZZY and matches a unique id. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -779,7 +779,7 @@
     {
       "name": "g-m-x-alphanumeric-only-text-unit-character-count",
       "display_name": "GMX Alphanumeric Only Character Count",
-      "description": "An accumulation of the character count for text units that have been identified as containing only alphanumeric words. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -789,7 +789,7 @@
     {
       "name": "g-m-x-alphanumeric-only-text-unit-word-count",
       "display_name": "GMX Alphanumeric Only Word Count",
-      "description": "An accumulation of the word count for text units that have been identified as containing only alphanumeric words. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -799,7 +799,7 @@
     {
       "name": "g-m-x-exact-matched-character-count",
       "display_name": "GMX Exact Matched Character Count",
-      "description": "An accumulation of the character count for text units that have been matched unambiguously with a prior translation and thus require no translator input. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -809,7 +809,7 @@
     {
       "name": "g-m-x-exact-matched-word-count",
       "display_name": "GMX Exact Matched Word Count",
-      "description": "An accumulation of the word count for text units that have been matched unambiguously with a prior translation and thus require no translator input. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -819,7 +819,7 @@
     {
       "name": "g-m-x-fuzzy-match-character-count",
       "display_name": "Fuzzy Match Character Count",
-      "description": "An accumulation of the character count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -829,7 +829,7 @@
     {
       "name": "g-m-x-fuzzy-match-word-count",
       "display_name": "Fuzzy Match Word Count",
-      "description": "An accumulation of the word count for text units that have been fuzzy matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -839,7 +839,7 @@
     {
       "name": "g-m-x-leveraged-matched-character-count",
       "display_name": "GMX Leveraged Character Count",
-      "description": "An accumulation of the character count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -849,7 +849,7 @@
     {
       "name": "g-m-x-leveraged-matched-word-count",
       "display_name": "GMX Leveraged Word Count",
-      "description": "An accumulation of the word count for text units that have been matched against a leveraged translation memory database. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -859,7 +859,7 @@
     {
       "name": "g-m-x-measurement-only-text-unit-character-count",
       "display_name": "GMX Measurement Only Character Count",
-      "description": "An accumulation of the character count from measurement-only text units. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -869,7 +869,7 @@
     {
       "name": "g-m-x-measurement-only-text-unit-word-count",
       "display_name": "GMX Measurement Only Word Count",
-      "description": "An accumulation of the word count from measurement-only text units. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -879,7 +879,7 @@
     {
       "name": "g-m-x-numeric-only-text-unit-character-count",
       "display_name": "GMX Numeric Only Character Count",
-      "description": "An accumulation of the character count for text units that have been identified as containing only numeric words. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -889,7 +889,7 @@
     {
       "name": "g-m-x-numeric-only-text-unit-word-count",
       "display_name": "GMX Numeric Only Word Count",
-      "description": "An accumulation of the word count for text units that have been identified as containing only numeric words. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -899,7 +899,7 @@
     {
       "name": "g-m-x-protected-character-count",
       "display_name": "GMX Protected Character Count",
-      "description": "An accumulation of the character count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -909,7 +909,7 @@
     {
       "name": "g-m-x-protected-word-count",
       "display_name": "GMX Protected Word Count",
-      "description": "An accumulation of the word count for text that has been marked as 'protected', or otherwise not translatable (XLIFF text enclosed in <mrk mtype=\"protected\"> elements). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -919,7 +919,7 @@
     {
       "name": "g-m-x-repetition-matched-character-count",
       "display_name": "GMX Repetition Matched Character Count",
-      "description": "An accumulation of the character count for repeating text units that have not been matched in any other form. Repetition matching is deemed to take precedence over fuzzy matching. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -929,7 +929,7 @@
     {
       "name": "g-m-x-repetition-matched-word-count",
       "display_name": "GMX Repetition Matched Word Count",
-      "description": "An accumulation of the word count for repeating text units that have not been matched in any other form. Repetition matching is deemed to take precedence over fuzzy matching. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -938,8 +938,8 @@
     },
     {
       "name": "general-checker",
-      "display_name": "General Checker",
-      "description": "Compare source and target for general quality. Expects: filter events. Sends back: filter events.",
+      "display_name": "General Quality Check",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -949,7 +949,7 @@
     {
       "name": "id-based-aligner",
       "display_name": "Id-Based Aligner",
-      "description": "Align text units in two id-based files (e.g. Java properties). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -959,7 +959,7 @@
     {
       "name": "id-based-copy",
       "display_name": "Id-Based Copy",
-      "description": "Copies the source text of the second input into the target of the first input based on matching id.\nExpects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -969,7 +969,7 @@
     {
       "name": "image-modification",
       "display_name": "Image Modification",
-      "description": "Create a modified copy of image files. Expects: image raw document. Sends back: image raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -979,7 +979,7 @@
     {
       "name": "inconsistency-check",
       "display_name": "Inconsistency Check",
-      "description": "Checks for source entries that are the same but have different translations or target entries that are the same but have different sources. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -988,8 +988,8 @@
     },
     {
       "name": "inline-codes-checker",
-      "display_name": "Inline Codes Checker",
-      "description": "Compare source and target for inline code differences. Expects: filter events. Sends back: filter events.",
+      "display_name": "Inline Codes Quality Check",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -998,8 +998,8 @@
     },
     {
       "name": "length-checker",
-      "display_name": "Length Checker",
-      "description": "Compare source and target lengths and annotate those that seem mismatched. Expects: filter events. Sends back: filter events.",
+      "display_name": "Length Quality Check",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1009,7 +1009,7 @@
     {
       "name": "leveraging",
       "display_name": "Leveraging",
-      "description": "Leverage existing translation into the text units content of a document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1019,7 +1019,7 @@
     {
       "name": "line-break-conversion",
       "display_name": "Line-Break Conversion",
-      "description": "Convert the type of line-breaks in a text-based file. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1029,7 +1029,7 @@
     {
       "name": "localizable-checker",
       "display_name": "Localizable Quality Check",
-      "description": "Compare source and target number, date and time patterns to assure they are localized. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1039,7 +1039,7 @@
     {
       "name": "m-s-batch-translation",
       "display_name": "Microsoft Batch Translation",
-      "description": "Annotates text units with Microsoft Translator matches or/and creates a TM from them. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1049,7 +1049,7 @@
     {
       "name": "m-t-character-count",
       "display_name": "MT Character Count",
-      "description": "Indicates a translation coming from an MT engine. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1059,7 +1059,7 @@
     {
       "name": "m-t-word-count",
       "display_name": "MT Word Count",
-      "description": "Indicates a translation coming from an MT engine. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1069,7 +1069,7 @@
     {
       "name": "merging",
       "display_name": "Rainbow Translation Kit Merging",
-      "description": "Post-process a Rainbow translation kit. Expects: filter events. Sends back: filter events or raw documents.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1079,7 +1079,7 @@
     {
       "name": "paragraph-aligner",
       "display_name": "Paragraph Alignment",
-      "description": "Align paragraphs (text units) between a source and a target document. Only TextUnit events are passed along - all other events are lost",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1088,8 +1088,8 @@
     },
     {
       "name": "patterns-checker",
-      "display_name": "Patterns Checker",
-      "description": "Compare source and target for pattern differences. Expects: filter events. Sends back: filter events.",
+      "display_name": "Pattern (regex) Quality Check",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1099,7 +1099,7 @@
     {
       "name": "phrase-assembled-character-count",
       "display_name": "Phrase Assembled Character Count",
-      "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1109,7 +1109,7 @@
     {
       "name": "phrase-assembled-word-count",
       "display_name": "Phrase Assembled Word Count",
-      "description": "Matches assembled from phrases in the TM or other resources (different algorithms could be used). Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1119,7 +1119,7 @@
     {
       "name": "post-segmentation-code-simplifier",
       "display_name": "Post-segmentation Inline Codes Simplifier",
-      "description": "Merges adjacent inline codes in the source and target part of a text unit. Also where possible, moves leading and trailing codes of the source to inter-segment TextParts. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1129,7 +1129,7 @@
     {
       "name": "quality-check",
       "display_name": "Quality Check",
-      "description": "Configurable quality assurance checks for bilingual content: whitespace, inline codes, patterns, length, characters, terminology, and LanguageTool grammar verification.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1139,7 +1139,7 @@
     {
       "name": "r-t-f-conversion",
       "display_name": "RTF Conversion",
-      "description": "Remove the RTF layer from a text-based file. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1149,7 +1149,7 @@
     {
       "name": "raw-document-to-filter-events",
       "display_name": "Raw Document to Filter Events",
-      "description": "Convert a raw document into filter events. Expects: raw document. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1159,7 +1159,7 @@
     {
       "name": "raw-document-to-output-stream",
       "display_name": "RawDocument To OutputStream",
-      "description": "Write a RawDocument to an output stream.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1169,7 +1169,7 @@
     {
       "name": "raw-document-writer",
       "display_name": "RawDocument Writer",
-      "description": "Write a RawDocument to an output file.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1179,7 +1179,7 @@
     {
       "name": "remove-target",
       "display_name": "Remove Target",
-      "description": "Remove targets in all or a given set of text units. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1189,7 +1189,7 @@
     {
       "name": "repetition-analysis",
       "display_name": "Repetition Analysis",
-      "description": "Analyzes repetitions in input documents. Adds AltTranslationsAnnotation and RepetitiveSegmentAnnotation to a repetitive segment. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1199,7 +1199,7 @@
     {
       "name": "resource-simplifier",
       "display_name": "Resource Simplifier",
-      "description": "Simplify resources. Simplification algorythm is format-specific. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1209,7 +1209,7 @@
     {
       "name": "scoping-report",
       "display_name": "Scoping Report",
-      "description": "Create a template-based scoping report based on word count and leverage annotations. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1219,7 +1219,7 @@
     {
       "name": "search-and-replace",
       "display_name": "Search and Replace",
-      "description": "Performs search and replace on the entire file or the text units. Expects raw document or filter events. Sends back: raw document or filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1229,7 +1229,7 @@
     {
       "name": "segmentation",
       "display_name": "Segmentation",
-      "description": "Apply SRX segmentation to the text units content of a document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1239,7 +1239,7 @@
     {
       "name": "sentence-aligner",
       "display_name": "Sentence Alignment",
-      "description": "Aligns sentences within text units (paragraphs). Produces sentence alignments as bilingual text units or a TMX file.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1249,7 +1249,7 @@
     {
       "name": "simple-word-count",
       "display_name": "Simple Word Count",
-      "description": "Annotates each text unit source with a total word count and gives total source word counts for batches Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1259,7 +1259,7 @@
     {
       "name": "space-check",
       "display_name": "Space Quality Check",
-      "description": "Compare and fix spaces around inline codes in target based on the source. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1269,7 +1269,7 @@
     {
       "name": "t-m-import",
       "display_name": "TM Import",
-      "description": "Import text into a new or existing Pensieve TM. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1279,7 +1279,7 @@
     {
       "name": "t-t-x-joiner",
       "display_name": "TTX Joiner",
-      "description": "Rebuilds previously split TTX documents into their original documents. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1289,7 +1289,7 @@
     {
       "name": "t-t-x-splitter",
       "display_name": "TTX Splitter",
-      "description": "Splits a TTX document into several ones of roughly equal word count. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1299,7 +1299,7 @@
     {
       "name": "term-extraction",
       "display_name": "Term Extraction",
-      "description": "Extract a list of possible terms found in the source content. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1309,7 +1309,7 @@
     {
       "name": "terminology-leveraging",
       "display_name": "Terminology Leveraging",
-      "description": "Leverage terminology into the text units content of a document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1319,7 +1319,7 @@
     {
       "name": "text-modification",
       "display_name": "Text Modification",
-      "description": "Apply various modifications to the text units content of a document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1329,7 +1329,7 @@
     {
       "name": "tokenization",
       "display_name": "Tokenization Step",
-      "description": "Extracts tokens from the text units content of a document. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1339,7 +1339,7 @@
     {
       "name": "translation-comparison",
       "display_name": "Translation Comparison",
-      "description": "Compare the translated text units between several documents. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1349,7 +1349,7 @@
     {
       "name": "tu-filtering",
       "display_name": "Text Unit Filtering",
-      "description": "Set the non-translatable flag to the text units accepted by the text unit filter specified in step's parameters. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1359,7 +1359,7 @@
     {
       "name": "uri-conversion",
       "display_name": "URI Conversion",
-      "description": "Encodes or Decodes URI escape sequences. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1369,7 +1369,7 @@
     {
       "name": "whitespace-correction",
       "display_name": "Whitespace Correction",
-      "description": "Correct whitespace following segment-ending punctuation when translating from  a space-delimited language (such as English) to a non-space-delimited language (Chinese or Japanese), or vice-versa. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1379,7 +1379,7 @@
     {
       "name": "word-count",
       "display_name": "Word Count",
-      "description": "Count the number of words in the text units of a set of documents or/and in its parts. Expects: filter events. Sends back: filter events.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1389,7 +1389,7 @@
     {
       "name": "x-m-l-analysis",
       "display_name": "XML Analysis",
-      "description": "Generate an analysis report of a set of XML documents. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1399,7 +1399,7 @@
     {
       "name": "x-m-l-char-fixing",
       "display_name": "XML Characters Fixing",
-      "description": "Fixes invalid characters in XML documents. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1409,7 +1409,7 @@
     {
       "name": "x-m-l-validation",
       "display_name": "XML Validation",
-      "description": "Validate XML documents. Expects: raw XML document. Sends back: raw XML document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1419,7 +1419,7 @@
     {
       "name": "x-s-l-transform",
       "display_name": "XSL Transformation",
-      "description": "Apply an XSLT template to an XML document. Expects: raw XML document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1429,7 +1429,7 @@
     {
       "name": "xliff-joiner",
       "display_name": "XLIFF Joiner",
-      "description": "Join multiple XLIFF documents into one. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1439,7 +1439,7 @@
     {
       "name": "xliff-splitter",
       "display_name": "XLIFF Splitter",
-      "description": "Split an XLIFF document into separate files for each <file> element. Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,
@@ -1449,7 +1449,7 @@
     {
       "name": "xliff-w-c-splitter",
       "display_name": "XLIFF Word-Count Splitter",
-      "description": "Split an XLIFF document into separate documents based on word count.Expects: raw document. Sends back: raw document.",
+      "description": "",
       "category": "other",
       "source": "okapi-bridge",
       "has_schema": true,

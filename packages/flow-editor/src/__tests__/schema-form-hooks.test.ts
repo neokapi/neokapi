@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { evaluateCondition } from "../schema-form/hooks/useConditionalVisibility";
-import { schemaToZod } from "../schema-form/hooks/useSchemaToZod";
-import { resolveWidgetName, WIDGET_NAMES } from "../schema-form/registry";
+import { evaluateCondition } from "@neokapi/ui-primitives/components/schema-form/hooks/useConditionalVisibility";
+import { resolveWidgetName, WIDGET_NAMES } from "@neokapi/ui-primitives/components/schema-form/registry";
 import type { PropertySchema, ConditionExpr } from "../types";
 
 // ── evaluateCondition ──────────────────────────────────────────────────
@@ -168,89 +167,7 @@ describe("evaluateCondition", () => {
   });
 });
 
-// ── schemaToZod ────────────────────────────────────────────────────────
-
-describe("schemaToZod", () => {
-  it("returns null for empty properties", () => {
-    expect(schemaToZod({})).toBeNull();
-    expect(schemaToZod(undefined)).toBeNull();
-  });
-
-  it("converts string property", () => {
-    const schema = schemaToZod({ name: { type: "string" } });
-    expect(schema).not.toBeNull();
-    const result = schema!.safeParse({ name: "hello" });
-    expect(result.success).toBe(true);
-  });
-
-  it("validates string minLength", () => {
-    const schema = schemaToZod({ name: { type: "string", minLength: 3 } });
-    expect(schema!.safeParse({ name: "ab" }).success).toBe(false);
-    expect(schema!.safeParse({ name: "abc" }).success).toBe(true);
-  });
-
-  it("converts integer property with min/max", () => {
-    const schema = schemaToZod({ count: { type: "integer", minimum: 1, maximum: 10 } });
-    expect(schema!.safeParse({ count: 0 }).success).toBe(false);
-    expect(schema!.safeParse({ count: 5 }).success).toBe(true);
-    expect(schema!.safeParse({ count: 11 }).success).toBe(false);
-    expect(schema!.safeParse({ count: 3.5 }).success).toBe(false); // not integer
-  });
-
-  it("converts number property", () => {
-    const schema = schemaToZod({ threshold: { type: "number", minimum: 0, maximum: 1 } });
-    expect(schema!.safeParse({ threshold: 0.5 }).success).toBe(true);
-    expect(schema!.safeParse({ threshold: 1.5 }).success).toBe(false);
-  });
-
-  it("converts boolean property", () => {
-    const schema = schemaToZod({ enabled: { type: "boolean" } });
-    expect(schema!.safeParse({ enabled: true }).success).toBe(true);
-    expect(schema!.safeParse({ enabled: "yes" }).success).toBe(false);
-  });
-
-  it("converts enum property", () => {
-    const schema = schemaToZod({ mode: { type: "string", enum: ["fast", "slow"] } });
-    expect(schema!.safeParse({ mode: "fast" }).success).toBe(true);
-    expect(schema!.safeParse({ mode: "medium" }).success).toBe(false);
-  });
-
-  it("converts array property", () => {
-    const schema = schemaToZod({
-      tags: { type: "array", items: { type: "string" } },
-    });
-    expect(schema!.safeParse({ tags: ["a", "b"] }).success).toBe(true);
-    expect(schema!.safeParse({ tags: [1, 2] }).success).toBe(false);
-  });
-
-  it("converts nested object", () => {
-    const schema = schemaToZod({
-      parser: {
-        type: "object",
-        properties: {
-          encoding: { type: "string" },
-          strict: { type: "boolean" },
-        },
-      },
-    });
-    expect(schema!.safeParse({ parser: { encoding: "UTF-8", strict: true } }).success).toBe(true);
-  });
-
-  it("all fields are optional", () => {
-    const schema = schemaToZod({
-      name: { type: "string" },
-      count: { type: "integer" },
-    });
-    expect(schema!.safeParse({}).success).toBe(true);
-    expect(schema!.safeParse({ name: "test" }).success).toBe(true);
-  });
-
-  it("passthrough allows unknown fields", () => {
-    const schema = schemaToZod({ name: { type: "string" } });
-    const result = schema!.safeParse({ name: "test", extra: "field" });
-    expect(result.success).toBe(true);
-  });
-});
+// schemaToZod tests removed — Zod validation now lives in the SchemaForm package.
 
 // ── resolveWidgetName ──────────────────────────────────────────────────
 

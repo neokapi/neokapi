@@ -7,7 +7,7 @@ import {
   ChartLegend,
   ChartLegendContent,
   type ChartConfig,
-} from "../../components/ui/chart";
+} from "@neokapi/ui-primitives/components/ui/chart";
 
 const meta: Meta<typeof ChartContainer> = {
   title: "Foundations/Chart",
