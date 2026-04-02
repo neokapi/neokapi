@@ -21,6 +21,15 @@ type ReplacePair struct {
 type SearchReplaceConfig struct {
 	Pairs        []ReplacePair  `json:"pairs,omitempty"        schema:"-"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
+
+	// Schema-visible properties matching the bridge schema.
+	RegEx           bool `json:"regEx,omitempty"           schema:"description=Enable regular expression mode for all search patterns"`
+	DotAll          bool `json:"dotAll,omitempty"          schema:"description=Make the period character match every character including line-feed"`
+	IgnoreCase      bool `json:"ignoreCase,omitempty"      schema:"description=Ignore case when matching search patterns"`
+	MultiLine       bool `json:"multiLine,omitempty"       schema:"description=Make ^ and $ match at the beginning and end of each line"`
+	Target          bool `json:"target,omitempty"          schema:"description=Perform search and replace on target content,default=true"`
+	Source          bool `json:"source,omitempty"          schema:"description=Perform search and replace on source content"`
+	ReplaceAll      bool `json:"replaceAll,omitempty"      schema:"description=Replace all matches instead of only the first,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -30,6 +39,13 @@ func (c *SearchReplaceConfig) ToolName() string { return "search-replace" }
 func (c *SearchReplaceConfig) Reset() {
 	c.Pairs = nil
 	c.TargetLocale = ""
+	c.RegEx = false
+	c.DotAll = false
+	c.IgnoreCase = false
+	c.MultiLine = false
+	c.Target = true
+	c.Source = false
+	c.ReplaceAll = true
 }
 
 // Validate checks configuration validity.
@@ -49,7 +65,9 @@ func (c *SearchReplaceConfig) Validate() error {
 
 // SearchReplaceSchema returns the auto-generated schema for the search-replace tool.
 func SearchReplaceSchema() *schema.ComponentSchema {
-	return schema.FromStruct(&SearchReplaceConfig{}, schema.ToolMeta{
+	cfg := &SearchReplaceConfig{}
+	cfg.Reset()
+	return schema.FromStruct(cfg, schema.ToolMeta{
 		ID:          "search-replace",
 		Category:    schema.CategoryTransform,
 		DisplayName: "Search Replace",
@@ -60,14 +78,15 @@ func SearchReplaceSchema() *schema.ComponentSchema {
 
 // NewSearchReplaceFromConfig creates a search-replace tool from a config map.
 func NewSearchReplaceFromConfig(config map[string]any, targetLang string) (tool.Tool, error) {
-	var cfg SearchReplaceConfig
-	if err := schema.ApplyConfig(config, &cfg); err != nil {
+	cfg := &SearchReplaceConfig{}
+	cfg.Reset()
+	if err := schema.ApplyConfig(config, cfg); err != nil {
 		return nil, fmt.Errorf("search-replace config: %w", err)
 	}
 	if targetLang != "" {
 		cfg.TargetLocale = model.LocaleID(targetLang)
 	}
-	return NewSearchReplaceTool(&cfg), nil
+	return NewSearchReplaceTool(cfg), nil
 }
 
 // NewSearchReplaceTool creates a new search-and-replace tool.
@@ -92,20 +111,41 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 			return part, nil
 		}
 
-		// Apply to source text.
-		sourceText := block.SourceText()
-		newSource, err := applyReplacements(sourceText, conf.Pairs)
-		if err != nil {
-			return nil, fmt.Errorf("search-replace source: %w", err)
-		}
-		if newSource != sourceText {
-			block.SetSourceText(newSource)
+		// Build effective pairs, applying config-level regex/case/dotAll/multiLine flags.
+		effectivePairs := buildEffectivePairs(conf)
+
+		// replaceAll defaults to true for backward compat when not set via schema.
+		replaceAll := conf.ReplaceAll
+		if !conf.Source && !conf.Target {
+			// Legacy mode: neither scope flag set, replace all by default.
+			replaceAll = true
 		}
 
-		// Apply to target text if locale is set and target exists.
-		if !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
+		// Determine scope: if neither Source nor Target is explicitly set,
+		// apply to both for backward compatibility with programmatic usage.
+		applySource := conf.Source
+		applyTarget := conf.Target
+		if !applySource && !applyTarget {
+			applySource = true
+			applyTarget = true
+		}
+
+		// Apply to source text if enabled.
+		if applySource {
+			sourceText := block.SourceText()
+			newSource, err := applyReplacements(sourceText, effectivePairs, replaceAll)
+			if err != nil {
+				return nil, fmt.Errorf("search-replace source: %w", err)
+			}
+			if newSource != sourceText {
+				block.SetSourceText(newSource)
+			}
+		}
+
+		// Apply to target text if enabled and locale is set and target exists.
+		if applyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
 			targetText := block.TargetText(conf.TargetLocale)
-			newTarget, err := applyReplacements(targetText, conf.Pairs)
+			newTarget, err := applyReplacements(targetText, effectivePairs, replaceAll)
 			if err != nil {
 				return nil, fmt.Errorf("search-replace target: %w", err)
 			}
@@ -119,8 +159,39 @@ func NewSearchReplaceTool(cfg *SearchReplaceConfig) *tool.BaseTool {
 	return t
 }
 
+// buildEffectivePairs creates effective pairs from config, applying the config-level
+// regex, case-insensitive, dotAll, and multiLine flags to each pair.
+func buildEffectivePairs(conf *SearchReplaceConfig) []ReplacePair {
+	pairs := make([]ReplacePair, len(conf.Pairs))
+	for i, p := range conf.Pairs {
+		pairs[i] = ReplacePair{
+			Search:  p.Search,
+			Replace: p.Replace,
+			IsRegex: p.IsRegex || conf.RegEx,
+		}
+		// If config-level regex mode is on, apply regex flags.
+		if pairs[i].IsRegex {
+			var prefix string
+			if conf.IgnoreCase {
+				prefix += "(?i)"
+			}
+			if conf.DotAll {
+				prefix += "(?s)"
+			}
+			if conf.MultiLine {
+				prefix += "(?m)"
+			}
+			if prefix != "" {
+				pairs[i].Search = prefix + pairs[i].Search
+			}
+		}
+	}
+	return pairs
+}
+
 // applyReplacements applies all replacement pairs to the given text.
-func applyReplacements(text string, pairs []ReplacePair) (string, error) {
+// If replaceAll is false, only the first match is replaced.
+func applyReplacements(text string, pairs []ReplacePair, replaceAll bool) (string, error) {
 	result := text
 	for _, pair := range pairs {
 		if pair.IsRegex {
@@ -128,9 +199,20 @@ func applyReplacements(text string, pairs []ReplacePair) (string, error) {
 			if err != nil {
 				return "", fmt.Errorf("invalid regex %q: %w", pair.Search, err)
 			}
-			result = re.ReplaceAllString(result, pair.Replace)
+			if replaceAll {
+				result = re.ReplaceAllString(result, pair.Replace)
+			} else {
+				loc := re.FindStringIndex(result)
+				if loc != nil {
+					result = result[:loc[0]] + re.ReplaceAllString(result[loc[0]:loc[1]], pair.Replace) + result[loc[1]:]
+				}
+			}
 		} else {
-			result = strings.ReplaceAll(result, pair.Search, pair.Replace)
+			if replaceAll {
+				result = strings.ReplaceAll(result, pair.Search, pair.Replace)
+			} else {
+				result = strings.Replace(result, pair.Search, pair.Replace, 1)
+			}
 		}
 	}
 	return result, nil

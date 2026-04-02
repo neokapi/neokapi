@@ -17,24 +17,19 @@ func TestOkapiXLIFFTransform_DropsOkapiOnlyParams(t *testing.T) {
 	from := config.OkapiFilterConfigKind("xliff")
 	to := config.FormatConfigKind("xliff")
 	spec := map[string]any{
-		"inlineCdata":            true,
-		"bilingualMode":          true,
-		"generateTarget":         true,
-		"escapeGT":               true,
-		"addTargetLanguage":      true,
-		"copySource":             true,
-		"allowEmptyTargets":      true,
-		"overrideTargetLanguage": true,
-		"useCustomParser":        false,
-		"protectApproved":        true,
-		"cdataSubfilter":         "okf_html",
-		"pcdataSubfilter":        "okf_html",
-		"useCodeFinder":          true,
-		"codeFinderRules":        "pattern",
-		"escapingOutput":         false,
-		"useSdlProperties":       true,
-		"segmentationType":       "ICU4J",
-		"useSegSource":           true,
+		"inlineCdata":      true,
+		"bilingualMode":    true,
+		"generateTarget":   true,
+		"escapeGT":         true,
+		"copySource":       true,
+		"useCustomParser":  false,
+		"protectApproved":  true,
+		"cdataSubfilter":   "okf_html",
+		"pcdataSubfilter":  "okf_html",
+		"escapingOutput":   false,
+		"useSdlProperties": true,
+		"segmentationType": "ICU4J",
+		"useSegSource":     true,
 	}
 
 	result, err := config.DefaultTransforms.Transform(from, to, spec)
@@ -43,6 +38,28 @@ func TestOkapiXLIFFTransform_DropsOkapiOnlyParams(t *testing.T) {
 	// All Okapi-only params should be dropped
 	for key := range spec {
 		assert.Nil(t, result[key], "param %q should be dropped", key)
+	}
+}
+
+func TestOkapiXLIFFTransform_PassesThroughSupportedParams(t *testing.T) {
+	from := config.OkapiFilterConfigKind("xliff")
+	to := config.FormatConfigKind("xliff")
+	spec := map[string]any{
+		"addTargetLanguage":      true,
+		"allowEmptyTargets":      true,
+		"overrideTargetLanguage": true,
+		"useCodeFinder":          true,
+		"codeFinderRules":        "pattern",
+		"fallbackToID":           true,
+		"preserveSpaceByDefault": true,
+	}
+
+	result, err := config.DefaultTransforms.Transform(from, to, spec)
+	require.NoError(t, err)
+
+	// Supported params should be passed through
+	for key, val := range spec {
+		assert.Equal(t, val, result[key], "param %q should pass through", key)
 	}
 }
 

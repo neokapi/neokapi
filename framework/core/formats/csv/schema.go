@@ -2,6 +2,7 @@ package csv
 
 import (
 	coreschema "github.com/neokapi/neokapi/core/schema"
+
 	"github.com/neokapi/neokapi/core/format/schema"
 )
 
@@ -18,10 +19,10 @@ func (c *Config) Schema() *schema.FormatSchema {
 		},
 		Groups: []schema.ParameterGroup{
 			{
-				ID:    "parsing",
-				Label: "Parsing",
+				ID:    "format",
+				Label: "CSV Format Settings",
 				Fields: []string{
-					"separator", "hasHeader", "trimValues",
+					"separator", "textQualifier", "hasHeader",
 					"columnNamesRow", "valuesStartRow",
 				},
 			},
@@ -30,6 +31,14 @@ func (c *Config) Schema() *schema.FormatSchema {
 				Label: "Extraction",
 				Fields: []string{
 					"translatableColumns", "keyColumns", "commentColumns",
+					"trimValues",
+				},
+			},
+			{
+				ID:    "inlineCodes",
+				Label: "Inline Codes",
+				Fields: []string{
+					"useCodeFinder", "codeFinderRules",
 				},
 			},
 		},
@@ -37,39 +46,66 @@ func (c *Config) Schema() *schema.FormatSchema {
 			"separator": schema.Prop(coreschema.PropertySchema{
 				Type:        "string",
 				Default:     ",",
-				Description: "Field delimiter character",
+				Title:       "Field Delimiter",
+				Description: "Field delimiter character (comma for CSV, tab for TSV)",
+			}),
+			"textQualifier": schema.Prop(coreschema.PropertySchema{
+				Type:        "string",
+				Default:     "\"",
+				Title:       "Text Qualifier",
+				Description: "Character used to quote field values containing delimiters or newlines",
 			}),
 			"hasHeader": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     true,
+				Title:       "Has Header Row",
 				Description: "If true, the first row is treated as headers (non-translatable)",
 			}),
 			"translatableColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
+				Title:       "Translatable Columns",
 				Description: "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.",
 			}),
 			"keyColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
-				Description: "Column indices (0-based) that provide the block ID (source ID / record ID).",
+				Title:       "Key Columns",
+				Description: "Column indices (0-based) that provide the block ID (source ID / record ID)",
 			}),
 			"commentColumns": schema.Prop(coreschema.PropertySchema{
 				Type:        "array",
-				Description: "Column indices (0-based) that contain comments or notes.",
+				Title:       "Comment Columns",
+				Description: "Column indices (0-based) that contain comments or notes",
 			}),
 			"trimValues": schema.Prop(coreschema.PropertySchema{
 				Type:        "boolean",
 				Default:     false,
-				Description: "If true, leading and trailing whitespace is removed from cell values.",
+				Title:       "Trim Values",
+				Description: "If true, leading and trailing whitespace is removed from cell values",
 			}),
 			"columnNamesRow": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Default:     0,
+				Title:       "Column Names Row",
 				Description: "1-based row number containing column names. 0 means auto-detect.",
 			}),
 			"valuesStartRow": schema.Prop(coreschema.PropertySchema{
 				Type:        "integer",
 				Default:     0,
+				Title:       "Values Start Row",
 				Description: "1-based row number where data values begin. 0 means auto-detect.",
+			}),
+			"useCodeFinder": schema.Prop(coreschema.PropertySchema{
+				Type:        "boolean",
+				Default:     false,
+				Title:       "Enable Inline Code Detection",
+				Description: "Enable regex-based inline code detection within cell values",
+			}),
+			"codeFinderRules": schema.Prop(coreschema.PropertySchema{
+				Type:        "array",
+				Title:       "Code Finder Rules",
+				Description: "Regex patterns that match inline codes within translatable text",
+				Widget:      "code-finder",
+				Visible:     &coreschema.ConditionExpr{Field: "useCodeFinder", Eq: true},
 			}),
 		},
 	}

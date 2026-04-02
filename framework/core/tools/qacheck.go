@@ -3,7 +3,9 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -35,14 +37,51 @@ type QAIssue struct {
 type QACheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
-	// Individual check toggles; all default to true.
-	CheckLeadingWhitespace  bool `json:"checkLeadingWhitespace,omitempty"  schema:"description=Check for leading whitespace mismatches between source and target,default=true"`
-	CheckTrailingWhitespace bool `json:"checkTrailingWhitespace,omitempty" schema:"description=Check for trailing whitespace mismatches between source and target,default=true"`
-	CheckDoubleSpaces       bool `json:"checkDoubleSpaces,omitempty"       schema:"description=Check for double spaces in target text,default=true"`
-	CheckEmptyTarget        bool `json:"checkEmptyTarget,omitempty"        schema:"description=Check for empty target when source has content,default=true"`
-	CheckTargetSameAsSource bool `json:"checkTargetSameAsSource,omitempty" schema:"description=Check when target text is identical to source text,default=true"`
-	CheckTerminology        bool `json:"checkTerminology,omitempty"        schema:"description=Enable terminology checks"`
-	CheckSpanConstraints    bool `json:"checkSpanConstraints,omitempty"    schema:"description=Check non-deletable and non-cloneable span constraint violations,default=true"`
+	// --- General checks ---
+	CheckLeadingWhitespace         bool   `json:"checkLeadingWhitespace,omitempty"         schema:"description=Check for leading whitespace mismatches between source and target,default=true,group=general"`
+	CheckTrailingWhitespace        bool   `json:"checkTrailingWhitespace,omitempty"         schema:"description=Check for trailing whitespace mismatches between source and target,default=true,group=general"`
+	CheckEmptyTarget               bool   `json:"checkEmptyTarget,omitempty"                schema:"description=Check for empty target when source has content,default=true,group=general"`
+	CheckEmptySource               bool   `json:"checkEmptySource,omitempty"                schema:"description=Check for non-empty target when source is empty,default=true,group=general"`
+	CheckTargetSameAsSource        bool   `json:"checkTargetSameAsSource,omitempty"         schema:"description=Check when target text is identical to source text,default=true,group=general"`
+	TargetSameAsSourceWithCodes    bool   `json:"targetSameAsSourceWithCodes,omitempty"     schema:"description=Include inline codes when comparing source and target for identity,default=true,group=general"`
+	TargetSameAsSourceWithNumbers  bool   `json:"targetSameAsSourceWithNumbers,omitempty"   schema:"description=Include number-only segments in same-as-source comparison,default=true,group=general"`
+	CheckDoubleSpaces              bool   `json:"checkDoubleSpaces,omitempty"               schema:"description=Check for double spaces in target text,default=true,group=general"`
+	CheckDoubledWord               bool   `json:"checkDoubledWord,omitempty"                schema:"description=Check for consecutive repeated words in target text,default=true,group=general"`
+	DoubledWordExceptions          string `json:"doubledWordExceptions,omitempty"           schema:"description=Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous),group=general"`
+	CheckTerminology               bool   `json:"checkTerminology,omitempty"                schema:"description=Enable terminology checks"`
+	CheckSpanConstraints           bool   `json:"checkSpanConstraints,omitempty"            schema:"description=Check non-deletable and non-cloneable span constraint violations,default=true,group=general"`
+
+	// --- Inline code checks ---
+	CheckCodeDifference bool `json:"checkCodeDifference,omitempty" schema:"description=Verify that target segments have the same inline codes as source segments,default=true,group=inlineCodes"`
+	StrictCodeOrder     bool `json:"strictCodeOrder,omitempty"     schema:"description=Flag differences when codes appear in a different order between source and target,group=inlineCodes"`
+
+	// --- Pattern checks ---
+	CheckPatterns bool          `json:"checkPatterns,omitempty" schema:"description=Verify that source patterns have expected corresponding content in the target,default=true,group=patterns"`
+	Patterns      []QAPattern   `json:"patterns,omitempty"      schema:"-"`
+
+	// --- Character checks ---
+	CheckCorruptedCharacters bool `json:"checkCorruptedCharacters,omitempty" schema:"description=Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1),default=true,group=characters"`
+
+	// --- Length checks ---
+	CheckMaxCharLength       bool `json:"checkMaxCharLength,omitempty"       schema:"description=Flag targets longer than a percentage of source character length,default=true,group=length"`
+	MaxCharLengthBreak       int  `json:"maxCharLengthBreak,omitempty"       schema:"description=Character count above which text is considered long for the maximum length check,default=20,group=length"`
+	MaxCharLengthAbove       int  `json:"maxCharLengthAbove,omitempty"       schema:"description=Maximum allowed percentage of source length for long text,default=200,group=length"`
+	MaxCharLengthBelow       int  `json:"maxCharLengthBelow,omitempty"       schema:"description=Maximum allowed percentage of source length for short text,default=350,group=length"`
+	CheckMinCharLength       bool `json:"checkMinCharLength,omitempty"       schema:"description=Flag targets shorter than a percentage of source character length,default=true,group=length"`
+	MinCharLengthBreak       int  `json:"minCharLengthBreak,omitempty"       schema:"description=Character count above which text is considered long for the minimum length check,default=20,group=length"`
+	MinCharLengthAbove       int  `json:"minCharLengthAbove,omitempty"       schema:"description=Minimum required percentage of source length for long text,default=45,group=length"`
+	MinCharLengthBelow       int  `json:"minCharLengthBelow,omitempty"       schema:"description=Minimum required percentage of source length for short text,default=30,group=length"`
+	CheckAbsoluteMaxCharLength bool `json:"checkAbsoluteMaxCharLength,omitempty" schema:"description=Flag target segments that exceed an absolute character count limit,group=length"`
+	AbsoluteMaxCharLength      int  `json:"absoluteMaxCharLength,omitempty"      schema:"description=Maximum number of characters allowed in any target segment,default=255,group=length"`
+}
+
+// QAPattern defines a source/target regex pattern pair for pattern-based QA checks.
+type QAPattern struct {
+	Enabled     bool   `json:"enabled"`
+	Source      string `json:"source"`
+	Target      string `json:"target"`
+	FromSource  bool   `json:"fromSource"`
+	Description string `json:"description"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -51,13 +90,43 @@ func (c *QACheckConfig) ToolName() string { return "qa-check" }
 // Reset restores default values.
 func (c *QACheckConfig) Reset() {
 	c.TargetLocale = ""
+
+	// General
 	c.CheckLeadingWhitespace = true
 	c.CheckTrailingWhitespace = true
-	c.CheckDoubleSpaces = true
 	c.CheckEmptyTarget = true
+	c.CheckEmptySource = true
 	c.CheckTargetSameAsSource = true
+	c.TargetSameAsSourceWithCodes = true
+	c.TargetSameAsSourceWithNumbers = true
+	c.CheckDoubleSpaces = true
+	c.CheckDoubledWord = true
+	c.DoubledWordExceptions = "sie;vous;nous"
 	c.CheckTerminology = false
 	c.CheckSpanConstraints = true
+
+	// Inline codes
+	c.CheckCodeDifference = true
+	c.StrictCodeOrder = false
+
+	// Patterns
+	c.CheckPatterns = true
+	c.Patterns = nil
+
+	// Characters
+	c.CheckCorruptedCharacters = true
+
+	// Length
+	c.CheckMaxCharLength = true
+	c.MaxCharLengthBreak = 20
+	c.MaxCharLengthAbove = 200
+	c.MaxCharLengthBelow = 350
+	c.CheckMinCharLength = true
+	c.MinCharLengthBreak = 20
+	c.MinCharLengthAbove = 45
+	c.MinCharLengthBelow = 30
+	c.CheckAbsoluteMaxCharLength = false
+	c.AbsoluteMaxCharLength = 255
 }
 
 // Validate checks configuration validity.
@@ -70,16 +139,10 @@ func (c *QACheckConfig) Validate() error {
 
 // NewQACheckConfig creates a QACheckConfig with all standard checks enabled.
 func NewQACheckConfig(targetLocale model.LocaleID) *QACheckConfig {
-	return &QACheckConfig{
-		TargetLocale:            targetLocale,
-		CheckLeadingWhitespace:  true,
-		CheckTrailingWhitespace: true,
-		CheckDoubleSpaces:       true,
-		CheckEmptyTarget:        true,
-		CheckTargetSameAsSource: true,
-		CheckTerminology:        false,
-		CheckSpanConstraints:    true,
-	}
+	cfg := &QACheckConfig{TargetLocale: targetLocale}
+	cfg.Reset()
+	cfg.TargetLocale = targetLocale
+	return cfg
 }
 
 // QACheckSchema returns the auto-generated schema for the qa-check tool.
@@ -160,6 +223,15 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 			})
 		}
 
+		// Check: empty source (non-empty target but empty source).
+		if conf.CheckEmptySource && sourceText == "" && targetText != "" {
+			issues = append(issues, QAIssue{
+				Type:     "empty-source",
+				Severity: QASeverityWarning,
+				Message:  "Target is not empty but source is empty",
+			})
+		}
+
 		// Check: leading whitespace mismatch.
 		if conf.CheckLeadingWhitespace && targetText != "" {
 			srcLeading := leadingWhitespace(sourceText)
@@ -195,13 +267,110 @@ func NewQACheckTool(cfg *QACheckConfig) *tool.BaseTool {
 			})
 		}
 
+		// Check: doubled words in target.
+		if conf.CheckDoubledWord && targetText != "" {
+			if word := findDoubledWord(targetText, conf.DoubledWordExceptions); word != "" {
+				issues = append(issues, QAIssue{
+					Type:     "doubled-word",
+					Severity: QASeverityWarning,
+					Message:  fmt.Sprintf("Target contains doubled word: %q", word),
+				})
+			}
+		}
+
 		// Check: target same as source.
 		if conf.CheckTargetSameAsSource && targetText != "" && sourceText != "" && targetText == sourceText {
-			issues = append(issues, QAIssue{
-				Type:     "target-same-as-source",
-				Severity: QASeverityWarning,
-				Message:  "Target is identical to source",
-			})
+			// Only flag if source contains at least one word character.
+			if containsWordChar(sourceText) {
+				// Skip number-only segments if configured.
+				if conf.TargetSameAsSourceWithNumbers || !isNumberOnly(sourceText) {
+					issues = append(issues, QAIssue{
+						Type:     "target-same-as-source",
+						Severity: QASeverityWarning,
+						Message:  "Target is identical to source",
+					})
+				}
+			}
+		}
+
+		// Check: corrupted characters.
+		if conf.CheckCorruptedCharacters && targetText != "" {
+			if hasCorruptedCharacters(targetText) {
+				issues = append(issues, QAIssue{
+					Type:     "corrupted-characters",
+					Severity: QASeverityWarning,
+					Message:  "Target may contain corrupted characters (encoding issue)",
+				})
+			}
+		}
+
+		// Check: maximum character length ratio.
+		if conf.CheckMaxCharLength && targetText != "" && sourceText != "" {
+			srcLen := len([]rune(sourceText))
+			tgtLen := len([]rune(targetText))
+			if srcLen > 0 {
+				pct := (tgtLen * 100) / srcLen
+				maxPct := conf.MaxCharLengthBelow
+				if srcLen > conf.MaxCharLengthBreak {
+					maxPct = conf.MaxCharLengthAbove
+				}
+				if pct > maxPct {
+					issues = append(issues, QAIssue{
+						Type:     "max-length",
+						Severity: QASeverityWarning,
+						Message:  fmt.Sprintf("Target is %d%% of source length (max allowed: %d%%)", pct, maxPct),
+					})
+				}
+			}
+		}
+
+		// Check: minimum character length ratio.
+		if conf.CheckMinCharLength && targetText != "" && sourceText != "" {
+			srcLen := len([]rune(sourceText))
+			tgtLen := len([]rune(targetText))
+			if srcLen > 0 {
+				pct := (tgtLen * 100) / srcLen
+				minPct := conf.MinCharLengthBelow
+				if srcLen > conf.MinCharLengthBreak {
+					minPct = conf.MinCharLengthAbove
+				}
+				if pct < minPct {
+					issues = append(issues, QAIssue{
+						Type:     "min-length",
+						Severity: QASeverityWarning,
+						Message:  fmt.Sprintf("Target is %d%% of source length (min required: %d%%)", pct, minPct),
+					})
+				}
+			}
+		}
+
+		// Check: absolute maximum character length.
+		if conf.CheckAbsoluteMaxCharLength && targetText != "" {
+			tgtLen := len([]rune(targetText))
+			if tgtLen > conf.AbsoluteMaxCharLength {
+				issues = append(issues, QAIssue{
+					Type:     "absolute-max-length",
+					Severity: QASeverityWarning,
+					Message:  fmt.Sprintf("Target has %d characters (max allowed: %d)", tgtLen, conf.AbsoluteMaxCharLength),
+				})
+			}
+		}
+
+		// Check: pattern verification.
+		if conf.CheckPatterns && len(conf.Patterns) > 0 {
+			issues = append(issues, checkPatterns(sourceText, targetText, conf.Patterns)...)
+		}
+
+		// Check: inline code differences.
+		if conf.CheckCodeDifference {
+			sourceFrag := block.FirstFragment()
+			if sourceFrag != nil && sourceFrag.HasSpans() && block.HasTarget(conf.TargetLocale) {
+				targetSegs := block.Targets[conf.TargetLocale]
+				if len(targetSegs) > 0 {
+					targetFrag := targetSegs[0].Content
+					issues = append(issues, checkCodeDifferences(sourceFrag, targetFrag, conf.StrictCodeOrder)...)
+				}
+			}
 		}
 
 		// Check: span constraint violations.
@@ -318,4 +487,197 @@ func leadingWhitespace(s string) string {
 func trailingWhitespace(s string) string {
 	trimmed := strings.TrimRight(s, " \t\n\r")
 	return s[len(trimmed):]
+}
+
+// findDoubledWord checks for consecutive repeated words in text.
+// Returns the first doubled word found, or "" if none.
+// Exceptions is a semicolon-separated list of words to allow.
+func findDoubledWord(text, exceptions string) string {
+	excSet := make(map[string]bool)
+	if exceptions != "" {
+		for _, w := range strings.Split(exceptions, ";") {
+			w = strings.TrimSpace(w)
+			if w != "" {
+				excSet[strings.ToLower(w)] = true
+			}
+		}
+	}
+	words := strings.Fields(text)
+	for i := 1; i < len(words); i++ {
+		prev := strings.ToLower(words[i-1])
+		curr := strings.ToLower(words[i])
+		if prev == curr && !excSet[curr] {
+			return words[i]
+		}
+	}
+	return ""
+}
+
+// containsWordChar returns true if s contains at least one Unicode letter or digit.
+func containsWordChar(s string) bool {
+	for _, r := range s {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return true
+		}
+	}
+	return false
+}
+
+// isNumberOnly returns true if s contains only digits, whitespace, and punctuation (no letters).
+func isNumberOnly(s string) bool {
+	hasDigit := false
+	for _, r := range s {
+		if unicode.IsDigit(r) {
+			hasDigit = true
+		} else if unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return hasDigit
+}
+
+// hasCorruptedCharacters checks for patterns that often indicate encoding corruption.
+func hasCorruptedCharacters(s string) bool {
+	// Check for common UTF-8 mojibake patterns: sequences like Ã¤ Ã¶ Ã¼ etc.
+	// These appear when UTF-8 is misread as ISO-8859-1.
+	for _, r := range s {
+		if r == unicode.ReplacementChar {
+			return true
+		}
+	}
+	return false
+}
+
+// checkPatterns verifies source/target pattern pairs.
+func checkPatterns(sourceText, targetText string, patterns []QAPattern) []QAIssue {
+	var issues []QAIssue
+	for _, p := range patterns {
+		if !p.Enabled {
+			continue
+		}
+		if p.Source == "" {
+			continue
+		}
+		re, err := regexp.Compile(p.Source)
+		if err != nil {
+			continue
+		}
+
+		matches := re.FindAllString(sourceText, -1)
+		if len(matches) == 0 {
+			continue
+		}
+
+		// Check that target matches the target pattern.
+		targetPattern := p.Target
+		if targetPattern == "" || targetPattern == "<same>" {
+			// Target should contain the same matches.
+			for _, m := range matches {
+				if !strings.Contains(targetText, m) {
+					desc := p.Description
+					if desc == "" {
+						desc = fmt.Sprintf("Pattern %q found in source but not in target", m)
+					}
+					issues = append(issues, QAIssue{
+						Type:     "pattern-mismatch",
+						Severity: QASeverityWarning,
+						Message:  desc,
+					})
+				}
+			}
+		} else {
+			tgtRe, err := regexp.Compile(targetPattern)
+			if err != nil {
+				continue
+			}
+			tgtMatches := tgtRe.FindAllString(targetText, -1)
+			if len(tgtMatches) != len(matches) {
+				desc := p.Description
+				if desc == "" {
+					desc = fmt.Sprintf("Pattern count mismatch: %d in source, %d in target", len(matches), len(tgtMatches))
+				}
+				issues = append(issues, QAIssue{
+					Type:     "pattern-mismatch",
+					Severity: QASeverityWarning,
+					Message:  desc,
+				})
+			}
+		}
+	}
+	return issues
+}
+
+// checkCodeDifferences compares source and target inline codes by type.
+func checkCodeDifferences(source, target *model.Fragment, strictOrder bool) []QAIssue {
+	if source == nil || target == nil {
+		return nil
+	}
+
+	sourceTypes := spanTypeList(source.Spans)
+	targetTypes := spanTypeList(target.Spans)
+
+	var issues []QAIssue
+
+	// Check for missing and extra codes.
+	sourceCounts := countStrings(sourceTypes)
+	targetCounts := countStrings(targetTypes)
+
+	for typ, srcCount := range sourceCounts {
+		tgtCount := targetCounts[typ]
+		if tgtCount < srcCount {
+			issues = append(issues, QAIssue{
+				Type:     "missing-code",
+				Severity: QASeverityWarning,
+				Message:  fmt.Sprintf("Inline code %q missing from target (%d in source, %d in target)", typ, srcCount, tgtCount),
+			})
+		}
+	}
+	for typ, tgtCount := range targetCounts {
+		srcCount := sourceCounts[typ]
+		if tgtCount > srcCount {
+			issues = append(issues, QAIssue{
+				Type:     "extra-code",
+				Severity: QASeverityWarning,
+				Message:  fmt.Sprintf("Extra inline code %q in target (%d in source, %d in target)", typ, srcCount, tgtCount),
+			})
+		}
+	}
+
+	// Strict order check.
+	if strictOrder && len(issues) == 0 {
+		minLen := len(sourceTypes)
+		if len(targetTypes) < minLen {
+			minLen = len(targetTypes)
+		}
+		for i := 0; i < minLen; i++ {
+			if sourceTypes[i] != targetTypes[i] {
+				issues = append(issues, QAIssue{
+					Type:     "code-order",
+					Severity: QASeverityWarning,
+					Message:  "Inline code order differs between source and target",
+				})
+				break
+			}
+		}
+	}
+
+	return issues
+}
+
+// spanTypeList returns an ordered list of span Type strings.
+func spanTypeList(spans []*model.Span) []string {
+	types := make([]string, len(spans))
+	for i, s := range spans {
+		types[i] = s.Type
+	}
+	return types
+}
+
+// countStrings counts occurrences of each string.
+func countStrings(ss []string) map[string]int {
+	counts := make(map[string]int)
+	for _, s := range ss {
+		counts[s]++
+	}
+	return counts
 }

@@ -57,6 +57,11 @@ type Config struct {
 	ExtractRunFontsInfo      bool   // Emit font metadata as annotations on blocks
 	ReplaceLineSeparator     bool   // Replace Unicode line separator (U+2028) in output
 	LineSeparatorReplacement string // Replacement string for line separator (default: "\n")
+
+	// --- General options (from bridge) ---
+	IgnoreSoftHyphenTag      bool // Ignore soft hyphen tags
+	ReplaceNoBreakHyphenTag  bool // Replace no-break hyphen tags with non-breaking hyphen character
+	AutomaticallyAcceptRevisions bool // Automatically accept tracked changes before extraction
 }
 
 // FormatName returns the format identifier.
@@ -95,6 +100,9 @@ func (c *Config) Reset() {
 	c.ExtractRunFontsInfo = false
 	c.ReplaceLineSeparator = false
 	c.LineSeparatorReplacement = "\n"
+	c.IgnoreSoftHyphenTag = false
+	c.ReplaceNoBreakHyphenTag = false
+	c.AutomaticallyAcceptRevisions = true
 }
 
 // Validate checks configuration validity.
@@ -145,6 +153,12 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			c.ExtractRunFontsInfo = toBool(val)
 		case "replaceLineSeparator":
 			c.ReplaceLineSeparator = toBool(val)
+		case "ignoreSoftHyphenTag":
+			c.IgnoreSoftHyphenTag = toBool(val)
+		case "replaceNoBreakHyphenTag":
+			c.ReplaceNoBreakHyphenTag = toBool(val)
+		case "automaticallyAcceptRevisions":
+			c.AutomaticallyAcceptRevisions = toBool(val)
 
 		// String options
 		case "lineSeparatorReplacement":

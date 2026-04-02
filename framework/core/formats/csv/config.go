@@ -1,11 +1,16 @@
 package csv
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
 // Config holds configuration for the CSV format.
 type Config struct {
 	// Separator is the field delimiter character. Default is ','.
 	Separator rune
+	// TextQualifier is the character used to quote field values. Default is '"'.
+	TextQualifier rune
 	// HasHeader if true, the first row is treated as headers.
 	HasHeader bool
 	// TranslatableColumns specifies which column indices (0-based) to extract
@@ -26,6 +31,13 @@ type Config struct {
 	// ColumnNamesRow is the 1-based row number that contains column names.
 	// Default is 0 (auto: row 1 if HasHeader is true).
 	ColumnNamesRow int
+	// UseCodeFinder enables regex-based inline code detection.
+	UseCodeFinder bool
+	// CodeFinderRules defines inline code patterns.
+	CodeFinderRules []string
+
+	// compiled regex caches
+	compiledCodeFinder []*regexp.Regexp
 }
 
 // FormatName returns the format this config applies to.
@@ -38,14 +50,11 @@ func (c *Config) FormatName() string {
 
 // Reset restores default values.
 func (c *Config) Reset() {
-	c.Separator = ','
-	c.HasHeader = true
-	c.TranslatableColumns = nil
-	c.KeyColumns = nil
-	c.CommentColumns = nil
-	c.TrimValues = false
-	c.ValuesStartRow = 0
-	c.ColumnNamesRow = 0
+	*c = Config{
+		Separator:     ',',
+		TextQualifier: '"',
+		HasHeader:     true,
+	}
 }
 
 // Validate checks configuration validity.
@@ -70,6 +79,16 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("separator: expected single character, got %q", s)
 			}
 			c.Separator = runes[0]
+		case "textQualifier":
+			s, ok := val.(string)
+			if !ok {
+				return fmt.Errorf("textQualifier: expected string, got %T", val)
+			}
+			runes := []rune(s)
+			if len(runes) != 1 {
+				return fmt.Errorf("textQualifier: expected single character, got %q", s)
+			}
+			c.TextQualifier = runes[0]
 		case "hasHeader":
 			b, ok := val.(bool)
 			if !ok {
@@ -112,11 +131,80 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return err
 			}
 			c.ColumnNamesRow = n
+		case "useCodeFinder":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+			}
+			c.UseCodeFinder = b
+			c.compiledCodeFinder = nil
+		case "codeFinderRules":
+			rules, err := parseCodeFinderRules(val)
+			if err != nil {
+				return fmt.Errorf("codeFinderRules: %w", err)
+			}
+			c.CodeFinderRules = rules
+			c.compiledCodeFinder = nil
 		default:
 			return fmt.Errorf("csv: unknown parameter: %s", key)
 		}
 	}
 	return nil
+}
+
+// GetCodeFinderPatterns returns compiled regex patterns for code finder.
+func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+	if c.compiledCodeFinder != nil {
+		return c.compiledCodeFinder
+	}
+	if !c.UseCodeFinder || len(c.CodeFinderRules) == 0 {
+		return nil
+	}
+	for _, pattern := range c.CodeFinderRules {
+		re, err := regexp.Compile(pattern)
+		if err == nil {
+			c.compiledCodeFinder = append(c.compiledCodeFinder, re)
+		}
+	}
+	return c.compiledCodeFinder
+}
+
+// parseCodeFinderRules parses code finder rules from bridge-style map or string slice.
+func parseCodeFinderRules(val any) ([]string, error) {
+	if rules, ok := val.([]string); ok {
+		return rules, nil
+	}
+	if arr, ok := val.([]any); ok {
+		rules := make([]string, 0, len(arr))
+		for _, item := range arr {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string, got %T", item)
+			}
+			rules = append(rules, s)
+		}
+		return rules, nil
+	}
+	if m, ok := val.(map[string]any); ok {
+		count := 0
+		if c, ok := m["count"]; ok {
+			switch v := c.(type) {
+			case int:
+				count = v
+			case float64:
+				count = int(v)
+			}
+		}
+		var rules []string
+		for i := 0; i < count; i++ {
+			key := fmt.Sprintf("rule%d", i)
+			if rule, ok := m[key].(string); ok {
+				rules = append(rules, rule)
+			}
+		}
+		return rules, nil
+	}
+	return nil, fmt.Errorf("expected []string or map, got %T", val)
 }
 
 // parseIntSlice parses an []any of numbers into []int.

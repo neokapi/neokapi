@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/text/encoding/ianaindex"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
 	"github.com/neokapi/neokapi/core/tool"
@@ -18,10 +20,12 @@ const (
 
 // CharsCheckConfig holds configuration for the character check tool.
 type CharsCheckConfig struct {
-	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
-	ForbiddenChars string         `json:"forbiddenChars,omitempty" schema:"description=Characters that should not appear in target text (e.g. {}[])"`
-	RequiredChars  string         `json:"requiredChars,omitempty"  schema:"description=Characters that must appear in target if present in source (e.g. punctuation)"`
-	CheckCorrupted bool           `json:"checkCorrupted,omitempty" schema:"description=Check for common corruption patterns such as mojibake,default=true"`
+	TargetLocale      model.LocaleID `json:"targetLocale,omitempty"      schema:"-"`
+	ForbiddenChars    string         `json:"forbiddenChars,omitempty"    schema:"description=Characters that should not appear in target text (e.g. {}[])"`
+	RequiredChars     string         `json:"requiredChars,omitempty"     schema:"description=Characters that must appear in target if present in source (e.g. punctuation)"`
+	CheckCorrupted    bool           `json:"checkCorrupted,omitempty"    schema:"description=Check for common corruption patterns such as mojibake,default=true"`
+	CheckCharset      bool           `json:"checkCharset,omitempty"      schema:"description=Warn if a character is not included in the specified character set encoding"`
+	Charset           string         `json:"charset,omitempty"           schema:"description=Name of the character set encoding to check against (e.g. ISO-8859-1),default=ISO-8859-1"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -33,6 +37,8 @@ func (c *CharsCheckConfig) Reset() {
 	c.ForbiddenChars = ""
 	c.RequiredChars = ""
 	c.CheckCorrupted = true
+	c.CheckCharset = false
+	c.Charset = "ISO-8859-1"
 }
 
 // Validate checks configuration validity.
@@ -48,6 +54,8 @@ func NewCharsCheckConfig(targetLocale model.LocaleID) *CharsCheckConfig {
 	return &CharsCheckConfig{
 		TargetLocale:   targetLocale,
 		CheckCorrupted: true,
+		CheckCharset:   false,
+		Charset:        "ISO-8859-1",
 	}
 }
 
@@ -149,6 +157,11 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 			}
 		}
 
+		// Check characters against charset encoding.
+		if conf.CheckCharset && conf.Charset != "" {
+			issues = append(issues, checkCharset(targetText, conf.Charset)...)
+		}
+
 		// Check corruption patterns.
 		if conf.CheckCorrupted {
 			issues = append(issues, checkCorruption(targetText)...)
@@ -159,6 +172,30 @@ func NewCharsCheckTool(cfg *CharsCheckConfig) *tool.BaseTool {
 		return part, nil
 	}
 	return t
+}
+
+// checkCharset verifies that all characters in text can be encoded in the named charset.
+func checkCharset(text, charsetName string) []QAIssue {
+	enc, err := ianaindex.IANA.Encoding(charsetName)
+	if err != nil || enc == nil {
+		return []QAIssue{{
+			Type:     "charset-lookup-error",
+			Severity: QASeverityWarning,
+			Message:  fmt.Sprintf("Unknown character set encoding %q", charsetName),
+		}}
+	}
+	encoder := enc.NewEncoder()
+	for _, r := range text {
+		_, err := encoder.Bytes([]byte(string(r)))
+		if err != nil {
+			return []QAIssue{{
+				Type:     "charset-violation",
+				Severity: QASeverityWarning,
+				Message:  fmt.Sprintf("Character %q (U+%04X) cannot be encoded in %s", r, r, charsetName),
+			}}
+		}
+	}
+	return nil
 }
 
 // checkCorruption detects common text corruption patterns.

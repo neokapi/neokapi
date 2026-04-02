@@ -27,6 +27,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // NewReader creates a new XLIFF 1.2 reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "xliff",
@@ -112,7 +113,11 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 	var elemPositions []elemPos
 
 	// inheritPreserveWS returns true if any ancestor has xml:space="preserve"
+	// or if the config sets preserveSpaceByDefault.
 	inheritPreserveWS := func() bool {
+		if r.cfg.PreserveSpaceByDefault {
+			return true
+		}
 		for i := len(preserveWSStack) - 1; i >= 0; i-- {
 			if preserveWSStack[i] {
 				return true
@@ -708,6 +713,8 @@ func (r *Reader) buildBlock(tu *parsedTransUnit, sourceLang, targetLang model.Lo
 	if tu.resname != "" {
 		block.Name = tu.resname
 		block.Properties["resname"] = tu.resname
+	} else if r.cfg.FallbackToID && tu.id != "" {
+		block.Name = tu.id
 	}
 
 	if tu.approved {

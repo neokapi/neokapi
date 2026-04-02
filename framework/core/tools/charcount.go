@@ -22,6 +22,10 @@ const (
 // CharCountConfig holds configuration for the character count tool.
 type CharCountConfig struct {
 	Locale model.LocaleID `json:"locale,omitempty" schema:"-"`
+
+	CountSource bool `json:"countSource,omitempty" schema:"description=Count characters in source text,default=true"`
+	CountTarget bool `json:"countTarget,omitempty" schema:"description=Count characters in target text,default=true"`
+	CountInline bool `json:"countInline,omitempty" schema:"description=Include inline code content in character counts"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -30,6 +34,9 @@ func (c *CharCountConfig) ToolName() string { return "char-count" }
 // Reset restores default values.
 func (c *CharCountConfig) Reset() {
 	c.Locale = ""
+	c.CountSource = true
+	c.CountTarget = true
+	c.CountInline = false
 }
 
 // Validate checks configuration validity.
@@ -84,13 +91,19 @@ func NewCharCountTool(cfg *CharCountConfig) *tool.BaseTool {
 			block.Properties = make(map[string]string)
 		}
 
+		// Default to counting both when neither scope is explicitly set.
+		countSource := conf.CountSource || (!conf.CountSource && !conf.CountTarget)
+		countTarget := conf.CountTarget || (!conf.CountSource && !conf.CountTarget)
+
 		// Count source characters.
-		sourceText := block.SourceText()
-		block.Properties[PropCharCountSource] = strconv.Itoa(countChars(sourceText))
-		block.Properties[PropCharCountSourceNospace] = strconv.Itoa(countCharsNoSpace(sourceText))
+		if countSource {
+			sourceText := block.SourceText()
+			block.Properties[PropCharCountSource] = strconv.Itoa(countChars(sourceText))
+			block.Properties[PropCharCountSourceNospace] = strconv.Itoa(countCharsNoSpace(sourceText))
+		}
 
 		// Count target characters if locale is set and target exists.
-		if !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
+		if countTarget && !conf.Locale.IsEmpty() && block.HasTarget(conf.Locale) {
 			targetText := block.TargetText(conf.Locale)
 			block.Properties[PropCharCountTarget] = strconv.Itoa(countChars(targetText))
 			block.Properties[PropCharCountTargetNospace] = strconv.Itoa(countCharsNoSpace(targetText))

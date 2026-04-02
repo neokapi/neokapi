@@ -18,10 +18,13 @@ const (
 
 // FullWidthConvertConfig holds configuration for the full-width conversion tool.
 type FullWidthConvertConfig struct {
-	Mode         FullWidthMode  `schema:"description=Conversion direction between half-width and full-width characters,enum=to-half|to-full,default=to-half"` // Conversion direction (default: "to-half")
-	ApplySource  bool           `schema:"description=Apply to source text"` // Apply to source (default: false)
-	ApplyTarget  bool           `schema:"description=Apply to target text,default=true"` // Apply to target (default: true)
-	TargetLocale model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale to process (required when ApplyTarget)
+	Mode            FullWidthMode  `schema:"description=Conversion direction between half-width and full-width characters,enum=to-half|to-full,default=to-half"` // Conversion direction (default: "to-half")
+	ApplySource     bool           `schema:"description=Apply to source text"`                              // Apply to source (default: false)
+	ApplyTarget     bool           `schema:"description=Apply to target text,default=true"`                 // Apply to target (default: true)
+	TargetLocale    model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale to process (required when ApplyTarget)
+	IncludeSLA      bool           `schema:"description=Also convert Squared Latin Abbreviations from the CJK Compatibility block to non-CJK character sequences"` // Include Squared Latin Abbreviations
+	IncludeLLS      bool           `schema:"description=Also convert characters from the Letter-Like Symbols block to character sequences"`                         // Include Letter-Like Symbols
+	IncludeKatakana bool           `schema:"description=Also convert Japanese Katakana and associated punctuation to half-width forms"`                              // Include Katakana
 }
 
 // ToolName returns the tool name this config applies to.
@@ -33,6 +36,9 @@ func (c *FullWidthConvertConfig) Reset() {
 	c.ApplySource = false
 	c.ApplyTarget = true
 	c.TargetLocale = ""
+	c.IncludeSLA = false
+	c.IncludeLLS = false
+	c.IncludeKatakana = false
 }
 
 // Validate checks configuration validity.

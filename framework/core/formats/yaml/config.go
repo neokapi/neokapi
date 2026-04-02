@@ -1,6 +1,9 @@
 package yaml
 
-import "fmt"
+import (
+	"fmt"
+	"regexp"
+)
 
 // Config holds configuration for the YAML format.
 type Config struct {
@@ -14,6 +17,9 @@ type Config struct {
 	// recognized as inline codes.
 	UseCodeFinder bool
 
+	// CodeFinderRules defines inline code patterns.
+	CodeFinderRules []string
+
 	// KeyPathPatterns defines extraction rules based on key paths.
 	// When non-empty, only keys matching one of these patterns are extracted.
 	// Patterns support glob-style matching: * matches any single key,
@@ -24,6 +30,9 @@ type Config struct {
 	// Subfilter specifies a sub-filter to apply to scalar values.
 	// Currently supported: "html" (process HTML within YAML values).
 	Subfilter string
+
+	// compiled regex caches
+	compiledCodeFinder []*regexp.Regexp
 }
 
 // FormatName returns the format this config applies to.
@@ -33,8 +42,10 @@ func (c *Config) FormatName() string { return "yaml" }
 func (c *Config) Reset() {
 	c.ExtractNonStrings = false
 	c.UseCodeFinder = false
+	c.CodeFinderRules = nil
 	c.KeyPathPatterns = nil
 	c.Subfilter = ""
+	c.compiledCodeFinder = nil
 }
 
 // Validate checks configuration validity.
@@ -73,6 +84,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			default:
 				return fmt.Errorf("yaml: keyPathPatterns must be a string array")
 			}
+		case "codeFinderRules":
+			rules, err := parseCodeFinderRules(val)
+			if err != nil {
+				return fmt.Errorf("codeFinderRules: %w", err)
+			}
+			c.CodeFinderRules = rules
+			c.compiledCodeFinder = nil
 		case "subfilter":
 			s, ok := val.(string)
 			if !ok {
@@ -84,4 +102,62 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		}
 	}
 	return nil
+}
+
+// GetCodeFinderPatterns returns compiled regex patterns for code finder.
+func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+	if c.compiledCodeFinder != nil {
+		return c.compiledCodeFinder
+	}
+	if !c.UseCodeFinder || len(c.CodeFinderRules) == 0 {
+		return nil
+	}
+	for _, pattern := range c.CodeFinderRules {
+		re, err := regexp.Compile(pattern)
+		if err == nil {
+			c.compiledCodeFinder = append(c.compiledCodeFinder, re)
+		}
+	}
+	return c.compiledCodeFinder
+}
+
+// parseCodeFinderRules parses code finder rules from bridge-style map or string slice.
+func parseCodeFinderRules(val any) ([]string, error) {
+	// Handle direct string slice
+	if rules, ok := val.([]string); ok {
+		return rules, nil
+	}
+	// Handle []any of strings
+	if arr, ok := val.([]any); ok {
+		rules := make([]string, 0, len(arr))
+		for _, item := range arr {
+			s, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string, got %T", item)
+			}
+			rules = append(rules, s)
+		}
+		return rules, nil
+	}
+	// Handle bridge-style map with count + rule0, rule1, etc.
+	if m, ok := val.(map[string]any); ok {
+		count := 0
+		if c, ok := m["count"]; ok {
+			switch v := c.(type) {
+			case int:
+				count = v
+			case float64:
+				count = int(v)
+			}
+		}
+		var rules []string
+		for i := 0; i < count; i++ {
+			key := fmt.Sprintf("rule%d", i)
+			if rule, ok := m[key].(string); ok {
+				rules = append(rules, rule)
+			}
+		}
+		return rules, nil
+	}
+	return nil, fmt.Errorf("expected []string or map, got %T", val)
 }

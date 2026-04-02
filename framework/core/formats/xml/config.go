@@ -202,6 +202,15 @@ type Config struct {
 
 	// IDAttributeNames lists attribute names used to extract block IDs.
 	IDAttributeNames []string
+
+	// UseCodeFinder enables regex-based inline code detection.
+	UseCodeFinder bool
+
+	// CodeFinderRules are regex patterns that match inline codes.
+	CodeFinderRules []string
+
+	// compiledCodeFinder caches compiled regex patterns.
+	compiledCodeFinder []*regexp.Regexp
 }
 
 // FormatName returns the format this config applies to.
@@ -222,6 +231,9 @@ func (c *Config) Reset() {
 	c.GroupElements = nil
 	c.BlockTypeMap = nil
 	c.IDAttributeNames = nil
+	c.UseCodeFinder = false
+	c.CodeFinderRules = nil
+	c.compiledCodeFinder = nil
 }
 
 // Validate checks configuration validity.
@@ -326,6 +338,20 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				return fmt.Errorf("xml: attributes: %w", err)
 			}
 			c.AttributeRules = rules
+		case "useCodeFinder":
+			b, ok := val.(bool)
+			if !ok {
+				return fmt.Errorf("useCodeFinder: expected bool, got %T", val)
+			}
+			c.UseCodeFinder = b
+			c.compiledCodeFinder = nil
+		case "codeFinderRules":
+			rules, err := parseCodeFinderRules(val)
+			if err != nil {
+				return fmt.Errorf("codeFinderRules: %w", err)
+			}
+			c.CodeFinderRules = rules
+			c.compiledCodeFinder = nil
 		case "parser":
 			m, ok := val.(map[string]any)
 			if !ok {
@@ -790,6 +816,50 @@ func (r *AttributeRule) HasAttrRule(rt RuleType) bool {
 		}
 	}
 	return false
+}
+
+// GetCodeFinderPatterns returns compiled regex patterns for code finder.
+func (c *Config) GetCodeFinderPatterns() []*regexp.Regexp {
+	if c.compiledCodeFinder != nil {
+		return c.compiledCodeFinder
+	}
+	if !c.UseCodeFinder || len(c.CodeFinderRules) == 0 {
+		return nil
+	}
+	for _, pattern := range c.CodeFinderRules {
+		re, err := regexp.Compile(pattern)
+		if err == nil {
+			c.compiledCodeFinder = append(c.compiledCodeFinder, re)
+		}
+	}
+	return c.compiledCodeFinder
+}
+
+// parseCodeFinderRules parses code finder rules from bridge-style map or string slice.
+func parseCodeFinderRules(val any) ([]string, error) {
+	if rules, ok := val.([]string); ok {
+		return rules, nil
+	}
+	if m, ok := val.(map[string]any); ok {
+		count := 0
+		if c, ok := m["count"]; ok {
+			switch v := c.(type) {
+			case int:
+				count = v
+			case float64:
+				count = int(v)
+			}
+		}
+		var rules []string
+		for i := 0; i < count; i++ {
+			key := fmt.Sprintf("rule%d", i)
+			if rule, ok := m[key].(string); ok {
+				rules = append(rules, rule)
+			}
+		}
+		return rules, nil
+	}
+	return nil, fmt.Errorf("expected []string or map, got %T", val)
 }
 
 // CollapseWhitespace replaces sequences of whitespace with a single space

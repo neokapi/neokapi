@@ -2,6 +2,10 @@ package tools
 
 import (
 	"fmt"
+	"html"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
@@ -14,10 +18,19 @@ const PropEncodingTarget = "encoding-target"
 
 // EncodingConvertConfig holds configuration for the encoding conversion tool.
 type EncodingConvertConfig struct {
-	TargetEncoding string         `schema:"description=Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"` // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
-	ApplySource    bool           `schema:"description=Apply encoding conversion to source text"` // Apply to source (default: false)
-	ApplyTarget    bool           `schema:"description=Apply encoding conversion to target text,default=true"` // Apply to target (default: true)
-	TargetLocale   model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Required when ApplyTarget is true
+	TargetEncoding string         `json:"targetEncoding,omitempty" schema:"description=Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"` // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
+	ApplySource    bool           `json:"applySource,omitempty"    schema:"description=Apply encoding conversion to source text"` // Apply to source (default: false)
+	ApplyTarget    bool           `json:"applyTarget,omitempty"    schema:"description=Apply encoding conversion to target text,default=true"` // Apply to target (default: true)
+	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Required when ApplyTarget is true
+
+	// Unescape options control how escape sequences in input are decoded.
+	UnescapeNCR  bool `json:"unescapeNCR,omitempty"  schema:"description=Unescape numeric character references (e.g. &#xE1;) when reading input,default=true"`
+	UnescapeCER  bool `json:"unescapeCER,omitempty"  schema:"description=Unescape HTML character entity references (e.g. &aacute;) when reading input,default=true"`
+	UnescapeJava bool `json:"unescapeJava,omitempty" schema:"description=Unescape Java-style \\\\uXXXX escape sequences when reading input,default=true"`
+
+	// Escape options control how unmappable characters are handled in output.
+	EscapeAll         bool `json:"escapeAll,omitempty"         schema:"description=Escape all extended (non-ASCII) characters in output"`
+	ReportUnsupported bool `json:"reportUnsupported,omitempty" schema:"description=Report characters not supported by the target encoding,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -29,6 +42,11 @@ func (c *EncodingConvertConfig) Reset() {
 	c.ApplySource = false
 	c.ApplyTarget = true
 	c.TargetLocale = ""
+	c.UnescapeNCR = true
+	c.UnescapeCER = true
+	c.UnescapeJava = true
+	c.EscapeAll = false
+	c.ReportUnsupported = true
 }
 
 // Validate checks configuration validity.
@@ -78,6 +96,7 @@ func NewEncodingConvertTool(cfg *EncodingConvertConfig) *tool.BaseTool {
 
 		if conf.ApplySource {
 			sourceText := block.SourceText()
+			sourceText = unescapeText(sourceText, conf)
 			converted, convErr := convertThroughEncoding(sourceText, enc)
 			if convErr != nil {
 				return nil, fmt.Errorf("encoding-convert: source conversion failed: %w", convErr)
@@ -87,6 +106,7 @@ func NewEncodingConvertTool(cfg *EncodingConvertConfig) *tool.BaseTool {
 
 		if conf.ApplyTarget && !conf.TargetLocale.IsEmpty() && block.HasTarget(conf.TargetLocale) {
 			targetText := block.TargetText(conf.TargetLocale)
+			targetText = unescapeText(targetText, conf)
 			converted, convErr := convertThroughEncoding(targetText, enc)
 			if convErr != nil {
 				return nil, fmt.Errorf("encoding-convert: target conversion failed: %w", convErr)
@@ -113,4 +133,43 @@ func convertThroughEncoding(text string, enc encoding.Encoding) (string, error) 
 		return "", fmt.Errorf("decode: %w", err)
 	}
 	return decoded, nil
+}
+
+// ncrPattern matches numeric character references like &#xE1; or &#225;.
+var ncrPattern = regexp.MustCompile(`&#x([0-9a-fA-F]+);|&#(\d+);`)
+
+// javaEscapePattern matches Java-style \uXXXX escape sequences.
+var javaEscapePattern = regexp.MustCompile(`\\u([0-9a-fA-F]{4})`)
+
+// unescapeText applies the configured unescape operations to text before encoding conversion.
+func unescapeText(text string, conf *EncodingConvertConfig) string {
+	if conf.UnescapeNCR {
+		text = ncrPattern.ReplaceAllStringFunc(text, func(match string) string {
+			subs := ncrPattern.FindStringSubmatch(match)
+			var cp int64
+			if subs[1] != "" {
+				cp, _ = strconv.ParseInt(subs[1], 16, 32)
+			} else {
+				cp, _ = strconv.ParseInt(subs[2], 10, 32)
+			}
+			if cp > 0 {
+				return string(rune(cp))
+			}
+			return match
+		})
+	}
+	if conf.UnescapeCER {
+		text = html.UnescapeString(text)
+	}
+	if conf.UnescapeJava {
+		text = javaEscapePattern.ReplaceAllStringFunc(text, func(match string) string {
+			hex := strings.TrimPrefix(match, `\u`)
+			cp, _ := strconv.ParseInt(hex, 16, 32)
+			if cp > 0 {
+				return string(rune(cp))
+			}
+			return match
+		})
+	}
+	return text
 }

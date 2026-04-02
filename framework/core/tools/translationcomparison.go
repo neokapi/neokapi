@@ -2,6 +2,8 @@ package tools
 
 import (
 	"fmt"
+	"strings"
+	"unicode"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -18,6 +20,18 @@ const (
 type TranslationComparisonConfig struct {
 	Locale1 model.LocaleID `json:"locale1,omitempty" schema:"-"`
 	Locale2 model.LocaleID `json:"locale2,omitempty" schema:"-"`
+
+	// Comparison sensitivity settings.
+	CaseSensitive        bool `json:"caseSensitive,omitempty"        schema:"description=Take case differences into account when comparing,default=true"`
+	WhitespaceSensitive  bool `json:"whitespaceSensitive,omitempty"  schema:"description=Take whitespace differences into account when comparing,default=true"`
+	PunctuationSensitive bool `json:"punctuationSensitive,omitempty" schema:"description=Take punctuation differences into account when comparing,default=true"`
+
+	// Report labels for identifying compared translations.
+	Document1Label string `json:"document1Label,omitempty" schema:"description=Label for the first translation in reports,default=Trans1"`
+	Document2Label string `json:"document2Label,omitempty" schema:"description=Label for the second translation in reports,default=Trans2"`
+
+	// Output options.
+	GenericCodes bool `json:"genericCodes,omitempty" schema:"description=Use generic numbered tags (e.g. <1>...</1>) instead of original inline codes in reports,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -27,6 +41,12 @@ func (c *TranslationComparisonConfig) ToolName() string { return "translation-co
 func (c *TranslationComparisonConfig) Reset() {
 	c.Locale1 = ""
 	c.Locale2 = ""
+	c.CaseSensitive = true
+	c.WhitespaceSensitive = true
+	c.PunctuationSensitive = true
+	c.Document1Label = "Trans1"
+	c.Document2Label = "Trans2"
+	c.GenericCodes = true
 }
 
 // Validate checks configuration validity.
@@ -107,18 +127,58 @@ func NewTranslationComparisonTool(cfg *TranslationComparisonConfig) *tool.BaseTo
 			text1 := block.TargetText(conf.Locale1)
 			text2 := block.TargetText(conf.Locale2)
 
-			if text1 == text2 {
+			cmp1, cmp2 := text1, text2
+			if !conf.CaseSensitive {
+				cmp1 = strings.ToLower(cmp1)
+				cmp2 = strings.ToLower(cmp2)
+			}
+			if !conf.WhitespaceSensitive {
+				cmp1 = normalizeComparisonWhitespace(cmp1)
+				cmp2 = normalizeComparisonWhitespace(cmp2)
+			}
+			if !conf.PunctuationSensitive {
+				cmp1 = stripPunctuation(cmp1)
+				cmp2 = stripPunctuation(cmp2)
+			}
+
+			label1 := conf.Document1Label
+			if label1 == "" {
+				label1 = string(conf.Locale1)
+			}
+			label2 := conf.Document2Label
+			if label2 == "" {
+				label2 = string(conf.Locale2)
+			}
+
+			if cmp1 == cmp2 {
 				block.Properties[PropComparisonStatus] = "identical"
 				block.Properties[PropComparisonDiff] = fmt.Sprintf(
-					"Translations for %s and %s are identical", conf.Locale1, conf.Locale2)
+					"Translations for %s and %s are identical", label1, label2)
 			} else {
 				block.Properties[PropComparisonStatus] = "different"
 				block.Properties[PropComparisonDiff] = fmt.Sprintf(
-					"%s: %q vs %s: %q", conf.Locale1, text1, conf.Locale2, text2)
+					"%s: %q vs %s: %q", label1, text1, label2, text2)
 			}
 		}
 
 		return part, nil
 	}
 	return t
+}
+
+// normalizeComparisonWhitespace collapses all whitespace runs to a single space and trims.
+func normalizeComparisonWhitespace(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+// stripPunctuation removes all Unicode punctuation characters from the string.
+func stripPunctuation(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if !unicode.IsPunct(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

@@ -26,6 +26,7 @@ var _ format.SkeletonStoreEmitter = (*Reader)(nil)
 // NewReader creates a new TMX reader.
 func NewReader() *Reader {
 	cfg := &Config{}
+	cfg.Reset()
 	return &Reader{
 		BaseFormatReader: format.BaseFormatReader{
 			FormatName:        "tmx",
@@ -679,6 +680,7 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 	}
 
 	// Add targets
+	firstTarget := true
 	for _, tuv := range tu.tuvs {
 		tuvLangLower := strings.ToLower(tuv.lang)
 		if langMatches(tuvLangLower, srcLangLower) {
@@ -691,6 +693,14 @@ func (r *Reader) buildBlock(tuID string, tu *tuState, srcLang string, locale mod
 			block.Targets[model.LocaleID(tuv.lang)] = []*model.Segment{{ID: "s1", Content: tuv.seg.frag}}
 		} else {
 			block.SetTargetText(model.LocaleID(tuv.lang), "")
+		}
+		// When processAllTargets is false, only read the first target TUV
+		if !r.cfg.ProcessAllTargets {
+			if firstTarget {
+				firstTarget = false
+			} else {
+				break
+			}
 		}
 	}
 

@@ -1,13 +1,18 @@
 package tools
 
 import (
+	"strings"
+
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tool"
 )
 
 // RemoveTargetConfig holds configuration for the remove-target tool.
 type RemoveTargetConfig struct {
-	TargetLocale model.LocaleID `schema:"description=Target locale to remove (if empty all targets are removed)"` // Target locale to remove (if empty, removes ALL targets)
+	TargetLocale        model.LocaleID `schema:"description=Target locale to remove (if empty all targets are removed)"`                                          // Target locale to remove (if empty, removes ALL targets)
+	TextUnitIDs         string         `schema:"description=Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"`     // Text unit IDs for selective removal
+	FilterByIDs         bool           `schema:"description=When true filter text units by ID; when false filter by target locale,default=true"`                   // Filter mode: by ID or by locale
+	RemoveBlockIfEmpty  bool           `schema:"description=Remove the text unit entirely if it has no remaining targets after removal"`                           // Remove block when no targets remain
 }
 
 // ToolName returns the tool name this config applies to.
@@ -16,6 +21,9 @@ func (c *RemoveTargetConfig) ToolName() string { return "remove-target" }
 // Reset restores default values.
 func (c *RemoveTargetConfig) Reset() {
 	c.TargetLocale = ""
+	c.TextUnitIDs = ""
+	c.FilterByIDs = true
+	c.RemoveBlockIfEmpty = false
 }
 
 // Validate checks configuration validity.
@@ -43,11 +51,28 @@ func NewRemoveTargetTool(cfg *RemoveTargetConfig) *tool.BaseTool {
 
 		conf := t.Cfg.(*RemoveTargetConfig)
 
+		// When filtering by IDs, only remove targets for listed text unit IDs.
+		if conf.FilterByIDs && conf.TextUnitIDs != "" {
+			ids := strings.Split(conf.TextUnitIDs, ",")
+			idSet := make(map[string]bool, len(ids))
+			for _, id := range ids {
+				idSet[strings.TrimSpace(id)] = true
+			}
+			if !idSet[block.ID] {
+				return part, nil
+			}
+		}
+
 		if conf.TargetLocale.IsEmpty() {
 			// Remove all targets.
 			block.Targets = make(map[model.LocaleID][]*model.Segment)
 		} else {
 			delete(block.Targets, conf.TargetLocale)
+		}
+
+		// Remove block entirely if no targets remain and configured to do so.
+		if conf.RemoveBlockIfEmpty && len(block.Targets) == 0 {
+			return nil, nil
 		}
 
 		return part, nil

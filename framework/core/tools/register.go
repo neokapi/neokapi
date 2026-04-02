@@ -45,13 +45,17 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ── Validate ────────────────────────────────────────────────────
 
 	reg.RegisterWithSchema("word-count", func() tool.Tool {
-		return NewWordCountTool(&WordCountConfig{})
-	}, toolSchema(&WordCountConfig{}, toolMeta("word-count", "Word Count", "validate",
+		cfg := &WordCountConfig{}
+		cfg.Reset()
+		return NewWordCountTool(cfg)
+	}, toolSchema(&WordCountConfig{CountSource: true, CountTarget: true}, toolMeta("word-count", "Word Count", "validate",
 		withInputs(B), withTags("analysis"))))
 
 	reg.RegisterWithSchema("char-count", func() tool.Tool {
-		return NewCharCountTool(&CharCountConfig{})
-	}, toolSchema(&CharCountConfig{}, toolMeta("char-count", "Character Count", "validate",
+		cfg := &CharCountConfig{}
+		cfg.Reset()
+		return NewCharCountTool(cfg)
+	}, toolSchema(&CharCountConfig{CountSource: true, CountTarget: true}, toolMeta("char-count", "Character Count", "validate",
 		withInputs(B), withTags("analysis"))))
 
 	reg.RegisterWithSchema("segment-count", func() tool.Tool {
@@ -70,9 +74,13 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withInputs(B), withTags("quality"), withRequires("target-language"))))
 
 	reg.RegisterWithSchema("length-check", func() tool.Tool {
-		return NewLengthCheckTool(&LengthCheckConfig{TargetLocale: model.LocaleEnglish})
-	}, toolSchema(&LengthCheckConfig{}, toolMeta("length-check", "Length Check", "validate",
-		withInputs(B), withTags("quality"), withRequires("target-language"))))
+		cfg := &LengthCheckConfig{TargetLocale: model.LocaleEnglish}
+		cfg.Reset()
+		cfg.TargetLocale = model.LocaleEnglish
+		return NewLengthCheckTool(cfg)
+	}, toolSchema(&LengthCheckConfig{CheckMaxCharLength: true, MaxCharLengthBreak: 20, MaxCharLengthAbove: 200, MaxCharLengthBelow: 350, CheckMinCharLength: true, MinCharLengthBreak: 20, MinCharLengthAbove: 45, MinCharLengthBelow: 30},
+		toolMeta("length-check", "Length Check", "validate",
+			withInputs(B), withTags("quality"), withRequires("target-language"))))
 
 	reg.RegisterWithSchema("chars-check", func() tool.Tool {
 		return NewCharsCheckTool(NewCharsCheckConfig(model.LocaleEnglish))
@@ -95,9 +103,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withInputs(B), withTags("quality"))))
 
 	reg.RegisterWithSchema("translation-comparison", func() tool.Tool {
-		return NewTranslationComparisonTool(&TranslationComparisonConfig{})
-	}, toolSchema(&TranslationComparisonConfig{}, toolMeta("translation-comparison", "Translation Comparison", "validate",
-		withInputs(B), withTags("quality"), withRequires("target-language"))))
+		cfg := &TranslationComparisonConfig{}
+		cfg.Reset()
+		return NewTranslationComparisonTool(cfg)
+	}, toolSchema(&TranslationComparisonConfig{CaseSensitive: true, WhitespaceSensitive: true, PunctuationSensitive: true, Document1Label: "Trans1", Document2Label: "Trans2", GenericCodes: true},
+		toolMeta("translation-comparison", "Translation Comparison", "validate",
+			withInputs(B), withTags("quality"), withRequires("target-language"))))
 
 	reg.RegisterWithSchema("chars-listing", func() tool.Tool {
 		return NewCharsListingTool(&CharsListingConfig{
@@ -139,18 +150,18 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withInputs(B), withTags("text-processing"))))
 
 	reg.RegisterWithSchema("create-target", func() tool.Tool {
-		return NewCreateTargetTool(&CreateTargetConfig{})
-	}, toolSchema(&CreateTargetConfig{}, toolMeta("create-target", "Create Target", "transform",
+		return NewCreateTargetTool(&CreateTargetConfig{CreateOnNonTranslatable: true})
+	}, toolSchema(&CreateTargetConfig{CreateOnNonTranslatable: true}, toolMeta("create-target", "Create Target", "transform",
 		withInputs(B), withRequires("target-language"))))
 
 	reg.RegisterWithSchema("remove-target", func() tool.Tool {
-		return NewRemoveTargetTool(&RemoveTargetConfig{})
-	}, toolSchema(&RemoveTargetConfig{}, toolMeta("remove-target", "Remove Target", "transform",
+		return NewRemoveTargetTool(&RemoveTargetConfig{FilterByIDs: true})
+	}, toolSchema(&RemoveTargetConfig{FilterByIDs: true}, toolMeta("remove-target", "Remove Target", "transform",
 		withInputs(B), withRequires("target-language"))))
 
 	reg.RegisterWithSchema("inline-codes-remove", func() tool.Tool {
-		return NewInlineCodesRemoveTool(&InlineCodesRemoveConfig{ApplyTarget: true})
-	}, toolSchema(&InlineCodesRemoveConfig{ApplyTarget: true}, toolMeta("inline-codes-remove", "Inline Codes Remove", "transform",
+		return NewInlineCodesRemoveTool(&InlineCodesRemoveConfig{ApplyTarget: true, IncludeNonTranslatable: true})
+	}, toolSchema(&InlineCodesRemoveConfig{ApplyTarget: true, IncludeNonTranslatable: true}, toolMeta("inline-codes-remove", "Inline Codes Remove", "transform",
 		withInputs(B), withTags("text-processing"))))
 
 	reg.RegisterWithSchema("properties-set", func() tool.Tool {
@@ -159,11 +170,11 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withInputs(B), withTags("configurable"))))
 
 	reg.RegisterWithSchema("whitespace-correct", func() tool.Tool {
-		return NewWhitespaceCorrectTool(&WhitespaceCorrectConfig{
-			TargetLocale: model.LocaleEnglish, NormalizeSpaces: true,
-			MatchSourceWhitespace: true, RemoveZeroWidthChars: true,
-		})
-	}, toolSchema(&WhitespaceCorrectConfig{NormalizeSpaces: true, MatchSourceWhitespace: true, RemoveZeroWidthChars: true},
+		cfg := &WhitespaceCorrectConfig{}
+		cfg.Reset()
+		cfg.TargetLocale = model.LocaleEnglish
+		return NewWhitespaceCorrectTool(cfg)
+	}, toolSchema(&WhitespaceCorrectConfig{NormalizeSpaces: true, MatchSourceWhitespace: true, RemoveZeroWidthChars: true, CorrectFullStop: true, CorrectComma: true, CorrectExclamation: true, CorrectQuestion: true, IncludeVerticalWS: true, IncludeHorizontalWS: true},
 		toolMeta("whitespace-correct", "Whitespace Correct", "transform",
 			withInputs(B), withTags("text-processing"), withRequires("target-language"))))
 
@@ -173,8 +184,10 @@ func RegisterAll(reg *registry.ToolRegistry) {
 		withInputs(B), withTags("regex", "configurable"))))
 
 	reg.RegisterWithSchema("xslt-transform", func() tool.Tool {
-		return NewXSLTTransformTool(&XSLTTransformConfig{})
-	}, toolSchema(&XSLTTransformConfig{}, toolMeta("xslt-transform", "XSLT Transform", "transform",
+		cfg := &XSLTTransformConfig{}
+		cfg.Reset()
+		return NewXSLTTransformTool(cfg)
+	}, toolSchema(&XSLTTransformConfig{ApplySource: true, PassOnOutput: true}, toolMeta("xslt-transform", "XSLT Transform", "transform",
 		withInputs(B, schema.PartTypeData), withTags("configurable"))))
 
 	// ── Enrich ──────────────────────────────────────────────────────
@@ -192,9 +205,12 @@ func RegisterAll(reg *registry.ToolRegistry) {
 	// ── Convert ─────────────────────────────────────────────────────
 
 	reg.RegisterWithSchema("encoding-convert", func() tool.Tool {
-		return NewEncodingConvertTool(&EncodingConvertConfig{ApplyTarget: true})
-	}, toolSchema(&EncodingConvertConfig{ApplyTarget: true}, toolMeta("encoding-convert", "Encoding Convert", "convert",
-		withInputs(B, schema.PartTypeData))))
+		cfg := &EncodingConvertConfig{}
+		cfg.Reset()
+		return NewEncodingConvertTool(cfg)
+	}, toolSchema(&EncodingConvertConfig{ApplyTarget: true, UnescapeNCR: true, UnescapeCER: true, UnescapeJava: true, ReportUnsupported: true},
+		toolMeta("encoding-convert", "Encoding Convert", "convert",
+			withInputs(B, schema.PartTypeData))))
 
 	reg.RegisterWithSchema("encoding-detect", func() tool.Tool {
 		return NewEncodingDetectTool(&EncodingDetectConfig{})

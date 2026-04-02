@@ -13,7 +13,14 @@ import (
 // Since Go has no built-in XSLT engine, this provides a lightweight
 // tag-transformation approach using regex-based rules.
 type XSLTTransformConfig struct {
-	Rules []TransformRule `schema:"description=Regex-based tag and text transformation rules"`
+	Rules []TransformRule `json:"rules,omitempty" schema:"description=Regex-based tag and text transformation rules"`
+
+	// Template configuration (compatible with bridge xsl-transform schema).
+	XSLTPath     string `json:"xsltPath,omitempty"     schema:"description=Path to an XSLT stylesheet file to apply"`
+	ParamList    string `json:"paramList,omitempty"     schema:"description=Parameters passed to the XSLT template (one per line as name=value)"`
+	ApplySource  bool   `json:"applySource,omitempty"   schema:"description=Apply transformation to source text,default=true"`
+	ApplyTarget  bool   `json:"applyTarget,omitempty"   schema:"description=Apply transformation to target text"`
+	PassOnOutput bool   `json:"passOnOutput,omitempty"  schema:"description=Pass the transformation output to subsequent pipeline steps,default=true"`
 }
 
 // TransformRule defines a single tag or text transformation rule.
@@ -28,6 +35,11 @@ func (c *XSLTTransformConfig) ToolName() string { return "xslt-transform" }
 // Reset restores default values.
 func (c *XSLTTransformConfig) Reset() {
 	c.Rules = nil
+	c.XSLTPath = ""
+	c.ParamList = ""
+	c.ApplySource = true
+	c.ApplyTarget = false
+	c.PassOnOutput = true
 }
 
 // Validate checks configuration validity.
@@ -65,13 +77,31 @@ func NewXSLTTransformTool(cfg *XSLTTransformConfig) *tool.BaseTool {
 			return part, nil
 		}
 
-		sourceText := block.SourceText()
-		newText, err := applyTransformRules(sourceText, conf.Rules)
-		if err != nil {
-			return nil, fmt.Errorf("xslt-transform: %w", err)
+		// Default to source if neither scope is explicitly set.
+		applySource := conf.ApplySource || (!conf.ApplySource && !conf.ApplyTarget)
+
+		if applySource {
+			sourceText := block.SourceText()
+			newText, err := applyTransformRules(sourceText, conf.Rules)
+			if err != nil {
+				return nil, fmt.Errorf("xslt-transform: source: %w", err)
+			}
+			if newText != sourceText {
+				block.SetSourceText(newText)
+			}
 		}
-		if newText != sourceText {
-			block.SetSourceText(newText)
+
+		if conf.ApplyTarget {
+			for locale := range block.Targets {
+				targetText := block.TargetText(locale)
+				newText, err := applyTransformRules(targetText, conf.Rules)
+				if err != nil {
+					return nil, fmt.Errorf("xslt-transform: target: %w", err)
+				}
+				if newText != targetText {
+					block.SetTargetText(locale, newText)
+				}
+			}
 		}
 
 		return part, nil
