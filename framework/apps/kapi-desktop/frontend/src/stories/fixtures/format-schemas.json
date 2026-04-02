@@ -4163,8 +4163,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_html.v12.schema.json",
-      "version": 12,
+      "$id": "https://neokapi.dev/schemas/filters/okf_html.v13.schema.json",
+      "version": 13,
       "title": "HTML/XHTML Filter",
       "type": "object",
       "properties": {
@@ -4192,17 +4192,6 @@
               "x-okapi-flatten-path": "preserve_whitespace"
             }
           }
-        },
-        "taggedConfig": {
-          "type": "object",
-          "title": "Tagged Configuration",
-          "description": "Legacy tagged configuration format for element and attribute extraction rules."
-        },
-        "editorTitle": {
-          "type": "string",
-          "default": "Parameters Editor",
-          "title": "Editor Title",
-          "description": "Display title shown in the filter configuration editor."
         },
         "path": {
           "type": "string",
@@ -6719,10 +6708,10 @@
         }
       },
       "x-okapi-kind": "OkfHtmlFilterConfig",
-      "x-okapi-api-version": "v12",
-      "x-okapi-base-version": 18,
-      "x-okapi-base-hash": "4e0b1aaf907f",
-      "x-okapi-composite-hash": "f644f60760ba",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 19,
+      "x-okapi-base-hash": "84fded264bbd",
+      "x-okapi-composite-hash": "52df0112e3d3",
       "ui:introduced-in": "1.47.0",
       "x-source": "okapi-bridge",
       "x-name": "okf_html"
@@ -13793,8 +13782,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v8.schema.json",
+      "version": 8,
       "title": "XML Stream Filter",
       "type": "object",
       "properties": {
@@ -13820,17 +13809,6 @@
               "x-okapi-flatten-path": "preserve_whitespace"
             }
           }
-        },
-        "taggedConfig": {
-          "type": "object",
-          "title": "Tagged Configuration",
-          "description": "Internal parsed configuration object for element and attribute rules"
-        },
-        "editorTitle": {
-          "type": "string",
-          "default": "Parameters Editor",
-          "title": "Editor Title",
-          "description": "Title displayed in the parameters editor UI"
         },
         "path": {
           "type": "string",
@@ -14672,10 +14650,10 @@
         }
       },
       "x-okapi-kind": "OkfXmlstreamFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "7412863356ad",
-      "x-okapi-composite-hash": "3d0f76d80360",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "f79ec29702bb",
+      "x-okapi-composite-hash": "92764a7ee204",
       "ui:introduced-in": "1.47.0",
       "x-source": "okapi-bridge",
       "x-name": "okf_xmlstream"
@@ -19051,8 +19029,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_html.v12.schema.json",
-      "version": 12,
+      "$id": "https://neokapi.dev/schemas/filters/okf_html.v13.schema.json",
+      "version": 13,
       "title": "HTML/XHTML Filter",
       "type": "object",
       "properties": {
@@ -19080,17 +19058,6 @@
               "x-okapi-flatten-path": "preserve_whitespace"
             }
           }
-        },
-        "taggedConfig": {
-          "type": "object",
-          "title": "Tagged Configuration",
-          "description": "Legacy tagged configuration format for element and attribute extraction rules."
-        },
-        "editorTitle": {
-          "type": "string",
-          "default": "Parameters Editor",
-          "title": "Editor Title",
-          "description": "Display title shown in the filter configuration editor."
         },
         "path": {
           "type": "string",
@@ -21607,10 +21574,10 @@
         }
       },
       "x-okapi-kind": "OkfHtmlFilterConfig",
-      "x-okapi-api-version": "v12",
-      "x-okapi-base-version": 18,
-      "x-okapi-base-hash": "4e0b1aaf907f",
-      "x-okapi-composite-hash": "f644f60760ba",
+      "x-okapi-api-version": "v13",
+      "x-okapi-base-version": 19,
+      "x-okapi-base-hash": "84fded264bbd",
+      "x-okapi-composite-hash": "52df0112e3d3",
       "ui:introduced-in": "1.47.0",
       "x-source": "okapi-bridge",
       "x-name": "okf_html"
@@ -28681,8 +28648,8 @@
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v7.schema.json",
-      "version": 7,
+      "$id": "https://neokapi.dev/schemas/filters/okf_xmlstream.v8.schema.json",
+      "version": 8,
       "title": "XML Stream Filter",
       "type": "object",
       "properties": {
@@ -28708,17 +28675,6 @@
               "x-okapi-flatten-path": "preserve_whitespace"
             }
           }
-        },
-        "taggedConfig": {
-          "type": "object",
-          "title": "Tagged Configuration",
-          "description": "Internal parsed configuration object for element and attribute rules"
-        },
-        "editorTitle": {
-          "type": "string",
-          "default": "Parameters Editor",
-          "title": "Editor Title",
-          "description": "Title displayed in the parameters editor UI"
         },
         "path": {
           "type": "string",
@@ -29560,10 +29516,10 @@
         }
       },
       "x-okapi-kind": "OkfXmlstreamFilterConfig",
-      "x-okapi-api-version": "v7",
-      "x-okapi-base-version": 9,
-      "x-okapi-base-hash": "7412863356ad",
-      "x-okapi-composite-hash": "3d0f76d80360",
+      "x-okapi-api-version": "v8",
+      "x-okapi-base-version": 10,
+      "x-okapi-base-hash": "f79ec29702bb",
+      "x-okapi-composite-hash": "92764a7ee204",
       "ui:introduced-in": "1.47.0",
       "x-source": "okapi-bridge",
       "x-name": "okf_xmlstream"
