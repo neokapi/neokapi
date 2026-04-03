@@ -87,6 +87,10 @@ neokapi/
 │   ├── plugin/                      # Plugin system (gRPC, loader, bridge, registry)
 │   └── testutil/                    # Shared test helpers
 │
+├── packages/
+│   ├── ui/                          # @neokapi/ui-primitives — shared shadcn/ui primitives
+│   └── flow-editor/                 # @neokapi/flow-editor — shared React flow editor
+├── package.json                     # Root npm workspace coordinating all frontend packages
 ├── cli/                             # Shared CLI base (Cobra, Viper)
 ├── kapi/                            # Kapi standalone CLI
 └── docs/                            # Architecture decisions, notes
@@ -248,6 +252,12 @@ type FlowExecutor interface {
 type LLMProvider interface {
     Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error)
     Chat(ctx context.Context, messages []Message) (*Message, error)
+}
+
+// Streaming AI providers (optional extension)
+type StreamingLLMProvider interface {
+    LLMProvider
+    ChatStream(ctx context.Context, messages []Message) (<-chan StreamEvent, error)
 }
 ```
 

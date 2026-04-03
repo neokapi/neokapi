@@ -187,7 +187,14 @@ type SchemaProvider interface {
 
 `schema.FromStruct(cfg, meta)` generates schemas from Go config structs via
 reflection. The `ToolRegistry` stores schemas alongside factories via
-`RegisterWithSchema()`. All 35+ built-in tools register auto-generated schemas.
+`RegisterWithSchema()`. All built-in tools register auto-generated schemas.
+
+`ToolCommandDef` supports `Schema *schema.ComponentSchema` and `NewToolFromConfig`
+fields. When `Schema` is set, `RegisterSchemaFlags()` auto-generates cobra flags
+from the schema (mapping camelCase properties to kebab-case flags), and
+`NewToolFromConfig` receives the resolved `map[string]any` config. AI tools
+include provider fields (Provider, APIKey, Model with enum support) in their
+schemas.
 
 Schema-driven features:
 - **CLI flags**: `cli.RegisterSchemaFlags()` auto-generates cobra flags from schemas

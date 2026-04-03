@@ -44,7 +44,7 @@ No project initialization, server, or configuration required — kapi operates d
 
 - **15+ formats** — HTML, XML, XLIFF, XLIFF 2, JSON, YAML, PO, Properties, Plaintext, Markdown, CSV, SRT, VTT, TMX
 - **Channel-based pipeline** — Concurrent streaming with goroutines, buffered channels, and automatic backpressure
-- **AI-native tools** — LLM integration with Anthropic, OpenAI, and Ollama, plus 5 MT services (DeepL, Google, Microsoft, ModernMT, MyMemory)
+- **AI-native tools** — LLM integration with Anthropic, OpenAI, Google Gemini, and Ollama, plus 5 MT services (DeepL, Google, Microsoft, ModernMT, MyMemory)
 - **Translation memory** — Built-in Sievepen TM with Levenshtein fuzzy matching and TMX import/export
 - **Terminology management** — Concept-oriented termbase with pipeline enforcement tools
 - **Plugin system** — Crash-isolated gRPC plugins in any language, plus the Okapi bridge for 40+ additional filters

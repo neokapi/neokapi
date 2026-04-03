@@ -52,8 +52,15 @@ type PseudoConfig struct {
     ExpansionPercent int    `schema:"description=Text expansion percentage,min=0,max=200"`
     Prefix           string `schema:"description=Prefix for pseudo text"`
     Suffix           string `schema:"description=Suffix for pseudo text"`
+    InternalField    string `schema:"-"` // excluded from schema
 }
 ```
+
+The `schema:"-"` tag excludes a field from the generated schema entirely.
+
+`schema.ApplyConfig()` bridges `map[string]any` configuration (e.g., from flow
+YAML) to a typed struct via JSON round-trip: it marshals the map to JSON, then
+unmarshals into the target struct.
 
 ### Tool Schema Provider
 
@@ -67,6 +74,10 @@ type SchemaProvider interface {
 
 `BaseTool` has a `SchemaFn` field for this. The `ToolRegistry` accepts schemas
 via `RegisterWithSchema(name, factory, schema)`.
+
+`ToolCommandDef` supports `NewToolFromConfig` and `Schema` fields that drive
+auto-generation. When `Schema` is set, `RegisterSchemaFlags()` generates cobra
+flags from the schema, and `NewToolFromConfig` receives the resolved config map.
 
 ### Schema-Driven CLI Flags
 
@@ -149,8 +160,8 @@ a side panel shows the schema-driven config form. Config values persist in
 
 ## Consequences
 
-- All 35+ built-in tools now declare JSON Schemas for their parameters
-- CLI flags can be auto-generated from schemas (gradual migration from manual `AddFlags`)
+- All 24 builtin tool commands use schema-driven CLI flags (all migrated from manual `AddFlags`)
+- AI tool schemas include provider fields (Provider, APIKey, Model) with enum support for provider selection
 - The visual flow editor shows schema-driven config forms for tool nodes
 - Plugin tools can advertise parameters via manifests
 - Flow definitions can be validated against tool schemas

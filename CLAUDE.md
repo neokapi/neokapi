@@ -49,7 +49,14 @@ make kapi-desktop-frontend-check  # Lint + format + typecheck Kapi Desktop
 make flow-editor-check  # Lint + format + typecheck flow-editor
 make deps               # Download and tidy Go modules (all modules)
 make proto              # Generate gRPC code from protobuf definitions
+vp install              # Install all frontend workspace members (run at repo root)
 ```
+
+> **Note:** A single root `package.json` npm workspace coordinates all frontend
+> packages (`packages/ui`, `packages/flow-editor`, `kapi/apps/kapi-web`,
+> `apps/kapi-desktop/frontend`, `bowrain/apps/bowrain/frontend`,
+> `bowrain/apps/web`, `website`). Run `vp install` at the repo root — no
+> per-directory installs are needed.
 
 Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
@@ -195,8 +202,11 @@ neokapi/
 │       └── web/           # SaaS web UI
 │
 │   ── Shared Frontend ───────────────────
+├── package.json           # Root npm workspace coordinating all frontend packages
+├── .npmrc                 # install-strategy=hoisted (npm 11)
 ├── packages/
-│   └── ui/                # Shared React component library
+│   ├── ui/                # @neokapi/ui-primitives — shadcn/ui primitives consumed by kapi-desktop and platform apps
+│   └── flow-editor/       # @neokapi/flow-editor — shared React flow editor component library
 │
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
@@ -292,7 +302,8 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `tool.Tool` — `Process(ctx, in <-chan *Part, out chan<- *Part) error`
 - `flow.FlowExecutor` — orchestrates tool chains with goroutines and channels
 - `registry.FormatRegistry` — factory registry for readers/writers with format detection
-- `ai/provider.LLMProvider` — interface for Anthropic, OpenAI, Ollama backends
+- `ai/provider.LLMProvider` — interface for Anthropic, OpenAI, Azure OpenAI, Ollama, Gemini backends
+- `ai/provider.StreamingLLMProvider` — optional extension of LLMProvider with `ChatStream`/`ChatStructuredStream` for live thinking progress (streaming events: thinking, content, done)
 
 ### Terminology Mapping from Okapi
 

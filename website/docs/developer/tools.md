@@ -175,11 +175,15 @@ func TestUppercaseTool(t *testing.T) {
 
 | Tool | Category | Description |
 |------|----------|-------------|
-| `ai-translate` | Enrich | LLM-powered translation via Anthropic, OpenAI, or Ollama |
+| `ai-translate` | Enrich | LLM-powered translation via Anthropic, OpenAI, Gemini, or Ollama |
 | `ai-qa` | Validate | LLM-powered quality checks (terminology, fluency, accuracy) |
 | `ai-review` | Validate | LLM-powered translation review with explanations |
 | `ai-terminology` | Enrich | LLM-powered terminology extraction |
 | `{provider}-translate` | Enrich | MT translation via DeepL, Google, Microsoft, ModernMT, MyMemory |
+
+### Schema-Driven CLI Flags
+
+All built-in tools use schema-driven CLI flags. Tool config structs use `schema:"..."` tags to auto-generate flags from the struct fields. Use `schema:"-"` to exclude a field from flag generation. The `NewToolFromConfig` pattern allows the flow engine to instantiate tools from YAML configuration by mapping config keys to struct fields automatically.
 
 ### Registering Built-in Tools
 

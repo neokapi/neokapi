@@ -35,7 +35,23 @@ The `JSONSchema` type includes `Name`, `Description`, `Schema` (the JSON
 Schema definition), and a `Strict` flag for providers that support strict
 validation.
 
-Four built-in implementations exist: Anthropic Claude (`ai/provider/anthropic.go`), OpenAI (`ai/provider/openai.go`), Azure OpenAI (`ai/provider/azureopenai.go`), and Ollama for local models (`ai/provider/ollama.go`). Each is configured via `provider.Config` with API key, base URL, model name, and generation parameters. Azure OpenAI additionally supports token-based authentication via a `TokenProvider` function, enabling Azure Managed Identity for passwordless access. A mock provider (`ai/provider/mock.go`) enables deterministic testing without API calls.
+Five built-in implementations exist: Anthropic Claude (`ai/provider/anthropic.go`), OpenAI (`ai/provider/openai.go`), Azure OpenAI (`ai/provider/azureopenai.go`), Ollama for local models (`ai/provider/ollama.go`), and Google Gemini (`ai/provider/gemini.go`). Each is configured via `provider.Config` with API key, base URL, model name, and generation parameters. The Gemini provider defaults to `gemini-3-flash-preview`, disables thinking for non-streaming calls, and uses SSE streaming with `includeThoughts` for streaming calls. Azure OpenAI additionally supports token-based authentication via a `TokenProvider` function, enabling Azure Managed Identity for passwordless access. A mock provider (`ai/provider/mock.go`) enables deterministic testing without API calls.
+
+Provider configuration is schema-driven: fields in `AITranslateConfig` (and other AI tool configs) generate CLI flags automatically via `schema.FromStruct()`, removing the need for manual flag registration.
+
+### StreamingLLMProvider
+
+An optional `StreamingLLMProvider` interface extends `LLMProvider` with streaming support for live thinking progress:
+
+```go
+type StreamingLLMProvider interface {
+    LLMProvider
+    ChatStream(ctx context.Context, messages []Message) (<-chan ChatStreamEvent, error)
+    ChatStructuredStream(ctx context.Context, messages []Message, schema JSONSchema) (<-chan ChatStreamEvent, error)
+}
+```
+
+`ChatStreamEvent` carries a `Type` discriminator (`StreamEventThinking`, `StreamEventContent`, `StreamEventDone`) and a `Content` field. This enables UIs and CLI tools to display live thinking progress from providers that support it (Anthropic extended thinking, Gemini thinking with `includeThoughts`).
 
 ### AI Tools
 
@@ -177,6 +193,14 @@ Current prompt templates:
 
 - `ai/prompt/translate.go` -- translation prompts with glossary and context
 - `ai/prompt/qa.go` -- quality assurance check prompts
+
+| Provider | Implementation | Default Model |
+|---|---|---|
+| Anthropic | `ai/provider/anthropic.go` | claude-sonnet-4-20250514 |
+| OpenAI | `ai/provider/openai.go` | gpt-4o |
+| Azure OpenAI | `ai/provider/azureopenai.go` | (deployment-specific) |
+| Ollama | `ai/provider/ollama.go` | llama3 |
+| Google Gemini | `ai/provider/gemini.go` | gemini-3-flash-preview |
 
 ## Alternatives Considered
 
