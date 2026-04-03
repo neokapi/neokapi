@@ -16,6 +16,6 @@
       "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"]
     }
   },
-  "include": ["src", "src/**/*.json", "../../../packages/ui/src"],
-  "exclude": ["src/__tests__", "../../../packages/ui/src/stories", "../../../packages/ui/src/__tests__"]
+  "include": ["src", "src/**/*.json"],
+  "exclude": ["src/__tests__"]
 }
