@@ -1,5 +1,5 @@
 import { Home, FileText, Workflow, Wrench, Plus, Trash2 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, ScrollArea } from "@neokapi/ui-primitives";
 import type { ProjectView } from "../types/api";
 
 interface ProjectSidebarProps {
@@ -54,7 +54,7 @@ export function ProjectSidebar({
 
       {/* Flow list (when flows view is active) */}
       {activeView === "project-flows" && (
-        <div className="mt-2 flex-1 overflow-auto border-t border-border pt-2">
+        <div className="mt-2 flex-1 border-t border-border pt-2">
           <div className="flex items-center justify-between px-3 pb-1">
             <span className="text-[10px] font-medium uppercase text-muted-foreground">Flows</span>
             <Button
@@ -67,34 +67,36 @@ export function ProjectSidebar({
               <Plus size={10} />
             </Button>
           </div>
-          <div className="space-y-0.5 px-2">
-            {flowNames.map((name) => (
-              <div
-                key={name}
-                className={`group flex items-center gap-1 rounded px-2 py-1 text-xs ${
-                  selectedFlow === name
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent/50"
-                }`}
-              >
-                <button onClick={() => onSelectFlow(name)} className="flex-1 truncate text-left">
-                  {name}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  onClick={() => onDeleteFlow(name)}
-                  className="h-4 w-4 opacity-0 hover:text-destructive group-hover:opacity-100"
-                  aria-label={`Delete flow ${name}`}
+          <ScrollArea className="flex-1">
+            <div className="space-y-0.5 px-2">
+              {flowNames.map((name) => (
+                <div
+                  key={name}
+                  className={`group flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                    selectedFlow === name
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent/50"
+                  }`}
                 >
-                  <Trash2 size={10} />
-                </Button>
-              </div>
-            ))}
-            {flowNames.length === 0 && (
-              <p className="px-2 py-1 text-[10px] text-muted-foreground">No flows yet</p>
-            )}
-          </div>
+                  <button onClick={() => onSelectFlow(name)} className="flex-1 truncate text-left">
+                    {name}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => onDeleteFlow(name)}
+                    className="h-4 w-4 opacity-0 hover:text-destructive group-hover:opacity-100"
+                    aria-label={`Delete flow ${name}`}
+                  >
+                    <Trash2 size={10} />
+                  </Button>
+                </div>
+              ))}
+              {flowNames.length === 0 && (
+                <p className="px-2 py-1 text-[10px] text-muted-foreground">No flows yet</p>
+              )}
+            </div>
+          </ScrollArea>
         </div>
       )}
     </aside>

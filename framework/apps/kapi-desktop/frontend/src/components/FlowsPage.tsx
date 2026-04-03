@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -407,10 +407,10 @@ export function FlowsPage({
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="rounded-lg border border-border p-4 animate-pulse">
+            <Card key={i} className="animate-pulse p-4">
               <div className="h-3.5 bg-muted rounded w-1/3 mb-2" />
               <div className="h-2.5 bg-muted rounded w-2/3" />
-            </div>
+            </Card>
           ))}
         </div>
       )}
@@ -499,35 +499,37 @@ export function FlowsPage({
       )}
 
       {!loading && flows.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground mb-3">
-            {isProjectMode
-              ? "No flows defined in this project yet."
-              : "Create a flow or copy a built-in to get started."}
-          </p>
-          <Button
-            size="sm"
-            onClick={() => setShowCreateDialog(true)}
-          >
-            Create Flow
-          </Button>
-        </div>
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center">
+            <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground mb-3">
+              {isProjectMode
+                ? "No flows defined in this project yet."
+                : "Create a flow or copy a built-in to get started."}
+            </p>
+            <Button
+              size="sm"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              Create Flow
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {showCreateDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="w-full max-w-sm rounded-xl border border-border bg-background p-6 shadow-lg">
             <h2 className="text-lg font-semibold mb-3">New Flow</h2>
-            <label className="text-xs text-muted-foreground block mb-1">Flow Name</label>
-            <input
+            <Label className="text-xs text-muted-foreground block mb-1">Flow Name</Label>
+            <Input
               type="text"
               value={newFlowName}
               onChange={(e) => setNewFlowName(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") void handleCreateFlow(); }}
               placeholder="translate-and-qa"
               autoFocus
-              className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring mb-1"
+              className="mb-1"
             />
             <p className="text-[10px] text-muted-foreground mb-4">
               You can start from a template in the editor.
@@ -572,30 +574,32 @@ export function FlowsPage({
             {importFlows.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">No flows available to import.</p>
             ) : (
-              <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
-                {importFlows.map((item) => (
-                  <Button
-                    key={item.id}
-                    variant="outline"
-                    onClick={() => void handleImportFlow(item)}
-                    className="flex items-center gap-3 w-full h-auto text-left p-3 hover:border-primary/30 hover:bg-accent/50"
-                  >
-                    <Workflow size={14} className="text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold truncate">{item.name}</span>
-                        <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
-                          {item.source}
-                        </span>
+              <ScrollArea className="max-h-64">
+                <div className="flex flex-col gap-1.5">
+                  {importFlows.map((item) => (
+                    <Button
+                      key={item.id}
+                      variant="outline"
+                      onClick={() => void handleImportFlow(item)}
+                      className="flex items-center gap-3 w-full h-auto text-left p-3 hover:border-primary/30 hover:bg-accent/50"
+                    >
+                      <Workflow size={14} className="text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold truncate">{item.name}</span>
+                          <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
+                            {item.source}
+                          </span>
+                        </div>
+                        {item.description && (
+                          <div className="text-[10px] text-muted-foreground truncate mt-0.5">{item.description}</div>
+                        )}
                       </div>
-                      {item.description && (
-                        <div className="text-[10px] text-muted-foreground truncate mt-0.5">{item.description}</div>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">{item.stepCount} steps</span>
-                  </Button>
-                ))}
-              </div>
+                      <span className="text-[10px] text-muted-foreground">{item.stepCount} steps</span>
+                    </Button>
+                  ))}
+                </div>
+              </ScrollArea>
             )}
           </div>
         </div>

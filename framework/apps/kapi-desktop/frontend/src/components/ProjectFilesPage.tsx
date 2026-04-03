@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, DragEvent } from "react";
 import { FileText, FolderOpen, Plus, RefreshCw, Loader2, Upload } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -135,7 +135,7 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
         }`}
       >
         {files.length > 0 ? (
-          <div className="rounded-lg border border-border">
+          <Card>
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border text-left text-muted-foreground">
@@ -173,7 +173,7 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
                     </td>
                     <td className="px-3 py-1.5">
                       {f.format ? (
-                        <span className="rounded bg-accent px-1.5 py-0.5">{f.format}</span>
+                        <Badge variant="secondary">{f.format}</Badge>
                       ) : (
                         <span className="text-muted-foreground">&mdash;</span>
                       )}
@@ -185,7 +185,7 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </Card>
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <Upload size={24} className="mb-3 text-muted-foreground/50" />

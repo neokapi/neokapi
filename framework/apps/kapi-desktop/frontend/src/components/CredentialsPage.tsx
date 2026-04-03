@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, CardContent, Label, Input } from "@neokapi/ui-primitives";
 import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -122,9 +122,7 @@ export function CredentialsPage() {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{provider.name}</span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                    {provider.provider_type}
-                  </span>
+                  <Badge variant="secondary">{provider.provider_type}</Badge>
                   {testResult[provider.id] && <CheckCircle2 size={14} className="text-green-500" />}
                 </div>
                 {provider.model && (
@@ -151,79 +149,79 @@ export function CredentialsPage() {
             </div>
           ))}
           {providers.length === 0 && !editing && (
-            <div className="rounded-lg border border-dashed border-border p-8 text-center">
-              <KeyRound size={24} className="mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                No AI providers configured. Add one to use AI translation and QA tools.
-              </p>
-            </div>
+            <Card className="border-dashed">
+              <CardContent className="p-8 text-center">
+                <KeyRound size={24} className="mx-auto mb-2 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  No AI providers configured. Add one to use AI translation and QA tools.
+                </p>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
 
       {editing && (
-        <div className="mt-4 rounded-lg border border-border p-4">
-          <h3 className="mb-3 text-sm font-medium">
-            {editing.id ? "Edit Provider" : "New Provider"}
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground" htmlFor="cred-name">
-                Name
-              </label>
-              <input
-                id="cred-name"
-                type="text"
-                value={editing.name}
-                onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                placeholder="My Anthropic Key"
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-              />
+        <Card className="mt-4">
+          <CardContent className="p-4">
+            <h3 className="mb-3 text-sm font-medium">
+              {editing.id ? "Edit Provider" : "New Provider"}
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="cred-name" className="mb-1 block text-xs text-muted-foreground">
+                  Name
+                </Label>
+                <Input
+                  id="cred-name"
+                  type="text"
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  placeholder="My Anthropic Key"
+                />
+              </div>
+              <div>
+                <Label htmlFor="cred-type" className="mb-1 block text-xs text-muted-foreground">
+                  Provider
+                </Label>
+                <select
+                  id="cred-type"
+                  value={editing.provider_type}
+                  onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
+                  className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                >
+                  {PROVIDER_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="cred-model" className="mb-1 block text-xs text-muted-foreground">
+                  Model (optional)
+                </Label>
+                <Input
+                  id="cred-model"
+                  type="text"
+                  value={editing.model ?? ""}
+                  onChange={(e) => setEditing({ ...editing, model: e.target.value })}
+                  placeholder="claude-sonnet-4-5-20241022"
+                />
+              </div>
+              <div>
+                <Label htmlFor="cred-apikey" className="mb-1 block text-xs text-muted-foreground">
+                  API Key
+                </Label>
+                <Input
+                  id="cred-apikey"
+                  type="password"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder="sk-..."
+                />
+              </div>
             </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground" htmlFor="cred-type">
-                Provider
-              </label>
-              <select
-                id="cred-type"
-                value={editing.provider_type}
-                onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-              >
-                {PROVIDER_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground" htmlFor="cred-model">
-                Model (optional)
-              </label>
-              <input
-                id="cred-model"
-                type="text"
-                value={editing.model ?? ""}
-                onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-                placeholder="claude-sonnet-4-5-20241022"
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-muted-foreground" htmlFor="cred-apikey">
-                API Key
-              </label>
-              <input
-                id="cred-apikey"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-              />
-            </div>
-          </div>
           <div className="mt-3 flex gap-2">
             <Button
               size="sm"
@@ -245,7 +243,8 @@ export function CredentialsPage() {
               Cancel
             </Button>
           </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -12,7 +12,7 @@ import {
   Info,
   GitBranch,
 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Card } from "@neokapi/ui-primitives";
 import type { FilterDoc, StepDoc, ParameterDoc } from "../types/api";
 
 type DocEntry = FilterDoc | StepDoc;
@@ -214,9 +214,9 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
 
 function CardWrapper({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <Card className="overflow-hidden">
       {children}
-    </div>
+    </Card>
   );
 }
 

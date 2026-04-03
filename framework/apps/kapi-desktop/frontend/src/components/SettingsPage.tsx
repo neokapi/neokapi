@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon, Monitor, Loader2 } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
+import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
 
@@ -20,7 +21,6 @@ export function applyTheme(mode: ThemeMode) {
 export function SettingsPage() {
   const [theme, setTheme] = useState<ThemeMode>("system");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"general" | "credentials" | "plugins">("general");
 
   const { showError } = useError();
 
@@ -64,82 +64,58 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Tabs */}
-      <div className="flex border-b border-border">
-        <button
-          onClick={() => setActiveTab("general")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === "general"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          General
-        </button>
-        <button
-          onClick={() => setActiveTab("credentials")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === "credentials"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          AI Credentials
-        </button>
-        <button
-          onClick={() => setActiveTab("plugins")}
-          className={`px-4 py-2.5 text-sm font-medium transition-colors ${
-            activeTab === "plugins"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Plugins
-        </button>
-      </div>
+    <Tabs defaultValue="general" className="flex h-full flex-col">
+      <TabsList variant="line">
+        <TabsTrigger value="general">General</TabsTrigger>
+        <TabsTrigger value="credentials">AI Credentials</TabsTrigger>
+        <TabsTrigger value="plugins">Plugins</TabsTrigger>
+      </TabsList>
 
-      {/* Tab content */}
-      <div className="flex-1 overflow-auto">
-        {activeTab === "general" && (
-          <div className="p-6">
-            <h1 className="mb-6 text-xl font-semibold">Settings</h1>
+      <TabsContent value="general" className="flex-1 overflow-auto">
+        <div className="p-6">
+          <h1 className="mb-6 text-xl font-semibold">Settings</h1>
 
-            <div className="max-w-lg space-y-6">
-              <div className="rounded-lg border border-border p-4">
+          <div className="max-w-lg space-y-6">
+            <Card>
+              <CardContent className="p-4">
                 <div className="mb-3 text-sm font-medium">Appearance</div>
-                <div className="flex gap-2">
-                  {([
-                    { value: "system" as ThemeMode, icon: Monitor, label: "System" },
-                    { value: "light" as ThemeMode, icon: Sun, label: "Light" },
-                    { value: "dark" as ThemeMode, icon: Moon, label: "Dark" },
-                  ]).map(({ value, icon: Icon, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => void handleThemeChange(value)}
-                      className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
-                        theme === value
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                      }`}
-                    >
-                      <Icon size={16} />
-                      {label}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex gap-2">
+                {([
+                  { value: "system" as ThemeMode, icon: Monitor, label: "System" },
+                  { value: "light" as ThemeMode, icon: Sun, label: "Light" },
+                  { value: "dark" as ThemeMode, icon: Moon, label: "Dark" },
+                ]).map(({ value, icon: Icon, label }) => (
+                  <button
+                    key={value}
+                    onClick={() => void handleThemeChange(value)}
+                    className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
+                      theme === value
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
+              </div>
                 <p className="mt-2 text-[10px] text-muted-foreground">
                   System follows your operating system's appearance setting.
                 </p>
-              </div>
+              </CardContent>
+            </Card>
 
-            </div>
           </div>
-        )}
+        </div>
+      </TabsContent>
 
-        {activeTab === "credentials" && <CredentialsPage />}
-        {activeTab === "plugins" && <PluginManager />}
-      </div>
-    </div>
+      <TabsContent value="credentials" className="flex-1 overflow-auto">
+        <CredentialsPage />
+      </TabsContent>
+
+      <TabsContent value="plugins" className="flex-1 overflow-auto">
+        <PluginManager />
+      </TabsContent>
+    </Tabs>
   );
 }

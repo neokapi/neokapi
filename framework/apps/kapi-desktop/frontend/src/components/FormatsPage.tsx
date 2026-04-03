@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Button, SchemaForm } from "@neokapi/ui-primitives";
+import { Button, SchemaForm, Card, CardContent, Input, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";
@@ -124,10 +124,10 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="rounded-lg border border-border p-4 animate-pulse">
+            <Card key={i} className="animate-pulse p-4">
               <div className="h-3.5 bg-muted rounded w-1/3 mb-2" />
               <div className="h-2.5 bg-muted rounded w-2/3" />
-            </div>
+            </Card>
           ))}
         </div>
       )}
@@ -290,9 +290,6 @@ interface FormatPartInfo {
   properties?: Record<string, string>;
 }
 
-// --- Config tab type ---
-type ConfigTab = "editor" | "yaml" | "docs";
-
 function FormatDetail({
   formatName,
   formatInfo,
@@ -309,7 +306,7 @@ function FormatDetail({
   const [loadingSchema, setLoadingSchema] = useState(true);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ConfigTab>("editor");
+  const [activeTab, setActiveTab] = useState<string>("editor");
 
   // Phase 2: Save-as-preset dialog
   const [showSavePreset, setShowSavePreset] = useState(false);
@@ -582,18 +579,19 @@ function FormatDetail({
 
       {/* Save Preset Dialog */}
       {showSavePreset && (
-        <div className="mb-6 rounded-lg border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold mb-2">Save as Preset</h3>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={savePresetName}
-              onChange={(e) => setSavePresetName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSavePreset(); }}
-              placeholder="Preset name..."
-              className="flex-1 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
-              autoFocus
-            />
+        <Card className="mb-6">
+          <CardContent className="p-4">
+            <h3 className="text-sm font-semibold mb-2">Save as Preset</h3>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                value={savePresetName}
+                onChange={(e) => setSavePresetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSavePreset(); }}
+                placeholder="Preset name..."
+                className="flex-1"
+                autoFocus
+              />
             <Button
               size="sm"
               onClick={handleSavePreset}
@@ -608,8 +606,9 @@ function FormatDetail({
             >
               Cancel
             </Button>
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* No presets yet — show Save as Preset shortcut */}
@@ -634,104 +633,81 @@ function FormatDetail({
       )}
 
       {!loadingSchema && (schema || hasDocumentation) && (
-        <div>
-          {/* Tab bar */}
-          <div className="flex items-center gap-0 mb-3 border-b border-border">
+        <Tabs defaultValue={schema ? "editor" : "docs"} onValueChange={setActiveTab}>
+          <TabsList variant="line">
             {schema && (
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveTab("editor")}
-                  className={`rounded-none border-b-2 ${
-                    activeTab === "editor"
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
+                <TabsTrigger value="editor">
                   <Settings2 size={12} />
                   Editor
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setActiveTab("yaml")}
-                  className={`rounded-none border-b-2 ${
-                    activeTab === "yaml"
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground"
-                  }`}
-                >
+                </TabsTrigger>
+                <TabsTrigger value="yaml">
                   Config (YAML)
-                </Button>
+                </TabsTrigger>
               </>
             )}
             {hasDocumentation && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setActiveTab("docs")}
-                className={`rounded-none border-b-2 ${
-                  activeTab === "docs"
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
+              <TabsTrigger value="docs">
                 <BookOpen size={12} />
                 Documentation
-              </Button>
+              </TabsTrigger>
             )}
-          </div>
+          </TabsList>
 
-          {/* Editor tab */}
-          {activeTab === "editor" && schema && (
-            <div className="flex gap-4">
-              <div className="max-w-xl flex-1 rounded-lg border border-border bg-card p-4">
-                <SchemaForm
-                  schema={schema}
-                  values={config}
-                  onChange={setConfig}
-                  presetValues={presetValues}
-                />
-              </div>
+          {schema && (
+            <TabsContent value="editor">
+              <div className="flex gap-4">
+                <Card className="max-w-xl flex-1">
+                  <CardContent className="p-4">
+                    <SchemaForm
+                      schema={schema}
+                      values={config}
+                      onChange={setConfig}
+                      presetValues={presetValues}
+                    />
+                  </CardContent>
+                </Card>
 
-              {/* Contextual parameter help sidebar */}
-              {filterDoc && filterDoc.parameters && Object.keys(filterDoc.parameters).length > 0 && (
-                <div className="w-80 shrink-0 hidden xl:block">
-                  <div className="sticky top-4">
-                    <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                      <BookOpen size={11} />
-                      Parameter Reference
-                    </h3>
-                    <DocsPanel doc={filterDoc} inline />
+                {/* Contextual parameter help sidebar */}
+                {filterDoc && filterDoc.parameters && Object.keys(filterDoc.parameters).length > 0 && (
+                  <div className="w-80 shrink-0 hidden xl:block">
+                    <div className="sticky top-4">
+                      <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <BookOpen size={11} />
+                        Parameter Reference
+                      </h3>
+                      <DocsPanel doc={filterDoc} inline />
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </TabsContent>
           )}
 
-          {/* YAML tab */}
-          {activeTab === "yaml" && (
-            <div className="max-w-xl">
-              <textarea
-                value={yamlText}
-                onChange={(e) => handleYamlChange(e.target.value)}
-                className="w-full min-h-[300px] rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-ring resize-y"
-                spellCheck={false}
-              />
-              {yamlError && (
-                <p className="mt-1 text-[10px] text-amber-500">{yamlError}</p>
-              )}
-            </div>
+          {schema && (
+            <TabsContent value="yaml">
+              <div className="max-w-xl">
+                <textarea
+                  value={yamlText}
+                  onChange={(e) => handleYamlChange(e.target.value)}
+                  className="w-full min-h-[300px] rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-ring resize-y"
+                  spellCheck={false}
+                />
+                {yamlError && (
+                  <p className="mt-1 text-[10px] text-amber-500">{yamlError}</p>
+                )}
+              </div>
+            </TabsContent>
           )}
 
-          {/* Documentation tab */}
-          {activeTab === "docs" && filterDoc && (
-            <div className="max-w-2xl">
-              <DocsPanel doc={filterDoc} />
-            </div>
+          {hasDocumentation && filterDoc && (
+            <TabsContent value="docs">
+              <div className="max-w-2xl">
+                <DocsPanel doc={filterDoc} />
+              </div>
+            </TabsContent>
           )}
-        </div>
+        </Tabs>
       )}
 
       {!loadingSchema && !schema && !hasDocumentation && (
@@ -766,13 +742,15 @@ function FormatDetail({
 
           {/* Runner results */}
           {runnerParts !== null && runnerParts.length > 0 && (
-            <div className="max-w-2xl rounded-lg border border-border bg-card overflow-hidden">
-              <div className="max-h-[400px] overflow-y-auto divide-y divide-border">
-                {runnerParts.map((part, i) => (
-                  <PartRow key={i} part={part} />
-                ))}
-              </div>
-            </div>
+            <Card className="max-w-2xl overflow-hidden">
+              <ScrollArea className="max-h-[400px]">
+                <div className="divide-y divide-border">
+                  {runnerParts.map((part, i) => (
+                    <PartRow key={i} part={part} />
+                  ))}
+                </div>
+              </ScrollArea>
+            </Card>
           )}
 
           {runnerParts !== null && runnerParts.length === 0 && (

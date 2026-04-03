@@ -3,6 +3,7 @@ import { fn, within, userEvent, waitFor, expect } from "storybook/test";
 import { useState, useEffect, useCallback } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
 import type { FlowSpec } from "../types/api";
+import { ScrollArea } from "@neokapi/ui-primitives";
 
 // Simulated RunnerPage that demonstrates the full execution lifecycle
 // without needing a real Wails backend.
@@ -206,24 +207,26 @@ function SimulatedRunner({
           <h3 className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Output ({events.length} events)
           </h3>
-          <div className="max-h-48 overflow-auto p-3 font-mono text-xs">
-            {events.map((event, i) => (
-              <div
-                key={i}
-                className={`py-0.5 ${
-                  event.type === "error"
-                    ? "text-destructive"
-                    : event.type === "complete"
-                      ? "text-green-500"
-                      : event.type === "trace"
-                        ? "text-muted-foreground"
-                        : "text-foreground"
-                }`}
-              >
-                {event.message}
-              </div>
-            ))}
-          </div>
+          <ScrollArea className="max-h-48">
+            <div className="p-3 font-mono text-xs">
+              {events.map((event, i) => (
+                <div
+                  key={i}
+                  className={`py-0.5 ${
+                    event.type === "error"
+                      ? "text-destructive"
+                      : event.type === "complete"
+                        ? "text-green-500"
+                        : event.type === "trace"
+                          ? "text-muted-foreground"
+                          : "text-foreground"
+                  }`}
+                >
+                  {event.message}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
     </div>
