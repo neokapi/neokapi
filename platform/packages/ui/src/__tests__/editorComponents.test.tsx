@@ -251,7 +251,7 @@ describe("TagChipComponent", () => {
       locked: true,
     });
     const chip = container.querySelector("[data-tag-chip]") as HTMLElement;
-    expect(chip.style.borderStyle).toBe("dashed");
+    expect(chip.className).toContain("border-dashed");
   });
 
   it("shows constraint indicator when showConstraints and non-deletable", async () => {
