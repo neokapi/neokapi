@@ -143,8 +143,6 @@ export { CodeInput, type CodeInputProps, type CodeLanguage } from "./components/
 // Tag input (chip-based)
 export { TagInput, type TagInputProps } from "./components/ui/tag-input";
 
-
-
 // Layout components
 export { PageHeader } from "./components/PageHeader";
 export { PanelHeader } from "./components/PanelHeader";
@@ -245,5 +243,3 @@ export type {
   FormatSchema,
   FormatParamsValue,
 } from "./components/filter/types";
-
-// trigger

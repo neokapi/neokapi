@@ -30,6 +30,14 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/__tests__/setup.ts"],
     exclude: ["dist/**", "storybook-static/**", "node_modules/**"],
+    server: {
+      deps: {
+        // Force radix-ui (and its @radix-ui/* sub-packages) through Vite's
+        // transform pipeline so the react/react-dom resolve aliases above
+        // are applied, preventing a duplicate-React instance in tests.
+        inline: ["radix-ui", /@radix-ui\//],
+      },
+    },
   },
   lint: {
     ignorePatterns: ["dist/**", "bindings/**", "storybook-static/**"],
