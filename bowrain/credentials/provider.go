@@ -10,7 +10,7 @@ import (
 func NewProvider(store *Store, configID string) (aiprovider.LLMProvider, error) {
 	cfg, err := store.Get(configID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get provider config %q: %w", configID, err)
 	}
 
 	apiKey, err := store.GetAPIKey(configID)

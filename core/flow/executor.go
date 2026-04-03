@@ -139,7 +139,7 @@ func (e *DefaultFlowExecutor) Execute(ctx context.Context, f *Flow, items []*Flo
 func (e *DefaultFlowExecutor) processItemCollect(ctx context.Context, f *Flow, item *FlowItem) ([]*model.Part, error) {
 	tools, err := e.resolveTools(f)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("resolve tools: %w", err)
 	}
 
 	if len(tools) == 0 {
@@ -192,10 +192,10 @@ func (e *DefaultFlowExecutor) processItemCollect(ctx context.Context, f *Flow, i
 	<-done // wait for collector goroutine
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("execute tool chain: %w", err)
 	}
 	if collectErr != nil {
-		return nil, collectErr
+		return nil, fmt.Errorf("collect output: %w", collectErr)
 	}
 	return parts, nil
 }

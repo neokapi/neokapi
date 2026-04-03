@@ -2,6 +2,7 @@ package flow
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,13 @@ import (
 
 	"github.com/neokapi/neokapi/core/config"
 	"gopkg.in/yaml.v3"
+)
+
+// Sentinel errors for flow definition validation.
+var (
+	ErrFlowIDRequired   = errors.New("flow definition id is required")
+	ErrFlowNameRequired = errors.New("flow definition name is required")
+	ErrNodeIDRequired   = errors.New("node id is required")
 )
 
 // FlowDefinition is a JSON-serializable flow that can be stored and loaded.
@@ -52,15 +60,15 @@ type FlowEdge struct {
 // Validate checks that the flow definition is well-formed.
 func (d *FlowDefinition) Validate() error {
 	if d.ID == "" {
-		return fmt.Errorf("flow definition id is required")
+		return ErrFlowIDRequired
 	}
 	if d.Name == "" {
-		return fmt.Errorf("flow definition name is required")
+		return ErrFlowNameRequired
 	}
 	nodeIDs := make(map[string]bool)
 	for _, n := range d.Nodes {
 		if n.ID == "" {
-			return fmt.Errorf("node id is required")
+			return ErrNodeIDRequired
 		}
 		if nodeIDs[n.ID] {
 			return fmt.Errorf("duplicate node id: %s", n.ID)
