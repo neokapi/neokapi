@@ -304,11 +304,7 @@ function ToolConfigPanel({
           <p className="text-xs text-muted-foreground mt-1">{schema.description}</p>
         )}
       </div>
-      <SchemaForm
-        schema={schema}
-        values={config}
-        onChange={onChange}
-      />
+      <SchemaForm schema={schema} values={config} onChange={onChange} />
     </div>
   );
 }
