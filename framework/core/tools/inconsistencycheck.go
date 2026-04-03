@@ -20,11 +20,11 @@ const (
 // InconsistencyCheckConfig holds configuration for the inconsistency check tool.
 type InconsistencyCheckConfig struct {
 	TargetLocale             model.LocaleID `json:"targetLocale,omitempty"             schema:"-"`
-	CaseSensitive            bool           `json:"caseSensitive,omitempty"            schema:"description=Whether comparison is case-sensitive,default=true"`
-	CheckTargetInconsistency bool           `json:"checkTargetInconsistency,omitempty" schema:"description=Flag when the same source has different translations,default=true"`
-	CheckSourceInconsistency bool           `json:"checkSourceInconsistency,omitempty" schema:"description=Flag when different sources share the same translation"`
-	CheckPerFile             bool           `json:"checkPerFile,omitempty"             schema:"description=Process each input file individually instead of comparing segments across all documents"`
-	DisplayOption            string         `json:"displayOption,omitempty"            schema:"description=Controls how inline codes are represented: original codes or generic markers or plain text,enum=original|generic|plain,default=generic"`
+	CaseSensitive            bool           `json:"caseSensitive,omitempty"            schema:"title=Case Sensitive,description=Whether comparison is case-sensitive,default=true"`
+	CheckTargetInconsistency bool           `json:"checkTargetInconsistency,omitempty" schema:"title=Check Target Inconsistency,description=Flag when the same source has different translations,default=true"`
+	CheckSourceInconsistency bool           `json:"checkSourceInconsistency,omitempty" schema:"title=Check Source Inconsistency,description=Flag when different sources share the same translation"`
+	CheckPerFile             bool           `json:"checkPerFile,omitempty"             schema:"title=Per-File Checking,description=Process each input file individually instead of comparing segments across all documents"`
+	DisplayOption            string         `json:"displayOption,omitempty"            schema:"title=Inline Code Display,description=Controls how inline codes are represented: original codes or generic markers or plain text,enum=original|generic|plain,default=generic"`
 }
 
 // ToolName returns the tool name this config applies to.

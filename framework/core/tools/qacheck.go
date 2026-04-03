@@ -38,41 +38,41 @@ type QACheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
 	// --- General checks ---
-	CheckLeadingWhitespace         bool   `json:"checkLeadingWhitespace,omitempty"         schema:"description=Check for leading whitespace mismatches between source and target,default=true,group=general"`
-	CheckTrailingWhitespace        bool   `json:"checkTrailingWhitespace,omitempty"         schema:"description=Check for trailing whitespace mismatches between source and target,default=true,group=general"`
-	CheckEmptyTarget               bool   `json:"checkEmptyTarget,omitempty"                schema:"description=Check for empty target when source has content,default=true,group=general"`
-	CheckEmptySource               bool   `json:"checkEmptySource,omitempty"                schema:"description=Check for non-empty target when source is empty,default=true,group=general"`
-	CheckTargetSameAsSource        bool   `json:"checkTargetSameAsSource,omitempty"         schema:"description=Check when target text is identical to source text,default=true,group=general"`
-	TargetSameAsSourceWithCodes    bool   `json:"targetSameAsSourceWithCodes,omitempty"     schema:"description=Include inline codes when comparing source and target for identity,default=true,group=general"`
-	TargetSameAsSourceWithNumbers  bool   `json:"targetSameAsSourceWithNumbers,omitempty"   schema:"description=Include number-only segments in same-as-source comparison,default=true,group=general"`
-	CheckDoubleSpaces              bool   `json:"checkDoubleSpaces,omitempty"               schema:"description=Check for double spaces in target text,default=true,group=general"`
-	CheckDoubledWord               bool   `json:"checkDoubledWord,omitempty"                schema:"description=Check for consecutive repeated words in target text,default=true,group=general"`
-	DoubledWordExceptions          string `json:"doubledWordExceptions,omitempty"           schema:"description=Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous),group=general"`
-	CheckTerminology               bool   `json:"checkTerminology,omitempty"                schema:"description=Enable terminology checks"`
-	CheckSpanConstraints           bool   `json:"checkSpanConstraints,omitempty"            schema:"description=Check non-deletable and non-cloneable span constraint violations,default=true,group=general"`
+	CheckLeadingWhitespace         bool   `json:"checkLeadingWhitespace,omitempty"         schema:"title=Check Leading Whitespace,description=Check for leading whitespace mismatches between source and target,default=true,group=general"`
+	CheckTrailingWhitespace        bool   `json:"checkTrailingWhitespace,omitempty"         schema:"title=Check Trailing Whitespace,description=Check for trailing whitespace mismatches between source and target,default=true,group=general"`
+	CheckEmptyTarget               bool   `json:"checkEmptyTarget,omitempty"                schema:"title=Warn on Empty Target,description=Check for empty target when source has content,default=true,group=general"`
+	CheckEmptySource               bool   `json:"checkEmptySource,omitempty"                schema:"title=Warn on Non-Empty Target with Empty Source,description=Check for non-empty target when source is empty,default=true,group=general"`
+	CheckTargetSameAsSource        bool   `json:"checkTargetSameAsSource,omitempty"         schema:"title=Warn on Target Same as Source,description=Check when target text is identical to source text,default=true,group=general"`
+	TargetSameAsSourceWithCodes    bool   `json:"targetSameAsSourceWithCodes,omitempty"     schema:"title=Include Codes in Comparison,description=Include inline codes when comparing source and target for identity,default=true,group=general"`
+	TargetSameAsSourceWithNumbers  bool   `json:"targetSameAsSourceWithNumbers,omitempty"   schema:"title=Include Number-Only Segments,description=Include number-only segments in same-as-source comparison,default=true,group=general"`
+	CheckDoubleSpaces              bool   `json:"checkDoubleSpaces,omitempty"               schema:"title=Check Double Spaces,description=Check for double spaces in target text,default=true,group=general"`
+	CheckDoubledWord               bool   `json:"checkDoubledWord,omitempty"                schema:"title=Warn on Doubled Words,description=Check for consecutive repeated words in target text,default=true,group=general"`
+	DoubledWordExceptions          string `json:"doubledWordExceptions,omitempty"           schema:"title=Doubled Word Exceptions,description=Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous),group=general"`
+	CheckTerminology               bool   `json:"checkTerminology,omitempty"                schema:"title=Verify Terminology,description=Enable terminology checks"`
+	CheckSpanConstraints           bool   `json:"checkSpanConstraints,omitempty"            schema:"title=Check Span Constraints,description=Check non-deletable and non-cloneable span constraint violations,default=true,group=general"`
 
 	// --- Inline code checks ---
-	CheckCodeDifference bool `json:"checkCodeDifference,omitempty" schema:"description=Verify that target segments have the same inline codes as source segments,default=true,group=inlineCodes"`
-	StrictCodeOrder     bool `json:"strictCodeOrder,omitempty"     schema:"description=Flag differences when codes appear in a different order between source and target,group=inlineCodes"`
+	CheckCodeDifference bool `json:"checkCodeDifference,omitempty" schema:"title=Check Code Differences,description=Verify that target segments have the same inline codes as source segments,default=true,group=inlineCodes"`
+	StrictCodeOrder     bool `json:"strictCodeOrder,omitempty"     schema:"title=Enforce Strict Code Order,description=Flag differences when codes appear in a different order between source and target,group=inlineCodes"`
 
 	// --- Pattern checks ---
-	CheckPatterns bool          `json:"checkPatterns,omitempty" schema:"description=Verify that source patterns have expected corresponding content in the target,default=true,group=patterns"`
+	CheckPatterns bool          `json:"checkPatterns,omitempty" schema:"title=Check Patterns,description=Verify that source patterns have expected corresponding content in the target,default=true,group=patterns"`
 	Patterns      []QAPattern   `json:"patterns,omitempty"      schema:"-"`
 
 	// --- Character checks ---
-	CheckCorruptedCharacters bool `json:"checkCorruptedCharacters,omitempty" schema:"description=Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1),default=true,group=characters"`
+	CheckCorruptedCharacters bool `json:"checkCorruptedCharacters,omitempty" schema:"title=Check Corrupted Characters,description=Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1),default=true,group=characters"`
 
 	// --- Length checks ---
-	CheckMaxCharLength       bool `json:"checkMaxCharLength,omitempty"       schema:"description=Flag targets longer than a percentage of source character length,default=true,group=length"`
-	MaxCharLengthBreak       int  `json:"maxCharLengthBreak,omitempty"       schema:"description=Character count above which text is considered long for the maximum length check,default=20,group=length"`
-	MaxCharLengthAbove       int  `json:"maxCharLengthAbove,omitempty"       schema:"description=Maximum allowed percentage of source length for long text,default=200,group=length"`
-	MaxCharLengthBelow       int  `json:"maxCharLengthBelow,omitempty"       schema:"description=Maximum allowed percentage of source length for short text,default=350,group=length"`
-	CheckMinCharLength       bool `json:"checkMinCharLength,omitempty"       schema:"description=Flag targets shorter than a percentage of source character length,default=true,group=length"`
-	MinCharLengthBreak       int  `json:"minCharLengthBreak,omitempty"       schema:"description=Character count above which text is considered long for the minimum length check,default=20,group=length"`
-	MinCharLengthAbove       int  `json:"minCharLengthAbove,omitempty"       schema:"description=Minimum required percentage of source length for long text,default=45,group=length"`
-	MinCharLengthBelow       int  `json:"minCharLengthBelow,omitempty"       schema:"description=Minimum required percentage of source length for short text,default=30,group=length"`
-	CheckAbsoluteMaxCharLength bool `json:"checkAbsoluteMaxCharLength,omitempty" schema:"description=Flag target segments that exceed an absolute character count limit,group=length"`
-	AbsoluteMaxCharLength      int  `json:"absoluteMaxCharLength,omitempty"      schema:"description=Maximum number of characters allowed in any target segment,default=255,group=length"`
+	CheckMaxCharLength       bool `json:"checkMaxCharLength,omitempty"       schema:"title=Check Maximum Length Ratio,description=Flag targets longer than a percentage of source character length,default=true,group=length"`
+	MaxCharLengthBreak       int  `json:"maxCharLengthBreak,omitempty"       schema:"title=Short/Long Threshold (Max),description=Character count above which text is considered long for the maximum length check,default=20,group=length"`
+	MaxCharLengthAbove       int  `json:"maxCharLengthAbove,omitempty"       schema:"title=Percentage for Long Text (Max),description=Maximum allowed percentage of source length for long text,default=200,group=length"`
+	MaxCharLengthBelow       int  `json:"maxCharLengthBelow,omitempty"       schema:"title=Percentage for Short Text (Max),description=Maximum allowed percentage of source length for short text,default=350,group=length"`
+	CheckMinCharLength       bool `json:"checkMinCharLength,omitempty"       schema:"title=Check Minimum Length Ratio,description=Flag targets shorter than a percentage of source character length,default=true,group=length"`
+	MinCharLengthBreak       int  `json:"minCharLengthBreak,omitempty"       schema:"title=Short/Long Threshold (Min),description=Character count above which text is considered long for the minimum length check,default=20,group=length"`
+	MinCharLengthAbove       int  `json:"minCharLengthAbove,omitempty"       schema:"title=Percentage for Long Text (Min),description=Minimum required percentage of source length for long text,default=45,group=length"`
+	MinCharLengthBelow       int  `json:"minCharLengthBelow,omitempty"       schema:"title=Percentage for Short Text (Min),description=Minimum required percentage of source length for short text,default=30,group=length"`
+	CheckAbsoluteMaxCharLength bool `json:"checkAbsoluteMaxCharLength,omitempty" schema:"title=Check Absolute Maximum Length,description=Flag target segments that exceed an absolute character count limit,group=length"`
+	AbsoluteMaxCharLength      int  `json:"absoluteMaxCharLength,omitempty"      schema:"title=Absolute Maximum Characters,description=Maximum number of characters allowed in any target segment,default=255,group=length"`
 }
 
 // QAPattern defines a source/target regex pattern pair for pattern-based QA checks.

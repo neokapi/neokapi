@@ -47,14 +47,14 @@ type TMLeverageConfig struct {
 	Provider       TMProvider     `json:"-"                        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold   int  `json:"fuzzyThreshold,omitempty"   schema:"description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
-	FillTarget       bool `json:"fillTarget,omitempty"       schema:"description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold int `json:"fillTargetThreshold,omitempty" schema:"description=Minimum match score required to fill the target,default=95,min=0,max=100"`
-	FillIfTargetIsEmpty bool `json:"fillIfTargetIsEmpty,omitempty" schema:"description=Fill the target only when it has no existing content"`
-	NoQueryThreshold int  `json:"noQueryThreshold,omitempty" schema:"description=Skip TM query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
-	MakeTMX          bool `json:"makeTmx,omitempty"          schema:"description=Create a TMX file with all leveraged matches"`
-	TMXPath          string `json:"tmxPath,omitempty"         schema:"description=File path for the generated TMX document"`
-	DowngradeIdenticalBestMatches bool `json:"downgradeIdenticalBestMatches,omitempty" schema:"description=Reduce score by 1%% when multiple identical exact matches are returned"`
+	FuzzyThreshold   int  `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
+	FillTarget       bool `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
+	FillTargetThreshold int `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target,default=95,min=0,max=100"`
+	FillIfTargetIsEmpty bool `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
+	NoQueryThreshold int  `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip TM query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
+	MakeTMX          bool `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
+	TMXPath          string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
+	DowngradeIdenticalBestMatches bool `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 }
 
 // ToolName returns the tool name this config applies to.

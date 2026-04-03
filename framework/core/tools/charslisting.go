@@ -16,8 +16,8 @@ const (
 
 // CharsListingConfig holds configuration for the chars listing tool.
 type CharsListingConfig struct {
-	IncludeSource bool           `json:"includeSource,omitempty" schema:"description=Include source text in character listing,default=true"`
-	IncludeTarget bool           `json:"includeTarget,omitempty" schema:"description=Include target text in character listing,default=true"`
+	IncludeSource bool           `json:"includeSource,omitempty" schema:"title=Include Source,description=Include source text in character listing,default=true"`
+	IncludeTarget bool           `json:"includeTarget,omitempty" schema:"title=Include Target,description=Include target text in character listing,default=true"`
 	TargetLocale  model.LocaleID `json:"targetLocale,omitempty"  schema:"-"`
 }
 

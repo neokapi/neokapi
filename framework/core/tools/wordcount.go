@@ -20,9 +20,9 @@ const (
 
 // WordCountConfig holds configuration for the word count tool.
 type WordCountConfig struct {
-	CountSource bool `json:"countSource,omitempty" schema:"description=Count words in source text,default=true"`
-	CountTarget bool `json:"countTarget,omitempty" schema:"description=Count words in target text,default=true"`
-	CountInline bool `json:"countInline,omitempty" schema:"description=Include inline code content in word counts"`
+	CountSource bool `json:"countSource,omitempty" schema:"title=Count Source,description=Count words in source text,default=true"`
+	CountTarget bool `json:"countTarget,omitempty" schema:"title=Count Target,description=Count words in target text,default=true"`
+	CountInline bool `json:"countInline,omitempty" schema:"title=Count Inline Codes,description=Include inline code content in word counts"`
 }
 
 // ToolName returns the tool name this config applies to.

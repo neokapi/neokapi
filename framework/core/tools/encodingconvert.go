@@ -18,19 +18,19 @@ const PropEncodingTarget = "encoding-target"
 
 // EncodingConvertConfig holds configuration for the encoding conversion tool.
 type EncodingConvertConfig struct {
-	TargetEncoding string         `json:"targetEncoding,omitempty" schema:"description=Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"` // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
-	ApplySource    bool           `json:"applySource,omitempty"    schema:"description=Apply encoding conversion to source text"` // Apply to source (default: false)
-	ApplyTarget    bool           `json:"applyTarget,omitempty"    schema:"description=Apply encoding conversion to target text,default=true"` // Apply to target (default: true)
-	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"description=Target locale for processing,showIfSet=ApplyTarget"` // Required when ApplyTarget is true
+	TargetEncoding string         `json:"targetEncoding,omitempty" schema:"title=Target Encoding,description=Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"` // Target encoding name (e.g., "utf-8", "iso-8859-1", "shift-jis")
+	ApplySource    bool           `json:"applySource,omitempty"    schema:"title=Apply to Source,description=Apply encoding conversion to source text"` // Apply to source (default: false)
+	ApplyTarget    bool           `json:"applyTarget,omitempty"    schema:"title=Apply to Target,description=Apply encoding conversion to target text,default=true"` // Apply to target (default: true)
+	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"` // Required when ApplyTarget is true
 
 	// Unescape options control how escape sequences in input are decoded.
-	UnescapeNCR  bool `json:"unescapeNCR,omitempty"  schema:"description=Unescape numeric character references (e.g. &#xE1;) when reading input,default=true"`
-	UnescapeCER  bool `json:"unescapeCER,omitempty"  schema:"description=Unescape HTML character entity references (e.g. &aacute;) when reading input,default=true"`
-	UnescapeJava bool `json:"unescapeJava,omitempty" schema:"description=Unescape Java-style \\\\uXXXX escape sequences when reading input,default=true"`
+	UnescapeNCR  bool `json:"unescapeNCR,omitempty"  schema:"title=Unescape Numeric Character References,description=Unescape numeric character references (e.g. &#xE1;) when reading input,default=true"`
+	UnescapeCER  bool `json:"unescapeCER,omitempty"  schema:"title=Unescape Character Entity References,description=Unescape HTML character entity references (e.g. &aacute;) when reading input,default=true"`
+	UnescapeJava bool `json:"unescapeJava,omitempty" schema:"title=Unescape Java-style Notation,description=Unescape Java-style \\\\uXXXX escape sequences when reading input,default=true"`
 
 	// Escape options control how unmappable characters are handled in output.
-	EscapeAll         bool `json:"escapeAll,omitempty"         schema:"description=Escape all extended (non-ASCII) characters in output"`
-	ReportUnsupported bool `json:"reportUnsupported,omitempty" schema:"description=Report characters not supported by the target encoding,default=true"`
+	EscapeAll         bool `json:"escapeAll,omitempty"         schema:"title=Escape All Extended Characters,description=Escape all extended (non-ASCII) characters in output"`
+	ReportUnsupported bool `json:"reportUnsupported,omitempty" schema:"title=Report Unsupported Characters,description=Report characters not supported by the target encoding,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.

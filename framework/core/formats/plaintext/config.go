@@ -6,7 +6,7 @@ import "fmt"
 type Config struct {
 	// SegmentByLine if true, each line is a Block. If false, paragraphs
 	// (separated by blank lines) are Blocks.
-	SegmentByLine bool
+	SegmentByLine bool `schema:"title=Segment by Line,description=If true each line becomes a separate block; if false paragraphs separated by blank lines are blocks,default=true"`
 }
 
 // FormatName returns the format this config applies to.

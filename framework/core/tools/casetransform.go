@@ -20,9 +20,9 @@ const (
 
 // CaseTransformConfig holds configuration for the case transform tool.
 type CaseTransformConfig struct {
-	Mode         CaseMode       `json:"mode,omitempty"         schema:"description=Case transformation mode,enum=upper|lower|title,default=upper"`
-	ApplySource  bool           `json:"applySource,omitempty"  schema:"description=Apply to source text"`
-	ApplyTarget  bool           `json:"applyTarget,omitempty"  schema:"description=Apply to target text"`
+	Mode         CaseMode       `json:"mode,omitempty"         schema:"title=Transformation Mode,description=Case transformation mode,enum=upper|lower|title,default=upper"`
+	ApplySource  bool           `json:"applySource,omitempty"  schema:"title=Apply to Source,description=Apply to source text"`
+	ApplyTarget  bool           `json:"applyTarget,omitempty"  schema:"title=Apply to Target,description=Apply to target text"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 }
 

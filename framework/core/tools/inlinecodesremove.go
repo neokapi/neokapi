@@ -9,11 +9,11 @@ import (
 
 // InlineCodesRemoveConfig holds configuration for the inline codes remove tool.
 type InlineCodesRemoveConfig struct {
-	ApplySource           bool           `schema:"description=Apply to source segments"`                                                                                            // Apply to source segments (default: false)
-	ApplyTarget           bool           `schema:"description=Apply to target segments,default=true"`                                                                               // Apply to target segments (default: true)
-	TargetLocale          model.LocaleID `schema:"description=Target locale for processing,showIfSet=ApplyTarget"`                                                                  // Target locale (required when ApplyTarget is true)
-	IncludeNonTranslatable bool          `schema:"description=Apply the removal action even to text units marked as non-translatable,default=true"`                                  // Include non-translatable blocks
-	ReplaceWithSpace      bool           `schema:"description=Replace line-break inline codes with spaces instead of removing them entirely"`                                        // Replace line-break codes with spaces
+	ApplySource           bool           `schema:"title=Apply to Source,description=Apply to source segments"`                                                                                            // Apply to source segments (default: false)
+	ApplyTarget           bool           `schema:"title=Apply to Target,description=Apply to target segments,default=true"`                                                                               // Apply to target segments (default: true)
+	TargetLocale          model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"`                                                                  // Target locale (required when ApplyTarget is true)
+	IncludeNonTranslatable bool          `schema:"title=Include Non-Translatable,description=Apply the removal action even to text units marked as non-translatable,default=true"`                                  // Include non-translatable blocks
+	ReplaceWithSpace      bool           `schema:"title=Replace With Space,description=Replace line-break inline codes with spaces instead of removing them entirely"`                                        // Replace line-break codes with spaces
 }
 
 // ToolName returns the tool name this config applies to.

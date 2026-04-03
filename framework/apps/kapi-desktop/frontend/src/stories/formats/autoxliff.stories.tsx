@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SchemaForm } from "@neokapi/ui-primitives";
-import { FormatConfigEditor } from "../../components/FormatConfigEditor";
+
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import formatSchemas from "../fixtures/format-schemas.json";
 
@@ -21,7 +21,7 @@ function ConfigEditor({ schemaName, source }: { schemaName: string; source: "bui
     <div style={{ display: "grid", gridTemplateColumns: hasProps ? "1fr 1fr" : "1fr", gap: 24, maxWidth: 1100 }}>
       <div>
         {hasProps ? (source === "builtIn"
-          ? <FormatConfigEditor schema={schema} values={values} onChange={setValues} />
+          ? <SchemaForm schema={schema} values={values} onChange={setValues} />
           : <SchemaForm schema={schema} values={values} onChange={setValues} />
         ) : <p className="text-sm text-muted-foreground">No configurable parameters.</p>}
       </div>
@@ -56,7 +56,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <div>
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />neokapi native</h3>
-          <div className="rounded-lg border p-4">{np > 0 ? <FormatConfigEditor schema={ns} values={nv} onChange={setNv} /> : <p className="text-sm text-muted-foreground">No parameters.</p>}</div>
+          <div className="rounded-lg border p-4">{np > 0 ? <SchemaForm schema={ns} values={nv} onChange={setNv} /> : <p className="text-sm text-muted-foreground">No parameters.</p>}</div>
           {showSchemas && <pre className="mt-2 rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-80">{JSON.stringify(ns, null, 2)}</pre>}
         </div>
         <div>

@@ -17,10 +17,10 @@ const (
 
 // XMLValidationConfig holds configuration for the XML validation tool.
 type XMLValidationConfig struct {
-	CheckSource bool           `schema:"description=Validate source text for XML well-formedness,default=true"` // Validate source text (default: true)
-	CheckTarget bool           `schema:"description=Validate target text for XML well-formedness"` // Validate target text
-	Locale      model.LocaleID `schema:"description=Target locale for validation,showIfSet=CheckTarget"` // Target locale for validation
-	WrapRoot    bool           `schema:"description=Wrap text in a root element before validating,default=true"` // Wrap text in root element before validating
+	CheckSource bool           `schema:"title=Check Source,description=Validate source text for XML well-formedness,default=true"` // Validate source text (default: true)
+	CheckTarget bool           `schema:"title=Check Target,description=Validate target text for XML well-formedness"` // Validate target text
+	Locale      model.LocaleID `schema:"title=Target Locale,description=Target locale for validation,showIfSet=CheckTarget"` // Target locale for validation
+	WrapRoot    bool           `schema:"title=Wrap in Root Element,description=Wrap text in a root element before validating,default=true"` // Wrap text in root element before validating
 }
 
 // ToolName returns the tool name this config applies to.

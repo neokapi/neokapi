@@ -18,22 +18,22 @@ const (
 
 // WhitespaceCorrectConfig holds configuration for the whitespace correction tool.
 type WhitespaceCorrectConfig struct {
-	TargetLocale          model.LocaleID `json:"targetLocale,omitempty"          schema:"description=Target locale for processing"` // Required
-	NormalizeSpaces       bool           `json:"normalizeSpaces,omitempty"       schema:"description=Collapse multiple spaces to a single space,default=true"` // Collapse multiple spaces to single (default: true)
-	TrimLeading           bool           `json:"trimLeading,omitempty"           schema:"description=Remove leading whitespace from target text"` // Remove leading whitespace (default: false)
-	TrimTrailing          bool           `json:"trimTrailing,omitempty"          schema:"description=Remove trailing whitespace from target text"` // Remove trailing whitespace (default: false)
-	MatchSourceWhitespace bool           `json:"matchSourceWhitespace,omitempty" schema:"description=Copy source leading/trailing whitespace to target,default=true"` // Copy source leading/trailing whitespace to target (default: true)
-	RemoveZeroWidthChars  bool           `json:"removeZeroWidthChars,omitempty"  schema:"description=Remove zero-width spaces and joiners,default=true"` // Remove zero-width spaces/joiners (default: true)
+	TargetLocale          model.LocaleID `json:"targetLocale,omitempty"          schema:"title=Target Locale,description=Target locale for processing"` // Required
+	NormalizeSpaces       bool           `json:"normalizeSpaces,omitempty"       schema:"title=Normalize Spaces,description=Collapse multiple spaces to a single space,default=true"` // Collapse multiple spaces to single (default: true)
+	TrimLeading           bool           `json:"trimLeading,omitempty"           schema:"title=Trim Leading Whitespace,description=Remove leading whitespace from target text"` // Remove leading whitespace (default: false)
+	TrimTrailing          bool           `json:"trimTrailing,omitempty"          schema:"title=Trim Trailing Whitespace,description=Remove trailing whitespace from target text"` // Remove trailing whitespace (default: false)
+	MatchSourceWhitespace bool           `json:"matchSourceWhitespace,omitempty" schema:"title=Match Source Whitespace,description=Copy source leading/trailing whitespace to target,default=true"` // Copy source leading/trailing whitespace to target (default: true)
+	RemoveZeroWidthChars  bool           `json:"removeZeroWidthChars,omitempty"  schema:"title=Remove Zero-Width Characters,description=Remove zero-width spaces and joiners,default=true"` // Remove zero-width spaces/joiners (default: true)
 
 	// Punctuation-specific correction toggles (CJK full-width/ASCII conversion).
-	CorrectFullStop    bool `json:"correctFullStop,omitempty"    schema:"description=Correct whitespace after full stops (periods),default=true,group=punctuation"`
-	CorrectComma       bool `json:"correctComma,omitempty"       schema:"description=Correct whitespace after commas,default=true,group=punctuation"`
-	CorrectExclamation bool `json:"correctExclamation,omitempty" schema:"description=Correct whitespace after exclamation marks,default=true,group=punctuation"`
-	CorrectQuestion    bool `json:"correctQuestion,omitempty"    schema:"description=Correct whitespace after question marks,default=true,group=punctuation"`
+	CorrectFullStop    bool `json:"correctFullStop,omitempty"    schema:"title=Full Stop,description=Correct whitespace after full stops (periods),default=true,group=punctuation"`
+	CorrectComma       bool `json:"correctComma,omitempty"       schema:"title=Comma,description=Correct whitespace after commas,default=true,group=punctuation"`
+	CorrectExclamation bool `json:"correctExclamation,omitempty" schema:"title=Exclamation Point,description=Correct whitespace after exclamation marks,default=true,group=punctuation"`
+	CorrectQuestion    bool `json:"correctQuestion,omitempty"    schema:"title=Question Mark,description=Correct whitespace after question marks,default=true,group=punctuation"`
 
 	// Whitespace type toggles for which whitespace characters to remove.
-	IncludeVerticalWS   bool `json:"includeVerticalWS,omitempty"   schema:"description=Include vertical whitespace (line feeds and carriage returns) in corrections,default=true,group=whitespace-types"`
-	IncludeHorizontalWS bool `json:"includeHorizontalWS,omitempty" schema:"description=Include horizontal tab characters in corrections,default=true,group=whitespace-types"`
+	IncludeVerticalWS   bool `json:"includeVerticalWS,omitempty"   schema:"title=Vertical White Space,description=Include vertical whitespace (line feeds and carriage returns) in corrections,default=true,group=whitespace-types"`
+	IncludeHorizontalWS bool `json:"includeHorizontalWS,omitempty" schema:"title=Horizontal Tabs,description=Include horizontal tab characters in corrections,default=true,group=whitespace-types"`
 }
 
 // ToolName returns the tool name this config applies to.

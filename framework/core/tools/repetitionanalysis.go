@@ -22,7 +22,7 @@ const (
 
 // RepetitionAnalysisConfig holds configuration for the repetition analysis tool.
 type RepetitionAnalysisConfig struct {
-	CaseSensitive bool `json:"caseSensitive,omitempty" schema:"description=Whether comparison is case-sensitive,default=true"`
+	CaseSensitive bool `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether comparison is case-sensitive,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.
