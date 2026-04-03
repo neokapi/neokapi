@@ -1,21 +1,21 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Label } from "@neokapi/ui";
 import {
+  Button,
+  Input,
+  Label,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@neokapi/ui/components/ui/dialog";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@neokapi/ui/components/ui/select";
+} from "@neokapi/ui";
 import { listUsers, addMemberToWorkspace } from "../api";
 
 interface AddMemberDialogProps {

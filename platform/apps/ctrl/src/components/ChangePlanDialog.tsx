@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Label } from "@neokapi/ui";
 import {
+  Button,
+  Label,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@neokapi/ui/components/ui/dialog";
+} from "@neokapi/ui";
 import { updatePlan } from "../api";
 
 const PLANS = ["free", "pro", "team", "enterprise"] as const;
