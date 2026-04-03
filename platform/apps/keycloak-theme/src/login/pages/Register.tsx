@@ -2,14 +2,14 @@ import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import type { LucideIcon } from "lucide-react";
 import { Mail, User, ArrowLeft } from "lucide-react";
-import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
-import { Button } from "@neokapi/ui/components/ui/button";
+import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui";
+import { Button } from "@neokapi/ui";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@neokapi/ui/components/ui/input-group";
-import { Label } from "@neokapi/ui/components/ui/label";
+} from "@neokapi/ui";
+import { Label } from "@neokapi/ui";
 
 export default function Register(props: {
   kcContext: Extract<KcContext, { pageId: "register.ftl" }>;

@@ -1,9 +1,9 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
-import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
-import { Button } from "@neokapi/ui/components/ui/button";
-import { Label } from "@neokapi/ui/components/ui/label";
+import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui";
+import { Button } from "@neokapi/ui";
+import { Label } from "@neokapi/ui";
 import { useWebauthnRegisterScript } from "../useWebauthnRegister";
 
 export default function WebauthnRegister(props: {

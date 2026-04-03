@@ -2,14 +2,14 @@ import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
 import { Mail, User } from "lucide-react";
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
-import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
-import { Button } from "@neokapi/ui/components/ui/button";
+import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui";
+import { Button } from "@neokapi/ui";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
-} from "@neokapi/ui/components/ui/input-group";
-import { Label } from "@neokapi/ui/components/ui/label";
+} from "@neokapi/ui";
+import { Label } from "@neokapi/ui";
 import { useScript } from "keycloakify/login/pages/LoginPasskeysConditionalAuthenticate.useScript";
 
 export default function LoginPasskeysConditionalAuthenticate(props: {
