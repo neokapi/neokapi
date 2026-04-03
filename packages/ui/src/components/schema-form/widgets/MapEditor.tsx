@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { X, ChevronDown, ChevronRight, Plus } from "lucide-react";
-import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";
@@ -15,7 +14,6 @@ function MapEntry({
   onRemove,
   compact,
   depth,
-  keyPlaceholder,
 }: {
   entryKey: string;
   value: unknown;
@@ -24,7 +22,6 @@ function MapEntry({
   onRemove: () => void;
   compact?: boolean;
   depth: number;
-  keyPlaceholder?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const isComplex =
@@ -158,7 +155,6 @@ export function MapEditor({
             onRemove={() => handleRemove(key)}
             compact={compact}
             depth={depth}
-            keyPlaceholder={keyPlaceholder}
           />
         ))}
       </div>

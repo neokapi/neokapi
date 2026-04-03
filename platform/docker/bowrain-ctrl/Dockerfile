@@ -1,9 +1,11 @@
 FROM node:22-slim AS build
 WORKDIR /src
-COPY platform/package.json platform/package-lock.json platform/
+COPY package.json package-lock.json ./
+COPY packages/ui/package.json packages/ui/
 COPY platform/packages/ui/package.json platform/packages/ui/
 COPY platform/apps/ctrl/package.json platform/apps/ctrl/
-RUN cd platform && npm ci
+RUN npm ci
+COPY packages/ui/ packages/ui/
 COPY platform/packages/ui/ platform/packages/ui/
 RUN cd platform/packages/ui && npx tsc
 COPY platform/apps/ctrl/ platform/apps/ctrl/
