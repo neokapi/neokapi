@@ -1,4 +1,4 @@
-import { cn } from "@neokapi/ui-primitives";
+import { cn, ScrollArea } from "@neokapi/ui-primitives";
 import type { PartSnapshotSet, PartSnapshot } from "./traceTypes";
 
 interface PartInspectorProps {
@@ -94,21 +94,23 @@ export function PartInspector({ nodeId, nodeName, parts }: PartInspectorProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-3 py-2">
-        {relevantParts.length === 0 && (
-          <div className="py-5 text-center text-[11px] italic text-muted-foreground">
-            No block data for this node.
-          </div>
-        )}
+      <ScrollArea className="flex-1">
+        <div className="px-3 py-2">
+          {relevantParts.length === 0 && (
+            <div className="py-5 text-center text-[11px] italic text-muted-foreground">
+              No block data for this node.
+            </div>
+          )}
 
-        {relevantParts.map(([partId, ss]) => (
-          <PartRow
-            key={partId}
-            before={ss.initial}
-            after={ss.afterNode![nodeId]}
-          />
-        ))}
-      </div>
+          {relevantParts.map(([partId, ss]) => (
+            <PartRow
+              key={partId}
+              before={ss.initial}
+              after={ss.afterNode![nodeId]}
+            />
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

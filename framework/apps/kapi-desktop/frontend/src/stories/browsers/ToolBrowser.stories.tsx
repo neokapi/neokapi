@@ -6,7 +6,7 @@
  */
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SchemaForm } from "@neokapi/ui-primitives";
+import { SchemaForm, Button, Card, Input } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import toolSchemas from "../fixtures/tool-schemas.json";
 import toolList from "../fixtures/tool-list.json";
@@ -119,13 +119,15 @@ function ToolBrowser() {
   if (selected) {
     return (
       <div style={{ maxWidth: 1100 }}>
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => { setSelected(null); setConfigValues({}); }}
-          className="text-sm text-primary hover:underline mb-4"
+          className="mb-4 px-0"
         >
           &larr; Back to tool list
-        </button>
-        <div className="rounded-lg border p-4 mb-4">
+        </Button>
+        <Card className="p-4 mb-4">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-semibold">{selected.displayName}</h3>
             <span className={`rounded-full px-2 py-0.5 text-[10px] ${CATEGORY_COLORS[selected.category] || CATEGORY_COLORS.other}`}>
@@ -145,7 +147,7 @@ function ToolBrowser() {
               ))}
             </div>
           )}
-        </div>
+        </Card>
         <div style={{ display: "grid", gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr", gap: 24 }}>
           <div>
             {selected.schema && Object.keys(selected.schema.properties || {}).length > 0 ? (
@@ -176,12 +178,12 @@ function ToolBrowser() {
   return (
     <div style={{ maxWidth: 800 }}>
       <div className="flex items-center gap-3 mb-4">
-        <input
+        <Input
           type="text"
           placeholder="Search tools by name, description, or tag..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+          className="flex-1"
         />
         <select
           value={sourceFilter}
@@ -195,26 +197,26 @@ function ToolBrowser() {
       </div>
 
       <div className="flex flex-wrap gap-1 mb-4">
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setCategoryFilter("all")}
-          className={`rounded-md px-2.5 py-1 text-xs transition ${
-            categoryFilter === "all" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-          }`}
+          className={categoryFilter === "all" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"}
         >
           All ({filtered.length})
-        </button>
+        </Button>
         {categories.map((cat) => {
           const count = tools.filter((t) => t.category === cat && (sourceFilter === "all" || t.source === sourceFilter)).length;
           return (
-            <button
+            <Button
               key={cat}
+              variant="ghost"
+              size="xs"
               onClick={() => setCategoryFilter(cat)}
-              className={`rounded-md px-2.5 py-1 text-xs transition ${
-                categoryFilter === cat ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={categoryFilter === cat ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"}
             >
               {cat} ({count})
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -226,10 +228,11 @@ function ToolBrowser() {
           </h3>
           <div className="space-y-1">
             {catTools.map((t) => (
-              <button
+              <Button
                 key={t.name}
+                variant="outline"
                 onClick={() => setSelected(t)}
-                className="w-full rounded-lg border p-3 text-left transition hover:border-primary/30 hover:bg-primary/5"
+                className="w-full h-auto rounded-lg p-3 text-left flex-col items-start hover:border-primary/30 hover:bg-primary/5"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -245,7 +248,7 @@ function ToolBrowser() {
                 {t.description && (
                   <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.description}</p>
                 )}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

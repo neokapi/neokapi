@@ -418,9 +418,9 @@ export function FlowsPage({
       {!loading && flows.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {flows.map((item) => (
-            <div
+            <Card
               key={item.id}
-              className="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
+              className="group p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
               onClick={() => void handleOpenFlow(item)}
             >
               <div className="flex items-start gap-3">
@@ -493,7 +493,7 @@ export function FlowsPage({
                   )}
                 </div>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

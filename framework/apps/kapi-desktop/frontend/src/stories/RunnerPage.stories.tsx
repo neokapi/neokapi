@@ -3,7 +3,7 @@ import { fn, within, userEvent, waitFor, expect } from "storybook/test";
 import { useState, useEffect, useCallback } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
 import type { FlowSpec } from "../types/api";
-import { ScrollArea } from "@neokapi/ui-primitives";
+import { Button, Card, ScrollArea } from "@neokapi/ui-primitives";
 
 // Simulated RunnerPage that demonstrates the full execution lifecycle
 // without needing a real Wails backend.
@@ -118,7 +118,7 @@ function SimulatedRunner({
       </div>
 
       {/* Pipeline with active step highlighting */}
-      <div className="mb-4 rounded-lg border border-border p-3">
+      <Card className="mb-4 p-3">
         <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
           Pipeline
         </h3>
@@ -141,41 +141,41 @@ function SimulatedRunner({
             </div>
           ))}
         </div>
-      </div>
+      </Card>
 
       {/* Controls */}
       <div className="mb-4 flex gap-2">
         {state === "idle" && (
-          <button
+          <Button
             onClick={runSimulation}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             data-testid="run-button"
           >
             <Play size={14} />
             Run Flow
-          </button>
+          </Button>
         )}
         {state === "running" && (
-          <button
+          <Button
+            variant="outline"
             onClick={handleCancel}
-            className="flex items-center gap-2 rounded-md border border-destructive px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+            className="border-destructive text-destructive hover:bg-destructive/10"
           >
             <Square size={14} />
             Cancel
-          </button>
+          </Button>
         )}
         {(state === "complete" || state === "error" || state === "canceled") && (
-          <button
+          <Button
+            variant="outline"
             onClick={() => {
               setState("idle");
               setEvents([]);
               setProgress({ current: 0, total: fileCount });
               setActiveStep(-1);
             }}
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-accent"
           >
             Reset
-          </button>
+          </Button>
         )}
       </div>
 
@@ -203,7 +203,7 @@ function SimulatedRunner({
 
       {/* Live event log */}
       {events.length > 0 && (
-        <div className="rounded-lg border border-border">
+        <Card>
           <h3 className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Output ({events.length} events)
           </h3>
@@ -227,7 +227,7 @@ function SimulatedRunner({
               ))}
             </div>
           </ScrollArea>
-        </div>
+        </Card>
       )}
     </div>
   );

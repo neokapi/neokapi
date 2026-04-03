@@ -1,5 +1,5 @@
 import { Home, FileText, Workflow, Wrench, Plus, Trash2 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, ScrollArea } from "@neokapi/ui-primitives";
 import type { View } from "../types/api";
 
 interface SidebarProps {
@@ -52,7 +52,7 @@ export function Sidebar({
 
       {/* Flow list (shown when Flows view is active) */}
       {activeView === "flows" && (
-        <div className="mt-2 flex-1 overflow-auto border-t border-border pt-2">
+        <ScrollArea className="mt-2 flex-1 border-t border-border pt-2">
           <div className="flex items-center justify-between px-3 pb-1">
             <span className="text-xs font-medium text-muted-foreground">Flows</span>
             {onAddFlow && (
@@ -100,7 +100,7 @@ export function Sidebar({
               <p className="px-2 py-1 text-xs text-muted-foreground">No flows yet</p>
             )}
           </div>
-        </div>
+        </ScrollArea>
       )}
     </aside>
   );

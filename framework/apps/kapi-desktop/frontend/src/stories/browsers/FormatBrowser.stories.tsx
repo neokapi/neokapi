@@ -6,7 +6,7 @@
  */
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SchemaForm } from "@neokapi/ui-primitives";
+import { SchemaForm, Button, Input } from "@neokapi/ui-primitives";
 import { FormatConfigEditor } from "../../components/FormatConfigEditor";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import formatSchemas from "../fixtures/format-schemas.json";
@@ -89,12 +89,14 @@ function FormatBrowser() {
   if (selected) {
     return (
       <div style={{ maxWidth: 1100 }}>
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => { setSelected(null); setConfigValues({}); }}
-          className="text-sm text-primary hover:underline mb-4"
+          className="mb-4 px-0"
         >
           &larr; Back to format list
-        </button>
+        </Button>
         <div style={{ display: "grid", gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr", gap: 24 }}>
           <div>
             {selected.schema ? (
@@ -128,26 +130,24 @@ function FormatBrowser() {
   return (
     <div style={{ maxWidth: 800 }}>
       <div className="flex items-center gap-3 mb-4">
-        <input
+        <Input
           type="text"
           placeholder="Search formats by name, extension, or MIME type..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm"
+          className="flex-1"
         />
         <div className="flex gap-1">
           {(["all", "built-in", "okapi"] as const).map((s) => (
-            <button
+            <Button
               key={s}
+              variant="ghost"
+              size="xs"
               onClick={() => setSourceFilter(s)}
-              className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                sourceFilter === s
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              className={sourceFilter === s ? "bg-primary/10 text-primary" : "text-muted-foreground"}
             >
               {s === "all" ? `All (${formats.length})` : s === "built-in" ? `Built-in (${builtInCount})` : `Okapi (${okapiCount})`}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
@@ -158,10 +158,11 @@ function FormatBrowser() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {filtered.map((f) => (
-          <button
+          <Button
             key={f.name}
+            variant="outline"
             onClick={() => setSelected(f)}
-            className="rounded-lg border p-3 text-left transition hover:border-primary/30 hover:bg-primary/5"
+            className="h-auto rounded-lg p-3 text-left flex-col items-start hover:border-primary/30 hover:bg-primary/5"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{f.displayName}</span>
@@ -184,7 +185,7 @@ function FormatBrowser() {
             {!f.schema && (
               <span className="text-[10px] text-muted-foreground/50 mt-1 block">No schema</span>
             )}
-          </button>
+          </Button>
         ))}
       </div>
     </div>

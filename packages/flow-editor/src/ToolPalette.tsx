@@ -6,6 +6,7 @@ import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
+  ScrollArea,
 } from "@neokapi/ui-primitives";
 import type { ToolInfo } from "./types";
 import { ALL_CATEGORIES } from "./category";
@@ -61,7 +62,8 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
       <PaletteSearchBar value={search} onChange={setSearch} />
 
       {/* Categories */}
-      <div className="flex-1 overflow-auto py-1">
+      <ScrollArea className="flex-1">
+        <div className="py-1">
         {ALL_CATEGORIES.map((cat) => {
           const items = grouped[cat.id] || [];
           if (items.length === 0 && search) return null;
@@ -115,7 +117,8 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
             </div>
           );
         })}
-      </div>
+        </div>
+      </ScrollArea>
     </div>
   );
 }

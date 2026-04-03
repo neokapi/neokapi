@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Card } from "@neokapi/ui-primitives";
 import { FormatConfigEditor } from "../components/FormatConfigEditor";
 import type { ComponentSchema } from "../types/api";
 import okapiData from "./fixtures/okapi-metadata.json";
@@ -138,9 +139,9 @@ export const FilterCatalog: Story = {
     return (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 1000 }}>
         {filterSchemas.map((schema, i) => (
-          <div key={i} className="rounded-lg border border-border p-4">
+          <Card key={i} className="p-4">
             <FormatConfigWrapper schema={schema} />
-          </div>
+          </Card>
         ))}
       </div>
     );

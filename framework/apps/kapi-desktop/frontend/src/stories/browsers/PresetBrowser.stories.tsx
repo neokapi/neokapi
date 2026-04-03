@@ -6,6 +6,7 @@
  */
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
+import { Button, Input } from "@neokapi/ui-primitives";
 import presets from "../fixtures/presets.json";
 
 const allPresets = presets as Record<string, Record<string, Record<string, unknown> | null>>;
@@ -75,12 +76,14 @@ function PresetBrowser() {
 
     return (
       <div style={{ maxWidth: 700 }}>
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => setSelectedPreset(null)}
-          className="text-sm text-primary hover:underline mb-4"
+          className="mb-4 px-0"
         >
           &larr; Back to {selectedFormat || "formats"}
-        </button>
+        </Button>
 
         <h3 className="text-lg font-semibold mb-1">
           {selectedPreset.formatId} / {selectedPreset.presetId}
@@ -126,12 +129,14 @@ function PresetBrowser() {
 
     return (
       <div style={{ maxWidth: 700 }}>
-        <button
+        <Button
+          variant="link"
+          size="sm"
           onClick={() => setSelectedFormat(null)}
-          className="text-sm text-primary hover:underline mb-4"
+          className="mb-4 px-0"
         >
           &larr; Back to format list
-        </button>
+        </Button>
 
         <h3 className="text-lg font-semibold mb-3">
           {selectedFormat} — {presetNames.length} preset{presetNames.length !== 1 ? "s" : ""}
@@ -147,10 +152,11 @@ function PresetBrowser() {
               : 0;
 
             return (
-              <button
+              <Button
                 key={presetId}
+                variant="outline"
                 onClick={() => setSelectedPreset({ formatId: selectedFormat, presetId, values })}
-                className="w-full rounded-lg border p-3 text-left transition hover:border-primary/30 hover:bg-primary/5"
+                className="w-full h-auto rounded-lg p-3 text-left hover:border-primary/30 hover:bg-primary/5"
               >
                 <div className="flex items-center justify-between">
                   <code className="text-sm font-medium">{presetId}</code>
@@ -161,7 +167,7 @@ function PresetBrowser() {
                     )}
                   </div>
                 </div>
-              </button>
+              </Button>
             );
           })}
         </div>
@@ -172,12 +178,11 @@ function PresetBrowser() {
   return (
     <div style={{ maxWidth: 700 }}>
       <div className="mb-4">
-        <input
+        <Input
           type="text"
           placeholder="Search formats with presets..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
         />
       </div>
 
@@ -190,10 +195,11 @@ function PresetBrowser() {
           const fp = allPresets[formatId] || {};
           const presetCount = Object.values(fp).filter((v) => v != null).length;
           return (
-            <button
+            <Button
               key={formatId}
+              variant="outline"
               onClick={() => setSelectedFormat(formatId)}
-              className="w-full rounded-lg border p-3 text-left transition hover:border-primary/30 hover:bg-primary/5"
+              className="w-full h-auto rounded-lg p-3 text-left hover:border-primary/30 hover:bg-primary/5"
             >
               <div className="flex items-center justify-between">
                 <code className="text-sm font-medium">{formatId}</code>
@@ -201,7 +207,7 @@ function PresetBrowser() {
                   {presetCount} preset{presetCount !== 1 ? "s" : ""}
                 </span>
               </div>
-            </button>
+            </Button>
           );
         })}
       </div>

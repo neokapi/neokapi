@@ -17,7 +17,7 @@ import { WriterNode } from "./nodes/WriterNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
-import { cn, SchemaForm, Button, Badge } from "@neokapi/ui-primitives";
+import { cn, SchemaForm, Button, Badge, ScrollArea } from "@neokapi/ui-primitives";
 import { stepsToGraph, graphToSteps } from "./conversion";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
@@ -256,21 +256,25 @@ function StepConfigPanel({
 
       {/* Docs panel (collapsible) */}
       {showDocs && doc && (
-        <div className="max-h-[260px] overflow-auto px-3 py-2 border-b border-border text-[11px] leading-relaxed">
-          <DocsSidebar doc={doc} />
-        </div>
+        <ScrollArea className="max-h-[260px] border-b border-border text-[11px] leading-relaxed">
+          <div className="px-3 py-2">
+            <DocsSidebar doc={doc} />
+          </div>
+        </ScrollArea>
       )}
 
       {/* Config form */}
-      <div className="flex-1 overflow-auto px-3 py-2">
-        {schema ? (
-          <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact paramDocs={doc?.parameters} />
-        ) : (
-          <div className="text-[11px] text-muted-foreground text-center py-5 italic">
-            {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
-          </div>
-        )}
-      </div>
+      <ScrollArea className="flex-1">
+        <div className="px-3 py-2">
+          {schema ? (
+            <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact paramDocs={doc?.parameters} />
+          ) : (
+            <div className="text-[11px] text-muted-foreground text-center py-5 italic">
+              {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
 
       {/* Footer */}
       {onRemove && (

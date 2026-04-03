@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
 
 const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
 
@@ -78,28 +79,23 @@ function SimulatedCredentials() {
             API keys are stored in your OS keychain
           </p>
         </div>
-        <button
-          onClick={handleAdd}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-        >
+        <Button size="sm" onClick={handleAdd}>
           <Plus size={12} />
           Add Provider
-        </button>
+        </Button>
       </div>
 
       <div className="space-y-2">
         {providers.map((provider) => (
-          <div
+          <Card
             key={provider.id}
-            className="flex items-center gap-3 rounded-lg border border-border p-4"
+            className="flex items-center gap-3 p-4"
           >
             <KeyRound size={18} className="shrink-0 text-primary" />
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">{provider.name}</span>
-                <span className="rounded bg-accent px-1.5 py-0.5 text-xs">
-                  {provider.provider_type}
-                </span>
+                <Badge variant="secondary">{provider.provider_type}</Badge>
                 {provider.testResult === "success" && (
                   <CheckCircle2 size={14} className="text-green-500" />
                 )}
@@ -111,10 +107,11 @@ function SimulatedCredentials() {
                 <p className="mt-0.5 text-xs text-muted-foreground">Model: {provider.model}</p>
               )}
             </div>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => handleTest(provider.id)}
               disabled={provider.testResult === "testing"}
-              className="flex items-center gap-1 rounded p-1.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
               aria-label={`Test ${provider.name}`}
             >
               {provider.testResult === "testing" ? (
@@ -122,35 +119,35 @@ function SimulatedCredentials() {
               ) : (
                 <TestTube size={14} />
               )}
-              {provider.testResult === "testing" ? "Testing..." : "Test"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => handleDelete(provider.id)}
-              className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              className="hover:bg-destructive/10 hover:text-destructive"
               aria-label={`Delete ${provider.name}`}
             >
               <Trash2 size={14} />
-            </button>
-          </div>
+            </Button>
+          </Card>
         ))}
       </div>
 
       {editing && (
-        <div className="mt-4 rounded-lg border border-border p-4">
+        <Card className="mt-4 p-4">
           <h3 className="mb-3 text-sm font-medium">New Provider</h3>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Name</label>
-              <input
+              <Label className="mb-1 block text-xs text-muted-foreground">Name</Label>
+              <Input
                 type="text"
                 value={editing.name}
                 onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 placeholder="My OpenAI Key"
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Provider</label>
+              <Label className="mb-1 block text-xs text-muted-foreground">Provider</Label>
               <select
                 value={editing.provider_type}
                 onChange={(e) => setEditing({ ...editing, provider_type: e.target.value })}
@@ -164,43 +161,42 @@ function SimulatedCredentials() {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Model</label>
-              <input
+              <Label className="mb-1 block text-xs text-muted-foreground">Model</Label>
+              <Input
                 type="text"
                 value={editing.model ?? ""}
                 onChange={(e) => setEditing({ ...editing, model: e.target.value })}
                 placeholder="gpt-4o"
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">API Key</label>
-              <input
+              <Label className="mb-1 block text-xs text-muted-foreground">API Key</Label>
+              <Input
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="sk-..."
-                className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
               />
             </div>
           </div>
           <div className="mt-3 flex gap-2">
-            <button
+            <Button
+              size="sm"
               onClick={handleSave}
               disabled={!editing.name || saving}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {saving && <Loader2 size={12} className="animate-spin" />}
               {saving ? "Saving..." : "Save to Keychain"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setEditing(null)}
-              className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
             >
               Cancel
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );
