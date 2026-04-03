@@ -6,10 +6,10 @@
  */
 
 import { useRef, useEffect, useCallback } from "react";
-import { EditorView, keymap, placeholder as cmPlaceholder } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorView, keymap, placeholder as cmPlaceholder, type ViewUpdate } from "@codemirror/view";
+import { EditorState, type Transaction } from "@codemirror/state";
 import { defaultKeymap } from "@codemirror/commands";
-import { syntaxHighlighting, HighlightStyle, StreamLanguage } from "@codemirror/language";
+import { syntaxHighlighting, HighlightStyle, StreamLanguage, type StringStream } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { tags } from "@lezer/highlight";
@@ -102,7 +102,7 @@ const codeHighlight = HighlightStyle.define([
 // Simple stream tokenizer for Okapi simplifier rules grammar.
 // Based on SimplifierRules.jj: `if FIELD OP "value" [and|or ...];`
 const simplifierRulesLang = StreamLanguage.define({
-  token(stream) {
+  token(stream: StringStream) {
     // Whitespace
     if (stream.eatSpace()) return null;
 
@@ -137,9 +137,9 @@ const simplifierRulesLang = StreamLanguage.define({
     if (stream.match("(") || stream.match(")")) return "paren";
 
     // Keywords and identifiers
-    const wordMatch = stream.match(/^[a-zA-Z_]+/);
+    const wordMatch = stream.match(/^[a-zA-Z_]+/) as RegExpMatchArray | null;
     if (wordMatch) {
-      const word = wordMatch[0] as string;
+      const word = wordMatch[0];
       if (word === "if") return "keyword";
       if (word === "and" || word === "or") return "keyword";
       if (["DATA", "OUTER_DATA", "ORIGINAL_ID", "TYPE", "TAG_TYPE"].includes(word)) return "variableName";
@@ -188,7 +188,7 @@ export function CodeInput({
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const updateListener = EditorView.updateListener.of((update) => {
+    const updateListener = EditorView.updateListener.of((update: ViewUpdate) => {
       if (update.docChanged) {
         onChangeRef.current(update.state.doc.toString());
       }
@@ -204,7 +204,7 @@ export function CodeInput({
       syntaxHighlighting(codeHighlight),
       ...(placeholder ? [cmPlaceholder(placeholder)] : []),
       ...(singleLine
-        ? [EditorState.transactionFilter.of((tr) => {
+        ? [EditorState.transactionFilter.of((tr: Transaction) => {
             // Block newlines in single-line mode
             if (tr.newDoc.lines > 1) return [];
             return tr;
