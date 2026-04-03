@@ -6,10 +6,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+// slugRe validates workspace slugs to prevent path traversal.
+var slugRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
+// isValidSlug returns true if slug is safe for use in filesystem paths.
+func isValidSlug(slug string) bool {
+	return slug != "" && slugRe.MatchString(slug)
+}
 
 // GitFleetRepo implements FleetRepo by cloning and operating on the
 // agentic-fleet git repository.
@@ -110,6 +119,9 @@ func (r *GitFleetRepo) ListWorkspaces(ctx context.Context) ([]WorkspaceMeta, err
 
 // GetWorkspacePlan reads and parses a workspace's plan.yaml.
 func (r *GitFleetRepo) GetWorkspacePlan(ctx context.Context, slug string) (*WorkspacePlan, error) {
+	if !isValidSlug(slug) {
+		return nil, fmt.Errorf("invalid workspace slug: %q", slug)
+	}
 	dir, err := r.ensureClone(ctx)
 	if err != nil {
 		return nil, err
@@ -237,8 +249,12 @@ func parseMemoryLog(output string) []MemoryLogEntry {
 				current.Agent = extractAgent(current.Files)
 				entries = append(entries, *current)
 			}
+			sha := parts[0]
+			if len(sha) > 8 {
+				sha = sha[:8]
+			}
 			current = &MemoryLogEntry{
-				SHA:       parts[0][:8],
+				SHA:       sha,
 				Agent:     parts[1],
 				Timestamp: parts[2],
 				Message:   parts[3],
@@ -340,6 +356,9 @@ type WorkspaceStatus struct {
 
 // GetWorkspaceStatus reads and parses a workspace's status.yaml.
 func (r *GitFleetRepo) GetWorkspaceStatus(ctx context.Context, slug string) (*WorkspaceStatus, error) {
+	if !isValidSlug(slug) {
+		return nil, fmt.Errorf("invalid workspace slug: %q", slug)
+	}
 	dir, err := r.ensureClone(ctx)
 	if err != nil {
 		return nil, err

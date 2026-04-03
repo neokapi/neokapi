@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"crypto/tls"
 	"math"
 	"math/rand"
 	"net/http"
@@ -14,9 +15,19 @@ const DefaultTimeout = 30 * time.Second
 // MaxRetries is the default number of retry attempts for transient errors.
 const MaxRetries = 3
 
+// defaultTransport returns a base http.RoundTripper with a minimum TLS version.
+func defaultTransport() http.RoundTripper {
+	return &http.Transport{
+		TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12},
+	}
+}
+
 // NewClient returns an *http.Client with a sensible timeout for external APIs.
 func NewClient() *http.Client {
-	return &http.Client{Timeout: DefaultTimeout}
+	return &http.Client{
+		Timeout:   DefaultTimeout,
+		Transport: defaultTransport(),
+	}
 }
 
 // NewResilientClient returns an *http.Client with retry and rate-limit awareness.
@@ -24,7 +35,7 @@ func NewClient() *http.Client {
 func NewResilientClient() *http.Client {
 	return &http.Client{
 		Timeout:   DefaultTimeout,
-		Transport: &retryTransport{base: http.DefaultTransport, maxRetries: MaxRetries},
+		Transport: &retryTransport{base: defaultTransport(), maxRetries: MaxRetries},
 	}
 }
 
