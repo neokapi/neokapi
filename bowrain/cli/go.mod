@@ -6,8 +6,8 @@ require (
 	github.com/charmbracelet/huh v0.8.0
 	github.com/modelcontextprotocol/go-sdk v1.4.0
 	github.com/neokapi/neokapi v0.0.0
-	github.com/neokapi/neokapi/cli v0.0.0
 	github.com/neokapi/neokapi/bowrain/core v0.0.0
+	github.com/neokapi/neokapi/cli v0.0.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/term v0.39.0
@@ -34,7 +34,7 @@ require (
 	github.com/clipperhouse/uax29/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
-	github.com/dlclark/regexp2 v1.11.4 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dop251/goja v0.0.0-20260311135729-065cd970411c // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
@@ -102,6 +102,6 @@ require (
 replace (
 	github.com/neokapi/neokapi => ../..
 	github.com/neokapi/neokapi/bowrain => ../
-	github.com/neokapi/neokapi/cli => ../../cli
 	github.com/neokapi/neokapi/bowrain/core => ../core
+	github.com/neokapi/neokapi/cli => ../../cli
 )
