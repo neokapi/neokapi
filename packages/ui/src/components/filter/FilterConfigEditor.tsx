@@ -55,7 +55,7 @@ export function FilterConfigEditor({
   });
 
   const toggleGroup = useCallback((groupId: string) => {
-    setCollapsedGroups((prev) => {
+    setCollapsedGroups((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(groupId)) {
         next.delete(groupId);
@@ -107,7 +107,7 @@ export function FilterConfigEditor({
           {groups.length > 0 && (
             <h3 className="text-sm font-medium text-muted-foreground">Other Parameters</h3>
           )}
-          {ungroupedFields.map((fieldName) => (
+          {ungroupedFields.map((fieldName: string) => (
             <ParameterField
               key={fieldName}
               name={fieldName}
@@ -457,7 +457,7 @@ function TextField({
         value={displayValue}
         placeholder={placeholder}
         className={mono ? "font-mono text-xs" : undefined}
-        onChange={(e) => {
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           const v = type === "number" ? Number(e.target.value) : e.target.value;
           onChange(v);
         }}
@@ -635,8 +635,8 @@ function MapField({
             value={newKey}
             placeholder={keyPlaceholder}
             className="flex-1 text-xs h-7"
-            onChange={(e) => setNewKey(e.target.value)}
-            onKeyDown={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewKey(e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
               if (e.key === "Enter") handleAdd();
             }}
           />
@@ -732,7 +732,7 @@ function ArrayField({
                   value={String(item ?? "")}
                   placeholder={itemSchema["ui:placeholder"]}
                   className={cn("text-xs h-7", itemSchema.type === "string" && "font-mono")}
-                  onChange={(e) => {
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     const v = e.target.value;
                     handleItemChange(
                       index,
@@ -944,7 +944,7 @@ function CodeFinderRulesField({
               value={rule.pattern}
               placeholder="Regex pattern"
               className="flex-1 font-mono text-xs"
-              onChange={(e) => handleRuleChange(index, e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleRuleChange(index, e.target.value)}
             />
             <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
               ✕
@@ -962,7 +962,7 @@ function CodeFinderRulesField({
           value={sample}
           placeholder="Sample text to test patterns"
           className="mt-1"
-          onChange={(e) => handleSampleChange(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSampleChange(e.target.value)}
         />
       </div>
     </div>

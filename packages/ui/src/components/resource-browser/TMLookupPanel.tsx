@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import type { EntityAnnotationDTO, TMMatchDTO, LookupTMRequest } from "./types";
+import type { EntityAdaptationDTO, EntityAnnotationDTO, TMMatchDTO, LookupTMRequest } from "./types";
 import { ENTITY_TYPES } from "./types";
 import { CodedTextDisplay } from "./CodedTextDisplay";
 import { MatchScoreBar } from "./MatchScoreBar";
@@ -42,7 +42,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
       // Only clear entities if the text changed substantially (not just appending/minor edit).
       // Clear if length difference is large or if entity positions would be invalid.
       if (entities.length > 0) {
-        const valid = entities.filter((ent) => {
+        const valid = entities.filter((ent: MarkedEntity) => {
           if (ent.end > newText.length) return false;
           // Check the entity text still matches at its position.
           return newText.substring(ent.start, ent.end) === ent.text;
@@ -79,9 +79,9 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
         start: selectionRange.start,
         end: selectionRange.end,
       };
-      setEntities((prev) =>
+      setEntities((prev: MarkedEntity[]) =>
         [
-          ...prev.filter((e) => e.end <= newEntity.start || e.start >= newEntity.end),
+          ...prev.filter((e: MarkedEntity) => e.end <= newEntity.start || e.start >= newEntity.end),
           newEntity,
         ].sort((a, b) => a.start - b.start),
       );
@@ -91,7 +91,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
   );
 
   const removeEntity = useCallback((id: string) => {
-    setEntities((prev) => prev.filter((e) => e.id !== id));
+    setEntities((prev: MarkedEntity[]) => prev.filter((e: MarkedEntity) => e.id !== id));
   }, []);
 
   const [error, setError] = useState<string | null>(null);
@@ -158,7 +158,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
       {/* Marked entities */}
       {entities.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {entities.map((e) => {
+          {entities.map((e: MarkedEntity) => {
             const label = ENTITY_TYPES.find((t) => t.value === e.type)?.label ?? e.type;
             return (
               <span
@@ -215,7 +215,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
           <div className="text-[11px] text-muted-foreground">
             {matches.length} {matches.length === 1 ? "match" : "matches"}
           </div>
-          {matches.map((m, i) => (
+          {matches.map((m: TMMatchDTO, i: number) => (
             <div key={i} className="rounded-md border border-border p-3 bg-card">
               <MatchScoreBar score={m.score} matchType={m.match_type} className="mb-2" />
               <div className="flex items-start gap-2 mb-1">
@@ -243,7 +243,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
               {m.entity_adaptations && m.entity_adaptations.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-border/50">
                   <div className="text-[10px] text-muted-foreground mb-1">Adaptations</div>
-                  {m.entity_adaptations.map((ea, j) => {
+                  {m.entity_adaptations.map((ea: EntityAdaptationDTO, j: number) => {
                     const typeLabel =
                       ENTITY_TYPES.find((t) => t.value === ea.type)?.label ??
                       ea.type.replace("entity:", "");

@@ -218,7 +218,7 @@ export function PropertyField({
           placeholder={schema["ui:placeholder"] || "1, 2, 3, ..."}
           disabled={disabled}
           className="text-xs h-8"
-          onChange={(e) => onChange(e.target.value || undefined)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
         />
       </FieldWrapper>
     );
@@ -234,7 +234,7 @@ export function PropertyField({
             placeholder={schema["ui:placeholder"] || pathMeta?.browseTitle || "/path/to/file..."}
             disabled={disabled}
             className="flex-1 font-mono text-xs h-8"
-            onChange={(e) => onChange(e.target.value || undefined)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
           />
           <Button
             type="button"
@@ -281,7 +281,7 @@ export function PropertyField({
             placeholder={schema["ui:placeholder"] || folderMeta?.browseTitle || "/path/to/folder..."}
             disabled={disabled}
             className="flex-1 font-mono text-xs h-8"
-            onChange={(e) => onChange(e.target.value || undefined)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
           />
           <Button type="button" variant="outline" size="sm" disabled={disabled} className="h-8 text-xs shrink-0">
             Browse
@@ -321,7 +321,7 @@ export function PropertyField({
           placeholder={schema["ui:placeholder"]}
           disabled={disabled}
           className="text-xs h-8"
-          onChange={(e) => onChange(e.target.value || undefined)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
         />
       </FieldWrapper>
     );
@@ -453,7 +453,7 @@ export function PropertyField({
           step={schema.type === "integer" ? 1 : undefined}
           disabled={disabled}
           className="text-xs h-8"
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             const v = e.target.value;
             onChange(v === "" ? undefined : schema.type === "integer" ? parseInt(v) : parseFloat(v));
           }}
@@ -522,7 +522,7 @@ export function PropertyField({
         placeholder={schema["ui:placeholder"] || (schema.default != null ? String(schema.default) : undefined)}
         disabled={disabled}
         className="text-xs h-8"
-        onChange={(e) => onChange(e.target.value || undefined)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value || undefined)}
       />
     </FieldWrapper>
   );

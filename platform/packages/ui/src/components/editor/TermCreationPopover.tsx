@@ -97,7 +97,7 @@ export function TermCreationPopover({
             <label className="text-xs text-muted-foreground">Source term ({sourceLocale})</label>
             <Input
               value={sourceTerm}
-              onChange={(e) => setSourceTerm(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSourceTerm(e.target.value)}
               placeholder="Source term"
               className="h-8 text-sm"
               autoFocus
@@ -108,7 +108,7 @@ export function TermCreationPopover({
             <label className="text-xs text-muted-foreground">Translation ({targetLocale})</label>
             <Input
               value={targetTranslation}
-              onChange={(e) => setTargetTranslation(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTargetTranslation(e.target.value)}
               placeholder="Target translation"
               className="h-8 text-sm"
             />
@@ -118,7 +118,7 @@ export function TermCreationPopover({
             <label className="text-xs text-muted-foreground">Domain (optional)</label>
             <Input
               value={domain}
-              onChange={(e) => setDomain(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDomain(e.target.value)}
               placeholder="e.g. legal, medical"
               className="h-8 text-sm"
             />

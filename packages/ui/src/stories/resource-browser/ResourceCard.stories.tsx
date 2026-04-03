@@ -7,7 +7,7 @@ const meta: Meta<typeof ResourceCard> = {
   component: ResourceCard,
   tags: ["autodocs"],
   decorators: [
-    (Story) => (
+    (Story: React.ComponentType) => (
       <div style={{ maxWidth: 400, padding: 16 }}>
         <Story />
       </div>

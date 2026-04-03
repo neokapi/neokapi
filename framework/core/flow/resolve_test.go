@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/neokapi/neokapi/core/schema"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResolveToolConfig_URIPrefixes(t *testing.T) {
@@ -13,9 +14,9 @@ func TestResolveToolConfig_URIPrefixes(t *testing.T) {
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
 
 	// Create expected directories.
-	os.MkdirAll(filepath.Join(tmpDir, "tm"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "termbases"), 0755)
-	os.MkdirAll(filepath.Join(tmpDir, "srx"), 0755)
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "tm"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "termbases"), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "srx"), 0755))
 
 	config := map[string]any{
 		"tmxPath":   "tm:project-memory",

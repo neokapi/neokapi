@@ -73,7 +73,7 @@ export function CreateCollectionDialog({
             <Label className="text-muted-foreground">Name</Label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               placeholder="e.g. Marketing, Documentation"
               autoFocus
               className="mt-1"
@@ -152,7 +152,7 @@ export function CreateCollectionDialog({
             <Label className="text-muted-foreground">Item label</Label>
             <Input
               value={itemLabel}
-              onChange={(e) => setItemLabel(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setItemLabel(e.target.value)}
               placeholder="item (e.g. page, document, post)"
               className="mt-1"
             />

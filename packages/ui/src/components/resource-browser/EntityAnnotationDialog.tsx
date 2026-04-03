@@ -41,19 +41,19 @@ export function EntityAnnotationDialog({
   }, [open, initialPattern]);
 
   const addPattern = useCallback(() => {
-    setPatterns((prev) => [
+    setPatterns((prev: EntityPatternRequest[]) => [
       ...prev,
       { text: "", entity_type: "entity:person", case_sensitive: true },
     ]);
   }, []);
 
   const removePattern = useCallback((idx: number) => {
-    setPatterns((prev) => prev.filter((_, i) => i !== idx));
+    setPatterns((prev: EntityPatternRequest[]) => prev.filter((_: EntityPatternRequest, i: number) => i !== idx));
   }, []);
 
   const updatePattern = useCallback(
     (idx: number, field: keyof EntityPatternRequest, value: string | boolean) => {
-      setPatterns((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)));
+      setPatterns((prev: EntityPatternRequest[]) => prev.map((p: EntityPatternRequest, i: number) => (i === idx ? { ...p, [field]: value } : p)));
     },
     [],
   );
@@ -61,7 +61,7 @@ export function EntityAnnotationDialog({
   const [error, setError] = useState<string | null>(null);
 
   const handleApply = useCallback(async () => {
-    const valid = patterns.filter((p) => p.text.trim() !== "");
+    const valid = patterns.filter((p: EntityPatternRequest) => p.text.trim() !== "");
     if (valid.length === 0) return;
     setApplying(true);
     setError(null);
@@ -110,7 +110,7 @@ export function EntityAnnotationDialog({
           <>
             {/* Pattern rows */}
             <div className="flex flex-col gap-2 mb-4">
-              {patterns.map((p, idx) => (
+              {patterns.map((p: EntityPatternRequest, idx: number) => (
                 <div key={idx} className="flex items-center gap-2">
                   <input
                     type="text"
@@ -166,7 +166,7 @@ export function EntityAnnotationDialog({
             <div className="flex gap-2 pt-2 border-t border-border">
               <button
                 onClick={handleApply}
-                disabled={applying || patterns.every((p) => !p.text.trim())}
+                disabled={applying || patterns.every((p: EntityPatternRequest) => !p.text.trim())}
                 className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {applying ? "Applying..." : `Apply to ${selectedCount} entries`}

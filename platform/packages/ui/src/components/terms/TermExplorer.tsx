@@ -498,7 +498,7 @@ export function TermExplorer({
                           <td className="px-3 py-2 align-top">
                             <Input
                               value={editConcept.domain}
-                              onChange={(e) =>
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                 setEditConcept({ ...editConcept, domain: e.target.value })
                               }
                               className="w-full"
@@ -509,7 +509,7 @@ export function TermExplorer({
                               <div key={idx} className="flex gap-1 mb-0.5">
                                 <Input
                                   value={term.text}
-                                  onChange={(e) => {
+                                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                     const terms = [...editConcept.terms];
                                     terms[idx] = { ...terms[idx], text: e.target.value };
                                     setEditConcept({ ...editConcept, terms });
@@ -518,7 +518,7 @@ export function TermExplorer({
                                 />
                                 <select
                                   value={term.locale}
-                                  onChange={(e) => {
+                                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                                     const terms = [...editConcept.terms];
                                     terms[idx] = { ...terms[idx], locale: e.target.value };
                                     setEditConcept({ ...editConcept, terms });
@@ -533,7 +533,7 @@ export function TermExplorer({
                                 </select>
                                 <select
                                   value={term.status}
-                                  onChange={(e) => {
+                                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                                     const terms = [...editConcept.terms];
                                     terms[idx] = { ...terms[idx], status: e.target.value };
                                     setEditConcept({ ...editConcept, terms });
@@ -568,7 +568,7 @@ export function TermExplorer({
                           <td className="px-3 py-2 align-top">
                             <Input
                               value={editConcept.definition}
-                              onChange={(e) =>
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                 setEditConcept({ ...editConcept, definition: e.target.value })
                               }
                               className="w-full"
@@ -769,7 +769,7 @@ export function TermExplorer({
                 <Input
                   placeholder="e.g. Legal, Medical"
                   value={newDomain}
-                  onChange={(e) => setNewDomain(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDomain(e.target.value)}
                   className="mt-1"
                   data-testid="term-add-domain"
                   autoFocus
@@ -780,7 +780,7 @@ export function TermExplorer({
                 <Input
                   placeholder="Concept definition"
                   value={newDefinition}
-                  onChange={(e) => setNewDefinition(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDefinition(e.target.value)}
                   className="mt-1"
                   data-testid="term-add-definition"
                 />
@@ -794,7 +794,7 @@ export function TermExplorer({
                     <Input
                       placeholder="Term text"
                       value={term.text}
-                      onChange={(e) =>
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                         updateTermRow(newTerms, setNewTerms, idx, "text", e.target.value)
                       }
                       className="flex-[2]"

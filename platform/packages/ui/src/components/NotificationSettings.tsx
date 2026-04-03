@@ -84,7 +84,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             </Label>
             <Select
               value={settings.frequency}
-              onValueChange={(v) => update({ frequency: v as DigestSettings["frequency"] })}
+              onValueChange={(v: string) => update({ frequency: v as DigestSettings["frequency"] })}
             >
               <SelectTrigger id="digest-frequency" className="w-40">
                 <SelectValue />
@@ -129,7 +129,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
                   id="quiet-start"
                   type="time"
                   value={settings.quiet_start}
-                  onChange={(e) => update({ quiet_start: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update({ quiet_start: e.target.value })}
                   className="w-32"
                 />
               </div>
@@ -141,7 +141,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
                   id="quiet-end"
                   type="time"
                   value={settings.quiet_end}
-                  onChange={(e) => update({ quiet_end: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update({ quiet_end: e.target.value })}
                   className="w-32"
                 />
               </div>
@@ -164,7 +164,7 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             <Label htmlFor="timezone" className="min-w-24">
               Timezone
             </Label>
-            <Select value={settings.timezone} onValueChange={(v) => update({ timezone: v })}>
+            <Select value={settings.timezone} onValueChange={(v: string) => update({ timezone: v })}>
               <SelectTrigger id="timezone" className="w-56">
                 <SelectValue />
               </SelectTrigger>

@@ -227,12 +227,12 @@ export function InviteManager({ workspace }: InviteManagerProps) {
               <Label className="text-muted-foreground">Email</Label>
               <Input
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                 placeholder="colleague@example.com"
                 autoFocus
                 className="mt-1"
                 data-testid="invite-email-input"
-                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleCreate()}
               />
             </div>
             <div>

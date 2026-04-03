@@ -295,7 +295,7 @@ function TextField({
         type={type}
         value={displayValue}
         placeholder={placeholder}
-        onChange={(e) => {
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           const v = type === "number" ? Number(e.target.value) : e.target.value;
           onChange(v);
         }}
@@ -448,7 +448,7 @@ function CodeFinderRulesField({
               value={rule.pattern}
               placeholder="Regex pattern"
               className="flex-1 font-mono text-xs"
-              onChange={(e) => handleRuleChange(index, e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleRuleChange(index, e.target.value)}
             />
             <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
               ✕
@@ -466,7 +466,7 @@ function CodeFinderRulesField({
           value={sample}
           placeholder="Sample text to test patterns"
           className="mt-1"
-          onChange={(e) => handleSampleChange(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleSampleChange(e.target.value)}
         />
       </div>
     </div>

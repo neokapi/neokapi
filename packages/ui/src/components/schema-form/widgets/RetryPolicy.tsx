@@ -49,7 +49,7 @@ export function RetryPolicySection({
               value={retry.maxRetries != null ? String(retry.maxRetries) : ""}
               placeholder="0"
               className="h-8 text-xs"
-              onChange={(e) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 update("maxRetries", e.target.value === "" ? undefined : parseInt(e.target.value))
               }
             />
@@ -63,7 +63,7 @@ export function RetryPolicySection({
               value={retry.backoffMs != null ? String(retry.backoffMs) : ""}
               placeholder="1000"
               className="h-8 text-xs"
-              onChange={(e) =>
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 update("backoffMs", e.target.value === "" ? undefined : parseInt(e.target.value))
               }
             />
@@ -75,7 +75,7 @@ export function RetryPolicySection({
               value={String(retry.retryOn ?? "")}
               placeholder="Error pattern..."
               className="h-8 text-xs"
-              onChange={(e) => update("retryOn", e.target.value || undefined)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => update("retryOn", e.target.value || undefined)}
             />
           </div>
         </div>

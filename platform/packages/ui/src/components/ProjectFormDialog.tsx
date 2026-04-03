@@ -115,7 +115,7 @@ export function ProjectFormDialog({
             <Input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               placeholder="My Translation Project"
               data-testid="project-name-input"
               autoFocus

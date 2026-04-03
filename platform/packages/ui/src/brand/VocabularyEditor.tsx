@@ -76,17 +76,17 @@ export function VocabularyEditor({ vocabulary, onChange }: VocabularyEditorProps
               <Input
                 placeholder="Term"
                 value={rule.term}
-                onChange={(e) => updateTerm(category, i, "term", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTerm(category, i, "term", e.target.value)}
               />
               <Input
                 placeholder="Replacement"
                 value={rule.replacement ?? ""}
-                onChange={(e) => updateTerm(category, i, "replacement", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTerm(category, i, "replacement", e.target.value)}
               />
               <Input
                 placeholder="Note"
                 value={rule.note ?? ""}
-                onChange={(e) => updateTerm(category, i, "note", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTerm(category, i, "note", e.target.value)}
               />
               <Button variant="ghost" size="icon" onClick={() => removeTerm(category, i)}>
                 <Trash2 className="w-3.5 h-3.5" />
