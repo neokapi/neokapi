@@ -2,7 +2,7 @@ import type { Preview, ReactRenderer } from "@storybook/react-vite";
 import { withThemeByClassName } from "@storybook/addon-themes";
 import React from "react";
 import "../src/styles/globals.css";
-import { TooltipProvider } from "../src/components/ui/tooltip";
+import { TooltipProvider } from "@neokapi/ui";
 
 /**
  * Wraps each story in a div with bg-background / text-foreground so
