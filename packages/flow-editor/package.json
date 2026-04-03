@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@neokapi/ui-primitives": "*",
     "@xyflow/react": "^12.10.1",
     "lucide-react": "^0.577.0",
     "react-hook-form": "^7.72.0",
@@ -37,6 +38,5 @@
   "peerDependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
-  },
-  "packageManager": "npm@11.12.1"
+  }
 }

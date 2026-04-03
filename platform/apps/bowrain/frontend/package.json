@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@lexical/react": "^0.42.0",
+    "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.2.2",
     "@wailsio/runtime": "^3.0.0-alpha.79",
     "@xyflow/react": "^12.10.1",

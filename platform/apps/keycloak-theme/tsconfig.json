@@ -10,13 +10,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
-    "paths": {
-      "@neokapi/ui": ["../../packages/ui/src"],
-      "@neokapi/ui/*": ["../../packages/ui/src/*"]
-    }
+    "skipLibCheck": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.stories.tsx"],
-  "references": [{ "path": "../../packages/ui" }]
+  "exclude": ["src/**/*.stories.tsx"]
 }

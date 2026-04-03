@@ -7,12 +7,7 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "paths": {
-      "@neokapi/ui": ["../../packages/ui/src"],
-      "@neokapi/ui/*": ["../../packages/ui/src/*"]
-    }
+    "outDir": "dist"
   },
-  "include": ["src"],
-  "references": [{ "path": "../../packages/ui" }]
+  "include": ["src"]
 }

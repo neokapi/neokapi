@@ -1,0 +1,28 @@
+{
+  "private": true,
+  "workspaces": [
+    "packages/ui",
+    "packages/flow-editor",
+    "framework/apps/kapi-desktop/frontend",
+    "platform/packages/ui",
+    "platform/emails",
+    "platform/apps/web",
+    "platform/apps/ctrl",
+    "platform/apps/pulse",
+    "platform/apps/keycloak-theme",
+    "platform/apps/bowrain/frontend",
+    "platform/apps/mobile"
+  ],
+  "devDependencies": {
+    "jsdom": "^29.0.1",
+    "storybook": "^10.3.1"
+  },
+  "overrides": {
+    "@tanstack/react-query": "5.94.5",
+    "vite": "^8.0.0",
+    "@tailwindcss/vite": {
+      "vite": "^6.0.0 || ^7.0.0 || ^8.0.0"
+    }
+  },
+  "packageManager": "npm@11.12.1"
+}

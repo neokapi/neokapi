@@ -14,12 +14,7 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "paths": {
-      "@neokapi/ui": ["../../../packages/ui/src"],
-      "@neokapi/ui/*": ["../../../packages/ui/src/*"]
-    }
+    "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "references": [{ "path": "../../../packages/ui" }]
+  "include": ["src"]
 }

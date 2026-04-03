@@ -4,7 +4,6 @@ import path from "path";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const __dirname = import.meta.dirname;
 
 function getAbsolutePath(value: string): string {
   return path.dirname(require.resolve(path.join(value, "package.json")));
@@ -24,14 +23,6 @@ const config: StorybookConfig = {
   viteFinal: async (config) => {
     config.plugins = config.plugins || [];
     config.plugins.push(tailwindcss());
-
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@neokapi/ui-primitives": path.resolve(__dirname, "../../../../../packages/ui/src"),
-      "@neokapi/flow-editor": path.resolve(__dirname, "../../../../../packages/flow-editor/src"),
-    };
-
     return config;
   },
 };

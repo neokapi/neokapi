@@ -1,11 +1,9 @@
 // This file has been automatically migrated to valid ESM format by Storybook.
 import type { StorybookConfig } from "@storybook/react-vite";
 import tailwindcss from "@tailwindcss/vite";
-import { dirname, join, resolve } from "path";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { createRequire } from "module";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const require = createRequire(import.meta.url);
 
@@ -33,15 +31,6 @@ const config: StorybookConfig = {
   viteFinal(config) {
     config.plugins = config.plugins || [];
     config.plugins.push(tailwindcss());
-
-    // Resolve @neokapi/ui to the local packages/ui/src so stories from
-    // keycloak-theme and web app can import shared styles and components.
-    config.resolve = config.resolve || {};
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@neokapi/ui": resolve(__dirname, "../src"),
-      "@neokapi/ui-primitives": resolve(__dirname, "../../../../packages/ui/src"),
-    };
 
     // When building for GitHub Pages, serve from /storybook/ subpath.
     if (process.env.STORYBOOK_BASE_PATH) {
