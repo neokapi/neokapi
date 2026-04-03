@@ -47,7 +47,7 @@ export function TMBrowser({
   const [addTgtLocale, setAddTgtLocale] = useState(targetLocales[0] ?? "");
 
   // Debounce search input
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchText(val);

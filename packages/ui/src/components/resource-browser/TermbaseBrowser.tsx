@@ -45,7 +45,7 @@ export function TermbaseBrowser({
     { text: "", locale: targetLocales[0] ?? "", status: "preferred" },
   ]);
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   // Use refs to avoid re-creating fetchConcepts when props change identity.
   const adapterRef = useRef(adapter);
