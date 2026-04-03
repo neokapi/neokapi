@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Play, Globe, Workflow, Wrench, Loader2 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { KapiProject, FlowSpec } from "../types/api";
 
 interface HomePageProps {
@@ -38,35 +39,38 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
 
       {/* Quick actions */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <button
+        <Button
+          variant="outline"
           onClick={() => onNavigate("content")}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Content</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground font-normal">
             {hasContent
               ? `${project.content!.length} pattern${project.content!.length !== 1 ? "s" : ""} configured`
               : "Configure file patterns"}
           </div>
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => onNavigate("flows")}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Flows</div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground font-normal">
             {flowNames.length > 0
               ? `${flowNames.length} flow${flowNames.length !== 1 ? "s" : ""} defined`
               : "Build your first flow"}
           </div>
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => onNavigate("tools")}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Tools</div>
-          <div className="text-xs text-muted-foreground">Run individual tools on files</div>
-        </button>
+          <div className="text-xs text-muted-foreground font-normal">Run individual tools on files</div>
+        </Button>
       </div>
 
       {/* Run flows */}
@@ -96,10 +100,10 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
                       ))}
                     </div>
                   </div>
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => handleRunFlow(name)}
                     disabled={runningFlow === name || !hasContent}
-                    className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                     aria-label={`Run flow ${name}`}
                     title={!hasContent ? "Configure content patterns first" : undefined}
                   >
@@ -109,7 +113,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
                       <Play size={12} />
                     )}
                     Run
-                  </button>
+                  </Button>
                 </div>
               );
             })}
@@ -123,9 +127,9 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
           <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">
             No flows defined yet.{" "}
-            <button onClick={() => onNavigate("flows")} className="text-primary hover:underline">
+            <Button variant="link" size="sm" onClick={() => onNavigate("flows")} className="px-0 h-auto">
               Create your first flow
-            </button>{" "}
+            </Button>{" "}
             to get started.
           </p>
         </div>

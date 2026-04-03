@@ -12,6 +12,7 @@ import {
   Info,
   GitBranch,
 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { FilterDoc, StepDoc, ParameterDoc } from "../types/api";
 
 type DocEntry = FilterDoc | StepDoc;
@@ -238,9 +239,10 @@ function CollapsibleSection({
 }) {
   return (
     <div className="border-b border-border last:border-b-0">
-      <button
+      <Button
+        variant="ghost"
         onClick={() => onToggle(id)}
-        className="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-accent/40 transition-colors"
+        className="flex items-center gap-2 w-full h-auto rounded-none px-4 py-2.5 text-left justify-start hover:bg-accent/40"
       >
         {expanded ? (
           <ChevronDown size={12} className="text-muted-foreground" />
@@ -254,7 +256,7 @@ function CollapsibleSection({
             {badge}
           </span>
         )}
-      </button>
+      </Button>
       {expanded && (
         <div className="px-4 pb-3 pt-0.5 ml-[22px]">{children}</div>
       )}
@@ -464,16 +466,18 @@ export function ParamHelp({ paramKey, doc }: ParamHelpProps) {
 
   return (
     <span className="relative inline-flex">
-      <button
-        onClick={(e) => {
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+        className="inline-flex w-3.5 h-3.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20"
         title="Show parameter documentation"
       >
         <Info size={8} />
-      </button>
+      </Button>
       {open && (
         <div className="absolute left-0 top-5 z-50 w-64 rounded-md border border-border bg-popover p-3 shadow-lg">
           <div className="text-[11px] leading-relaxed text-popover-foreground">

@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload } from "lucide-react";
 import {
+  Button,
   TermbaseBrowser,
   ResourceCard,
   type TermbaseAdapter,
@@ -136,9 +137,9 @@ function SimulatedTermbasesPage() {
             <h1 className="text-lg font-semibold">my-glossary</h1>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground">
+            <Button variant="outline" size="sm">
               <Upload size={12} /> Import CSV
-            </button>
+            </Button>
           </div>
         </div>
         <TermbaseBrowser adapter={adapter} />
@@ -151,12 +152,12 @@ function SimulatedTermbasesPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Termbases</h1>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground">
+          <Button variant="outline" size="sm">
             <FolderOpen size={12} /> Open File...
-          </button>
-          <button className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground">
+          </Button>
+          <Button size="sm">
             <Plus size={12} /> New Termbase
-          </button>
+          </Button>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

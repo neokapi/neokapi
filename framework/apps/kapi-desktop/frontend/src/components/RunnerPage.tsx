@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { FlowSpec } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -93,13 +94,14 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
           <h2 className="text-lg font-medium">Run: {flowName}</h2>
           {stateIcon[state]}
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={onClose}
-          className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
           aria-label="Back to flows"
         >
           Back to Flows
-        </button>
+        </Button>
       </div>
 
       {/* Pipeline preview */}
@@ -124,14 +126,15 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
             <label className="mb-1 block text-sm font-medium" htmlFor="runner-files">
               Input Files
             </label>
-            <button
+            <Button
               id="runner-files"
-              className="flex items-center gap-2 rounded-md border border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary"
+              variant="outline"
+              className="flex items-center gap-2 border-dashed text-muted-foreground hover:border-primary hover:text-primary"
               aria-label="Select input files for flow"
             >
               <FileText size={16} />
               {inputFiles.length > 0 ? `${inputFiles.length} file(s) selected` : "Select files..."}
-            </button>
+            </Button>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium" htmlFor="runner-target-lang">
@@ -152,25 +155,25 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
       {/* Controls */}
       <div className="mb-6 flex gap-2">
         {state === "idle" && (
-          <button
+          <Button
             onClick={handleRun}
             disabled={!targetLang || inputFiles.length === 0}
-            className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             aria-label="Run flow"
           >
             <Play size={14} />
             Run Flow
-          </button>
+          </Button>
         )}
         {state === "running" && (
-          <button
+          <Button
+            variant="destructive"
             onClick={handleCancel}
-            className="flex items-center gap-2 rounded-md border border-destructive px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/10"
+            className="border border-destructive bg-transparent text-destructive hover:bg-destructive/10"
             aria-label="Cancel flow execution"
           >
             <Square size={14} />
             Cancel
-          </button>
+          </Button>
         )}
       </div>
 

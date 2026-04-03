@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import {
   cn,
+  Button,
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
@@ -70,9 +71,10 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
           return (
             <div key={cat.id}>
               {/* Category header */}
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => toggle(cat.id)}
-                className="flex w-full items-center gap-1.5 border-none bg-transparent px-2.5 py-1.5 text-left cursor-pointer"
+                className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left h-auto rounded-none"
               >
                 {isCollapsed ? (
                   <ChevronRight size={12} className="text-muted-foreground" />
@@ -89,7 +91,7 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
                 <span className="ml-auto text-[10px] text-muted-foreground">
                   {items.length}
                 </span>
-              </button>
+              </Button>
 
               {/* Tool items */}
               {!isCollapsed && (
@@ -156,11 +158,12 @@ function PaletteItem({
   const displayName = tool.display_name || tool.name;
 
   return (
-    <button
+    <Button
+      variant="ghost"
       draggable
       onDragStart={onDragStart}
       onClick={onAdd}
-      className="flex w-full items-start gap-1.5 border-none bg-transparent py-1.5 pl-5 pr-2.5 text-left cursor-grab hover:bg-secondary"
+      className="flex w-full items-start gap-1.5 py-1.5 pl-5 pr-2.5 text-left h-auto rounded-none cursor-grab"
       title={tool.description}
     >
       <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
@@ -188,6 +191,6 @@ function PaletteItem({
           </div>
         )}
       </div>
-    </button>
+    </Button>
   );
 }

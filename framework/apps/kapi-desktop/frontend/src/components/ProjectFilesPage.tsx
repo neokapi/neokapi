@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, DragEvent } from "react";
 import { FileText, FolderOpen, Plus, RefreshCw, Loader2, Upload } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -99,22 +100,24 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleAddFiles}
-            className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent"
             aria-label="Add files"
           >
             <Plus size={12} />
             Add Files
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
             onClick={refresh}
             disabled={loading}
-            className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
             aria-label="Refresh files"
           >
             {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          </button>
+          </Button>
         </div>
       </div>
 

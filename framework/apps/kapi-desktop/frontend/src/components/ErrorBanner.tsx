@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { AlertCircle, X, Copy, ChevronDown } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -162,35 +163,41 @@ function ErrorBannerItem({
       <div className="flex items-start gap-2">
         <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" />
         <p className="flex-1 text-sm font-medium text-foreground">{entry.message}</p>
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={() => onDismiss(entry.id)}
-          className="shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+          className="shrink-0"
           aria-label="Dismiss error"
         >
           <X size={14} />
-        </button>
+        </Button>
       </div>
 
       {/* Actions row */}
       {entry.details && (
         <div className="mt-2 flex items-center gap-2 pl-6">
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setExpanded((v) => !v)}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="px-0 h-auto text-[11px] text-muted-foreground hover:text-foreground"
           >
             <ChevronDown
               size={12}
               className={`transition-transform ${expanded ? "rotate-180" : ""}`}
             />
             Details
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => void handleCopy()}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            className="px-0 h-auto text-[11px] text-muted-foreground hover:text-foreground"
           >
             <Copy size={10} />
             {copied ? "Copied" : "Copy Details"}
-          </button>
+          </Button>
         </div>
       )}
 

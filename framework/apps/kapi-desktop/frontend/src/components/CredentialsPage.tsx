@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -89,14 +90,14 @@ export function CredentialsPage() {
             API keys are stored in your OS keychain
           </p>
         </div>
-        <button
+        <Button
+          size="sm"
           onClick={handleAdd}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           aria-label="Add AI provider"
         >
           <Plus size={12} />
           Add Provider
-        </button>
+        </Button>
       </div>
 
       {error && (
@@ -130,20 +131,23 @@ export function CredentialsPage() {
                   <p className="mt-0.5 text-xs text-muted-foreground">Model: {provider.model}</p>
                 )}
               </div>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => handleTest(provider.id)}
-                className="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                 aria-label={`Test connection for ${provider.name}`}
               >
                 <TestTube size={14} />
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => handleDelete(provider.id)}
-                className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="hover:bg-destructive/10 hover:text-destructive"
                 aria-label={`Delete ${provider.name}`}
               >
                 <Trash2 size={14} />
-              </button>
+              </Button>
             </div>
           ))}
           {providers.length === 0 && !editing && (
@@ -221,24 +225,25 @@ export function CredentialsPage() {
             </div>
           </div>
           <div className="mt-3 flex gap-2">
-            <button
+            <Button
+              size="sm"
               onClick={handleSave}
               disabled={!editing.name || !editing.provider_type || saving}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {saving && <Loader2 size={12} className="animate-spin" />}
               {saving ? "Saving..." : "Save"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setEditing(null);
                 setApiKey("");
                 setError(null);
               }}
-              className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}

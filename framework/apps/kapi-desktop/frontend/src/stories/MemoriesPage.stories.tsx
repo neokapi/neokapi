@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download } from "lucide-react";
 import {
+  Button,
   TMBrowser,
   ResourceCard,
   type TMAdapter,
@@ -173,12 +174,12 @@ function SimulatedMemoriesPage() {
             <h1 className="text-lg font-semibold">my-project</h1>
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground">
+            <Button variant="outline" size="sm">
               <Upload size={12} /> Import TMX
-            </button>
-            <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground">
+            </Button>
+            <Button variant="outline" size="sm">
               <Download size={12} /> Export TMX
-            </button>
+            </Button>
           </div>
         </div>
         <TMBrowser adapter={adapter} showLookup />
@@ -191,12 +192,12 @@ function SimulatedMemoriesPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Translation Memories</h1>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground">
+          <Button variant="outline" size="sm">
             <FolderOpen size={12} /> Open File...
-          </button>
-          <button className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground">
+          </Button>
+          <Button size="sm">
             <Plus size={12} /> Create TM
-          </button>
+          </Button>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

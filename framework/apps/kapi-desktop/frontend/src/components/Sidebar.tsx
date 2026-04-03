@@ -1,4 +1,5 @@
 import { Home, FileText, Workflow, Wrench, Plus, Trash2 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { View } from "../types/api";
 
 interface SidebarProps {
@@ -32,10 +33,12 @@ export function Sidebar({
       {/* Main navigation */}
       <nav className="space-y-0.5 px-2">
         {navItems.map(({ view, label, icon }) => (
-          <button
+          <Button
             key={view}
+            variant="ghost"
+            size="sm"
             onClick={() => onViewChange(view)}
-            className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+            className={`flex w-full justify-start gap-2.5 ${
               activeView === view
                 ? "bg-accent text-accent-foreground font-medium"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -43,7 +46,7 @@ export function Sidebar({
           >
             {icon}
             {label}
-          </button>
+          </Button>
         ))}
       </nav>
 
@@ -53,13 +56,15 @@ export function Sidebar({
           <div className="flex items-center justify-between px-3 pb-1">
             <span className="text-xs font-medium text-muted-foreground">Flows</span>
             {onAddFlow && (
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={onAddFlow}
-                className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="h-5 w-5"
                 aria-label="New flow"
               >
                 <Plus size={12} />
-              </button>
+              </Button>
             )}
           </div>
           <div className="space-y-0.5 px-2">
@@ -79,13 +84,15 @@ export function Sidebar({
                   {name}
                 </button>
                 {onDeleteFlow && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => onDeleteFlow(name)}
-                    className="rounded p-0.5 opacity-0 hover:text-destructive group-hover:opacity-100"
+                    className="h-4 w-4 opacity-0 hover:text-destructive group-hover:opacity-100"
                     aria-label={`Delete flow ${name}`}
                   >
                     <Trash2 size={10} />
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}

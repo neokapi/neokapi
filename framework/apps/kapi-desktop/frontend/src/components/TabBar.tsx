@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { TabInfo } from "../types/api";
 
 interface TabBarProps {
@@ -72,16 +73,18 @@ export function TabBar({ tabs, activeTabID, onSelect, onClose, onRename }: TabBa
                 {tab.name}
               </span>
             )}
-            <button
-              onClick={(e) => {
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 onClose(tab.id);
               }}
-              className="rounded p-0.5 opacity-0 transition-opacity hover:bg-accent group-hover:opacity-100"
+              className="h-4 w-4 opacity-0 group-hover:opacity-100"
               aria-label={`Close ${tab.name}`}
             >
               <X size={10} />
-            </button>
+            </Button>
           </div>
         );
       })}

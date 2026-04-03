@@ -1,7 +1,15 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-
-// Import primitives from the shared package to demonstrate they work
-// in the framework context (no platform dependency).
+import {
+  Button,
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Input,
+  Label,
+  Separator,
+} from "@neokapi/ui-primitives";
 
 const meta: Meta = {
   title: "Foundations/UI Primitives",
@@ -14,24 +22,11 @@ type Story = StoryObj;
 export const Buttons: Story = {
   render: () => (
     <div className="flex flex-wrap gap-3 p-4">
-      <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-        Primary
-      </button>
-      <button className="rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-        Secondary
-      </button>
-      <button className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90">
-        Destructive
-      </button>
-      <button className="rounded-md px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-accent">
-        Ghost
-      </button>
-      <button
-        className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground opacity-50"
-        disabled
-      >
-        Disabled
-      </button>
+      <Button>Primary</Button>
+      <Button variant="secondary">Secondary</Button>
+      <Button variant="destructive">Destructive</Button>
+      <Button variant="ghost">Ghost</Button>
+      <Button disabled>Disabled</Button>
     </div>
   ),
 };
@@ -39,14 +34,18 @@ export const Buttons: Story = {
 export const Cards: Story = {
   render: () => (
     <div className="grid grid-cols-2 gap-4 p-4" style={{ maxWidth: 600 }}>
-      <div className="rounded-lg border border-border p-4">
-        <h3 className="text-sm font-medium">Card Title</h3>
-        <p className="mt-1 text-xs text-muted-foreground">Card description with some content.</p>
-      </div>
-      <div className="rounded-lg border border-border bg-accent/30 p-4">
-        <h3 className="text-sm font-medium">Accent Card</h3>
-        <p className="mt-1 text-xs text-muted-foreground">With background accent.</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Card Title</CardTitle>
+          <CardDescription>Card description with some content.</CardDescription>
+        </CardHeader>
+      </Card>
+      <Card className="bg-accent/30">
+        <CardHeader>
+          <CardTitle>Accent Card</CardTitle>
+          <CardDescription>With background accent.</CardDescription>
+        </CardHeader>
+      </Card>
     </div>
   ),
 };
@@ -55,21 +54,12 @@ export const Inputs: Story = {
   render: () => (
     <div className="max-w-sm space-y-3 p-4">
       <div>
-        <label className="mb-1 block text-sm font-medium">Text Input</label>
-        <input
-          type="text"
-          placeholder="Enter text..."
-          className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
-        />
+        <Label>Text Input</Label>
+        <Input type="text" placeholder="Enter text..." />
       </div>
       <div>
-        <label className="mb-1 block text-sm font-medium">Disabled</label>
-        <input
-          type="text"
-          value="Read-only value"
-          disabled
-          className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm opacity-50 outline-none"
-        />
+        <Label>Disabled</Label>
+        <Input type="text" value="Read-only value" disabled />
       </div>
     </div>
   ),
@@ -78,14 +68,10 @@ export const Inputs: Story = {
 export const Badges: Story = {
   render: () => (
     <div className="flex flex-wrap gap-2 p-4">
-      <span className="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-        Primary
-      </span>
-      <span className="rounded bg-accent px-2 py-0.5 text-xs">Accent</span>
-      <span className="rounded bg-destructive/10 px-2 py-0.5 text-xs text-destructive">
-        Destructive
-      </span>
-      <span className="rounded bg-green-500/10 px-2 py-0.5 text-xs text-green-500">Success</span>
+      <Badge>Primary</Badge>
+      <Badge variant="secondary">Accent</Badge>
+      <Badge variant="destructive">Destructive</Badge>
+      <Badge variant="outline">Success</Badge>
     </div>
   ),
 };
@@ -124,6 +110,7 @@ export const Colors: Story = {
           </div>
         ))}
       </div>
+      <Separator />
     </div>
   ),
 };
