@@ -28,6 +28,13 @@ runs:
       working-directory: packages/ui
       run: vp install
 
+    - name: Deduplicate React across workspaces
+      shell: bash
+      run: |
+        # packages/ui installs its own react copy via transitive deps.
+        # Remove it so all packages resolve react from platform/node_modules.
+        rm -rf packages/ui/node_modules/react packages/ui/node_modules/react-dom
+
     - name: Typecheck platform UI package
       shell: bash
       working-directory: platform/packages/ui
