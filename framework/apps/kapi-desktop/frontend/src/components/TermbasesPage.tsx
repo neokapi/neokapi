@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
-import { Button, Label, Input, PageHeader, EmptyState, SkeletonCard } from "@neokapi/ui-primitives";
+import { Button, Label, Input, PageHeader, EmptyState } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
@@ -228,29 +228,23 @@ export function TermbasesPage() {
         }
       />
 
-      {loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {[0, 1, 2].map((i) => (
-            <SkeletonCard key={i} lines={2} />
-          ))}
-        </div>
-      )}
-
-      {!loading && resources.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {resources.map((r) => (
-            <ResourceCard
-              key={r.path}
-              name={r.name}
-              path={r.path}
-              size={r.size}
-              modified={r.modified}
-              icon={<BookOpen size={18} />}
-              onClick={() => void handleOpen(r.path, r.name)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {loading
+          ? [0, 1, 2].map((i) => (
+              <ResourceCard key={i} loading name="" path="" onClick={() => {}} />
+            ))
+          : resources.map((r) => (
+              <ResourceCard
+                key={r.path}
+                name={r.name}
+                path={r.path}
+                size={r.size}
+                modified={r.modified}
+                icon={<BookOpen size={18} />}
+                onClick={() => void handleOpen(r.path, r.name)}
+              />
+            ))}
+      </div>
 
       {!loading && resources.length === 0 && (
         <EmptyState

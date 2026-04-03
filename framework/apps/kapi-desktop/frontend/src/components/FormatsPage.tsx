@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Button, SchemaForm, Card, CardContent, Input, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, PageHeader, SkeletonCard } from "@neokapi/ui-primitives";
+import { Button, SchemaForm, Card, CardContent, Skeleton, Input, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, PageHeader } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";
@@ -126,7 +126,20 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <SkeletonCard key={i} lines={2} />
+            <Card key={i} className="p-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded" />
+                <div className="flex-1 min-w-0">
+                  <Skeleton className="h-4 w-2/3" />
+                  <div className="flex gap-1 mt-2">
+                    <Skeleton className="h-4 w-10 rounded" />
+                    <Skeleton className="h-4 w-10 rounded" />
+                    <Skeleton className="h-4 w-12 rounded" />
+                  </div>
+                  <Skeleton className="mt-2 h-3 w-24" />
+                </div>
+              </div>
+            </Card>
           ))}
         </div>
       )}
@@ -192,11 +205,10 @@ function FormatSection({
           const filterDoc = resolveFilterDoc(f.name, docs);
           const hasDocs = filterDoc || documentedIDs.has(f.name);
           return (
-            <Button
+            <Card
               key={f.name}
-              variant="outline"
+              className="group cursor-pointer p-4 transition-all hover:border-primary/30 hover:shadow-md"
               onClick={() => onSelect(f.name)}
-              className="group w-full h-auto text-left rounded-lg bg-card p-4 hover:border-primary/30 hover:shadow-md"
             >
               <div className="flex items-start gap-3">
                 <FileText
@@ -261,7 +273,7 @@ function FormatSection({
                   </div>
                 </div>
               </div>
-            </Button>
+            </Card>
           );
         })}
       </div>

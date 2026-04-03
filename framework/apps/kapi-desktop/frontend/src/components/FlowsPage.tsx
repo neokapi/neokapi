@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
-import { Button, Card, Label, Input, ScrollArea, PageHeader, EmptyState, SkeletonCard } from "@neokapi/ui-primitives";
+import { Button, Card, Skeleton, Label, Input, ScrollArea, PageHeader, EmptyState } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -404,94 +404,22 @@ export function FlowsPage({
         }
       />
 
-      {loading && (
+      {(loading || flows.length > 0) && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {[0, 1, 2].map((i) => (
-            <SkeletonCard key={i} lines={2} />
-          ))}
-        </div>
-      )}
-
-      {!loading && flows.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {flows.map((item) => (
-            <Card
-              key={item.id}
-              className="group p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
-              onClick={() => void handleOpenFlow(item)}
-            >
-              <div className="flex items-start gap-3">
-                <Workflow size={18} className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
-                      {item.name}
-                    </span>
-                    {item.source === "built-in" && (
-                      <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
-                        built-in
-                      </span>
-                    )}
-                  </div>
-                  {item.description && (
-                    <div className="text-[11px] text-muted-foreground truncate mt-0.5">
-                      {item.description}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-                    <span>{item.stepCount} step{item.stepCount !== 1 ? "s" : ""}</span>
-                  </div>
-                </div>
-
-                <div
-                  className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {item.source === "built-in" ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-xs"
-                      onClick={() => void handleCopyBuiltIn(item)}
-                      title="Copy to edit"
-                    >
-                      <Copy size={12} />
-                    </Button>
-                  ) : (
-                    <>
-                      {deleteConfirm === item.id ? (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="destructive"
-                            size="xs"
-                            onClick={() => void handleDeleteFlow(item)}
-                          >
-                            Delete
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="xs"
-                            onClick={() => setDeleteConfirm(null)}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon-xs"
-                          onClick={() => setDeleteConfirm(item.id)}
-                          className="hover:bg-destructive/10 hover:text-destructive"
-                          title="Delete flow"
-                        >
-                          <Trash2 size={12} />
-                        </Button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </Card>
-          ))}
+          {loading
+            ? [0, 1, 2].map((i) => <FlowCard key={i} loading />)
+            : flows.map((item) => (
+                <FlowCard
+                  key={item.id}
+                  item={item}
+                  onClick={() => void handleOpenFlow(item)}
+                  onCopy={item.source === "built-in" ? () => void handleCopyBuiltIn(item) : undefined}
+                  onDelete={item.source !== "built-in" ? () => void handleDeleteFlow(item) : undefined}
+                  deleteConfirm={deleteConfirm === item.id}
+                  onDeleteConfirm={() => setDeleteConfirm(item.id)}
+                  onDeleteCancel={() => setDeleteConfirm(null)}
+                />
+              ))}
         </div>
       )}
 
@@ -600,5 +528,114 @@ export function FlowsPage({
         </div>
       )}
     </div>
+  );
+}
+
+// ── FlowCard ────────────────────────────────────────────────────
+
+interface FlowCardItem {
+  id: string;
+  name: string;
+  description?: string;
+  stepCount: number;
+  source?: string;
+}
+
+function FlowCard({
+  item,
+  loading,
+  onClick,
+  onCopy,
+  onDelete,
+  deleteConfirm,
+  onDeleteConfirm,
+  onDeleteCancel,
+}: {
+  item?: FlowCardItem;
+  loading?: boolean;
+  onClick?: () => void;
+  onCopy?: () => void;
+  onDelete?: () => void;
+  deleteConfirm?: boolean;
+  onDeleteConfirm?: () => void;
+  onDeleteCancel?: () => void;
+}) {
+  if (loading) {
+    return (
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <Skeleton className="mt-0.5 h-5 w-5 shrink-0 rounded" />
+          <div className="flex-1 min-w-0">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="mt-1.5 h-3 w-3/4" />
+            <Skeleton className="mt-2.5 h-3 w-16" />
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  if (!item) return null;
+
+  return (
+    <Card
+      className="group p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
+      onClick={onClick}
+    >
+      <div className="flex items-start gap-3">
+        <Workflow size={18} className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
+              {item.name}
+            </span>
+            {item.source === "built-in" && (
+              <span className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground shrink-0">
+                built-in
+              </span>
+            )}
+          </div>
+          {item.description && (
+            <div className="text-[11px] text-muted-foreground truncate mt-0.5">
+              {item.description}
+            </div>
+          )}
+          <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
+            <span>{item.stepCount} step{item.stepCount !== 1 ? "s" : ""}</span>
+          </div>
+        </div>
+
+        <div
+          className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+        >
+          {onCopy && (
+            <Button variant="ghost" size="icon-xs" onClick={onCopy} title="Copy to edit">
+              <Copy size={12} />
+            </Button>
+          )}
+          {onDelete && (
+            <>
+              {deleteConfirm ? (
+                <div className="flex gap-1">
+                  <Button variant="destructive" size="xs" onClick={onDelete}>Delete</Button>
+                  <Button variant="ghost" size="xs" onClick={onDeleteCancel}>Cancel</Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={onDeleteConfirm}
+                  className="hover:bg-destructive/10 hover:text-destructive"
+                  title="Delete flow"
+                >
+                  <Trash2 size={12} />
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
