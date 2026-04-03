@@ -151,7 +151,7 @@ export function ResourcePicker({
         <TabsContent value="named">
           <Combobox
             value={parsed.mode === "named" ? parsed.name : ""}
-            onValueChange={(val) => handleNamedChange(val as string)}
+            onValueChange={(val: string | null) => handleNamedChange(val ?? "")}
           >
             <ComboboxInput
               placeholder={placeholder ?? `Select ${resourceKind}...`}
