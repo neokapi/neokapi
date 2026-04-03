@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
-import { Button, Card, CardContent, Label, Input, PageHeader, SkeletonCard } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, Label, Input, PageHeader } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
@@ -204,31 +204,23 @@ export function MemoriesPage() {
         }
       />
 
-      {/* Loading skeleton */}
-      {loading && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {[0, 1, 2].map((i) => (
-            <SkeletonCard key={i} lines={2} />
-          ))}
-        </div>
-      )}
-
-      {/* Named TMs list */}
-      {!loading && resources.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {resources.map((r) => (
-            <ResourceCard
-              key={r.path}
-              name={r.name}
-              path={r.path}
-              size={r.size}
-              modified={r.modified}
-              icon={<Database size={18} />}
-              onClick={() => void handleOpen(r.path, r.name)}
-            />
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+        {loading
+          ? [0, 1, 2].map((i) => (
+              <ResourceCard key={i} loading name="" path="" onClick={() => {}} />
+            ))
+          : resources.map((r) => (
+              <ResourceCard
+                key={r.path}
+                name={r.name}
+                path={r.path}
+                size={r.size}
+                modified={r.modified}
+                icon={<Database size={18} />}
+                onClick={() => void handleOpen(r.path, r.name)}
+              />
+            ))}
+      </div>
 
       {/* Empty state */}
       {!loading && resources.length === 0 && (

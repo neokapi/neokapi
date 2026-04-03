@@ -61,3 +61,12 @@ export const LargeFile: Story = {
     onClick: () => {},
   },
 };
+
+export const Loading: Story = {
+  args: {
+    name: "",
+    path: "",
+    loading: true,
+    onClick: () => {},
+  },
+};
