@@ -1023,7 +1023,7 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 		blockID string
 	}
 
-	var repls []replacement
+	repls := make([]replacement, 0, len(attrs))
 	for _, a := range attrs {
 		offset := findAttrValueOffset(raw, a.key)
 		if offset >= 0 {

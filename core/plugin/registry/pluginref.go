@@ -71,14 +71,17 @@ func ParseFormatRef(s string) FormatRef {
 
 // String returns the canonical string representation: name[@version][:preset].
 func (r FormatRef) String() string {
-	s := r.Name
+	var b strings.Builder
+	b.WriteString(r.Name)
 	if r.Version != "" {
-		s += "@" + r.Version
+		b.WriteByte('@')
+		b.WriteString(r.Version)
 	}
 	if r.Preset != "" {
-		s += ":" + r.Preset
+		b.WriteByte(':')
+		b.WriteString(r.Preset)
 	}
-	return s
+	return b.String()
 }
 
 // RegistryName returns the name used for format registry lookups:

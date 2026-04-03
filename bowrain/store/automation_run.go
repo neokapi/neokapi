@@ -156,10 +156,13 @@ func (s *AutomationRunStore) ListRuns(ctx context.Context, projectID, status str
 	}
 	args = append(args, limit, offset)
 
-	q := fmt.Sprintf(`SELECT id, project_id, trigger_type, trigger_id, trigger_data,
+	var qb strings.Builder
+	qb.WriteString(`SELECT id, project_id, trigger_type, trigger_id, trigger_data,
 		status, step_count, done_count, error, started_at, ended_at
-		FROM automation_runs WHERE %s ORDER BY started_at DESC LIMIT ? OFFSET ?`,
-		strings.Join(where, " AND "))
+		FROM automation_runs WHERE `)
+	qb.WriteString(strings.Join(where, " AND "))
+	qb.WriteString(" ORDER BY started_at DESC LIMIT ? OFFSET ?")
+	q := qb.String()
 
 	rows, err := s.db.QueryContext(ctx, Rebind(s.dialect, q), args...)
 	if err != nil {
