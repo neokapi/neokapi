@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Label } from "@neokapi/ui";
 import {
+  Button,
+  Input,
+  Label,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@neokapi/ui/components/ui/dialog";
+} from "@neokapi/ui";
 import { grantCredits } from "../api";
 
 interface GrantCreditsDialogProps {
