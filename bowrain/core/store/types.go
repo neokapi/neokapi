@@ -3,7 +3,7 @@
 package store
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -200,7 +200,7 @@ type StreamTag struct {
 }
 
 // ErrStreamLocked is returned when a write operation is attempted on a locked stream.
-var ErrStreamLocked = fmt.Errorf("stream is locked")
+var ErrStreamLocked = errors.New("stream is locked")
 
 // MergeOptions controls stream merge behavior.
 type MergeOptions struct {

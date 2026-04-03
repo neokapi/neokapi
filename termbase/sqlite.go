@@ -2,6 +2,7 @@ package termbase
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -12,6 +13,9 @@ import (
 	"github.com/neokapi/neokapi/core/storage"
 	"github.com/neokapi/neokapi/sievepen"
 )
+
+// ErrConceptIDRequired is returned when a concept is added without an ID.
+var ErrConceptIDRequired = errors.New("concept ID is required")
 
 // SQLiteTermBase is a persistent termbase backed by SQLite.
 type SQLiteTermBase struct {
@@ -121,7 +125,7 @@ func (tb *SQLiteTermBase) AddConcept(concept Concept) error {
 // AddConceptWithStream inserts or updates a concept associated with a stream.
 func (tb *SQLiteTermBase) AddConceptWithStream(concept Concept, stream string) error {
 	if concept.ID == "" {
-		return fmt.Errorf("concept ID is required")
+		return ErrConceptIDRequired
 	}
 
 	now := time.Now()
