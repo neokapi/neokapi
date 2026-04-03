@@ -1,20 +1,3 @@
 {
-  "private": true,
-  "workspaces": [
-    "packages/ui",
-    "emails",
-    "apps/web",
-    "apps/ctrl",
-    "apps/pulse",
-    "apps/keycloak-theme",
-    "apps/bowrain/frontend"
-  ],
-  "devDependencies": {
-    "storybook": "^10.3.1"
-  },
-  "overrides": {
-    "@tanstack/react-query": "5.94.5",
-    "vite": "^8.0.0"
-  },
-  "packageManager": "npm@11.12.1"
+  "private": true
 }

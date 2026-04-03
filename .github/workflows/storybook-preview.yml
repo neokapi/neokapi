@@ -43,18 +43,6 @@ jobs:
           STORYBOOK_BASE_PATH: /bowrain/storybook/
         run: vpx storybook build -o storybook-static
 
-      - name: Install shared UI dependencies
-        working-directory: packages/ui
-        run: vp install
-
-      - name: Install flow-editor dependencies
-        working-directory: packages/flow-editor
-        run: vp install
-
-      - name: Install Kapi Desktop frontend dependencies
-        working-directory: framework/apps/kapi-desktop/frontend
-        run: vp install
-
       - name: Build Kapi Storybook
         working-directory: framework/apps/kapi-desktop/frontend
         env:
@@ -107,18 +95,6 @@ jobs:
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
-
-      - name: Install shared UI dependencies
-        working-directory: packages/ui
-        run: vp install
-
-      - name: Install flow-editor dependencies
-        working-directory: packages/flow-editor
-        run: vp install
-
-      - name: Install Kapi Desktop frontend dependencies
-        working-directory: framework/apps/kapi-desktop/frontend
-        run: vp install
 
       - name: Build Kapi Storybook
         working-directory: framework/apps/kapi-desktop/frontend

@@ -12,6 +12,7 @@
     "fmt": "vp fmt"
   },
   "dependencies": {
+    "@neokapi/ui": "*",
     "@tailwindcss/vite": "^4.2.2",
     "@tanstack/react-query": "^5.91.3",
     "@tanstack/react-router": "^1.168.1",

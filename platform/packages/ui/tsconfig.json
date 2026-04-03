@@ -10,15 +10,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "baseUrl": ".",
-    "typeRoots": [
-      "../../node_modules/@types",
-      "../../../packages/ui/node_modules/@types",
-      "../../../node_modules/@types"
-    ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@neokapi/ui-primitives": ["../../../packages/ui/src"],
-      "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src", "src/**/*.json"],
