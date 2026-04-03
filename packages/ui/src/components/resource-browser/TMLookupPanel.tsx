@@ -103,7 +103,7 @@ export function TMLookupPanel({ sourceLocale, targetLocale, onLookup }: TMLookup
     try {
       const result = await onLookup({
         text,
-        entities: entities.map(({ text, type, start, end }) => ({ text, type, start, end })),
+        entities: entities.map(({ text, type, start, end }: MarkedEntity) => ({ text, type, start, end })),
         source_locale: sourceLocale,
         target_locale: targetLocale,
         min_score: minScore,
