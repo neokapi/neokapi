@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Clock, AlertCircle, CheckCircle2 } from "lucide-react";
-import { cn } from "@neokapi/ui-primitives";
+import { cn, PanelHeader } from "@neokapi/ui-primitives";
 import type { TraceEvent, NodeTraceStats } from "./traceTypes";
 import { computeNodeStats } from "./traceTypes";
 
@@ -103,10 +103,10 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
 
   return (
     <div
-      className="border-t border-border bg-background px-3 py-2"
+      className="border-t border-border bg-background"
       style={{ animation: "slideDrawer 0.2s ease-out" }}
     >
-      <div className="mb-2 flex items-center gap-1.5">
+      <PanelHeader className="border-b-0">
         <Clock size={12} className="text-muted-foreground" />
         <span className="text-[11px] font-semibold text-foreground">Trace</span>
         {totalDurationUs !== undefined && (
@@ -114,9 +114,9 @@ export function TraceTimeline({ events, nodeNames, totalDurationUs }: TraceTimel
             Total: {formatDuration(totalDurationUs)}
           </span>
         )}
-      </div>
+      </PanelHeader>
 
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 px-3 pb-2">
         {sortedNodes.map(([nodeId, s]) => (
           <TimelineBar
             key={nodeId}

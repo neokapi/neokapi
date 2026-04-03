@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Badge, Button, SchemaForm, Card, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
+import { Badge, Button, SchemaForm, Card, CardContent, Label, Input, ScrollArea, LoadingSpinner } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -175,10 +175,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
         <ScrollArea className="flex-1">
           <div className="p-2">
           {loading ? (
-            <div className="flex items-center gap-2 px-2 py-4 text-sm text-muted-foreground">
-              <Loader2 size={14} className="animate-spin" />
-              Loading tools...
-            </div>
+            <LoadingSpinner size="sm" text="Loading tools..." className="px-2 py-4" />
           ) : (
             <div className="space-y-0.5">
               {filteredTools.map((tool) => {

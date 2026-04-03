@@ -17,7 +17,7 @@ import { WriterNode } from "./nodes/WriterNode";
 import { ToolNode } from "./nodes/ToolNode";
 import { ToolPalette } from "./ToolPalette";
 import { FlowTemplateLibrary } from "./FlowTemplateLibrary";
-import { cn, SchemaForm, Button, Badge, ScrollArea } from "@neokapi/ui-primitives";
+import { cn, SchemaForm, Button, Badge, ScrollArea, PanelHeader } from "@neokapi/ui-primitives";
 import { stepsToGraph, graphToSteps } from "./conversion";
 import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
@@ -47,35 +47,35 @@ interface FlowToolbarProps {
 
 function FlowToolbar({ stepCount, showPreview, onTogglePreview, onRun, flow }: FlowToolbarProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-background">
-      <span className="text-xs font-semibold text-muted-foreground">
-        {stepCount} step{stepCount !== 1 ? "s" : ""}
-      </span>
+    <PanelHeader
+      title={`${stepCount} step${stepCount !== 1 ? "s" : ""}`}
+      className="py-1.5"
+      actions={
+        <>
+          <Button
+            variant={showPreview ? "outline" : "ghost"}
+            size="xs"
+            onClick={onTogglePreview}
+            className={cn(showPreview && "border-accent text-accent-foreground")}
+            aria-label="Toggle preview"
+          >
+            <Eye size={12} />
+            Preview
+          </Button>
 
-      <div className="flex-1" />
-
-      <Button
-        variant={showPreview ? "outline" : "ghost"}
-        size="xs"
-        onClick={onTogglePreview}
-        className={cn(showPreview && "border-accent text-accent-foreground")}
-        aria-label="Toggle preview"
-      >
-        <Eye size={12} />
-        Preview
-      </Button>
-
-      {onRun && (
-        <Button
-          size="xs"
-          onClick={() => onRun(flow)}
-          aria-label="Run flow"
-        >
-          <Play size={12} />
-          Run
-        </Button>
-      )}
-    </div>
+          {onRun && (
+            <Button
+              size="xs"
+              onClick={() => onRun(flow)}
+              aria-label="Run flow"
+            >
+              <Play size={12} />
+              Run
+            </Button>
+          )}
+        </>
+      }
+    />
   );
 }
 
@@ -87,29 +87,35 @@ interface ParallelSuggestionBannerProps {
 
 function ParallelSuggestionBanner({ suggestion, onParallelize, onDismiss }: ParallelSuggestionBannerProps) {
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-secondary text-[11px]">
+    <PanelHeader
+      className="py-1.5 bg-secondary text-[11px]"
+      actions={
+        <>
+          <Button
+            size="xs"
+            onClick={() => onParallelize(suggestion)}
+            className="text-[11px]"
+          >
+            <GitBranch size={11} />
+            Parallelize
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={onDismiss}
+            aria-label="Dismiss suggestion"
+          >
+            <X size={12} className="text-muted-foreground" />
+          </Button>
+        </>
+      }
+    >
       <Zap size={13} className="text-accent-foreground shrink-0" />
       <span className="text-muted-foreground flex-1">
         <strong className="text-foreground">{suggestion.toolNames.join(", ")}</strong> can
         run in parallel &mdash; {suggestion.reason}
       </span>
-      <Button
-        size="xs"
-        onClick={() => onParallelize(suggestion)}
-        className="text-[11px]"
-      >
-        <GitBranch size={11} />
-        Parallelize
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        onClick={onDismiss}
-        aria-label="Dismiss suggestion"
-      >
-        <X size={12} className="text-muted-foreground" />
-      </Button>
-    </div>
+    </PanelHeader>
   );
 }
 

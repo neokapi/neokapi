@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Play, Globe, Workflow, Wrench, Loader2 } from "lucide-react";
-import { Button, Badge, Card, CardContent } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, EmptyState } from "@neokapi/ui-primitives";
 import type { KapiProject, FlowSpec } from "../types/api";
 
 interface HomePageProps {
@@ -123,18 +123,15 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
 
       {/* Empty state */}
       {flowNames.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center">
-            <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
-              No flows defined yet.{" "}
-              <Button variant="link" size="sm" onClick={() => onNavigate("flows")} className="px-0 h-auto">
-                Create your first flow
-              </Button>{" "}
-              to get started.
-            </p>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={<Workflow size={24} className="text-muted-foreground/50" />}
+          title="No flows defined yet."
+          action={
+            <Button variant="link" size="sm" onClick={() => onNavigate("flows")} className="px-0 h-auto">
+              Create your first flow
+            </Button>
+          }
+        />
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Eye, Loader2 } from "lucide-react";
-import { cn, Button, Textarea } from "@neokapi/ui-primitives";
+import { cn, Button, Textarea, PanelHeader } from "@neokapi/ui-primitives";
 import type { PartSnapshotSet } from "./traceTypes";
 
 interface PreviewPanelProps {
@@ -120,14 +120,14 @@ export function PreviewPanel({
   const snapshots = blockPart?.[1];
 
   return (
-    <div className="border-t border-border bg-background px-3 py-2">
-      <div className="mb-2 flex items-center gap-1.5">
+    <div className="border-t border-border bg-background">
+      <PanelHeader className="border-b-0">
         <Eye size={12} className="text-accent-foreground" />
         <span className="text-[11px] font-semibold text-foreground">Preview</span>
-      </div>
+      </PanelHeader>
 
       {/* Input area */}
-      <div className="mb-2 flex gap-1.5">
+      <div className="px-3 pb-2 flex gap-1.5">
         <Textarea
           value={sampleText}
           onChange={handleTextChange}

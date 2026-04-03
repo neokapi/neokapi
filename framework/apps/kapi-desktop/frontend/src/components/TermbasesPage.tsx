@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { BookOpen, Plus, FolderOpen, X, Upload, AlertTriangle } from "lucide-react";
-import { Button, Card, CardContent, Label, Input } from "@neokapi/ui-primitives";
+import { Button, Label, Input, PageHeader, EmptyState, SkeletonCard } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTermbaseAdapter } from "../hooks/useTermbaseAdapter";
@@ -153,8 +153,10 @@ export function TermbasesPage() {
   if (handle && adapter) {
     return (
       <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <PageHeader
+          title={tbName}
+          subtitle={tbPath || undefined}
+          backButton={
             <Button
               variant="ghost"
               size="icon-xs"
@@ -163,37 +165,35 @@ export function TermbasesPage() {
             >
               <X size={16} />
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold">{tbName}</h1>
-              {tbPath && <p className="text-[11px] text-muted-foreground">{tbPath}</p>}
+          }
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImportCSV}
+              >
+                <Upload size={12} />
+                Import CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImportJSON}
+              >
+                <Upload size={12} />
+                Import JSON
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+              >
+                Export JSON
+              </Button>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleImportCSV}
-            >
-              <Upload size={12} />
-              Import CSV
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleImportJSON}
-            >
-              <Upload size={12} />
-              Import JSON
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-            >
-              Export JSON
-            </Button>
-          </div>
-        </div>
+          }
+        />
 
         <TermbaseBrowser adapter={adapter} onError={showError} />
 
@@ -205,34 +205,33 @@ export function TermbasesPage() {
   // Resource picker view.
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Termbases</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenDialog}
-          >
-            <FolderOpen size={12} />
-            Open File...
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setShowCreateDialog(true)}
-          >
-            <Plus size={12} />
-            New Termbase
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Termbases"
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenDialog}
+            >
+              <FolderOpen size={12} />
+              Open File...
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <Plus size={12} />
+              New Termbase
+            </Button>
+          </div>
+        }
+      />
 
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[0, 1, 2].map((i) => (
-            <Card key={i} className="animate-pulse p-4">
-              <div className="h-3.5 bg-muted rounded w-1/3 mb-2" />
-              <div className="h-2.5 bg-muted rounded w-2/3" />
-            </Card>
+            <SkeletonCard key={i} lines={2} />
           ))}
         </div>
       )}
@@ -254,12 +253,10 @@ export function TermbasesPage() {
       )}
 
       {!loading && resources.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center">
-            <BookOpen size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground mb-3">
-              No termbases found. Create one or open a .db file.
-            </p>
+        <EmptyState
+          icon={<BookOpen size={24} className="text-muted-foreground/50" />}
+          title="No termbases found. Create one or open a .db file."
+          action={
             <div className="flex gap-2 justify-center">
               <Button
                 size="sm"
@@ -275,8 +272,8 @@ export function TermbasesPage() {
                 Open File...
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
 
       {showCreateDialog && (

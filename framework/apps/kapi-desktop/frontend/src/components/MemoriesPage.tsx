@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
-import { Button, Card, CardContent, Label, Input } from "@neokapi/ui-primitives";
+import { Button, Card, CardContent, Label, Input, PageHeader, SkeletonCard } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
@@ -136,9 +136,10 @@ export function MemoriesPage() {
   if (handle && adapter) {
     return (
       <div className="p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <PageHeader
+          title={tmName}
+          subtitle={tmPath || undefined}
+          backButton={
             <Button
               variant="ghost"
               size="icon-xs"
@@ -147,30 +148,28 @@ export function MemoriesPage() {
             >
               <X size={16} />
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold">{tmName}</h1>
-              {tmPath && <p className="text-[11px] text-muted-foreground">{tmPath}</p>}
+          }
+          actions={
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImport}
+              >
+                <Upload size={12} />
+                Import TMX
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+              >
+                <Download size={12} />
+                Export TMX
+              </Button>
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleImport}
-            >
-              <Upload size={12} />
-              Import TMX
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-            >
-              <Download size={12} />
-              Export TMX
-            </Button>
-          </div>
-        </div>
+          }
+        />
 
         <TMBrowser adapter={adapter} showLookup onError={showError} />
 
@@ -182,35 +181,34 @@ export function MemoriesPage() {
   // Resource picker view — no TM open.
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Translation Memories</h1>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleOpenDialog}
-          >
-            <FolderOpen size={12} />
-            Open File...
-          </Button>
-          <Button
-            size="sm"
-            onClick={() => setShowCreateDialog(true)}
-          >
-            <Plus size={12} />
-            Create TM
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Translation Memories"
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleOpenDialog}
+            >
+              <FolderOpen size={12} />
+              Open File...
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <Plus size={12} />
+              Create TM
+            </Button>
+          </div>
+        }
+      />
 
       {/* Loading skeleton */}
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[0, 1, 2].map((i) => (
-            <Card key={i} className="animate-pulse p-4">
-              <div className="h-3.5 bg-muted rounded w-1/3 mb-2" />
-              <div className="h-2.5 bg-muted rounded w-2/3" />
-            </Card>
+            <SkeletonCard key={i} lines={2} />
           ))}
         </div>
       )}

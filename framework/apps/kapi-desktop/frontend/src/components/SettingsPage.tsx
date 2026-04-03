@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { Sun, Moon, Monitor, Loader2 } from "lucide-react";
+import { Sun, Moon, Monitor } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives";
+import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, LoadingSpinner } from "@neokapi/ui-primitives";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
 
@@ -56,10 +56,7 @@ export function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
-        <Loader2 size={16} className="animate-spin" />
-        Loading settings...
-      </div>
+      <LoadingSpinner text="Loading settings..." className="p-6" />
     );
   }
 

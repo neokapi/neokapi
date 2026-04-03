@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Button, SchemaForm, Card, CardContent, Input, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea } from "@neokapi/ui-primitives";
+import { Button, SchemaForm, Card, CardContent, Input, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, PageHeader, SkeletonCard } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";
@@ -88,14 +88,16 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Formats</h1>
-        {documentedCount > 0 && (
-          <span className="text-[10px] text-muted-foreground">
-            {documentedCount} documented formats
-          </span>
-        )}
-      </div>
+      <PageHeader
+        title="Formats"
+        actions={
+          documentedCount > 0 ? (
+            <span className="text-[10px] text-muted-foreground">
+              {documentedCount} documented formats
+            </span>
+          ) : undefined
+        }
+      />
 
       {/* Search */}
       <div className="relative mb-4">
@@ -124,10 +126,7 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
           {[0, 1, 2, 3, 4, 5].map((i) => (
-            <Card key={i} className="animate-pulse p-4">
-              <div className="h-3.5 bg-muted rounded w-1/3 mb-2" />
-              <div className="h-2.5 bg-muted rounded w-2/3" />
-            </Card>
+            <SkeletonCard key={i} lines={2} />
           ))}
         </div>
       )}

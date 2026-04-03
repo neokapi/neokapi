@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
-import { Button, Card, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
+import { Button, Card, Label, Input, ScrollArea, PageHeader, EmptyState, SkeletonCard } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -369,48 +369,45 @@ export function FlowsPage({
   // Flow list view.
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">
-          {isProjectMode ? "Project Flows" : "Flows"}
-        </h1>
-        <div className="flex gap-2">
-          {!isProjectMode && (
+      <PageHeader
+        title={isProjectMode ? "Project Flows" : "Flows"}
+        actions={
+          <div className="flex gap-2">
+            {!isProjectMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleOpenFile()}
+              >
+                <FolderOpen size={12} />
+                Open File...
+              </Button>
+            )}
+            {isProjectMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleOpenImportDialog()}
+              >
+                <Import size={12} />
+                Import Flow
+              </Button>
+            )}
             <Button
-              variant="outline"
               size="sm"
-              onClick={() => void handleOpenFile()}
+              onClick={() => setShowCreateDialog(true)}
             >
-              <FolderOpen size={12} />
-              Open File...
+              <Plus size={12} />
+              New Flow
             </Button>
-          )}
-          {isProjectMode && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void handleOpenImportDialog()}
-            >
-              <Import size={12} />
-              Import Flow
-            </Button>
-          )}
-          <Button
-            size="sm"
-            onClick={() => setShowCreateDialog(true)}
-          >
-            <Plus size={12} />
-            New Flow
-          </Button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {[0, 1, 2].map((i) => (
-            <Card key={i} className="animate-pulse p-4">
-              <div className="h-3.5 bg-muted rounded w-1/3 mb-2" />
-              <div className="h-2.5 bg-muted rounded w-2/3" />
-            </Card>
+            <SkeletonCard key={i} lines={2} />
           ))}
         </div>
       )}
@@ -499,22 +496,20 @@ export function FlowsPage({
       )}
 
       {!loading && flows.length === 0 && (
-        <Card className="border-dashed">
-          <CardContent className="p-8 text-center">
-            <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground mb-3">
-              {isProjectMode
-                ? "No flows defined in this project yet."
-                : "Create a flow or copy a built-in to get started."}
-            </p>
+        <EmptyState
+          icon={<Workflow size={24} className="text-muted-foreground/50" />}
+          title={isProjectMode
+            ? "No flows defined in this project yet."
+            : "Create a flow or copy a built-in to get started."}
+          action={
             <Button
               size="sm"
               onClick={() => setShowCreateDialog(true)}
             >
               Create Flow
             </Button>
-          </CardContent>
-        </Card>
+          }
+        />
       )}
 
       {showCreateDialog && (
