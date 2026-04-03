@@ -16,6 +16,7 @@ import (
 
 // okapi: JSONFilterTest#testValue
 func TestReadSimpleJSON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"title": "Hello World", "description": "A simple test"}`
@@ -34,6 +35,7 @@ func TestReadSimpleJSON(t *testing.T) {
 
 // okapi: JSONFilterTest#testObject
 func TestReadNestedJSON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"nested": {"key": "Nested value", "deep": {"inner": "Deep value"}}}`
@@ -59,6 +61,7 @@ func TestReadNestedJSON(t *testing.T) {
 
 // okapi: JSONFilterTest#testList
 func TestReadArrayStrings(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
@@ -89,6 +92,7 @@ func TestReadArrayStrings(t *testing.T) {
 
 // okapi: JSONFilterTest#testDecimalNumber
 func TestReadNonStringValues(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"name": "Test", "count": 42, "active": true, "value": null}`
@@ -115,6 +119,7 @@ func TestReadNonStringValues(t *testing.T) {
 }
 
 func TestReadEmptyJSON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`{}`, model.LocaleEnglish))
@@ -128,6 +133,7 @@ func TestReadEmptyJSON(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`{"key": "value"}`, model.LocaleEnglish))
@@ -146,6 +152,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 }
 
 func TestReaderSignature(t *testing.T) {
+	t.Parallel()
 	reader := jsonfmt.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "application/json")
@@ -153,12 +160,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReaderMetadata(t *testing.T) {
+	t.Parallel()
 	reader := jsonfmt.NewReader()
 	assert.Equal(t, "json", reader.Name())
 	assert.Equal(t, "JSON", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	err := reader.Open(ctx, nil)
@@ -166,6 +175,7 @@ func TestReadNilDocument(t *testing.T) {
 }
 
 func TestReadInvalidJSON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`{invalid json`, model.LocaleEnglish))
@@ -184,6 +194,7 @@ func TestReadInvalidJSON(t *testing.T) {
 }
 
 func TestReadInvalidJSONError(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(`{invalid json`, model.LocaleEnglish))
@@ -202,6 +213,7 @@ func TestReadInvalidJSONError(t *testing.T) {
 }
 
 func TestReadFromFile(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	f, err := os.Open("testdata/simple.json")
@@ -234,6 +246,7 @@ func TestReadFromFile(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := `{"title": "Hello World", "description": "A simple test"}`
 
@@ -266,6 +279,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTranslation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := `{"greeting": "Hello", "farewell": "Goodbye"}`
 
@@ -310,6 +324,7 @@ func TestRoundTripWithTranslation(t *testing.T) {
 }
 
 func TestRoundTripNested(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := `{"parent": {"child": "Original"}}`
 
@@ -350,6 +365,7 @@ func TestRoundTripNested(t *testing.T) {
 }
 
 func TestRoundTripArray(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := `{"items": ["Apple", "Banana", "Cherry"]}`
 
@@ -403,6 +419,7 @@ func TestRoundTripArray(t *testing.T) {
 }
 
 func TestRoundTripFileSimple(t *testing.T) {
+	t.Parallel()
 	original, err := os.ReadFile("testdata/simple.json")
 	require.NoError(t, err)
 
@@ -441,6 +458,7 @@ func TestRoundTripFileSimple(t *testing.T) {
 
 // okapi: JSONFilterTest#testEscape
 func TestReadUnicodeJSON(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"greeting": "Hello \u4e16\u754c", "japanese": "\u3053\u3093\u306b\u3061\u306f"}`
@@ -457,6 +475,7 @@ func TestReadUnicodeJSON(t *testing.T) {
 
 // okapi: JSONFilterTest#testEmptyValue
 func TestReadEmptyStringValue(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"empty": "", "notempty": "value"}`
@@ -477,6 +496,7 @@ func TestReadEmptyStringValue(t *testing.T) {
 }
 
 func TestReadMixedArray(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	require.NoError(t, reader.Config().ApplyMap(map[string]any{
@@ -498,6 +518,7 @@ func TestReadMixedArray(t *testing.T) {
 }
 
 func TestConfigDefaults(t *testing.T) {
+	t.Parallel()
 	cfg := &jsonfmt.Config{}
 	cfg.Reset()
 	assert.True(t, cfg.ExtractAllPairs)
@@ -506,6 +527,7 @@ func TestConfigDefaults(t *testing.T) {
 }
 
 func TestRoundTripSourceOnly(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := `{"msg": "Hello"}`
 
@@ -534,6 +556,7 @@ func TestRoundTripSourceOnly(t *testing.T) {
 }
 
 func TestBlocksAreTranslatable(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"key": "value"}`
@@ -549,6 +572,7 @@ func TestBlocksAreTranslatable(t *testing.T) {
 
 // okapi: JSONFilterTest#testPath
 func TestReadDeeplyNested(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := jsonfmt.NewReader()
 	input := `{"a": {"b": {"c": {"d": "deep"}}}}`

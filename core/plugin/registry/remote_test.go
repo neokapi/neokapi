@@ -63,6 +63,7 @@ func serveBytes(t *testing.T, w http.ResponseWriter, data []byte) {
 }
 
 func TestFetchIndex(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -83,6 +84,7 @@ func TestFetchIndex(t *testing.T) {
 }
 
 func TestInstallPluginBinary(t *testing.T) {
+	t.Parallel()
 	binaryContent := []byte("fake-binary")
 
 	index := RegistryIndex{
@@ -131,6 +133,7 @@ func TestInstallPluginBinary(t *testing.T) {
 }
 
 func TestDownloadProgressCallback(t *testing.T) {
+	t.Parallel()
 	binaryContent := []byte("fake-binary-content-for-progress")
 
 	index := RegistryIndex{
@@ -189,6 +192,7 @@ func (w *countWriter) Write(p []byte) (int, error) {
 }
 
 func TestInstallPluginBridge(t *testing.T) {
+	t.Parallel()
 	// Bundled manifest.json in the archive — this is the authoritative source.
 	bundledManifest := `{
 		"name": "okapi-bridge",
@@ -273,6 +277,7 @@ func TestInstallPluginBridge(t *testing.T) {
 }
 
 func TestInstallPluginBridgeWithoutBundledManifest(t *testing.T) {
+	t.Parallel()
 	// Archive WITHOUT manifest.json — should fall back to registry metadata.
 	archive := makeTarGz(t, map[string][]byte{
 		"fake-bridge.jar": []byte("fake-jar"),
@@ -324,6 +329,7 @@ func TestInstallPluginBridgeWithoutBundledManifest(t *testing.T) {
 }
 
 func TestInstallPluginExactVersion(t *testing.T) {
+	t.Parallel()
 	binaryContent := []byte("fake-binary-v1")
 
 	index := RegistryIndex{
@@ -376,6 +382,7 @@ func TestInstallPluginExactVersion(t *testing.T) {
 }
 
 func TestInstallPluginRemovesOlderVersions(t *testing.T) {
+	t.Parallel()
 	binaryV2 := []byte("fake-binary-v2")
 
 	index := RegistryIndex{
@@ -438,6 +445,7 @@ func TestInstallPluginRemovesOlderVersions(t *testing.T) {
 }
 
 func TestCheckUpdates(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Install an old version.
@@ -469,6 +477,7 @@ func TestCheckUpdates(t *testing.T) {
 }
 
 func TestCheckUpdatesNoUpdates(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	require.NoError(t, WriteVersionFile(dir, "my-tool", "1.0.0", &VersionFile{
@@ -496,6 +505,7 @@ func TestCheckUpdatesNoUpdates(t *testing.T) {
 }
 
 func TestSearchPlugins(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -529,6 +539,7 @@ func TestSearchPlugins(t *testing.T) {
 }
 
 func TestListInstalled(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	require.NoError(t, WriteVersionFile(dir, "a", "1.0.0", &VersionFile{Name: "a", Version: "1.0.0"}))
@@ -541,6 +552,7 @@ func TestListInstalled(t *testing.T) {
 }
 
 func TestHasMimeType(t *testing.T) {
+	t.Parallel()
 	m := PluginManifest{
 		Capabilities: []Capability{
 			{Type: "format", Name: "html", MimeTypes: []string{"text/html", "application/xhtml+xml"}},
@@ -555,11 +567,13 @@ func TestHasMimeType(t *testing.T) {
 }
 
 func TestHasMimeTypeEmpty(t *testing.T) {
+	t.Parallel()
 	m := PluginManifest{}
 	assert.False(t, m.HasMimeType("text/html"))
 }
 
 func TestHasCapabilityType(t *testing.T) {
+	t.Parallel()
 	m := PluginManifest{
 		Capabilities: []Capability{
 			{Type: "format", Name: "html"},
@@ -574,11 +588,13 @@ func TestHasCapabilityType(t *testing.T) {
 }
 
 func TestHasCapabilityTypeEmpty(t *testing.T) {
+	t.Parallel()
 	m := PluginManifest{}
 	assert.False(t, m.HasCapabilityType("format"))
 }
 
 func TestSearchPluginsAdvancedByMimeType(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -609,6 +625,7 @@ func TestSearchPluginsAdvancedByMimeType(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedByType(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -648,6 +665,7 @@ func TestSearchPluginsAdvancedByType(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedByExtension(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -680,6 +698,7 @@ func TestSearchPluginsAdvancedByExtension(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedCombinedFilters(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -728,6 +747,7 @@ func TestSearchPluginsAdvancedCombinedFilters(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedQueryMatchesCapabilities(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -761,6 +781,7 @@ func TestSearchPluginsAdvancedQueryMatchesCapabilities(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedNoFilters(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -783,6 +804,7 @@ func TestSearchPluginsAdvancedNoFilters(t *testing.T) {
 }
 
 func TestExtractTarGz(t *testing.T) {
+	t.Parallel()
 	archive := makeTarGz(t, map[string][]byte{
 		"root.txt":         []byte("world"),
 		"schemas/bar.json": []byte(`{"id":"bar"}`),
@@ -805,6 +827,7 @@ func TestExtractTarGz(t *testing.T) {
 }
 
 func TestExtractTarGzPathTraversal(t *testing.T) {
+	t.Parallel()
 	// Create archive with path traversal entry — should be skipped.
 	var buf bytes.Buffer
 	gw := gzip.NewWriter(&buf)
@@ -846,6 +869,7 @@ func TestExtractTarGzPathTraversal(t *testing.T) {
 }
 
 func TestInstallPluginChecksumMismatch(t *testing.T) {
+	t.Parallel()
 	archive := makeTarGz(t, map[string][]byte{
 		"file.jar": []byte("jar-content"),
 	})
@@ -883,6 +907,7 @@ func TestInstallPluginChecksumMismatch(t *testing.T) {
 }
 
 func TestRemovePluginSpecificVersion(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Install two versions.
@@ -910,6 +935,7 @@ func TestRemovePluginSpecificVersion(t *testing.T) {
 }
 
 func TestRemovePluginAllVersions(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	require.NoError(t, WriteVersionFile(dir, "okapi", "1.0.0", &VersionFile{
@@ -931,6 +957,7 @@ func TestRemovePluginAllVersions(t *testing.T) {
 }
 
 func TestRemovePluginNotInstalled(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 	reg := NewRemoteRegistry("http://unused", dir)
 
@@ -940,6 +967,7 @@ func TestRemovePluginNotInstalled(t *testing.T) {
 }
 
 func TestListAvailableGrouped(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -970,6 +998,7 @@ func TestListAvailableGrouped(t *testing.T) {
 }
 
 func TestListAvailableGroupedEmpty(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{Version: 1}
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -985,6 +1014,7 @@ func TestListAvailableGroupedEmpty(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedBundleOnly(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -1029,6 +1059,7 @@ func TestSearchPluginsAdvancedBundleOnly(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedFormatOnly(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -1073,6 +1104,7 @@ func TestSearchPluginsAdvancedFormatOnly(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedToolOnly(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -1117,6 +1149,7 @@ func TestSearchPluginsAdvancedToolOnly(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedBundleAndFormatCombined(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -1161,6 +1194,7 @@ func TestSearchPluginsAdvancedBundleAndFormatCombined(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedFormatOnlyLegacyFallback(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{
@@ -1198,6 +1232,7 @@ func TestSearchPluginsAdvancedFormatOnlyLegacyFallback(t *testing.T) {
 }
 
 func TestSearchPluginsAdvancedBundleWithQuery(t *testing.T) {
+	t.Parallel()
 	index := RegistryIndex{
 		Version: 1,
 		Plugins: []PluginManifest{

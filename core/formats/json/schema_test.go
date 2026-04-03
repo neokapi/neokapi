@@ -11,6 +11,7 @@ import (
 // has a corresponding entry in the Schema properties, and vice versa.
 // This detects drift between the schema and the actual config implementation.
 func TestSchemaMatchesApplyMap(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{}
 	cfg.Reset()
 	s := cfg.Schema()
@@ -58,6 +59,7 @@ func TestSchemaMatchesApplyMap(t *testing.T) {
 }
 
 func TestSchemaHasPresets(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)
@@ -66,6 +68,7 @@ func TestSchemaHasPresets(t *testing.T) {
 }
 
 func TestSchemaHasGroups(t *testing.T) {
+	t.Parallel()
 	cfg := &Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)

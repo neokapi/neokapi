@@ -103,6 +103,7 @@ func snippetRoundtrip(t *testing.T, snippet string, params map[string]any) strin
 
 // okapi: JSONFilterTest#testValue
 func TestSnippets_Value(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"key" : "Text1"}`)
 
 	blocks := translatableBlocks(parts)
@@ -114,6 +115,7 @@ func TestSnippets_Value(t *testing.T) {
 
 // okapi: JSONFilterTest#testObject
 func TestSnippets_Object(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"key" : { "key2" : "Text1" } }`)
 
 	blocks := translatableBlocks(parts)
@@ -124,6 +126,7 @@ func TestSnippets_Object(t *testing.T) {
 
 // okapi: JSONFilterTest#testList
 func TestSnippets_List(t *testing.T) {
+	t.Parallel()
 	// extractIsolatedStrings defaults to false, so array strings are not extracted.
 	// But objects within arrays should extract their key-value pairs.
 	parts := readJSON(t, `{"items": [{"key": "Text1"}]}`)
@@ -136,6 +139,7 @@ func TestSnippets_List(t *testing.T) {
 
 // okapi: JSONFilterTest#testAllWithKeyNoException
 func TestSnippets_AllWithKeyNoException(t *testing.T) {
+	t.Parallel()
 	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2"}`, map[string]any{
 		"extractAllPairs": true,
 		"useKeyAsName":    true,
@@ -154,6 +158,7 @@ func TestSnippets_AllWithKeyNoException(t *testing.T) {
 
 // okapi: JSONFilterTest#testAllWithKeyWithException
 func TestSnippets_AllWithKeyWithException(t *testing.T) {
+	t.Parallel()
 	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2", "not_this": "Text3"}`, map[string]any{
 		"extractAllPairs": true,
 		"exceptions":      "not_this",
@@ -168,6 +173,7 @@ func TestSnippets_AllWithKeyWithException(t *testing.T) {
 
 // okapi: JSONFilterTest#testNoneWithKeywithException
 func TestSnippets_NoneWithKeywithException(t *testing.T) {
+	t.Parallel()
 	parts := readJSONWith(t, `{"key1": "Text1", "key2": "Text2", "extract_me": "Text3"}`, map[string]any{
 		"extractAllPairs": false,
 		"exceptions":      "extract_me",
@@ -182,6 +188,7 @@ func TestSnippets_NoneWithKeywithException(t *testing.T) {
 
 // okapi: JSONFilterTest#testPath
 func TestSnippets_Path(t *testing.T) {
+	t.Parallel()
 	parts := readJSONWith(t, `{"parent": {"child": "Text1"}}`, map[string]any{
 		"useFullKeyPath":           true,
 		"useKeyAsName":             true,
@@ -199,6 +206,7 @@ func TestSnippets_Path(t *testing.T) {
 
 // okapi: JSONFilterTest#testLeadingSlash
 func TestSnippets_LeadingSlash(t *testing.T) {
+	t.Parallel()
 	parts := readJSONWith(t, `{"parent": {"child": "Text1"}}`, map[string]any{
 		"useFullKeyPath":           true,
 		"useKeyAsName":             true,
@@ -213,6 +221,7 @@ func TestSnippets_LeadingSlash(t *testing.T) {
 
 // okapi: JSONFilterTest#testStandaloneYes
 func TestSnippets_StandaloneYes(t *testing.T) {
+	t.Parallel()
 	parts := readJSONWith(t, `{"colors": ["Red", "Green", "Blue"]}`, map[string]any{
 		"extractIsolatedStrings": true,
 	})
@@ -226,6 +235,7 @@ func TestSnippets_StandaloneYes(t *testing.T) {
 
 // okapi: JSONFilterTest#testStandaloneDefaultWhichIsNo
 func TestSnippets_StandaloneDefaultWhichIsNo(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"colors": ["Red", "Green", "Blue"], "label": "Color list"}`)
 
 	blocks := translatableBlocks(parts)
@@ -236,6 +246,7 @@ func TestSnippets_StandaloneDefaultWhichIsNo(t *testing.T) {
 
 // okapi: JSONFilterTest#testEscape
 func TestSnippets_Escape(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"key": "\u00E0"}`)
 
 	blocks := translatableBlocks(parts)
@@ -245,6 +256,7 @@ func TestSnippets_Escape(t *testing.T) {
 
 // okapi: JSONFilterTest#testEscapes
 func TestSnippets_Escapes(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"key": "a\nb\tc\\d\"e\/f"}`)
 
 	blocks := translatableBlocks(parts)
@@ -259,6 +271,7 @@ func TestSnippets_Escapes(t *testing.T) {
 
 // okapi: JSONFilterTest#testEscapedForwardSlashDecoding
 func TestSnippets_EscapedForwardSlashDecoding(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"key": "a\/b"}`)
 
 	blocks := translatableBlocks(parts)
@@ -268,6 +281,7 @@ func TestSnippets_EscapedForwardSlashDecoding(t *testing.T) {
 
 // okapi: JSONFilterTest#testEscapeForwardSlashes
 func TestSnippets_EscapeForwardSlashes(t *testing.T) {
+	t.Parallel()
 	// Default: escapeForwardSlashes=true, forward slashes are escaped in output.
 	output := snippetRoundtrip(t, `{"key": "a/b"}`, nil)
 	assert.Contains(t, output, `a\/b`)
@@ -275,6 +289,7 @@ func TestSnippets_EscapeForwardSlashes(t *testing.T) {
 
 // okapi: JSONFilterTest#testNoEscapeForwardSlashes
 func TestSnippets_NoEscapeForwardSlashes(t *testing.T) {
+	t.Parallel()
 	output := snippetRoundtrip(t, `{"key": "a/b"}`, map[string]any{
 		"escapeForwardSlashes": false,
 	})
@@ -284,12 +299,14 @@ func TestSnippets_NoEscapeForwardSlashes(t *testing.T) {
 
 // okapi: JSONFilterTest#testEmptyValue
 func TestSnippets_EmptyValue(t *testing.T) {
+	t.Parallel()
 	output := snippetRoundtrip(t, `{"key": ""}`, nil)
 	assert.Contains(t, output, `""`)
 }
 
 // okapi: JSONFilterTest#testDecimalNumber
 func TestSnippets_DecimalNumber(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"name": "John", "score": 9.5}`)
 
 	blocks := translatableBlocks(parts)
@@ -302,6 +319,7 @@ func TestSnippets_DecimalNumber(t *testing.T) {
 
 // okapi: JSONFilterTest#testSimpleEntrySkeleton
 func TestSnippets_SimpleEntrySkeleton(t *testing.T) {
+	t.Parallel()
 	input := "{\n  \"key\" : \"value\"\n}"
 	output := snippetRoundtrip(t, input, nil)
 	// Should preserve the general structure and whitespace
@@ -312,6 +330,7 @@ func TestSnippets_SimpleEntrySkeleton(t *testing.T) {
 
 // okapi: JSONFilterTest#testLineBreaks
 func TestSnippets_LineBreaks(t *testing.T) {
+	t.Parallel()
 	input := "{\r\"key\" : \"value\"\r}"
 	output := snippetRoundtrip(t, input, nil)
 	assert.Contains(t, output, "value")
@@ -319,6 +338,7 @@ func TestSnippets_LineBreaks(t *testing.T) {
 
 // okapi: JSONFilterTest#testWhiteSpaceAndComments
 func TestSnippets_WhiteSpaceAndComments(t *testing.T) {
+	t.Parallel()
 	input := `{
   /* block comment */
   // line comment
@@ -334,6 +354,7 @@ func TestSnippets_WhiteSpaceAndComments(t *testing.T) {
 
 // okapi: JSONFilterTest#testMultilineComment
 func TestSnippets_MultilineComment(t *testing.T) {
+	t.Parallel()
 	input := `{
   /* this is
      a multiline
@@ -349,6 +370,7 @@ func TestSnippets_MultilineComment(t *testing.T) {
 
 // okapi: JSONFilterTest#testNestedComments
 func TestSnippets_NestedComments(t *testing.T) {
+	t.Parallel()
 	input := `{
   /* outer /* nested */ comment */
   "key": "Text1"
@@ -362,6 +384,7 @@ func TestSnippets_NestedComments(t *testing.T) {
 
 // okapi: JSONFilterTest#testNoteRules
 func TestSnippets_NoteRules(t *testing.T) {
+	t.Parallel()
 	input := `{"note": "This is a note", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs": true,
@@ -386,6 +409,7 @@ func TestSnippets_NoteRules(t *testing.T) {
 
 // okapi: JSONFilterTest#testIdRules
 func TestSnippets_IdRules(t *testing.T) {
+	t.Parallel()
 	input := `{"id": "my-id", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs": true,
@@ -402,6 +426,7 @@ func TestSnippets_IdRules(t *testing.T) {
 
 // okapi: JSONFilterTest#testNestedIdRules
 func TestSnippets_NestedIdRules(t *testing.T) {
+	t.Parallel()
 	input := `{"items": [{"id": "item1", "text": "Text1"}, {"id": "item2", "text": "Text2"}]}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs": true,
@@ -418,6 +443,7 @@ func TestSnippets_NestedIdRules(t *testing.T) {
 
 // okapi: JSONFilterTest#testGenericMetaRules
 func TestSnippets_GenericMetaRules(t *testing.T) {
+	t.Parallel()
 	input := `{"meta": "metadata-value", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs":  true,
@@ -438,6 +464,7 @@ func TestSnippets_GenericMetaRules(t *testing.T) {
 
 // okapi: JSONFilterTest#testGenericMetaRulesWithId
 func TestSnippets_GenericMetaRulesWithId(t *testing.T) {
+	t.Parallel()
 	input := `{"id": "my-id", "meta": "metadata-value", "key": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs":  true,
@@ -455,6 +482,7 @@ func TestSnippets_GenericMetaRulesWithId(t *testing.T) {
 
 // okapi: JSONFilterTest#testExtractionRules
 func TestSnippets_ExtractionRules(t *testing.T) {
+	t.Parallel()
 	input := `{"title": "Extract me", "body": "Extract me too", "id": "Skip me"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs": false,
@@ -470,6 +498,7 @@ func TestSnippets_ExtractionRules(t *testing.T) {
 
 // okapi: JSONFilterTest#testMaxwidthRules
 func TestSnippets_MaxwidthRules(t *testing.T) {
+	t.Parallel()
 	input := `{"maxwidth": 100, "title": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs": false,
@@ -490,6 +519,7 @@ func TestSnippets_MaxwidthRules(t *testing.T) {
 
 // okapi: JSONFilterTest#testMaxwidthRulesWithSizeChar
 func TestSnippets_MaxwidthRulesWithSizeChar(t *testing.T) {
+	t.Parallel()
 	input := `{"maxwidth": 50, "title": "Text1"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs":  false,
@@ -511,6 +541,7 @@ func TestSnippets_MaxwidthRulesWithSizeChar(t *testing.T) {
 
 // okapi: JSONFilterTest#testArrayWithinArray
 func TestSnippets_ArrayWithinArray(t *testing.T) {
+	t.Parallel()
 	input := `{"data": [["Text1"]]}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractIsolatedStrings":   true,
@@ -527,6 +558,7 @@ func TestSnippets_ArrayWithinArray(t *testing.T) {
 
 // okapi: JSONFilterTest#testArrayWithinArrayWithinArray
 func TestSnippets_ArrayWithinArrayWithinArray(t *testing.T) {
+	t.Parallel()
 	input := `{"data": [[["Text1"]]]}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractIsolatedStrings":   true,
@@ -543,6 +575,7 @@ func TestSnippets_ArrayWithinArrayWithinArray(t *testing.T) {
 
 // okapi: JSONFilterTest#testArrayWithObject
 func TestSnippets_ArrayWithObject(t *testing.T) {
+	t.Parallel()
 	input := `{"items": [{"name": "Text1"}]}`
 	parts := readJSONWith(t, input, map[string]any{
 		"useFullKeyPath":           true,
@@ -558,6 +591,7 @@ func TestSnippets_ArrayWithObject(t *testing.T) {
 
 // okapi: JSONFilterTest#testNamedArray
 func TestSnippets_NamedArray(t *testing.T) {
+	t.Parallel()
 	input := `{"items": [{"name": "Text1"}, {"name": "Text2"}]}`
 	parts := readJSONWith(t, input, map[string]any{
 		"useFullKeyPath":           true,
@@ -574,6 +608,7 @@ func TestSnippets_NamedArray(t *testing.T) {
 
 // okapi: JSONFilterTest#testInlineCodeFinderEscaping
 func TestSnippets_InlineCodeFinderEscaping(t *testing.T) {
+	t.Parallel()
 	input := `{"key": "Hello <b>world</b> end"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"useCodeFinder": true,
@@ -592,6 +627,7 @@ func TestSnippets_InlineCodeFinderEscaping(t *testing.T) {
 
 // okapi: JSONFilterTest#testInlineCodeFinderNewLineCharacter
 func TestSnippets_InlineCodeFinderNewLineCharacter(t *testing.T) {
+	t.Parallel()
 	input := `{"key": "Line1\nLine2"}`
 	parts := readJSONWith(t, input, map[string]any{
 		"useCodeFinder": true,
@@ -610,6 +646,7 @@ func TestSnippets_InlineCodeFinderNewLineCharacter(t *testing.T) {
 
 // okapi: JSONFilterTest#testSmartQuotes
 func TestSnippets_SmartQuotes(t *testing.T) {
+	t.Parallel()
 	parts := readJSON(t, `{"key": "\u201CHello\u201D"}`)
 	blocks := translatableBlocks(parts)
 	require.NotEmpty(t, blocks)
@@ -623,6 +660,7 @@ func TestSnippets_SmartQuotes(t *testing.T) {
 
 // okapi: JSONFilterTest#testDoubleExtraction
 func TestSnippets_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	// Double extraction: read → write → re-read → compare block texts.
 	inputs := []struct {
 		name  string
@@ -637,6 +675,7 @@ func TestSnippets_DoubleExtraction(t *testing.T) {
 
 	for _, tt := range inputs {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 
 			// First extraction
@@ -680,6 +719,7 @@ func TestSnippets_DoubleExtraction(t *testing.T) {
 
 // okapi: JSONFilterTest#testSubfiltersProduceDistinctTextUnitIds
 func TestSnippets_SubfiltersProduceDistinctTextUnitIds(t *testing.T) {
+	t.Parallel()
 	// Without a real subfilter resolver, we test that blocks from different
 	// keys get distinct IDs even without subfiltering.
 	parts := readJSON(t, `{"key1": "Text1", "key2": "Text2"}`)
@@ -698,6 +738,7 @@ func TestSnippets_SubfiltersProduceDistinctTextUnitIds(t *testing.T) {
 
 // okapi: JSONFilterTest#testSubfilterRules
 func TestSnippets_SubfilterRules(t *testing.T) {
+	t.Parallel()
 	// Without a real HTML resolver, verify that subfilterRules config is accepted
 	// and non-matching keys are still extracted as plain blocks.
 	input := `{"html_key": "<b>Bold text</b>", "plain_key": "Plain text"}`
@@ -723,6 +764,7 @@ func TestSnippets_SubfilterRules(t *testing.T) {
 // --- Comment preservation in roundtrip ---
 
 func TestSnippets_CommentPreservationRoundtrip(t *testing.T) {
+	t.Parallel()
 	input := `{
   // This is a comment
   "key": "value"
@@ -733,6 +775,7 @@ func TestSnippets_CommentPreservationRoundtrip(t *testing.T) {
 }
 
 func TestSnippets_BlockCommentPreservationRoundtrip(t *testing.T) {
+	t.Parallel()
 	input := `{
   /* Block comment */
   "key": "value"
@@ -745,6 +788,7 @@ func TestSnippets_BlockCommentPreservationRoundtrip(t *testing.T) {
 // --- Whitespace preservation ---
 
 func TestSnippets_WhitespacePreservation(t *testing.T) {
+	t.Parallel()
 	input := "{\n    \"key\" :   \"value\"\n}"
 	output := snippetRoundtrip(t, input, nil)
 	// Should preserve original whitespace structure
@@ -754,6 +798,7 @@ func TestSnippets_WhitespacePreservation(t *testing.T) {
 // --- Extraction with full key path ---
 
 func TestSnippets_ExtractionRulesWithFullPath(t *testing.T) {
+	t.Parallel()
 	input := `{"widgets": [{"body": "Extract this", "id": "123"}]}`
 	parts := readJSONWith(t, input, map[string]any{
 		"extractAllPairs":          false,
@@ -771,6 +816,7 @@ func TestSnippets_ExtractionRulesWithFullPath(t *testing.T) {
 // --- Config validation ---
 
 func TestSnippets_ConfigDefaults(t *testing.T) {
+	t.Parallel()
 	reader := jsonfmt.NewReader()
 	cfg := reader.Config().(*jsonfmt.Config)
 	assert.True(t, cfg.ExtractAllPairs)
@@ -784,6 +830,7 @@ func TestSnippets_ConfigDefaults(t *testing.T) {
 // okapi: JSONFilterTest#testDefaultInfo
 // Java-specific: tests filter metadata (name, display name, configurations)
 func TestSnippets_DefaultInfo(t *testing.T) {
+	t.Parallel()
 	reader := jsonfmt.NewReader()
 	assert.Equal(t, "json", reader.Name())
 	assert.Equal(t, "JSON", reader.DisplayName())
@@ -793,6 +840,7 @@ func TestSnippets_DefaultInfo(t *testing.T) {
 
 // okapi: JSONFilterTest#testVariableMaxWidthInNestedObjects
 func TestSnippets_VariableMaxWidthInNestedObjects(t *testing.T) {
+	t.Parallel()
 	input := `{
   "sections": [
     {"maxchars": 100, "title": "This text has a maxwidth of 100"},
@@ -835,6 +883,7 @@ func TestSnippets_VariableMaxWidthInNestedObjects(t *testing.T) {
 
 // okapi: JSONFilterTest#metaDataAndExtractionRulesNestedNotes
 func TestSnippets_MetaDataAndExtractionRulesNestedNotes(t *testing.T) {
+	t.Parallel()
 	input := `{
   "widgets": [
     {
@@ -879,6 +928,7 @@ func TestSnippets_MetaDataAndExtractionRulesNestedNotes(t *testing.T) {
 
 // okapi: JSONFilterTest#metaDataAndExtractionRulesWithSubfilter
 func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
+	t.Parallel()
 	input := `{
   "widgets": [
     {
@@ -926,6 +976,7 @@ func TestSnippets_MetaDataAndExtractionRulesWithSubfilter(t *testing.T) {
 
 // okapi: JSONFilterTest#testSubfilterEasyToDebug
 func TestSnippets_SubfilterEasyToDebug(t *testing.T) {
+	t.Parallel()
 	// Simplified subfilter test: verify that the reader handles a simple
 	// HTML-like value without a subfilter resolver (treated as plain text).
 	input := `{"key": "<b>bold</b>"}`
@@ -938,6 +989,7 @@ func TestSnippets_SubfilterEasyToDebug(t *testing.T) {
 
 // okapi: JSONFilterTest#testDoubleExtractionOnPreviousFailure
 func TestSnippets_DoubleExtractionOnPreviousFailure(t *testing.T) {
+	t.Parallel()
 	// Tests double extraction on a customer-form-like JSON structure
 	// that caused failures in earlier Okapi versions.
 	input := `{
@@ -987,6 +1039,7 @@ func TestSnippets_DoubleExtractionOnPreviousFailure(t *testing.T) {
 
 // okapi: JSONFilterTest#testDoubleExtractionOnInvalid
 func TestSnippets_DoubleExtractionOnInvalid(t *testing.T) {
+	t.Parallel()
 	// Tests double extraction on relaxed JSON with comments.
 	// The native reader supports comments as relaxed JSON.
 	input := `{
@@ -1032,6 +1085,7 @@ func TestSnippets_DoubleExtractionOnInvalid(t *testing.T) {
 
 // okapi: JSONFilterTest#testEscapeForwardSlashesSubfilter
 func TestSnippets_EscapeForwardSlashesSubfilter(t *testing.T) {
+	t.Parallel()
 	// Forward slash escaping behavior applies to subfiltered content too.
 	// Without a real HTML subfilter, we verify the escaping works on
 	// content that contains forward slashes and HTML-like tags.
@@ -1048,6 +1102,7 @@ func TestSnippets_EscapeForwardSlashesSubfilter(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_Simple verifies byte-exact roundtrip for simple JSON.
 func TestSnippets_ExactRoundtrip_Simple(t *testing.T) {
+	t.Parallel()
 	input := `{"key": "value"}`
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1055,6 +1110,7 @@ func TestSnippets_ExactRoundtrip_Simple(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_Whitespace verifies whitespace is preserved exactly.
 func TestSnippets_ExactRoundtrip_Whitespace(t *testing.T) {
+	t.Parallel()
 	input := "{\n    \"key\" :   \"value\"\n}"
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1062,6 +1118,7 @@ func TestSnippets_ExactRoundtrip_Whitespace(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_Comments verifies comments survive roundtrip.
 func TestSnippets_ExactRoundtrip_Comments(t *testing.T) {
+	t.Parallel()
 	input := "{\n  // line comment\n  \"key\": \"value\"\n}"
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1069,6 +1126,7 @@ func TestSnippets_ExactRoundtrip_Comments(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_BlockComment verifies block comments survive roundtrip.
 func TestSnippets_ExactRoundtrip_BlockComment(t *testing.T) {
+	t.Parallel()
 	input := "{\n  /* block */\n  \"key\": \"value\"\n}"
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1077,6 +1135,7 @@ func TestSnippets_ExactRoundtrip_BlockComment(t *testing.T) {
 // TestSnippets_ExactRoundtrip_UnicodeEscapes verifies unicode escapes in
 // non-translatable values are preserved exactly.
 func TestSnippets_ExactRoundtrip_UnicodeEscapes(t *testing.T) {
+	t.Parallel()
 	input := `{"id": "\u0041\u0042", "text": "Hello"}`
 	output := snippetRoundtrip(t, input, map[string]any{
 		"extractAllPairs": true,
@@ -1090,6 +1149,7 @@ func TestSnippets_ExactRoundtrip_UnicodeEscapes(t *testing.T) {
 // TestSnippets_ExactRoundtrip_EscapedSlash verifies escaped forward slashes
 // in non-translatable values are preserved.
 func TestSnippets_ExactRoundtrip_EscapedSlash(t *testing.T) {
+	t.Parallel()
 	input := `{"note": "see a\/b", "text": "Hello"}`
 	output := snippetRoundtrip(t, input, map[string]any{
 		"extractAllPairs": true,
@@ -1101,6 +1161,7 @@ func TestSnippets_ExactRoundtrip_EscapedSlash(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_Nested verifies nested structures roundtrip exactly.
 func TestSnippets_ExactRoundtrip_Nested(t *testing.T) {
+	t.Parallel()
 	input := `{"parent": {"child": "value"}, "other": "text"}`
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1108,6 +1169,7 @@ func TestSnippets_ExactRoundtrip_Nested(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_Array verifies arrays roundtrip exactly.
 func TestSnippets_ExactRoundtrip_Array(t *testing.T) {
+	t.Parallel()
 	input := `{"items": ["a", "b", "c"]}`
 	output := snippetRoundtrip(t, input, map[string]any{
 		"extractIsolatedStrings": true,
@@ -1118,6 +1180,7 @@ func TestSnippets_ExactRoundtrip_Array(t *testing.T) {
 // TestSnippets_ExactRoundtrip_NonStringValues verifies numbers, bools, nulls
 // are preserved exactly.
 func TestSnippets_ExactRoundtrip_NonStringValues(t *testing.T) {
+	t.Parallel()
 	input := `{"name": "Test", "count": 42, "rate": 3.14, "active": true, "deleted": false, "meta": null}`
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1125,6 +1188,7 @@ func TestSnippets_ExactRoundtrip_NonStringValues(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_MultilineFormatted verifies pretty-printed JSON roundtrips.
 func TestSnippets_ExactRoundtrip_MultilineFormatted(t *testing.T) {
+	t.Parallel()
 	input := `{
   "title": "Hello",
   "nested": {
@@ -1138,6 +1202,7 @@ func TestSnippets_ExactRoundtrip_MultilineFormatted(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_TrailingNewline verifies trailing whitespace is preserved.
 func TestSnippets_ExactRoundtrip_TrailingNewline(t *testing.T) {
+	t.Parallel()
 	input := "{\"key\": \"value\"}\n"
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1145,6 +1210,7 @@ func TestSnippets_ExactRoundtrip_TrailingNewline(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_EmptyObject verifies empty objects roundtrip.
 func TestSnippets_ExactRoundtrip_EmptyObject(t *testing.T) {
+	t.Parallel()
 	input := `{"data": {}, "text": "Hello"}`
 	output := snippetRoundtrip(t, input, nil)
 	assert.Equal(t, input, output)
@@ -1152,6 +1218,7 @@ func TestSnippets_ExactRoundtrip_EmptyObject(t *testing.T) {
 
 // TestSnippets_ExactRoundtrip_MixedComments verifies all comment styles survive.
 func TestSnippets_ExactRoundtrip_MixedComments(t *testing.T) {
+	t.Parallel()
 	input := `{
   // line comment
   /* block comment */
@@ -1167,6 +1234,7 @@ func TestSnippets_ExactRoundtrip_MixedComments(t *testing.T) {
 // TestSnippets_SkeletonTranslation_UseFullKeyPath verifies translations work
 // when UseFullKeyPath changes the block name.
 func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
+	t.Parallel()
 	input := `{"parent": {"child": "Hello"}}`
 	ctx := context.Background()
 
@@ -1206,6 +1274,7 @@ func TestSnippets_SkeletonTranslation_UseFullKeyPath(t *testing.T) {
 // TestSnippets_SkeletonTranslation_IdRules verifies translations work
 // when idRules changes the block name to a custom ID.
 func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
+	t.Parallel()
 	input := `{"id": "msg-1", "text": "Hello"}`
 	ctx := context.Background()
 
@@ -1246,6 +1315,7 @@ func TestSnippets_SkeletonTranslation_IdRules(t *testing.T) {
 // TestSnippets_SkeletonTranslation_Exceptions verifies translations work
 // when exceptions exclude some keys.
 func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
+	t.Parallel()
 	input := `{"title": "Hello", "internal_id": "abc123"}`
 	ctx := context.Background()
 
@@ -1282,6 +1352,7 @@ func TestSnippets_SkeletonTranslation_Exceptions(t *testing.T) {
 // TestSnippets_SkeletonTranslation_NoteRules verifies note values are
 // preserved while translatable values get translated.
 func TestSnippets_SkeletonTranslation_NoteRules(t *testing.T) {
+	t.Parallel()
 	input := `{"note": "translator hint", "text": "Hello"}`
 	ctx := context.Background()
 
@@ -1354,6 +1425,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, snippet string, params map[strin
 }
 
 func TestSkeletonStore_ByteExact(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name   string
 		input  string
@@ -1377,6 +1449,7 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			output := snippetRoundtripWithSkeleton(t, tc.input, tc.params)
 			assert.Equal(t, tc.input, output, "skeleton store roundtrip should be byte-exact")
 		})
@@ -1384,6 +1457,7 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
+	t.Parallel()
 	input := `{"greeting": "Hello World", "farewell": "Goodbye"}`
 	ctx := context.Background()
 	locale := model.LocaleID("fr")
@@ -1427,6 +1501,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
+	t.Parallel()
 	input := `{"parent": {"child": "Hello"}}`
 	ctx := context.Background()
 	locale := model.LocaleID("de")
@@ -1470,6 +1545,7 @@ func TestSkeletonStore_WithTranslation_UseFullKeyPath(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_IdRules(t *testing.T) {
+	t.Parallel()
 	input := `{"id": "my-id", "text": "Hello"}`
 	ctx := context.Background()
 	locale := model.LocaleID("es")
@@ -1510,6 +1586,7 @@ func TestSkeletonStore_WithTranslation_IdRules(t *testing.T) {
 }
 
 func TestSkeletonStore_PreservesFormatting(t *testing.T) {
+	t.Parallel()
 	input := `{
   "title" : "Hello World",
   "nested" : {
@@ -1524,6 +1601,7 @@ func TestSkeletonStore_PreservesFormatting(t *testing.T) {
 }
 
 func TestSkeletonStore_Exceptions(t *testing.T) {
+	t.Parallel()
 	input := `{"title": "Hello", "id": "skip-me", "body": "World"}`
 	output := snippetRoundtripWithSkeleton(t, input, map[string]any{
 		"extractAllPairs": true,
@@ -1533,6 +1611,7 @@ func TestSkeletonStore_Exceptions(t *testing.T) {
 }
 
 func TestSkeletonStore_EscapeForwardSlashes(t *testing.T) {
+	t.Parallel()
 	// With escapeForwardSlashes=true (default), translated text should have \/
 	input := `{"url": "http://example.com"}`
 	ctx := context.Background()

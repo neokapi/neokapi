@@ -116,6 +116,7 @@ func snippetRoundtrip(t *testing.T, snippet string) string {
 // okapi: TsFilterTest#StartDocument
 // okapi: TsFilterTest#StartDocument_FromFile
 func TestSnippet_StartDocument(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -140,6 +141,7 @@ func TestSnippet_StartDocument(t *testing.T) {
 
 // okapi: TsFilterTest#DocumentPartTsPart
 func TestSnippet_DocumentPartTsPart(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -168,6 +170,7 @@ func TestSnippet_DocumentPartTsPart(t *testing.T) {
 // okapi: TsFilterTest#StartGroupContextPart
 // okapi: TsFilterTest#StartGroupContextPart_FromFile
 func TestSnippet_StartGroupContextPart(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -204,6 +207,7 @@ func TestSnippet_StartGroupContextPart(t *testing.T) {
 // okapi: TsFilterTest#TextUnitMessageUnfinished_FromFile
 // okapi: TsFilterTest#TextUnitMessageMissingTranslation_FromFile
 func TestSnippet_TextUnitMessageUnfinished(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -239,6 +243,7 @@ func TestSnippet_TextUnitMessageUnfinished(t *testing.T) {
 // okapi: TsFilterTest#TextUnitMessageMissingSourceAndTranslation_FromFile
 // okapi: TsFilterTest#TextUnitMessageMissingSourceNotTranslation_FromFile
 func TestSnippet_TranslationStatus(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -300,6 +305,7 @@ func TestSnippet_TranslationStatus(t *testing.T) {
 
 // okapi: TsFilterTest#testInlineCodes
 func TestSnippet_InlineCodes(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -330,6 +336,7 @@ func TestSnippet_InlineCodes(t *testing.T) {
 
 // okapi: TsFilterTest#testInlineCodesOutput
 func TestSnippet_InlineCodesOutput(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -353,6 +360,7 @@ func TestSnippet_InlineCodesOutput(t *testing.T) {
 
 // okapi: TsFilterTest#TestDecodeByteFalse
 func TestSnippet_DecodeByteFalse(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -380,6 +388,7 @@ func TestSnippet_DecodeByteFalse(t *testing.T) {
 
 // okapi: TsFilterTest#TestDecodeByteTrueDec
 func TestSnippet_DecodeByteTrueDec(t *testing.T) {
+	t.Parallel()
 	// Decimal byte value: value="79" is 'O' in ASCII.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -406,6 +415,7 @@ func TestSnippet_DecodeByteTrueDec(t *testing.T) {
 
 // okapi: TsFilterTest#TestDecodeByteTrueHex
 func TestSnippet_DecodeByteTrueHex(t *testing.T) {
+	t.Parallel()
 	// Hex byte value: value="4f" is 'O' in ASCII.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -432,6 +442,7 @@ func TestSnippet_DecodeByteTrueHex(t *testing.T) {
 
 // okapi: TsFilterTest#TestDecodeByteTrueHex2
 func TestSnippet_DecodeByteTrueHex2(t *testing.T) {
+	t.Parallel()
 	// Extended hex value with uppercase: value="4F".
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -458,6 +469,7 @@ func TestSnippet_DecodeByteTrueHex2(t *testing.T) {
 
 // okapi: TsFilterTest#TestEncodeIncludedChars
 func TestSnippet_EncodeIncludedChars(t *testing.T) {
+	t.Parallel()
 	// Verify that special XML chars are correctly decoded.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -483,6 +495,7 @@ func TestSnippet_EncodeIncludedChars(t *testing.T) {
 
 // okapi: TsFilterTest#TestEncodeExcludedChars
 func TestSnippet_EncodeExcludedChars(t *testing.T) {
+	t.Parallel()
 	// Verify that encoded entities roundtrip correctly.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -504,6 +517,7 @@ func TestSnippet_EncodeExcludedChars(t *testing.T) {
 
 // okapi: TsFilterTest#AllEvents
 func TestSnippet_AllEvents(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -548,6 +562,7 @@ func TestSnippet_AllEvents(t *testing.T) {
 
 // okapi: TsFilterTest#testTu
 func TestSnippet_Tu(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -569,6 +584,7 @@ func TestSnippet_Tu(t *testing.T) {
 
 // okapi: TsFilterTest#testConsolidatedStream
 func TestSnippet_ConsolidatedStream(t *testing.T) {
+	t.Parallel()
 	// The consolidated stream test verifies that extraction produces a coherent
 	// event stream for bilingual content with source and target.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
@@ -601,6 +617,7 @@ func TestSnippet_ConsolidatedStream(t *testing.T) {
 
 // okapi: TsFilterTest#testExtraComment
 func TestSnippet_ExtraComment(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -642,6 +659,7 @@ func TestSnippet_ExtraComment(t *testing.T) {
 
 // okapi: TsFilterTest#testGetName
 func TestSnippet_GetName(t *testing.T) {
+	t.Parallel()
 	reader := ts.NewReader()
 	assert.Equal(t, "ts", reader.Name())
 	assert.Equal(t, "Qt TS", reader.DisplayName())
@@ -649,6 +667,7 @@ func TestSnippet_GetName(t *testing.T) {
 
 // okapi: TsFilterTest#testGetMimeType
 func TestSnippet_GetMimeType(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -674,6 +693,7 @@ func TestSnippet_GetMimeType(t *testing.T) {
 // okapi: TsFilterTest#runTest
 // okapi: TsFilterTest#testDoubleExtraction
 func TestSnippet_RunTest(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -699,6 +719,7 @@ func TestSnippet_RunTest(t *testing.T) {
 
 // okapi: TsFilterTest#testSourceLangNotSpecified
 func TestSnippet_SourceLangNotSpecified(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr">
@@ -720,6 +741,7 @@ func TestSnippet_SourceLangNotSpecified(t *testing.T) {
 
 // okapi: TsFilterTest#testTargetLangNotSpecified
 func TestSnippet_TargetLangNotSpecified(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" sourcelanguage="en">
@@ -741,6 +763,7 @@ func TestSnippet_TargetLangNotSpecified(t *testing.T) {
 
 // okapi: TsFilterTest#testTargetLangNotSpecified2
 func TestSnippet_TargetLangNotSpecified2(t *testing.T) {
+	t.Parallel()
 	// Variant: TS element with no language or sourcelanguage at all.
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
@@ -764,6 +787,7 @@ func TestSnippet_TargetLangNotSpecified2(t *testing.T) {
 // okapi: TsFilterTest#testSourceLangEmpty
 // okapi: TsFilterTest#TextUnitMessageEmptySource_FromFile
 func TestSnippet_SourceLangEmpty(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="">
@@ -786,6 +810,7 @@ func TestSnippet_SourceLangEmpty(t *testing.T) {
 // okapi: TsFilterTest#testTargetLangEmpty
 // okapi: TsFilterTest#TextUnitMessageEmptyTranslation_FromFile
 func TestSnippet_TargetLangEmpty(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="" sourcelanguage="en">
@@ -807,6 +832,7 @@ func TestSnippet_TargetLangEmpty(t *testing.T) {
 
 // okapi: TsFilterTest#testInputStream
 func TestSnippet_InputStream(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -830,6 +856,7 @@ func TestSnippet_InputStream(t *testing.T) {
 // okapi: TsFilterTest#StartGroupNumerusPart_FromFile
 // okapi: TsFilterTest#TextUnitNumerus_FromFile
 func TestSnippet_NumerusForms(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -867,6 +894,7 @@ func TestSnippet_NumerusForms(t *testing.T) {
 
 // TestSnippet_MultipleContexts verifies extraction from multiple <context> elements.
 func TestSnippet_MultipleContexts(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -903,6 +931,7 @@ func TestSnippet_MultipleContexts(t *testing.T) {
 
 // TestSnippet_Signature verifies the format signature.
 func TestSnippet_Signature(t *testing.T) {
+	t.Parallel()
 	reader := ts.NewReader()
 	sig := reader.Signature()
 
@@ -918,6 +947,7 @@ func TestSnippet_Signature(t *testing.T) {
 
 // TestSnippet_Config verifies the config.
 func TestSnippet_Config(t *testing.T) {
+	t.Parallel()
 	reader := ts.NewReader()
 	cfg := reader.Config()
 	assert.Equal(t, "ts", cfg.FormatName())
@@ -929,6 +959,7 @@ func TestSnippet_Config(t *testing.T) {
 
 // TestSnippet_NilDocument verifies error on nil document.
 func TestSnippet_NilDocument(t *testing.T) {
+	t.Parallel()
 	reader := ts.NewReader()
 	err := reader.Open(context.Background(), nil)
 	assert.Error(t, err)
@@ -936,6 +967,7 @@ func TestSnippet_NilDocument(t *testing.T) {
 
 // TestSnippet_Roundtrip verifies full roundtrip.
 func TestSnippet_Roundtrip(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -967,6 +999,7 @@ func TestSnippet_Roundtrip(t *testing.T) {
 
 // TestSnippet_DoubleExtraction verifies reading twice produces same results.
 func TestSnippet_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -990,6 +1023,7 @@ func TestSnippet_DoubleExtraction(t *testing.T) {
 
 // TestSnippet_MessageWithID verifies that message id attribute is preserved.
 func TestSnippet_MessageWithID(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -1009,6 +1043,7 @@ func TestSnippet_MessageWithID(t *testing.T) {
 
 // TestSnippet_AutoGeneratedID verifies that blocks without message id get generated IDs.
 func TestSnippet_AutoGeneratedID(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -1033,6 +1068,7 @@ func TestSnippet_AutoGeneratedID(t *testing.T) {
 
 // TestSnippet_ContextNameOnBlock verifies the context name is stored on blocks.
 func TestSnippet_ContextNameOnBlock(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.0" language="fr" sourcelanguage="en">
@@ -1053,6 +1089,7 @@ func TestSnippet_ContextNameOnBlock(t *testing.T) {
 
 // TestReadTestdataFile_Simple verifies reading from testdata file.
 func TestReadTestdataFile_Simple(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := ts.NewReader()
 
@@ -1075,6 +1112,7 @@ func TestReadTestdataFile_Simple(t *testing.T) {
 
 // TestReadTestdataFile_Bilingual verifies reading bilingual file with various states.
 func TestReadTestdataFile_Bilingual(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := ts.NewReader()
 
@@ -1098,6 +1136,7 @@ func TestReadTestdataFile_Bilingual(t *testing.T) {
 
 // TestReadTestdataFile_Plurals verifies reading numerus forms from file.
 func TestReadTestdataFile_Plurals(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := ts.NewReader()
 
@@ -1120,12 +1159,14 @@ func TestReadTestdataFile_Plurals(t *testing.T) {
 
 // TestWriter_NewWriter verifies writer creation.
 func TestWriter_NewWriter(t *testing.T) {
+	t.Parallel()
 	writer := ts.NewWriter()
 	assert.Equal(t, "ts", writer.Name())
 }
 
 // TestWriter_EmptyOutput verifies writing with nil output does not panic.
 func TestWriter_EmptyOutput(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	writer := ts.NewWriter()
 
@@ -1138,6 +1179,7 @@ func TestWriter_EmptyOutput(t *testing.T) {
 
 // TestSnippet_LayerProperties verifies the layer has correct format metadata.
 func TestSnippet_LayerProperties(t *testing.T) {
+	t.Parallel()
 	snippet := `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="ro_RO" sourcelanguage="en">

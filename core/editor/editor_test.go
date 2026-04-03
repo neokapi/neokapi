@@ -77,6 +77,7 @@ func makePartsWithTranslations() []*model.Part {
 }
 
 func TestBuildBlockIndex(t *testing.T) {
+	t.Parallel()
 	parts := makeHTMLParts()
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
 
@@ -128,6 +129,7 @@ func TestBuildBlockIndex(t *testing.T) {
 }
 
 func TestBuildBlockIndexWithTargets(t *testing.T) {
+	t.Parallel()
 	parts := makePartsWithTranslations()
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
 
@@ -136,6 +138,7 @@ func TestBuildBlockIndexWithTargets(t *testing.T) {
 }
 
 func TestBlockIndexRoundtrip(t *testing.T) {
+	t.Parallel()
 	parts := makePartsWithTranslations()
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
 
@@ -165,6 +168,7 @@ func TestBlockIndexRoundtrip(t *testing.T) {
 }
 
 func TestBlockByID(t *testing.T) {
+	t.Parallel()
 	parts := makeHTMLParts()
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
 
@@ -177,6 +181,7 @@ func TestBlockByID(t *testing.T) {
 }
 
 func TestUpdateTarget(t *testing.T) {
+	t.Parallel()
 	parts := makeHTMLParts()
 	index := BuildBlockIndex(parts, "en", "html", "page.html")
 
@@ -189,6 +194,7 @@ func TestUpdateTarget(t *testing.T) {
 }
 
 func TestHTMLPreview(t *testing.T) {
+	t.Parallel()
 	parts := makeHTMLParts()
 	preview := BuildHTMLPreview(parts)
 
@@ -202,6 +208,7 @@ func TestHTMLPreview(t *testing.T) {
 }
 
 func TestHTMLPreviewWithSpans(t *testing.T) {
+	t.Parallel()
 	frag := &model.Fragment{}
 	frag.AppendText("Hello ")
 	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "b", ID: "b", Data: "<b>"})
@@ -234,6 +241,7 @@ func TestHTMLPreviewWithSpans(t *testing.T) {
 }
 
 func TestMarkdownPreview(t *testing.T) {
+	t.Parallel()
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:           "tu1",
@@ -260,6 +268,7 @@ func TestMarkdownPreview(t *testing.T) {
 }
 
 func TestGenericPreview(t *testing.T) {
+	t.Parallel()
 	parts := []*model.Part{
 		{Type: model.PartBlock, Resource: &model.Block{
 			ID:           "tu1",
@@ -277,6 +286,7 @@ func TestGenericPreview(t *testing.T) {
 }
 
 func TestSourceHTMLWithSpans(t *testing.T) {
+	t.Parallel()
 	frag := &model.Fragment{}
 	frag.AppendText("Click ")
 	frag.AppendSpan(&model.Span{SpanType: model.SpanOpening, Type: "a", ID: "a", Data: `<a href="/">`})
@@ -300,6 +310,7 @@ func TestSourceHTMLWithSpans(t *testing.T) {
 }
 
 func TestRenderFragmentHTML(t *testing.T) {
+	t.Parallel()
 	// Plain text
 	block := model.NewBlock("tu1", "Hello world")
 	assert.Equal(t, "Hello world", renderFragmentHTML(block))
@@ -319,6 +330,7 @@ func TestRenderFragmentHTML(t *testing.T) {
 }
 
 func TestReadWriteBlockIndex(t *testing.T) {
+	t.Parallel()
 	index := &BlockIndex{
 		Version:        "1.0",
 		SourceLanguage: "en",
@@ -357,6 +369,7 @@ func TestReadWriteBlockIndex(t *testing.T) {
 }
 
 func TestBuildPreviewFromBlockIndex(t *testing.T) {
+	t.Parallel()
 	// Create a BlockIndex manually
 	index := &BlockIndex{
 		Version:        "1.0",
@@ -379,6 +392,7 @@ func TestBuildPreviewFromBlockIndex(t *testing.T) {
 }
 
 func TestBuildPreviewFromBlockIndex_WithSkeleton(t *testing.T) {
+	t.Parallel()
 	index := &BlockIndex{
 		Version: "1.0",
 		Blocks: []Block{
@@ -406,11 +420,13 @@ func TestBuildPreviewFromBlockIndex_WithSkeleton(t *testing.T) {
 }
 
 func TestBuildPreviewFromBlockIndex_Empty(t *testing.T) {
+	t.Parallel()
 	preview := BuildPreviewFromBlockIndex("")
 	assert.Empty(t, preview)
 }
 
 func TestBuildPreviewFromBlockIndex_NoDocumentOrder(t *testing.T) {
+	t.Parallel()
 	index := &BlockIndex{
 		Blocks: []Block{
 			{ID: "tu1", Source: "Hello", SourceHTML: "Hello"},

@@ -10,6 +10,7 @@ import (
 )
 
 func TestTransform_FieldDelimiter_Tab(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -20,6 +21,7 @@ func TestTransform_FieldDelimiter_Tab(t *testing.T) {
 }
 
 func TestTransform_FieldDelimiter_Comma(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -30,6 +32,7 @@ func TestTransform_FieldDelimiter_Comma(t *testing.T) {
 }
 
 func TestTransform_FieldDelimiter_Space(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -40,6 +43,7 @@ func TestTransform_FieldDelimiter_Space(t *testing.T) {
 }
 
 func TestTransform_ColumnNamesLineNum(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -51,6 +55,7 @@ func TestTransform_ColumnNamesLineNum(t *testing.T) {
 }
 
 func TestTransform_ValuesStartLineNum(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -61,6 +66,7 @@ func TestTransform_ValuesStartLineNum(t *testing.T) {
 }
 
 func TestTransform_SourceColumns(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -73,6 +79,7 @@ func TestTransform_SourceColumns(t *testing.T) {
 }
 
 func TestTransform_SourceIdColumns(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -85,6 +92,7 @@ func TestTransform_SourceIdColumns(t *testing.T) {
 }
 
 func TestTransform_CommentColumns(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -97,6 +105,7 @@ func TestTransform_CommentColumns(t *testing.T) {
 }
 
 func TestTransform_TrimMode(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -107,6 +116,7 @@ func TestTransform_TrimMode(t *testing.T) {
 }
 
 func TestTransform_TrimModeNone(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -118,6 +128,7 @@ func TestTransform_TrimModeNone(t *testing.T) {
 }
 
 func TestTransform_DropsOkapiOnlyParams(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),
@@ -143,6 +154,7 @@ func TestTransform_DropsOkapiOnlyParams(t *testing.T) {
 }
 
 func TestTransform_TableKind(t *testing.T) {
+	t.Parallel()
 	// okf_table kind should also be registered
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("table"),
@@ -154,6 +166,7 @@ func TestTransform_TableKind(t *testing.T) {
 }
 
 func TestTransform_EmptySpec(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("commaseparatedvalues"),
 		config.FormatConfigKind("csv"),

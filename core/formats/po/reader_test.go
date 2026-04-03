@@ -82,6 +82,7 @@ func countPartsByType(parts []*model.Part, pt model.PartType) int {
 
 // okapi: POFilterTest#testOuputSimpleEntry
 func TestReadSimple(t *testing.T) {
+	t.Parallel()
 	parts := readDefault(t, "msgid \"Hello\"\nmsgstr \"Bonjour\"\n")
 	blocks := translatableBlocks(parts)
 
@@ -92,6 +93,7 @@ func TestReadSimple(t *testing.T) {
 
 // okapi: POFilterTest#testPOHeader
 func TestReadHeader(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	parts := readDefault(t, input)
 
@@ -106,6 +108,7 @@ func TestReadHeader(t *testing.T) {
 
 // okapi: POFilterTest#testNoQuoteOnSameLine
 func TestReadMultiline(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"\"\n\"Hello \"\n\"World\"\nmsgstr \"\"\n\"Bonjour \"\n\"le monde\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -117,6 +120,7 @@ func TestReadMultiline(t *testing.T) {
 
 // okapi: POFilterTest#testIDWithContext
 func TestReadMsgctxt(t *testing.T) {
+	t.Parallel()
 	input := "msgctxt \"menu\"\nmsgid \"File\"\nmsgstr \"Fichier\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -129,6 +133,7 @@ func TestReadMsgctxt(t *testing.T) {
 
 // okapi: POFilterTest#testTUPluralEntry_DefaultGroup
 func TestReadPluralForms(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"One item\"\nmsgid_plural \"Many items\"\nmsgstr[0] \"Un objet\"\nmsgstr[1] \"Plusieurs objets\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -148,6 +153,7 @@ func TestReadPluralForms(t *testing.T) {
 }
 
 func TestReadTranslatorComments(t *testing.T) {
+	t.Parallel()
 	input := "# This is a translator comment\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	parts := readDefault(t, input)
 
@@ -157,6 +163,7 @@ func TestReadTranslatorComments(t *testing.T) {
 }
 
 func TestReadReferences(t *testing.T) {
+	t.Parallel()
 	input := "#: src/main.c:42\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	parts := readDefault(t, input)
 
@@ -166,6 +173,7 @@ func TestReadReferences(t *testing.T) {
 }
 
 func TestReadUntranslated(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"Hello\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -177,6 +185,7 @@ func TestReadUntranslated(t *testing.T) {
 
 // okapi: POFilterTest#testEscapes
 func TestReadEscapeSequences(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"Hello\\nWorld\"\nmsgstr \"Bonjour\\nMonde\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -187,6 +196,7 @@ func TestReadEscapeSequences(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := po.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("", model.LocaleEnglish))
@@ -200,6 +210,7 @@ func TestReadEmpty(t *testing.T) {
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
+	t.Parallel()
 	parts := readDefault(t, "msgid \"Hello\"\nmsgstr \"\"\n")
 
 	require.GreaterOrEqual(t, len(parts), 3)
@@ -211,6 +222,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 }
 
 func TestReaderSignature(t *testing.T) {
+	t.Parallel()
 	reader := po.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "text/x-gettext-translation")
@@ -219,12 +231,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReaderMetadata(t *testing.T) {
+	t.Parallel()
 	reader := po.NewReader()
 	assert.Equal(t, "po", reader.Name())
 	assert.Equal(t, "PO (Gettext)", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := po.NewReader()
 	err := reader.Open(ctx, nil)
@@ -232,6 +246,7 @@ func TestReadNilDocument(t *testing.T) {
 }
 
 func TestReadMultipleEntries(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n\nmsgid \"Goodbye\"\nmsgstr \"Au revoir\"\n\nmsgid \"Thanks\"\nmsgstr \"Merci\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -246,6 +261,7 @@ func TestReadMultipleEntries(t *testing.T) {
 }
 
 func TestReadSimpleFile(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	f, err := os.Open("testdata/simple.po")
@@ -273,6 +289,7 @@ func TestReadSimpleFile(t *testing.T) {
 
 // okapi: RoundTripPoIT
 func TestRoundTrip(t *testing.T) {
+	t.Parallel()
 	input := `msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -294,6 +311,7 @@ msgstr ""
 
 // okapi: RoundTripSimplifyPoIT
 func TestRoundTrip_POTFile(t *testing.T) {
+	t.Parallel()
 	// Native roundtrip for POT files — the POT format is just PO without
 	// translations, the reader/writer handle both identically.
 	input := `msgid ""
@@ -319,6 +337,7 @@ msgstr ""
 
 // okapi: POFilterTest#testOuputEntryWithCTXT
 func TestRoundTripWithContext(t *testing.T) {
+	t.Parallel()
 	input := `msgctxt "menu"
 msgid "File"
 msgstr "Fichier"
@@ -329,6 +348,7 @@ msgstr "Fichier"
 
 // okapi: POFilterTest#testOuputPluralEntry
 func TestRoundTripWithPlurals(t *testing.T) {
+	t.Parallel()
 	input := `msgid "One item"
 msgid_plural "Many items"
 msgstr[0] "Un objet"
@@ -339,6 +359,7 @@ msgstr[1] "Plusieurs objets"
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	// Read
@@ -382,6 +403,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 
 // okapi: POFilterTest#testOuputOptionLine_FormatFuzzy
 func TestReadFlags(t *testing.T) {
+	t.Parallel()
 	input := "#, fuzzy\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	parts := readDefault(t, input)
 
@@ -392,6 +414,7 @@ func TestReadFlags(t *testing.T) {
 
 // okapi: POFilterTest#testUnescapedRead
 func TestReadEscapedQuotes(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"She said \\\"hello\\\"\"\nmsgstr \"Elle a dit \\\"bonjour\\\"\"\n"
 	parts := readDefault(t, input)
 	blocks := translatableBlocks(parts)
@@ -403,6 +426,7 @@ func TestReadEscapedQuotes(t *testing.T) {
 
 // okapi: POFilterTest#testUnescapedRewrite
 func TestWriteEscapedQuotes(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"She said \\\"hello\\\"\"\nmsgstr \"Elle a dit \\\"bonjour\\\"\"\n"
 	output := roundTrip(t, input)
 	assert.Equal(t, input, output)
@@ -412,6 +436,7 @@ func TestWriteEscapedQuotes(t *testing.T) {
 
 // okapi: POFilterTest#testDefaultInfo
 func TestRead_DefaultInfo(t *testing.T) {
+	t.Parallel()
 	reader := po.NewReader()
 	assert.Equal(t, "po", reader.Name())
 	assert.Equal(t, "PO (Gettext)", reader.DisplayName())
@@ -424,6 +449,7 @@ func TestRead_DefaultInfo(t *testing.T) {
 
 // okapi: POFilterTest#testDoubleExtraction
 func TestRoundTrip_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n\nmsgid \"World\"\nmsgstr \"Monde\"\n"
@@ -468,6 +494,7 @@ func TestRoundTrip_DoubleExtraction(t *testing.T) {
 
 // okapi: POFilterTest#testHeaderNoNPlurals
 func TestRead_HeaderNoNPlurals(t *testing.T) {
+	t.Parallel()
 	// A PO file with a header that lacks Plural-Forms.
 	input := "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"Hello\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -485,6 +512,7 @@ func TestRead_HeaderNoNPlurals(t *testing.T) {
 
 // okapi: POFilterTest#testHeaderWithEmptyEntryAfter
 func TestRead_HeaderWithEmptyEntryAfter(t *testing.T) {
+	t.Parallel()
 	// Header followed by empty msgid/msgstr (which should be treated as non-translatable header).
 	input := "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"\"\nmsgstr \"\"\n\nmsgid \"Real entry\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -503,6 +531,7 @@ func TestRead_HeaderWithEmptyEntryAfter(t *testing.T) {
 
 // okapi: POFilterTest#testHtmlSubfilterBilingualMode
 func TestRead_HtmlSubfilterBilingualMode(t *testing.T) {
+	t.Parallel()
 	// PO entry with HTML content - the native reader preserves HTML as plain text.
 	input := "msgid \"<b>Bold</b> text\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -517,6 +546,7 @@ func TestRead_HtmlSubfilterBilingualMode(t *testing.T) {
 
 // okapi: POFilterTest#testInlines
 func TestRead_Inlines(t *testing.T) {
+	t.Parallel()
 	// PO entry with printf-style inline codes.
 	// The native reader treats these as plain text (no inline code detection).
 	input := "#, c-format\nmsgid \"%1s %2s\"\nmsgstr \"%1s %2s\"\n"
@@ -537,6 +567,7 @@ func TestRead_Inlines(t *testing.T) {
 
 // okapi: POFilterTest#testMarkdownSubfilter
 func TestRead_MarkdownSubfilter(t *testing.T) {
+	t.Parallel()
 	// PO entry with markdown content - the native reader preserves markdown as plain text.
 	input := "msgid \"Hello **world**\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -551,6 +582,7 @@ func TestRead_MarkdownSubfilter(t *testing.T) {
 
 // okapi: POFilterTest#testMsgCtxtAsNotes
 func TestRead_MsgCtxtAsNotes(t *testing.T) {
+	t.Parallel()
 	// Two entries with the same msgid but different contexts.
 	input := "msgctxt \"greeting\"\nmsgid \"Hello world\"\nmsgstr \"Bonjour le monde\"\n\nmsgctxt \"farewell\"\nmsgid \"Hello world\"\nmsgstr \"Bonjour le monde\"\n"
 	parts := readDefault(t, input)
@@ -570,6 +602,7 @@ func TestRead_MsgCtxtAsNotes(t *testing.T) {
 
 // okapi: POFilterTest#testOnePlural
 func TestRead_OnePlural(t *testing.T) {
+	t.Parallel()
 	// A PO file with a single plural entry (nplurals=1).
 	input := "msgid \"\"\nmsgstr \"\"\n\"Plural-Forms: nplurals=1; plural=0;\\n\"\n\nmsgid \"1 gizmo\"\nmsgid_plural \"%d gizmos\"\nmsgstr[0] \"1 machin\"\n"
 	parts := readDefault(t, input)
@@ -593,6 +626,7 @@ func TestRead_OnePlural(t *testing.T) {
 
 // okapi: POFilterTest#testOuputAddTranslation
 func TestRead_OuputAddTranslation(t *testing.T) {
+	t.Parallel()
 	// Verify that an entry with a translation survives roundtrip.
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	output := roundTrip(t, input)
@@ -601,6 +635,7 @@ func TestRead_OuputAddTranslation(t *testing.T) {
 
 // okapi: POFilterTest#testOuputNoQuoteOnSameLine
 func TestRead_OuputNoQuoteOnSameLine(t *testing.T) {
+	t.Parallel()
 	// Multiline strings should roundtrip correctly.
 	input := "msgid \"\"\n\"This is a \"\n\"multiline string\"\nmsgstr \"\"\n"
 	output := roundTrip(t, input)
@@ -609,6 +644,7 @@ func TestRead_OuputNoQuoteOnSameLine(t *testing.T) {
 
 // okapi: POFilterTest#testOuputOptionLine_FuzyFormat
 func TestRead_OuputOptionLineFuzyFormat(t *testing.T) {
+	t.Parallel()
 	// "#, fuzzy, c-format" — verify extraction works regardless of flag order.
 	input := "#, fuzzy, c-format\nmsgid \"Text %s\"\nmsgstr \"Texte %s\"\n"
 	parts := readDefault(t, input)
@@ -626,6 +662,7 @@ func TestRead_OuputOptionLineFuzyFormat(t *testing.T) {
 
 // okapi: POFilterTest#testOuputOptionLine_JustFormatWithMacLB
 func TestRead_OuputOptionLineJustFormatWithMacLB(t *testing.T) {
+	t.Parallel()
 	// c-format flag with Mac-style line breaks (\r) — the reader should still extract.
 	// Note: bufio.Scanner handles \r\n but not \r alone, so we use \r\n here
 	// to verify flag parsing works with different line endings.
@@ -643,6 +680,7 @@ func TestRead_OuputOptionLineJustFormatWithMacLB(t *testing.T) {
 
 // okapi: POFilterTest#testOuputOptionLine_StuffFuzyFormat
 func TestRead_OuputOptionLineStuffFuzyFormat(t *testing.T) {
+	t.Parallel()
 	// "#, stuff, fuzzy, c-format" — multiple flags.
 	input := "#, stuff, fuzzy, c-format\nmsgid \"Text %s\"\nmsgstr \"Texte %s\"\n"
 	parts := readDefault(t, input)
@@ -661,6 +699,7 @@ func TestRead_OuputOptionLineStuffFuzyFormat(t *testing.T) {
 
 // okapi: POFilterTest#testOuputPluralEntryFuzzy
 func TestRead_OuputPluralEntryFuzzy(t *testing.T) {
+	t.Parallel()
 	// Fuzzy plural entry should roundtrip preserving the fuzzy flag.
 	input := "#, fuzzy\nmsgid \"One item\"\nmsgid_plural \"%d items\"\nmsgstr[0] \"Un article\"\nmsgstr[1] \"%d articles\"\n"
 	output := roundTrip(t, input)
@@ -671,6 +710,7 @@ func TestRead_OuputPluralEntryFuzzy(t *testing.T) {
 
 // okapi: POFilterTest#testOuputWithAllowedEmpty
 func TestRead_OuputWithAllowedEmpty(t *testing.T) {
+	t.Parallel()
 	// Entry with empty msgstr should roundtrip.
 	input := "msgid \"Hello\"\nmsgstr \"\"\n"
 	output := roundTrip(t, input)
@@ -680,6 +720,7 @@ func TestRead_OuputWithAllowedEmpty(t *testing.T) {
 
 // okapi: POFilterTest#testOutputProtectApproved
 func TestRead_OutputProtectApproved(t *testing.T) {
+	t.Parallel()
 	// Approved entries (no fuzzy) should roundtrip without adding fuzzy.
 	input := "msgid \"Approved text\"\nmsgstr \"Texte approuvé\"\n"
 	output := roundTrip(t, input)
@@ -691,6 +732,7 @@ func TestRead_OutputProtectApproved(t *testing.T) {
 
 // okapi: POFilterTest#testPOTHeader
 func TestRead_POTHeader(t *testing.T) {
+	t.Parallel()
 	// POT file header parsing.
 	input := "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\\n\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\nmsgid \"Africa/Abidjan\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -708,6 +750,7 @@ func TestRead_POTHeader(t *testing.T) {
 
 // okapi: POFilterTest#testPluralEntryFuzzy
 func TestRead_PluralEntryFuzzy(t *testing.T) {
+	t.Parallel()
 	input := "#, fuzzy, c-format\nmsgid \"%d file left to delete\"\nmsgid_plural \"%d files left to delete\"\nmsgstr[0] \"Encore %d fichier\"\nmsgstr[1] \"Encore %d fichiers\"\n"
 	parts := readDefault(t, input)
 
@@ -732,6 +775,7 @@ func TestRead_PluralEntryFuzzy(t *testing.T) {
 
 // okapi: POFilterTest#testPluralFormAccess
 func TestRead_PluralFormAccess(t *testing.T) {
+	t.Parallel()
 	// Plural form with targets — verify both singular and plural blocks are accessible.
 	input := "msgid \"\"\nmsgstr \"\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\nmsgid \"%d file\"\nmsgid_plural \"%d files\"\nmsgstr[0] \"%d fichier\"\nmsgstr[1] \"%d fichiers\"\n"
 	parts := readDefault(t, input)
@@ -755,6 +799,7 @@ func TestRead_PluralFormAccess(t *testing.T) {
 
 // okapi: POFilterTest#testPluralFormDefaults
 func TestRead_PluralFormDefaults(t *testing.T) {
+	t.Parallel()
 	// Verify plural form entries produce blocks with targets.
 	input := "msgid \"\"\nmsgstr \"\"\n\"Plural-Forms: nplurals=2; plural=(n != 1);\\n\"\n\nmsgid \"One item\"\nmsgid_plural \"%d items\"\nmsgstr[0] \"Un article\"\nmsgstr[1] \"%d articles\"\n"
 	parts := readDefault(t, input)
@@ -775,6 +820,7 @@ func TestRead_PluralFormDefaults(t *testing.T) {
 
 // okapi: POFilterTest#testProtectApproved
 func TestRead_ProtectApproved(t *testing.T) {
+	t.Parallel()
 	// Entry without fuzzy flag should be "approved" — just verify it reads correctly.
 	input := "msgid \"Approved text\"\nmsgstr \"Texte approuvé\"\n"
 	parts := readDefault(t, input)
@@ -794,6 +840,7 @@ func TestRead_ProtectApproved(t *testing.T) {
 
 // okapi: POFilterTest#testStartDocument
 func TestRead_StartDocument(t *testing.T) {
+	t.Parallel()
 	parts := readDefault(t, "msgid \"Hello\"\nmsgstr \"\"\n")
 
 	// Should produce a LayerStart at the beginning.
@@ -807,6 +854,7 @@ func TestRead_StartDocument(t *testing.T) {
 
 // okapi: POFilterTest#testTUCompleteEntry
 func TestRead_TUCompleteEntry(t *testing.T) {
+	t.Parallel()
 	// Complete entry: translator comment, extracted comment, reference, flags, msgctxt, msgid, msgstr.
 	input := "# Translator comment\n#. Extracted comment\n#: src/main.c:42\n#, fuzzy\nmsgctxt \"menu\"\nmsgid \"Save\"\nmsgstr \"Enregistrer\"\n"
 	parts := readDefault(t, input)
@@ -837,6 +885,7 @@ func TestRead_TUCompleteEntry(t *testing.T) {
 
 // okapi: POFilterTest#testTUContextParsing
 func TestRead_TUContextParsing(t *testing.T) {
+	t.Parallel()
 	// msgctxt should be parsed into the block's context property.
 	input := "msgctxt \"context\"\nmsgid \"untranslated-string\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -849,6 +898,7 @@ func TestRead_TUContextParsing(t *testing.T) {
 
 // okapi: POFilterTest#testTUEmptyIDEntry
 func TestRead_TUEmptyIDEntry(t *testing.T) {
+	t.Parallel()
 	// An entry with an empty msgid after the header should not produce a translatable block.
 	input := "msgid \"\"\nmsgstr \"\"\n\"Content-Type: text/plain; charset=UTF-8\\n\"\n\nmsgid \"\"\nmsgstr \"empty source\"\n\nmsgid \"Real\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -870,6 +920,7 @@ func TestRead_TUEmptyIDEntry(t *testing.T) {
 
 // okapi: POFilterTest#testTUPluralEntry_DefaultPlural
 func TestRead_TUPluralEntryDefaultPlural(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"One item\"\nmsgid_plural \"%d items\"\nmsgstr[0] \"\"\nmsgstr[1] \"\"\n"
 	parts := readDefault(t, input)
 
@@ -883,6 +934,7 @@ func TestRead_TUPluralEntryDefaultPlural(t *testing.T) {
 
 // okapi: POFilterTest#testTUPluralEntry_DefaultSingular
 func TestRead_TUPluralEntryDefaultSingular(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"One item\"\nmsgid_plural \"%d items\"\nmsgstr[0] \"\"\nmsgstr[1] \"\"\n"
 	parts := readDefault(t, input)
 
@@ -896,6 +948,7 @@ func TestRead_TUPluralEntryDefaultSingular(t *testing.T) {
 
 // okapi: POFilterTest#testThreePlurals
 func TestRead_ThreePlurals(t *testing.T) {
+	t.Parallel()
 	// A PO file with nplurals=3 (e.g. Russian: one, few, many).
 	input := "msgid \"\"\nmsgstr \"\"\n\"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\\n\"\n\nmsgid \"1 day\"\nmsgid_plural \"%d days\"\nmsgstr[0] \"1 den\"\nmsgstr[1] \"%d dne\"\nmsgstr[2] \"%d dni\"\n"
 	parts := readDefault(t, input)
@@ -915,6 +968,7 @@ func TestRead_ThreePlurals(t *testing.T) {
 
 // okapi: POFilterTest#testTrailingSkeleton
 func TestRead_TrailingSkeleton(t *testing.T) {
+	t.Parallel()
 	// Content after the last entry should be preserved as data (trailing comment).
 	input := "msgid \"Hello\"\nmsgstr \"\"\n\n# Trailing comment\n"
 	parts := readDefault(t, input)
@@ -926,6 +980,7 @@ func TestRead_TrailingSkeleton(t *testing.T) {
 
 // okapi: POFilterTest#testWithLetterCodes
 func TestRead_WithLetterCodes(t *testing.T) {
+	t.Parallel()
 	// Printf-style format codes (%s, %d) — the native reader treats them as plain text.
 	input := "#, c-format\nmsgid \"Value is %s and %d.\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)
@@ -941,6 +996,7 @@ func TestRead_WithLetterCodes(t *testing.T) {
 
 // okapi: POFilterTest#testWithNoCodesLookingLikeCodes
 func TestRead_WithNoCodesLookingLikeCodes(t *testing.T) {
+	t.Parallel()
 	// Without c-format flag, %-sequences are NOT inline codes, just plain text.
 	input := "msgid \"100% done\"\nmsgstr \"\"\n"
 	parts := readDefault(t, input)

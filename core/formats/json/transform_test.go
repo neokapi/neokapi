@@ -9,11 +9,13 @@ import (
 )
 
 func TestOkapiJSONTransform_Registration(t *testing.T) {
+	t.Parallel()
 	assert.True(t, config.DefaultTransforms.Has(
 		config.OkapiFilterConfigKind("json"), config.FormatConfigKind("json")))
 }
 
 func TestOkapiJSONTransform_DropsOkapiOnlyParams(t *testing.T) {
+	t.Parallel()
 	from := config.OkapiFilterConfigKind("json")
 	to := config.FormatConfigKind("json")
 	spec := map[string]any{
@@ -36,6 +38,7 @@ func TestOkapiJSONTransform_DropsOkapiOnlyParams(t *testing.T) {
 }
 
 func TestOkapiJSONTransform_EmptySpec(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("json"), config.FormatConfigKind("json"), map[string]any{})
 	require.NoError(t, err)
@@ -43,6 +46,7 @@ func TestOkapiJSONTransform_EmptySpec(t *testing.T) {
 }
 
 func TestOkapiJSONTransform_AllParamsPassThrough(t *testing.T) {
+	t.Parallel()
 	from := config.OkapiFilterConfigKind("json")
 	to := config.FormatConfigKind("json")
 	spec := map[string]any{

@@ -12,11 +12,13 @@ import (
 )
 
 func TestTokenUsageTotalTokens(t *testing.T) {
+	t.Parallel()
 	u := TokenUsage{InputTokens: 100, OutputTokens: 50}
 	assert.Equal(t, 150, u.TotalTokens())
 }
 
 func TestTokenUsageAdd(t *testing.T) {
+	t.Parallel()
 	a := TokenUsage{InputTokens: 100, OutputTokens: 50, CacheCreationTokens: 10, CacheReadTokens: 5}
 	b := TokenUsage{InputTokens: 200, OutputTokens: 75, CacheCreationTokens: 20, CacheReadTokens: 15}
 	sum := a.Add(b)
@@ -27,12 +29,14 @@ func TestTokenUsageAdd(t *testing.T) {
 }
 
 func TestTokenUsageZeroValue(t *testing.T) {
+	t.Parallel()
 	var u TokenUsage
 	assert.Equal(t, 0, u.TotalTokens())
 	assert.Equal(t, TokenUsage{}, u.Add(TokenUsage{}))
 }
 
 func TestOpenAIProviderParsesUsage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"choices": []map[string]any{
@@ -59,6 +63,7 @@ func TestOpenAIProviderParsesUsage(t *testing.T) {
 }
 
 func TestOpenAIProviderTranslatePropagatesUsage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"choices": []map[string]any{
@@ -85,6 +90,7 @@ func TestOpenAIProviderTranslatePropagatesUsage(t *testing.T) {
 }
 
 func TestAzureOpenAIProviderParsesUsage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := openaiResponse{
 			Choices: []openaiChoice{{Message: openaiMessage{Content: "Hei"}}},
@@ -104,6 +110,7 @@ func TestAzureOpenAIProviderParsesUsage(t *testing.T) {
 }
 
 func TestAnthropicProviderParsesUsage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"content": []map[string]any{
@@ -133,6 +140,7 @@ func TestAnthropicProviderParsesUsage(t *testing.T) {
 }
 
 func TestAnthropicProviderChatStructuredParsesUsage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"content": []map[string]any{
@@ -160,6 +168,7 @@ func TestAnthropicProviderChatStructuredParsesUsage(t *testing.T) {
 }
 
 func TestMockProviderReturnsUsage(t *testing.T) {
+	t.Parallel()
 	mock := NewMockProvider()
 
 	resp, err := mock.Translate(context.Background(), TranslateRequest{
@@ -184,6 +193,7 @@ func TestMockProviderReturnsUsage(t *testing.T) {
 }
 
 func TestProviderUsageZeroWhenNotInResponse(t *testing.T) {
+	t.Parallel()
 	// Verify that when the API doesn't return usage, we get zero values.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{

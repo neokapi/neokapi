@@ -32,6 +32,7 @@ func writeFromParts(t *testing.T, parts []*model.Part, locale model.LocaleID) st
 
 // okapi: POWriterTest#testEscapes
 func TestWrite_Escapes(t *testing.T) {
+	t.Parallel()
 	// Escape sequences (\n, \t, \\) should survive roundtrip.
 	// The reader unescapes \n to real newlines, so the writer outputs multiline format.
 	input := "msgid \"Line one\\nLine two\"\nmsgstr \"Ligne un\\nLigne deux\"\n"
@@ -52,6 +53,7 @@ func TestWrite_Escapes(t *testing.T) {
 
 // okapi: POWriterTest#testEscapesAmongAlreadyEscaped
 func TestWrite_EscapesAmongAlreadyEscaped(t *testing.T) {
+	t.Parallel()
 	// Double backslashes should survive roundtrip.
 	input := "msgid \"Path: C:\\\\Users\\\\test\\n\"\nmsgstr \"\"\n"
 	output := roundTrip(t, input)
@@ -61,6 +63,7 @@ func TestWrite_EscapesAmongAlreadyEscaped(t *testing.T) {
 
 // okapi: POWriterTest#testOutputWithFuzzy
 func TestWrite_OutputWithFuzzy(t *testing.T) {
+	t.Parallel()
 	// Fuzzy flag on a single entry should survive roundtrip.
 	input := "#, fuzzy\nmsgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	output := roundTrip(t, input)
@@ -71,6 +74,7 @@ func TestWrite_OutputWithFuzzy(t *testing.T) {
 
 // okapi: POWriterTest#testOutputWithFuzzyPlural
 func TestWrite_OutputWithFuzzyPlural(t *testing.T) {
+	t.Parallel()
 	// Fuzzy flag on a plural entry should survive roundtrip.
 	input := "#, fuzzy\nmsgid \"One item\"\nmsgid_plural \"%d items\"\nmsgstr[0] \"Un article\"\nmsgstr[1] \"%d articles\"\n"
 	output := roundTrip(t, input)
@@ -82,6 +86,7 @@ func TestWrite_OutputWithFuzzyPlural(t *testing.T) {
 
 // okapi: POWriterTest#testOutputWithLinesWithWrap
 func TestWrite_OutputWithLinesWithWrap(t *testing.T) {
+	t.Parallel()
 	// Multiline string output.
 	input := "msgid \"\"\n\"This is a very long line that should be wrapped at some point to keep the PO file readable\"\nmsgstr \"\"\n"
 	output := roundTrip(t, input)
@@ -91,6 +96,7 @@ func TestWrite_OutputWithLinesWithWrap(t *testing.T) {
 
 // okapi: POWriterTest#testOutputWithPlural
 func TestWrite_OutputWithPlural(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"One item\"\nmsgid_plural \"%d items\"\nmsgstr[0] \"Un article\"\nmsgstr[1] \"%d articles\"\n"
 	output := roundTrip(t, input)
 	assert.Contains(t, output, "msgid \"One item\"")
@@ -101,6 +107,7 @@ func TestWrite_OutputWithPlural(t *testing.T) {
 
 // okapi: POWriterTest#testSrcSimpleOutput
 func TestWrite_SrcSimpleOutput(t *testing.T) {
+	t.Parallel()
 	// Source-only entry (no translation).
 	input := "msgid \"Hello\"\nmsgstr \"\"\n"
 	output := roundTrip(t, input)
@@ -110,6 +117,7 @@ func TestWrite_SrcSimpleOutput(t *testing.T) {
 
 // okapi: POWriterTest#testSrcTrgSimpleOutput
 func TestWrite_SrcTrgSimpleOutput(t *testing.T) {
+	t.Parallel()
 	// Simple source + target entry.
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	output := roundTrip(t, input)
