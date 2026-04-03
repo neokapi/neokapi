@@ -1,7 +1,7 @@
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
-import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui/components/ui/card";
-import { Button } from "@neokapi/ui/components/ui/button";
+import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui";
+import { Button } from "@neokapi/ui";
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 
 export default function LogoutConfirm(props: {
