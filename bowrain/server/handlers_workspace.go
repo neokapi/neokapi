@@ -158,7 +158,9 @@ func (s *Server) HandleUpdateWorkspace(c echo.Context) error {
 			// Auto-generate an access key when switching to unlisted (if none exists).
 			if newVis == platauth.DashboardUnlisted && w.PulseAccessKey == "" {
 				b := make([]byte, 16)
-				_, _ = rand.Read(b)
+				if _, err := rand.Read(b); err != nil {
+					return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "generate access key: " + err.Error()})
+				}
 				w.PulseAccessKey = hex.EncodeToString(b)
 			}
 		}
