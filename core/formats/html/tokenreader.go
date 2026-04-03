@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -1036,13 +1037,9 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 	}
 
 	// Sort by offset (ascending).
-	for i := range repls {
-		for j := i + 1; j < len(repls); j++ {
-			if repls[j].offset < repls[i].offset {
-				repls[i], repls[j] = repls[j], repls[i]
-			}
-		}
-	}
+	sort.Slice(repls, func(i, j int) bool {
+		return repls[i].offset < repls[j].offset
+	})
 
 	pos := 0
 	for _, r := range repls {
@@ -1056,12 +1053,11 @@ func (s *tokenReaderState) writeMultiAttrRefSkeleton(raw []byte, attrs []transAt
 // findAttrValueOffset finds the byte offset of an attribute's value in raw tag bytes.
 // Returns -1 if not found.
 func findAttrValueOffset(raw []byte, attrKey string) int {
-	lower := bytes.ToLower(raw)
 	keyBytes := []byte(strings.ToLower(attrKey))
 
 	idx := 0
 	for {
-		pos := bytes.Index(lower[idx:], keyBytes)
+		pos := indexBytesInsensitive(raw[idx:], keyBytes)
 		if pos < 0 {
 			return -1
 		}
@@ -1102,6 +1098,26 @@ func findAttrValueOffset(raw []byte, attrKey string) int {
 	}
 }
 
+// indexBytesInsensitive finds the first occurrence of the lowercase needle in
+// haystack using case-insensitive comparison, without allocating a lowercase
+// copy of haystack.
+func indexBytesInsensitive(haystack, needle []byte) int {
+	nl := len(needle)
+	hl := len(haystack)
+	if nl == 0 {
+		return 0
+	}
+	if nl > hl {
+		return -1
+	}
+	for i := 0; i <= hl-nl; i++ {
+		if bytes.EqualFold(haystack[i:i+nl], needle) {
+			return i
+		}
+	}
+	return -1
+}
+
 // transAttrEntry holds a translatable attribute found during token processing.
 type transAttrEntry struct {
 	key     string
@@ -1118,7 +1134,7 @@ func copyBytes(b []byte) []byte {
 }
 
 func collectTokenAttrs(tokenizer *html.Tokenizer) []html.Attribute {
-	var attrs []html.Attribute
+	attrs := make([]html.Attribute, 0, 8) // preallocate; typical HTML elements have <10 attributes
 	for {
 		key, val, more := tokenizer.TagAttr()
 		if len(key) > 0 {
@@ -1131,6 +1147,10 @@ func collectTokenAttrs(tokenizer *html.Tokenizer) []html.Attribute {
 	return attrs
 }
 
+// getTokenAttr performs a linear scan for the attribute key. Although this is
+// called multiple times per token (up to ~8 calls for input elements), a map
+// would not help: typical HTML elements have fewer than 10 attributes, so the
+// linear scan is faster than building a map and amortizing the hash overhead.
 func getTokenAttr(attrs []html.Attribute, key string) string {
 	for _, a := range attrs {
 		if a.Key == key {
