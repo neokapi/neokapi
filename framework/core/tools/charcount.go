@@ -23,9 +23,9 @@ const (
 type CharCountConfig struct {
 	Locale model.LocaleID `json:"locale,omitempty" schema:"-"`
 
-	CountSource bool `json:"countSource,omitempty" schema:"description=Count characters in source text,default=true"`
-	CountTarget bool `json:"countTarget,omitempty" schema:"description=Count characters in target text,default=true"`
-	CountInline bool `json:"countInline,omitempty" schema:"description=Include inline code content in character counts"`
+	CountSource bool `json:"countSource,omitempty" schema:"title=Count Source,description=Count characters in source text,default=true"`
+	CountTarget bool `json:"countTarget,omitempty" schema:"title=Count Target,description=Count characters in target text,default=true"`
+	CountInline bool `json:"countInline,omitempty" schema:"title=Count Inline Codes,description=Include inline code content in character counts"`
 }
 
 // ToolName returns the tool name this config applies to.

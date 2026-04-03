@@ -30,13 +30,13 @@ type SegmentationConfig struct {
 	Rules        []SegmentationRule `json:"rules,omitempty"        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	SegmentSource                  bool   `json:"segmentSource,omitempty"                  schema:"description=Segment the source text using SRX rules,default=true"`
-	SegmentTarget                  bool   `json:"segmentTarget,omitempty"                  schema:"description=Segment existing target text using SRX rules"`
-	SourceSrxPath                  string `json:"sourceSrxPath,omitempty"                  schema:"description=Path to SRX segmentation rules file for source text"`
-	TargetSrxPath                  string `json:"targetSrxPath,omitempty"                  schema:"description=Path to SRX segmentation rules file for target text"`
-	OverwriteSegmentation          bool   `json:"overwriteSegmentation,omitempty"          schema:"description=Re-segment already-segmented text units replacing previous segmentation"`
-	TreatIsolatedCodesAsWhitespace bool   `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"description=Treat isolated inline codes as whitespace during segmentation"`
-	RenumberCodes                  bool   `json:"renumberCodes,omitempty"                  schema:"description=Renumber inline code IDs in each segment to start at 1"`
+	SegmentSource                  bool   `json:"segmentSource,omitempty"                  schema:"title=Segment Source Text,description=Segment the source text using SRX rules,default=true"`
+	SegmentTarget                  bool   `json:"segmentTarget,omitempty"                  schema:"title=Segment Target Text,description=Segment existing target text using SRX rules"`
+	SourceSrxPath                  string `json:"sourceSrxPath,omitempty"                  schema:"title=Source SRX Rules Path,description=Path to SRX segmentation rules file for source text"`
+	TargetSrxPath                  string `json:"targetSrxPath,omitempty"                  schema:"title=Target SRX Rules Path,description=Path to SRX segmentation rules file for target text"`
+	OverwriteSegmentation          bool   `json:"overwriteSegmentation,omitempty"          schema:"title=Overwrite Existing Segmentation,description=Re-segment already-segmented text units replacing previous segmentation"`
+	TreatIsolatedCodesAsWhitespace bool   `json:"treatIsolatedCodesAsWhitespace,omitempty" schema:"title=Treat Isolated Codes as Whitespace,description=Treat isolated inline codes as whitespace during segmentation"`
+	RenumberCodes                  bool   `json:"renumberCodes,omitempty"                  schema:"title=Renumber Code IDs,description=Renumber inline code IDs in each segment to start at 1"`
 }
 
 // ToolName returns the tool name this config applies to.

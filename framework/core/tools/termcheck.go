@@ -25,7 +25,7 @@ type GlossaryEntry struct {
 type TermCheckConfig struct {
 	Glossary      []GlossaryEntry `json:"glossary,omitempty"      schema:"-"`
 	TargetLocale  model.LocaleID  `json:"targetLocale,omitempty"  schema:"-"`
-	CaseSensitive bool            `json:"caseSensitive,omitempty" schema:"description=Whether term matching is case-sensitive"`
+	CaseSensitive bool            `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether term matching is case-sensitive"`
 }
 
 // ToolName returns the tool name this config applies to.

@@ -26,10 +26,10 @@ type AIQACheckTool struct {
 type AIQAConfig struct {
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
-	Provider     string         `json:"provider,omitempty"     schema:"description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
-	APIKey       string         `json:"apiKey,omitempty"       schema:"description=API key for the AI provider,group=provider"`
-	Model        string         `json:"model,omitempty"        schema:"description=AI model name,group=provider"`
-	Checks       []string       `json:"checks,omitempty"       schema:"description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
+	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
+	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model        string         `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
+	Checks       []string       `json:"checks,omitempty"       schema:"title=Quality Checks,description=Quality checks to perform (e.g. terminology fluency accuracy consistency)"`
 }
 
 // AIQASchema returns the auto-generated schema for the AI QA tool.

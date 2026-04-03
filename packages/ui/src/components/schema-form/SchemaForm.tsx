@@ -125,8 +125,37 @@ export function SchemaForm({
     );
   }
 
+  const formatMeta = schema.formatMeta;
+  const toolMeta = schema.toolMeta;
+
   return (
     <div className="flex flex-col">
+      {/* Format/tool header */}
+      {(schema.title || formatMeta || toolMeta) && (
+        <div className="pb-3 mb-3 border-b border-border/40">
+          {schema.title && (
+            <h3 className="text-sm font-semibold text-foreground">{schema.title}</h3>
+          )}
+          {schema.description && (
+            <p className="mt-1 text-xs text-muted-foreground">{schema.description}</p>
+          )}
+          {formatMeta && (formatMeta.extensions?.length || formatMeta.mimeTypes?.length) && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {formatMeta.extensions?.map((ext: string) => (
+                <span key={ext} className="rounded bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
+                  {ext}
+                </span>
+              ))}
+              {formatMeta.mimeTypes?.slice(0, 2).map((mt: string) => (
+                <span key={mt} className="rounded bg-accent px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  {mt}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Grouped fields */}
       {groups.map((group, groupIndex) => (
         <FieldGroup

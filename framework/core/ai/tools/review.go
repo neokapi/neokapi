@@ -23,9 +23,9 @@ type AIReviewTool struct {
 type AIReviewConfig struct {
 	SourceLocale model.LocaleID `json:"sourceLocale,omitempty" schema:"-"`
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
-	Provider     string         `json:"provider,omitempty"     schema:"description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
-	APIKey       string         `json:"apiKey,omitempty"       schema:"description=API key for the AI provider,group=provider"`
-	Model        string         `json:"model,omitempty"        schema:"description=AI model name,group=provider"`
+	Provider     string         `json:"provider,omitempty"     schema:"title=AI Provider,description=AI provider,default=anthropic,enum=anthropic|openai|gemini|ollama,group=provider"`
+	APIKey       string         `json:"apiKey,omitempty"       schema:"title=API Key,description=API key for the AI provider,group=provider"`
+	Model        string         `json:"model,omitempty"        schema:"title=Model,description=AI model name,group=provider"`
 }
 
 // AIReviewSchema returns the auto-generated schema for the AI review tool.

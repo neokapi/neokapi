@@ -15,41 +15,71 @@
         ]
       },
       "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
         "columnNamesRow": {
           "default": 0,
           "description": "1-based row number containing column names. 0 means auto-detect.",
+          "title": "Column Names Row",
           "type": "integer"
         },
         "commentColumns": {
-          "description": "Column indices (0-based) that contain comments or notes.",
+          "description": "Column indices (0-based) that contain comments or notes",
+          "title": "Comment Columns",
           "type": "array"
         },
         "hasHeader": {
           "default": true,
           "description": "If true, the first row is treated as headers (non-translatable)",
+          "title": "Has Header Row",
           "type": "boolean"
         },
         "keyColumns": {
-          "description": "Column indices (0-based) that provide the block ID (source ID / record ID).",
+          "description": "Column indices (0-based) that provide the block ID (source ID / record ID)",
+          "title": "Key Columns",
           "type": "array"
         },
         "separator": {
           "default": ",",
-          "description": "Field delimiter character",
+          "description": "Field delimiter character (comma for CSV, tab for TSV)",
+          "title": "Field Delimiter",
+          "type": "string"
+        },
+        "textQualifier": {
+          "default": "\"",
+          "description": "Character used to quote field values containing delimiters or newlines",
+          "title": "Text Qualifier",
           "type": "string"
         },
         "translatableColumns": {
           "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.",
+          "title": "Translatable Columns",
           "type": "array"
         },
         "trimValues": {
           "default": false,
-          "description": "If true, leading and trailing whitespace is removed from cell values.",
+          "description": "If true, leading and trailing whitespace is removed from cell values",
+          "title": "Trim Values",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within cell values",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         },
         "valuesStartRow": {
           "default": 0,
           "description": "1-based row number where data values begin. 0 means auto-detect.",
+          "title": "Values Start Row",
           "type": "integer"
         }
       },
@@ -59,22 +89,31 @@
         {
           "fields": [
             "separator",
+            "textQualifier",
             "hasHeader",
-            "trimValues",
             "columnNamesRow",
             "valuesStartRow"
           ],
-          "id": "parsing",
-          "label": "Parsing"
+          "id": "format",
+          "label": "CSV Format Settings"
         },
         {
           "fields": [
             "translatableColumns",
             "keyColumns",
-            "commentColumns"
+            "commentColumns",
+            "trimValues"
           ],
           "id": "extraction",
           "label": "Extraction"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -98,9 +137,49 @@
           "text/x-doxygen-txt"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "preserveWhitespace": {
+          "default": false,
+          "description": "Preserve original whitespace in extracted comment text instead of normalizing it",
+          "title": "Preserve whitespace",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based detection of inline codes within translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        }
+      },
       "title": "Doxygen Comments",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "preserveWhitespace"
+          ],
+          "id": "parser",
+          "label": "Parser Settings"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "doxygen"
     },
@@ -120,35 +199,46 @@
       },
       "properties": {
         "attributes": {
-          "description": "Map of attribute names to extraction rules (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+          "description": "Global attribute extraction rules -- maps attribute names to their rule configuration (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+          "title": "Attribute Rules",
           "type": "object",
           "x-okapi-flatten-path": "attributes"
         },
         "codeFinderRules": {
           "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
           "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder",
           "x-okapi-flatten-path": "codeFinderRules"
         },
         "elements": {
-          "description": "Map of element names to extraction rules (ruleTypes, conditions, idAttributes, translatableAttributes)",
+          "description": "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)",
+          "title": "Element Rules",
           "type": "object",
           "x-okapi-flatten-path": "elements"
         },
         "parser": {
-          "description": "Parser settings",
+          "description": "Settings that control how the HTML parser reads input",
           "properties": {
             "preserveWhitespace": {
               "default": false,
-              "description": "Preserve significant whitespace in text nodes",
+              "description": "Preserve original whitespace in extracted text instead of collapsing it",
+              "title": "Preserve whitespace",
               "type": "boolean",
               "x-okapi-flatten-path": "preserveWhitespace"
             }
           },
+          "title": "Parser behavior",
           "type": "object"
         },
         "useCodeFinder": {
           "default": false,
-          "description": "Enable regex-based inline code detection",
+          "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text",
+          "title": "Enable inline code detection",
           "type": "boolean",
           "x-okapi-flatten-path": "useCodeFinder"
         }
@@ -210,7 +300,8 @@
       },
       "properties": {
         "codeFinderRules": {
-          "description": "Regex patterns that match inline codes within translatable text",
+          "description": "Regex patterns that match inline codes within translatable text.",
+          "title": "Code Finder Rules",
           "type": "array",
           "ui:visible": {
             "eq": true,
@@ -220,47 +311,57 @@
         },
         "escapeForwardSlashes": {
           "default": true,
-          "description": "Escape / as \\/ in JSON output",
+          "description": "Escape forward slashes in output JSON (\\/).",
+          "title": "Escape forward slashes",
           "type": "boolean"
         },
         "exceptions": {
           "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.",
+          "title": "Key exception pattern",
           "type": "string",
           "ui:widget": "regex"
         },
         "extractAllPairs": {
           "default": true,
-          "description": "Extract all string key-value pairs as translatable blocks",
+          "description": "Extract all key-value pairs for translation. When false, use extractionRules to specify which paths to extract.",
+          "title": "Extract all key/string pairs",
           "type": "boolean"
         },
         "extractIsolatedStrings": {
           "default": false,
-          "description": "Extract standalone string values inside arrays as translatable blocks",
+          "description": "Extract string values in arrays (without keys) as translatable blocks.",
+          "title": "Extract strings without associated key",
           "type": "boolean"
         },
         "extractionRules": {
-          "description": "Regex pattern limiting which keys are extracted. Only matching keys are extracted.",
+          "description": "Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified.",
+          "title": "Extraction rules",
           "type": "string",
+          "ui:placeholder": "/messages/.*|/labels/.*",
           "ui:widget": "regex"
         },
         "genericMetaRules": {
-          "description": "Regex pattern for key names whose values become metadata annotations",
+          "description": "Regex for keys whose values become generic metadata.",
+          "title": "Generic metadata rules",
           "type": "string",
           "ui:widget": "regex"
         },
         "idRules": {
-          "description": "Regex pattern for key names whose values are used as block names/IDs",
+          "description": "Regex for keys whose values become Block IDs (overrides useKeyAsName).",
+          "title": "ID rules",
           "type": "string",
+          "ui:placeholder": "/id|/key",
           "ui:widget": "regex"
         },
         "maxwidthRules": {
-          "description": "Regex pattern for key names whose numeric values set MAX_WIDTH on the next block",
+          "description": "Regex for keys whose values set max width constraints.",
+          "title": "Maxwidth rules",
           "type": "string",
           "ui:widget": "regex"
         },
         "maxwidthSizeUnit": {
           "default": "pixel",
-          "description": "Size unit for maxwidth",
+          "description": "Size unit for maxwidth.",
           "options": [
             {
               "label": "Pixel",
@@ -271,19 +372,24 @@
               "value": "char"
             }
           ],
+          "title": "Maxwidth size unit",
           "type": "string"
         },
         "noteRules": {
-          "description": "Regex pattern for key names whose values become notes on the next translatable block",
+          "description": "Regex for keys whose values become translator notes.",
+          "title": "Note rules",
           "type": "string",
+          "ui:placeholder": "/description|/comment",
           "ui:widget": "regex"
         },
         "subfilter": {
-          "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings",
+          "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings.",
+          "title": "Subfilter format",
           "type": "string"
         },
         "subfilterRules": {
-          "description": "Regex pattern for key names processed by the subfilter. Only used when subfilter is set.",
+          "description": "Regex matching keys for which values should be processed with the sub-filter.",
+          "title": "Sub-filter rules",
           "type": "string",
           "ui:visible": {
             "empty": false,
@@ -292,32 +398,38 @@
           "ui:widget": "regex"
         },
         "subfilters": {
-          "description": "Array of {pattern, format} mappings for embedded content in specific keys",
+          "description": "Array of {pattern, format} mappings for embedded content in specific keys.",
+          "title": "Subfilter mappings",
           "type": "array"
         },
         "useCodeFinder": {
           "default": false,
-          "description": "Enable regex-based inline code detection",
+          "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         },
         "useFullKeyPath": {
           "default": false,
-          "description": "Use hierarchical paths (parent/child) as block names",
+          "description": "Use full path (/key1/key2) instead of immediate key as name.",
+          "title": "Use the full key path",
           "type": "boolean"
         },
         "useIdStack": {
           "default": false,
-          "description": "Stack IDs for nested structures, producing compound IDs",
+          "description": "Build TextUnit IDs from nested key stack.",
+          "title": "Use the full path of IDs for resname",
           "type": "boolean"
         },
         "useKeyAsName": {
           "default": true,
-          "description": "Use the JSON key as the block name/ID",
+          "description": "Use JSON key as the Block (TextUnit) name for reference.",
+          "title": "Use the key as the resname",
           "type": "boolean"
         },
         "useLeadingSlashOnKeyPath": {
           "default": true,
-          "description": "Prepend / to full key paths",
+          "description": "Include leading slash in key path names.",
+          "title": "Include leading \"/\" on key path",
           "type": "boolean"
         }
       },
@@ -398,34 +510,67 @@
         ]
       },
       "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "subfilter": {
+          "description": "Subfilter format to apply to HTML content within Markdown (e.g., 'html')",
+          "title": "HTML Subfilter",
+          "type": "string"
+        },
         "translateBlockQuotes": {
           "default": true,
           "description": "If true, blockquote content is translatable.",
+          "title": "Translate Block Quotes",
           "type": "boolean"
         },
         "translateCodeBlocks": {
           "default": false,
-          "description": "If true, fenced/indented code blocks are translatable. If false, emitted as non-translatable data.",
+          "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.",
+          "title": "Translate Code Blocks",
           "type": "boolean"
         },
         "translateFrontMatter": {
           "default": false,
           "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
+          "title": "Translate YAML Front Matter",
           "type": "boolean"
         },
         "translateHTMLBlocks": {
           "default": false,
           "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
+          "title": "Translate HTML Blocks",
           "type": "boolean"
         },
         "translateImageAlt": {
           "default": true,
           "description": "If true, image alt text is included in translatable content.",
+          "title": "Translate Image Alt Text",
           "type": "boolean"
         },
         "translateURLs": {
           "default": false,
           "description": "If true, link and image URLs are translatable.",
+          "title": "Translate Hyperlink URLs",
+          "type": "boolean"
+        },
+        "unescapeBackslashCharacters": {
+          "default": false,
+          "description": "Parse backslash-escaped punctuation in source documents",
+          "title": "Support Backslash Escaping",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within translatable text",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         }
       },
@@ -443,6 +588,28 @@
           ],
           "id": "extraction",
           "label": "Content Extraction"
+        },
+        {
+          "fields": [
+            "unescapeBackslashCharacters"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "subfilter"
+          ],
+          "id": "subfilters",
+          "label": "Subfilters"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -468,150 +635,208 @@
       "properties": {
         "aggressiveCleanup": {
           "default": true,
-          "description": "Strip revision IDs, proofing errors, and other noise before merging runs",
+          "description": "Strip revision IDs, proofing errors, and other noise before merging runs.",
+          "title": "Aggressive code cleanup",
+          "type": "boolean"
+        },
+        "automaticallyAcceptRevisions": {
+          "default": true,
+          "description": "Automatically accept tracked changes before extraction.",
+          "title": "Accept revisions automatically",
           "type": "boolean"
         },
         "codeFinderRules": {
-          "description": "Regex patterns that match inline codes within translatable text",
-          "type": "array"
+          "description": "Regex patterns that match inline codes within translatable text.",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
         },
         "complexFieldDefinitionsToExtract": {
-          "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")",
+          "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\").",
+          "title": "Complex field definitions to extract",
           "type": "array"
         },
         "excludeColors": {
-          "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)",
+          "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red).",
+          "title": "Exclude specific font colors",
           "type": "array"
         },
         "excludeHighlightColors": {
-          "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\")",
+          "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\").",
+          "title": "Exclude highlight colors",
           "type": "array"
         },
         "excludeStyles": {
-          "description": "Paragraph/character style names to exclude",
+          "description": "Paragraph/character style names to exclude.",
+          "title": "Exclude styles",
           "type": "array"
         },
         "excludedColumns": {
-          "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")",
+          "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\").",
+          "title": "Excluded columns",
           "type": "array"
         },
         "excludedSheets": {
-          "description": "Sheet names to exclude from extraction",
+          "description": "Sheet names to exclude from extraction.",
+          "title": "Excluded sheets",
           "type": "array"
         },
         "extractRunFontsInfo": {
           "default": false,
-          "description": "Emit font metadata as annotations on blocks",
+          "description": "Emit font metadata as annotations on blocks.",
+          "title": "Extract run fonts info",
           "type": "boolean"
         },
         "fontMappings": {
-          "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")",
+          "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\").",
+          "title": "Font mappings",
           "type": "object"
         },
+        "ignoreSoftHyphenTag": {
+          "default": false,
+          "description": "Ignore soft hyphen tags in the document.",
+          "title": "Ignore soft hyphen tags",
+          "type": "boolean"
+        },
         "includeHighlightColors": {
-          "description": "If non-empty, only extract text with these highlight colors",
+          "description": "If non-empty, only extract text with these highlight colors.",
+          "title": "Include highlight colors",
           "type": "array"
         },
         "includeStyles": {
-          "description": "If non-empty, only extract text with these styles",
+          "description": "If non-empty, only extract text with these styles.",
+          "title": "Include styles",
           "type": "array"
         },
         "includedSlides": {
-          "description": "If non-empty, only extract these slide numbers (1-based)",
+          "description": "If non-empty, only extract these slide numbers (1-based).",
+          "title": "Included slide numbers",
           "type": "array"
         },
         "lineSeparatorReplacement": {
           "default": "\n",
-          "description": "Replacement string for line separator characters",
-          "type": "string"
+          "description": "Replacement string for line separator characters.",
+          "title": "Line separator replacement string",
+          "type": "string",
+          "ui:visible": {
+            "eq": true,
+            "field": "replaceLineSeparator"
+          }
         },
         "optimiseWordStyles": {
           "default": false,
-          "description": "Resolve style inheritance and strip redundant run properties",
+          "description": "Resolve style inheritance and strip redundant run properties.",
+          "title": "Allow style optimization",
           "type": "boolean"
         },
         "replaceLineSeparator": {
           "default": false,
-          "description": "Replace Unicode line separator (U+2028) in output",
+          "description": "Replace Unicode line separator (U+2028) in output.",
+          "title": "Add line separator as character",
+          "type": "boolean"
+        },
+        "replaceNoBreakHyphenTag": {
+          "default": false,
+          "description": "Replace no-break hyphen tags with the non-breaking hyphen character.",
+          "title": "Replace no-break hyphen tags",
           "type": "boolean"
         },
         "tabAsCharacter": {
           "default": false,
-          "description": "Treat tab elements as tab characters instead of placeholder spans",
+          "description": "Treat tab elements as tab characters instead of placeholder spans.",
+          "title": "Add tab as character",
           "type": "boolean"
         },
         "translateCharts": {
           "default": false,
-          "description": "Extract strings from embedded charts",
+          "description": "Extract strings from embedded charts.",
+          "title": "Translate chart text",
           "type": "boolean"
         },
         "translateComments": {
           "default": false,
-          "description": "Extract comment text",
+          "description": "Extract comment text from Word documents.",
+          "title": "Translate comments",
           "type": "boolean"
         },
         "translateDiagrams": {
           "default": false,
-          "description": "Extract text from SmartArt diagrams",
+          "description": "Extract text from SmartArt diagrams.",
+          "title": "Translate diagram data",
           "type": "boolean"
         },
         "translateDocProperties": {
           "default": true,
-          "description": "Extract title, subject, keywords from document properties",
+          "description": "Extract title, subject, keywords from document properties.",
+          "title": "Translate document properties",
           "type": "boolean"
         },
         "translateFootnotes": {
           "default": true,
-          "description": "Extract footnotes and endnotes",
+          "description": "Extract footnotes and endnotes from Word documents.",
+          "title": "Translate footnotes and endnotes",
           "type": "boolean"
         },
         "translateHeadersFooters": {
           "default": true,
-          "description": "Extract headers and footers",
+          "description": "Extract text from headers and footers in Word documents.",
+          "title": "Translate headers and footers",
           "type": "boolean"
         },
         "translateHiddenSlides": {
           "default": false,
-          "description": "Extract content from hidden slides",
+          "description": "Extract content from hidden slides in PowerPoint.",
+          "title": "Translate hidden slides",
           "type": "boolean"
         },
         "translateHiddenText": {
           "default": false,
-          "description": "Extract text with the vanish (hidden) property",
+          "description": "Extract text with the vanish (hidden) property in Word documents.",
+          "title": "Translate hidden text",
           "type": "boolean"
         },
         "translateHyperlinks": {
           "default": true,
-          "description": "Extract hyperlink text",
+          "description": "Extract hyperlink text for translation.",
+          "title": "Extract external hyperlinks",
           "type": "boolean"
         },
         "translateSharedStrings": {
           "default": true,
-          "description": "Extract shared strings",
+          "description": "Extract shared strings from Excel workbooks.",
+          "title": "Translate shared strings",
           "type": "boolean"
         },
         "translateSheetNames": {
           "default": false,
-          "description": "Extract sheet names as translatable content",
+          "description": "Extract sheet names in Excel workbooks.",
+          "title": "Translate sheet names",
           "type": "boolean"
         },
         "translateSlideMasters": {
           "default": false,
-          "description": "Extract text from slide masters",
+          "description": "Extract text from slide masters in PowerPoint.",
+          "title": "Translate master slides",
           "type": "boolean"
         },
         "translateSlideNotes": {
           "default": true,
-          "description": "Extract slide notes",
+          "description": "Extract speaker notes in PowerPoint presentations.",
+          "title": "Translate slide notes",
           "type": "boolean"
         },
         "useCodeFinder": {
           "default": false,
-          "description": "Enable regex-based inline code detection",
+          "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         }
       },
-      "title": "Office Open XML Format",
+      "title": "OpenXML Filter",
       "type": "object",
       "ui:groups": [
         {
@@ -621,21 +846,23 @@
             "translateHeadersFooters",
             "translateFootnotes",
             "translateComments",
-            "translateHyperlinks"
+            "translateHyperlinks",
+            "automaticallyAcceptRevisions"
           ],
-          "id": "common",
-          "label": "Common Extraction"
+          "id": "word",
+          "label": "Word Options"
         },
         {
           "fields": [
-            "aggressiveCleanup",
-            "tabAsCharacter"
+            "translateSheetNames",
+            "translateSharedStrings",
+            "excludedSheets",
+            "excludedColumns"
           ],
-          "id": "formatting",
-          "label": "Formatting Control"
+          "id": "excel",
+          "label": "Excel Options"
         },
         {
-          "collapsed": true,
           "fields": [
             "translateSlideNotes",
             "translateSlideMasters",
@@ -644,19 +871,18 @@
             "translateDiagrams",
             "includedSlides"
           ],
-          "id": "pptx",
+          "id": "powerpoint",
           "label": "PowerPoint Options"
         },
         {
-          "collapsed": true,
           "fields": [
-            "translateSheetNames",
-            "translateSharedStrings",
-            "excludedSheets",
-            "excludedColumns"
+            "aggressiveCleanup",
+            "tabAsCharacter",
+            "ignoreSoftHyphenTag",
+            "replaceNoBreakHyphenTag"
           ],
-          "id": "xlsx",
-          "label": "Excel Options"
+          "id": "general",
+          "label": "General"
         },
         {
           "collapsed": true,
@@ -710,9 +936,36 @@
           "application/x-php"
         ]
       },
-      "properties": null,
-      "title": "PHP Content",
+      "properties": {
+        "extractOutsideDirectives": {
+          "default": true,
+          "description": "Extract translatable strings found outside directive-controlled regions.",
+          "title": "Extract outside the scope of the directives",
+          "type": "boolean",
+          "ui:visible": {
+            "eq": true,
+            "field": "useDirectives"
+          }
+        },
+        "useDirectives": {
+          "default": true,
+          "description": "Honor //okapi: skip/text directives in PHP source to control extraction scope.",
+          "title": "Use localization directives",
+          "type": "boolean"
+        }
+      },
+      "title": "PHP Content Filter",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "useDirectives",
+            "extractOutsideDirectives"
+          ],
+          "id": "extraction",
+          "label": "Extraction settings"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "phpcontent"
     },
@@ -765,9 +1018,44 @@
         ]
       },
       "properties": {
+        "allowEmptyOutputTarget": {
+          "default": false,
+          "description": "Allow empty target in output when no translation is available",
+          "title": "Allow Empty Target Output",
+          "type": "boolean"
+        },
+        "bilingualMode": {
+          "default": true,
+          "description": "In bilingual mode (default), msgid is the source text and msgstr is the target. In monolingual mode, msgid is treated as an ID.",
+          "title": "Bilingual Mode",
+          "type": "boolean"
+        },
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
         "preserveUntranslated": {
           "default": true,
           "description": "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped.",
+          "title": "Preserve Untranslated Entries",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within PO message text",
+          "title": "Enable Inline Code Detection",
+          "type": "boolean"
+        },
+        "wrapContent": {
+          "default": true,
+          "description": "Wrap long content lines in output at approximately 80 characters",
+          "title": "Wrap Long Content Lines",
           "type": "boolean"
         }
       },
@@ -780,6 +1068,29 @@
           ],
           "id": "extraction",
           "label": "Extraction"
+        },
+        {
+          "fields": [
+            "bilingualMode"
+          ],
+          "id": "mode",
+          "label": "Processing Mode"
+        },
+        {
+          "fields": [
+            "wrapContent",
+            "allowEmptyOutputTarget"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -799,14 +1110,77 @@
         ]
       },
       "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "commentsAreNotes": {
+          "default": true,
+          "description": "Treat comments as translator notes attached to the following entry",
+          "title": "Comments as Notes",
+          "type": "boolean"
+        },
+        "escapeExtendedChars": {
+          "default": true,
+          "description": "Escape extended Unicode characters (non-ASCII) in output using \\uXXXX notation",
+          "title": "Escape Extended Characters",
+          "type": "boolean"
+        },
+        "extraComments": {
+          "default": false,
+          "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers",
+          "title": "Additional Comment Markers",
+          "type": "boolean"
+        },
+        "extractOnlyMatchingKey": {
+          "default": true,
+          "description": "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys",
+          "title": "Extract Only Matching Keys",
+          "type": "boolean",
+          "ui:visible": {
+            "eq": true,
+            "field": "useKeyCondition"
+          }
+        },
+        "keyCondition": {
+          "default": ".*text.*",
+          "description": "Regular expression pattern to test against property keys for extraction filtering",
+          "title": "Key Condition Pattern",
+          "type": "string",
+          "ui:visible": {
+            "eq": true,
+            "field": "useKeyCondition"
+          },
+          "ui:widget": "regex"
+        },
         "separator": {
           "default": "=",
           "description": "Key-value separator character (typically '=' or ':')",
+          "title": "Separator",
           "type": "string"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within property values",
+          "title": "Enable Inline Code Detection",
+          "type": "boolean"
         },
         "useJavaEscapes": {
           "default": false,
-          "description": "Decode additional Java escapes (\\: \\= \\# \\!) in values",
+          "description": "Keep Java property escape sequences (\\: \\= \\# \\!) in extracted text instead of resolving them",
+          "title": "Retain Java Escapes",
+          "type": "boolean"
+        },
+        "useKeyCondition": {
+          "default": false,
+          "description": "Filter entries for extraction based on a regex condition applied to their keys",
+          "title": "Enable Key Condition",
           "type": "boolean"
         }
       },
@@ -815,11 +1189,43 @@
       "ui:groups": [
         {
           "fields": [
-            "separator",
-            "useJavaEscapes"
+            "separator"
           ],
           "id": "parsing",
           "label": "Parsing"
+        },
+        {
+          "fields": [
+            "useKeyCondition",
+            "extractOnlyMatchingKey",
+            "keyCondition",
+            "extraComments"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "commentsAreNotes"
+          ],
+          "id": "notes",
+          "label": "Notes"
+        },
+        {
+          "fields": [
+            "useJavaEscapes",
+            "escapeExtendedChars"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -828,7 +1234,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "SubRip subtitle format \u2014 no configurable parameters",
+      "description": "SubRip subtitle format — no configurable parameters",
       "formatMeta": {
         "extensions": [
           ".srt"
@@ -847,7 +1253,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "TMX translation memory format \u2014 no configurable parameters",
+      "description": "Configuration for the native TMX translation memory format reader/writer",
       "formatMeta": {
         "extensions": [
           ".tmx"
@@ -857,9 +1263,69 @@
           "application/x-tmx+xml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "escapeGT": {
+          "default": false,
+          "description": "Escape > as &gt; in output XML",
+          "title": "Escape greater-than characters",
+          "type": "boolean"
+        },
+        "exitOnInvalid": {
+          "default": false,
+          "description": "Stop processing when encountering invalid TUs. When false, invalid TUs are skipped.",
+          "title": "Exit on invalid TUs",
+          "type": "boolean"
+        },
+        "processAllTargets": {
+          "default": true,
+          "description": "Read all target language TUVs from each TU. When false, only the first target is read.",
+          "title": "Read all target entries",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection in translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        }
+      },
       "title": "TMX (Translation Memory eXchange)",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "processAllTargets",
+            "exitOnInvalid"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "escapeGT"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "tmx"
     },
@@ -878,26 +1344,72 @@
         ]
       },
       "properties": {
+        "cjkCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
+          "title": "Max characters per line for CJK",
+          "type": "integer"
+        },
         "escapeBR": {
           "default": true,
-          "description": "When true, <br/> elements are removed and text is joined with spaces; when false, <br/> is preserved as literal text",
+          "description": "When true, <br/> elements are removed and text is joined with spaces; when false, <br/> is preserved as literal text.",
+          "title": "Escape line breaks",
           "type": "boolean"
+        },
+        "maxCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line in output. Set to 0 to disable.",
+          "title": "Max characters per line",
+          "type": "integer"
+        },
+        "maxLinesPerCaption": {
+          "default": 0,
+          "description": "Maximum number of lines per caption in output. Set to 0 to disable.",
+          "title": "Max lines per caption",
+          "type": "integer"
         },
         "mergeAdjacentCaptions": {
           "default": false,
-          "description": "Merge adjacent <p> elements ending with trailing punctuation into one block",
+          "description": "Merge adjacent <p> elements ending with trailing punctuation into one block.",
+          "title": "Merge adjacent captions",
+          "type": "boolean"
+        },
+        "splitWords": {
+          "default": false,
+          "description": "Split words so that they don't go over the character limit per line.",
+          "title": "Split words at character limit",
           "type": "boolean"
         }
       },
-      "title": "TTML Subtitles",
+      "title": "TTML Filter",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "mergeAdjacentCaptions",
+            "escapeBR"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "maxCharsPerLine",
+            "maxLinesPerCaption",
+            "cjkCharsPerLine",
+            "splitWords"
+          ],
+          "id": "output",
+          "label": "Output settings"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "ttml"
     },
     {
       "$id": "",
       "$version": "",
-      "description": "Web Video Text Tracks format \u2014 no configurable parameters",
+      "description": "Web Video Text Tracks (WebVTT) subtitle format",
       "formatMeta": {
         "extensions": [
           ".vtt"
@@ -907,9 +1419,46 @@
           "text/vtt"
         ]
       },
-      "properties": null,
-      "title": "WebVTT Subtitles",
+      "properties": {
+        "cjkCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
+          "title": "Max characters per line for CJK",
+          "type": "integer"
+        },
+        "maxCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line in output. Set to 0 to disable.",
+          "title": "Max characters per line",
+          "type": "integer"
+        },
+        "maxLinesPerCaption": {
+          "default": 0,
+          "description": "Maximum number of lines per caption in output. Set to 0 to disable.",
+          "title": "Max lines per caption",
+          "type": "integer"
+        },
+        "splitWords": {
+          "default": false,
+          "description": "Split words so that they don't go over the character limit per line.",
+          "title": "Split words at character limit",
+          "type": "boolean"
+        }
+      },
+      "title": "VTT Filter",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "maxCharsPerLine",
+            "maxLinesPerCaption",
+            "cjkCharsPerLine",
+            "splitWords"
+          ],
+          "id": "output",
+          "label": "Output settings"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "vtt"
     },
@@ -928,18 +1477,36 @@
         ]
       },
       "properties": {
+        "preserveWhitespace": {
+          "default": false,
+          "description": "Preserve original whitespace in wiki markup instead of normalizing it.",
+          "title": "Preserve Whitespace",
+          "type": "boolean"
+        },
         "variant": {
           "default": "mediawiki",
           "description": "Wiki markup variant: mediawiki or dokuwiki.",
+          "options": [
+            {
+              "label": "MediaWiki",
+              "value": "mediawiki"
+            },
+            {
+              "label": "DokuWiki",
+              "value": "dokuwiki"
+            }
+          ],
+          "title": "Wiki variant",
           "type": "string"
         }
       },
-      "title": "Wiki Format",
+      "title": "Wiki Filter",
       "type": "object",
       "ui:groups": [
         {
           "fields": [
-            "variant"
+            "variant",
+            "preserveWhitespace"
           ],
           "id": "syntax",
           "label": "Syntax"
@@ -951,7 +1518,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "XLIFF 1.2 bilingual exchange format \u2014 no configurable parameters",
+      "description": "Configuration for the native XLIFF 1.2 bilingual exchange format reader/writer",
       "formatMeta": {
         "extensions": [
           ".xlf",
@@ -962,16 +1529,159 @@
           "application/xliff+xml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "addAltTrans": {
+          "default": false,
+          "description": "Allow addition of new alt-trans elements",
+          "title": "Add alt-trans elements",
+          "type": "boolean"
+        },
+        "addTargetLanguage": {
+          "default": true,
+          "description": "Add the target-language attribute to file elements if not already present",
+          "title": "Add target-language attribute",
+          "type": "boolean"
+        },
+        "allowEmptyTargets": {
+          "default": false,
+          "description": "Allow target elements with empty content to be written",
+          "title": "Allow empty targets",
+          "type": "boolean"
+        },
+        "alwaysAddTargets": {
+          "default": false,
+          "description": "Add target elements for monolingual XLIFF files that have no target in the source",
+          "title": "Add targets for monolingual XLIFF",
+          "type": "boolean"
+        },
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "editAltTrans": {
+          "default": false,
+          "description": "Allow editing of existing alt-trans elements",
+          "title": "Edit alt-trans elements",
+          "type": "boolean"
+        },
+        "fallbackToID": {
+          "default": false,
+          "description": "Use the trans-unit id attribute as the block name when no resname attribute is present",
+          "title": "Use trans-unit ID as name if no resname",
+          "type": "boolean"
+        },
+        "forceUniqueIds": {
+          "default": false,
+          "description": "Rewrite trans-unit IDs to enforce uniqueness across the file",
+          "title": "Enforce unique trans-unit IDs",
+          "type": "boolean"
+        },
+        "ignoreInputSegmentation": {
+          "default": false,
+          "description": "Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment",
+          "title": "Ignore input segmentation",
+          "type": "boolean"
+        },
+        "includeExtensions": {
+          "default": true,
+          "description": "Include non-standard namespace extension elements in extracted content",
+          "title": "Include XLIFF extension elements",
+          "type": "boolean"
+        },
+        "includeIts": {
+          "default": true,
+          "description": "Include ITS (Internationalization Tag Set) markup in extracted content",
+          "title": "Include ITS markup",
+          "type": "boolean"
+        },
+        "overrideTargetLanguage": {
+          "default": false,
+          "description": "Override the target-language attribute in the output document with the pipeline target locale",
+          "title": "Override target language",
+          "type": "boolean"
+        },
+        "preserveSpaceByDefault": {
+          "default": false,
+          "description": "Treat all content as xml:space=\"preserve\" unless explicitly overridden",
+          "title": "Preserve whitespace by default",
+          "type": "boolean"
+        },
+        "targetStateValue": {
+          "default": "needs-translation",
+          "description": "State value to set on target elements when useTranslationTargetState is enabled",
+          "title": "Target state value",
+          "type": "string"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection in translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        },
+        "useTranslationTargetState": {
+          "default": true,
+          "description": "Update the state attribute on target elements when writing translated XLIFF",
+          "title": "Update target state attribute",
+          "type": "boolean"
+        }
+      },
       "title": "XLIFF 1.2",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "preserveSpaceByDefault",
+            "includeExtensions",
+            "includeIts",
+            "ignoreInputSegmentation",
+            "fallbackToID",
+            "forceUniqueIds"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "useTranslationTargetState",
+            "targetStateValue",
+            "editAltTrans",
+            "addAltTrans"
+          ],
+          "id": "states",
+          "label": "Translation State Handling"
+        },
+        {
+          "fields": [
+            "addTargetLanguage",
+            "overrideTargetLanguage",
+            "allowEmptyTargets",
+            "alwaysAddTargets"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "xliff"
     },
     {
       "$id": "",
       "$version": "",
-      "description": "XLIFF 2.0/2.1 bilingual exchange format with segment support \u2014 no configurable parameters",
+      "description": "Configuration for the native XLIFF 2.0/2.1 bilingual exchange format reader/writer",
       "formatMeta": {
         "extensions": [
           ".xlf",
@@ -982,9 +1692,82 @@
           "application/xliff+xml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "discardInvalidTargets": {
+          "default": false,
+          "description": "Discard targets that fail validation rather than rejecting the entire file",
+          "title": "Discard invalid targets",
+          "type": "boolean"
+        },
+        "forceUniqueIds": {
+          "default": false,
+          "description": "Ensure inline tag IDs are unique within each unit",
+          "title": "Ensure unique tag IDs",
+          "type": "boolean"
+        },
+        "ignoreTagTypeMatch": {
+          "default": false,
+          "description": "Ignore tag type mismatch between source and target segments",
+          "title": "Ignore tag type mismatch",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection in translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        },
+        "writeOriginalData": {
+          "default": true,
+          "description": "Output includes original data when available",
+          "title": "Include original data in output",
+          "type": "boolean"
+        }
+      },
       "title": "XLIFF 2.0",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "forceUniqueIds",
+            "ignoreTagTypeMatch"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "discardInvalidTargets"
+          ],
+          "id": "states",
+          "label": "Translation State Handling"
+        },
+        {
+          "fields": [
+            "writeOriginalData"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "xliff2"
     },
@@ -1003,17 +1786,88 @@
         ]
       },
       "properties": {
+        "attributes": {
+          "description": "Advanced attribute-specific processing rules with element scope constraints",
+          "title": "Attribute rules",
+          "type": "object"
+        },
+        "blockTypeMap": {
+          "description": "Map of element names to block type strings for semantic type annotation",
+          "title": "Block type map",
+          "type": "object"
+        },
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "elements": {
+          "description": "Advanced element-specific processing rules with conditions, inline marking, and translatable attribute mappings",
+          "title": "Element rules",
+          "type": "object"
+        },
+        "excludeByDefault": {
+          "default": false,
+          "description": "Exclude all elements unless explicitly included by an element rule with INCLUDE",
+          "title": "Exclude by default",
+          "type": "boolean"
+        },
+        "excludedElements": {
+          "description": "Element names whose content is excluded from extraction",
+          "title": "Excluded elements",
+          "type": "array"
+        },
+        "groupElements": {
+          "description": "Element names that produce group/layer boundaries in the output",
+          "title": "Group elements",
+          "type": "array"
+        },
+        "idAttributes": {
+          "description": "Attribute names used to extract block IDs from elements",
+          "title": "ID attributes",
+          "type": "array"
+        },
+        "inlineElements": {
+          "description": "Element names treated as inline (spans within text) rather than block-level",
+          "title": "Inline elements",
+          "type": "array"
+        },
+        "preserveWhitespace": {
+          "default": false,
+          "description": "Preserve original whitespace in text content instead of collapsing it",
+          "title": "Preserve whitespace",
+          "type": "boolean"
+        },
+        "preserveWhitespaceElements": {
+          "description": "Element names that preserve whitespace regardless of the global setting",
+          "title": "Preserve whitespace elements",
+          "type": "array"
+        },
         "subfilters": {
           "description": "Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support.",
+          "title": "Subfilters",
           "type": "array"
         },
         "translatableAttributes": {
-          "description": "Attribute names that are translatable.",
+          "description": "Attribute names that are translatable across all elements",
+          "title": "Translatable attributes",
           "type": "array"
         },
         "translatableElements": {
           "description": "Element names whose text content is translatable. If empty, all text content is translatable.",
+          "title": "Translatable elements",
           "type": "array"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based detection of inline codes within translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
         }
       },
       "title": "XML Format",
@@ -1021,11 +1875,33 @@
       "ui:groups": [
         {
           "fields": [
+            "preserveWhitespace"
+          ],
+          "id": "parser",
+          "label": "Parser Settings"
+        },
+        {
+          "fields": [
             "translatableElements",
-            "translatableAttributes"
+            "translatableAttributes",
+            "excludeByDefault",
+            "inlineElements",
+            "excludedElements",
+            "preserveWhitespaceElements",
+            "groupElements",
+            "idAttributes"
           ],
           "id": "extraction",
           "label": "Extraction Rules"
+        },
+        {
+          "fields": [
+            "elements",
+            "attributes",
+            "blockTypeMap"
+          ],
+          "id": "advanced",
+          "label": "Advanced"
         },
         {
           "fields": [
@@ -1033,6 +1909,14 @@
           ],
           "id": "subfilters",
           "label": "Subfilters"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -1041,7 +1925,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "YAML format reader/writer \u2014 no configurable parameters",
+      "description": "Configuration for the native YAML format reader/writer",
       "formatMeta": {
         "extensions": [
           ".yaml",
@@ -1053,9 +1937,67 @@
           "text/yaml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "extractNonStrings": {
+          "default": false,
+          "description": "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks",
+          "title": "Extract Non-String Values",
+          "type": "boolean"
+        },
+        "keyPathPatterns": {
+          "description": "When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth).",
+          "title": "Key Path Patterns",
+          "type": "array"
+        },
+        "subfilter": {
+          "description": "Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)",
+          "title": "Subfilter Format",
+          "type": "string"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within string values",
+          "title": "Enable Inline Code Detection",
+          "type": "boolean"
+        }
+      },
       "title": "YAML Format",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "extractNonStrings",
+            "keyPathPatterns"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "subfilter"
+          ],
+          "id": "subfilters",
+          "label": "Subfilters"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "yaml"
     }
@@ -1232,8 +2174,8 @@
           ]
         }
       ],
-      "x-name": "okf_archive",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_archive"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1292,8 +2234,8 @@
           ]
         }
       ],
-      "x-name": "okf_autoxliff",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_autoxliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1485,8 +2427,8 @@
           ]
         }
       ],
-      "x-name": "okf_baseplaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_baseplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -1848,8 +2790,8 @@
           ]
         }
       ],
-      "x-name": "okf_basetable",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_basetable"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -2234,8 +3176,8 @@
           ]
         }
       ],
-      "x-name": "okf_commaseparatedvalues",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_commaseparatedvalues"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -3940,8 +4882,8 @@
           ]
         }
       ],
-      "x-name": "okf_doxygen",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_doxygen"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -3983,8 +4925,8 @@
       "x-okapi-base-hash": "f11cfe564c78",
       "x-okapi-composite-hash": "02a5dda78ec2",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_dtd",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_dtd"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -4282,8 +5224,8 @@
           ]
         }
       ],
-      "x-name": "okf_fixedwidthcolumns",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_fixedwidthcolumns"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -4426,7 +5368,7 @@
         "attributes": {
           "type": "object",
           "title": "Attribute Rules",
-          "description": "Global attribute extraction rules \u2014 maps attribute names to their rule configuration",
+          "description": "Global attribute extraction rules — maps attribute names to their rule configuration",
           "additionalProperties": {
             "type": "object",
             "description": "Global extraction rule for an HTML/XML attribute",
@@ -4445,11 +5387,11 @@
                     "ATTRIBUTE_PRESERVE_WHITESPACE"
                   ],
                   "ui:enum-descriptions": {
-                    "ATTRIBUTE_TRANS": "Translatable \u2014 attribute content is extracted for translation",
-                    "ATTRIBUTE_WRITABLE": "Writable localizable \u2014 attribute is locale-specific and editable (e.g. URLs, paths)",
-                    "ATTRIBUTE_READONLY": "Read-only localizable \u2014 attribute is locale-specific but not user-editable",
-                    "ATTRIBUTE_ID": "ID \u2014 attribute value is used as the segment identifier",
-                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace \u2014 attribute controls whitespace preservation state"
+                    "ATTRIBUTE_TRANS": "Translatable — attribute content is extracted for translation",
+                    "ATTRIBUTE_WRITABLE": "Writable localizable — attribute is locale-specific and editable (e.g. URLs, paths)",
+                    "ATTRIBUTE_READONLY": "Read-only localizable — attribute is locale-specific but not user-editable",
+                    "ATTRIBUTE_ID": "ID — attribute value is used as the segment identifier",
+                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace — attribute controls whitespace preservation state"
                   }
                 }
               },
@@ -4493,7 +5435,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -4533,7 +5475,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -4573,7 +5515,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -4636,7 +5578,7 @@
         "elements": {
           "type": "object",
           "title": "Element Rules",
-          "description": "Element extraction rules \u2014 maps element names to their rule configuration",
+          "description": "Element extraction rules — maps element names to their rule configuration",
           "additionalProperties": {
             "type": "object",
             "description": "Extraction rule for an HTML/XML element",
@@ -4661,17 +5603,17 @@
                     "SERVER"
                   ],
                   "ui:enum-descriptions": {
-                    "INLINE": "Inline element \u2014 content flows within surrounding text (e.g. <b>, <span>, <a>)",
+                    "INLINE": "Inline element — content flows within surrounding text (e.g. <b>, <span>, <a>)",
                     "INLINE_EXCLUDED": "Inline element excluded by a conditional rule",
                     "INLINE_INCLUDED": "Inline element included by a conditional rule (exception to EXCLUDE)",
-                    "TEXTUNIT": "Text unit \u2014 extracted as a translatable segment with skeleton before/after",
-                    "EXCLUDE": "Excluded \u2014 element and all children are skipped during extraction",
-                    "INCLUDE": "Included \u2014 exception to an EXCLUDE rule, re-enables extraction inside excluded block",
-                    "GROUP": "Group element \u2014 structural container (e.g. <table>, <ul>, <div>)",
+                    "TEXTUNIT": "Text unit — extracted as a translatable segment with skeleton before/after",
+                    "EXCLUDE": "Excluded — element and all children are skipped during extraction",
+                    "INCLUDE": "Included — exception to an EXCLUDE rule, re-enables extraction inside excluded block",
+                    "GROUP": "Group element — structural container (e.g. <table>, <ul>, <div>)",
                     "ATTRIBUTES_ONLY": "Only attributes are translatable/localizable, not the element's text content",
                     "PRESERVE_WHITESPACE": "Preserve whitespace inside this element (e.g. <pre>, <code>)",
-                    "SCRIPT": "Script element \u2014 embedded client-side code (e.g. <script>)",
-                    "SERVER": "Server element \u2014 embedded server-side content (e.g. JSP, PHP, Mason tags)"
+                    "SCRIPT": "Script element — embedded client-side code (e.g. <script>)",
+                    "SERVER": "Server element — embedded server-side content (e.g. JSP, PHP, Mason tags)"
                   }
                 }
               },
@@ -4693,7 +5635,7 @@
                   {
                     "type": "object",
                     "additionalProperties": {
-                      "description": "Conditional attribute extraction \u2014 null (unconditional) or condition tuple(s)",
+                      "description": "Conditional attribute extraction — null (unconditional) or condition tuple(s)",
                       "oneOf": [
                         {
                           "type": "null",
@@ -4723,7 +5665,7 @@
                               }
                             },
                             {
-                              "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                              "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                               "oneOf": [
                                 {
                                   "type": "string"
@@ -4740,7 +5682,7 @@
                         },
                         {
                           "type": "array",
-                          "description": "Multiple conditions (OR logic \u2014 extract if any condition matches)",
+                          "description": "Multiple conditions (OR logic — extract if any condition matches)",
                           "items": {
                             "type": "array",
                             "description": "Condition: [attributeName, operator, value or values]",
@@ -4765,7 +5707,7 @@
                                 }
                               },
                               {
-                                "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                                "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -4788,7 +5730,7 @@
               },
               "writableLocalizableAttributes": {
                 "title": "Writable Localizable Attributes",
-                "description": "Attributes to extract as writable localizable content (e.g. href, src \u2014 locale-specific, editable)",
+                "description": "Attributes to extract as writable localizable content (e.g. href, src — locale-specific, editable)",
                 "oneOf": [
                   {
                     "type": "array",
@@ -4799,7 +5741,7 @@
                   {
                     "type": "object",
                     "additionalProperties": {
-                      "description": "Conditional attribute extraction \u2014 null (unconditional) or condition tuple(s)",
+                      "description": "Conditional attribute extraction — null (unconditional) or condition tuple(s)",
                       "oneOf": [
                         {
                           "type": "null",
@@ -4829,7 +5771,7 @@
                               }
                             },
                             {
-                              "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                              "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                               "oneOf": [
                                 {
                                   "type": "string"
@@ -4846,7 +5788,7 @@
                         },
                         {
                           "type": "array",
-                          "description": "Multiple conditions (OR logic \u2014 extract if any condition matches)",
+                          "description": "Multiple conditions (OR logic — extract if any condition matches)",
                           "items": {
                             "type": "array",
                             "description": "Condition: [attributeName, operator, value or values]",
@@ -4871,7 +5813,7 @@
                                 }
                               },
                               {
-                                "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                                "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -4905,7 +5847,7 @@
                   {
                     "type": "object",
                     "additionalProperties": {
-                      "description": "Conditional attribute extraction \u2014 null (unconditional) or condition tuple(s)",
+                      "description": "Conditional attribute extraction — null (unconditional) or condition tuple(s)",
                       "oneOf": [
                         {
                           "type": "null",
@@ -4935,7 +5877,7 @@
                               }
                             },
                             {
-                              "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                              "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                               "oneOf": [
                                 {
                                   "type": "string"
@@ -4952,7 +5894,7 @@
                         },
                         {
                           "type": "array",
-                          "description": "Multiple conditions (OR logic \u2014 extract if any condition matches)",
+                          "description": "Multiple conditions (OR logic — extract if any condition matches)",
                           "items": {
                             "type": "array",
                             "description": "Condition: [attributeName, operator, value or values]",
@@ -4977,7 +5919,7 @@
                                 }
                               },
                               {
-                                "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                                "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -5032,7 +5974,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -7196,8 +8138,8 @@
           ]
         }
       ],
-      "x-name": "okf_html",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_html"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7238,8 +8180,8 @@
       "x-okapi-base-hash": "9274e6d742f6",
       "x-okapi-composite-hash": "90b53ef817fb",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_html5",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_html5"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7429,8 +8371,8 @@
           ]
         }
       ],
-      "x-name": "okf_icml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_icml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7749,8 +8691,8 @@
           ]
         }
       ],
-      "x-name": "okf_idml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_idml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8080,8 +9022,8 @@
           ]
         }
       ],
-      "x-name": "okf_json",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_json"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8365,8 +9307,8 @@
           ]
         }
       ],
-      "x-name": "okf_markdown",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_markdown"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8572,8 +9514,8 @@
           ]
         }
       ],
-      "x-name": "okf_mif",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_mif"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8601,8 +9543,8 @@
       "x-okapi-base-hash": "05c999678f58",
       "x-okapi-composite-hash": "05c999678f58",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_mosestext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_mosestext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8722,8 +9664,8 @@
           ]
         }
       ],
-      "x-name": "okf_multiparsers",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_multiparsers"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -8887,8 +9829,8 @@
           ]
         }
       ],
-      "x-name": "okf_odf",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_odf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -9064,8 +10006,8 @@
           ]
         }
       ],
-      "x-name": "okf_openoffice",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_openoffice"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -9127,10 +10069,10 @@
                 "mergeFields": {
                   "rules": [
                     {
-                      "pattern": "\u00ab[^\u00bb]+\u00bb"
+                      "pattern": "«[^»]+»"
                     }
                   ],
-                  "sample": "Dear \u00abFirstName\u00bb \u00abLastName\u00bb"
+                  "sample": "Dear «FirstName» «LastName»"
                 },
                 "placeholders": {
                   "rules": [
@@ -9570,8 +10512,8 @@
           ]
         }
       ],
-      "x-name": "okf_openxml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_openxml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -9772,8 +10714,8 @@
           ]
         }
       ],
-      "x-name": "okf_paraplaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_paraplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10014,8 +10956,8 @@
           ]
         }
       ],
-      "x-name": "okf_pdf",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_pdf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10043,8 +10985,8 @@
       "x-okapi-base-hash": "64a10340087e",
       "x-okapi-composite-hash": "64a10340087e",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_pensieve",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_pensieve"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10207,8 +11149,8 @@
           ]
         }
       ],
-      "x-name": "okf_phpcontent",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_phpcontent"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10338,8 +11280,8 @@
       "x-okapi-base-hash": "bba56f61a3f2",
       "x-okapi-composite-hash": "b54d451c9a2e",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_plaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_plaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10578,8 +11520,8 @@
           ]
         }
       ],
-      "x-name": "okf_po",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_po"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10928,8 +11870,8 @@
           ]
         }
       ],
-      "x-name": "okf_properties",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_properties"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -10989,8 +11931,8 @@
           ]
         }
       ],
-      "x-name": "okf_rainbowkit",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_rainbowkit"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11453,8 +12395,8 @@
           ]
         }
       ],
-      "x-name": "okf_regex",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_regex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11690,8 +12632,8 @@
           ]
         }
       ],
-      "x-name": "okf_regexplaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_regexplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11719,8 +12661,8 @@
       "x-okapi-base-hash": "0f2ee314c2ad",
       "x-okapi-composite-hash": "0f2ee314c2ad",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_rtf",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_rtf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -11892,8 +12834,8 @@
           ]
         }
       ],
-      "x-name": "okf_sdlpackage",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_sdlpackage"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12124,8 +13066,8 @@
           ]
         }
       ],
-      "x-name": "okf_splicedlines",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_splicedlines"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12317,8 +13259,8 @@
       "x-okapi-base-hash": "956f5e8fb8bd",
       "x-okapi-composite-hash": "cc8dc231cdc7",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_table",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_table"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12510,8 +13452,8 @@
       "x-okapi-base-hash": "f08234e420e2",
       "x-okapi-composite-hash": "3a0ad253c220",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_tabseparatedvalues",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_tabseparatedvalues"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12539,8 +13481,8 @@
       "x-okapi-base-hash": "951c6ce6a280",
       "x-okapi-composite-hash": "951c6ce6a280",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_tex",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_tex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12729,8 +13671,8 @@
           ]
         }
       ],
-      "x-name": "okf_tmx",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_tmx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12882,8 +13824,8 @@
           ]
         }
       ],
-      "x-name": "okf_transifex",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_transifex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -12909,8 +13851,8 @@
       "x-okapi-base-hash": "61063c155946",
       "x-okapi-composite-hash": "61063c155946",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_transtable",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_transtable"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13062,8 +14004,8 @@
           ]
         }
       ],
-      "x-name": "okf_ts",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_ts"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13178,8 +14120,8 @@
           ]
         }
       ],
-      "x-name": "okf_ttml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_ttml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13366,8 +14308,8 @@
           ]
         }
       ],
-      "x-name": "okf_ttx",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_ttx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13520,8 +14462,8 @@
           ]
         }
       ],
-      "x-name": "okf_txml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_txml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13554,8 +14496,8 @@
       "x-okapi-base-hash": "92b3ec877912",
       "x-okapi-composite-hash": "58f855a2297b",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_versifiedtext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_versifiedtext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13805,8 +14747,8 @@
           ]
         }
       ],
-      "x-name": "okf_vignette",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_vignette"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13961,8 +14903,8 @@
           ]
         }
       ],
-      "x-name": "okf_vtt",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_vtt"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -14010,8 +14952,8 @@
       "x-okapi-base-hash": "2abe9933b1c0",
       "x-okapi-composite-hash": "f9ebde236e6f",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_wiki",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_wiki"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -14160,8 +15102,8 @@
           ]
         }
       ],
-      "x-name": "okf_xini",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xini"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -14187,8 +15129,8 @@
       "x-okapi-base-hash": "6eb0c06f5182",
       "x-okapi-composite-hash": "6eb0c06f5182",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_xinirainbowkit",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xinirainbowkit"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -14829,8 +15771,8 @@
           ]
         }
       ],
-      "x-name": "okf_xliff",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -15073,8 +16015,8 @@
           ]
         }
       ],
-      "x-name": "okf_xliff2",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xliff2"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -15125,8 +16067,8 @@
       "x-okapi-base-hash": "4d063b7bc8fb",
       "x-okapi-composite-hash": "ef6c8a873fc9",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_xml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -15249,7 +16191,7 @@
         "attributes": {
           "type": "object",
           "title": "Attribute Rules",
-          "description": "Global attribute extraction rules \u2014 maps attribute names to their rule configuration",
+          "description": "Global attribute extraction rules — maps attribute names to their rule configuration",
           "additionalProperties": {
             "type": "object",
             "description": "Global extraction rule for an HTML/XML attribute",
@@ -15268,11 +16210,11 @@
                     "ATTRIBUTE_PRESERVE_WHITESPACE"
                   ],
                   "ui:enum-descriptions": {
-                    "ATTRIBUTE_TRANS": "Translatable \u2014 attribute content is extracted for translation",
-                    "ATTRIBUTE_WRITABLE": "Writable localizable \u2014 attribute is locale-specific and editable (e.g. URLs, paths)",
-                    "ATTRIBUTE_READONLY": "Read-only localizable \u2014 attribute is locale-specific but not user-editable",
-                    "ATTRIBUTE_ID": "ID \u2014 attribute value is used as the segment identifier",
-                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace \u2014 attribute controls whitespace preservation state"
+                    "ATTRIBUTE_TRANS": "Translatable — attribute content is extracted for translation",
+                    "ATTRIBUTE_WRITABLE": "Writable localizable — attribute is locale-specific and editable (e.g. URLs, paths)",
+                    "ATTRIBUTE_READONLY": "Read-only localizable — attribute is locale-specific but not user-editable",
+                    "ATTRIBUTE_ID": "ID — attribute value is used as the segment identifier",
+                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace — attribute controls whitespace preservation state"
                   }
                 }
               },
@@ -15316,7 +16258,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -15356,7 +16298,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -15396,7 +16338,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -15949,8 +16891,8 @@
           ]
         }
       ],
-      "x-name": "okf_xmlstream",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xmlstream"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -16189,8 +17131,8 @@
           ]
         }
       ],
-      "x-name": "okf_yaml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_yaml"
     }
   ],
   "all": [
@@ -16209,41 +17151,71 @@
         ]
       },
       "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
         "columnNamesRow": {
           "default": 0,
           "description": "1-based row number containing column names. 0 means auto-detect.",
+          "title": "Column Names Row",
           "type": "integer"
         },
         "commentColumns": {
-          "description": "Column indices (0-based) that contain comments or notes.",
+          "description": "Column indices (0-based) that contain comments or notes",
+          "title": "Comment Columns",
           "type": "array"
         },
         "hasHeader": {
           "default": true,
           "description": "If true, the first row is treated as headers (non-translatable)",
+          "title": "Has Header Row",
           "type": "boolean"
         },
         "keyColumns": {
-          "description": "Column indices (0-based) that provide the block ID (source ID / record ID).",
+          "description": "Column indices (0-based) that provide the block ID (source ID / record ID)",
+          "title": "Key Columns",
           "type": "array"
         },
         "separator": {
           "default": ",",
-          "description": "Field delimiter character",
+          "description": "Field delimiter character (comma for CSV, tab for TSV)",
+          "title": "Field Delimiter",
+          "type": "string"
+        },
+        "textQualifier": {
+          "default": "\"",
+          "description": "Character used to quote field values containing delimiters or newlines",
+          "title": "Text Qualifier",
           "type": "string"
         },
         "translatableColumns": {
           "description": "Column indices (0-based) to extract as translatable content. If empty, all columns are translatable.",
+          "title": "Translatable Columns",
           "type": "array"
         },
         "trimValues": {
           "default": false,
-          "description": "If true, leading and trailing whitespace is removed from cell values.",
+          "description": "If true, leading and trailing whitespace is removed from cell values",
+          "title": "Trim Values",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within cell values",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         },
         "valuesStartRow": {
           "default": 0,
           "description": "1-based row number where data values begin. 0 means auto-detect.",
+          "title": "Values Start Row",
           "type": "integer"
         }
       },
@@ -16253,22 +17225,31 @@
         {
           "fields": [
             "separator",
+            "textQualifier",
             "hasHeader",
-            "trimValues",
             "columnNamesRow",
             "valuesStartRow"
           ],
-          "id": "parsing",
-          "label": "Parsing"
+          "id": "format",
+          "label": "CSV Format Settings"
         },
         {
           "fields": [
             "translatableColumns",
             "keyColumns",
-            "commentColumns"
+            "commentColumns",
+            "trimValues"
           ],
           "id": "extraction",
           "label": "Extraction"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -16292,9 +17273,49 @@
           "text/x-doxygen-txt"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "preserveWhitespace": {
+          "default": false,
+          "description": "Preserve original whitespace in extracted comment text instead of normalizing it",
+          "title": "Preserve whitespace",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based detection of inline codes within translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        }
+      },
       "title": "Doxygen Comments",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "preserveWhitespace"
+          ],
+          "id": "parser",
+          "label": "Parser Settings"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "doxygen"
     },
@@ -16314,35 +17335,46 @@
       },
       "properties": {
         "attributes": {
-          "description": "Map of attribute names to extraction rules (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+          "description": "Global attribute extraction rules -- maps attribute names to their rule configuration (ruleTypes, allElementsExcept, onlyTheseElements, conditions)",
+          "title": "Attribute Rules",
           "type": "object",
           "x-okapi-flatten-path": "attributes"
         },
         "codeFinderRules": {
           "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
           "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder",
           "x-okapi-flatten-path": "codeFinderRules"
         },
         "elements": {
-          "description": "Map of element names to extraction rules (ruleTypes, conditions, idAttributes, translatableAttributes)",
+          "description": "Element extraction rules -- maps element names to their rule configuration (ruleTypes, conditions, idAttributes, translatableAttributes)",
+          "title": "Element Rules",
           "type": "object",
           "x-okapi-flatten-path": "elements"
         },
         "parser": {
-          "description": "Parser settings",
+          "description": "Settings that control how the HTML parser reads input",
           "properties": {
             "preserveWhitespace": {
               "default": false,
-              "description": "Preserve significant whitespace in text nodes",
+              "description": "Preserve original whitespace in extracted text instead of collapsing it",
+              "title": "Preserve whitespace",
               "type": "boolean",
               "x-okapi-flatten-path": "preserveWhitespace"
             }
           },
+          "title": "Parser behavior",
           "type": "object"
         },
         "useCodeFinder": {
           "default": false,
-          "description": "Enable regex-based inline code detection",
+          "description": "Enable regex-based detection of inline codes (placeholders, variables, tags) within translatable text",
+          "title": "Enable inline code detection",
           "type": "boolean",
           "x-okapi-flatten-path": "useCodeFinder"
         }
@@ -16404,7 +17436,8 @@
       },
       "properties": {
         "codeFinderRules": {
-          "description": "Regex patterns that match inline codes within translatable text",
+          "description": "Regex patterns that match inline codes within translatable text.",
+          "title": "Code Finder Rules",
           "type": "array",
           "ui:visible": {
             "eq": true,
@@ -16414,47 +17447,57 @@
         },
         "escapeForwardSlashes": {
           "default": true,
-          "description": "Escape / as \\/ in JSON output",
+          "description": "Escape forward slashes in output JSON (\\/).",
+          "title": "Escape forward slashes",
           "type": "boolean"
         },
         "exceptions": {
           "description": "Regex pattern for key names. When extractAllPairs is true, matching keys are excluded. When false, matching keys are included.",
+          "title": "Key exception pattern",
           "type": "string",
           "ui:widget": "regex"
         },
         "extractAllPairs": {
           "default": true,
-          "description": "Extract all string key-value pairs as translatable blocks",
+          "description": "Extract all key-value pairs for translation. When false, use extractionRules to specify which paths to extract.",
+          "title": "Extract all key/string pairs",
           "type": "boolean"
         },
         "extractIsolatedStrings": {
           "default": false,
-          "description": "Extract standalone string values inside arrays as translatable blocks",
+          "description": "Extract string values in arrays (without keys) as translatable blocks.",
+          "title": "Extract strings without associated key",
           "type": "boolean"
         },
         "extractionRules": {
-          "description": "Regex pattern limiting which keys are extracted. Only matching keys are extracted.",
+          "description": "Regex pattern for JSON paths to extract. Overrides extractAllPairs when specified.",
+          "title": "Extraction rules",
           "type": "string",
+          "ui:placeholder": "/messages/.*|/labels/.*",
           "ui:widget": "regex"
         },
         "genericMetaRules": {
-          "description": "Regex pattern for key names whose values become metadata annotations",
+          "description": "Regex for keys whose values become generic metadata.",
+          "title": "Generic metadata rules",
           "type": "string",
           "ui:widget": "regex"
         },
         "idRules": {
-          "description": "Regex pattern for key names whose values are used as block names/IDs",
+          "description": "Regex for keys whose values become Block IDs (overrides useKeyAsName).",
+          "title": "ID rules",
           "type": "string",
+          "ui:placeholder": "/id|/key",
           "ui:widget": "regex"
         },
         "maxwidthRules": {
-          "description": "Regex pattern for key names whose numeric values set MAX_WIDTH on the next block",
+          "description": "Regex for keys whose values set max width constraints.",
+          "title": "Maxwidth rules",
           "type": "string",
           "ui:widget": "regex"
         },
         "maxwidthSizeUnit": {
           "default": "pixel",
-          "description": "Size unit for maxwidth",
+          "description": "Size unit for maxwidth.",
           "options": [
             {
               "label": "Pixel",
@@ -16465,19 +17508,24 @@
               "value": "char"
             }
           ],
+          "title": "Maxwidth size unit",
           "type": "string"
         },
         "noteRules": {
-          "description": "Regex pattern for key names whose values become notes on the next translatable block",
+          "description": "Regex for keys whose values become translator notes.",
+          "title": "Note rules",
           "type": "string",
+          "ui:placeholder": "/description|/comment",
           "ui:widget": "regex"
         },
         "subfilter": {
-          "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings",
+          "description": "Global subfilter format name (e.g., 'html') applied to all or matching extracted strings.",
+          "title": "Subfilter format",
           "type": "string"
         },
         "subfilterRules": {
-          "description": "Regex pattern for key names processed by the subfilter. Only used when subfilter is set.",
+          "description": "Regex matching keys for which values should be processed with the sub-filter.",
+          "title": "Sub-filter rules",
           "type": "string",
           "ui:visible": {
             "empty": false,
@@ -16486,32 +17534,38 @@
           "ui:widget": "regex"
         },
         "subfilters": {
-          "description": "Array of {pattern, format} mappings for embedded content in specific keys",
+          "description": "Array of {pattern, format} mappings for embedded content in specific keys.",
+          "title": "Subfilter mappings",
           "type": "array"
         },
         "useCodeFinder": {
           "default": false,
-          "description": "Enable regex-based inline code detection",
+          "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         },
         "useFullKeyPath": {
           "default": false,
-          "description": "Use hierarchical paths (parent/child) as block names",
+          "description": "Use full path (/key1/key2) instead of immediate key as name.",
+          "title": "Use the full key path",
           "type": "boolean"
         },
         "useIdStack": {
           "default": false,
-          "description": "Stack IDs for nested structures, producing compound IDs",
+          "description": "Build TextUnit IDs from nested key stack.",
+          "title": "Use the full path of IDs for resname",
           "type": "boolean"
         },
         "useKeyAsName": {
           "default": true,
-          "description": "Use the JSON key as the block name/ID",
+          "description": "Use JSON key as the Block (TextUnit) name for reference.",
+          "title": "Use the key as the resname",
           "type": "boolean"
         },
         "useLeadingSlashOnKeyPath": {
           "default": true,
-          "description": "Prepend / to full key paths",
+          "description": "Include leading slash in key path names.",
+          "title": "Include leading \"/\" on key path",
           "type": "boolean"
         }
       },
@@ -16592,34 +17646,67 @@
         ]
       },
       "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "subfilter": {
+          "description": "Subfilter format to apply to HTML content within Markdown (e.g., 'html')",
+          "title": "HTML Subfilter",
+          "type": "string"
+        },
         "translateBlockQuotes": {
           "default": true,
           "description": "If true, blockquote content is translatable.",
+          "title": "Translate Block Quotes",
           "type": "boolean"
         },
         "translateCodeBlocks": {
           "default": false,
-          "description": "If true, fenced/indented code blocks are translatable. If false, emitted as non-translatable data.",
+          "description": "If true, fenced and indented code blocks are translatable. If false, emitted as non-translatable data.",
+          "title": "Translate Code Blocks",
           "type": "boolean"
         },
         "translateFrontMatter": {
           "default": false,
           "description": "If true, YAML front matter values are translatable. If false, emitted as non-translatable data.",
+          "title": "Translate YAML Front Matter",
           "type": "boolean"
         },
         "translateHTMLBlocks": {
           "default": false,
           "description": "If true, raw HTML blocks are translatable. If false, emitted as non-translatable data.",
+          "title": "Translate HTML Blocks",
           "type": "boolean"
         },
         "translateImageAlt": {
           "default": true,
           "description": "If true, image alt text is included in translatable content.",
+          "title": "Translate Image Alt Text",
           "type": "boolean"
         },
         "translateURLs": {
           "default": false,
           "description": "If true, link and image URLs are translatable.",
+          "title": "Translate Hyperlink URLs",
+          "type": "boolean"
+        },
+        "unescapeBackslashCharacters": {
+          "default": false,
+          "description": "Parse backslash-escaped punctuation in source documents",
+          "title": "Support Backslash Escaping",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within translatable text",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         }
       },
@@ -16637,6 +17724,28 @@
           ],
           "id": "extraction",
           "label": "Content Extraction"
+        },
+        {
+          "fields": [
+            "unescapeBackslashCharacters"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "subfilter"
+          ],
+          "id": "subfilters",
+          "label": "Subfilters"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -16662,150 +17771,208 @@
       "properties": {
         "aggressiveCleanup": {
           "default": true,
-          "description": "Strip revision IDs, proofing errors, and other noise before merging runs",
+          "description": "Strip revision IDs, proofing errors, and other noise before merging runs.",
+          "title": "Aggressive code cleanup",
+          "type": "boolean"
+        },
+        "automaticallyAcceptRevisions": {
+          "default": true,
+          "description": "Automatically accept tracked changes before extraction.",
+          "title": "Accept revisions automatically",
           "type": "boolean"
         },
         "codeFinderRules": {
-          "description": "Regex patterns that match inline codes within translatable text",
-          "type": "array"
+          "description": "Regex patterns that match inline codes within translatable text.",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
         },
         "complexFieldDefinitionsToExtract": {
-          "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\")",
+          "description": "Field instruction prefixes to extract (e.g., \"HYPERLINK\", \"REF\").",
+          "title": "Complex field definitions to extract",
           "type": "array"
         },
         "excludeColors": {
-          "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red)",
+          "description": "Font colors to exclude (hex RGB, e.g., \"FF0000\" for red).",
+          "title": "Exclude specific font colors",
           "type": "array"
         },
         "excludeHighlightColors": {
-          "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\")",
+          "description": "Highlight colors to exclude (e.g., \"yellow\", \"red\").",
+          "title": "Exclude highlight colors",
           "type": "array"
         },
         "excludeStyles": {
-          "description": "Paragraph/character style names to exclude",
+          "description": "Paragraph/character style names to exclude.",
+          "title": "Exclude styles",
           "type": "array"
         },
         "excludedColumns": {
-          "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\")",
+          "description": "Column letters to exclude (e.g., \"A\", \"C\", \"AA\").",
+          "title": "Excluded columns",
           "type": "array"
         },
         "excludedSheets": {
-          "description": "Sheet names to exclude from extraction",
+          "description": "Sheet names to exclude from extraction.",
+          "title": "Excluded sheets",
           "type": "array"
         },
         "extractRunFontsInfo": {
           "default": false,
-          "description": "Emit font metadata as annotations on blocks",
+          "description": "Emit font metadata as annotations on blocks.",
+          "title": "Extract run fonts info",
           "type": "boolean"
         },
         "fontMappings": {
-          "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\")",
+          "description": "Font name to script group mapping (e.g., \"MS Gothic\": \"ja\").",
+          "title": "Font mappings",
           "type": "object"
         },
+        "ignoreSoftHyphenTag": {
+          "default": false,
+          "description": "Ignore soft hyphen tags in the document.",
+          "title": "Ignore soft hyphen tags",
+          "type": "boolean"
+        },
         "includeHighlightColors": {
-          "description": "If non-empty, only extract text with these highlight colors",
+          "description": "If non-empty, only extract text with these highlight colors.",
+          "title": "Include highlight colors",
           "type": "array"
         },
         "includeStyles": {
-          "description": "If non-empty, only extract text with these styles",
+          "description": "If non-empty, only extract text with these styles.",
+          "title": "Include styles",
           "type": "array"
         },
         "includedSlides": {
-          "description": "If non-empty, only extract these slide numbers (1-based)",
+          "description": "If non-empty, only extract these slide numbers (1-based).",
+          "title": "Included slide numbers",
           "type": "array"
         },
         "lineSeparatorReplacement": {
           "default": "\n",
-          "description": "Replacement string for line separator characters",
-          "type": "string"
+          "description": "Replacement string for line separator characters.",
+          "title": "Line separator replacement string",
+          "type": "string",
+          "ui:visible": {
+            "eq": true,
+            "field": "replaceLineSeparator"
+          }
         },
         "optimiseWordStyles": {
           "default": false,
-          "description": "Resolve style inheritance and strip redundant run properties",
+          "description": "Resolve style inheritance and strip redundant run properties.",
+          "title": "Allow style optimization",
           "type": "boolean"
         },
         "replaceLineSeparator": {
           "default": false,
-          "description": "Replace Unicode line separator (U+2028) in output",
+          "description": "Replace Unicode line separator (U+2028) in output.",
+          "title": "Add line separator as character",
+          "type": "boolean"
+        },
+        "replaceNoBreakHyphenTag": {
+          "default": false,
+          "description": "Replace no-break hyphen tags with the non-breaking hyphen character.",
+          "title": "Replace no-break hyphen tags",
           "type": "boolean"
         },
         "tabAsCharacter": {
           "default": false,
-          "description": "Treat tab elements as tab characters instead of placeholder spans",
+          "description": "Treat tab elements as tab characters instead of placeholder spans.",
+          "title": "Add tab as character",
           "type": "boolean"
         },
         "translateCharts": {
           "default": false,
-          "description": "Extract strings from embedded charts",
+          "description": "Extract strings from embedded charts.",
+          "title": "Translate chart text",
           "type": "boolean"
         },
         "translateComments": {
           "default": false,
-          "description": "Extract comment text",
+          "description": "Extract comment text from Word documents.",
+          "title": "Translate comments",
           "type": "boolean"
         },
         "translateDiagrams": {
           "default": false,
-          "description": "Extract text from SmartArt diagrams",
+          "description": "Extract text from SmartArt diagrams.",
+          "title": "Translate diagram data",
           "type": "boolean"
         },
         "translateDocProperties": {
           "default": true,
-          "description": "Extract title, subject, keywords from document properties",
+          "description": "Extract title, subject, keywords from document properties.",
+          "title": "Translate document properties",
           "type": "boolean"
         },
         "translateFootnotes": {
           "default": true,
-          "description": "Extract footnotes and endnotes",
+          "description": "Extract footnotes and endnotes from Word documents.",
+          "title": "Translate footnotes and endnotes",
           "type": "boolean"
         },
         "translateHeadersFooters": {
           "default": true,
-          "description": "Extract headers and footers",
+          "description": "Extract text from headers and footers in Word documents.",
+          "title": "Translate headers and footers",
           "type": "boolean"
         },
         "translateHiddenSlides": {
           "default": false,
-          "description": "Extract content from hidden slides",
+          "description": "Extract content from hidden slides in PowerPoint.",
+          "title": "Translate hidden slides",
           "type": "boolean"
         },
         "translateHiddenText": {
           "default": false,
-          "description": "Extract text with the vanish (hidden) property",
+          "description": "Extract text with the vanish (hidden) property in Word documents.",
+          "title": "Translate hidden text",
           "type": "boolean"
         },
         "translateHyperlinks": {
           "default": true,
-          "description": "Extract hyperlink text",
+          "description": "Extract hyperlink text for translation.",
+          "title": "Extract external hyperlinks",
           "type": "boolean"
         },
         "translateSharedStrings": {
           "default": true,
-          "description": "Extract shared strings",
+          "description": "Extract shared strings from Excel workbooks.",
+          "title": "Translate shared strings",
           "type": "boolean"
         },
         "translateSheetNames": {
           "default": false,
-          "description": "Extract sheet names as translatable content",
+          "description": "Extract sheet names in Excel workbooks.",
+          "title": "Translate sheet names",
           "type": "boolean"
         },
         "translateSlideMasters": {
           "default": false,
-          "description": "Extract text from slide masters",
+          "description": "Extract text from slide masters in PowerPoint.",
+          "title": "Translate master slides",
           "type": "boolean"
         },
         "translateSlideNotes": {
           "default": true,
-          "description": "Extract slide notes",
+          "description": "Extract speaker notes in PowerPoint presentations.",
+          "title": "Translate slide notes",
           "type": "boolean"
         },
         "useCodeFinder": {
           "default": false,
-          "description": "Enable regex-based inline code detection",
+          "description": "Enable pattern-based detection of inline codes (placeholders, tags, etc.).",
+          "title": "Enable Inline Code Detection",
           "type": "boolean"
         }
       },
-      "title": "Office Open XML Format",
+      "title": "OpenXML Filter",
       "type": "object",
       "ui:groups": [
         {
@@ -16815,21 +17982,23 @@
             "translateHeadersFooters",
             "translateFootnotes",
             "translateComments",
-            "translateHyperlinks"
+            "translateHyperlinks",
+            "automaticallyAcceptRevisions"
           ],
-          "id": "common",
-          "label": "Common Extraction"
+          "id": "word",
+          "label": "Word Options"
         },
         {
           "fields": [
-            "aggressiveCleanup",
-            "tabAsCharacter"
+            "translateSheetNames",
+            "translateSharedStrings",
+            "excludedSheets",
+            "excludedColumns"
           ],
-          "id": "formatting",
-          "label": "Formatting Control"
+          "id": "excel",
+          "label": "Excel Options"
         },
         {
-          "collapsed": true,
           "fields": [
             "translateSlideNotes",
             "translateSlideMasters",
@@ -16838,19 +18007,18 @@
             "translateDiagrams",
             "includedSlides"
           ],
-          "id": "pptx",
+          "id": "powerpoint",
           "label": "PowerPoint Options"
         },
         {
-          "collapsed": true,
           "fields": [
-            "translateSheetNames",
-            "translateSharedStrings",
-            "excludedSheets",
-            "excludedColumns"
+            "aggressiveCleanup",
+            "tabAsCharacter",
+            "ignoreSoftHyphenTag",
+            "replaceNoBreakHyphenTag"
           ],
-          "id": "xlsx",
-          "label": "Excel Options"
+          "id": "general",
+          "label": "General"
         },
         {
           "collapsed": true,
@@ -16904,9 +18072,36 @@
           "application/x-php"
         ]
       },
-      "properties": null,
-      "title": "PHP Content",
+      "properties": {
+        "extractOutsideDirectives": {
+          "default": true,
+          "description": "Extract translatable strings found outside directive-controlled regions.",
+          "title": "Extract outside the scope of the directives",
+          "type": "boolean",
+          "ui:visible": {
+            "eq": true,
+            "field": "useDirectives"
+          }
+        },
+        "useDirectives": {
+          "default": true,
+          "description": "Honor //okapi: skip/text directives in PHP source to control extraction scope.",
+          "title": "Use localization directives",
+          "type": "boolean"
+        }
+      },
+      "title": "PHP Content Filter",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "useDirectives",
+            "extractOutsideDirectives"
+          ],
+          "id": "extraction",
+          "label": "Extraction settings"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "phpcontent"
     },
@@ -16959,9 +18154,44 @@
         ]
       },
       "properties": {
+        "allowEmptyOutputTarget": {
+          "default": false,
+          "description": "Allow empty target in output when no translation is available",
+          "title": "Allow Empty Target Output",
+          "type": "boolean"
+        },
+        "bilingualMode": {
+          "default": true,
+          "description": "In bilingual mode (default), msgid is the source text and msgstr is the target. In monolingual mode, msgid is treated as an ID.",
+          "title": "Bilingual Mode",
+          "type": "boolean"
+        },
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
         "preserveUntranslated": {
           "default": true,
           "description": "If true, entries with empty msgstr are emitted as blocks. If false, they are skipped.",
+          "title": "Preserve Untranslated Entries",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within PO message text",
+          "title": "Enable Inline Code Detection",
+          "type": "boolean"
+        },
+        "wrapContent": {
+          "default": true,
+          "description": "Wrap long content lines in output at approximately 80 characters",
+          "title": "Wrap Long Content Lines",
           "type": "boolean"
         }
       },
@@ -16974,6 +18204,29 @@
           ],
           "id": "extraction",
           "label": "Extraction"
+        },
+        {
+          "fields": [
+            "bilingualMode"
+          ],
+          "id": "mode",
+          "label": "Processing Mode"
+        },
+        {
+          "fields": [
+            "wrapContent",
+            "allowEmptyOutputTarget"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -16993,14 +18246,77 @@
         ]
       },
       "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "commentsAreNotes": {
+          "default": true,
+          "description": "Treat comments as translator notes attached to the following entry",
+          "title": "Comments as Notes",
+          "type": "boolean"
+        },
+        "escapeExtendedChars": {
+          "default": true,
+          "description": "Escape extended Unicode characters (non-ASCII) in output using \\uXXXX notation",
+          "title": "Escape Extended Characters",
+          "type": "boolean"
+        },
+        "extraComments": {
+          "default": false,
+          "description": "Recognize semicolon and double-slash comment styles in addition to standard # and ! markers",
+          "title": "Additional Comment Markers",
+          "type": "boolean"
+        },
+        "extractOnlyMatchingKey": {
+          "default": true,
+          "description": "When enabled, extract only entries whose keys match the condition; otherwise exclude matching keys",
+          "title": "Extract Only Matching Keys",
+          "type": "boolean",
+          "ui:visible": {
+            "eq": true,
+            "field": "useKeyCondition"
+          }
+        },
+        "keyCondition": {
+          "default": ".*text.*",
+          "description": "Regular expression pattern to test against property keys for extraction filtering",
+          "title": "Key Condition Pattern",
+          "type": "string",
+          "ui:visible": {
+            "eq": true,
+            "field": "useKeyCondition"
+          },
+          "ui:widget": "regex"
+        },
         "separator": {
           "default": "=",
           "description": "Key-value separator character (typically '=' or ':')",
+          "title": "Separator",
           "type": "string"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within property values",
+          "title": "Enable Inline Code Detection",
+          "type": "boolean"
         },
         "useJavaEscapes": {
           "default": false,
-          "description": "Decode additional Java escapes (\\: \\= \\# \\!) in values",
+          "description": "Keep Java property escape sequences (\\: \\= \\# \\!) in extracted text instead of resolving them",
+          "title": "Retain Java Escapes",
+          "type": "boolean"
+        },
+        "useKeyCondition": {
+          "default": false,
+          "description": "Filter entries for extraction based on a regex condition applied to their keys",
+          "title": "Enable Key Condition",
           "type": "boolean"
         }
       },
@@ -17009,11 +18325,43 @@
       "ui:groups": [
         {
           "fields": [
-            "separator",
-            "useJavaEscapes"
+            "separator"
           ],
           "id": "parsing",
           "label": "Parsing"
+        },
+        {
+          "fields": [
+            "useKeyCondition",
+            "extractOnlyMatchingKey",
+            "keyCondition",
+            "extraComments"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "commentsAreNotes"
+          ],
+          "id": "notes",
+          "label": "Notes"
+        },
+        {
+          "fields": [
+            "useJavaEscapes",
+            "escapeExtendedChars"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -17022,7 +18370,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "SubRip subtitle format \u2014 no configurable parameters",
+      "description": "SubRip subtitle format — no configurable parameters",
       "formatMeta": {
         "extensions": [
           ".srt"
@@ -17041,7 +18389,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "TMX translation memory format \u2014 no configurable parameters",
+      "description": "Configuration for the native TMX translation memory format reader/writer",
       "formatMeta": {
         "extensions": [
           ".tmx"
@@ -17051,9 +18399,69 @@
           "application/x-tmx+xml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "escapeGT": {
+          "default": false,
+          "description": "Escape > as &gt; in output XML",
+          "title": "Escape greater-than characters",
+          "type": "boolean"
+        },
+        "exitOnInvalid": {
+          "default": false,
+          "description": "Stop processing when encountering invalid TUs. When false, invalid TUs are skipped.",
+          "title": "Exit on invalid TUs",
+          "type": "boolean"
+        },
+        "processAllTargets": {
+          "default": true,
+          "description": "Read all target language TUVs from each TU. When false, only the first target is read.",
+          "title": "Read all target entries",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection in translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        }
+      },
       "title": "TMX (Translation Memory eXchange)",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "processAllTargets",
+            "exitOnInvalid"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "escapeGT"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "tmx"
     },
@@ -17072,26 +18480,72 @@
         ]
       },
       "properties": {
+        "cjkCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
+          "title": "Max characters per line for CJK",
+          "type": "integer"
+        },
         "escapeBR": {
           "default": true,
-          "description": "When true, <br/> elements are removed and text is joined with spaces; when false, <br/> is preserved as literal text",
+          "description": "When true, <br/> elements are removed and text is joined with spaces; when false, <br/> is preserved as literal text.",
+          "title": "Escape line breaks",
           "type": "boolean"
+        },
+        "maxCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line in output. Set to 0 to disable.",
+          "title": "Max characters per line",
+          "type": "integer"
+        },
+        "maxLinesPerCaption": {
+          "default": 0,
+          "description": "Maximum number of lines per caption in output. Set to 0 to disable.",
+          "title": "Max lines per caption",
+          "type": "integer"
         },
         "mergeAdjacentCaptions": {
           "default": false,
-          "description": "Merge adjacent <p> elements ending with trailing punctuation into one block",
+          "description": "Merge adjacent <p> elements ending with trailing punctuation into one block.",
+          "title": "Merge adjacent captions",
+          "type": "boolean"
+        },
+        "splitWords": {
+          "default": false,
+          "description": "Split words so that they don't go over the character limit per line.",
+          "title": "Split words at character limit",
           "type": "boolean"
         }
       },
-      "title": "TTML Subtitles",
+      "title": "TTML Filter",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "mergeAdjacentCaptions",
+            "escapeBR"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "maxCharsPerLine",
+            "maxLinesPerCaption",
+            "cjkCharsPerLine",
+            "splitWords"
+          ],
+          "id": "output",
+          "label": "Output settings"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "ttml"
     },
     {
       "$id": "",
       "$version": "",
-      "description": "Web Video Text Tracks format \u2014 no configurable parameters",
+      "description": "Web Video Text Tracks (WebVTT) subtitle format",
       "formatMeta": {
         "extensions": [
           ".vtt"
@@ -17101,9 +18555,46 @@
           "text/vtt"
         ]
       },
-      "properties": null,
-      "title": "WebVTT Subtitles",
+      "properties": {
+        "cjkCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line for CJK languages. Set to 0 to disable.",
+          "title": "Max characters per line for CJK",
+          "type": "integer"
+        },
+        "maxCharsPerLine": {
+          "default": 0,
+          "description": "Maximum number of characters per line in output. Set to 0 to disable.",
+          "title": "Max characters per line",
+          "type": "integer"
+        },
+        "maxLinesPerCaption": {
+          "default": 0,
+          "description": "Maximum number of lines per caption in output. Set to 0 to disable.",
+          "title": "Max lines per caption",
+          "type": "integer"
+        },
+        "splitWords": {
+          "default": false,
+          "description": "Split words so that they don't go over the character limit per line.",
+          "title": "Split words at character limit",
+          "type": "boolean"
+        }
+      },
+      "title": "VTT Filter",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "maxCharsPerLine",
+            "maxLinesPerCaption",
+            "cjkCharsPerLine",
+            "splitWords"
+          ],
+          "id": "output",
+          "label": "Output settings"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "vtt"
     },
@@ -17122,18 +18613,36 @@
         ]
       },
       "properties": {
+        "preserveWhitespace": {
+          "default": false,
+          "description": "Preserve original whitespace in wiki markup instead of normalizing it.",
+          "title": "Preserve Whitespace",
+          "type": "boolean"
+        },
         "variant": {
           "default": "mediawiki",
           "description": "Wiki markup variant: mediawiki or dokuwiki.",
+          "options": [
+            {
+              "label": "MediaWiki",
+              "value": "mediawiki"
+            },
+            {
+              "label": "DokuWiki",
+              "value": "dokuwiki"
+            }
+          ],
+          "title": "Wiki variant",
           "type": "string"
         }
       },
-      "title": "Wiki Format",
+      "title": "Wiki Filter",
       "type": "object",
       "ui:groups": [
         {
           "fields": [
-            "variant"
+            "variant",
+            "preserveWhitespace"
           ],
           "id": "syntax",
           "label": "Syntax"
@@ -17145,7 +18654,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "XLIFF 1.2 bilingual exchange format \u2014 no configurable parameters",
+      "description": "Configuration for the native XLIFF 1.2 bilingual exchange format reader/writer",
       "formatMeta": {
         "extensions": [
           ".xlf",
@@ -17156,16 +18665,159 @@
           "application/xliff+xml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "addAltTrans": {
+          "default": false,
+          "description": "Allow addition of new alt-trans elements",
+          "title": "Add alt-trans elements",
+          "type": "boolean"
+        },
+        "addTargetLanguage": {
+          "default": true,
+          "description": "Add the target-language attribute to file elements if not already present",
+          "title": "Add target-language attribute",
+          "type": "boolean"
+        },
+        "allowEmptyTargets": {
+          "default": false,
+          "description": "Allow target elements with empty content to be written",
+          "title": "Allow empty targets",
+          "type": "boolean"
+        },
+        "alwaysAddTargets": {
+          "default": false,
+          "description": "Add target elements for monolingual XLIFF files that have no target in the source",
+          "title": "Add targets for monolingual XLIFF",
+          "type": "boolean"
+        },
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "editAltTrans": {
+          "default": false,
+          "description": "Allow editing of existing alt-trans elements",
+          "title": "Edit alt-trans elements",
+          "type": "boolean"
+        },
+        "fallbackToID": {
+          "default": false,
+          "description": "Use the trans-unit id attribute as the block name when no resname attribute is present",
+          "title": "Use trans-unit ID as name if no resname",
+          "type": "boolean"
+        },
+        "forceUniqueIds": {
+          "default": false,
+          "description": "Rewrite trans-unit IDs to enforce uniqueness across the file",
+          "title": "Enforce unique trans-unit IDs",
+          "type": "boolean"
+        },
+        "ignoreInputSegmentation": {
+          "default": false,
+          "description": "Ignore seg-source/mrk segmentation from the input XLIFF and treat the full source as a single segment",
+          "title": "Ignore input segmentation",
+          "type": "boolean"
+        },
+        "includeExtensions": {
+          "default": true,
+          "description": "Include non-standard namespace extension elements in extracted content",
+          "title": "Include XLIFF extension elements",
+          "type": "boolean"
+        },
+        "includeIts": {
+          "default": true,
+          "description": "Include ITS (Internationalization Tag Set) markup in extracted content",
+          "title": "Include ITS markup",
+          "type": "boolean"
+        },
+        "overrideTargetLanguage": {
+          "default": false,
+          "description": "Override the target-language attribute in the output document with the pipeline target locale",
+          "title": "Override target language",
+          "type": "boolean"
+        },
+        "preserveSpaceByDefault": {
+          "default": false,
+          "description": "Treat all content as xml:space=\"preserve\" unless explicitly overridden",
+          "title": "Preserve whitespace by default",
+          "type": "boolean"
+        },
+        "targetStateValue": {
+          "default": "needs-translation",
+          "description": "State value to set on target elements when useTranslationTargetState is enabled",
+          "title": "Target state value",
+          "type": "string"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection in translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        },
+        "useTranslationTargetState": {
+          "default": true,
+          "description": "Update the state attribute on target elements when writing translated XLIFF",
+          "title": "Update target state attribute",
+          "type": "boolean"
+        }
+      },
       "title": "XLIFF 1.2",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "preserveSpaceByDefault",
+            "includeExtensions",
+            "includeIts",
+            "ignoreInputSegmentation",
+            "fallbackToID",
+            "forceUniqueIds"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "useTranslationTargetState",
+            "targetStateValue",
+            "editAltTrans",
+            "addAltTrans"
+          ],
+          "id": "states",
+          "label": "Translation State Handling"
+        },
+        {
+          "fields": [
+            "addTargetLanguage",
+            "overrideTargetLanguage",
+            "allowEmptyTargets",
+            "alwaysAddTargets"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "xliff"
     },
     {
       "$id": "",
       "$version": "",
-      "description": "XLIFF 2.0/2.1 bilingual exchange format with segment support \u2014 no configurable parameters",
+      "description": "Configuration for the native XLIFF 2.0/2.1 bilingual exchange format reader/writer",
       "formatMeta": {
         "extensions": [
           ".xlf",
@@ -17176,9 +18828,82 @@
           "application/xliff+xml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "discardInvalidTargets": {
+          "default": false,
+          "description": "Discard targets that fail validation rather than rejecting the entire file",
+          "title": "Discard invalid targets",
+          "type": "boolean"
+        },
+        "forceUniqueIds": {
+          "default": false,
+          "description": "Ensure inline tag IDs are unique within each unit",
+          "title": "Ensure unique tag IDs",
+          "type": "boolean"
+        },
+        "ignoreTagTypeMatch": {
+          "default": false,
+          "description": "Ignore tag type mismatch between source and target segments",
+          "title": "Ignore tag type mismatch",
+          "type": "boolean"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection in translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
+        },
+        "writeOriginalData": {
+          "default": true,
+          "description": "Output includes original data when available",
+          "title": "Include original data in output",
+          "type": "boolean"
+        }
+      },
       "title": "XLIFF 2.0",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "forceUniqueIds",
+            "ignoreTagTypeMatch"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "discardInvalidTargets"
+          ],
+          "id": "states",
+          "label": "Translation State Handling"
+        },
+        {
+          "fields": [
+            "writeOriginalData"
+          ],
+          "id": "output",
+          "label": "Output"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "xliff2"
     },
@@ -17197,17 +18922,88 @@
         ]
       },
       "properties": {
+        "attributes": {
+          "description": "Advanced attribute-specific processing rules with element scope constraints",
+          "title": "Attribute rules",
+          "type": "object"
+        },
+        "blockTypeMap": {
+          "description": "Map of element names to block type strings for semantic type annotation",
+          "title": "Block type map",
+          "type": "object"
+        },
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code finder rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "elements": {
+          "description": "Advanced element-specific processing rules with conditions, inline marking, and translatable attribute mappings",
+          "title": "Element rules",
+          "type": "object"
+        },
+        "excludeByDefault": {
+          "default": false,
+          "description": "Exclude all elements unless explicitly included by an element rule with INCLUDE",
+          "title": "Exclude by default",
+          "type": "boolean"
+        },
+        "excludedElements": {
+          "description": "Element names whose content is excluded from extraction",
+          "title": "Excluded elements",
+          "type": "array"
+        },
+        "groupElements": {
+          "description": "Element names that produce group/layer boundaries in the output",
+          "title": "Group elements",
+          "type": "array"
+        },
+        "idAttributes": {
+          "description": "Attribute names used to extract block IDs from elements",
+          "title": "ID attributes",
+          "type": "array"
+        },
+        "inlineElements": {
+          "description": "Element names treated as inline (spans within text) rather than block-level",
+          "title": "Inline elements",
+          "type": "array"
+        },
+        "preserveWhitespace": {
+          "default": false,
+          "description": "Preserve original whitespace in text content instead of collapsing it",
+          "title": "Preserve whitespace",
+          "type": "boolean"
+        },
+        "preserveWhitespaceElements": {
+          "description": "Element names that preserve whitespace regardless of the global setting",
+          "title": "Preserve whitespace elements",
+          "type": "array"
+        },
         "subfilters": {
           "description": "Array of {pattern, format} mappings for embedded content. Patterns use dot-separated element paths with glob support.",
+          "title": "Subfilters",
           "type": "array"
         },
         "translatableAttributes": {
-          "description": "Attribute names that are translatable.",
+          "description": "Attribute names that are translatable across all elements",
+          "title": "Translatable attributes",
           "type": "array"
         },
         "translatableElements": {
           "description": "Element names whose text content is translatable. If empty, all text content is translatable.",
+          "title": "Translatable elements",
           "type": "array"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based detection of inline codes within translatable text",
+          "title": "Enable inline code detection",
+          "type": "boolean"
         }
       },
       "title": "XML Format",
@@ -17215,11 +19011,33 @@
       "ui:groups": [
         {
           "fields": [
+            "preserveWhitespace"
+          ],
+          "id": "parser",
+          "label": "Parser Settings"
+        },
+        {
+          "fields": [
             "translatableElements",
-            "translatableAttributes"
+            "translatableAttributes",
+            "excludeByDefault",
+            "inlineElements",
+            "excludedElements",
+            "preserveWhitespaceElements",
+            "groupElements",
+            "idAttributes"
           ],
           "id": "extraction",
           "label": "Extraction Rules"
+        },
+        {
+          "fields": [
+            "elements",
+            "attributes",
+            "blockTypeMap"
+          ],
+          "id": "advanced",
+          "label": "Advanced"
         },
         {
           "fields": [
@@ -17227,6 +19045,14 @@
           ],
           "id": "subfilters",
           "label": "Subfilters"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
         }
       ],
       "x-source": "built-in",
@@ -17235,7 +19061,7 @@
     {
       "$id": "",
       "$version": "",
-      "description": "YAML format reader/writer \u2014 no configurable parameters",
+      "description": "Configuration for the native YAML format reader/writer",
       "formatMeta": {
         "extensions": [
           ".yaml",
@@ -17247,9 +19073,67 @@
           "text/yaml"
         ]
       },
-      "properties": null,
+      "properties": {
+        "codeFinderRules": {
+          "description": "Regex patterns that match inline codes within translatable text",
+          "title": "Code Finder Rules",
+          "type": "array",
+          "ui:visible": {
+            "eq": true,
+            "field": "useCodeFinder"
+          },
+          "ui:widget": "code-finder"
+        },
+        "extractNonStrings": {
+          "default": false,
+          "description": "Extract non-string scalar values (booleans, numbers, nulls) as translatable blocks",
+          "title": "Extract Non-String Values",
+          "type": "boolean"
+        },
+        "keyPathPatterns": {
+          "description": "When non-empty, only keys matching one of these glob patterns are extracted. Supports * (single key) and ** (any depth).",
+          "title": "Key Path Patterns",
+          "type": "array"
+        },
+        "subfilter": {
+          "description": "Sub-filter to apply to scalar values (e.g., 'html' to process HTML within YAML values)",
+          "title": "Subfilter Format",
+          "type": "string"
+        },
+        "useCodeFinder": {
+          "default": false,
+          "description": "Enable regex-based inline code detection within string values",
+          "title": "Enable Inline Code Detection",
+          "type": "boolean"
+        }
+      },
       "title": "YAML Format",
       "type": "object",
+      "ui:groups": [
+        {
+          "fields": [
+            "extractNonStrings",
+            "keyPathPatterns"
+          ],
+          "id": "extraction",
+          "label": "Extraction"
+        },
+        {
+          "fields": [
+            "subfilter"
+          ],
+          "id": "subfilters",
+          "label": "Subfilters"
+        },
+        {
+          "fields": [
+            "useCodeFinder",
+            "codeFinderRules"
+          ],
+          "id": "inlineCodes",
+          "label": "Inline Codes"
+        }
+      ],
       "x-source": "built-in",
       "x-name": "yaml"
     },
@@ -17424,8 +19308,8 @@
           ]
         }
       ],
-      "x-name": "okf_archive",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_archive"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -17484,8 +19368,8 @@
           ]
         }
       ],
-      "x-name": "okf_autoxliff",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_autoxliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -17677,8 +19561,8 @@
           ]
         }
       ],
-      "x-name": "okf_baseplaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_baseplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -18040,8 +19924,8 @@
           ]
         }
       ],
-      "x-name": "okf_basetable",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_basetable"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -18426,8 +20310,8 @@
           ]
         }
       ],
-      "x-name": "okf_commaseparatedvalues",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_commaseparatedvalues"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -20132,8 +22016,8 @@
           ]
         }
       ],
-      "x-name": "okf_doxygen",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_doxygen"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -20175,8 +22059,8 @@
       "x-okapi-base-hash": "f11cfe564c78",
       "x-okapi-composite-hash": "02a5dda78ec2",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_dtd",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_dtd"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -20474,8 +22358,8 @@
           ]
         }
       ],
-      "x-name": "okf_fixedwidthcolumns",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_fixedwidthcolumns"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -20618,7 +22502,7 @@
         "attributes": {
           "type": "object",
           "title": "Attribute Rules",
-          "description": "Global attribute extraction rules \u2014 maps attribute names to their rule configuration",
+          "description": "Global attribute extraction rules — maps attribute names to their rule configuration",
           "additionalProperties": {
             "type": "object",
             "description": "Global extraction rule for an HTML/XML attribute",
@@ -20637,11 +22521,11 @@
                     "ATTRIBUTE_PRESERVE_WHITESPACE"
                   ],
                   "ui:enum-descriptions": {
-                    "ATTRIBUTE_TRANS": "Translatable \u2014 attribute content is extracted for translation",
-                    "ATTRIBUTE_WRITABLE": "Writable localizable \u2014 attribute is locale-specific and editable (e.g. URLs, paths)",
-                    "ATTRIBUTE_READONLY": "Read-only localizable \u2014 attribute is locale-specific but not user-editable",
-                    "ATTRIBUTE_ID": "ID \u2014 attribute value is used as the segment identifier",
-                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace \u2014 attribute controls whitespace preservation state"
+                    "ATTRIBUTE_TRANS": "Translatable — attribute content is extracted for translation",
+                    "ATTRIBUTE_WRITABLE": "Writable localizable — attribute is locale-specific and editable (e.g. URLs, paths)",
+                    "ATTRIBUTE_READONLY": "Read-only localizable — attribute is locale-specific but not user-editable",
+                    "ATTRIBUTE_ID": "ID — attribute value is used as the segment identifier",
+                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace — attribute controls whitespace preservation state"
                   }
                 }
               },
@@ -20685,7 +22569,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -20725,7 +22609,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -20765,7 +22649,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -20828,7 +22712,7 @@
         "elements": {
           "type": "object",
           "title": "Element Rules",
-          "description": "Element extraction rules \u2014 maps element names to their rule configuration",
+          "description": "Element extraction rules — maps element names to their rule configuration",
           "additionalProperties": {
             "type": "object",
             "description": "Extraction rule for an HTML/XML element",
@@ -20853,17 +22737,17 @@
                     "SERVER"
                   ],
                   "ui:enum-descriptions": {
-                    "INLINE": "Inline element \u2014 content flows within surrounding text (e.g. <b>, <span>, <a>)",
+                    "INLINE": "Inline element — content flows within surrounding text (e.g. <b>, <span>, <a>)",
                     "INLINE_EXCLUDED": "Inline element excluded by a conditional rule",
                     "INLINE_INCLUDED": "Inline element included by a conditional rule (exception to EXCLUDE)",
-                    "TEXTUNIT": "Text unit \u2014 extracted as a translatable segment with skeleton before/after",
-                    "EXCLUDE": "Excluded \u2014 element and all children are skipped during extraction",
-                    "INCLUDE": "Included \u2014 exception to an EXCLUDE rule, re-enables extraction inside excluded block",
-                    "GROUP": "Group element \u2014 structural container (e.g. <table>, <ul>, <div>)",
+                    "TEXTUNIT": "Text unit — extracted as a translatable segment with skeleton before/after",
+                    "EXCLUDE": "Excluded — element and all children are skipped during extraction",
+                    "INCLUDE": "Included — exception to an EXCLUDE rule, re-enables extraction inside excluded block",
+                    "GROUP": "Group element — structural container (e.g. <table>, <ul>, <div>)",
                     "ATTRIBUTES_ONLY": "Only attributes are translatable/localizable, not the element's text content",
                     "PRESERVE_WHITESPACE": "Preserve whitespace inside this element (e.g. <pre>, <code>)",
-                    "SCRIPT": "Script element \u2014 embedded client-side code (e.g. <script>)",
-                    "SERVER": "Server element \u2014 embedded server-side content (e.g. JSP, PHP, Mason tags)"
+                    "SCRIPT": "Script element — embedded client-side code (e.g. <script>)",
+                    "SERVER": "Server element — embedded server-side content (e.g. JSP, PHP, Mason tags)"
                   }
                 }
               },
@@ -20885,7 +22769,7 @@
                   {
                     "type": "object",
                     "additionalProperties": {
-                      "description": "Conditional attribute extraction \u2014 null (unconditional) or condition tuple(s)",
+                      "description": "Conditional attribute extraction — null (unconditional) or condition tuple(s)",
                       "oneOf": [
                         {
                           "type": "null",
@@ -20915,7 +22799,7 @@
                               }
                             },
                             {
-                              "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                              "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                               "oneOf": [
                                 {
                                   "type": "string"
@@ -20932,7 +22816,7 @@
                         },
                         {
                           "type": "array",
-                          "description": "Multiple conditions (OR logic \u2014 extract if any condition matches)",
+                          "description": "Multiple conditions (OR logic — extract if any condition matches)",
                           "items": {
                             "type": "array",
                             "description": "Condition: [attributeName, operator, value or values]",
@@ -20957,7 +22841,7 @@
                                 }
                               },
                               {
-                                "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                                "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -20980,7 +22864,7 @@
               },
               "writableLocalizableAttributes": {
                 "title": "Writable Localizable Attributes",
-                "description": "Attributes to extract as writable localizable content (e.g. href, src \u2014 locale-specific, editable)",
+                "description": "Attributes to extract as writable localizable content (e.g. href, src — locale-specific, editable)",
                 "oneOf": [
                   {
                     "type": "array",
@@ -20991,7 +22875,7 @@
                   {
                     "type": "object",
                     "additionalProperties": {
-                      "description": "Conditional attribute extraction \u2014 null (unconditional) or condition tuple(s)",
+                      "description": "Conditional attribute extraction — null (unconditional) or condition tuple(s)",
                       "oneOf": [
                         {
                           "type": "null",
@@ -21021,7 +22905,7 @@
                               }
                             },
                             {
-                              "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                              "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                               "oneOf": [
                                 {
                                   "type": "string"
@@ -21038,7 +22922,7 @@
                         },
                         {
                           "type": "array",
-                          "description": "Multiple conditions (OR logic \u2014 extract if any condition matches)",
+                          "description": "Multiple conditions (OR logic — extract if any condition matches)",
                           "items": {
                             "type": "array",
                             "description": "Condition: [attributeName, operator, value or values]",
@@ -21063,7 +22947,7 @@
                                 }
                               },
                               {
-                                "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                                "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -21097,7 +22981,7 @@
                   {
                     "type": "object",
                     "additionalProperties": {
-                      "description": "Conditional attribute extraction \u2014 null (unconditional) or condition tuple(s)",
+                      "description": "Conditional attribute extraction — null (unconditional) or condition tuple(s)",
                       "oneOf": [
                         {
                           "type": "null",
@@ -21127,7 +23011,7 @@
                               }
                             },
                             {
-                              "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                              "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                               "oneOf": [
                                 {
                                   "type": "string"
@@ -21144,7 +23028,7 @@
                         },
                         {
                           "type": "array",
-                          "description": "Multiple conditions (OR logic \u2014 extract if any condition matches)",
+                          "description": "Multiple conditions (OR logic — extract if any condition matches)",
                           "items": {
                             "type": "array",
                             "description": "Condition: [attributeName, operator, value or values]",
@@ -21169,7 +23053,7 @@
                                 }
                               },
                               {
-                                "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                                "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                                 "oneOf": [
                                   {
                                     "type": "string"
@@ -21224,7 +23108,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -23388,8 +25272,8 @@
           ]
         }
       ],
-      "x-name": "okf_html",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_html"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -23430,8 +25314,8 @@
       "x-okapi-base-hash": "9274e6d742f6",
       "x-okapi-composite-hash": "90b53ef817fb",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_html5",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_html5"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -23621,8 +25505,8 @@
           ]
         }
       ],
-      "x-name": "okf_icml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_icml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -23941,8 +25825,8 @@
           ]
         }
       ],
-      "x-name": "okf_idml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_idml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -24272,8 +26156,8 @@
           ]
         }
       ],
-      "x-name": "okf_json",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_json"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -24557,8 +26441,8 @@
           ]
         }
       ],
-      "x-name": "okf_markdown",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_markdown"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -24764,8 +26648,8 @@
           ]
         }
       ],
-      "x-name": "okf_mif",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_mif"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -24793,8 +26677,8 @@
       "x-okapi-base-hash": "05c999678f58",
       "x-okapi-composite-hash": "05c999678f58",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_mosestext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_mosestext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -24914,8 +26798,8 @@
           ]
         }
       ],
-      "x-name": "okf_multiparsers",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_multiparsers"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25079,8 +26963,8 @@
           ]
         }
       ],
-      "x-name": "okf_odf",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_odf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25256,8 +27140,8 @@
           ]
         }
       ],
-      "x-name": "okf_openoffice",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_openoffice"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25319,10 +27203,10 @@
                 "mergeFields": {
                   "rules": [
                     {
-                      "pattern": "\u00ab[^\u00bb]+\u00bb"
+                      "pattern": "«[^»]+»"
                     }
                   ],
-                  "sample": "Dear \u00abFirstName\u00bb \u00abLastName\u00bb"
+                  "sample": "Dear «FirstName» «LastName»"
                 },
                 "placeholders": {
                   "rules": [
@@ -25762,8 +27646,8 @@
           ]
         }
       ],
-      "x-name": "okf_openxml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_openxml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25964,8 +27848,8 @@
           ]
         }
       ],
-      "x-name": "okf_paraplaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_paraplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -26206,8 +28090,8 @@
           ]
         }
       ],
-      "x-name": "okf_pdf",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_pdf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -26235,8 +28119,8 @@
       "x-okapi-base-hash": "64a10340087e",
       "x-okapi-composite-hash": "64a10340087e",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_pensieve",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_pensieve"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -26399,8 +28283,8 @@
           ]
         }
       ],
-      "x-name": "okf_phpcontent",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_phpcontent"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -26530,8 +28414,8 @@
       "x-okapi-base-hash": "bba56f61a3f2",
       "x-okapi-composite-hash": "b54d451c9a2e",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_plaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_plaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -26770,8 +28654,8 @@
           ]
         }
       ],
-      "x-name": "okf_po",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_po"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -27120,8 +29004,8 @@
           ]
         }
       ],
-      "x-name": "okf_properties",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_properties"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -27181,8 +29065,8 @@
           ]
         }
       ],
-      "x-name": "okf_rainbowkit",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_rainbowkit"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -27645,8 +29529,8 @@
           ]
         }
       ],
-      "x-name": "okf_regex",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_regex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -27882,8 +29766,8 @@
           ]
         }
       ],
-      "x-name": "okf_regexplaintext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_regexplaintext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -27911,8 +29795,8 @@
       "x-okapi-base-hash": "0f2ee314c2ad",
       "x-okapi-composite-hash": "0f2ee314c2ad",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_rtf",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_rtf"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -28084,8 +29968,8 @@
           ]
         }
       ],
-      "x-name": "okf_sdlpackage",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_sdlpackage"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -28316,8 +30200,8 @@
           ]
         }
       ],
-      "x-name": "okf_splicedlines",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_splicedlines"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -28509,8 +30393,8 @@
       "x-okapi-base-hash": "956f5e8fb8bd",
       "x-okapi-composite-hash": "cc8dc231cdc7",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_table",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_table"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -28702,8 +30586,8 @@
       "x-okapi-base-hash": "f08234e420e2",
       "x-okapi-composite-hash": "3a0ad253c220",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_tabseparatedvalues",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_tabseparatedvalues"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -28731,8 +30615,8 @@
       "x-okapi-base-hash": "951c6ce6a280",
       "x-okapi-composite-hash": "951c6ce6a280",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_tex",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_tex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -28921,8 +30805,8 @@
           ]
         }
       ],
-      "x-name": "okf_tmx",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_tmx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29074,8 +30958,8 @@
           ]
         }
       ],
-      "x-name": "okf_transifex",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_transifex"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29101,8 +30985,8 @@
       "x-okapi-base-hash": "61063c155946",
       "x-okapi-composite-hash": "61063c155946",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_transtable",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_transtable"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29254,8 +31138,8 @@
           ]
         }
       ],
-      "x-name": "okf_ts",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_ts"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29370,8 +31254,8 @@
           ]
         }
       ],
-      "x-name": "okf_ttml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_ttml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29558,8 +31442,8 @@
           ]
         }
       ],
-      "x-name": "okf_ttx",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_ttx"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29712,8 +31596,8 @@
           ]
         }
       ],
-      "x-name": "okf_txml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_txml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29746,8 +31630,8 @@
       "x-okapi-base-hash": "92b3ec877912",
       "x-okapi-composite-hash": "58f855a2297b",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_versifiedtext",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_versifiedtext"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -29997,8 +31881,8 @@
           ]
         }
       ],
-      "x-name": "okf_vignette",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_vignette"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -30153,8 +32037,8 @@
           ]
         }
       ],
-      "x-name": "okf_vtt",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_vtt"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -30202,8 +32086,8 @@
       "x-okapi-base-hash": "2abe9933b1c0",
       "x-okapi-composite-hash": "f9ebde236e6f",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_wiki",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_wiki"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -30352,8 +32236,8 @@
           ]
         }
       ],
-      "x-name": "okf_xini",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xini"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -30379,8 +32263,8 @@
       "x-okapi-base-hash": "6eb0c06f5182",
       "x-okapi-composite-hash": "6eb0c06f5182",
       "ui:introduced-in": "0.38",
-      "x-name": "okf_xinirainbowkit",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xinirainbowkit"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -31021,8 +32905,8 @@
           ]
         }
       ],
-      "x-name": "okf_xliff",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xliff"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -31265,8 +33149,8 @@
           ]
         }
       ],
-      "x-name": "okf_xliff2",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xliff2"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -31317,8 +33201,8 @@
       "x-okapi-base-hash": "4d063b7bc8fb",
       "x-okapi-composite-hash": "ef6c8a873fc9",
       "ui:introduced-in": "1.47.0",
-      "x-name": "okf_xml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xml"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -31441,7 +33325,7 @@
         "attributes": {
           "type": "object",
           "title": "Attribute Rules",
-          "description": "Global attribute extraction rules \u2014 maps attribute names to their rule configuration",
+          "description": "Global attribute extraction rules — maps attribute names to their rule configuration",
           "additionalProperties": {
             "type": "object",
             "description": "Global extraction rule for an HTML/XML attribute",
@@ -31460,11 +33344,11 @@
                     "ATTRIBUTE_PRESERVE_WHITESPACE"
                   ],
                   "ui:enum-descriptions": {
-                    "ATTRIBUTE_TRANS": "Translatable \u2014 attribute content is extracted for translation",
-                    "ATTRIBUTE_WRITABLE": "Writable localizable \u2014 attribute is locale-specific and editable (e.g. URLs, paths)",
-                    "ATTRIBUTE_READONLY": "Read-only localizable \u2014 attribute is locale-specific but not user-editable",
-                    "ATTRIBUTE_ID": "ID \u2014 attribute value is used as the segment identifier",
-                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace \u2014 attribute controls whitespace preservation state"
+                    "ATTRIBUTE_TRANS": "Translatable — attribute content is extracted for translation",
+                    "ATTRIBUTE_WRITABLE": "Writable localizable — attribute is locale-specific and editable (e.g. URLs, paths)",
+                    "ATTRIBUTE_READONLY": "Read-only localizable — attribute is locale-specific but not user-editable",
+                    "ATTRIBUTE_ID": "ID — attribute value is used as the segment identifier",
+                    "ATTRIBUTE_PRESERVE_WHITESPACE": "Preserve whitespace — attribute controls whitespace preservation state"
                   }
                 }
               },
@@ -31508,7 +33392,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -31548,7 +33432,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -31588,7 +33472,7 @@
                     }
                   },
                   {
-                    "description": "Value to compare \u2014 a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
+                    "description": "Value to compare — a single string or array of strings (OR logic for EQUALS/MATCHES, AND logic for NOT_EQUALS)",
                     "oneOf": [
                       {
                         "type": "string"
@@ -32141,8 +34025,8 @@
           ]
         }
       ],
-      "x-name": "okf_xmlstream",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_xmlstream"
     },
     {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -32381,8 +34265,8 @@
           ]
         }
       ],
-      "x-name": "okf_yaml",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "okf_yaml"
     }
   ]
 }

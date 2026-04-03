@@ -20,23 +20,23 @@ type LengthCheckConfig struct {
 	TargetLocale model.LocaleID `json:"targetLocale,omitempty" schema:"-"`
 
 	// Absolute limits (simple mode).
-	MaxChars int `json:"maxChars,omitempty" schema:"description=Absolute maximum character count for target text (0 = disabled),default=0,min=0"`
-	MaxWords int `json:"maxWords,omitempty" schema:"description=Maximum word count for target text (0 = disabled),default=0,min=0"`
+	MaxChars int `json:"maxChars,omitempty" schema:"title=Maximum Characters,description=Absolute maximum character count for target text (0 = disabled),default=0,min=0"`
+	MaxWords int `json:"maxWords,omitempty" schema:"title=Maximum Words,description=Maximum word count for target text (0 = disabled),default=0,min=0"`
 
 	// Percentage-based limits (simple mode).
-	MaxPercentage float64 `json:"maxPercentage,omitempty" schema:"description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
-	MinPercentage float64 `json:"minPercentage,omitempty" schema:"description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
+	MaxPercentage float64 `json:"maxPercentage,omitempty" schema:"title=Maximum Length Percentage,description=Maximum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
+	MinPercentage float64 `json:"minPercentage,omitempty" schema:"title=Minimum Length Percentage,description=Minimum target/source length ratio as percentage (0 = disabled),default=0,min=0"`
 
 	// Long/short threshold model (mirrors bridge length-checker).
-	CheckMaxCharLength bool `json:"checkMaxCharLength,omitempty" schema:"description=Warn if target exceeds a percentage of source character length,default=true"`
-	MaxCharLengthBreak int  `json:"maxCharLengthBreak,omitempty" schema:"description=Character count threshold between short and long text for max check,default=20,min=0"`
-	MaxCharLengthAbove int  `json:"maxCharLengthAbove,omitempty" schema:"description=Max percentage of source length allowed for long text,default=200,min=0"`
-	MaxCharLengthBelow int  `json:"maxCharLengthBelow,omitempty" schema:"description=Max percentage of source length allowed for short text,default=350,min=0"`
+	CheckMaxCharLength bool `json:"checkMaxCharLength,omitempty" schema:"title=Check Maximum Length Ratio,description=Warn if target exceeds a percentage of source character length,default=true"`
+	MaxCharLengthBreak int  `json:"maxCharLengthBreak,omitempty" schema:"title=Short/Long Threshold (Max),description=Character count threshold between short and long text for max check,default=20,min=0"`
+	MaxCharLengthAbove int  `json:"maxCharLengthAbove,omitempty" schema:"title=Percentage for Long Text (Max),description=Max percentage of source length allowed for long text,default=200,min=0"`
+	MaxCharLengthBelow int  `json:"maxCharLengthBelow,omitempty" schema:"title=Percentage for Short Text (Max),description=Max percentage of source length allowed for short text,default=350,min=0"`
 
-	CheckMinCharLength bool `json:"checkMinCharLength,omitempty" schema:"description=Warn if target is shorter than a percentage of source character length,default=true"`
-	MinCharLengthBreak int  `json:"minCharLengthBreak,omitempty" schema:"description=Character count threshold between short and long text for min check,default=20,min=0"`
-	MinCharLengthAbove int  `json:"minCharLengthAbove,omitempty" schema:"description=Min percentage of source length allowed for long text,default=45,min=0"`
-	MinCharLengthBelow int  `json:"minCharLengthBelow,omitempty" schema:"description=Min percentage of source length allowed for short text,default=30,min=0"`
+	CheckMinCharLength bool `json:"checkMinCharLength,omitempty" schema:"title=Check Minimum Length Ratio,description=Warn if target is shorter than a percentage of source character length,default=true"`
+	MinCharLengthBreak int  `json:"minCharLengthBreak,omitempty" schema:"title=Short/Long Threshold (Min),description=Character count threshold between short and long text for min check,default=20,min=0"`
+	MinCharLengthAbove int  `json:"minCharLengthAbove,omitempty" schema:"title=Percentage for Long Text (Min),description=Min percentage of source length allowed for long text,default=45,min=0"`
+	MinCharLengthBelow int  `json:"minCharLengthBelow,omitempty" schema:"title=Percentage for Short Text (Min),description=Min percentage of source length allowed for short text,default=30,min=0"`
 }
 
 // ToolName returns the tool name this config applies to.

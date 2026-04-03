@@ -13,14 +13,14 @@ import (
 // Since Go has no built-in XSLT engine, this provides a lightweight
 // tag-transformation approach using regex-based rules.
 type XSLTTransformConfig struct {
-	Rules []TransformRule `json:"rules,omitempty" schema:"description=Regex-based tag and text transformation rules"`
+	Rules []TransformRule `json:"rules,omitempty" schema:"title=Transformation Rules,description=Regex-based tag and text transformation rules"`
 
 	// Template configuration (compatible with bridge xsl-transform schema).
-	XSLTPath     string `json:"xsltPath,omitempty"     schema:"description=Path to an XSLT stylesheet file to apply"`
-	ParamList    string `json:"paramList,omitempty"     schema:"description=Parameters passed to the XSLT template (one per line as name=value)"`
-	ApplySource  bool   `json:"applySource,omitempty"   schema:"description=Apply transformation to source text,default=true"`
-	ApplyTarget  bool   `json:"applyTarget,omitempty"   schema:"description=Apply transformation to target text"`
-	PassOnOutput bool   `json:"passOnOutput,omitempty"  schema:"description=Pass the transformation output to subsequent pipeline steps,default=true"`
+	XSLTPath     string `json:"xsltPath,omitempty"     schema:"title=XSLT Template Path,description=Path to an XSLT stylesheet file to apply"`
+	ParamList    string `json:"paramList,omitempty"     schema:"title=Template Parameters,description=Parameters passed to the XSLT template (one per line as name=value)"`
+	ApplySource  bool   `json:"applySource,omitempty"   schema:"title=Apply to Source,description=Apply transformation to source text,default=true"`
+	ApplyTarget  bool   `json:"applyTarget,omitempty"   schema:"title=Apply to Target,description=Apply transformation to target text"`
+	PassOnOutput bool   `json:"passOnOutput,omitempty"  schema:"title=Pass Output to Next Step,description=Pass the transformation output to subsequent pipeline steps,default=true"`
 }
 
 // TransformRule defines a single tag or text transformation rule.

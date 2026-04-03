@@ -26,8 +26,8 @@ type PreviousBlock struct {
 type DiffLeverageConfig struct {
 	TargetLocale  model.LocaleID           `json:"targetLocale,omitempty"  schema:"-"`
 	PreviousTexts map[string]PreviousBlock `json:"previousTexts,omitempty" schema:"-"`
-	CaseSensitive bool                     `json:"caseSensitive,omitempty" schema:"description=Whether comparison is case-sensitive,default=true"`
-	FuzzyMatch    bool                     `json:"fuzzyMatch,omitempty"    schema:"description=Enable fuzzy matching for similar texts"`
+	CaseSensitive bool                     `json:"caseSensitive,omitempty" schema:"title=Case Sensitive,description=Whether comparison is case-sensitive,default=true"`
+	FuzzyMatch    bool                     `json:"fuzzyMatch,omitempty"    schema:"title=Fuzzy Match,description=Enable fuzzy matching for similar texts"`
 }
 
 // ToolName returns the tool name this config applies to.

@@ -155,12 +155,50 @@
         ]
       },
       "properties": {
+        "downgradeIdenticalBestMatches": {
+          "type": "boolean",
+          "description": "Reduce score by 1%% when multiple identical exact matches are returned",
+          "default": false
+        },
+        "fillIfTargetIsEmpty": {
+          "type": "boolean",
+          "description": "Fill the target only when it has no existing content",
+          "default": false
+        },
+        "fillTarget": {
+          "type": "boolean",
+          "description": "Copy the best translation candidate into the target content",
+          "default": true
+        },
+        "fillTargetThreshold": {
+          "type": "integer",
+          "description": "Minimum match score required to fill the target",
+          "default": 95,
+          "minimum": 0,
+          "maximum": 100
+        },
         "fuzzyThreshold": {
           "type": "integer",
           "description": "Minimum score for fuzzy matches (0-100)",
           "default": 70,
           "minimum": 0,
           "maximum": 100
+        },
+        "makeTmx": {
+          "type": "boolean",
+          "description": "Create a TMX file with all leveraged matches",
+          "default": false
+        },
+        "noQueryThreshold": {
+          "type": "integer",
+          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
+          "default": 101,
+          "minimum": 0,
+          "maximum": 101
+        },
+        "tmxPath": {
+          "type": "string",
+          "description": "File path for the generated TMX document"
         }
       },
       "x-source": "built-in",
@@ -227,10 +265,97 @@
           "target-language"
         ]
       },
+      "ui:groups": [
+        {
+          "id": "general",
+          "label": "General",
+          "fields": [
+            "checkLeadingWhitespace",
+            "checkTrailingWhitespace",
+            "checkEmptyTarget",
+            "checkEmptySource",
+            "checkTargetSameAsSource",
+            "targetSameAsSourceWithCodes",
+            "targetSameAsSourceWithNumbers",
+            "checkDoubleSpaces",
+            "checkDoubledWord",
+            "doubledWordExceptions",
+            "checkSpanConstraints"
+          ]
+        },
+        {
+          "id": "inlineCodes",
+          "label": "InlineCodes",
+          "fields": [
+            "checkCodeDifference",
+            "strictCodeOrder"
+          ]
+        },
+        {
+          "id": "patterns",
+          "label": "Patterns",
+          "fields": [
+            "checkPatterns"
+          ]
+        },
+        {
+          "id": "characters",
+          "label": "Characters",
+          "fields": [
+            "checkCorruptedCharacters"
+          ]
+        },
+        {
+          "id": "length",
+          "label": "Length",
+          "fields": [
+            "checkMaxCharLength",
+            "maxCharLengthBreak",
+            "maxCharLengthAbove",
+            "maxCharLengthBelow",
+            "checkMinCharLength",
+            "minCharLengthBreak",
+            "minCharLengthAbove",
+            "minCharLengthBelow",
+            "checkAbsoluteMaxCharLength",
+            "absoluteMaxCharLength"
+          ]
+        }
+      ],
       "properties": {
+        "absoluteMaxCharLength": {
+          "type": "integer",
+          "description": "Maximum number of characters allowed in any target segment",
+          "default": 255
+        },
+        "checkAbsoluteMaxCharLength": {
+          "type": "boolean",
+          "description": "Flag target segments that exceed an absolute character count limit",
+          "default": false
+        },
+        "checkCodeDifference": {
+          "type": "boolean",
+          "description": "Verify that target segments have the same inline codes as source segments",
+          "default": true
+        },
+        "checkCorruptedCharacters": {
+          "type": "boolean",
+          "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
+          "default": true
+        },
         "checkDoubleSpaces": {
           "type": "boolean",
           "description": "Check for double spaces in target text",
+          "default": true
+        },
+        "checkDoubledWord": {
+          "type": "boolean",
+          "description": "Check for consecutive repeated words in target text",
+          "default": true
+        },
+        "checkEmptySource": {
+          "type": "boolean",
+          "description": "Check for non-empty target when source is empty",
           "default": true
         },
         "checkEmptyTarget": {
@@ -241,6 +366,21 @@
         "checkLeadingWhitespace": {
           "type": "boolean",
           "description": "Check for leading whitespace mismatches between source and target",
+          "default": true
+        },
+        "checkMaxCharLength": {
+          "type": "boolean",
+          "description": "Flag targets longer than a percentage of source character length",
+          "default": true
+        },
+        "checkMinCharLength": {
+          "type": "boolean",
+          "description": "Flag targets shorter than a percentage of source character length",
+          "default": true
+        },
+        "checkPatterns": {
+          "type": "boolean",
+          "description": "Verify that source patterns have expected corresponding content in the target",
           "default": true
         },
         "checkSpanConstraints": {
@@ -261,6 +401,56 @@
         "checkTrailingWhitespace": {
           "type": "boolean",
           "description": "Check for trailing whitespace mismatches between source and target",
+          "default": true
+        },
+        "doubledWordExceptions": {
+          "type": "string",
+          "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
+          "default": "sie;vous;nous"
+        },
+        "maxCharLengthAbove": {
+          "type": "integer",
+          "description": "Maximum allowed percentage of source length for long text",
+          "default": 200
+        },
+        "maxCharLengthBelow": {
+          "type": "integer",
+          "description": "Maximum allowed percentage of source length for short text",
+          "default": 350
+        },
+        "maxCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count above which text is considered long for the maximum length check",
+          "default": 20
+        },
+        "minCharLengthAbove": {
+          "type": "integer",
+          "description": "Minimum required percentage of source length for long text",
+          "default": 45
+        },
+        "minCharLengthBelow": {
+          "type": "integer",
+          "description": "Minimum required percentage of source length for short text",
+          "default": 30
+        },
+        "minCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count above which text is considered long for the minimum length check",
+          "default": 20
+        },
+        "strictCodeOrder": {
+          "type": "boolean",
+          "description": "Flag differences when codes appear in a different order between source and target",
+          "default": false
+        },
+        "targetSameAsSourceWithCodes": {
+          "type": "boolean",
+          "description": "Include inline codes when comparing source and target for identity",
+          "default": true
+        },
+        "targetSameAsSourceWithNumbers": {
+          "type": "boolean",
+          "description": "Include number-only segments in same-as-source comparison",
           "default": true
         }
       },
@@ -484,6 +674,11 @@
           "description": "Whether comparison is case-sensitive",
           "default": true
         },
+        "checkPerFile": {
+          "type": "boolean",
+          "description": "Process each input file individually instead of comparing segments across all documents",
+          "default": false
+        },
         "checkSourceInconsistency": {
           "type": "boolean",
           "description": "Flag when different sources share the same translation",
@@ -493,6 +688,25 @@
           "type": "boolean",
           "description": "Flag when the same source has different translations",
           "default": true
+        },
+        "displayOption": {
+          "type": "string",
+          "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
+          "default": "generic",
+          "options": [
+            {
+              "value": "original",
+              "label": "original"
+            },
+            {
+              "value": "generic",
+              "label": "generic"
+            },
+            {
+              "value": "plain",
+              "label": "plain"
+            }
+          ]
         }
       },
       "x-source": "built-in",
@@ -522,9 +736,37 @@
         ]
       },
       "properties": {
+        "checkMaxCharLength": {
+          "type": "boolean",
+          "description": "Warn if target exceeds a percentage of source character length",
+          "default": true
+        },
+        "checkMinCharLength": {
+          "type": "boolean",
+          "description": "Warn if target is shorter than a percentage of source character length",
+          "default": true
+        },
+        "maxCharLengthAbove": {
+          "type": "integer",
+          "description": "Max percentage of source length allowed for long text",
+          "default": 200,
+          "minimum": 0
+        },
+        "maxCharLengthBelow": {
+          "type": "integer",
+          "description": "Max percentage of source length allowed for short text",
+          "default": 350,
+          "minimum": 0
+        },
+        "maxCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count threshold between short and long text for max check",
+          "default": 20,
+          "minimum": 0
+        },
         "maxChars": {
           "type": "integer",
-          "description": "Maximum character count for target text (0 = disabled)",
+          "description": "Absolute maximum character count for target text (0 = disabled)",
           "default": 0,
           "minimum": 0
         },
@@ -538,6 +780,24 @@
           "type": "integer",
           "description": "Maximum word count for target text (0 = disabled)",
           "default": 0,
+          "minimum": 0
+        },
+        "minCharLengthAbove": {
+          "type": "integer",
+          "description": "Min percentage of source length allowed for long text",
+          "default": 45,
+          "minimum": 0
+        },
+        "minCharLengthBelow": {
+          "type": "integer",
+          "description": "Min percentage of source length allowed for short text",
+          "default": 30,
+          "minimum": 0
+        },
+        "minCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count threshold between short and long text for min check",
+          "default": 20,
           "minimum": 0
         },
         "minPercentage": {
@@ -574,6 +834,16 @@
         ]
       },
       "properties": {
+        "charset": {
+          "type": "string",
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
+          "default": "ISO-8859-1"
+        },
+        "checkCharset": {
+          "type": "boolean",
+          "description": "Warn if a character is not included in the specified character set encoding",
+          "default": false
+        },
         "checkCorrupted": {
           "type": "boolean",
           "description": "Check for common corruption patterns such as mojibake",
@@ -637,6 +907,23 @@
           "block"
         ]
       },
+      "properties": {
+        "countInline": {
+          "type": "boolean",
+          "description": "Include inline code content in word counts",
+          "default": false
+        },
+        "countSource": {
+          "type": "boolean",
+          "description": "Count words in source text",
+          "default": true
+        },
+        "countTarget": {
+          "type": "boolean",
+          "description": "Count words in target text",
+          "default": true
+        }
+      },
       "x-source": "built-in",
       "x-name": "word-count",
       "x-tool": {
@@ -659,6 +946,23 @@
         "inputs": [
           "block"
         ]
+      },
+      "properties": {
+        "countInline": {
+          "type": "boolean",
+          "description": "Include inline code content in character counts",
+          "default": false
+        },
+        "countSource": {
+          "type": "boolean",
+          "description": "Count characters in source text",
+          "default": true
+        },
+        "countTarget": {
+          "type": "boolean",
+          "description": "Count characters in target text",
+          "default": true
+        }
       },
       "x-source": "built-in",
       "x-name": "char-count",
@@ -794,6 +1098,38 @@
           "block"
         ]
       },
+      "properties": {
+        "caseSensitive": {
+          "type": "boolean",
+          "description": "Take case differences into account when comparing",
+          "default": true
+        },
+        "document1Label": {
+          "type": "string",
+          "description": "Label for the first translation in reports",
+          "default": "Trans1"
+        },
+        "document2Label": {
+          "type": "string",
+          "description": "Label for the second translation in reports",
+          "default": "Trans2"
+        },
+        "genericCodes": {
+          "type": "boolean",
+          "description": "Use generic numbered tags (e.g. <1>...</1>) instead of original inline codes in reports",
+          "default": true
+        },
+        "punctuationSensitive": {
+          "type": "boolean",
+          "description": "Take punctuation differences into account when comparing",
+          "default": true
+        },
+        "whitespaceSensitive": {
+          "type": "boolean",
+          "description": "Take whitespace differences into account when comparing",
+          "default": true
+        }
+      },
       "x-source": "built-in",
       "x-name": "translation-comparison",
       "x-tool": {
@@ -839,6 +1175,43 @@
         "inputs": [
           "block"
         ]
+      },
+      "properties": {
+        "dotAll": {
+          "type": "boolean",
+          "description": "Make the period character match every character including line-feed",
+          "default": false
+        },
+        "ignoreCase": {
+          "type": "boolean",
+          "description": "Ignore case when matching search patterns",
+          "default": false
+        },
+        "multiLine": {
+          "type": "boolean",
+          "description": "Make ^ and $ match at the beginning and end of each line",
+          "default": false
+        },
+        "regEx": {
+          "type": "boolean",
+          "description": "Enable regular expression mode for all search patterns",
+          "default": false
+        },
+        "replaceAll": {
+          "type": "boolean",
+          "description": "Replace all matches instead of only the first",
+          "default": true
+        },
+        "source": {
+          "type": "boolean",
+          "description": "Perform search and replace on source content",
+          "default": false
+        },
+        "target": {
+          "type": "boolean",
+          "description": "Perform search and replace on target content",
+          "default": true
+        }
       },
       "x-source": "built-in",
       "x-name": "search-replace",
@@ -916,6 +1289,41 @@
         "inputs": [
           "block"
         ]
+      },
+      "properties": {
+        "overwriteSegmentation": {
+          "type": "boolean",
+          "description": "Re-segment already-segmented text units replacing previous segmentation",
+          "default": false
+        },
+        "renumberCodes": {
+          "type": "boolean",
+          "description": "Renumber inline code IDs in each segment to start at 1",
+          "default": false
+        },
+        "segmentSource": {
+          "type": "boolean",
+          "description": "Segment the source text using SRX rules",
+          "default": true
+        },
+        "segmentTarget": {
+          "type": "boolean",
+          "description": "Segment existing target text using SRX rules",
+          "default": false
+        },
+        "sourceSrxPath": {
+          "type": "string",
+          "description": "Path to SRX segmentation rules file for source text"
+        },
+        "targetSrxPath": {
+          "type": "string",
+          "description": "Path to SRX segmentation rules file for target text"
+        },
+        "treatIsolatedCodesAsWhitespace": {
+          "type": "boolean",
+          "description": "Treat isolated inline codes as whitespace during segmentation",
+          "default": false
+        }
       },
       "x-source": "built-in",
       "x-name": "segmentation",
@@ -1035,6 +1443,11 @@
           "type": "boolean",
           "description": "When true the Unicode BOM is added; when false it is removed",
           "default": false
+        },
+        "alsoNonUTF8": {
+          "type": "boolean",
+          "description": "Also remove the BOM from UTF-16 files not just UTF-8",
+          "default": false
         }
       },
       "x-source": "built-in",
@@ -1066,6 +1479,11 @@
           "type": "boolean",
           "description": "Copy source text to the new target segment",
           "default": false
+        },
+        "createOnNonTranslatable": {
+          "type": "boolean",
+          "description": "Create a target container even for non-translatable text units",
+          "default": true
         },
         "overwrite": {
           "type": "boolean",
@@ -1110,6 +1528,16 @@
           "description": "Apply encoding conversion to target text",
           "default": true
         },
+        "escapeAll": {
+          "type": "boolean",
+          "description": "Escape all extended (non-ASCII) characters in output",
+          "default": false
+        },
+        "reportUnsupported": {
+          "type": "boolean",
+          "description": "Report characters not supported by the target encoding",
+          "default": true
+        },
         "targetEncoding": {
           "type": "string",
           "description": "Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"
@@ -1121,6 +1549,21 @@
             "field": "ApplyTarget",
             "empty": false
           }
+        },
+        "unescapeCER": {
+          "type": "boolean",
+          "description": "Unescape HTML character entity references (e.g. &aacute;) when reading input",
+          "default": true
+        },
+        "unescapeJava": {
+          "type": "boolean",
+          "description": "Unescape Java-style \\\\uXXXX escape sequences when reading input",
+          "default": true
+        },
+        "unescapeNCR": {
+          "type": "boolean",
+          "description": "Unescape numeric character references (e.g. &#xE1;) when reading input",
+          "default": true
         }
       },
       "x-source": "built-in",
@@ -1224,6 +1667,21 @@
           "description": "Apply to target text",
           "default": true
         },
+        "includeKatakana": {
+          "type": "boolean",
+          "description": "Also convert Japanese Katakana and associated punctuation to half-width forms",
+          "default": false
+        },
+        "includeLLS": {
+          "type": "boolean",
+          "description": "Also convert characters from the Letter-Like Symbols block to character sequences",
+          "default": false
+        },
+        "includeSLA": {
+          "type": "boolean",
+          "description": "Also convert Squared Latin Abbreviations from the CJK Compatibility block to non-CJK character sequences",
+          "default": false
+        },
         "mode": {
           "type": "string",
           "description": "Conversion direction between half-width and full-width characters",
@@ -1282,6 +1740,16 @@
           "type": "boolean",
           "description": "Apply to target segments",
           "default": true
+        },
+        "includeNonTranslatable": {
+          "type": "boolean",
+          "description": "Apply the removal action even to text units marked as non-translatable",
+          "default": true
+        },
+        "replaceWithSpace": {
+          "type": "boolean",
+          "description": "Replace line-break inline codes with spaces instead of removing them entirely",
+          "default": false
         },
         "targetLocale": {
           "type": "string",
@@ -1409,9 +1877,23 @@
         ]
       },
       "properties": {
+        "filterByIDs": {
+          "type": "boolean",
+          "description": "When true filter text units by ID; when false filter by target locale",
+          "default": true
+        },
+        "removeBlockIfEmpty": {
+          "type": "boolean",
+          "description": "Remove the text unit entirely if it has no remaining targets after removal",
+          "default": false
+        },
         "targetLocale": {
           "type": "string",
           "description": "Target locale to remove (if empty all targets are removed)"
+        },
+        "textUnitIDs": {
+          "type": "string",
+          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
         }
       },
       "x-source": "built-in",
@@ -1559,7 +2041,57 @@
           "target-language"
         ]
       },
+      "ui:groups": [
+        {
+          "id": "punctuation",
+          "label": "Punctuation",
+          "fields": [
+            "correctFullStop",
+            "correctComma",
+            "correctExclamation",
+            "correctQuestion"
+          ]
+        },
+        {
+          "id": "whitespace-types",
+          "label": "Whitespace-types",
+          "fields": [
+            "includeVerticalWS",
+            "includeHorizontalWS"
+          ]
+        }
+      ],
       "properties": {
+        "correctComma": {
+          "type": "boolean",
+          "description": "Correct whitespace after commas",
+          "default": true
+        },
+        "correctExclamation": {
+          "type": "boolean",
+          "description": "Correct whitespace after exclamation marks",
+          "default": true
+        },
+        "correctFullStop": {
+          "type": "boolean",
+          "description": "Correct whitespace after full stops (periods)",
+          "default": true
+        },
+        "correctQuestion": {
+          "type": "boolean",
+          "description": "Correct whitespace after question marks",
+          "default": true
+        },
+        "includeHorizontalWS": {
+          "type": "boolean",
+          "description": "Include horizontal tab characters in corrections",
+          "default": true
+        },
+        "includeVerticalWS": {
+          "type": "boolean",
+          "description": "Include vertical whitespace (line feeds and carriage returns) in corrections",
+          "default": true
+        },
         "matchSourceWhitespace": {
           "type": "boolean",
           "description": "Copy source leading/trailing whitespace to target",
@@ -1665,6 +2197,25 @@
         ]
       },
       "properties": {
+        "applySource": {
+          "type": "boolean",
+          "description": "Apply transformation to source text",
+          "default": true
+        },
+        "applyTarget": {
+          "type": "boolean",
+          "description": "Apply transformation to target text",
+          "default": false
+        },
+        "paramList": {
+          "type": "string",
+          "description": "Parameters passed to the XSLT template (one per line as name=value)"
+        },
+        "passOnOutput": {
+          "type": "boolean",
+          "description": "Pass the transformation output to subsequent pipeline steps",
+          "default": true
+        },
         "rules": {
           "type": "array",
           "description": "Regex-based tag and text transformation rules",
@@ -1679,6 +2230,10 @@
               }
             }
           }
+        },
+        "xsltPath": {
+          "type": "string",
+          "description": "Path to an XSLT stylesheet file to apply"
         }
       },
       "x-source": "built-in",
@@ -1729,8 +2284,8 @@
           "block"
         ]
       },
-      "x-name": "b-o-m-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "b-o-m-conversion"
     },
     {
       "$id": "batch-tm-leveraging",
@@ -1753,8 +2308,8 @@
           "source-language"
         ]
       },
-      "x-name": "batch-tm-leveraging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "batch-tm-leveraging"
     },
     {
       "$id": "batch-translation",
@@ -1961,8 +2516,8 @@
           "block"
         ]
       },
-      "x-name": "batch-translation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "batch-translation"
     },
     {
       "$id": "char-listing",
@@ -2020,8 +2575,8 @@
           "source-language"
         ]
       },
-      "x-name": "char-listing",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "char-listing"
     },
     {
       "$id": "character-count",
@@ -2122,8 +2677,8 @@
           "source-language"
         ]
       },
-      "x-name": "character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "character-count"
     },
     {
       "$id": "characters-checker",
@@ -2178,8 +2733,8 @@
           "source-language"
         ]
       },
-      "x-name": "characters-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "characters-checker"
     },
     {
       "$id": "cleanup",
@@ -2280,8 +2835,8 @@
           "source-language"
         ]
       },
-      "x-name": "cleanup",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "cleanup"
     },
     {
       "$id": "code-simplifier",
@@ -2331,8 +2886,8 @@
           "source-language"
         ]
       },
-      "x-name": "code-simplifier",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "code-simplifier"
     },
     {
       "$id": "codes-removal",
@@ -2420,8 +2975,8 @@
           "source-language"
         ]
       },
-      "x-name": "codes-removal",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "codes-removal"
     },
     {
       "$id": "concordance-character-count",
@@ -2444,8 +2999,8 @@
           "source-language"
         ]
       },
-      "x-name": "concordance-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "concordance-character-count"
     },
     {
       "$id": "concordance-word-count",
@@ -2468,8 +3023,8 @@
           "source-language"
         ]
       },
-      "x-name": "concordance-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "concordance-word-count"
     },
     {
       "$id": "convert-segments-to-text-units",
@@ -2491,8 +3046,8 @@
           "source-language"
         ]
       },
-      "x-name": "convert-segments-to-text-units",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "convert-segments-to-text-units"
     },
     {
       "$id": "copy-or-move",
@@ -2514,8 +3069,8 @@
           "block"
         ]
       },
-      "x-name": "copy-or-move",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "copy-or-move"
     },
     {
       "$id": "copy-source-on-empty-target",
@@ -2532,8 +3087,8 @@
           "source-language"
         ]
       },
-      "x-name": "copy-source-on-empty-target",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "copy-source-on-empty-target"
     },
     {
       "$id": "create-target",
@@ -2597,8 +3152,8 @@
           "source-language"
         ]
       },
-      "x-name": "create-target",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "create-target"
     },
     {
       "$id": "desegmentation",
@@ -2652,8 +3207,8 @@
           "source-language"
         ]
       },
-      "x-name": "desegmentation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "desegmentation"
     },
     {
       "$id": "diff-leverage",
@@ -2718,8 +3273,8 @@
           "source-language"
         ]
       },
-      "x-name": "diff-leverage",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "diff-leverage"
     },
     {
       "$id": "encoding-conversion",
@@ -2800,8 +3355,8 @@
           "block"
         ]
       },
-      "x-name": "encoding-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "encoding-conversion"
     },
     {
       "$id": "enrycher",
@@ -2844,8 +3399,8 @@
           "source-language"
         ]
       },
-      "x-name": "enrycher",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "enrycher"
     },
     {
       "$id": "exact-document-context-match-character-count",
@@ -2868,8 +3423,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-document-context-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-document-context-match-character-count"
     },
     {
       "$id": "exact-document-context-match-word-count",
@@ -2892,8 +3447,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-document-context-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-document-context-match-word-count"
     },
     {
       "$id": "exact-local-context-match-character-count",
@@ -2916,8 +3471,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-local-context-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-local-context-match-character-count"
     },
     {
       "$id": "exact-local-context-match-word-count",
@@ -2940,8 +3495,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-local-context-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-local-context-match-word-count"
     },
     {
       "$id": "exact-match-character-count",
@@ -2964,8 +3519,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-match-character-count"
     },
     {
       "$id": "exact-match-word-count",
@@ -2988,8 +3543,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-match-word-count"
     },
     {
       "$id": "exact-previous-version-match-character-count",
@@ -3012,8 +3567,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-previous-version-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-previous-version-match-character-count"
     },
     {
       "$id": "exact-previous-version-match-word-count",
@@ -3036,8 +3591,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-previous-version-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-previous-version-match-word-count"
     },
     {
       "$id": "exact-repaired-character-count",
@@ -3060,8 +3615,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-repaired-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-repaired-character-count"
     },
     {
       "$id": "exact-repaired-word-count",
@@ -3084,8 +3639,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-repaired-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-repaired-word-count"
     },
     {
       "$id": "exact-structural-match-character-count",
@@ -3108,8 +3663,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-structural-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-structural-match-character-count"
     },
     {
       "$id": "exact-structural-match-word-count",
@@ -3132,8 +3687,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-structural-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-structural-match-word-count"
     },
     {
       "$id": "exact-text-only-character-count",
@@ -3156,8 +3711,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-character-count"
     },
     {
       "$id": "exact-text-only-previous-version-match-character-count",
@@ -3180,8 +3735,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-previous-version-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-previous-version-match-character-count"
     },
     {
       "$id": "exact-text-only-previous-version-match-word-count",
@@ -3204,8 +3759,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-previous-version-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-previous-version-match-word-count"
     },
     {
       "$id": "exact-text-only-unique-id-match-character-count",
@@ -3228,8 +3783,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-unique-id-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-unique-id-match-character-count"
     },
     {
       "$id": "exact-text-only-unique-id-match-word-count",
@@ -3252,8 +3807,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-unique-id-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-unique-id-match-word-count"
     },
     {
       "$id": "exact-text-only-word-count",
@@ -3276,8 +3831,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-word-count"
     },
     {
       "$id": "exact-unique-id-match-character-count",
@@ -3299,8 +3854,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-unique-id-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-unique-id-match-character-count"
     },
     {
       "$id": "exact-unique-id-match-word-count",
@@ -3322,8 +3877,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-unique-id-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-unique-id-match-word-count"
     },
     {
       "$id": "external-command",
@@ -3364,8 +3919,8 @@
           "block"
         ]
       },
-      "x-name": "external-command",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "external-command"
     },
     {
       "$id": "extraction-verification",
@@ -3461,8 +4016,8 @@
           "block"
         ]
       },
-      "x-name": "extraction-verification",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "extraction-verification"
     },
     {
       "$id": "extraction",
@@ -3544,8 +4099,8 @@
           "block"
         ]
       },
-      "x-name": "extraction",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "extraction"
     },
     {
       "$id": "filter-events-to-raw-document",
@@ -3567,8 +4122,8 @@
           "source-language"
         ]
       },
-      "x-name": "filter-events-to-raw-document",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "filter-events-to-raw-document"
     },
     {
       "$id": "filter-events-writer",
@@ -3590,8 +4145,8 @@
           "source-language"
         ]
       },
-      "x-name": "filter-events-writer",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "filter-events-writer"
     },
     {
       "$id": "format-conversion",
@@ -3757,8 +4312,8 @@
           "source-language"
         ]
       },
-      "x-name": "format-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "format-conversion"
     },
     {
       "$id": "full-width-conversion",
@@ -3824,8 +4379,8 @@
           "source-language"
         ]
       },
-      "x-name": "full-width-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "full-width-conversion"
     },
     {
       "$id": "fuzzy-match-character-count",
@@ -3848,8 +4403,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-match-character-count"
     },
     {
       "$id": "fuzzy-match-word-count",
@@ -3872,8 +4427,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-match-word-count"
     },
     {
       "$id": "fuzzy-previous-version-match-character-count",
@@ -3895,8 +4450,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-previous-version-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-previous-version-match-character-count"
     },
     {
       "$id": "fuzzy-previous-version-match-word-count",
@@ -3918,8 +4473,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-previous-version-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-previous-version-match-word-count"
     },
     {
       "$id": "fuzzy-repaired-character-count",
@@ -3942,8 +4497,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-repaired-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-repaired-character-count"
     },
     {
       "$id": "fuzzy-repaired-word-count",
@@ -3966,8 +4521,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-repaired-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-repaired-word-count"
     },
     {
       "$id": "fuzzy-unique-id-match-character-count",
@@ -3989,8 +4544,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-unique-id-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-unique-id-match-character-count"
     },
     {
       "$id": "fuzzy-unique-id-match-word-count",
@@ -4012,8 +4567,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-unique-id-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-unique-id-match-word-count"
     },
     {
       "$id": "g-m-x-alphanumeric-only-text-unit-character-count",
@@ -4036,8 +4591,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-alphanumeric-only-text-unit-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-alphanumeric-only-text-unit-character-count"
     },
     {
       "$id": "g-m-x-alphanumeric-only-text-unit-word-count",
@@ -4060,8 +4615,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-alphanumeric-only-text-unit-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-alphanumeric-only-text-unit-word-count"
     },
     {
       "$id": "g-m-x-exact-matched-character-count",
@@ -4085,8 +4640,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-exact-matched-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-exact-matched-character-count"
     },
     {
       "$id": "g-m-x-exact-matched-word-count",
@@ -4110,8 +4665,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-exact-matched-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-exact-matched-word-count"
     },
     {
       "$id": "g-m-x-fuzzy-match-character-count",
@@ -4135,8 +4690,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-fuzzy-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-fuzzy-match-character-count"
     },
     {
       "$id": "g-m-x-fuzzy-match-word-count",
@@ -4160,8 +4715,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-fuzzy-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-fuzzy-match-word-count"
     },
     {
       "$id": "g-m-x-leveraged-matched-character-count",
@@ -4185,8 +4740,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-leveraged-matched-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-leveraged-matched-character-count"
     },
     {
       "$id": "g-m-x-leveraged-matched-word-count",
@@ -4210,8 +4765,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-leveraged-matched-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-leveraged-matched-word-count"
     },
     {
       "$id": "g-m-x-measurement-only-text-unit-character-count",
@@ -4234,8 +4789,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-measurement-only-text-unit-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-measurement-only-text-unit-character-count"
     },
     {
       "$id": "g-m-x-measurement-only-text-unit-word-count",
@@ -4258,8 +4813,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-measurement-only-text-unit-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-measurement-only-text-unit-word-count"
     },
     {
       "$id": "g-m-x-numeric-only-text-unit-character-count",
@@ -4282,8 +4837,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-numeric-only-text-unit-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-numeric-only-text-unit-character-count"
     },
     {
       "$id": "g-m-x-numeric-only-text-unit-word-count",
@@ -4306,8 +4861,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-numeric-only-text-unit-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-numeric-only-text-unit-word-count"
     },
     {
       "$id": "g-m-x-protected-character-count",
@@ -4331,8 +4886,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-protected-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-protected-character-count"
     },
     {
       "$id": "g-m-x-protected-word-count",
@@ -4356,8 +4911,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-protected-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-protected-word-count"
     },
     {
       "$id": "g-m-x-repetition-matched-character-count",
@@ -4380,8 +4935,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-repetition-matched-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-repetition-matched-character-count"
     },
     {
       "$id": "g-m-x-repetition-matched-word-count",
@@ -4404,8 +4959,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-repetition-matched-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-repetition-matched-word-count"
     },
     {
       "$id": "general-checker",
@@ -4483,8 +5038,8 @@
           "source-language"
         ]
       },
-      "x-name": "general-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "general-checker"
     },
     {
       "$id": "id-based-aligner",
@@ -4597,8 +5152,8 @@
           "source-language"
         ]
       },
-      "x-name": "id-based-aligner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "id-based-aligner"
     },
     {
       "$id": "id-based-copy",
@@ -4636,8 +5191,8 @@
           "source-language"
         ]
       },
-      "x-name": "id-based-copy",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "id-based-copy"
     },
     {
       "$id": "image-modification",
@@ -4721,8 +5276,8 @@
           "block"
         ]
       },
-      "x-name": "image-modification",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "image-modification"
     },
     {
       "$id": "inconsistency-check",
@@ -4837,8 +5392,8 @@
           "source-language"
         ]
       },
-      "x-name": "inconsistency-check",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "inconsistency-check"
     },
     {
       "$id": "inline-codes-checker",
@@ -4892,8 +5447,8 @@
           "source-language"
         ]
       },
-      "x-name": "inline-codes-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "inline-codes-checker"
     },
     {
       "$id": "length-checker",
@@ -4983,8 +5538,8 @@
           "source-language"
         ]
       },
-      "x-name": "length-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "length-checker"
     },
     {
       "$id": "leveraging",
@@ -5111,8 +5666,8 @@
           "source-language"
         ]
       },
-      "x-name": "leveraging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "leveraging"
     },
     {
       "$id": "line-break-conversion",
@@ -5163,8 +5718,8 @@
           "block"
         ]
       },
-      "x-name": "line-break-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "line-break-conversion"
     },
     {
       "$id": "localizable-checker",
@@ -5187,8 +5742,8 @@
           "source-language"
         ]
       },
-      "x-name": "localizable-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "localizable-checker"
     },
     {
       "$id": "m-s-batch-translation",
@@ -5411,8 +5966,8 @@
           "source-language"
         ]
       },
-      "x-name": "m-s-batch-translation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "m-s-batch-translation"
     },
     {
       "$id": "m-t-character-count",
@@ -5435,8 +5990,8 @@
           "source-language"
         ]
       },
-      "x-name": "m-t-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "m-t-character-count"
     },
     {
       "$id": "m-t-word-count",
@@ -5459,8 +6014,8 @@
           "source-language"
         ]
       },
-      "x-name": "m-t-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "m-t-word-count"
     },
     {
       "$id": "merging",
@@ -5544,8 +6099,8 @@
           "source-language"
         ]
       },
-      "x-name": "merging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "merging"
     },
     {
       "$id": "paragraph-aligner",
@@ -5590,8 +6145,8 @@
           "source-language"
         ]
       },
-      "x-name": "paragraph-aligner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "paragraph-aligner"
     },
     {
       "$id": "patterns-checker",
@@ -5653,8 +6208,8 @@
           "source-language"
         ]
       },
-      "x-name": "patterns-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "patterns-checker"
     },
     {
       "$id": "phrase-assembled-character-count",
@@ -5677,8 +6232,8 @@
           "source-language"
         ]
       },
-      "x-name": "phrase-assembled-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "phrase-assembled-character-count"
     },
     {
       "$id": "phrase-assembled-word-count",
@@ -5701,8 +6256,8 @@
           "source-language"
         ]
       },
-      "x-name": "phrase-assembled-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "phrase-assembled-word-count"
     },
     {
       "$id": "post-segmentation-code-simplifier",
@@ -5752,8 +6307,8 @@
           "source-language"
         ]
       },
-      "x-name": "post-segmentation-code-simplifier",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "post-segmentation-code-simplifier"
     },
     {
       "$id": "quality-check",
@@ -6511,8 +7066,8 @@
           "source-language"
         ]
       },
-      "x-name": "quality-check",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "quality-check"
     },
     {
       "$id": "r-t-f-conversion",
@@ -6583,8 +7138,8 @@
           "block"
         ]
       },
-      "x-name": "r-t-f-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "r-t-f-conversion"
     },
     {
       "$id": "raw-document-to-filter-events",
@@ -6603,8 +7158,8 @@
           "source-language"
         ]
       },
-      "x-name": "raw-document-to-filter-events",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "raw-document-to-filter-events"
     },
     {
       "$id": "raw-document-to-output-stream",
@@ -6623,8 +7178,8 @@
           "block"
         ]
       },
-      "x-name": "raw-document-to-output-stream",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "raw-document-to-output-stream"
     },
     {
       "$id": "raw-document-writer",
@@ -6646,8 +7201,8 @@
           "block"
         ]
       },
-      "x-name": "raw-document-writer",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "raw-document-writer"
     },
     {
       "$id": "remove-target",
@@ -6711,8 +7266,8 @@
           "source-language"
         ]
       },
-      "x-name": "remove-target",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "remove-target"
     },
     {
       "$id": "repetition-analysis",
@@ -6735,8 +7290,8 @@
           "source-language"
         ]
       },
-      "x-name": "repetition-analysis",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "repetition-analysis"
     },
     {
       "$id": "resource-simplifier",
@@ -6755,8 +7310,8 @@
           "source-language"
         ]
       },
-      "x-name": "resource-simplifier",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "resource-simplifier"
     },
     {
       "$id": "scoping-report",
@@ -7004,8 +7559,8 @@
           "source-language"
         ]
       },
-      "x-name": "scoping-report",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "scoping-report"
     },
     {
       "$id": "search-and-replace",
@@ -7098,8 +7653,8 @@
           "source-language"
         ]
       },
-      "x-name": "search-and-replace",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "search-and-replace"
     },
     {
       "$id": "segmentation",
@@ -7225,8 +7780,8 @@
           "source-language"
         ]
       },
-      "x-name": "segmentation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "segmentation"
     },
     {
       "$id": "sentence-aligner",
@@ -7423,8 +7978,8 @@
           "source-language"
         ]
       },
-      "x-name": "sentence-aligner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "sentence-aligner"
     },
     {
       "$id": "simple-word-count",
@@ -7448,8 +8003,8 @@
           "source-language"
         ]
       },
-      "x-name": "simple-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "simple-word-count"
     },
     {
       "$id": "space-check",
@@ -7471,8 +8026,8 @@
           "source-language"
         ]
       },
-      "x-name": "space-check",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "space-check"
     },
     {
       "$id": "t-m-import",
@@ -7520,8 +8075,8 @@
           "source-language"
         ]
       },
-      "x-name": "t-m-import",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "t-m-import"
     },
     {
       "$id": "t-t-x-joiner",
@@ -7552,8 +8107,8 @@
           "block"
         ]
       },
-      "x-name": "t-t-x-joiner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "t-t-x-joiner"
     },
     {
       "$id": "t-t-x-splitter",
@@ -7589,8 +8144,8 @@
           "block"
         ]
       },
-      "x-name": "t-t-x-splitter",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "t-t-x-splitter"
     },
     {
       "$id": "term-extraction",
@@ -7836,8 +8391,8 @@
           "source-language"
         ]
       },
-      "x-name": "term-extraction",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "term-extraction"
     },
     {
       "$id": "terminology-leveraging",
@@ -7912,8 +8467,8 @@
           "source-language"
         ]
       },
-      "x-name": "terminology-leveraging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "terminology-leveraging"
     },
     {
       "$id": "text-modification",
@@ -8009,8 +8564,8 @@
           "source-language"
         ]
       },
-      "x-name": "text-modification",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "text-modification"
     },
     {
       "$id": "tokenization",
@@ -8171,8 +8726,8 @@
           "source-language"
         ]
       },
-      "x-name": "tokenization",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "tokenization"
     },
     {
       "$id": "translation-comparison",
@@ -8425,8 +8980,8 @@
           "source-language"
         ]
       },
-      "x-name": "translation-comparison",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "translation-comparison"
     },
     {
       "$id": "tu-filtering",
@@ -8449,8 +9004,8 @@
           "source-language"
         ]
       },
-      "x-name": "tu-filtering",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "tu-filtering"
     },
     {
       "$id": "uri-conversion",
@@ -8489,8 +9044,8 @@
           "source-language"
         ]
       },
-      "x-name": "uri-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "uri-conversion"
     },
     {
       "$id": "whitespace-correction",
@@ -8617,8 +9172,8 @@
           "source-language"
         ]
       },
-      "x-name": "whitespace-correction",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "whitespace-correction"
     },
     {
       "$id": "word-count",
@@ -8719,8 +9274,8 @@
           "source-language"
         ]
       },
-      "x-name": "word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "word-count"
     },
     {
       "$id": "x-m-l-analysis",
@@ -8778,8 +9333,8 @@
           "block"
         ]
       },
-      "x-name": "x-m-l-analysis",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-m-l-analysis"
     },
     {
       "$id": "x-m-l-char-fixing",
@@ -8813,8 +9368,8 @@
           "block"
         ]
       },
-      "x-name": "x-m-l-char-fixing",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-m-l-char-fixing"
     },
     {
       "$id": "x-m-l-validation",
@@ -8911,8 +9466,8 @@
           "block"
         ]
       },
-      "x-name": "x-m-l-validation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-m-l-validation"
     },
     {
       "$id": "x-s-l-transform",
@@ -8972,8 +9527,8 @@
           "block"
         ]
       },
-      "x-name": "x-s-l-transform",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-s-l-transform"
     },
     {
       "$id": "xliff-joiner",
@@ -9011,8 +9566,8 @@
           "block"
         ]
       },
-      "x-name": "xliff-joiner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "xliff-joiner"
     },
     {
       "$id": "xliff-splitter",
@@ -9099,8 +9654,8 @@
           "block"
         ]
       },
-      "x-name": "xliff-splitter",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "xliff-splitter"
     },
     {
       "$id": "xliff-w-c-splitter",
@@ -9131,8 +9686,8 @@
           "block"
         ]
       },
-      "x-name": "xliff-w-c-splitter",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "xliff-w-c-splitter"
     }
   ],
   "all": [
@@ -9291,12 +9846,50 @@
         ]
       },
       "properties": {
+        "downgradeIdenticalBestMatches": {
+          "type": "boolean",
+          "description": "Reduce score by 1%% when multiple identical exact matches are returned",
+          "default": false
+        },
+        "fillIfTargetIsEmpty": {
+          "type": "boolean",
+          "description": "Fill the target only when it has no existing content",
+          "default": false
+        },
+        "fillTarget": {
+          "type": "boolean",
+          "description": "Copy the best translation candidate into the target content",
+          "default": true
+        },
+        "fillTargetThreshold": {
+          "type": "integer",
+          "description": "Minimum match score required to fill the target",
+          "default": 95,
+          "minimum": 0,
+          "maximum": 100
+        },
         "fuzzyThreshold": {
           "type": "integer",
           "description": "Minimum score for fuzzy matches (0-100)",
           "default": 70,
           "minimum": 0,
           "maximum": 100
+        },
+        "makeTmx": {
+          "type": "boolean",
+          "description": "Create a TMX file with all leveraged matches",
+          "default": false
+        },
+        "noQueryThreshold": {
+          "type": "integer",
+          "description": "Skip TM query if existing candidate scores at or above this value (101 = always query)",
+          "default": 101,
+          "minimum": 0,
+          "maximum": 101
+        },
+        "tmxPath": {
+          "type": "string",
+          "description": "File path for the generated TMX document"
         }
       },
       "x-source": "built-in",
@@ -9363,10 +9956,97 @@
           "target-language"
         ]
       },
+      "ui:groups": [
+        {
+          "id": "general",
+          "label": "General",
+          "fields": [
+            "checkLeadingWhitespace",
+            "checkTrailingWhitespace",
+            "checkEmptyTarget",
+            "checkEmptySource",
+            "checkTargetSameAsSource",
+            "targetSameAsSourceWithCodes",
+            "targetSameAsSourceWithNumbers",
+            "checkDoubleSpaces",
+            "checkDoubledWord",
+            "doubledWordExceptions",
+            "checkSpanConstraints"
+          ]
+        },
+        {
+          "id": "inlineCodes",
+          "label": "InlineCodes",
+          "fields": [
+            "checkCodeDifference",
+            "strictCodeOrder"
+          ]
+        },
+        {
+          "id": "patterns",
+          "label": "Patterns",
+          "fields": [
+            "checkPatterns"
+          ]
+        },
+        {
+          "id": "characters",
+          "label": "Characters",
+          "fields": [
+            "checkCorruptedCharacters"
+          ]
+        },
+        {
+          "id": "length",
+          "label": "Length",
+          "fields": [
+            "checkMaxCharLength",
+            "maxCharLengthBreak",
+            "maxCharLengthAbove",
+            "maxCharLengthBelow",
+            "checkMinCharLength",
+            "minCharLengthBreak",
+            "minCharLengthAbove",
+            "minCharLengthBelow",
+            "checkAbsoluteMaxCharLength",
+            "absoluteMaxCharLength"
+          ]
+        }
+      ],
       "properties": {
+        "absoluteMaxCharLength": {
+          "type": "integer",
+          "description": "Maximum number of characters allowed in any target segment",
+          "default": 255
+        },
+        "checkAbsoluteMaxCharLength": {
+          "type": "boolean",
+          "description": "Flag target segments that exceed an absolute character count limit",
+          "default": false
+        },
+        "checkCodeDifference": {
+          "type": "boolean",
+          "description": "Verify that target segments have the same inline codes as source segments",
+          "default": true
+        },
+        "checkCorruptedCharacters": {
+          "type": "boolean",
+          "description": "Check for patterns indicating encoding corruption (e.g. UTF-8 opened as ISO-8859-1)",
+          "default": true
+        },
         "checkDoubleSpaces": {
           "type": "boolean",
           "description": "Check for double spaces in target text",
+          "default": true
+        },
+        "checkDoubledWord": {
+          "type": "boolean",
+          "description": "Check for consecutive repeated words in target text",
+          "default": true
+        },
+        "checkEmptySource": {
+          "type": "boolean",
+          "description": "Check for non-empty target when source is empty",
           "default": true
         },
         "checkEmptyTarget": {
@@ -9377,6 +10057,21 @@
         "checkLeadingWhitespace": {
           "type": "boolean",
           "description": "Check for leading whitespace mismatches between source and target",
+          "default": true
+        },
+        "checkMaxCharLength": {
+          "type": "boolean",
+          "description": "Flag targets longer than a percentage of source character length",
+          "default": true
+        },
+        "checkMinCharLength": {
+          "type": "boolean",
+          "description": "Flag targets shorter than a percentage of source character length",
+          "default": true
+        },
+        "checkPatterns": {
+          "type": "boolean",
+          "description": "Verify that source patterns have expected corresponding content in the target",
           "default": true
         },
         "checkSpanConstraints": {
@@ -9397,6 +10092,56 @@
         "checkTrailingWhitespace": {
           "type": "boolean",
           "description": "Check for trailing whitespace mismatches between source and target",
+          "default": true
+        },
+        "doubledWordExceptions": {
+          "type": "string",
+          "description": "Semicolon-separated list of words allowed to repeat (e.g. sie;vous;nous)",
+          "default": "sie;vous;nous"
+        },
+        "maxCharLengthAbove": {
+          "type": "integer",
+          "description": "Maximum allowed percentage of source length for long text",
+          "default": 200
+        },
+        "maxCharLengthBelow": {
+          "type": "integer",
+          "description": "Maximum allowed percentage of source length for short text",
+          "default": 350
+        },
+        "maxCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count above which text is considered long for the maximum length check",
+          "default": 20
+        },
+        "minCharLengthAbove": {
+          "type": "integer",
+          "description": "Minimum required percentage of source length for long text",
+          "default": 45
+        },
+        "minCharLengthBelow": {
+          "type": "integer",
+          "description": "Minimum required percentage of source length for short text",
+          "default": 30
+        },
+        "minCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count above which text is considered long for the minimum length check",
+          "default": 20
+        },
+        "strictCodeOrder": {
+          "type": "boolean",
+          "description": "Flag differences when codes appear in a different order between source and target",
+          "default": false
+        },
+        "targetSameAsSourceWithCodes": {
+          "type": "boolean",
+          "description": "Include inline codes when comparing source and target for identity",
+          "default": true
+        },
+        "targetSameAsSourceWithNumbers": {
+          "type": "boolean",
+          "description": "Include number-only segments in same-as-source comparison",
           "default": true
         }
       },
@@ -9620,6 +10365,11 @@
           "description": "Whether comparison is case-sensitive",
           "default": true
         },
+        "checkPerFile": {
+          "type": "boolean",
+          "description": "Process each input file individually instead of comparing segments across all documents",
+          "default": false
+        },
         "checkSourceInconsistency": {
           "type": "boolean",
           "description": "Flag when different sources share the same translation",
@@ -9629,6 +10379,25 @@
           "type": "boolean",
           "description": "Flag when the same source has different translations",
           "default": true
+        },
+        "displayOption": {
+          "type": "string",
+          "description": "Controls how inline codes are represented: original codes or generic markers or plain text",
+          "default": "generic",
+          "options": [
+            {
+              "value": "original",
+              "label": "original"
+            },
+            {
+              "value": "generic",
+              "label": "generic"
+            },
+            {
+              "value": "plain",
+              "label": "plain"
+            }
+          ]
         }
       },
       "x-source": "built-in",
@@ -9658,9 +10427,37 @@
         ]
       },
       "properties": {
+        "checkMaxCharLength": {
+          "type": "boolean",
+          "description": "Warn if target exceeds a percentage of source character length",
+          "default": true
+        },
+        "checkMinCharLength": {
+          "type": "boolean",
+          "description": "Warn if target is shorter than a percentage of source character length",
+          "default": true
+        },
+        "maxCharLengthAbove": {
+          "type": "integer",
+          "description": "Max percentage of source length allowed for long text",
+          "default": 200,
+          "minimum": 0
+        },
+        "maxCharLengthBelow": {
+          "type": "integer",
+          "description": "Max percentage of source length allowed for short text",
+          "default": 350,
+          "minimum": 0
+        },
+        "maxCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count threshold between short and long text for max check",
+          "default": 20,
+          "minimum": 0
+        },
         "maxChars": {
           "type": "integer",
-          "description": "Maximum character count for target text (0 = disabled)",
+          "description": "Absolute maximum character count for target text (0 = disabled)",
           "default": 0,
           "minimum": 0
         },
@@ -9674,6 +10471,24 @@
           "type": "integer",
           "description": "Maximum word count for target text (0 = disabled)",
           "default": 0,
+          "minimum": 0
+        },
+        "minCharLengthAbove": {
+          "type": "integer",
+          "description": "Min percentage of source length allowed for long text",
+          "default": 45,
+          "minimum": 0
+        },
+        "minCharLengthBelow": {
+          "type": "integer",
+          "description": "Min percentage of source length allowed for short text",
+          "default": 30,
+          "minimum": 0
+        },
+        "minCharLengthBreak": {
+          "type": "integer",
+          "description": "Character count threshold between short and long text for min check",
+          "default": 20,
           "minimum": 0
         },
         "minPercentage": {
@@ -9710,6 +10525,16 @@
         ]
       },
       "properties": {
+        "charset": {
+          "type": "string",
+          "description": "Name of the character set encoding to check against (e.g. ISO-8859-1)",
+          "default": "ISO-8859-1"
+        },
+        "checkCharset": {
+          "type": "boolean",
+          "description": "Warn if a character is not included in the specified character set encoding",
+          "default": false
+        },
         "checkCorrupted": {
           "type": "boolean",
           "description": "Check for common corruption patterns such as mojibake",
@@ -9773,6 +10598,23 @@
           "block"
         ]
       },
+      "properties": {
+        "countInline": {
+          "type": "boolean",
+          "description": "Include inline code content in word counts",
+          "default": false
+        },
+        "countSource": {
+          "type": "boolean",
+          "description": "Count words in source text",
+          "default": true
+        },
+        "countTarget": {
+          "type": "boolean",
+          "description": "Count words in target text",
+          "default": true
+        }
+      },
       "x-source": "built-in",
       "x-name": "word-count",
       "x-tool": {
@@ -9795,6 +10637,23 @@
         "inputs": [
           "block"
         ]
+      },
+      "properties": {
+        "countInline": {
+          "type": "boolean",
+          "description": "Include inline code content in character counts",
+          "default": false
+        },
+        "countSource": {
+          "type": "boolean",
+          "description": "Count characters in source text",
+          "default": true
+        },
+        "countTarget": {
+          "type": "boolean",
+          "description": "Count characters in target text",
+          "default": true
+        }
       },
       "x-source": "built-in",
       "x-name": "char-count",
@@ -9930,6 +10789,38 @@
           "block"
         ]
       },
+      "properties": {
+        "caseSensitive": {
+          "type": "boolean",
+          "description": "Take case differences into account when comparing",
+          "default": true
+        },
+        "document1Label": {
+          "type": "string",
+          "description": "Label for the first translation in reports",
+          "default": "Trans1"
+        },
+        "document2Label": {
+          "type": "string",
+          "description": "Label for the second translation in reports",
+          "default": "Trans2"
+        },
+        "genericCodes": {
+          "type": "boolean",
+          "description": "Use generic numbered tags (e.g. <1>...</1>) instead of original inline codes in reports",
+          "default": true
+        },
+        "punctuationSensitive": {
+          "type": "boolean",
+          "description": "Take punctuation differences into account when comparing",
+          "default": true
+        },
+        "whitespaceSensitive": {
+          "type": "boolean",
+          "description": "Take whitespace differences into account when comparing",
+          "default": true
+        }
+      },
       "x-source": "built-in",
       "x-name": "translation-comparison",
       "x-tool": {
@@ -9975,6 +10866,43 @@
         "inputs": [
           "block"
         ]
+      },
+      "properties": {
+        "dotAll": {
+          "type": "boolean",
+          "description": "Make the period character match every character including line-feed",
+          "default": false
+        },
+        "ignoreCase": {
+          "type": "boolean",
+          "description": "Ignore case when matching search patterns",
+          "default": false
+        },
+        "multiLine": {
+          "type": "boolean",
+          "description": "Make ^ and $ match at the beginning and end of each line",
+          "default": false
+        },
+        "regEx": {
+          "type": "boolean",
+          "description": "Enable regular expression mode for all search patterns",
+          "default": false
+        },
+        "replaceAll": {
+          "type": "boolean",
+          "description": "Replace all matches instead of only the first",
+          "default": true
+        },
+        "source": {
+          "type": "boolean",
+          "description": "Perform search and replace on source content",
+          "default": false
+        },
+        "target": {
+          "type": "boolean",
+          "description": "Perform search and replace on target content",
+          "default": true
+        }
       },
       "x-source": "built-in",
       "x-name": "search-replace",
@@ -10052,6 +10980,41 @@
         "inputs": [
           "block"
         ]
+      },
+      "properties": {
+        "overwriteSegmentation": {
+          "type": "boolean",
+          "description": "Re-segment already-segmented text units replacing previous segmentation",
+          "default": false
+        },
+        "renumberCodes": {
+          "type": "boolean",
+          "description": "Renumber inline code IDs in each segment to start at 1",
+          "default": false
+        },
+        "segmentSource": {
+          "type": "boolean",
+          "description": "Segment the source text using SRX rules",
+          "default": true
+        },
+        "segmentTarget": {
+          "type": "boolean",
+          "description": "Segment existing target text using SRX rules",
+          "default": false
+        },
+        "sourceSrxPath": {
+          "type": "string",
+          "description": "Path to SRX segmentation rules file for source text"
+        },
+        "targetSrxPath": {
+          "type": "string",
+          "description": "Path to SRX segmentation rules file for target text"
+        },
+        "treatIsolatedCodesAsWhitespace": {
+          "type": "boolean",
+          "description": "Treat isolated inline codes as whitespace during segmentation",
+          "default": false
+        }
       },
       "x-source": "built-in",
       "x-name": "segmentation",
@@ -10171,6 +11134,11 @@
           "type": "boolean",
           "description": "When true the Unicode BOM is added; when false it is removed",
           "default": false
+        },
+        "alsoNonUTF8": {
+          "type": "boolean",
+          "description": "Also remove the BOM from UTF-16 files not just UTF-8",
+          "default": false
         }
       },
       "x-source": "built-in",
@@ -10202,6 +11170,11 @@
           "type": "boolean",
           "description": "Copy source text to the new target segment",
           "default": false
+        },
+        "createOnNonTranslatable": {
+          "type": "boolean",
+          "description": "Create a target container even for non-translatable text units",
+          "default": true
         },
         "overwrite": {
           "type": "boolean",
@@ -10246,6 +11219,16 @@
           "description": "Apply encoding conversion to target text",
           "default": true
         },
+        "escapeAll": {
+          "type": "boolean",
+          "description": "Escape all extended (non-ASCII) characters in output",
+          "default": false
+        },
+        "reportUnsupported": {
+          "type": "boolean",
+          "description": "Report characters not supported by the target encoding",
+          "default": true
+        },
         "targetEncoding": {
           "type": "string",
           "description": "Target encoding name (e.g. utf-8 or iso-8859-1 or shift-jis)"
@@ -10257,6 +11240,21 @@
             "field": "ApplyTarget",
             "empty": false
           }
+        },
+        "unescapeCER": {
+          "type": "boolean",
+          "description": "Unescape HTML character entity references (e.g. &aacute;) when reading input",
+          "default": true
+        },
+        "unescapeJava": {
+          "type": "boolean",
+          "description": "Unescape Java-style \\\\uXXXX escape sequences when reading input",
+          "default": true
+        },
+        "unescapeNCR": {
+          "type": "boolean",
+          "description": "Unescape numeric character references (e.g. &#xE1;) when reading input",
+          "default": true
         }
       },
       "x-source": "built-in",
@@ -10360,6 +11358,21 @@
           "description": "Apply to target text",
           "default": true
         },
+        "includeKatakana": {
+          "type": "boolean",
+          "description": "Also convert Japanese Katakana and associated punctuation to half-width forms",
+          "default": false
+        },
+        "includeLLS": {
+          "type": "boolean",
+          "description": "Also convert characters from the Letter-Like Symbols block to character sequences",
+          "default": false
+        },
+        "includeSLA": {
+          "type": "boolean",
+          "description": "Also convert Squared Latin Abbreviations from the CJK Compatibility block to non-CJK character sequences",
+          "default": false
+        },
         "mode": {
           "type": "string",
           "description": "Conversion direction between half-width and full-width characters",
@@ -10418,6 +11431,16 @@
           "type": "boolean",
           "description": "Apply to target segments",
           "default": true
+        },
+        "includeNonTranslatable": {
+          "type": "boolean",
+          "description": "Apply the removal action even to text units marked as non-translatable",
+          "default": true
+        },
+        "replaceWithSpace": {
+          "type": "boolean",
+          "description": "Replace line-break inline codes with spaces instead of removing them entirely",
+          "default": false
         },
         "targetLocale": {
           "type": "string",
@@ -10545,9 +11568,23 @@
         ]
       },
       "properties": {
+        "filterByIDs": {
+          "type": "boolean",
+          "description": "When true filter text units by ID; when false filter by target locale",
+          "default": true
+        },
+        "removeBlockIfEmpty": {
+          "type": "boolean",
+          "description": "Remove the text unit entirely if it has no remaining targets after removal",
+          "default": false
+        },
         "targetLocale": {
           "type": "string",
           "description": "Target locale to remove (if empty all targets are removed)"
+        },
+        "textUnitIDs": {
+          "type": "string",
+          "description": "Comma-delimited list of text unit IDs whose targets should be removed; empty removes all targets"
         }
       },
       "x-source": "built-in",
@@ -10695,7 +11732,57 @@
           "target-language"
         ]
       },
+      "ui:groups": [
+        {
+          "id": "punctuation",
+          "label": "Punctuation",
+          "fields": [
+            "correctFullStop",
+            "correctComma",
+            "correctExclamation",
+            "correctQuestion"
+          ]
+        },
+        {
+          "id": "whitespace-types",
+          "label": "Whitespace-types",
+          "fields": [
+            "includeVerticalWS",
+            "includeHorizontalWS"
+          ]
+        }
+      ],
       "properties": {
+        "correctComma": {
+          "type": "boolean",
+          "description": "Correct whitespace after commas",
+          "default": true
+        },
+        "correctExclamation": {
+          "type": "boolean",
+          "description": "Correct whitespace after exclamation marks",
+          "default": true
+        },
+        "correctFullStop": {
+          "type": "boolean",
+          "description": "Correct whitespace after full stops (periods)",
+          "default": true
+        },
+        "correctQuestion": {
+          "type": "boolean",
+          "description": "Correct whitespace after question marks",
+          "default": true
+        },
+        "includeHorizontalWS": {
+          "type": "boolean",
+          "description": "Include horizontal tab characters in corrections",
+          "default": true
+        },
+        "includeVerticalWS": {
+          "type": "boolean",
+          "description": "Include vertical whitespace (line feeds and carriage returns) in corrections",
+          "default": true
+        },
         "matchSourceWhitespace": {
           "type": "boolean",
           "description": "Copy source leading/trailing whitespace to target",
@@ -10801,6 +11888,25 @@
         ]
       },
       "properties": {
+        "applySource": {
+          "type": "boolean",
+          "description": "Apply transformation to source text",
+          "default": true
+        },
+        "applyTarget": {
+          "type": "boolean",
+          "description": "Apply transformation to target text",
+          "default": false
+        },
+        "paramList": {
+          "type": "string",
+          "description": "Parameters passed to the XSLT template (one per line as name=value)"
+        },
+        "passOnOutput": {
+          "type": "boolean",
+          "description": "Pass the transformation output to subsequent pipeline steps",
+          "default": true
+        },
         "rules": {
           "type": "array",
           "description": "Regex-based tag and text transformation rules",
@@ -10815,6 +11921,10 @@
               }
             }
           }
+        },
+        "xsltPath": {
+          "type": "string",
+          "description": "Path to an XSLT stylesheet file to apply"
         }
       },
       "x-source": "built-in",
@@ -10863,8 +11973,8 @@
           "block"
         ]
       },
-      "x-name": "b-o-m-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "b-o-m-conversion"
     },
     {
       "$id": "batch-tm-leveraging",
@@ -10887,8 +11997,8 @@
           "source-language"
         ]
       },
-      "x-name": "batch-tm-leveraging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "batch-tm-leveraging"
     },
     {
       "$id": "batch-translation",
@@ -11095,8 +12205,8 @@
           "block"
         ]
       },
-      "x-name": "batch-translation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "batch-translation"
     },
     {
       "$id": "char-listing",
@@ -11154,8 +12264,8 @@
           "source-language"
         ]
       },
-      "x-name": "char-listing",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "char-listing"
     },
     {
       "$id": "character-count",
@@ -11256,8 +12366,8 @@
           "source-language"
         ]
       },
-      "x-name": "character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "character-count"
     },
     {
       "$id": "characters-checker",
@@ -11312,8 +12422,8 @@
           "source-language"
         ]
       },
-      "x-name": "characters-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "characters-checker"
     },
     {
       "$id": "cleanup",
@@ -11414,8 +12524,8 @@
           "source-language"
         ]
       },
-      "x-name": "cleanup",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "cleanup"
     },
     {
       "$id": "code-simplifier",
@@ -11465,8 +12575,8 @@
           "source-language"
         ]
       },
-      "x-name": "code-simplifier",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "code-simplifier"
     },
     {
       "$id": "codes-removal",
@@ -11554,8 +12664,8 @@
           "source-language"
         ]
       },
-      "x-name": "codes-removal",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "codes-removal"
     },
     {
       "$id": "concordance-character-count",
@@ -11578,8 +12688,8 @@
           "source-language"
         ]
       },
-      "x-name": "concordance-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "concordance-character-count"
     },
     {
       "$id": "concordance-word-count",
@@ -11602,8 +12712,8 @@
           "source-language"
         ]
       },
-      "x-name": "concordance-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "concordance-word-count"
     },
     {
       "$id": "convert-segments-to-text-units",
@@ -11625,8 +12735,8 @@
           "source-language"
         ]
       },
-      "x-name": "convert-segments-to-text-units",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "convert-segments-to-text-units"
     },
     {
       "$id": "copy-or-move",
@@ -11648,8 +12758,8 @@
           "block"
         ]
       },
-      "x-name": "copy-or-move",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "copy-or-move"
     },
     {
       "$id": "copy-source-on-empty-target",
@@ -11666,8 +12776,8 @@
           "source-language"
         ]
       },
-      "x-name": "copy-source-on-empty-target",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "copy-source-on-empty-target"
     },
     {
       "$id": "create-target",
@@ -11731,8 +12841,8 @@
           "source-language"
         ]
       },
-      "x-name": "create-target",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "create-target"
     },
     {
       "$id": "desegmentation",
@@ -11786,8 +12896,8 @@
           "source-language"
         ]
       },
-      "x-name": "desegmentation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "desegmentation"
     },
     {
       "$id": "diff-leverage",
@@ -11852,8 +12962,8 @@
           "source-language"
         ]
       },
-      "x-name": "diff-leverage",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "diff-leverage"
     },
     {
       "$id": "encoding-conversion",
@@ -11934,8 +13044,8 @@
           "block"
         ]
       },
-      "x-name": "encoding-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "encoding-conversion"
     },
     {
       "$id": "enrycher",
@@ -11978,8 +13088,8 @@
           "source-language"
         ]
       },
-      "x-name": "enrycher",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "enrycher"
     },
     {
       "$id": "exact-document-context-match-character-count",
@@ -12002,8 +13112,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-document-context-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-document-context-match-character-count"
     },
     {
       "$id": "exact-document-context-match-word-count",
@@ -12026,8 +13136,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-document-context-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-document-context-match-word-count"
     },
     {
       "$id": "exact-local-context-match-character-count",
@@ -12050,8 +13160,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-local-context-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-local-context-match-character-count"
     },
     {
       "$id": "exact-local-context-match-word-count",
@@ -12074,8 +13184,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-local-context-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-local-context-match-word-count"
     },
     {
       "$id": "exact-match-character-count",
@@ -12098,8 +13208,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-match-character-count"
     },
     {
       "$id": "exact-match-word-count",
@@ -12122,8 +13232,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-match-word-count"
     },
     {
       "$id": "exact-previous-version-match-character-count",
@@ -12146,8 +13256,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-previous-version-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-previous-version-match-character-count"
     },
     {
       "$id": "exact-previous-version-match-word-count",
@@ -12170,8 +13280,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-previous-version-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-previous-version-match-word-count"
     },
     {
       "$id": "exact-repaired-character-count",
@@ -12194,8 +13304,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-repaired-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-repaired-character-count"
     },
     {
       "$id": "exact-repaired-word-count",
@@ -12218,8 +13328,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-repaired-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-repaired-word-count"
     },
     {
       "$id": "exact-structural-match-character-count",
@@ -12242,8 +13352,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-structural-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-structural-match-character-count"
     },
     {
       "$id": "exact-structural-match-word-count",
@@ -12266,8 +13376,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-structural-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-structural-match-word-count"
     },
     {
       "$id": "exact-text-only-character-count",
@@ -12290,8 +13400,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-character-count"
     },
     {
       "$id": "exact-text-only-previous-version-match-character-count",
@@ -12314,8 +13424,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-previous-version-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-previous-version-match-character-count"
     },
     {
       "$id": "exact-text-only-previous-version-match-word-count",
@@ -12338,8 +13448,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-previous-version-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-previous-version-match-word-count"
     },
     {
       "$id": "exact-text-only-unique-id-match-character-count",
@@ -12362,8 +13472,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-unique-id-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-unique-id-match-character-count"
     },
     {
       "$id": "exact-text-only-unique-id-match-word-count",
@@ -12386,8 +13496,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-unique-id-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-unique-id-match-word-count"
     },
     {
       "$id": "exact-text-only-word-count",
@@ -12410,8 +13520,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-text-only-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-text-only-word-count"
     },
     {
       "$id": "exact-unique-id-match-character-count",
@@ -12433,8 +13543,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-unique-id-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-unique-id-match-character-count"
     },
     {
       "$id": "exact-unique-id-match-word-count",
@@ -12456,8 +13566,8 @@
           "source-language"
         ]
       },
-      "x-name": "exact-unique-id-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "exact-unique-id-match-word-count"
     },
     {
       "$id": "external-command",
@@ -12498,8 +13608,8 @@
           "block"
         ]
       },
-      "x-name": "external-command",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "external-command"
     },
     {
       "$id": "extraction-verification",
@@ -12595,8 +13705,8 @@
           "block"
         ]
       },
-      "x-name": "extraction-verification",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "extraction-verification"
     },
     {
       "$id": "extraction",
@@ -12678,8 +13788,8 @@
           "block"
         ]
       },
-      "x-name": "extraction",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "extraction"
     },
     {
       "$id": "filter-events-to-raw-document",
@@ -12701,8 +13811,8 @@
           "source-language"
         ]
       },
-      "x-name": "filter-events-to-raw-document",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "filter-events-to-raw-document"
     },
     {
       "$id": "filter-events-writer",
@@ -12724,8 +13834,8 @@
           "source-language"
         ]
       },
-      "x-name": "filter-events-writer",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "filter-events-writer"
     },
     {
       "$id": "format-conversion",
@@ -12891,8 +14001,8 @@
           "source-language"
         ]
       },
-      "x-name": "format-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "format-conversion"
     },
     {
       "$id": "full-width-conversion",
@@ -12958,8 +14068,8 @@
           "source-language"
         ]
       },
-      "x-name": "full-width-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "full-width-conversion"
     },
     {
       "$id": "fuzzy-match-character-count",
@@ -12982,8 +14092,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-match-character-count"
     },
     {
       "$id": "fuzzy-match-word-count",
@@ -13006,8 +14116,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-match-word-count"
     },
     {
       "$id": "fuzzy-previous-version-match-character-count",
@@ -13029,8 +14139,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-previous-version-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-previous-version-match-character-count"
     },
     {
       "$id": "fuzzy-previous-version-match-word-count",
@@ -13052,8 +14162,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-previous-version-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-previous-version-match-word-count"
     },
     {
       "$id": "fuzzy-repaired-character-count",
@@ -13076,8 +14186,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-repaired-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-repaired-character-count"
     },
     {
       "$id": "fuzzy-repaired-word-count",
@@ -13100,8 +14210,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-repaired-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-repaired-word-count"
     },
     {
       "$id": "fuzzy-unique-id-match-character-count",
@@ -13123,8 +14233,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-unique-id-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-unique-id-match-character-count"
     },
     {
       "$id": "fuzzy-unique-id-match-word-count",
@@ -13146,8 +14256,8 @@
           "source-language"
         ]
       },
-      "x-name": "fuzzy-unique-id-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "fuzzy-unique-id-match-word-count"
     },
     {
       "$id": "g-m-x-alphanumeric-only-text-unit-character-count",
@@ -13170,8 +14280,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-alphanumeric-only-text-unit-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-alphanumeric-only-text-unit-character-count"
     },
     {
       "$id": "g-m-x-alphanumeric-only-text-unit-word-count",
@@ -13194,8 +14304,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-alphanumeric-only-text-unit-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-alphanumeric-only-text-unit-word-count"
     },
     {
       "$id": "g-m-x-exact-matched-character-count",
@@ -13219,8 +14329,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-exact-matched-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-exact-matched-character-count"
     },
     {
       "$id": "g-m-x-exact-matched-word-count",
@@ -13244,8 +14354,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-exact-matched-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-exact-matched-word-count"
     },
     {
       "$id": "g-m-x-fuzzy-match-character-count",
@@ -13269,8 +14379,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-fuzzy-match-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-fuzzy-match-character-count"
     },
     {
       "$id": "g-m-x-fuzzy-match-word-count",
@@ -13294,8 +14404,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-fuzzy-match-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-fuzzy-match-word-count"
     },
     {
       "$id": "g-m-x-leveraged-matched-character-count",
@@ -13319,8 +14429,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-leveraged-matched-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-leveraged-matched-character-count"
     },
     {
       "$id": "g-m-x-leveraged-matched-word-count",
@@ -13344,8 +14454,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-leveraged-matched-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-leveraged-matched-word-count"
     },
     {
       "$id": "g-m-x-measurement-only-text-unit-character-count",
@@ -13368,8 +14478,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-measurement-only-text-unit-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-measurement-only-text-unit-character-count"
     },
     {
       "$id": "g-m-x-measurement-only-text-unit-word-count",
@@ -13392,8 +14502,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-measurement-only-text-unit-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-measurement-only-text-unit-word-count"
     },
     {
       "$id": "g-m-x-numeric-only-text-unit-character-count",
@@ -13416,8 +14526,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-numeric-only-text-unit-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-numeric-only-text-unit-character-count"
     },
     {
       "$id": "g-m-x-numeric-only-text-unit-word-count",
@@ -13440,8 +14550,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-numeric-only-text-unit-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-numeric-only-text-unit-word-count"
     },
     {
       "$id": "g-m-x-protected-character-count",
@@ -13465,8 +14575,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-protected-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-protected-character-count"
     },
     {
       "$id": "g-m-x-protected-word-count",
@@ -13490,8 +14600,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-protected-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-protected-word-count"
     },
     {
       "$id": "g-m-x-repetition-matched-character-count",
@@ -13514,8 +14624,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-repetition-matched-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-repetition-matched-character-count"
     },
     {
       "$id": "g-m-x-repetition-matched-word-count",
@@ -13538,8 +14648,8 @@
           "source-language"
         ]
       },
-      "x-name": "g-m-x-repetition-matched-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "g-m-x-repetition-matched-word-count"
     },
     {
       "$id": "general-checker",
@@ -13617,8 +14727,8 @@
           "source-language"
         ]
       },
-      "x-name": "general-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "general-checker"
     },
     {
       "$id": "id-based-aligner",
@@ -13731,8 +14841,8 @@
           "source-language"
         ]
       },
-      "x-name": "id-based-aligner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "id-based-aligner"
     },
     {
       "$id": "id-based-copy",
@@ -13770,8 +14880,8 @@
           "source-language"
         ]
       },
-      "x-name": "id-based-copy",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "id-based-copy"
     },
     {
       "$id": "image-modification",
@@ -13855,8 +14965,8 @@
           "block"
         ]
       },
-      "x-name": "image-modification",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "image-modification"
     },
     {
       "$id": "inconsistency-check",
@@ -13971,8 +15081,8 @@
           "source-language"
         ]
       },
-      "x-name": "inconsistency-check",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "inconsistency-check"
     },
     {
       "$id": "inline-codes-checker",
@@ -14026,8 +15136,8 @@
           "source-language"
         ]
       },
-      "x-name": "inline-codes-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "inline-codes-checker"
     },
     {
       "$id": "length-checker",
@@ -14117,8 +15227,8 @@
           "source-language"
         ]
       },
-      "x-name": "length-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "length-checker"
     },
     {
       "$id": "leveraging",
@@ -14245,8 +15355,8 @@
           "source-language"
         ]
       },
-      "x-name": "leveraging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "leveraging"
     },
     {
       "$id": "line-break-conversion",
@@ -14297,8 +15407,8 @@
           "block"
         ]
       },
-      "x-name": "line-break-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "line-break-conversion"
     },
     {
       "$id": "localizable-checker",
@@ -14321,8 +15431,8 @@
           "source-language"
         ]
       },
-      "x-name": "localizable-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "localizable-checker"
     },
     {
       "$id": "m-s-batch-translation",
@@ -14545,8 +15655,8 @@
           "source-language"
         ]
       },
-      "x-name": "m-s-batch-translation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "m-s-batch-translation"
     },
     {
       "$id": "m-t-character-count",
@@ -14569,8 +15679,8 @@
           "source-language"
         ]
       },
-      "x-name": "m-t-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "m-t-character-count"
     },
     {
       "$id": "m-t-word-count",
@@ -14593,8 +15703,8 @@
           "source-language"
         ]
       },
-      "x-name": "m-t-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "m-t-word-count"
     },
     {
       "$id": "merging",
@@ -14678,8 +15788,8 @@
           "source-language"
         ]
       },
-      "x-name": "merging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "merging"
     },
     {
       "$id": "paragraph-aligner",
@@ -14724,8 +15834,8 @@
           "source-language"
         ]
       },
-      "x-name": "paragraph-aligner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "paragraph-aligner"
     },
     {
       "$id": "patterns-checker",
@@ -14787,8 +15897,8 @@
           "source-language"
         ]
       },
-      "x-name": "patterns-checker",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "patterns-checker"
     },
     {
       "$id": "phrase-assembled-character-count",
@@ -14811,8 +15921,8 @@
           "source-language"
         ]
       },
-      "x-name": "phrase-assembled-character-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "phrase-assembled-character-count"
     },
     {
       "$id": "phrase-assembled-word-count",
@@ -14835,8 +15945,8 @@
           "source-language"
         ]
       },
-      "x-name": "phrase-assembled-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "phrase-assembled-word-count"
     },
     {
       "$id": "post-segmentation-code-simplifier",
@@ -14886,8 +15996,8 @@
           "source-language"
         ]
       },
-      "x-name": "post-segmentation-code-simplifier",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "post-segmentation-code-simplifier"
     },
     {
       "$id": "quality-check",
@@ -15645,8 +16755,8 @@
           "source-language"
         ]
       },
-      "x-name": "quality-check",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "quality-check"
     },
     {
       "$id": "r-t-f-conversion",
@@ -15717,8 +16827,8 @@
           "block"
         ]
       },
-      "x-name": "r-t-f-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "r-t-f-conversion"
     },
     {
       "$id": "raw-document-to-filter-events",
@@ -15737,8 +16847,8 @@
           "source-language"
         ]
       },
-      "x-name": "raw-document-to-filter-events",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "raw-document-to-filter-events"
     },
     {
       "$id": "raw-document-to-output-stream",
@@ -15757,8 +16867,8 @@
           "block"
         ]
       },
-      "x-name": "raw-document-to-output-stream",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "raw-document-to-output-stream"
     },
     {
       "$id": "raw-document-writer",
@@ -15780,8 +16890,8 @@
           "block"
         ]
       },
-      "x-name": "raw-document-writer",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "raw-document-writer"
     },
     {
       "$id": "remove-target",
@@ -15845,8 +16955,8 @@
           "source-language"
         ]
       },
-      "x-name": "remove-target",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "remove-target"
     },
     {
       "$id": "repetition-analysis",
@@ -15869,8 +16979,8 @@
           "source-language"
         ]
       },
-      "x-name": "repetition-analysis",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "repetition-analysis"
     },
     {
       "$id": "resource-simplifier",
@@ -15889,8 +16999,8 @@
           "source-language"
         ]
       },
-      "x-name": "resource-simplifier",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "resource-simplifier"
     },
     {
       "$id": "scoping-report",
@@ -16138,8 +17248,8 @@
           "source-language"
         ]
       },
-      "x-name": "scoping-report",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "scoping-report"
     },
     {
       "$id": "search-and-replace",
@@ -16232,8 +17342,8 @@
           "source-language"
         ]
       },
-      "x-name": "search-and-replace",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "search-and-replace"
     },
     {
       "$id": "segmentation",
@@ -16359,8 +17469,8 @@
           "source-language"
         ]
       },
-      "x-name": "segmentation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "segmentation"
     },
     {
       "$id": "sentence-aligner",
@@ -16557,8 +17667,8 @@
           "source-language"
         ]
       },
-      "x-name": "sentence-aligner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "sentence-aligner"
     },
     {
       "$id": "simple-word-count",
@@ -16582,8 +17692,8 @@
           "source-language"
         ]
       },
-      "x-name": "simple-word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "simple-word-count"
     },
     {
       "$id": "space-check",
@@ -16605,8 +17715,8 @@
           "source-language"
         ]
       },
-      "x-name": "space-check",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "space-check"
     },
     {
       "$id": "t-m-import",
@@ -16654,8 +17764,8 @@
           "source-language"
         ]
       },
-      "x-name": "t-m-import",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "t-m-import"
     },
     {
       "$id": "t-t-x-joiner",
@@ -16686,8 +17796,8 @@
           "block"
         ]
       },
-      "x-name": "t-t-x-joiner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "t-t-x-joiner"
     },
     {
       "$id": "t-t-x-splitter",
@@ -16723,8 +17833,8 @@
           "block"
         ]
       },
-      "x-name": "t-t-x-splitter",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "t-t-x-splitter"
     },
     {
       "$id": "term-extraction",
@@ -16970,8 +18080,8 @@
           "source-language"
         ]
       },
-      "x-name": "term-extraction",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "term-extraction"
     },
     {
       "$id": "terminology-leveraging",
@@ -17046,8 +18156,8 @@
           "source-language"
         ]
       },
-      "x-name": "terminology-leveraging",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "terminology-leveraging"
     },
     {
       "$id": "text-modification",
@@ -17143,8 +18253,8 @@
           "source-language"
         ]
       },
-      "x-name": "text-modification",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "text-modification"
     },
     {
       "$id": "tokenization",
@@ -17305,8 +18415,8 @@
           "source-language"
         ]
       },
-      "x-name": "tokenization",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "tokenization"
     },
     {
       "$id": "translation-comparison",
@@ -17559,8 +18669,8 @@
           "source-language"
         ]
       },
-      "x-name": "translation-comparison",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "translation-comparison"
     },
     {
       "$id": "tu-filtering",
@@ -17583,8 +18693,8 @@
           "source-language"
         ]
       },
-      "x-name": "tu-filtering",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "tu-filtering"
     },
     {
       "$id": "uri-conversion",
@@ -17623,8 +18733,8 @@
           "source-language"
         ]
       },
-      "x-name": "uri-conversion",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "uri-conversion"
     },
     {
       "$id": "whitespace-correction",
@@ -17751,8 +18861,8 @@
           "source-language"
         ]
       },
-      "x-name": "whitespace-correction",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "whitespace-correction"
     },
     {
       "$id": "word-count",
@@ -17853,8 +18963,8 @@
           "source-language"
         ]
       },
-      "x-name": "word-count",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "word-count"
     },
     {
       "$id": "x-m-l-analysis",
@@ -17912,8 +19022,8 @@
           "block"
         ]
       },
-      "x-name": "x-m-l-analysis",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-m-l-analysis"
     },
     {
       "$id": "x-m-l-char-fixing",
@@ -17947,8 +19057,8 @@
           "block"
         ]
       },
-      "x-name": "x-m-l-char-fixing",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-m-l-char-fixing"
     },
     {
       "$id": "x-m-l-validation",
@@ -18045,8 +19155,8 @@
           "block"
         ]
       },
-      "x-name": "x-m-l-validation",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-m-l-validation"
     },
     {
       "$id": "x-s-l-transform",
@@ -18106,8 +19216,8 @@
           "block"
         ]
       },
-      "x-name": "x-s-l-transform",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "x-s-l-transform"
     },
     {
       "$id": "xliff-joiner",
@@ -18145,8 +19255,8 @@
           "block"
         ]
       },
-      "x-name": "xliff-joiner",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "xliff-joiner"
     },
     {
       "$id": "xliff-splitter",
@@ -18233,8 +19343,8 @@
           "block"
         ]
       },
-      "x-name": "xliff-splitter",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "xliff-splitter"
     },
     {
       "$id": "xliff-w-c-splitter",
@@ -18265,8 +19375,8 @@
           "block"
         ]
       },
-      "x-name": "xliff-w-c-splitter",
-      "x-source": "bridge"
+      "x-source": "okapi-bridge",
+      "x-name": "xliff-w-c-splitter"
     }
   ]
 }

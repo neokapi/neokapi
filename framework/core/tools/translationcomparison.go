@@ -22,16 +22,16 @@ type TranslationComparisonConfig struct {
 	Locale2 model.LocaleID `json:"locale2,omitempty" schema:"-"`
 
 	// Comparison sensitivity settings.
-	CaseSensitive        bool `json:"caseSensitive,omitempty"        schema:"description=Take case differences into account when comparing,default=true"`
-	WhitespaceSensitive  bool `json:"whitespaceSensitive,omitempty"  schema:"description=Take whitespace differences into account when comparing,default=true"`
-	PunctuationSensitive bool `json:"punctuationSensitive,omitempty" schema:"description=Take punctuation differences into account when comparing,default=true"`
+	CaseSensitive        bool `json:"caseSensitive,omitempty"        schema:"title=Case Sensitive,description=Take case differences into account when comparing,default=true"`
+	WhitespaceSensitive  bool `json:"whitespaceSensitive,omitempty"  schema:"title=Whitespace Sensitive,description=Take whitespace differences into account when comparing,default=true"`
+	PunctuationSensitive bool `json:"punctuationSensitive,omitempty" schema:"title=Punctuation Sensitive,description=Take punctuation differences into account when comparing,default=true"`
 
 	// Report labels for identifying compared translations.
-	Document1Label string `json:"document1Label,omitempty" schema:"description=Label for the first translation in reports,default=Trans1"`
-	Document2Label string `json:"document2Label,omitempty" schema:"description=Label for the second translation in reports,default=Trans2"`
+	Document1Label string `json:"document1Label,omitempty" schema:"title=Document 1 Label,description=Label for the first translation in reports,default=Trans1"`
+	Document2Label string `json:"document2Label,omitempty" schema:"title=Document 2 Label,description=Label for the second translation in reports,default=Trans2"`
 
 	// Output options.
-	GenericCodes bool `json:"genericCodes,omitempty" schema:"description=Use generic numbered tags (e.g. <1>...</1>) instead of original inline codes in reports,default=true"`
+	GenericCodes bool `json:"genericCodes,omitempty" schema:"title=Use Generic Codes,description=Use generic numbered tags (e.g. <1>...</1>) instead of original inline codes in reports,default=true"`
 }
 
 // ToolName returns the tool name this config applies to.

@@ -10,7 +10,7 @@ import (
 
 // BatchConfig holds configuration for the batch collector tool.
 type BatchConfig struct {
-	Size int `schema:"description=Number of blocks to collect before forwarding as a batch,default=10,min=1"`
+	Size int `schema:"title=Batch Size,description=Number of blocks to collect before forwarding as a batch,default=10,min=1"`
 }
 
 // ToolName returns the tool name this config applies to.

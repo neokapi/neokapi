@@ -14,9 +14,9 @@ import (
 // ScriptConfig holds configuration for the script tool.
 // Source selects between inline code and file — a standard mode-selector pattern.
 type ScriptConfig struct {
-	Source     string `json:"source,omitempty"     schema:"description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
-	Code       string `json:"code,omitempty"       schema:"description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
-	ScriptFile string `json:"scriptFile,omitempty" schema:"description=Path to a .js file,widget=file-picker,showIf=source:file"`
+	Source     string `json:"source,omitempty"     schema:"title=Script Source,description=Script source mode,enum=inline|file,default=inline,widget=segmented"`
+	Code       string `json:"code,omitempty"       schema:"title=Inline Code,description=Inline ES5 JavaScript code,widget=code-editor,showIf=source:inline"`
+	ScriptFile string `json:"scriptFile,omitempty" schema:"title=Script File,description=Path to a .js file,widget=file-picker,showIf=source:file"`
 }
 
 // ToolName returns the tool name this config applies to.
