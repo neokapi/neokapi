@@ -93,7 +93,7 @@ export function TMBrowser({
   }, [fetchEntries, debouncedSearch, page]);
 
   const toggleSelect = useCallback((id: string) => {
-    setSelected((prev) => {
+    setSelected((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -102,7 +102,7 @@ export function TMBrowser({
   }, []);
 
   const selectAll = useCallback(() => {
-    setSelected(new Set(entries.map((e) => e.id)));
+    setSelected(new Set(entries.map((e: TMEntryDTO) => e.id)));
   }, [entries]);
 
   const deselectAll = useCallback(() => {
@@ -139,7 +139,7 @@ export function TMBrowser({
     async (id: string) => {
       try {
         await adapter.deleteEntry(id);
-        setSelected((prev) => {
+        setSelected((prev: Set<string>) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
@@ -296,7 +296,7 @@ export function TMBrowser({
         {/* Entry list */}
         {entries.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            {entries.map((entry) => (
+            {entries.map((entry: TMEntryDTO) => (
               <div
                 key={entry.id}
                 className={`group rounded-md border p-3 transition-colors ${

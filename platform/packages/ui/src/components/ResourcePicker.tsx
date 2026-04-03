@@ -103,7 +103,7 @@ export function ResourcePicker({
           )}
           <Input
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value)}
             placeholder={placeholder ?? "Enter file path..."}
             disabled={disabled}
           />
@@ -185,7 +185,7 @@ export function ResourcePicker({
             )}
             <Input
               value={parsed.mode === "file" ? parsed.name : ""}
-              onChange={(e) => handleFileChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(e.target.value)}
               placeholder="Enter file path..."
               disabled={disabled}
             />

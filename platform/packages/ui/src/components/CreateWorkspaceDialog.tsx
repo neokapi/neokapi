@@ -74,7 +74,7 @@ export function CreateWorkspaceDialog({
             <Label className="text-muted-foreground">Name</Label>
             <Input
               value={name}
-              onChange={(e) => handleNameChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNameChange(e.target.value)}
               placeholder="My Workspace"
               autoFocus
               className="mt-1"
@@ -84,7 +84,7 @@ export function CreateWorkspaceDialog({
             <Label className="text-muted-foreground">Slug</Label>
             <Input
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSlug(e.target.value)}
               placeholder="my-workspace"
               className="mt-1"
             />

@@ -317,7 +317,7 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
                             <Input
                               type="text"
                               value={editTarget}
-                              onChange={(e) => setEditTarget(e.target.value)}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTarget(e.target.value)}
                               className="flex-1 h-8"
                               data-testid={`tm-edit-input-${entry.id}`}
                             />
@@ -444,7 +444,7 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
                 type="text"
                 placeholder="Source text"
                 value={addSource}
-                onChange={(e) => setAddSource(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddSource(e.target.value)}
                 className="mt-1"
                 data-testid="tm-add-source-input"
                 autoFocus
@@ -456,7 +456,7 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
                 type="text"
                 placeholder="Target text"
                 value={addTarget}
-                onChange={(e) => setAddTarget(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddTarget(e.target.value)}
                 className="mt-1"
                 data-testid="tm-add-target-input"
               />

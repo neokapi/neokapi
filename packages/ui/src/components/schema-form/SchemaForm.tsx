@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { cn } from "../../lib/utils";
-import type { PropertySchema, SchemaFormProps } from "./types";
+import type { ParameterGroup, PropertySchema, SchemaFormProps } from "./types";
 import { PropertyField } from "./PropertyField";
 import { FieldGroup } from "./FieldGroup";
 import { RetryPolicySection } from "./widgets/RetryPolicy";
@@ -157,7 +157,7 @@ export function SchemaForm({
       )}
 
       {/* Grouped fields */}
-      {groups.map((group, groupIndex) => (
+      {groups.map((group: ParameterGroup, groupIndex: number) => (
         <FieldGroup
           key={group.id}
           group={group}
@@ -183,7 +183,7 @@ export function SchemaForm({
             </div>
           )}
           <div className={cn("flex flex-col", compact ? "gap-0.5" : "gap-1.5")}>
-            {ungrouped.map((key) => (
+            {ungrouped.map((key: string) => (
               <PropertyField
                 key={key}
                 name={key}

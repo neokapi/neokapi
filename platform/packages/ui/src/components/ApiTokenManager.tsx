@@ -399,12 +399,12 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                 <Label className="text-muted-foreground">Name</Label>
                 <Input
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   placeholder="e.g. CI/CD Pipeline"
                   autoFocus
                   className="mt-1"
                   data-testid="token-name-input"
-                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleCreate()}
                 />
               </div>
               <div>
@@ -442,7 +442,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                     type="date"
                     value={customDate}
                     min={toDateString(new Date())}
-                    onChange={(e) => setCustomDate(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCustomDate(e.target.value)}
                     className="mt-1"
                     data-testid="token-custom-date-input"
                   />
@@ -509,7 +509,7 @@ export function ApiTokenManager({ workspace }: ApiTokenManagerProps) {
                       <Label className="text-muted-foreground text-xs">Languages (optional)</Label>
                       <Input
                         value={scopeLanguages}
-                        onChange={(e) => setScopeLanguages(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setScopeLanguages(e.target.value)}
                         placeholder="e.g. fr, de, ja (leave empty for all)"
                         className="mt-1 text-sm"
                         data-testid="scope-languages-input"

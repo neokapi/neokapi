@@ -52,7 +52,7 @@ export const BasicField: StoryObj = {
             <Input
               value={value}
               placeholder="my-project"
-              onChange={(e) => setValue(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setValue(e.target.value)}
             />
           </FormControl>
         </FormItem>
@@ -333,7 +333,7 @@ export const ComposedConfigEditor: StoryObj = {
                   value={threshold}
                   disabled={!useTM}
                   className="h-8 text-xs"
-                  onChange={(e) => setThreshold(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setThreshold(e.target.value)}
                 />
               </FormControl>
             </FormItem>

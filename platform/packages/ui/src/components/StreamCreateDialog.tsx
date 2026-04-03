@@ -80,7 +80,7 @@ export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamC
             <Label className="text-muted-foreground">Name</Label>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               placeholder="feature/translations"
               autoFocus
               className="mt-1"
@@ -124,7 +124,7 @@ export function StreamCreateDialog({ streams, onSubmit, onClose, open }: StreamC
             <Label className="text-muted-foreground">Description</Label>
             <Input
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
               placeholder="Optional description"
               className="mt-1"
             />

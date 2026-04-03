@@ -159,7 +159,7 @@ function renderProperty(
         </div>
         <Switch
           checked={!!value}
-          onCheckedChange={(v) => updateField(key, v)}
+          onCheckedChange={(v: boolean) => updateField(key, v)}
           disabled={disabled}
         />
       </div>
@@ -173,7 +173,7 @@ function renderProperty(
         <Label>{label}</Label>
         <Select
           value={String(value ?? "")}
-          onValueChange={(v) => updateField(key, v)}
+          onValueChange={(v: string) => updateField(key, v)}
           disabled={disabled}
         >
           <SelectTrigger>
@@ -203,7 +203,7 @@ function renderProperty(
         <Label>{label}</Label>
         <Input
           value={(value as string) || ""}
-          onChange={(e) => updateField(key, e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField(key, e.target.value)}
           placeholder={prop.description}
           disabled={disabled}
         />
@@ -219,7 +219,7 @@ function renderProperty(
         <Input
           type="number"
           value={value !== undefined ? String(value) : ""}
-          onChange={(e) => updateField(key, parseInt(e.target.value, 10))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField(key, parseInt(e.target.value, 10))}
           placeholder={prop.description}
           disabled={disabled}
         />

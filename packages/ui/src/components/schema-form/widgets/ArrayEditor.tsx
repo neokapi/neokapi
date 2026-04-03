@@ -96,7 +96,7 @@ export function ArrayEditor({
             value={newItem}
             placeholder="Add..."
             className="h-6 w-24 text-xs"
-            onKeyDown={(e) => {
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
               if (e.key === "Enter" && newItem.trim()) {
                 handleAdd(
                   itemSchema.type === "number"
@@ -108,7 +108,7 @@ export function ArrayEditor({
                 setNewItem("");
               }
             }}
-            onChange={(e) => setNewItem(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewItem(e.target.value)}
           />
         </div>
       </div>

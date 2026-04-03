@@ -213,7 +213,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(job.TargetLocale),
 		BatchSize:    batchSz,
-		Concurrency:  concurrency,
+		BatchConcurrency: concurrency,
 	})
 
 	// Process blocks in progress-reporting chunks. The tool handles

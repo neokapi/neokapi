@@ -138,7 +138,7 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
                 <Input
                   id="profile-name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                   placeholder="e.g. Enterprise Documentation"
                 />
               </div>
@@ -147,7 +147,7 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
                 <Input
                   id="profile-desc"
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
                   placeholder="Brief description of this voice profile"
                 />
               </div>

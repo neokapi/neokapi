@@ -39,7 +39,7 @@ function MapEntry({
         <input
           value={String(value ?? "")}
           className="flex-1 bg-transparent px-2.5 py-1.5 text-xs outline-none"
-          onChange={(e) => onValueChange(e.target.value || undefined)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onValueChange(e.target.value || undefined)}
         />
         <Button
           type="button"
@@ -73,7 +73,7 @@ function MapEntry({
           variant="ghost"
           size="sm"
           className="size-5 p-0 text-muted-foreground hover:text-destructive"
-          onClick={(e) => {
+          onClick={(e: React.MouseEvent) => {
             e.stopPropagation();
             onRemove();
           }}
@@ -167,8 +167,8 @@ export function MapEditor({
           value={newKey}
           placeholder={keyPlaceholder || "New key..."}
           className="h-7 text-xs flex-1"
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          onChange={(e) => setNewKey(e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleAdd()}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewKey(e.target.value)}
         />
         <Button
           type="button"

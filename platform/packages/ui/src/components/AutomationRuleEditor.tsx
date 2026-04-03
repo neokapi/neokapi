@@ -38,7 +38,7 @@ function ConditionRow({
         className="flex-1"
         placeholder="Field"
         value={condition.Field}
-        onChange={(e) => onChange({ ...condition, Field: e.target.value })}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...condition, Field: e.target.value })}
       />
       <Select
         value={condition.Operator}
@@ -59,7 +59,7 @@ function ConditionRow({
         className="flex-1"
         placeholder="Value"
         value={condition.Value}
-        onChange={(e) => onChange({ ...condition, Value: e.target.value })}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...condition, Value: e.target.value })}
         disabled={condition.Operator === "exists"}
       />
       <Button variant="ghost" size="sm" onClick={onRemove}>
@@ -143,7 +143,7 @@ function ActionRow({
           <Input
             className="flex-1"
             value={val}
-            onChange={(e) => updateConfig(key, e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateConfig(key, e.target.value)}
           />
           <Button variant="ghost" size="sm" onClick={() => removeConfigField(key)}>
             x
@@ -254,7 +254,7 @@ export function AutomationRuleEditor({
             <Input
               id="rule-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               placeholder="e.g. Auto-translate on upload"
             />
           </div>

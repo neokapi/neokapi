@@ -47,7 +47,7 @@ export function StreamEditDialog({ stream, onSubmit, onClose, open }: StreamEdit
             <Label className="text-muted-foreground">Description</Label>
             <Input
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
               placeholder="What is this stream for?"
               autoFocus
               className="mt-1"

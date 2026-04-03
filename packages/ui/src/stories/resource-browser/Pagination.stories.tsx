@@ -7,7 +7,7 @@ const meta: Meta<typeof Pagination> = {
   component: Pagination,
   tags: ["autodocs"],
   decorators: [
-    (Story) => (
+    (Story: React.ComponentType) => (
       <div style={{ maxWidth: 500, padding: 16 }}>
         <Story />
       </div>

@@ -6,7 +6,7 @@ const meta: Meta<typeof MatchScoreBar> = {
   component: MatchScoreBar,
   tags: ["autodocs"],
   decorators: [
-    (Story) => (
+    (Story: React.ComponentType) => (
       <div style={{ width: 300, padding: 16 }}>
         <Story />
       </div>

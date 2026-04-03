@@ -91,7 +91,7 @@ export function ResourceBrowser({
           <DialogTitle>Select {kindLabels[resourceKind]}</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "named" | "file")}>
+        <Tabs value={tab} onValueChange={(v: string) => setTab(v as "named" | "file")}>
           <TabsList>
             <TabsTrigger value="named" className="gap-1.5">
               <DatabaseIcon className="size-3.5" />
@@ -109,7 +109,7 @@ export function ResourceBrowser({
                 <SearchIcon className="absolute top-2 left-2.5 size-4 text-muted-foreground" />
                 <Input
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
                   placeholder="Search resources..."
                   className="pl-8"
                 />
@@ -169,7 +169,7 @@ export function ResourceBrowser({
                 <Label>File path</Label>
                 <Input
                   value={filePath}
-                  onChange={(e) => setFilePath(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFilePath(e.target.value)}
                   placeholder="Enter absolute or relative path..."
                 />
               </div>

@@ -134,7 +134,7 @@ export function CodeFinderEditor({
     (index: number) => {
       const next = [...rules];
       next.splice(index, 1);
-      setErrors((prev) => {
+      setErrors((prev: Map<number, string>) => {
         const updated = new Map(prev);
         updated.delete(index);
         return updated;
@@ -149,7 +149,7 @@ export function CodeFinderEditor({
       const next = [...rules];
       next[index] = { pattern };
       const err = validateRegex(pattern);
-      setErrors((prev) => {
+      setErrors((prev: Map<number, string>) => {
         const updated = new Map(prev);
         if (err) updated.set(index, err);
         else updated.delete(index);
@@ -296,7 +296,7 @@ export function CodeFinderEditor({
           placeholder="Enter sample text to test patterns against..."
           disabled={disabled}
           className="text-sm"
-          onChange={(e) => update({ sample: e.target.value })}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => update({ sample: e.target.value })}
         />
 
         {/* Match preview */}

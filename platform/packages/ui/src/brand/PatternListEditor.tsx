@@ -55,13 +55,13 @@ export function PatternListEditor({ label, patterns, onChange }: PatternListEdit
           <Input
             placeholder="Regex"
             value={pat.regex}
-            onChange={(e) => updatePattern(i, "regex", e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePattern(i, "regex", e.target.value)}
             className="font-mono text-xs"
           />
           <Input
             placeholder="Description"
             value={pat.description}
-            onChange={(e) => updatePattern(i, "description", e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePattern(i, "description", e.target.value)}
           />
           <Select
             value={pat.severity}

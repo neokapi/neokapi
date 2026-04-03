@@ -99,7 +99,7 @@ export function PersonalityTagPicker({ tags, onChange }: PersonalityTagPickerPro
       {/* Custom tag input */}
       <Input
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Type a custom tag and press Enter"
         className="text-sm"

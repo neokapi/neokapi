@@ -189,7 +189,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
           <Input
             id="profile-name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
             placeholder="e.g. Enterprise Documentation"
           />
         </div>
@@ -198,7 +198,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
           <Input
             id="profile-desc"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
             placeholder="Brief description of this voice profile"
           />
         </div>
@@ -233,9 +233,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
               <div className="flex gap-2">
                 <Input
                   value={personalityInput}
-                  onChange={(e) => setPersonalityInput(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPersonalityInput(e.target.value)}
                   placeholder="Add tag (e.g. friendly, professional)"
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPersonalityTag())}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && (e.preventDefault(), addPersonalityTag())}
                 />
                 <Button variant="outline" size="sm" onClick={addPersonalityTag}>
                   Add
@@ -397,7 +397,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Input
                     placeholder="Regex"
                     value={pat.regex}
-                    onChange={(e) =>
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updatePattern("prohibited_patterns", i, "regex", e.target.value)
                     }
                     className="font-mono text-xs"
@@ -405,7 +405,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Input
                     placeholder="Description"
                     value={pat.description}
-                    onChange={(e) =>
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updatePattern("prohibited_patterns", i, "description", e.target.value)
                     }
                   />
@@ -448,13 +448,13 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Input
                     placeholder="Regex"
                     value={pat.regex}
-                    onChange={(e) => updatePattern("required_patterns", i, "regex", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePattern("required_patterns", i, "regex", e.target.value)}
                     className="font-mono text-xs"
                   />
                   <Input
                     placeholder="Description"
                     value={pat.description}
-                    onChange={(e) =>
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                       updatePattern("required_patterns", i, "description", e.target.value)
                     }
                   />
@@ -508,17 +508,17 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                       <Input
                         placeholder="Term"
                         value={rule.term}
-                        onChange={(e) => updateTermRule(category, i, "term", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTermRule(category, i, "term", e.target.value)}
                       />
                       <Input
                         placeholder="Replacement"
                         value={rule.replacement ?? ""}
-                        onChange={(e) => updateTermRule(category, i, "replacement", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTermRule(category, i, "replacement", e.target.value)}
                       />
                       <Input
                         placeholder="Note"
                         value={rule.note ?? ""}
-                        onChange={(e) => updateTermRule(category, i, "note", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTermRule(category, i, "note", e.target.value)}
                       />
                       <Button
                         variant="ghost"
@@ -566,7 +566,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                     <Label className="text-xs">Before</Label>
                     <Input
                       value={ex.before}
-                      onChange={(e) => updateExample(i, "before", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "before", e.target.value)}
                       placeholder="Original text"
                     />
                   </div>
@@ -574,7 +574,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                     <Label className="text-xs">After</Label>
                     <Input
                       value={ex.after}
-                      onChange={(e) => updateExample(i, "after", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "after", e.target.value)}
                       placeholder="Brand-compliant text"
                     />
                   </div>
@@ -583,7 +583,7 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Label className="text-xs">Explanation</Label>
                   <Input
                     value={ex.explanation ?? ""}
-                    onChange={(e) => updateExample(i, "explanation", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "explanation", e.target.value)}
                     placeholder="Why this change?"
                   />
                 </div>

@@ -66,7 +66,7 @@ export function ExamplesEditor({ examples, onChange }: ExamplesEditorProps) {
               <Label className="text-xs text-destructive/80">Before</Label>
               <Input
                 value={ex.before}
-                onChange={(e) => updateExample(i, "before", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "before", e.target.value)}
                 placeholder="Original text"
               />
             </div>
@@ -74,7 +74,7 @@ export function ExamplesEditor({ examples, onChange }: ExamplesEditorProps) {
               <Label className="text-xs text-emerald-500">After</Label>
               <Input
                 value={ex.after}
-                onChange={(e) => updateExample(i, "after", e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "after", e.target.value)}
                 placeholder="Brand-compliant text"
               />
             </div>
@@ -83,7 +83,7 @@ export function ExamplesEditor({ examples, onChange }: ExamplesEditorProps) {
             <Label className="text-xs">Explanation</Label>
             <Input
               value={ex.explanation ?? ""}
-              onChange={(e) => updateExample(i, "explanation", e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "explanation", e.target.value)}
               placeholder="Why this change?"
             />
           </div>

@@ -270,7 +270,7 @@ export function ProjectMemberManager({
               <Label className="text-muted-foreground">User ID</Label>
               <Input
                 value={userId}
-                onChange={(e) => setUserId(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUserId(e.target.value)}
                 placeholder="user-id"
                 disabled={!!editingMember}
                 autoFocus={!editingMember}

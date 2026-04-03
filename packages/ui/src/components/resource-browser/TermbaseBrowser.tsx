@@ -91,7 +91,7 @@ export function TermbaseBrowser({
   }, []);
 
   const toggleSelect = useCallback((id: string) => {
-    setSelected((prev) => {
+    setSelected((prev: Set<string>) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -129,7 +129,7 @@ export function TermbaseBrowser({
       try {
         await adapter.deleteConcept(id);
         setDeleteConfirmId(null);
-        setSelected((prev) => {
+        setSelected((prev: Set<string>) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
@@ -153,7 +153,7 @@ export function TermbaseBrowser({
   }, [adapter, selected, fetchConcepts, debouncedSearch, page, onError]);
 
   const handleAdd = useCallback(async () => {
-    const validTerms = newTerms.filter((t) => t.text.trim());
+    const validTerms = newTerms.filter((t: TermDTO) => t.text.trim());
     if (validTerms.length === 0) return;
     try {
       await adapter.addConcept({
@@ -271,7 +271,7 @@ export function TermbaseBrowser({
       {/* Concept cards */}
       {concepts.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          {concepts.map((concept) => (
+          {concepts.map((concept: ConceptDTO) => (
             <div
               key={concept.id}
               className={`group rounded-lg border p-4 transition-colors ${
@@ -298,12 +298,12 @@ export function TermbaseBrowser({
                     placeholder="Definition"
                     className="rounded border border-input bg-transparent px-2 py-1 text-[12px] outline-none focus:ring-1 focus:ring-ring"
                   />
-                  {editConcept.terms.map((term, idx) => (
+                  {editConcept.terms.map((term: TermDTO, idx: number) => (
                     <div key={idx} className="flex gap-1">
                       <input
                         type="text"
                         value={term.text}
-                        onChange={(e) => {
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const terms = [...editConcept.terms];
                           terms[idx] = { ...terms[idx], text: e.target.value };
                           setEditConcept({ ...editConcept, terms });
@@ -390,7 +390,7 @@ export function TermbaseBrowser({
                   )}
 
                   <div className="flex flex-col gap-0.5 mb-2">
-                    {concept.terms.map((term, idx) => (
+                    {concept.terms.map((term: TermDTO, idx: number) => (
                       <div key={idx} className="flex items-center gap-1.5">
                         <LocalePill locale={term.locale} />
                         <span
@@ -484,12 +484,12 @@ export function TermbaseBrowser({
               </div>
               <div>
                 <label className="text-[12px] text-muted-foreground block mb-1">Terms</label>
-                {newTerms.map((term, idx) => (
+                {newTerms.map((term: TermDTO, idx: number) => (
                   <div key={idx} className="flex gap-1.5 mb-1">
                     <input
                       type="text"
                       value={term.text}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         const t = [...newTerms];
                         t[idx] = { ...t[idx], text: e.target.value };
                         setNewTerms(t);
@@ -525,7 +525,7 @@ export function TermbaseBrowser({
                     </select>
                     {newTerms.length > 1 && (
                       <button
-                        onClick={() => setNewTerms(newTerms.filter((_, i) => i !== idx))}
+                        onClick={() => setNewTerms(newTerms.filter((_: TermDTO, i: number) => i !== idx))}
                         className="text-xs text-muted-foreground hover:text-destructive px-1"
                       >
                         x
@@ -546,7 +546,7 @@ export function TermbaseBrowser({
             <div className="flex gap-2 mt-4 pt-3 border-t border-border">
               <button
                 onClick={() => void handleAdd()}
-                disabled={newTerms.every((t) => !t.text.trim())}
+                disabled={newTerms.every((t: TermDTO) => !t.text.trim())}
                 className="rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 Save
