@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
@@ -303,13 +304,14 @@ export function FlowsPage({
     return (
       <div className="flex flex-col h-full">
         <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={handleCloseEditor}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
             title="Back to flow list"
           >
             <X size={16} />
-          </button>
+          </Button>
           <Workflow size={16} className="text-muted-foreground" />
           <h1 className="text-sm font-semibold">{selectedId}</h1>
           {isReadOnly && (
@@ -319,31 +321,34 @@ export function FlowsPage({
           )}
           <div className="ml-auto flex gap-2">
             {isReadOnly && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => void handleCopyBuiltIn({ id: selectedId, name: selectedId, description: "", source: "built-in", stepCount: 0 })}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <Copy size={12} />
                 Copy to edit
-              </button>
+              </Button>
             )}
             {!isReadOnly && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => void handleSaveAs()}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <Download size={12} />
                 Save As...
-              </button>
+              </Button>
             )}
             {tabID && !isReadOnly && (
-              <button
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => void handleSaveProject()}
-                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
               >
                 <Save size={12} />
                 Save
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -370,30 +375,32 @@ export function FlowsPage({
         </h1>
         <div className="flex gap-2">
           {!isProjectMode && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => void handleOpenFile()}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <FolderOpen size={12} />
               Open File...
-            </button>
+            </Button>
           )}
           {isProjectMode && (
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => void handleOpenImportDialog()}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <Import size={12} />
               Import Flow
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            size="sm"
             onClick={() => setShowCreateDialog(true)}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus size={12} />
             New Flow
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -444,38 +451,43 @@ export function FlowsPage({
                   onClick={(e) => e.stopPropagation()}
                 >
                   {item.source === "built-in" ? (
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       onClick={() => void handleCopyBuiltIn(item)}
-                      className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
                       title="Copy to edit"
                     >
                       <Copy size={12} />
-                    </button>
+                    </Button>
                   ) : (
                     <>
                       {deleteConfirm === item.id ? (
                         <div className="flex gap-1">
-                          <button
+                          <Button
+                            variant="destructive"
+                            size="xs"
                             onClick={() => void handleDeleteFlow(item)}
-                            className="px-2 py-0.5 rounded text-[10px] bg-destructive text-destructive-foreground"
                           >
                             Delete
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="xs"
                             onClick={() => setDeleteConfirm(null)}
-                            className="px-2 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground"
                           >
                             Cancel
-                          </button>
+                          </Button>
                         </div>
                       ) : (
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="icon-xs"
                           onClick={() => setDeleteConfirm(item.id)}
-                          className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                          className="hover:bg-destructive/10 hover:text-destructive"
                           title="Delete flow"
                         >
                           <Trash2 size={12} />
-                        </button>
+                        </Button>
                       )}
                     </>
                   )}
@@ -494,12 +506,12 @@ export function FlowsPage({
               ? "No flows defined in this project yet."
               : "Create a flow or copy a built-in to get started."}
           </p>
-          <button
+          <Button
+            size="sm"
             onClick={() => setShowCreateDialog(true)}
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
             Create Flow
-          </button>
+          </Button>
         </div>
       )}
 
@@ -521,19 +533,20 @@ export function FlowsPage({
               You can start from a template in the editor.
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
+                size="sm"
                 onClick={() => void handleCreateFlow()}
                 disabled={!newFlowName.trim()}
-                className="rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 Create
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => { setShowCreateDialog(false); setNewFlowName(""); }}
-                className="rounded-md border border-border px-4 py-2 text-xs hover:bg-accent transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -545,12 +558,13 @@ export function FlowsPage({
           <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Import Flow</h2>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={() => setShowImportDialog(false)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground"
               >
                 <X size={14} />
-              </button>
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
               Copy a built-in or user flow into this project. The flow will be independent — changes won't affect the original.
@@ -560,10 +574,11 @@ export function FlowsPage({
             ) : (
               <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
                 {importFlows.map((item) => (
-                  <button
+                  <Button
                     key={item.id}
+                    variant="outline"
                     onClick={() => void handleImportFlow(item)}
-                    className="flex items-center gap-3 w-full text-left rounded-md border border-border p-3 hover:border-primary/30 hover:bg-accent/50 transition-colors"
+                    className="flex items-center gap-3 w-full h-auto text-left p-3 hover:border-primary/30 hover:bg-accent/50"
                   >
                     <Workflow size={14} className="text-muted-foreground shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -578,7 +593,7 @@ export function FlowsPage({
                       )}
                     </div>
                     <span className="text-[10px] text-muted-foreground">{item.stepCount} steps</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}

@@ -1,4 +1,5 @@
 import { FolderKanban, FolderOpen, Sparkles, Workflow, Wrench, X } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import { useShortenHome } from "../hooks/useShortenHome";
 
 interface AppHomeProps {
@@ -41,73 +42,81 @@ export function AppHome({
           <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <Sparkles size={14} />
             <span className="flex-1">New to Kapi? Try a sample project</span>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={onDismissSamples}
-              className="rounded p-0.5 text-muted-foreground/60 transition-colors hover:bg-accent hover:text-foreground"
+              className="text-muted-foreground/60"
               title="Dismiss"
             >
               <X size={14} />
-            </button>
+            </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button
+            <Button
+              variant="outline"
               onClick={() => onCreateSampleProject("kapimart")}
-              className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
+              className="h-auto rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
             >
               <div className="text-sm font-medium">KapiMart</div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground font-normal">
                 A sample store using Kapi's built-in Go formats — JSON, HTML, Markdown, and more.
                 No plugins needed.
               </p>
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => onCreateSampleProject("okapimart")}
-              className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-left transition-colors hover:border-primary/40 hover:bg-primary/10"
+              className="h-auto rounded-lg border-primary/20 bg-primary/5 p-4 text-left flex-col items-start hover:border-primary/40 hover:bg-primary/10"
             >
               <div className="text-sm font-medium">OkapiMart</div>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground font-normal">
                 Same store files processed through Okapi Java filters. Requires the okapi-bridge
                 plugin.
               </p>
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {/* Quick actions */}
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <button
+        <Button
+          variant="outline"
           onClick={onNewProject}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <FolderKanban size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">New Project</div>
-          <div className="text-xs text-muted-foreground">Create a Kapi project</div>
-        </button>
-        <button
+          <div className="text-xs text-muted-foreground font-normal">Create a Kapi project</div>
+        </Button>
+        <Button
+          variant="outline"
           onClick={onOpenProject}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <FolderOpen size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Open a Project</div>
-          <div className="text-xs text-muted-foreground">Open an existing Kapi project</div>
-        </button>
-        <button
+          <div className="text-xs text-muted-foreground font-normal">Open an existing Kapi project</div>
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => onNavigate("flows")}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <Workflow size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Design a Flow</div>
-          <div className="text-xs text-muted-foreground">Build tool pipelines</div>
-        </button>
-        <button
+          <div className="text-xs text-muted-foreground font-normal">Build tool pipelines</div>
+        </Button>
+        <Button
+          variant="outline"
           onClick={() => onNavigate("tools")}
-          className="rounded-lg border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+          className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <Wrench size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Run a Tool</div>
-          <div className="text-xs text-muted-foreground">Execute a tool on files</div>
-        </button>
+          <div className="text-xs text-muted-foreground font-normal">Execute a tool on files</div>
+        </Button>
       </div>
 
       {/* Recent projects */}
@@ -118,10 +127,11 @@ export function AppHome({
           </h2>
           <div className="space-y-1">
             {recentFiles.map((file) => (
-              <button
+              <Button
                 key={file.path}
+                variant="outline"
                 onClick={() => onOpenRecent(file.path)}
-                className="flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent/30"
+                className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
               >
                 <FolderKanban size={16} className="shrink-0 text-muted-foreground" />
                 <div className="flex-1 truncate">
@@ -132,7 +142,7 @@ export function AppHome({
                       : shortenHome(file.path)}
                   </div>
                 </div>
-              </button>
+              </Button>
             ))}
           </div>
         </section>

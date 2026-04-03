@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { FolderOpen, FilePlus, Workflow, Wrench, Puzzle, Settings } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -138,14 +139,15 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
         style={{ WebkitAppRegion: "drag" } as React.CSSProperties}
       >
         {onSettings && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={onSettings}
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             style={{ WebkitAppRegion: "no-drag" } as React.CSSProperties}
             aria-label="Settings"
           >
             <Settings size={16} />
-          </button>
+          </Button>
         )}
       </div>
 
@@ -185,23 +187,27 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                           : "border-input"
                       } ${customPath ? "text-muted-foreground" : ""}`}
                     />
-                    <button
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
                       onClick={handleBrowse}
-                      className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                      className="shrink-0"
                       aria-label="Browse for location"
                       title="Choose location"
                     >
                       <FolderOpen size={16} />
-                    </button>
+                    </Button>
                     {customPath && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
                         onClick={() => setCustomPath("")}
-                        className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                        className="shrink-0"
                         aria-label="Clear location"
                         title="Clear location"
                       >
                         <span className="text-sm">✕</span>
-                      </button>
+                      </Button>
                     )}
                   </div>
                   {customPath ? (
@@ -219,38 +225,39 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  <button
+                  <Button
                     onClick={handleCreateProject}
                     disabled={!canCreate || creating}
-                    className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                    className="flex-1"
                   >
                     {creating ? "Creating..." : "Create Project"}
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={() => setShowNewForm(false)}
-                    className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
                   >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             ) : (
               <div className="flex gap-3">
-                <button
+                <Button
                   onClick={handleNew}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                  className="gap-2 px-6 shadow-sm"
                 >
                   <FilePlus size={16} />
                   New Project
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="outline"
                   onClick={handleOpen}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-background px-6 py-2.5 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
+                  className="gap-2 px-6 shadow-sm"
                   aria-label="Open a Kapi project"
                 >
                   <FolderOpen size={16} />
                   Open a Kapi project
-                </button>
+                </Button>
               </div>
             )}
 
@@ -268,10 +275,11 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
             </h2>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {GET_STARTED.map((item) => (
-                <button
+                <Button
                   key={item.title}
+                  variant="outline"
                   onClick={handleNew}
-                  className="group rounded-xl border border-border p-4 text-left transition-colors hover:border-primary/30 hover:bg-accent/30"
+                  className="group h-auto rounded-xl p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
                   aria-label={item.title}
                 >
                   <div className="mb-2 flex items-center gap-2.5">
@@ -283,7 +291,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                   <p className="text-xs leading-relaxed text-muted-foreground">
                     {item.description}
                   </p>
-                </button>
+                </Button>
               ))}
             </div>
           </section>
@@ -296,10 +304,11 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
             {recentFiles.length > 0 ? (
               <div className="space-y-1">
                 {recentFiles.map((file) => (
-                  <button
+                  <Button
                     key={file.path}
+                    variant="outline"
                     onClick={() => handleOpenRecent(file.path)}
-                    className="flex w-full items-center gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent/30"
+                    className="flex w-full h-auto items-center gap-3 rounded-lg p-3 text-left hover:bg-accent/30"
                     aria-label={`Open ${file.name}`}
                   >
                     <FolderOpen size={16} className="shrink-0 text-muted-foreground" />
@@ -307,7 +316,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                       <div className="text-sm font-medium">{file.name}</div>
                       <div className="truncate text-xs text-muted-foreground">{file.path}</div>
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             ) : (

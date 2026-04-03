@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 
@@ -83,29 +84,33 @@ export function ProjectPage({
                 autoFocus
                 className="rounded-md border border-input bg-transparent px-2 py-1 text-xl font-semibold outline-none focus:ring-2 focus:ring-ring"
               />
-              <button
+              <Button
+                variant="outline"
+                size="xs"
                 onClick={handleSaveName}
-                className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent"
               >
                 Save
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="xs"
                 onClick={handleCancelEditName}
-                className="rounded-md border border-border px-2 py-1 text-xs hover:bg-accent"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="group flex items-center gap-2">
               <h1 className="text-xl font-semibold">{name}</h1>
-              <button
+              <Button
+                variant="ghost"
+                size="icon-xs"
                 onClick={handleStartEditName}
-                className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-accent hover:text-foreground group-hover:opacity-100"
+                className="opacity-0 group-hover:opacity-100"
                 aria-label="Edit project name"
               >
                 <Pencil size={14} />
-              </button>
+              </Button>
             </div>
           )}
           {projectPath ? (
@@ -114,15 +119,16 @@ export function ProjectPage({
             <p className="mt-1 text-sm text-muted-foreground">Not yet saved to disk</p>
           )}
         </div>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
           aria-label={projectPath ? "Save project" : "Save project as"}
         >
           {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
           {projectPath ? "Save" : "Save As..."}
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

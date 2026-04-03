@@ -101,13 +101,14 @@ function ParallelSuggestionBanner({ suggestion, onParallelize, onDismiss }: Para
         <GitBranch size={11} />
         Parallelize
       </Button>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-xs"
         onClick={onDismiss}
-        className="bg-transparent border-none cursor-pointer p-0.5"
         aria-label="Dismiss suggestion"
       >
         <X size={12} className="text-muted-foreground" />
-      </button>
+      </Button>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download, AlertTriangle } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { useTMAdapter } from "../hooks/useTMAdapter";
@@ -138,33 +139,36 @@ export function MemoriesPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={handleClose}
-              className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
               title="Close TM"
             >
               <X size={16} />
-            </button>
+            </Button>
             <div>
               <h1 className="text-lg font-semibold">{tmName}</h1>
               {tmPath && <p className="text-[11px] text-muted-foreground">{tmPath}</p>}
             </div>
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleImport}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <Upload size={12} />
               Import TMX
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleExport}
-              className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             >
               <Download size={12} />
               Export TMX
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -181,20 +185,21 @@ export function MemoriesPage() {
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Translation Memories</h1>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleOpenDialog}
-            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
           >
             <FolderOpen size={12} />
             Open File...
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={() => setShowCreateDialog(true)}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus size={12} />
             Create TM
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -235,18 +240,19 @@ export function MemoriesPage() {
             No translation memories found. Create one or open a .db file.
           </p>
           <div className="flex gap-2 justify-center">
-            <button
+            <Button
+              size="sm"
               onClick={() => setShowCreateDialog(true)}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
             >
               Create TM
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleOpenDialog}
-              className="rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent transition-colors"
             >
               Open File...
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -269,19 +275,20 @@ export function MemoriesPage() {
               className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring mb-4"
             />
             <div className="flex gap-2">
-              <button
+              <Button
+                size="sm"
                 onClick={() => void handleCreate()}
                 disabled={!newName.trim()}
-                className="rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 Create
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => setShowCreateDialog(false)}
-                className="rounded-md border border-border px-4 py-2 text-xs hover:bg-accent transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -302,19 +309,20 @@ export function MemoriesPage() {
               The file will be renamed to <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh database created in its place.
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
+                size="sm"
                 onClick={() => void handleRecover()}
                 disabled={recovering}
-                className="rounded-md bg-primary px-4 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
                 {recovering ? "Recovering..." : "Create Fresh TM"}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => { setCorruptPath(null); setCorruptName(""); }}
-                className="rounded-md border border-border px-4 py-2 text-xs hover:bg-accent transition-colors"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         </div>

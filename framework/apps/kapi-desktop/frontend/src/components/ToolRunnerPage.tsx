@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { SchemaForm } from "@neokapi/ui-primitives";
+import { Button, SchemaForm } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -148,30 +148,24 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
 
           {/* Category filter chips */}
           <div className="flex flex-wrap gap-1 mt-2">
-            <button
+            <Button
+              variant={!filterCategory ? "default" : "secondary"}
+              size="xs"
               onClick={() => setFilterCategory(null)}
-              className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                !filterCategory
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
             >
               All ({tools.length})
-            </button>
+            </Button>
             {Array.from(categories.entries()).map(([cat, catTools]) => {
               const meta = categoryMeta[cat] || categoryMeta.utility;
               return (
-                <button
+                <Button
                   key={cat}
+                  variant={filterCategory === cat ? "default" : "secondary"}
+                  size="xs"
                   onClick={() => setFilterCategory(filterCategory === cat ? null : cat)}
-                  className={`rounded-md px-2 py-0.5 text-[10px] font-medium transition-colors ${
-                    filterCategory === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
                 >
                   {meta.label} ({catTools.length})
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -194,10 +188,11 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                 const isSelected = selectedTool === tool.name;
 
                 return (
-                  <button
+                  <Button
                     key={tool.name}
+                    variant="ghost"
                     onClick={() => setSelectedTool(tool.name)}
-                    className={`w-full rounded-lg px-3 py-2.5 text-left transition-all ${
+                    className={`w-full h-auto rounded-lg px-3 py-2.5 text-left ${
                       isSelected
                         ? "bg-accent border border-primary/20 shadow-sm"
                         : "hover:bg-accent/50 border border-transparent"
@@ -247,7 +242,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                         }`}
                       />
                     </div>
-                  </button>
+                  </Button>
                 );
               })}
               {filteredTools.length === 0 && !loading && (
@@ -422,13 +417,14 @@ function ToolDetail({
               <label className="mb-1 block text-xs font-medium" htmlFor="tool-files">
                 Input Files
               </label>
-              <button
+              <Button
                 id="tool-files"
-                className="flex items-center gap-2 rounded-md border border-dashed border-border px-4 py-2.5 text-xs text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors w-full"
+                variant="outline"
+                className="flex items-center gap-2 border-dashed text-muted-foreground hover:border-primary/40 hover:text-primary w-full"
               >
                 <FileInput size={14} />
                 Select files...
-              </button>
+              </Button>
             </div>
 
             {tool.requires?.includes("target-language") && (
@@ -453,14 +449,13 @@ function ToolDetail({
               </p>
             )}
 
-            <button
+            <Button
               onClick={handleRun}
               disabled={running || (tool.requires?.includes("target-language") && !targetLang)}
-              className="flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
             >
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
-            </button>
+            </Button>
           </div>
       </div>
     </div>

@@ -7,9 +7,10 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { FlowSpec, FlowInfo } from "../types/api";
-import { FlowEditor } from "@neokapi/ui-primitives";
-import type { ToolInfo } from "@neokapi/ui-primitives";
+import { FlowEditor } from "@neokapi/flow-editor";
+import type { ToolInfo } from "@neokapi/flow-editor";
 import toolsData from "./fixtures/tools-metadata.json";
 
 const tools = toolsData as ToolInfo[];
@@ -83,10 +84,10 @@ function SimulatedFlowsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Project Flows</h1>
-        <button className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90">
+        <Button size="sm">
           <Plus size={12} />
           New Flow
-        </button>
+        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {flowList.map((flow) => (
@@ -109,12 +110,12 @@ function SimulatedFlowsPage() {
                 </div>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                <button className="p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors" title="Run">
+                <Button variant="ghost" size="icon-xs" title="Run">
                   <Play size={12} />
-                </button>
-                <button className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete">
+                </Button>
+                <Button variant="ghost" size="icon-xs" className="hover:bg-destructive/10 hover:text-destructive" title="Delete">
                   <Trash2 size={12} />
-                </button>
+                </Button>
               </div>
             </div>
           </div>

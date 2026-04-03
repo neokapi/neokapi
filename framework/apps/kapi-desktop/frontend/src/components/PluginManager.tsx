@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench, ArrowUpCircle } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { PluginInfo } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
@@ -214,48 +215,53 @@ export function PluginManager() {
         <h1 className="text-xl font-semibold">Plugins</h1>
         <div className="flex items-center gap-2">
           {updates.length > 0 && (
-            <button
+            <Button
+              size="sm"
               onClick={handleUpdateAll}
               disabled={updatingAll}
-              className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               <ArrowUpCircle size={12} />
               {updatingAll ? "Updating..." : `Update All (${updates.length})`}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleCheckUpdates}
             disabled={checkingUpdates}
-            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
           >
             <RefreshCw size={12} className={checkingUpdates ? "animate-spin" : ""} />
             {checkingUpdates ? "Checking..." : "Check Updates"}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-0 mb-4 border-b border-border">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setTab("installed")}
-          className={`px-4 py-2 text-xs font-medium transition-colors ${
+          className={`rounded-none ${
             tab === "installed"
               ? "border-b-2 border-primary text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Installed ({plugins.length})
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => setTab("available")}
-          className={`px-4 py-2 text-xs font-medium transition-colors ${
+          className={`rounded-none ${
             tab === "available"
               ? "border-b-2 border-primary text-foreground"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
           Available
-        </button>
+        </Button>
       </div>
 
       <div className="relative mb-4">
@@ -303,9 +309,9 @@ export function PluginManager() {
               {filtered.length === 0 && (
                 <div className="py-8 text-center">
                   <p className="text-sm text-muted-foreground mb-2">No plugins installed.</p>
-                  <button onClick={() => setTab("available")} className="text-xs text-primary hover:text-primary/80">
+                  <Button variant="link" size="xs" onClick={() => setTab("available")}>
                     Browse available plugins
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -357,20 +363,17 @@ export function PluginManager() {
                     ) : status?.state === "error" ? (
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-destructive">{status.error || "Failed"}</span>
-                        <button
-                          onClick={() => handleInstall(plugin.name)}
-                          className="text-[10px] text-primary hover:text-primary/80"
-                        >
+                        <Button variant="link" size="xs" onClick={() => handleInstall(plugin.name)}>
                           Retry
-                        </button>
+                        </Button>
                       </div>
                     ) : (
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => handleInstall(plugin.name)}
-                        className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                       >
                         <Download size={12} /> Install
-                      </button>
+                      </Button>
                     )}
                   </div>
                 );
@@ -456,13 +459,14 @@ function InstalledPluginCard({
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {hasDetails && (
-            <button
+            <Button
+              variant="ghost"
+              size="icon-xs"
               onClick={() => setExpanded(!expanded)}
-              className="p-1.5 rounded hover:bg-accent text-muted-foreground transition-colors"
               title="Show capabilities"
             >
               {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </button>
+            </Button>
           )}
           {/* Update button / progress */}
           {updateStatus?.state === "downloading" ? (
@@ -476,18 +480,20 @@ function InstalledPluginCard({
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-destructive">{updateStatus.error || "Failed"}</span>
               {onUpdate && (
-                <button onClick={onUpdate} className="text-[10px] text-primary hover:text-primary/80">Retry</button>
+                <Button variant="link" size="xs" onClick={onUpdate}>Retry</Button>
               )}
             </div>
           ) : updateAvailable && onUpdate ? (
-            <button
+            <Button
+              variant="outline"
+              size="xs"
               onClick={onUpdate}
-              className="flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2.5 py-1 text-[10px] font-medium text-primary hover:bg-primary/10 transition-colors"
+              className="border-primary/30 bg-primary/5 text-primary hover:bg-primary/10"
               title={`Update to v${updateAvailable.latest_version}`}
             >
               <ArrowUpCircle size={11} />
               {updateAvailable.latest_version ? `v${updateAvailable.latest_version}` : "Update"}
-            </button>
+            </Button>
           ) : null}
           {/* Remove */}
           {removing ? (
@@ -496,13 +502,13 @@ function InstalledPluginCard({
             </div>
           ) : confirmRemove ? (
             <div className="flex items-center gap-1">
-              <button onClick={onRemove} className="rounded px-2 py-0.5 text-[10px] bg-destructive text-destructive-foreground">Remove</button>
-              <button onClick={onCancelRemove} className="rounded px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground">Cancel</button>
+              <Button variant="destructive" size="xs" onClick={onRemove}>Remove</Button>
+              <Button variant="ghost" size="xs" onClick={onCancelRemove}>Cancel</Button>
             </div>
           ) : (
-            <button onClick={onConfirmRemove} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Uninstall">
+            <Button variant="ghost" size="icon-xs" onClick={onConfirmRemove} className="hover:bg-destructive/10 hover:text-destructive" title="Uninstall">
               <Trash2 size={12} />
-            </button>
+            </Button>
           )}
         </div>
       </div>

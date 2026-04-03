@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { SchemaForm } from "@neokapi/ui-primitives";
+import { Button, SchemaForm } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";
@@ -193,10 +193,11 @@ function FormatSection({
           const filterDoc = resolveFilterDoc(f.name, docs);
           const hasDocs = filterDoc || documentedIDs.has(f.name);
           return (
-            <button
+            <Button
               key={f.name}
+              variant="outline"
               onClick={() => onSelect(f.name)}
-              className="group w-full text-left rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md"
+              className="group w-full h-auto text-left rounded-lg bg-card p-4 hover:border-primary/30 hover:shadow-md"
             >
               <div className="flex items-start gap-3">
                 <FileText
@@ -261,7 +262,7 @@ function FormatSection({
                   </div>
                 </div>
               </div>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -457,12 +458,13 @@ function FormatDetail({
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <button
+        <Button
+          variant="ghost"
+          size="icon-xs"
           onClick={onBack}
-          className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft size={16} />
-        </button>
+        </Button>
         <FileText size={20} className="text-primary" />
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-semibold">
@@ -532,23 +534,26 @@ function FormatDetail({
             <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Presets
             </h2>
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => setShowSavePreset(true)}
-              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              className="px-0 h-auto text-[10px] text-muted-foreground hover:text-foreground"
             >
               <Save size={10} /> Save as Preset
-            </button>
+            </Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {presets.map((p) => (
               <div key={p.name} className="relative group">
-                <button
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => handlePresetSelect(p.name)}
-                  className={`rounded-md border px-3 py-1.5 text-xs transition-colors ${
-                    selectedPreset === p.name
+                  className={selectedPreset === p.name
                       ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                  }`}
+                      : "text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                  }
                 >
                   {p.name}
                   {p.source && (
@@ -557,15 +562,17 @@ function FormatDetail({
                   {p.description && (
                     <span className="ml-1 text-muted-foreground">— {p.description}</span>
                   )}
-                </button>
+                </Button>
                 {p.source === "user" && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeletePreset(p.name); }}
-                    className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full bg-destructive text-destructive-foreground"
+                  <Button
+                    variant="destructive"
+                    size="icon-xs"
+                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeletePreset(p.name); }}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full"
                     title="Delete preset"
                   >
                     <X size={8} />
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -587,19 +594,20 @@ function FormatDetail({
               className="flex-1 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
               autoFocus
             />
-            <button
+            <Button
+              size="sm"
               onClick={handleSavePreset}
               disabled={saving || !savePresetName.trim()}
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => { setShowSavePreset(false); setSavePresetName(""); }}
-              className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -607,12 +615,14 @@ function FormatDetail({
       {/* No presets yet — show Save as Preset shortcut */}
       {presets.length === 0 && schema && !loadingSchema && (
         <div className="mb-4">
-          <button
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowSavePreset(true)}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="px-0 h-auto text-muted-foreground hover:text-foreground"
           >
             <Save size={10} /> Save current configuration as a preset
-          </button>
+          </Button>
         </div>
       )}
 
@@ -629,45 +639,47 @@ function FormatDetail({
           <div className="flex items-center gap-0 mb-3 border-b border-border">
             {schema && (
               <>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setActiveTab("editor")}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  className={`rounded-none border-b-2 ${
                     activeTab === "editor"
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <Settings2 size={12} />
-                    Editor
-                  </span>
-                </button>
-                <button
+                  <Settings2 size={12} />
+                  Editor
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setActiveTab("yaml")}
-                  className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                  className={`rounded-none border-b-2 ${
                     activeTab === "yaml"
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Config (YAML)
-                </button>
+                </Button>
               </>
             )}
             {hasDocumentation && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => setActiveTab("docs")}
-                className={`px-3 py-2 text-xs font-medium border-b-2 transition-colors ${
+                className={`rounded-none border-b-2 ${
                   activeTab === "docs"
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <span className="flex items-center gap-1.5">
-                  <BookOpen size={12} />
-                  Documentation
-                </span>
-              </button>
+                <BookOpen size={12} />
+                Documentation
+              </Button>
             )}
           </div>
 
@@ -735,14 +747,16 @@ function FormatDetail({
             Test
           </h2>
           <div className="flex items-center gap-2 mb-3">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleRunReader}
               disabled={runnerLoading}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs text-foreground hover:border-primary/30 hover:text-primary transition-colors disabled:opacity-50"
+              className="bg-card hover:border-primary/30 hover:text-primary"
             >
               <Play size={12} />
               {runnerLoading ? "Running..." : "Open File..."}
-            </button>
+            </Button>
             {runnerParts !== null && (
               <span className="text-[10px] text-muted-foreground">
                 {runnerParts.length} part{runnerParts.length !== 1 ? "s" : ""} extracted
@@ -815,12 +829,14 @@ function PartRow({ part }: { part: FormatPartInfo }) {
 
         {/* Expand toggle */}
         {hasDetails && (
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setExpanded((v) => !v)}
-            className="p-0.5 text-muted-foreground hover:text-foreground"
+            className="h-5 w-5"
           >
             {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </button>
+          </Button>
         )}
       </div>
 

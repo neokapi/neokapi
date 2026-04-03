@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -283,18 +284,20 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                   className="flex items-center gap-1 rounded bg-accent px-2 py-0.5 text-xs"
                 >
                   {lang}
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() =>
                       onUpdate({
                         ...project,
                         target_languages: project.target_languages?.filter((l) => l !== lang),
                       })
                     }
-                    className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                    className="ml-0.5 h-4 w-4 rounded-full hover:text-destructive"
                     aria-label={`Remove ${lang}`}
                   >
                     <X size={10} />
-                  </button>
+                  </Button>
                 </span>
               ))}
               <input
@@ -337,18 +340,20 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
               >
                 {name}
                 {ver && <span className="text-muted-foreground">@{ver}</span>}
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={() =>
                     onUpdate({
                       ...project,
                       plugins: project.plugins?.filter((p) => p !== plugin),
                     })
                   }
-                  className="ml-0.5 rounded-full p-0.5 text-muted-foreground hover:text-destructive"
+                  className="ml-0.5 h-4 w-4 rounded-full hover:text-destructive"
                   aria-label={`Remove ${plugin}`}
                 >
                   <X size={10} />
-                </button>
+                </Button>
               </span>
             );
           })}
@@ -390,14 +395,15 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             <FileText size={14} />
             File Patterns
           </h2>
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleAddEntry}
-            className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent"
             aria-label="Add content pattern"
           >
             <Plus size={12} />
             Add Pattern
-          </button>
+          </Button>
         </div>
 
         {content.length > 0 ? (
@@ -446,13 +452,15 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                           {matchCount}
                         </span>
                       )}
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
                         onClick={() => handleDeleteEntry(i)}
-                        className="rounded p-1 text-muted-foreground opacity-0 hover:text-destructive group-hover:opacity-100"
+                        className="opacity-0 hover:text-destructive group-hover:opacity-100"
                         aria-label={`Remove pattern ${i + 1}`}
                       >
                         <Trash2 size={12} />
-                      </button>
+                      </Button>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -549,7 +557,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                     {/* Inline format config — expandable */}
                     {entry.format && (
                       <div>
-                        <button
+                        <Button
+                          variant="ghost"
+                          size="xs"
                           onClick={() => {
                             setExpandedConfig((prev) => {
                               const next = new Set(prev);
@@ -558,7 +568,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                               return next;
                             });
                           }}
-                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                          className="px-0 h-auto text-muted-foreground hover:text-foreground"
                         >
                           {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                           <Settings2 size={10} />
@@ -568,7 +578,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                               {Object.keys(entry.format_config!).length}
                             </span>
                           )}
-                        </button>
+                        </Button>
                         {isExpanded && (
                           <div className="mt-1.5">
                             <textarea
@@ -632,27 +642,31 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
             </span>
           </h2>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="outline"
+              size="sm"
               onClick={() => setHideUnmatched(!hideUnmatched)}
-              className={`flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent ${hideUnmatched ? "bg-accent" : ""}`}
+              className={hideUnmatched ? "bg-accent" : ""}
               aria-label={hideUnmatched ? "Show all files" : "Hide unmatched files"}
               title={hideUnmatched ? "Show all files" : "Hide unmatched files"}
             >
               {hideUnmatched ? <Eye size={12} /> : <EyeOff size={12} />}
               {hideUnmatched ? "Show all" : "Matched only"}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleAddFiles}
-              className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent"
               aria-label="Add files"
             >
               <Plus size={12} />
               Add Files
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
               onClick={rescanFiles}
               disabled={scanning}
-              className="flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-accent disabled:opacity-50"
               aria-label="Rescan files"
             >
               {scanning ? (
@@ -660,7 +674,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
               ) : (
                 <RefreshCw size={12} />
               )}
-            </button>
+            </Button>
           </div>
         </div>
 

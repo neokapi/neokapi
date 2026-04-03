@@ -1,4 +1,5 @@
 import { FolderKanban, FolderOpen, Plus } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { TabInfo } from "../types/api";
 
 interface ProjectsPageProps {
@@ -19,30 +20,32 @@ export function ProjectsPage({
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Projects</h1>
         <div className="flex gap-2">
-          <button
+          <Button
+            size="sm"
             onClick={onNewProject}
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
           >
             <Plus size={12} />
             New Project
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={onOpenProject}
-            className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent"
           >
             <FolderOpen size={12} />
             Open
-          </button>
+          </Button>
         </div>
       </div>
 
       {tabs.length > 0 ? (
         <div className="space-y-2">
           {tabs.map((tab) => (
-            <button
+            <Button
               key={tab.id}
+              variant="outline"
               onClick={() => onSelectTab(tab.id)}
-              className="flex w-full items-center gap-3 rounded-lg border border-border p-4 text-left transition-colors hover:bg-accent/30"
+              className="flex w-full h-auto items-center gap-3 rounded-lg p-4 text-left hover:bg-accent/30"
             >
               <FolderKanban size={20} className="shrink-0 text-primary" />
               <div className="flex-1">
@@ -51,7 +54,7 @@ export function ProjectsPage({
                   <div className="truncate text-xs text-muted-foreground">{tab.path}</div>
                 )}
               </div>
-            </button>
+            </Button>
           ))}
         </div>
       ) : (

@@ -7,7 +7,8 @@ const meta: Meta<typeof FlowPage> = {
   component: FlowPage,
   tags: ["autodocs"],
   args: {
-    onUpdate: fn(),
+    onChange: fn(),
+    onRun: fn(),
   },
   parameters: {
     layout: "fullscreen",
@@ -26,30 +27,18 @@ type Story = StoryObj<typeof FlowPage>;
 
 export const WithFlows: Story = {
   args: {
-    project: {
-      version: "v1",
-      name: "Test",
-      flows: {
-        translate: {
-          steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
-        },
-        "translate-and-qa": {
-          steps: [{ tool: "ai-translate" }, { tool: "qa-check" }],
-        },
-        pseudo: {
-          steps: [{ tool: "pseudo-translate", config: { expansion_rate: 1.3 } }],
-        },
-      },
+    flowName: "translate",
+    flow: {
+      steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
     },
   },
 };
 
 export const Empty: Story = {
   args: {
-    project: {
-      version: "v1",
-      name: "Empty",
-      flows: {},
+    flowName: "new-flow",
+    flow: {
+      steps: [],
     },
   },
 };

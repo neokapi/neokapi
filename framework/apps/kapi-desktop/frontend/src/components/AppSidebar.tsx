@@ -10,6 +10,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { Button } from "@neokapi/ui-primitives";
 import type { AdhocView, ProjectView } from "../types/api";
 
 // --- Ad-Hoc mode sidebar ---
@@ -60,10 +61,12 @@ export function AppSidebar({
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 px-2 pt-2">
         {items.map(({ view, label, icon }) => (
-          <button
+          <Button
             key={view}
+            variant="ghost"
+            size="sm"
             onClick={() => onViewChange(view)}
-            className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+            className={`flex w-full justify-start gap-2.5 ${
               activeView === view
                 ? "bg-accent text-accent-foreground font-medium"
                 : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -71,7 +74,7 @@ export function AppSidebar({
           >
             {icon}
             {label}
-          </button>
+          </Button>
         ))}
 
         {/* Flow list inline when Flows is active in projects mode */}
@@ -82,13 +85,15 @@ export function AppSidebar({
                 Project Flows
               </span>
               {onAddFlow && (
-                <button
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={onAddFlow}
-                  className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="h-4 w-4"
                   aria-label="New flow"
                 >
                   <Plus size={10} />
-                </button>
+                </Button>
               )}
             </div>
             {flowNames.map((name) => (
@@ -104,13 +109,15 @@ export function AppSidebar({
                   {name}
                 </button>
                 {onDeleteFlow && (
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => onDeleteFlow(name)}
-                    className="rounded p-0.5 opacity-0 hover:text-destructive group-hover:opacity-100"
+                    className="h-4 w-4 opacity-0 hover:text-destructive group-hover:opacity-100"
                     aria-label={`Delete flow ${name}`}
                   >
                     <Trash2 size={10} />
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -123,9 +130,11 @@ export function AppSidebar({
 
       {/* Settings at bottom */}
       <div className="border-t border-border px-2 py-2">
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => onViewChange("settings")}
-          className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+          className={`flex w-full justify-start gap-2.5 ${
             activeView === "settings"
               ? "bg-accent text-accent-foreground font-medium"
               : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -133,7 +142,7 @@ export function AppSidebar({
         >
           <Settings size={18} strokeWidth={1.5} />
           Settings
-        </button>
+        </Button>
       </div>
     </aside>
   );
