@@ -283,7 +283,7 @@ jobs:
 
       - name: Install Remotion dependencies
         working-directory: website/videos
-        run: vp install --frozen-lockfile
+        run: npm install --frozen-lockfile
 
       - name: Set up raw recording symlinks
         working-directory: website/videos

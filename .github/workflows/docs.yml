@@ -56,10 +56,10 @@ jobs:
             echo "Created stub test-comparison.json"
           fi
 
-      # Build Docusaurus site
-      - run: vp install --frozen-lockfile
+      # Build Docusaurus site (website is standalone, not in the root npm workspace)
+      - run: npm install --frozen-lockfile
         working-directory: website
-      - run: vp run build
+      - run: npm run build
         working-directory: website
 
       - uses: actions/upload-pages-artifact@v4

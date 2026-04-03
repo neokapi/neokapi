@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: platform/e2e/cloud
-        run: vp install --frozen-lockfile
+        run: npm install --frozen-lockfile
 
       - name: Install Playwright Chromium
         working-directory: platform/e2e/cloud

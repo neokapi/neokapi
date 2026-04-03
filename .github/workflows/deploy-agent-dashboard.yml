@@ -24,11 +24,11 @@ jobs:
 
       - name: Install dependencies
         working-directory: platform/agentic-testing/dashboard
-        run: vp install --frozen-lockfile
+        run: npm install --frozen-lockfile
 
       - name: Build
         working-directory: platform/agentic-testing/dashboard
-        run: vp run build
+        run: npm run build
 
       - name: Deploy to Azure Static Web Apps
         uses: Azure/static-web-apps-deploy@v1
