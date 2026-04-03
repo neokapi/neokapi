@@ -140,11 +140,15 @@ func (a *AuditLogger) QueryAuditLog(ctx context.Context, q AuditQuery) ([]AuditE
 		args = append(args, "%"+q.Search+"%")
 	}
 
-	query := fmt.Sprintf("SELECT a.id, a.project_id, a.event_type, a.actor, a.source, a.data, a.created_at FROM %s", from)
+	var qb strings.Builder
+	qb.WriteString("SELECT a.id, a.project_id, a.event_type, a.actor, a.source, a.data, a.created_at FROM ")
+	qb.WriteString(from)
 	if len(where) > 0 {
-		query += " WHERE " + strings.Join(where, " AND ")
+		qb.WriteString(" WHERE ")
+		qb.WriteString(strings.Join(where, " AND "))
 	}
-	query += fmt.Sprintf(" ORDER BY a.created_at DESC LIMIT %s OFFSET %s", ph(), ph())
+	fmt.Fprintf(&qb, " ORDER BY a.created_at DESC LIMIT %s OFFSET %s", ph(), ph())
+	query := qb.String()
 	args = append(args, q.Limit, q.Offset)
 
 	return a.scanEntries(ctx, query, args)

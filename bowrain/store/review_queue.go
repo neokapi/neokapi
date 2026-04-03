@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/neokapi/neokapi/core/id"
@@ -147,33 +148,35 @@ func (s *ReviewQueueStore) GetItem(ctx context.Context, id string) (*ReviewItem,
 
 // ListItems returns review items matching the query.
 func (s *ReviewQueueStore) ListItems(ctx context.Context, q ReviewQueueQuery) (*ReviewQueueResult, error) {
-	where := "project_id = ?"
+	var wb strings.Builder
+	wb.WriteString("project_id = ?")
 	args := []any{q.ProjectID}
 
 	if q.Type != "" {
-		where += " AND type = ?"
+		wb.WriteString(" AND type = ?")
 		args = append(args, string(q.Type))
 	}
 	if q.Status != "" {
-		where += " AND status = ?"
+		wb.WriteString(" AND status = ?")
 		args = append(args, string(q.Status))
 	}
 	if q.AssignedTo != "" {
-		where += " AND assigned_to = ?"
+		wb.WriteString(" AND assigned_to = ?")
 		args = append(args, q.AssignedTo)
 	}
 	if q.Locale != "" {
-		where += " AND locale = ?"
+		wb.WriteString(" AND locale = ?")
 		args = append(args, q.Locale)
 	}
 	if q.Cursor != "" {
-		where += " AND created_at > ?"
+		wb.WriteString(" AND created_at > ?")
 		args = append(args, q.Cursor)
 	}
+	where := wb.String()
 
 	// Get total count for this query (without pagination).
 	var total int
-	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM review_items WHERE %s", where)
+	countQuery := "SELECT COUNT(*) FROM review_items WHERE " + where
 	if err := s.db.QueryRowContext(ctx, s.q(countQuery), args...).Scan(&total); err != nil {
 		return nil, err
 	}
@@ -183,10 +186,9 @@ func (s *ReviewQueueStore) ListItems(ctx context.Context, q ReviewQueueQuery) (*
 		limit = 50
 	}
 
-	query := fmt.Sprintf(
-		`SELECT id, project_id, type, status, push_id, data, occurrences,
+	query := `SELECT id, project_id, type, status, push_id, data, occurrences,
 		 assigned_to, decided_by, decided_at, comment, edits, confidence, locale, created_at
-		 FROM review_items WHERE %s ORDER BY created_at ASC LIMIT ?`, where)
+		 FROM review_items WHERE ` + where + " ORDER BY created_at ASC LIMIT ?"
 	args = append(args, limit+1)
 
 	rows, err := s.db.QueryContext(ctx, s.q(query), args...)

@@ -46,7 +46,7 @@ func newScanner(input []byte) *scanner {
 
 // scan returns all tokens from the input.
 func (s *scanner) scan() ([]token, error) {
-	var tokens []token
+	tokens := make([]token, 0, 64)
 	for {
 		tok, err := s.next()
 		if err != nil {
