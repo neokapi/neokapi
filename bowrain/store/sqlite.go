@@ -698,12 +698,17 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 		args = append(args, query.ItemName)
 	}
 	if len(query.IDs) > 0 {
-		placeholders := make([]string, len(query.IDs))
+		var pb strings.Builder
+		pb.WriteString("id IN (")
 		for i, id := range query.IDs {
-			placeholders[i] = "?"
+			if i > 0 {
+				pb.WriteByte(',')
+			}
+			pb.WriteByte('?')
 			args = append(args, id)
 		}
-		where = append(where, fmt.Sprintf("id IN (%s)", strings.Join(placeholders, ",")))
+		pb.WriteByte(')')
+		where = append(where, pb.String())
 	}
 	if query.ContentHash != "" {
 		where = append(where, "content_hash = ?")
@@ -718,17 +723,20 @@ func (s *SQLiteStore) GetBlocks(ctx context.Context, query platstore.BlockQuery)
 		args = append(args, v)
 	}
 
-	q := fmt.Sprintf(
-		`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
+	var qb strings.Builder
+	qb.WriteString(`SELECT id, project_id, item_name, source_id, name, type, mime_type, translatable, content_hash, context_hash,
 			source_json, targets_json, properties, annotations, stored_at, updated_at
-		 FROM blocks WHERE %s ORDER BY id`, strings.Join(where, " AND "))
+		 FROM blocks WHERE `)
+	qb.WriteString(strings.Join(where, " AND "))
+	qb.WriteString(" ORDER BY id")
 
 	if query.Limit > 0 {
-		q += fmt.Sprintf(" LIMIT %d", query.Limit)
+		fmt.Fprintf(&qb, " LIMIT %d", query.Limit)
 	}
 	if query.Offset > 0 {
-		q += fmt.Sprintf(" OFFSET %d", query.Offset)
+		fmt.Fprintf(&qb, " OFFSET %d", query.Offset)
 	}
+	q := qb.String()
 
 	rows, err := s.db.QueryContext(ctx, q, args...)
 	if err != nil {

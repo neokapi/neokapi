@@ -196,15 +196,16 @@ func (w *Writer) flush() error {
 	}
 
 	// Build TS opening tag
-	tsAttrs := fmt.Sprintf(`<TS version="%s"`, xmlEscape(version))
+	var tsTag strings.Builder
+	fmt.Fprintf(&tsTag, `<TS version="%s"`, xmlEscape(version))
 	if language != "" {
-		tsAttrs += fmt.Sprintf(` language="%s"`, xmlEscape(language))
+		fmt.Fprintf(&tsTag, ` language="%s"`, xmlEscape(language))
 	}
 	if srcLanguage != "" {
-		tsAttrs += fmt.Sprintf(` sourcelanguage="%s"`, xmlEscape(srcLanguage))
+		fmt.Fprintf(&tsTag, ` sourcelanguage="%s"`, xmlEscape(srcLanguage))
 	}
-	tsAttrs += ">\n"
-	if _, err := io.WriteString(w.Output, tsAttrs); err != nil {
+	tsTag.WriteString(">\n")
+	if _, err := io.WriteString(w.Output, tsTag.String()); err != nil {
 		return err
 	}
 
@@ -236,15 +237,16 @@ func (w *Writer) flush() error {
 
 func (w *Writer) writeMessage(block *model.Block, targetLocale model.LocaleID) error {
 	// Build <message> opening tag
-	msgAttrs := "    <message"
+	var msgTag strings.Builder
+	msgTag.WriteString("    <message")
 	if block.ID != "" && !strings.HasPrefix(block.ID, "tu") {
-		msgAttrs += fmt.Sprintf(` id="%s"`, xmlEscape(block.ID))
+		fmt.Fprintf(&msgTag, ` id="%s"`, xmlEscape(block.ID))
 	}
 	if block.Properties["numerus"] == "yes" {
-		msgAttrs += ` numerus="yes"`
+		msgTag.WriteString(` numerus="yes"`)
 	}
-	msgAttrs += ">\n"
-	if _, err := io.WriteString(w.Output, msgAttrs); err != nil {
+	msgTag.WriteString(">\n")
+	if _, err := io.WriteString(w.Output, msgTag.String()); err != nil {
 		return err
 	}
 
