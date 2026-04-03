@@ -17,5 +17,5 @@
     }
   },
   "include": ["src", "src/**/*.json", "../../../packages/ui/src"],
-  "exclude": ["src/__tests__", "../../../packages/ui/src/stories"]
+  "exclude": ["src/__tests__", "../../../packages/ui/src/stories", "../../../packages/ui/src/__tests__"]
 }
