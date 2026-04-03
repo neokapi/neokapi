@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/schema"
@@ -26,7 +27,7 @@ type AITranslateTool struct {
 	batchSize    int
 	concurrency  int
 	onProgress   func(provider.ProgressEvent)
-	blockIndex   int
+	blockIndex   atomic.Int32
 	totalBlocks  int
 }
 
@@ -174,7 +175,7 @@ func (t *AITranslateTool) handleBlock(part *model.Part) (*model.Part, error) {
 		return part, nil
 	}
 
-	t.blockIndex++
+	t.blockIndex.Add(1)
 
 	// Check if the source fragment has inline spans.
 	frag := block.FirstFragment()
@@ -284,7 +285,7 @@ func (t *AITranslateTool) emitProgress(done bool, thinking string) {
 		return
 	}
 	t.onProgress(provider.ProgressEvent{
-		Block:       t.blockIndex,
+		Block:       int(t.blockIndex.Load()),
 		TotalBlocks: t.totalBlocks,
 		Thinking:    thinking,
 		Done:        done,
@@ -535,7 +536,7 @@ func (t *AITranslateTool) translateBatch(ctx context.Context, entries []blockEnt
 			Confidence:  0.85,
 			Model:       resp.Model,
 		})
-		t.blockIndex++
+		t.blockIndex.Add(1)
 		t.emitProgress(true, "")
 	}
 
