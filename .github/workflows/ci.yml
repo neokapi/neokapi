@@ -51,24 +51,24 @@ jobs:
             echo "${label}=false" >> "$GITHUB_OUTPUT"
           }
 
-          check_paths framework '^framework/core/' '^framework/go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
-          check_paths cli       '^framework/cli/'
-          check_paths platform  '^platform/core/'
-          # kapi: anything under framework/kapi/
-          if echo "$CHANGED" | grep -E '^framework/kapi/' | grep -q .; then
+          check_paths framework '^core/' '^go\.(mod|sum)$' '^go\.work' '^\.github/workflows/ci\.yml$'
+          check_paths cli       '^cli/'
+          check_paths platform  '^bowrain/core/'
+          # kapi: anything under kapi/
+          if echo "$CHANGED" | grep -E '^kapi/' | grep -q .; then
             echo "kapi=true" >> "$GITHUB_OUTPUT"
           else
             echo "kapi=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths bowrain_cli '^platform/cli/'
-          # bowrain: anything under platform/ except frontend app dirs, packages/, platform/core/, and platform/cli/
-          if echo "$CHANGED" | grep -E '^platform/' | grep -vE '^platform/(apps/(web|bowrain/frontend|keycloak-theme)|packages/|core/|cli/)' | grep -q .; then
+          check_paths bowrain_cli '^bowrain/cli/'
+          # bowrain: anything under bowrain/ except frontend app dirs, packages/, bowrain/core/, and bowrain/cli/
+          if echo "$CHANGED" | grep -E '^bowrain/' | grep -vE '^bowrain/(apps/(web|bowrain/frontend|keycloak-theme)|packages/|core/|cli/)' | grep -q .; then
             echo "bowrain=true" >> "$GITHUB_OUTPUT"
           else
             echo "bowrain=false" >> "$GITHUB_OUTPUT"
           fi
-          check_paths frontend  '^platform/apps/(web|bowrain/frontend)/' '^platform/packages/ui/'
-          check_paths kapi_desktop '^framework/apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
+          check_paths frontend  '^bowrain/apps/(web|bowrain/frontend)/' '^bowrain/packages/ui/'
+          check_paths kapi_desktop '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'
           check_paths workflows '^\.github/workflows/'
 
   # ── Frontend checks & builds ─────────────────────────────────────────────
@@ -82,27 +82,27 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Check shared UI (oxlint + oxfmt)
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: vp check
 
       - name: Run UI unit tests
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: vp test
 
       - name: Check web app (oxlint + oxfmt)
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vp check
 
       - name: Run web unit tests
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vp test
 
       - name: Build SaaS web UI
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vp build
 
       - name: Check Bowrain frontend (oxlint + oxfmt)
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vp check
 
   # ── Kapi Desktop frontend ───────────────────────────────────────────────
@@ -120,11 +120,11 @@ jobs:
         run: vp test
 
       - name: Run Kapi Desktop frontend tests
-        working-directory: framework/apps/kapi-desktop/frontend
+        working-directory: apps/kapi-desktop/frontend
         run: vp test
 
       - name: Build Kapi Desktop Storybook
-        working-directory: framework/apps/kapi-desktop/frontend
+        working-directory: apps/kapi-desktop/frontend
         run: vpx storybook build -o storybook-static
 
       - name: Set up Go
@@ -136,7 +136,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Run Kapi Desktop Go backend tests
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         run: go test ./backend/... -count=1 -timeout 60s
 
   # ── Go tests (parallel per module) ────────────────────────────────────────
@@ -154,13 +154,13 @@ jobs:
 
       - name: Run framework tests
         id: run-tests
-        working-directory: framework
+        working-directory: .
         run: go test -race -coverprofile=framework.out -covermode=atomic -json ./... > test-results-framework.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in framework/test-results-framework.json -out junit-framework.xml
+        run: go-junit-report -in test-results-framework.json -out junit-framework.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -180,14 +180,14 @@ jobs:
         if: always()
         with:
           name: coverage-framework
-          path: framework/framework.out
+          path: framework.out
 
       - name: Upload native test results
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-native
-          path: framework/test-results-framework.json
+          path: test-results-framework.json
           retention-days: 1
 
   test-platform:
@@ -204,12 +204,12 @@ jobs:
 
       - name: Run platform tests
         id: run-tests
-        run: cd platform/core && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json
+        run: cd bowrain/core && go test -race -coverprofile=platform.out -covermode=atomic -json ./... > ../test-results-platform.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in platform/test-results-platform.json -out junit-platform.xml
+        run: go-junit-report -in bowrain/test-results-platform.json -out junit-platform.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -229,7 +229,7 @@ jobs:
         if: always()
         with:
           name: coverage-platform
-          path: platform/core/platform.out
+          path: bowrain/core/platform.out
           retention-days: 1
 
   test-cli:
@@ -246,12 +246,12 @@ jobs:
 
       - name: Run cli tests
         id: run-tests
-        run: cd framework/cli && go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json
+        run: cd cli && go test -race -coverprofile=cli.out -covermode=atomic -json ./... > ../test-results-cli.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in framework/test-results-cli.json -out junit-cli.xml
+        run: go-junit-report -in test-results-cli.json -out junit-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -271,7 +271,7 @@ jobs:
         if: always()
         with:
           name: coverage-cli
-          path: framework/cli/cli.out
+          path: cli/cli.out
           retention-days: 1
 
   test-kapi:
@@ -288,12 +288,12 @@ jobs:
 
       - name: Run kapi tests
         id: run-tests
-        run: cd framework/kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json
+        run: cd kapi && go test -race -coverprofile=kapi.out -covermode=atomic -json ./... > ../test-results-kapi.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in framework/test-results-kapi.json -out junit-kapi.xml
+        run: go-junit-report -in test-results-kapi.json -out junit-kapi.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -313,7 +313,7 @@ jobs:
         if: always()
         with:
           name: coverage-kapi
-          path: framework/kapi/kapi.out
+          path: kapi/kapi.out
           retention-days: 1
 
   test-bowrain-cli:
@@ -330,12 +330,12 @@ jobs:
 
       - name: Run Bowrain CLI tests
         id: run-tests
-        run: cd platform/cli && go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json
+        run: cd bowrain/cli && go test -race -coverprofile=bowrain-cli.out -covermode=atomic -json ./... > ../test-results-bowrain-cli.json
         continue-on-error: true
 
       - name: Convert to JUnit XML
         if: always()
-        run: go-junit-report -in platform/test-results-bowrain-cli.json -out junit-bowrain-cli.xml
+        run: go-junit-report -in bowrain/test-results-bowrain-cli.json -out junit-bowrain-cli.xml
 
       - name: Report test results
         uses: dorny/test-reporter@v3
@@ -355,7 +355,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain-cli
-          path: platform/cli/bowrain-cli.out
+          path: bowrain/cli/bowrain-cli.out
           retention-days: 1
 
   test-bowrain:
@@ -373,7 +373,7 @@ jobs:
       - name: Run bowrain tests
         id: run-tests
         run: |
-          cd platform
+          cd bowrain
           # shellcheck disable=SC2046
           go test -race -coverprofile=bowrain.out -covermode=atomic -json $(go list ./... | grep -v '/apps/bowrain') > ../test-results-bowrain.json
         continue-on-error: true
@@ -400,7 +400,7 @@ jobs:
         if: always()
         with:
           name: coverage-bowrain
-          path: platform/bowrain.out
+          path: bowrain/bowrain.out
           retention-days: 1
 
   # ── Merge coverage from all test jobs ─────────────────────────────────────
@@ -455,7 +455,7 @@ jobs:
 
       - name: Download modules
         run: |
-          cd framework && go mod download
+          go mod download
           cd cli && go mod download
           cd ../kapi && go mod download
 
@@ -464,7 +464,7 @@ jobs:
         with:
           install-mode: binary
           version: v2.9.0
-          working-directory: framework
+          working-directory: .
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
 
@@ -473,7 +473,7 @@ jobs:
         with:
           install-mode: binary
           version: v2.9.0
-          working-directory: framework/cli
+          working-directory: cli
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
 
@@ -482,7 +482,7 @@ jobs:
         with:
           install-mode: binary
           version: v2.9.0
-          working-directory: framework/kapi
+          working-directory: kapi
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
 
@@ -500,19 +500,19 @@ jobs:
 
       - name: Create embed placeholders
         run: |
-          mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
+          mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
 
       - name: Download modules
         run: |
-          cd platform/core && go mod download
-          cd ../../platform && go mod download
+          cd bowrain/core && go mod download
+          cd ../../bowrain && go mod download
 
       - name: Lint platform
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: v2.9.0
-          working-directory: platform/core
+          working-directory: bowrain/core
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
 
@@ -521,7 +521,7 @@ jobs:
         with:
           install-mode: binary
           version: v2.9.0
-          working-directory: platform/cli
+          working-directory: bowrain/cli
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
 
@@ -529,14 +529,14 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
 
       - name: Create Bowrain frontend placeholder
-        run: mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
+        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
 
       - name: Lint bowrain
         uses: golangci/golangci-lint-action@v9
         with:
           install-mode: binary
           version: v2.9.0
-          working-directory: platform
+          working-directory: bowrain
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: --timeout=5m ./...
 
@@ -567,50 +567,50 @@ jobs:
 
       - name: Create embed placeholders
         run: |
-          mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
-          mkdir -p framework/apps/kapi-desktop/frontend/dist && echo placeholder > framework/apps/kapi-desktop/frontend/dist/index.html
+          mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
+          mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
 
       - name: Build kapi CLI
-        run: cd framework/kapi && go build -o ../../bin/kapi ./cmd/kapi
+        run: cd kapi && go build -o ../bin/kapi ./cmd/kapi
 
       - name: Build Bowrain CLI
-        run: cd platform/cli && go build -o ../../bin/bowrain ./cmd/bowrain
+        run: cd bowrain/cli && go build -o ../../bin/bowrain ./cmd/bowrain
 
       - name: Build bowrain-server
-        run: cd platform && go build -o ../bin/bowrain-server ./cmd/bowrain-server
+        run: cd bowrain && go build -o ../bin/bowrain-server ./cmd/bowrain-server
 
       - name: Verify framework module isolation
-        run: GOWORK=off bash -c "cd framework && go build ./..."
+        run: GOWORK=off bash -c "go build ./..."
 
       - name: Verify cli module isolation
-        run: GOWORK=off bash -c "cd framework/cli && go build ./..."
+        run: GOWORK=off bash -c "cd cli && go build ./..."
 
       - name: Verify platform module isolation
-        run: GOWORK=off bash -c "cd platform/core && go build ./..."
+        run: GOWORK=off bash -c "cd bowrain/core && go build ./..."
 
       - name: Verify kapi module isolation
-        run: GOWORK=off bash -c "cd framework/kapi && go build ./..."
+        run: GOWORK=off bash -c "cd kapi && go build ./..."
 
       - name: Verify Bowrain CLI module isolation
-        run: GOWORK=off bash -c "cd platform/cli && go build ./..."
+        run: GOWORK=off bash -c "cd bowrain/cli && go build ./..."
 
       - name: Verify kapi has no platform dep
         run: |
-          if cd framework/kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then
+          if cd kapi && GOWORK=off go list -m all | grep -q 'neokapi/platform'; then
             echo "kapi should not depend on platform"
             exit 1
           fi
 
       - name: Verify bowrain has no cli dep
         run: |
-          if cd platform && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then
+          if cd bowrain && GOWORK=off go list -m all | grep -q 'neokapi/cli'; then
             echo "bowrain should not depend on cli"
             exit 1
           fi
 
       - name: Verify kapi has no heavy deps
         run: |
-          if cd framework/kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc|keyring'; then
+          if cd kapi && GOWORK=off go list -m all | grep -iE 'wails|echo|oidc|keyring'; then
             exit 1
           fi
 
@@ -672,8 +672,8 @@ jobs:
             -okapi-dir "../../${SUREFIRE_DIR}/okapi-surefire" \
             "${BRIDGE_ARGS[@]}" \
             -gotest-native-json ../../test-results-framework.json \
-            -bridge-src ../../framework/core/plugin/bridge/filters \
-            -native-src ../../framework/core/formats \
+            -bridge-src ../../core/plugin/bridge/filters \
+            -native-src ../../core/formats \
             -go-commit "$GH_SHA" \
             -okapi-tag v1.48.0 \
             -out ../../website/static/data/test-comparison.json

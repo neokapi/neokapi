@@ -67,23 +67,23 @@ echo ""
 
 # ── Go checks ──────────────────────────────────────────────────────────────
 
-if matches '^framework/core/' '^framework/go\.(mod|sum)$' '^framework/cli/' '^framework/kapi/' '^go\.work'; then
-    run_check "Go lint (framework)" make -C framework check
+if matches '^core/' '^go\.(mod|sum)$' '^cli/' '^kapi/' '^go\.work'; then
+    run_check "Go lint (framework)" make check
 fi
 
-if matches '^platform/core/' '^platform/cli/' '^platform/go\.(mod|sum)$'; then
-    run_check "Go lint (platform)" make -C platform check
+if matches '^bowrain/core/' '^bowrain/cli/' '^bowrain/go\.(mod|sum)$'; then
+    run_check "Go lint (bowrain)" make -C bowrain check
 fi
 
 # ── Frontend checks ────────────────────────────────────────────────────────
 
-if matches '^platform/packages/ui/' '^platform/apps/web/' '^platform/apps/bowrain/frontend/'; then
-    run_check "Frontend (platform)" make frontend-check-all
+if matches '^bowrain/packages/ui/' '^bowrain/apps/web/' '^bowrain/apps/bowrain/frontend/'; then
+    run_check "Frontend (bowrain)" make frontend-check-all
 fi
 
 # ── Kapi Desktop frontend ─────────────────────────────────────────────────
 
-if matches '^framework/apps/kapi-desktop/' '^packages/(ui|flow-editor)/'; then
+if matches '^apps/kapi-desktop/' '^packages/(ui|flow-editor)/'; then
     run_check "Kapi Desktop frontend" make kapi-desktop-frontend-check
 
     if matches '^packages/flow-editor/'; then

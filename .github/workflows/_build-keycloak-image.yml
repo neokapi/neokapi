@@ -26,7 +26,7 @@ jobs:
           java-version: "17"
 
       - name: Build Keycloak theme
-        run: make -C platform keycloak-theme
+        run: make -C bowrain keycloak-theme
 
       - name: Login to ghcr.io
         uses: docker/login-action@v4
@@ -42,7 +42,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/keycloak/Dockerfile
+          file: bowrain/docker/keycloak/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-keycloak:${{ inputs.image-tag }}

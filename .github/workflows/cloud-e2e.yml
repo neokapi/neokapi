@@ -32,15 +32,15 @@ jobs:
           cache: true
 
       - name: Install dependencies
-        working-directory: platform/e2e/cloud
+        working-directory: bowrain/e2e/cloud
         run: npm install --frozen-lockfile
 
       - name: Install Playwright Chromium
-        working-directory: platform/e2e/cloud
+        working-directory: bowrain/e2e/cloud
         run: vpx playwright install --with-deps chromium
 
       - name: Run cloud E2E tests
-        working-directory: platform/e2e/cloud
+        working-directory: bowrain/e2e/cloud
         env:
           BOWRAIN_URL: https://dev.bowrain.cloud
           KEYCLOAK_ADMIN_URL: https://ca-bowrain-dev-keycloak.icyplant-d6bbb1d6.swedencentral.azurecontainerapps.io
@@ -53,5 +53,5 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: cloud-e2e-results
-          path: platform/e2e/cloud/test-results/
+          path: bowrain/e2e/cloud/test-results/
           retention-days: 7

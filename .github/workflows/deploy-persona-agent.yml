@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'platform/docker/persona-agent/**'
-      - 'platform/server/agenticmcp/**'
+      - 'bowrain/docker/persona-agent/**'
+      - 'bowrain/server/agenticmcp/**'
 
 permissions:
   packages: write

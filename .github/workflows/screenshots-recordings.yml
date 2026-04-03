@@ -41,7 +41,7 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: vpx tsc
 
       - name: Cache Playwright browsers
@@ -51,7 +51,7 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vpx playwright install --with-deps chromium
 
       # Desktop screenshots use the Vite dev server with mock backend.
@@ -59,18 +59,18 @@ jobs:
       # all data locally. The web app screenshots against dev cover the
       # same UI components with real server data.
       - name: Generate screenshots
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vpx playwright test e2e/screenshots.spec.ts -g "\[${{ matrix.theme }}\]"
 
       - name: Generate recordings
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vpx playwright test --config=playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30
         env:
           FORCE_RECORDINGS: "true"
 
       - name: Copy recordings to static assets
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload Bowrain assets
@@ -97,11 +97,11 @@ jobs:
       - name: Obtain auth token
         id: auth
         run: |
-          BOWRAIN_TOKEN=$(bash platform/scripts/device-auth.sh "$SERVER_URL")
+          BOWRAIN_TOKEN=$(bash bowrain/scripts/device-auth.sh "$SERVER_URL")
           echo "BOWRAIN_TOKEN=$BOWRAIN_TOKEN" >> "$GITHUB_ENV"
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: vpx tsc
 
       - name: Cache Playwright browsers
@@ -111,18 +111,18 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vpx playwright install --with-deps chromium
 
       - name: Generate screenshots
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vpx playwright test --config playwright.config.ts -g "\[${{ matrix.theme }}\]"
         env:
           BOWRAIN_SERVER_URL: ${{ env.SERVER_URL }}
           BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Generate recordings
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vpx playwright test --config playwright.recordings.config.ts -g "\[${{ matrix.theme }}\]"
         timeout-minutes: 30
         env:
@@ -131,7 +131,7 @@ jobs:
           BOWRAIN_TOKEN: ${{ env.BOWRAIN_TOKEN }}
 
       - name: Copy recordings to static assets
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: THEME=${{ matrix.theme }} bash scripts/copy-recordings.sh
 
       - name: Upload web app assets
@@ -211,12 +211,12 @@ jobs:
 
       - name: Obtain auth token
         run: |
-          BOWRAIN_TOKEN=$(bash platform/scripts/device-auth.sh "$SERVER_URL")
+          BOWRAIN_TOKEN=$(bash bowrain/scripts/device-auth.sh "$SERVER_URL")
           echo "BOWRAIN_TOKEN=$BOWRAIN_TOKEN" >> "$GITHUB_ENV"
 
       - name: Generate Bowrain CLI recordings
         timeout-minutes: 30
-        working-directory: platform/e2e/tapes
+        working-directory: bowrain/e2e/tapes
         run: |
           export PATH="$PWD/../../../bin:$PATH"
 

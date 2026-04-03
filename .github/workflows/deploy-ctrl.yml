@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'platform/apps/ctrl/**'
-      - 'platform/packages/ui/**'
+      - 'bowrain/apps/ctrl/**'
+      - 'bowrain/packages/ui/**'
 
 jobs:
   build:
@@ -25,14 +25,14 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build ctrl app
-        working-directory: platform/apps/ctrl
+        working-directory: bowrain/apps/ctrl
         run: vp run build
 
       - name: Upload ctrl artifacts
         uses: actions/upload-artifact@v7
         with:
           name: ctrl-dist
-          path: platform/apps/ctrl/dist
+          path: bowrain/apps/ctrl/dist
           retention-days: 7
 
   trigger-deploy:

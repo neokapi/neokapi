@@ -56,18 +56,18 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Run frontend tests
-        working-directory: framework/apps/kapi-desktop/frontend
+        working-directory: apps/kapi-desktop/frontend
         run: vp test
 
       - name: Run backend tests
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         run: go test ./backend/... -count=1 -timeout 60s
 
       - name: Create frontend placeholder for binding generation
-        run: mkdir -p framework/apps/kapi-desktop/frontend/dist && echo placeholder > framework/apps/kapi-desktop/frontend/dist/index.html
+        run: mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html
 
       - name: Build Kapi Desktop
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
@@ -76,7 +76,7 @@ jobs:
 
       - name: Create macOS DMG
         if: startsWith(matrix.os, 'macos')
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           TAG_NAME: ${{ github.ref_name }}
           ARCH: ${{ matrix.goarch }}
@@ -89,7 +89,7 @@ jobs:
 
       - name: Package Linux binary
         if: matrix.os == 'linux'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
@@ -101,7 +101,7 @@ jobs:
       - name: Package Windows binary
         if: matrix.os == 'windows'
         shell: pwsh
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
@@ -114,8 +114,8 @@ jobs:
         with:
           name: kapi-desktop-${{ matrix.os }}
           path: |
-            framework/apps/kapi-desktop/*.dmg
-            framework/apps/kapi-desktop/KapiDesktop-*
+            apps/kapi-desktop/*.dmg
+            apps/kapi-desktop/KapiDesktop-*
           if-no-files-found: ignore
 
   release:

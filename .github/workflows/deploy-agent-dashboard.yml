@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'platform/agentic-testing/dashboard/**'
+      - 'bowrain/agentic-testing/dashboard/**'
   workflow_dispatch:
 
 permissions:
@@ -20,14 +20,14 @@ jobs:
         with:
           node-version: "22"
           cache: true
-          cache-dependency-path: platform/agentic-testing/dashboard/package-lock.json
+          cache-dependency-path: bowrain/agentic-testing/dashboard/package-lock.json
 
       - name: Install dependencies
-        working-directory: platform/agentic-testing/dashboard
+        working-directory: bowrain/agentic-testing/dashboard
         run: npm install --frozen-lockfile
 
       - name: Build
-        working-directory: platform/agentic-testing/dashboard
+        working-directory: bowrain/agentic-testing/dashboard
         run: npm run build
 
       - name: Deploy to Azure Static Web Apps
@@ -35,6 +35,6 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_AGENTS }}
           action: upload
-          app_location: platform/agentic-testing/dashboard/dist
+          app_location: bowrain/agentic-testing/dashboard/dist
           skip_app_build: true
           skip_api_build: true
