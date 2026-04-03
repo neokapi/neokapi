@@ -8,32 +8,24 @@ neokapi is an AI-native reimagining of the [Okapi Framework](https://okapiframew
 
 The repository is a **multi-module monorepo** with seven Go modules:
 
-- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`core/sievepen/`, `core/termbase/`), shared SQLite infrastructure (`core/storage/`), `.kapi` project file format (`core/project/`). All framework Go packages live under `core/`. No platform dependencies (no Wails, Echo, Cobra, OIDC).
-- **CLI** (`github.com/neokapi/neokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config, OS keychain credential store (`cli/credentials/`). Uses framework's SQLite TM/termbase from `core/sievepen/` and `core/termbase/`. Depends on framework only. No platform dependency.
-- **Platform** (`github.com/neokapi/neokapi/platform`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client. Depends on framework only. No CLI dependency (no Cobra, Viper).
-- **Kapi** (`github.com/neokapi/neokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Supports `.kapi` project files via `-p` flag. Depends on framework + CLI. No platform dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
-- **Kapi** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows: flow editor, flow runner with live progress, plugin manager, credential vault, `.kapi` project file management. Depends on framework + CLI. No platform dependency. Separate module due to Wails/keyring dependencies.
-- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain-cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + platform.
-- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + platform. No CLI dependency.
+- **Framework** (`github.com/neokapi/neokapi`) — the open-source localization engine: content model, format readers/writers, processing tools, pipeline executor, plugin system, SQLite-backed TM and termbase (`sievepen/`, `termbase/`), shared SQLite infrastructure (`core/storage/`), `.kapi` project file format (`core/project/`), AI providers (`providers/ai/`, package `aiprovider`), MT providers (`providers/mt/`, package `mtprovider`). Framework packages live under `core/`, `sievepen/`, `termbase/`, and `providers/`. No bowrain dependencies (no Wails, Echo, Cobra, OIDC).
+- **CLI** (`github.com/neokapi/neokapi/cli`) — shared CLI base used by both kapi and bowrain: App struct, command factories (formats, plugins, tools, flows, presets, termbase, tm, version), output formatting, Viper-based app config, OS keychain credential store (`cli/credentials/`). Uses framework's SQLite TM/termbase from `sievepen/` and `termbase/`. Depends on framework only. No bowrain dependency.
+- **Bowrain Core** (`github.com/neokapi/neokapi/bowrain/core`) — shared platform types and interfaces: project model, auth types, connector interfaces, REST client, store interfaces, event types. Depends on framework only. No CLI dependency (no Cobra, Viper).
+- **Kapi** (`github.com/neokapi/neokapi/kapi`) — standalone CLI tool for local file processing: format conversion, pseudo-translation, quality checks, etc. Supports `.kapi` project files via `-p` flag. Depends on framework + CLI. No bowrain dependency, no heavy dependencies (no Wails, Echo, OIDC, keyring). SQLite TM/termbase from the framework module.
+- **Kapi Desktop** (`github.com/neokapi/neokapi/kapi-desktop`) — Wails v3 desktop app for visual localization workflows: flow editor, flow runner with live progress, plugin manager, credential vault, `.kapi` project file management. Depends on framework + CLI. No bowrain dependency. Separate module due to Wails/keyring dependencies.
+- **Bowrain CLI** (`github.com/neokapi/neokapi/bowrain/cli`) — project sync companion CLI: manages `.bowrain/` projects, syncs with Bowrain Server (init, push, pull, auth, status). Depends on framework + CLI + bowrain/core.
+- **Bowrain** (`github.com/neokapi/neokapi/bowrain`) — the full-stack localization platform: REST server, desktop app, connectors, authentication, persistent SQLite/PostgreSQL storage. Depends on framework + bowrain/core. No CLI dependency.
 
 Both **kapi** and **bowrain** CLIs share a common base in `cli/`. The shared base provides command factories for formats, plugins, tools, flows, presets, termbase, and version. Each CLI selects which commands to register and can extend them with CLI-specific behavior (e.g., bowrain adds project flow support via a `RegistryResolver` hook).
 
-A `go.work` file at the root coordinates the seven modules for local development. CLI and platform have zero cross-dependency. Kapi and bowrain have no dependency on each other. Kapi depends on framework + CLI only (verified by isolation check).
+A `go.work` file at the root coordinates the seven modules for local development. CLI and bowrain/core have zero cross-dependency. Kapi and bowrain have no dependency on each other. Kapi depends on framework + CLI only (verified by isolation check).
 
 ## Build & Test Commands
 
 ```bash
 make build              # Build kapi CLI → bin/kapi
-make build-bowrain      # Build Bowrain CLI → bin/bowrain
-make build-server       # Build REST server → bin/bowrain-server
 make build-all          # Build all Go binaries
-make test               # Run all tests (all modules)
-make test-framework     # Run framework tests only
-make test-cli           # Run cli module tests only
-make test-platform      # Run platform module tests only
-make test-kapi          # Run kapi CLI tests only
-make test-bowrain-cli   # Run Bowrain CLI tests only
-make test-bowrain       # Run bowrain tests only
+make test               # Run all tests (framework + bowrain)
 make test-unit          # Unit tests only (-short flag)
 make test-race          # Tests with race detector
 make test-verbose       # Verbose test output
@@ -49,14 +41,15 @@ make kapi-desktop-frontend-check  # Lint + format + typecheck Kapi Desktop
 make flow-editor-check  # Lint + format + typecheck flow-editor
 make deps               # Download and tidy Go modules (all modules)
 make proto              # Generate gRPC code from protobuf definitions
+make -C bowrain build-server   # Build bowrain server
 vp install              # Install all frontend workspace members (run at repo root)
 ```
 
 > **Note:** A single root `package.json` npm workspace coordinates all frontend
 > packages (`packages/ui`, `packages/flow-editor`, `kapi/apps/kapi-web`,
 > `apps/kapi-desktop/frontend`, `bowrain/apps/bowrain/frontend`,
-> `bowrain/apps/web`, `website`). Run `vp install` at the repo root — no
-> per-directory installs are needed.
+> `bowrain/apps/web`, `bowrain/apps/ctrl`, `website`). Run `vp install` at the
+> repo root — no per-directory installs are needed.
 
 Run a single test: `go test ./core/flow/ -run TestExecutorCancellation -v`
 
@@ -97,17 +90,17 @@ Always prefer `make` targets over raw `go build` / `go test` commands. The Makef
 For the multi-module structure:
 - Framework packages build from the root: `go build ./...`
 - CLI packages: `cd cli && go build ./...`
-- Platform packages: `cd platform && go build ./...`
+- Bowrain Core packages: `cd bowrain/core && go build ./...`
 - Kapi CLI: `cd kapi && go build ./...`
-- Bowrain CLI: `cd bowrain-cli && go build ./...`
+- Bowrain CLI: `cd bowrain/cli && go build ./...`
 - Bowrain packages: `cd bowrain && go build ./...`
+- Kapi Desktop: `cd apps/kapi-desktop && go build ./...`
 - With `go.work`, all modules resolve cross-module imports automatically
 - `GOWORK=off go build ./...` verifies framework module isolation
-- `GOWORK=off bash -c "cd cli && go build ./..."` verifies cli isolation (no platform dep)
-- `GOWORK=off bash -c "cd platform && go build ./..."` verifies platform isolation (no cli dep)
-- `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no platform dep)
-- Kapi: `cd framework/apps/kapi-desktop && go build ./...`
-- `GOWORK=off bash -c "cd framework/apps/kapi-desktop && go build ./..."` verifies kapi-desktop isolation (no platform dep)
+- `GOWORK=off bash -c "cd cli && go build ./..."` verifies cli isolation (no bowrain dep)
+- `GOWORK=off bash -c "cd bowrain/core && go build ./..."` verifies bowrain/core isolation (no cli dep)
+- `GOWORK=off bash -c "cd kapi && go build ./..."` verifies kapi isolation (no bowrain dep)
+- `GOWORK=off bash -c "cd apps/kapi-desktop && go build ./..."` verifies kapi-desktop isolation (no bowrain dep)
 
 ## Architecture
 
@@ -115,10 +108,10 @@ For the multi-module structure:
 
 ```
 neokapi/
-├── go.work                # Workspace: use . ./cli ./kapi ./apps/kapi-desktop ./platform/core ./platform/cli ./platform
-├── go.mod                 # module github.com/neokapi/neokapi (framework)
+├── go.work                # Workspace: use . ./cli ./kapi ./apps/kapi-desktop ./bowrain/core ./bowrain/cli ./bowrain
+├── go.mod                 # module github.com/neokapi/neokapi (framework, Apache-2.0)
 │
-│   ── Framework Module ──────────────────
+│   ── Framework Module (repo root) ──────
 ├── core/
 │   ├── model/             # Content model (Part, Block, Fragment, Span, Layer)
 │   ├── format/            # DataFormatReader/Writer interfaces
@@ -130,15 +123,17 @@ neokapi/
 │   ├── editor/            # Block index serialization and preview generation
 │   ├── version/           # Version info (set via ldflags)
 │   ├── formats/           # 15 built-in format implementations
-│   ├── ai/                # LLM providers + AI tools
-│   ├── mt/                # MT providers + MT tools
 │   ├── storage/           # Shared SQLite DB infrastructure (Open, Migrate)
-│   ├── sievepen/          # Translation memory (interface + in-memory + SQLite + matching)
-│   ├── termbase/          # Terminology (interface + in-memory + SQLite + import)
 │   ├── project/           # .kapi project file format (Load, Save, Validate)
 │   ├── tools/             # Built-in utility tools
 │   ├── plugin/            # go-plugin + gRPC plugin system + Java bridge
 │   └── testutil/          # Shared test helpers
+├── sievepen/              # Translation memory (interface + in-memory + SQLite + matching)
+├── termbase/              # Terminology (interface + in-memory + SQLite + import)
+├── providers/
+│   ├── ai/                # package aiprovider — LLM providers + AI tools
+│   └── mt/                # package mtprovider — MT providers + MT tools
+├── bench/                 # Benchmarks
 ├── examples/              # Plugin examples
 │
 │   ── CLI Module ────────────────────────
@@ -148,18 +143,6 @@ neokapi/
 │   ├── output/            # Shared output formatting + types (used by kapi & bowrain)
 │   └── storage/           # SQLite-backed termbase and TM for CLI workflows
 │
-│   ── Platform Module ───────────────────
-├── platform/
-│   ├── go.mod             # module github.com/neokapi/neokapi/platform (framework only)
-│   ├── project/           # .bowrain/ project model (types, config, sync cache)
-│   ├── auth/              # Auth types, JWT, device flow client
-│   ├── connector/         # Connector interfaces + base types
-│   ├── client/            # REST client for bowrain API
-│   ├── config/            # Auth persistence (StoredAuth, LoadAuth, SaveAuth)
-│   ├── store/             # ContentStore interface + domain types
-│   ├── event/             # Event types + bus interface
-│   └── credentials/       # Provider credential management
-│
 │   ── Kapi Module ───────────────────────
 ├── kapi/
 │   ├── go.mod             # module github.com/neokapi/neokapi/kapi (framework + cli)
@@ -167,7 +150,7 @@ neokapi/
 │   └── apps/
 │       └── kapi-web/      # kapi serve web UI
 │
-│   ── Kapi Module ───────────────
+│   ── Kapi Desktop Module ───────────────
 ├── apps/
 │   └── kapi-desktop/      # Wails v3 desktop app (Go + React/TS)
 │       ├── go.mod         # module github.com/neokapi/neokapi/kapi-desktop (framework + cli)
@@ -176,15 +159,19 @@ neokapi/
 │       ├── frontend/      # React 19 + Vite + TailwindCSS + Storybook
 │       └── build/         # Wails build config + platform-specific settings
 │
-│   ── Bowrain CLI Module ──────────────────
-├── bowrain-cli/
-│   ├── go.mod             # module github.com/neokapi/neokapi/bowrain-cli (framework + cli + platform)
-│   └── cmd/bowrain/       # Bowrain CLI (project cmds + shared CLI base)
-│       └── output/        # Bowrain CLI-specific output types
-│
-│   ── Bowrain Module ────────────────────
+│   ── Bowrain (ALL AGPL-3.0 CODE) ──────
 ├── bowrain/
-│   ├── go.mod             # module github.com/neokapi/neokapi/bowrain (framework + platform)
+│   ├── go.mod             # module github.com/neokapi/neokapi/bowrain (framework + bowrain/core)
+│   ├── Makefile           # Bowrain-specific build targets
+│   │
+│   │   ── Bowrain Core Module ───────────
+│   ├── core/              # module github.com/neokapi/neokapi/bowrain/core (framework only)
+│   │   └── auth/ store/ connector/ project/ event/ agent/ client/ config/
+│   │
+│   │   ── Bowrain CLI Module ────────────
+│   ├── cli/               # module github.com/neokapi/neokapi/bowrain/cli (framework + cli + bowrain/core)
+│   │   └── cmd/bowrain/   # Bowrain CLI (project cmds + shared CLI base)
+│   │
 │   ├── auth/              # OIDC, AuthStore, SQLite + PostgreSQL auth (server-specific)
 │   ├── connector/         # Concrete connector implementations (File, Git, etc.)
 │   ├── store/             # SQLite + PostgreSQL ContentStore implementations
@@ -192,27 +179,42 @@ neokapi/
 │   ├── server/            # HTTP/gRPC server handlers
 │   ├── service/           # Auth, project, connector, flow services
 │   ├── event/             # Event bus implementation + automation
-│   ├── credentials/       # Keyring-backed credentials
+│   ├── billing/           # Billing and subscription management
+│   ├── jobs/              # Background job processing
+│   ├── brand/             # Brand management
+│   ├── graph/             # Graph data structures
+│   ├── analytics/         # Analytics and reporting
 │   ├── sievepen/          # SQLite + PostgreSQL TM implementation
 │   ├── termbase/          # SQLite + PostgreSQL TermBase implementation
-│   ├── proto/v1/          # gRPC protobuf definitions
+│   ├── proto/             # gRPC protobuf definitions
 │   ├── cmd/bowrain-server/ # Echo v4 REST API server
-│   └── apps/
-│       ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
-│       └── web/           # SaaS web UI
+│   ├── cmd/bowrain-worker/ # Background worker
+│   ├── apps/
+│   │   ├── bowrain/       # Wails v3 desktop app (Go + React/TS)
+│   │   ├── web/           # SaaS web UI
+│   │   ├── ctrl/          # Admin control panel
+│   │   ├── pulse/         # Real-time dashboard
+│   │   ├── mobile/        # Mobile app
+│   │   └── keycloak-theme/ # Custom Keycloak theme
+│   ├── packages/ui/       # @neokapi/ui (AGPL)
+│   ├── docker/            # Docker configurations
+│   ├── deploy/            # Deployment configs
+│   ├── e2e/               # End-to-end tests
+│   ├── emails/            # Email templates
+│   ├── compose.yaml
+│   └── compose.override.yaml
 │
-│   ── Shared Frontend ───────────────────
+│   ── Shared Frontend (Apache-2.0) ─────
 ├── package.json           # Root npm workspace coordinating all frontend packages
 ├── .npmrc                 # install-strategy=hoisted (npm 11)
 ├── packages/
-│   ├── ui/                # @neokapi/ui-primitives — shadcn/ui primitives consumed by kapi-desktop and platform apps
+│   ├── ui/                # @neokapi/ui-primitives — shadcn/ui primitives consumed by kapi-desktop and bowrain apps
 │   └── flow-editor/       # @neokapi/flow-editor — shared React flow editor component library
 │
 │   ── Non-Go Assets ─────────────────────
 ├── docs/                  # Architecture decisions, implementation notes
 ├── website/               # Docusaurus site
-├── e2e/                   # E2E test infra
-├── deploy/                # Deployment configs
+├── agentic/               # Agentic fleet configurations
 └── Makefile               # Multi-module build targets
 ```
 
@@ -302,8 +304,8 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 - `tool.Tool` — `Process(ctx, in <-chan *Part, out chan<- *Part) error`
 - `flow.FlowExecutor` — orchestrates tool chains with goroutines and channels
 - `registry.FormatRegistry` — factory registry for readers/writers with format detection
-- `ai/provider.LLMProvider` — interface for Anthropic, OpenAI, Azure OpenAI, Ollama, Gemini backends
-- `ai/provider.StreamingLLMProvider` — optional extension of LLMProvider with `ChatStream`/`ChatStructuredStream` for live thinking progress (streaming events: thinking, content, done)
+- `aiprovider.LLMProvider` — interface for Anthropic, OpenAI, Azure OpenAI, Ollama, Gemini backends (`providers/ai/`)
+- `aiprovider.StreamingLLMProvider` — optional extension of LLMProvider with `ChatStream`/`ChatStructuredStream` for live thinking progress (streaming events: thinking, content, done)
 
 ### Terminology Mapping from Okapi
 
@@ -321,7 +323,7 @@ The Part is the fundamental streaming unit, carrying a PartType discriminator an
 
 ## Implementing a New Format
 
-Create a package under `core/formats/` with reader.go, writer.go, config.go. The reader must implement `format.DataFormatReader` (embed `format.BaseFormatReader`). The writer must implement `format.DataFormatWriter` (embed `format.BaseFormatWriter`). Register both in `core/formats/register.go` via `init()`.
+Create a package under `core/formats/` with reader.go, writer.go, config.go. The reader must implement `format.DataFormatReader` (embed `format.BaseFormatReader`). The writer must implement `format.DataFormatWriter` (embed `format.BaseFormatWriter`). Register both in `core/formats/register.go` via `init()`. Format packages live in the framework module at the repo root.
 
 ## Implementing a New Tool
 

@@ -13,8 +13,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'platform/agentic-testing/**'
-      - 'platform/docker/agentic-testing/**'
+      - 'bowrain/agentic-testing/**'
+      - 'bowrain/docker/agentic-testing/**'
 
 permissions:
   packages: write

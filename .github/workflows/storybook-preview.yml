@@ -4,18 +4,18 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
     paths:
-      - "platform/packages/ui/**"
-      - "platform/emails/src/**/*.stories.*"
-      - "framework/apps/kapi-desktop/frontend/**"
+      - "bowrain/packages/ui/**"
+      - "bowrain/emails/src/**/*.stories.*"
+      - "apps/kapi-desktop/frontend/**"
       - "packages/ui/**"
       - "packages/flow-editor/**"
       - ".github/workflows/storybook-preview.yml"
   push:
     branches: [main]
     paths:
-      - "platform/packages/ui/**"
-      - "platform/emails/src/**/*.stories.*"
-      - "framework/apps/kapi-desktop/frontend/**"
+      - "bowrain/packages/ui/**"
+      - "bowrain/emails/src/**/*.stories.*"
+      - "apps/kapi-desktop/frontend/**"
       - "packages/ui/**"
       - "packages/flow-editor/**"
       - ".github/workflows/storybook-preview.yml"
@@ -38,13 +38,13 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build Bowrain Storybook
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/
         run: vpx storybook build -o storybook-static
 
       - name: Build Kapi Storybook
-        working-directory: framework/apps/kapi-desktop/frontend
+        working-directory: apps/kapi-desktop/frontend
         env:
           STORYBOOK_BASE_PATH: /kapi/storybook/
         run: vpx storybook build -o storybook-static
@@ -65,13 +65,13 @@ jobs:
           BOWRAIN_DIR="bowrain/storybook"
           find "/tmp/pages/${BOWRAIN_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
           mkdir -p "/tmp/pages/${BOWRAIN_DIR}"
-          cp -r platform/packages/ui/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
+          cp -r bowrain/packages/ui/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
 
           # Deploy Kapi Storybook
           KAPI_DIR="kapi/storybook"
           find "/tmp/pages/${KAPI_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
           mkdir -p "/tmp/pages/${KAPI_DIR}"
-          cp -r framework/apps/kapi-desktop/frontend/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
+          cp -r apps/kapi-desktop/frontend/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
 
           cd /tmp/pages
           git config user.name "github-actions[bot]"
@@ -91,13 +91,13 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build Bowrain Storybook
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
 
       - name: Build Kapi Storybook
-        working-directory: framework/apps/kapi-desktop/frontend
+        working-directory: apps/kapi-desktop/frontend
         env:
           STORYBOOK_BASE_PATH: /kapi/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
@@ -118,13 +118,13 @@ jobs:
           BOWRAIN_DIR="bowrain/storybook/pr-${PR_NUMBER}"
           rm -rf "/tmp/pages/${BOWRAIN_DIR}"
           mkdir -p "/tmp/pages/${BOWRAIN_DIR}"
-          cp -r platform/packages/ui/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
+          cp -r bowrain/packages/ui/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
 
           # Deploy Kapi Storybook preview
           KAPI_DIR="kapi/storybook/pr-${PR_NUMBER}"
           rm -rf "/tmp/pages/${KAPI_DIR}"
           mkdir -p "/tmp/pages/${KAPI_DIR}"
-          cp -r framework/apps/kapi-desktop/frontend/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
+          cp -r apps/kapi-desktop/frontend/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
 
           cd /tmp/pages
           git config user.name "github-actions[bot]"

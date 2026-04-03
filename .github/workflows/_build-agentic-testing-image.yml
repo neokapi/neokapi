@@ -47,7 +47,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/agentic-testing/Dockerfile
+          file: bowrain/docker/agentic-testing/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/agentic-server:${{ inputs.image-tag }}

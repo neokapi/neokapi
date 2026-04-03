@@ -12,7 +12,7 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build web app
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         env:
           VITE_POSTHOG_KEY: phc_9TMOqaMSUH5wE6xPTeTKjYBBJWVRdzOlUMahZAr7twD
           VITE_POSTHOG_HOST: https://eu.i.posthog.com
@@ -22,5 +22,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: web-dist
-          path: platform/apps/web/dist
+          path: bowrain/apps/web/dist
           retention-days: 7

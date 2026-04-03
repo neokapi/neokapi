@@ -33,9 +33,9 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: npx tsc
 
       - name: Build Bowrain
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: wails3 build

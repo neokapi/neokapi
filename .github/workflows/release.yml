@@ -25,27 +25,27 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: npx tsc
 
       - name: Run UI unit tests
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: vp test
 
       - name: Build SaaS web UI
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vp run build
 
       - name: Create Bowrain frontend placeholder
-        run: mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
+        run: mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
 
       - name: Download modules
         run: |
-          cd framework && go mod download && go mod verify
+          go mod download && go mod verify
           cd cli && go mod download && go mod verify
           cd ../kapi && go mod download && go mod verify
           cd ../apps/kapi-desktop && go mod download && go mod verify
-          cd ../../../platform/core && go mod download && go mod verify
+          cd ../../bowrain/core && go mod download && go mod verify
           cd ../cli && go mod download && go mod verify
           cd .. && go mod download && go mod verify
 
@@ -107,7 +107,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/${{ matrix.image }}/Dockerfile
+          file: bowrain/docker/${{ matrix.image }}/Dockerfile
           push: true
           platforms: ${{ matrix.platform }}
           tags: ghcr.io/neokapi/${{ matrix.image }}:${{ steps.version.outputs.VERSION }}-${{ matrix.arch }}
@@ -172,7 +172,7 @@ jobs:
           java-version: "17"
 
       - name: Build Keycloak theme
-        run: make -C platform keycloak-theme
+        run: make -C bowrain keycloak-theme
 
       - name: Extract version
         id: version
@@ -192,7 +192,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/keycloak/Dockerfile
+          file: bowrain/docker/keycloak/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-keycloak:${{ steps.version.outputs.VERSION }}
@@ -243,13 +243,13 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Build shared UI package
-        working-directory: platform/packages/ui
+        working-directory: bowrain/packages/ui
         run: npx tsc
 
       # Build frontend and assets manually to avoid Wails Taskfile running
       # `npm install` which conflicts with the workspace npm ci above.
       - name: Generate Wails bindings
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         shell: bash
         env:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
@@ -261,22 +261,22 @@ jobs:
           rm -f frontend/bindings/github.com/neokapi/neokapi/bowrain/apps/bowrain/backend/app.js.bak
 
       - name: Build Bowrain frontend
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vp run build
 
       - name: Generate icons
-        working-directory: platform/apps/bowrain/build
+        working-directory: bowrain/apps/bowrain/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
 
       - name: Generate Windows resources
         if: runner.os == 'Windows'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         shell: bash
         run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
 
       - name: Build Bowrain (Linux)
         if: runner.os == 'Linux'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         env:
           GOOS: linux
           CGO_ENABLED: "1"
@@ -285,7 +285,7 @@ jobs:
 
       - name: Build Bowrain (Windows)
         if: runner.os == 'Windows'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         shell: bash
         env:
           GOOS: windows
@@ -298,7 +298,7 @@ jobs:
 
       - name: Build Bowrain (macOS universal)
         if: runner.os == 'macOS'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         env:
           CGO_ENABLED: "1"
           CGO_CFLAGS: "-mmacosx-version-min=10.15"
@@ -313,7 +313,7 @@ jobs:
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         run: |
           mkdir -p bin/Bowrain.app/Contents/MacOS
           mkdir -p bin/Bowrain.app/Contents/Resources
@@ -361,7 +361,7 @@ jobs:
       # macOS: Sign with Developer ID or ad-hoc fallback
       - name: Sign macOS app bundle
         if: runner.os == 'macOS'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         env:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
         run: |
@@ -379,7 +379,7 @@ jobs:
       # macOS: Create DMG (output to repo root for upload step)
       - name: Create DMG
         if: runner.os == 'macOS'
-        working-directory: platform/apps/bowrain
+        working-directory: bowrain/apps/bowrain
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
@@ -449,7 +449,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "platform/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          Compress-Archive -Path "bowrain/apps/bowrain/bin/Bowrain.exe" -DestinationPath "bowrain-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
@@ -462,7 +462,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           tar -czf "bowrain-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
-            -C platform/apps/bowrain/bin Bowrain
+            -C bowrain/apps/bowrain/bin Bowrain
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'
@@ -513,7 +513,7 @@ jobs:
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@latest
 
       - name: Generate Wails bindings
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         shell: bash
         env:
           BUILD_LDFLAGS: ${{ steps.meta.outputs.LDFLAGS }}
@@ -522,22 +522,22 @@ jobs:
           wails3 generate bindings -f "-tags production -trimpath -buildvcs=false -ldflags=\"${BUILD_LDFLAGS}\"" -clean=true
 
       - name: Build Kapi Desktop frontend
-        working-directory: framework/apps/kapi-desktop/frontend
+        working-directory: apps/kapi-desktop/frontend
         run: vp run build:dev
 
       - name: Generate icons
-        working-directory: framework/apps/kapi-desktop/build
+        working-directory: apps/kapi-desktop/build
         run: wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
 
       - name: Generate Windows resources
         if: runner.os == 'Windows'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         shell: bash
         run: wails3 generate syso -arch ${{ matrix.build.arch }} -icon build/windows/icon.ico -manifest build/windows/wails.exe.manifest -info build/windows/info.json -out wails_windows_${{ matrix.build.arch }}.syso
 
       - name: Build Kapi Desktop (Linux)
         if: runner.os == 'Linux'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           GOOS: linux
           CGO_ENABLED: "1"
@@ -546,7 +546,7 @@ jobs:
 
       - name: Build Kapi Desktop (Windows)
         if: runner.os == 'Windows'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         shell: bash
         env:
           GOOS: windows
@@ -559,7 +559,7 @@ jobs:
 
       - name: Build Kapi Desktop (macOS universal)
         if: runner.os == 'macOS'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           CGO_ENABLED: "1"
           CGO_CFLAGS: "-mmacosx-version-min=10.15"
@@ -574,7 +574,7 @@ jobs:
 
       - name: Create macOS .app bundle
         if: runner.os == 'macOS'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         run: |
           mkdir -p bin/Kapi.app/Contents/MacOS
           mkdir -p bin/Kapi.app/Contents/Resources
@@ -612,7 +612,7 @@ jobs:
 
       - name: Sign macOS app bundle
         if: runner.os == 'macOS'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           APPLE_SIGN_IDENTITY: ${{ secrets.APPLE_SIGN_IDENTITY }}
         run: |
@@ -629,7 +629,7 @@ jobs:
 
       - name: Create DMG
         if: runner.os == 'macOS'
-        working-directory: framework/apps/kapi-desktop
+        working-directory: apps/kapi-desktop
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
@@ -695,7 +695,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "framework/apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
+          Compress-Archive -Path "apps/kapi-desktop/bin/Kapi.exe" -DestinationPath "kapi-desktop-${{ steps.version.outputs.VERSION }}-windows-${{ matrix.build.arch }}.zip"
 
       - name: Upload ZIP to release
         if: runner.os == 'Windows'
@@ -707,7 +707,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           tar -czf "kapi-desktop-${{ steps.version.outputs.VERSION }}-linux-${{ matrix.build.arch }}.tar.gz" \
-            -C framework/apps/kapi-desktop/bin Kapi
+            -C apps/kapi-desktop/bin Kapi
 
       - name: Upload tarball to release
         if: runner.os == 'Linux'

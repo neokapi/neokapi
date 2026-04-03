@@ -14,27 +14,27 @@ runs:
       with:
         go-version: ${{ inputs.go-version }}
         cache-dependency-path: |
-          framework/go.sum
-          framework/cli/go.sum
-          framework/kapi/go.sum
-          platform/go.sum
-          platform/core/go.sum
-          platform/cli/go.sum
+          go.sum
+          cli/go.sum
+          kapi/go.sum
+          bowrain/go.sum
+          bowrain/core/go.sum
+          bowrain/cli/go.sum
 
     - name: Download modules
       shell: bash
       run: |
-        cd framework && go mod download && go mod verify
+        go mod download && go mod verify
         cd cli && go mod download && go mod verify
         cd ../kapi && go mod download && go mod verify
         cd ../apps/kapi-desktop && go mod download && go mod verify
-        cd ../../../platform/core && go mod download && go mod verify
+        cd ../../bowrain/core && go mod download && go mod verify
         cd ../cli && go mod download && go mod verify
         cd .. && go mod download && go mod verify
 
     - name: Create embed placeholders
       shell: bash
       run: |
-        mkdir -p platform/apps/web/dist && echo placeholder > platform/apps/web/dist/index.html
-        mkdir -p platform/apps/bowrain/frontend/dist && echo placeholder > platform/apps/bowrain/frontend/dist/index.html
-        mkdir -p framework/apps/kapi-desktop/frontend/dist && echo placeholder > framework/apps/kapi-desktop/frontend/dist/index.html
+        mkdir -p bowrain/apps/web/dist && echo placeholder > bowrain/apps/web/dist/index.html
+        mkdir -p bowrain/apps/bowrain/frontend/dist && echo placeholder > bowrain/apps/bowrain/frontend/dist/index.html
+        mkdir -p apps/kapi-desktop/frontend/dist && echo placeholder > apps/kapi-desktop/frontend/dist/index.html

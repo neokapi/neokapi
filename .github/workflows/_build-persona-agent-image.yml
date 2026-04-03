@@ -32,7 +32,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/persona-agent/Dockerfile
+          file: bowrain/docker/persona-agent/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/persona-agent:${{ inputs.image-tag }}

@@ -7,7 +7,7 @@ on:
     paths:
       - 'website/**'
       - 'docs/**'
-      - 'platform/docs/**'
+      - 'bowrain/docs/**'
 
 permissions:
   contents: read

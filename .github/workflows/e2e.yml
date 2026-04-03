@@ -22,7 +22,7 @@ jobs:
       - uses: ./.github/actions/setup-go-modules
 
       - name: Run kapi CLI e2e tests
-        working-directory: framework
+        working-directory: .
         run: go test -tags=e2e -count=1 -v ./kapi/e2e/
         timeout-minutes: 5
 
@@ -45,11 +45,11 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vpx playwright install --with-deps chromium
 
       - name: Run Playwright tests
-        working-directory: platform/apps/bowrain/frontend
+        working-directory: bowrain/apps/bowrain/frontend
         run: vpx playwright test
 
       - name: Upload test results
@@ -57,7 +57,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: playwright-report
-          path: platform/apps/bowrain/frontend/playwright-report/
+          path: bowrain/apps/bowrain/frontend/playwright-report/
           retention-days: 30
 
   # ── Build Docker images (prerequisites for Docker E2E) ───────────────────
@@ -99,7 +99,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/bowrain-server/Dockerfile
+          file: bowrain/docker/bowrain-server/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-server:${{ steps.meta.outputs.tag }}
@@ -115,7 +115,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/bowrain-web/Dockerfile
+          file: bowrain/docker/bowrain-web/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-web:${{ steps.meta.outputs.tag }}
@@ -134,13 +134,13 @@ jobs:
           java-version: "17"
 
       - name: Build Keycloak theme
-        run: make -C platform keycloak-theme
+        run: make -C bowrain keycloak-theme
 
       - name: Build and push keycloak image
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/keycloak/Dockerfile
+          file: bowrain/docker/keycloak/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-keycloak:${{ steps.meta.outputs.tag }}
@@ -173,11 +173,11 @@ jobs:
           export BOWRAIN_SERVER_IMAGE=ghcr.io/neokapi/bowrain-server:e2e
           export BOWRAIN_WEB_IMAGE=ghcr.io/neokapi/bowrain-web:e2e
           export BOWRAIN_KEYCLOAK_IMAGE=ghcr.io/neokapi/bowrain-keycloak:e2e
-          docker compose -f platform/e2e/server/compose.yaml up -d --wait
+          docker compose -f bowrain/e2e/server/compose.yaml up -d --wait
         timeout-minutes: 5
 
       - name: Run Bowrain server E2E tests
-        run: go test -tags=e2e -count=1 -v ./platform/e2e/server/
+        run: go test -tags=e2e -count=1 -v ./bowrain/e2e/server/
         timeout-minutes: 5
 
       - name: Cache Playwright browsers
@@ -187,14 +187,14 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}
 
       - name: Install Playwright browsers
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vpx playwright install --with-deps chromium
 
       - name: Run web app E2E tests
-        working-directory: platform/apps/web
+        working-directory: bowrain/apps/web
         run: vpx playwright test --config playwright.e2e.config.ts
         timeout-minutes: 5
 
       - name: Tear down E2E stack
         if: always()
-        run: docker compose -f platform/e2e/server/compose.yaml down -v
+        run: docker compose -f bowrain/e2e/server/compose.yaml down -v

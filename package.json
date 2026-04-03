@@ -3,15 +3,15 @@
   "workspaces": [
     "packages/ui",
     "packages/flow-editor",
-    "framework/apps/kapi-desktop/frontend",
-    "platform/packages/ui",
-    "platform/emails",
-    "platform/apps/web",
-    "platform/apps/ctrl",
-    "platform/apps/pulse",
-    "platform/apps/keycloak-theme",
-    "platform/apps/bowrain/frontend",
-    "platform/apps/mobile"
+    "apps/kapi-desktop/frontend",
+    "bowrain/packages/ui",
+    "bowrain/emails",
+    "bowrain/apps/web",
+    "bowrain/apps/ctrl",
+    "bowrain/apps/pulse",
+    "bowrain/apps/keycloak-theme",
+    "bowrain/apps/bowrain/frontend",
+    "bowrain/apps/mobile"
   ],
   "devDependencies": {
     "jsdom": "^29.0.1",

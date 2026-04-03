@@ -31,8 +31,8 @@ jobs:
       - name: Build and push bravo-agent image
         uses: docker/build-push-action@v7
         with:
-          context: platform
-          file: platform/docker/bravo/Dockerfile
+          context: bowrain
+          file: bowrain/docker/bravo/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bravo-agent:${{ inputs.image-tag }}
@@ -44,7 +44,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/bravo-sandbox-node/Dockerfile
+          file: bowrain/docker/bravo-sandbox-node/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bravo-sandbox-node:${{ inputs.image-tag }}
@@ -56,7 +56,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/bravo-sandbox-python/Dockerfile
+          file: bowrain/docker/bravo-sandbox-python/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bravo-sandbox-python:${{ inputs.image-tag }}

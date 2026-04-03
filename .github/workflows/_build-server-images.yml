@@ -47,7 +47,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/bowrain-server/Dockerfile
+          file: bowrain/docker/bowrain-server/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-server:${{ inputs.image-tag }}
@@ -65,7 +65,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: platform/docker/bowrain-worker/Dockerfile
+          file: bowrain/docker/bowrain-worker/Dockerfile
           push: true
           tags: |
             ghcr.io/neokapi/bowrain-worker:${{ inputs.image-tag }}

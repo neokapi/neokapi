@@ -1,11 +1,11 @@
 go 1.26.0
 
 use (
-	./framework
-	./framework/cli
-	./framework/kapi
-	./framework/apps/kapi-desktop
-	./platform/core
-	./platform/cli
-	./platform
+	.
+	./cli
+	./kapi
+	./apps/kapi-desktop
+	./bowrain/core
+	./bowrain/cli
+	./bowrain
 )
