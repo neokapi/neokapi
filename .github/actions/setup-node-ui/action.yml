@@ -23,6 +23,11 @@ runs:
       working-directory: platform
       run: vp install --frozen-lockfile
 
+    - name: Install shared UI primitives dependencies
+      shell: bash
+      working-directory: packages/ui
+      run: vp install
+
     - name: Build shared UI package
       shell: bash
       working-directory: platform/packages/ui
