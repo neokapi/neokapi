@@ -40,6 +40,7 @@ const config: StorybookConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       "@neokapi/ui": resolve(__dirname, "../src"),
+      "@neokapi/ui-primitives": resolve(__dirname, "../../../../packages/ui/src"),
     };
 
     // When building for GitHub Pages, serve from /storybook/ subpath.

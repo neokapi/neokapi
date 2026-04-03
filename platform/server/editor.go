@@ -756,7 +756,7 @@ func editorAITranslate(ctx context.Context, cs store.ContentStore, projectID, st
 		SourceLocale: proj.DefaultSourceLanguage,
 		TargetLocale: model.LocaleID(req.TargetLocale),
 		BatchSize:    req.BatchSize,
-		Concurrency:  req.Concurrency,
+		BatchConcurrency: req.Concurrency,
 	})
 
 	outParts, err := runToolOnParts(ctx, translateTool, parts)
