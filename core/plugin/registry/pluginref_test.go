@@ -7,6 +7,7 @@ import (
 )
 
 func TestParsePluginRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input   string
 		name    string
@@ -21,6 +22,7 @@ func TestParsePluginRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			ref := ParsePluginRef(tt.input)
 			assert.Equal(t, tt.name, ref.Name)
 			assert.Equal(t, tt.version, ref.Version)
@@ -29,16 +31,19 @@ func TestParsePluginRef(t *testing.T) {
 }
 
 func TestPluginRefString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "okapi@1.46.0", PluginRef{Name: "okapi", Version: "1.46.0"}.String())
 	assert.Equal(t, "okapi", PluginRef{Name: "okapi"}.String())
 }
 
 func TestPluginRefIsVersioned(t *testing.T) {
+	t.Parallel()
 	assert.True(t, PluginRef{Name: "okapi", Version: "1.0.0"}.IsVersioned())
 	assert.False(t, PluginRef{Name: "okapi"}.IsVersioned())
 }
 
 func TestParseFormatRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input   string
 		name    string
@@ -60,6 +65,7 @@ func TestParseFormatRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			ref := ParseFormatRef(tt.input)
 			assert.Equal(t, tt.name, ref.Name)
 			assert.Equal(t, tt.version, ref.Version)
@@ -69,6 +75,7 @@ func TestParseFormatRef(t *testing.T) {
 }
 
 func TestFormatRefString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "okapi-html@1.46.0", FormatRef{Name: "okapi-html", Version: "1.46.0"}.String())
 	assert.Equal(t, "okapi-html", FormatRef{Name: "okapi-html"}.String())
 	assert.Equal(t, "okf_html:wellFormed", FormatRef{Name: "okf_html", Preset: "wellFormed"}.String())
@@ -76,6 +83,7 @@ func TestFormatRefString(t *testing.T) {
 }
 
 func TestFormatRefRegistryName(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "okf_html", FormatRef{Name: "okf_html"}.RegistryName())
 	assert.Equal(t, "okf_html@1.46.0", FormatRef{Name: "okf_html", Version: "1.46.0"}.RegistryName())
 	assert.Equal(t, "okf_html", FormatRef{Name: "okf_html", Preset: "wellFormed"}.RegistryName())
@@ -83,17 +91,20 @@ func TestFormatRefRegistryName(t *testing.T) {
 }
 
 func TestFormatRefIsVersioned(t *testing.T) {
+	t.Parallel()
 	assert.True(t, FormatRef{Name: "okapi-html", Version: "1.0.0"}.IsVersioned())
 	assert.False(t, FormatRef{Name: "okapi-html"}.IsVersioned())
 }
 
 func TestFormatRefIsPreset(t *testing.T) {
+	t.Parallel()
 	assert.True(t, FormatRef{Name: "okf_html", Preset: "wellFormed"}.IsPreset())
 	assert.False(t, FormatRef{Name: "okf_html", Version: "1.0.0"}.IsPreset())
 	assert.False(t, FormatRef{Name: "json"}.IsPreset())
 }
 
 func TestCompareSemver(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		a, b string
 		want int
@@ -111,12 +122,14 @@ func TestCompareSemver(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.a+"_vs_"+tt.b, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, CompareSemver(tt.a, tt.b))
 		})
 	}
 }
 
 func TestLatestVersion(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "", LatestVersion(nil))
 	assert.Equal(t, "", LatestVersion([]string{}))
 	assert.Equal(t, "1.0.0", LatestVersion([]string{"1.0.0"}))

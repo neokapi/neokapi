@@ -73,48 +73,56 @@ func skeletonTSVRoundtrip(t *testing.T, input string) string {
 }
 
 func TestSkeletonStore_ByteExact_SimpleCSV(t *testing.T) {
+	t.Parallel()
 	input := "name,value\nhello,world\nfoo,bar"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "simple CSV roundtrip should be byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_QuotedFields(t *testing.T) {
+	t.Parallel()
 	input := "name,value\n\"hello, world\",simple\nplain,\"quoted value\""
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "quoted fields should be preserved byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_CRLF(t *testing.T) {
+	t.Parallel()
 	input := "name,value\r\nhello,world\r\nfoo,bar"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "CRLF line endings should be preserved byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_CRLFTrailingNewline(t *testing.T) {
+	t.Parallel()
 	input := "name,value\r\nhello,world\r\nfoo,bar\r\n"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "CRLF with trailing newline should be preserved")
 }
 
 func TestSkeletonStore_ByteExact_MixedQuoting(t *testing.T) {
+	t.Parallel()
 	input := "a,b,c\nunquoted,\"quoted\",unquoted\n\"all quoted\",\"also quoted\",\"quoted too\""
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "mixed quoting styles should be preserved byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_EscapedQuotes(t *testing.T) {
+	t.Parallel()
 	input := "name,value\n\"has \"\"escaped\"\" quotes\",plain"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "escaped quotes should be preserved byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_TrailingNewline(t *testing.T) {
+	t.Parallel()
 	input := "name,value\nhello,world\n"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "trailing newline should be preserved")
 }
 
 func TestSkeletonStore_ByteExact_NoHeader(t *testing.T) {
+	t.Parallel()
 	input := "hello,world\nfoo,bar"
 	output := skeletonRoundtrip(t, input, func(cfg *csvfmt.Config) {
 		cfg.HasHeader = false
@@ -123,30 +131,35 @@ func TestSkeletonStore_ByteExact_NoHeader(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_HeaderPreserved(t *testing.T) {
+	t.Parallel()
 	input := "Name,Description,Count\nAlice,Developer,1\nBob,Designer,2"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "header row should be preserved byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_EmptyCells(t *testing.T) {
+	t.Parallel()
 	input := "a,b,c\n,hello,\nfoo,,bar"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "empty cells should be preserved byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_TSV(t *testing.T) {
+	t.Parallel()
 	input := "name\tvalue\nhello\tworld\nfoo\tbar"
 	output := skeletonTSVRoundtrip(t, input)
 	assert.Equal(t, input, output, "TSV roundtrip should be byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_TSV_CRLF(t *testing.T) {
+	t.Parallel()
 	input := "name\tvalue\r\nhello\tworld\r\nfoo\tbar"
 	output := skeletonTSVRoundtrip(t, input)
 	assert.Equal(t, input, output, "TSV with CRLF should be byte-exact")
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
+	t.Parallel()
 	input := "key,text\ngreeting,Hello World\nfarewell,Goodbye"
 	ctx := context.Background()
 	locale := model.LocaleID("fr")
@@ -189,6 +202,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_QuotedField(t *testing.T) {
+	t.Parallel()
 	input := "key,text\ngreeting,\"Hello, World\"\nfarewell,Goodbye"
 	ctx := context.Background()
 	locale := model.LocaleID("fr")
@@ -232,6 +246,7 @@ func TestSkeletonStore_WithTranslation_QuotedField(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
+	t.Parallel()
 	input := "key,text\r\ngreeting,Hello\r\nfarewell,Goodbye"
 	ctx := context.Background()
 	locale := model.LocaleID("de")
@@ -275,6 +290,7 @@ func TestSkeletonStore_WithTranslation_CRLF(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_NonTranslatableColumns(t *testing.T) {
+	t.Parallel()
 	input := "id,name,count\n1,Alice,10\n2,Bob,20"
 	output := skeletonRoundtrip(t, input, func(cfg *csvfmt.Config) {
 		cfg.TranslatableColumns = []int{1} // only "name" column is translatable
@@ -283,6 +299,7 @@ func TestSkeletonStore_ByteExact_NonTranslatableColumns(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_SingleColumn(t *testing.T) {
+	t.Parallel()
 	input := "value\nhello\nworld"
 	output := skeletonRoundtrip(t, input, nil)
 	assert.Equal(t, input, output, "single column CSV should roundtrip byte-exact")

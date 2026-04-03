@@ -56,6 +56,7 @@ func roundTripTSVLocale(t *testing.T, input string, locale model.LocaleID) strin
 
 // okapi: TableFilterTest#testTSV
 func TestTSV_BasicRead(t *testing.T) {
+	t.Parallel()
 	input := "name\tvalue\ngreeting\tHello\nfarewell\tGoodbye\n"
 	parts := readTSV(t, input)
 	blocks := collectBlocks(parts)
@@ -69,6 +70,7 @@ func TestTSV_BasicRead(t *testing.T) {
 }
 
 func TestTSV_NameAndMimeType(t *testing.T) {
+	t.Parallel()
 	input := "a\tb\n1\t2\n"
 	parts := readTSV(t, input)
 	require.NotEmpty(t, parts)
@@ -81,12 +83,14 @@ func TestTSV_NameAndMimeType(t *testing.T) {
 }
 
 func TestTSV_ReaderMetadata(t *testing.T) {
+	t.Parallel()
 	reader := csvfmt.NewTSVReader()
 	assert.Equal(t, "tsv", reader.Name())
 	assert.Equal(t, "TSV", reader.DisplayName())
 }
 
 func TestTSV_Signature(t *testing.T) {
+	t.Parallel()
 	reader := csvfmt.NewTSVReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "text/tab-separated-values")
@@ -95,6 +99,7 @@ func TestTSV_Signature(t *testing.T) {
 }
 
 func TestTSV_EmptyInput(t *testing.T) {
+	t.Parallel()
 	parts := readTSV(t, "")
 	blocks := collectBlocks(parts)
 	assert.Empty(t, blocks)
@@ -104,6 +109,7 @@ func TestTSV_EmptyInput(t *testing.T) {
 }
 
 func TestTSV_NilDocument(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	err := reader.Open(ctx, nil)
@@ -111,6 +117,7 @@ func TestTSV_NilDocument(t *testing.T) {
 }
 
 func TestTSV_HeaderRow(t *testing.T) {
+	t.Parallel()
 	input := "key\tvalue\nid1\tHello\n"
 	parts := readTSV(t, input)
 
@@ -130,6 +137,7 @@ func TestTSV_HeaderRow(t *testing.T) {
 }
 
 func TestTSV_NoHeader(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
@@ -146,6 +154,7 @@ func TestTSV_NoHeader(t *testing.T) {
 }
 
 func TestTSV_MultipleColumns(t *testing.T) {
+	t.Parallel()
 	input := "col1\tcol2\tcol3\na\tb\tc\n"
 	parts := readTSV(t, input)
 	blocks := collectBlocks(parts)
@@ -157,6 +166,7 @@ func TestTSV_MultipleColumns(t *testing.T) {
 }
 
 func TestTSV_EmbeddedCommas(t *testing.T) {
+	t.Parallel()
 	// Tabs as separator means commas in values are fine without quoting
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
@@ -177,6 +187,7 @@ func TestTSV_EmbeddedCommas(t *testing.T) {
 }
 
 func TestTSV_TranslatableColumns(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
@@ -194,6 +205,7 @@ func TestTSV_TranslatableColumns(t *testing.T) {
 }
 
 func TestTSV_TrimValues(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
@@ -216,11 +228,13 @@ func TestTSV_TrimValues(t *testing.T) {
 // --- TSV Writer Tests ---
 
 func TestTSV_WriterMetadata(t *testing.T) {
+	t.Parallel()
 	writer := csvfmt.NewTSVWriter()
 	assert.Equal(t, "tsv", writer.Name())
 }
 
 func TestTSV_RoundTrip(t *testing.T) {
+	t.Parallel()
 	input := "key\tvalue\ngreeting\tHello\nfarewell\tGoodbye\n"
 	output := roundTripTSV(t, input)
 	assert.Contains(t, output, "key\tvalue")
@@ -229,6 +243,7 @@ func TestTSV_RoundTrip(t *testing.T) {
 }
 
 func TestTSV_RoundTripWithTranslation(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := "key\tvalue\ngreeting\tHello\n"
 
@@ -265,6 +280,7 @@ func TestTSV_RoundTripWithTranslation(t *testing.T) {
 }
 
 func TestTSV_KeyColumns(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
@@ -283,6 +299,7 @@ func TestTSV_KeyColumns(t *testing.T) {
 }
 
 func TestTSV_CommentColumns(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	cfg := reader.Config().(*csvfmt.Config)
@@ -301,6 +318,7 @@ func TestTSV_CommentColumns(t *testing.T) {
 }
 
 func TestTSV_ConfigFormatName(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{Separator: '\t'}
 	assert.Equal(t, "tsv", cfg.FormatName())
 
@@ -309,6 +327,7 @@ func TestTSV_ConfigFormatName(t *testing.T) {
 }
 
 func TestTSV_MultipleRows(t *testing.T) {
+	t.Parallel()
 	input := "h1\th2\nrow1a\trow1b\nrow2a\trow2b\nrow3a\trow3b\n"
 	parts := readTSV(t, input)
 	blocks := collectBlocks(parts)
@@ -316,6 +335,7 @@ func TestTSV_MultipleRows(t *testing.T) {
 }
 
 func TestTSV_EmptyRows(t *testing.T) {
+	t.Parallel()
 	// Rows with empty cells should still produce blocks for non-empty cells
 	input := "h1\th2\n\tworld\nhello\t\n"
 	parts := readTSV(t, input)
@@ -325,6 +345,7 @@ func TestTSV_EmptyRows(t *testing.T) {
 }
 
 func TestTSV_LayerStartEnd(t *testing.T) {
+	t.Parallel()
 	input := "col\ndata\n"
 	parts := readTSV(t, input)
 	require.GreaterOrEqual(t, len(parts), 2)
@@ -333,6 +354,7 @@ func TestTSV_LayerStartEnd(t *testing.T) {
 }
 
 func TestTSV_CSVReaderDoesNotClaimTSV(t *testing.T) {
+	t.Parallel()
 	reader := csvfmt.NewReader()
 	sig := reader.Signature()
 	assert.NotContains(t, sig.Extensions, ".tsv")

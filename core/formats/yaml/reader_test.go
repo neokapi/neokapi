@@ -74,6 +74,7 @@ func blockByNameContaining(blocks []*model.Block, substr string) *model.Block {
 
 // okapi: YmlFilterTest#testSimpleYaml
 func TestExtract_SimpleYaml(t *testing.T) {
+	t.Parallel()
 	input := `en:
   title: My Rails Website
   items:
@@ -90,6 +91,7 @@ func TestExtract_SimpleYaml(t *testing.T) {
 
 // okapi: YmlFilterTest#testDefaultInfo
 func TestExtract_DefaultInfo(t *testing.T) {
+	t.Parallel()
 	parts := readYAMLParts(t, "key: value\n")
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -98,6 +100,7 @@ func TestExtract_DefaultInfo(t *testing.T) {
 
 // okapi: YmlFilterTest#testStartDocument
 func TestExtract_StartDocument(t *testing.T) {
+	t.Parallel()
 	parts := readYAMLParts(t, "key: value\n")
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -110,6 +113,7 @@ func TestExtract_StartDocument(t *testing.T) {
 
 // okapi: YmlFilterTest#testScalars
 func TestExtract_Scalars(t *testing.T) {
+	t.Parallel()
 	input := `invoice: 34843
 date: 2001-01-23
 bill-to:
@@ -145,6 +149,7 @@ comments: |
 
 // okapi: YmlFilterTest#testFlow
 func TestExtract_Flow(t *testing.T) {
+	t.Parallel()
 	input := `shopping:
   - milk
   - pumpkin pie
@@ -162,6 +167,7 @@ person: {name: John Smith, age: 33}
 
 // okapi: YmlFilterTest#testMultilineValue
 func TestExtract_MultilineValue(t *testing.T) {
+	t.Parallel()
 	input := `not_literal: not literal
 literal: |
   Your enrollment is not complete
@@ -183,6 +189,7 @@ literal: |
 
 // okapi: YmlFilterTest#testSimplePlaceholders
 func TestExtract_SimplePlaceholders(t *testing.T) {
+	t.Parallel()
 	input := "msg: \"Hello {{name}}, you have {{count}} items.\"\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -196,6 +203,7 @@ func TestExtract_SimplePlaceholders(t *testing.T) {
 
 // okapi: YmlFilterTest#map
 func TestExtract_Map(t *testing.T) {
+	t.Parallel()
 	input := `en:
   title: My Rails Website
   items:
@@ -221,6 +229,7 @@ fr:
 
 // okapi: YmlFilterTest#list
 func TestExtract_List(t *testing.T) {
+	t.Parallel()
 	input := "items:\n  - First\n  - Second\n  - Third\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -232,6 +241,7 @@ func TestExtract_List(t *testing.T) {
 
 // okapi: YmlFilterTest#listSingleQuote
 func TestExtract_ListSingleQuote(t *testing.T) {
+	t.Parallel()
 	input := "items:\n  - 'First'\n  - 'Second'\n  - 'Third'\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -243,6 +253,7 @@ func TestExtract_ListSingleQuote(t *testing.T) {
 
 // okapi: YmlFilterTest#emptyKey
 func TestExtract_EmptyKey(t *testing.T) {
+	t.Parallel()
 	input := "a: value_a\nb: value_b\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -254,6 +265,7 @@ func TestExtract_EmptyKey(t *testing.T) {
 
 // okapi: YmlFilterTest#nonEmptyKey
 func TestExtract_NonEmptyKey(t *testing.T) {
+	t.Parallel()
 	input := "mykey: value for mykey\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -265,6 +277,7 @@ func TestExtract_NonEmptyKey(t *testing.T) {
 
 // okapi: YmlFilterTest#mapWithEmptyKeys
 func TestExtract_MapWithEmptyKeys(t *testing.T) {
+	t.Parallel()
 	input := "parent:\n  child1: value1\n  child2: value2\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -276,6 +289,7 @@ func TestExtract_MapWithEmptyKeys(t *testing.T) {
 
 // okapi: YmlFilterTest#mapWithEmptyKeysQuoted
 func TestExtract_MapWithEmptyKeysQuoted(t *testing.T) {
+	t.Parallel()
 	input := "parent:\n  \"child1\": value1\n  \"child2\": value2\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -292,6 +306,7 @@ func TestExtract_MapWithEmptyKeysQuoted(t *testing.T) {
 
 // okapi: YmlFilterTest#commentsAfterPlainScalarsPreserved
 func TestExtract_CommentsAfterPlainScalarsPreserved(t *testing.T) {
+	t.Parallel()
 	// Comments should not appear in extracted text values.
 	input := "key: value # this is a comment\n"
 	blocks := readYAML(t, input)
@@ -301,6 +316,7 @@ func TestExtract_CommentsAfterPlainScalarsPreserved(t *testing.T) {
 
 // okapi: YmlFilterTest#commentsAfterPlainScalarMappingValuesPreserved
 func TestExtract_CommentsAfterPlainScalarMappingValuesPreserved(t *testing.T) {
+	t.Parallel()
 	input := "parent:\n  key: value # comment\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -312,6 +328,7 @@ func TestExtract_CommentsAfterPlainScalarMappingValuesPreserved(t *testing.T) {
 
 // okapi: YmlFilterTest#testOpenTwiceWithString
 func TestExtract_OpenTwiceWithString(t *testing.T) {
+	t.Parallel()
 	input := "key: Hello World\n"
 
 	blocks1 := readYAML(t, input)
@@ -325,6 +342,7 @@ func TestExtract_OpenTwiceWithString(t *testing.T) {
 
 // okapi: YmlFilterTest#testSubfiltering
 func TestExtract_Subfiltering(t *testing.T) {
+	t.Parallel()
 	// Native YAML reader does not implement HTML subfilter delegation,
 	// but it should extract the raw HTML content as a string value.
 	input := `key: "<p>Hello world</p>"
@@ -338,6 +356,7 @@ func TestExtract_Subfiltering(t *testing.T) {
 
 // okapi: YmlFilterTest#testDoubleSubfilter
 func TestExtract_DoubleSubfilter(t *testing.T) {
+	t.Parallel()
 	// The native reader extracts HTML content as raw string.
 	input := `html: "Visit <a href=\"http://www.google.com\">Google</a>"
 `
@@ -351,6 +370,7 @@ func TestExtract_DoubleSubfilter(t *testing.T) {
 
 // okapi: YmlFilterTest#testSubFilterProcessLiteralAsBlock
 func TestExtract_SubFilterProcessLiteralAsBlock(t *testing.T) {
+	t.Parallel()
 	input := `not_literal: not literal
 literal_html: |
   <ul>
@@ -377,6 +397,7 @@ literal_html: |
 
 // okapi: YmlFilterTest#issue555
 func TestExtract_Issue555(t *testing.T) {
+	t.Parallel()
 	// Tests comment handling and boolean-like values.
 	input := `# Comment line
 world-teleport-permissions: false
@@ -392,6 +413,7 @@ teleportation:
 
 // okapi: YmlFilterTest#issue556
 func TestExtract_Issue556(t *testing.T) {
+	t.Parallel()
 	// HTML content in YAML value with subfilter. Native reader extracts raw.
 	input := `html: "Visit <a href=\"http://www.google.com\">Google</a>"
 `
@@ -405,6 +427,7 @@ func TestExtract_Issue556(t *testing.T) {
 
 // okapi: YmlFilterTest#testDoublePlainWithQuotes
 func TestExtract_DoublePlainWithQuotes(t *testing.T) {
+	t.Parallel()
 	// Plain scalars containing single quotes.
 	input := `description: Basically it's a description with 'quotes'
 `
@@ -418,6 +441,7 @@ func TestExtract_DoublePlainWithQuotes(t *testing.T) {
 
 // okapi: YmlFilterTest#testDoubleExtraction
 func TestExtract_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	input := `en:
   hello: Hello
   goodbye: Goodbye
@@ -434,6 +458,7 @@ func TestExtract_DoubleExtraction(t *testing.T) {
 
 // okapi: YmlFilterTest#testDoubleExtractionWithEscapes
 func TestExtract_DoubleExtractionWithEscapes(t *testing.T) {
+	t.Parallel()
 	input := `key1: "Hello\tWorld"
 key2: "Line1\nLine2"
 key3: "Path\\to\\file"
@@ -449,6 +474,7 @@ key3: "Path\\to\\file"
 
 // okapi: YmlFilterTest#testDoubleExtractionNonStrings
 func TestExtract_DoubleExtractionNonStrings(t *testing.T) {
+	t.Parallel()
 	input := `string_val: hello
 int_val: 42
 float_val: 3.14
@@ -467,6 +493,7 @@ null_val: null
 
 // okapi: YmlFilterTest#testDoubleExtractionLongLine
 func TestExtract_DoubleExtractionLongLine(t *testing.T) {
+	t.Parallel()
 	longValue := strings.Repeat("This is a long line. ", 50)
 	input := "key: " + longValue + "\n"
 
@@ -479,6 +506,7 @@ func TestExtract_DoubleExtractionLongLine(t *testing.T) {
 
 // okapi: YmlFilterTest#testDoubleExtractionWithMultilines
 func TestExtract_DoubleExtractionWithMultilines(t *testing.T) {
+	t.Parallel()
 	input := `folded: >
   This is a folded
   block scalar that
@@ -499,6 +527,7 @@ literal: |
 
 // okapi: YmlFilterTest#commentsAfterScalarsRoundTripped
 func TestExtract_CommentsAfterScalars(t *testing.T) {
+	t.Parallel()
 	// Verify that comments don't leak into extracted values.
 	input := "key: value # important comment\nkey2: other # another comment\n"
 	blocks := readYAML(t, input)
@@ -510,6 +539,7 @@ func TestExtract_CommentsAfterScalars(t *testing.T) {
 
 // okapi: YmlFilterTest#testRoundTripSubFilterProcessLiteralAsBlock
 func TestExtract_RoundTripSubFilterProcessLiteralAsBlock(t *testing.T) {
+	t.Parallel()
 	input := `not_literal: not literal
 literal_html: |
   <ul>
@@ -533,6 +563,7 @@ literal_html: |
 
 // okapi: YmlFilterTest#testRoundtripFailures
 func TestExtract_RoundtripFiles(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		input string
@@ -552,6 +583,7 @@ func TestExtract_RoundtripFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			blocks := readYAML(t, tt.input)
 			require.NotEmpty(t, blocks)
 		})
@@ -562,6 +594,7 @@ func TestExtract_RoundtripFiles(t *testing.T) {
 
 // okapi: YamlFilterTest#testInlineCodeFinderNewLineCharacterDoubleQuotedString
 func TestExtract_InlineCodeFinderNewLineCharacterDoubleQuotedString(t *testing.T) {
+	t.Parallel()
 	input := "key: \"Hello\\nWorld\"\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"useCodeFinder": true,
@@ -575,6 +608,7 @@ func TestExtract_InlineCodeFinderNewLineCharacterDoubleQuotedString(t *testing.T
 
 // okapi: YamlFilterTest#testInlineCodeFinderNewLineCharacterSingleQuotedString
 func TestExtract_InlineCodeFinderNewLineCharacterSingleQuotedString(t *testing.T) {
+	t.Parallel()
 	input := "key: 'Hello\\nWorld'\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"useCodeFinder": true,
@@ -588,6 +622,7 @@ func TestExtract_InlineCodeFinderNewLineCharacterSingleQuotedString(t *testing.T
 
 // okapi: YamlFilterTest#testInlineCodeFinderNewLineCharacterStringWithoutQuotes
 func TestExtract_InlineCodeFinderNewLineCharacterStringWithoutQuotes(t *testing.T) {
+	t.Parallel()
 	input := "key: Hello\\nWorld\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"useCodeFinder": true,
@@ -601,6 +636,7 @@ func TestExtract_InlineCodeFinderNewLineCharacterStringWithoutQuotes(t *testing.
 
 // okapi: YamlFilterTest#testInlineCodeFinderWithQuoteInCode
 func TestExtract_InlineCodeFinderWithQuoteInCode(t *testing.T) {
+	t.Parallel()
 	input := "key: \"Text with 'code' inside\"\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"useCodeFinder": true,
@@ -615,6 +651,7 @@ func TestExtract_InlineCodeFinderWithQuoteInCode(t *testing.T) {
 
 // okapi: YamlParserTest#singleString
 func TestParse_SingleString(t *testing.T) {
+	t.Parallel()
 	blocks := readYAML(t, "key: value\n")
 	require.NotEmpty(t, blocks)
 	assert.Equal(t, "value", blocks[0].SourceText())
@@ -622,6 +659,7 @@ func TestParse_SingleString(t *testing.T) {
 
 // okapi: YamlParserTest#singleFile
 func TestParse_SingleFile(t *testing.T) {
+	t.Parallel()
 	input := `en:
   title: My Rails Website
   items:
@@ -635,6 +673,7 @@ func TestParse_SingleFile(t *testing.T) {
 
 // okapi: YamlParserTest#singleArrayNoSpace
 func TestParse_SingleArrayNoSpace(t *testing.T) {
+	t.Parallel()
 	// Flow-style array in YAML
 	input := "items: [one,two,three]\n"
 	blocks := readYAML(t, input)
@@ -643,6 +682,7 @@ func TestParse_SingleArrayNoSpace(t *testing.T) {
 
 // okapi: YamlParserTest#singleArrayWithSpace
 func TestParse_SingleArrayWithSpace(t *testing.T) {
+	t.Parallel()
 	input := "items: [one, two, three]\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -656,6 +696,7 @@ func TestParse_SingleArrayWithSpace(t *testing.T) {
 // ---- Additional native tests for YAML-specific features ----
 
 func TestReadSimpleYAML(t *testing.T) {
+	t.Parallel()
 	blocks := readYAML(t, "title: Hello World\ndescription: A test")
 	require.Len(t, blocks, 2)
 	texts := blockTexts(blocks)
@@ -664,6 +705,7 @@ func TestReadSimpleYAML(t *testing.T) {
 }
 
 func TestReadNestedYAML(t *testing.T) {
+	t.Parallel()
 	blocks := readYAML(t, "root:\n  nested:\n    value: Deep content")
 	require.Len(t, blocks, 1)
 	assert.Equal(t, "Deep content", blocks[0].SourceText())
@@ -671,6 +713,7 @@ func TestReadNestedYAML(t *testing.T) {
 }
 
 func TestReadYAMLArray(t *testing.T) {
+	t.Parallel()
 	blocks := readYAML(t, "items:\n  - First\n  - Second\n  - Third")
 	require.Len(t, blocks, 3)
 	assert.Equal(t, "First", blocks[0].SourceText())
@@ -679,6 +722,7 @@ func TestReadYAMLArray(t *testing.T) {
 }
 
 func TestReadYAMLLayerStartEnd(t *testing.T) {
+	t.Parallel()
 	parts := readYAMLParts(t, "key: value")
 	require.GreaterOrEqual(t, len(parts), 2)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -689,11 +733,13 @@ func TestReadYAMLLayerStartEnd(t *testing.T) {
 }
 
 func TestReadYAMLEmpty(t *testing.T) {
+	t.Parallel()
 	blocks := readYAML(t, "{}")
 	assert.Empty(t, blocks)
 }
 
 func TestReaderSignature(t *testing.T) {
+	t.Parallel()
 	reader := yamlfmt.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "application/yaml")
@@ -702,12 +748,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReaderMetadata(t *testing.T) {
+	t.Parallel()
 	reader := yamlfmt.NewReader()
 	assert.Equal(t, "yaml", reader.Name())
 	assert.Equal(t, "YAML", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := yamlfmt.NewReader()
 	err := reader.Open(ctx, nil)
@@ -717,6 +765,7 @@ func TestReadNilDocument(t *testing.T) {
 // --- Multiline string tests ---
 
 func TestReadLiteralBlockScalar(t *testing.T) {
+	t.Parallel()
 	input := `description: |
   This is a literal
   block scalar that
@@ -731,6 +780,7 @@ func TestReadLiteralBlockScalar(t *testing.T) {
 }
 
 func TestReadFoldedBlockScalar(t *testing.T) {
+	t.Parallel()
 	input := `description: >
   This is a folded
   block scalar that
@@ -744,6 +794,7 @@ func TestReadFoldedBlockScalar(t *testing.T) {
 }
 
 func TestReadLiteralBlockWithChompKeep(t *testing.T) {
+	t.Parallel()
 	input := `key: |+
   Line one
   Line two
@@ -757,6 +808,7 @@ func TestReadLiteralBlockWithChompKeep(t *testing.T) {
 }
 
 func TestReadLiteralBlockWithChompStrip(t *testing.T) {
+	t.Parallel()
 	input := `key: |-
   Line one
   Line two
@@ -770,6 +822,7 @@ func TestReadLiteralBlockWithChompStrip(t *testing.T) {
 }
 
 func TestReadFoldedBlockWithChompStrip(t *testing.T) {
+	t.Parallel()
 	input := `key: >-
   Folded content
   on multiple lines
@@ -783,6 +836,7 @@ func TestReadFoldedBlockWithChompStrip(t *testing.T) {
 // --- Anchor and alias tests ---
 
 func TestReadAnchorAndAlias(t *testing.T) {
+	t.Parallel()
 	input := `defaults: &defaults
   adapter: postgres
   host: localhost
@@ -803,6 +857,7 @@ production:
 }
 
 func TestReadScalarAnchorAlias(t *testing.T) {
+	t.Parallel()
 	input := `base_url: &url https://example.com
 api_url: *url
 `
@@ -822,6 +877,7 @@ api_url: *url
 // --- Multi-document tests ---
 
 func TestReadMultiDocument(t *testing.T) {
+	t.Parallel()
 	input := "---\ntitle: Document One\n---\ntitle: Document Two\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -831,6 +887,7 @@ func TestReadMultiDocument(t *testing.T) {
 }
 
 func TestReadMultiDocumentWithExplicitEnd(t *testing.T) {
+	t.Parallel()
 	input := "---\nkey: first\n...\n---\nkey: second\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -842,6 +899,7 @@ func TestReadMultiDocumentWithExplicitEnd(t *testing.T) {
 // --- Flow style tests ---
 
 func TestReadFlowMapping(t *testing.T) {
+	t.Parallel()
 	input := "person: {name: Alice, role: Developer}\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -851,6 +909,7 @@ func TestReadFlowMapping(t *testing.T) {
 }
 
 func TestReadFlowSequence(t *testing.T) {
+	t.Parallel()
 	input := "colors: [red, green, blue]\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -861,6 +920,7 @@ func TestReadFlowSequence(t *testing.T) {
 }
 
 func TestReadNestedFlowStyle(t *testing.T) {
+	t.Parallel()
 	input := "data: {items: [one, two], meta: {count: 2}}\n"
 	blocks := readYAML(t, input)
 	texts := blockTexts(blocks)
@@ -872,6 +932,7 @@ func TestReadNestedFlowStyle(t *testing.T) {
 // --- Quoting style tests ---
 
 func TestReadDoubleQuotedString(t *testing.T) {
+	t.Parallel()
 	input := "key: \"Hello World\"\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -879,6 +940,7 @@ func TestReadDoubleQuotedString(t *testing.T) {
 }
 
 func TestReadSingleQuotedString(t *testing.T) {
+	t.Parallel()
 	input := "key: 'Hello World'\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -886,6 +948,7 @@ func TestReadSingleQuotedString(t *testing.T) {
 }
 
 func TestReadPlainScalar(t *testing.T) {
+	t.Parallel()
 	input := "key: Hello World\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -893,6 +956,7 @@ func TestReadPlainScalar(t *testing.T) {
 }
 
 func TestReadDoubleQuotedEscapes(t *testing.T) {
+	t.Parallel()
 	input := "key: \"Hello\\tWorld\\nNew line\"\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -903,6 +967,7 @@ func TestReadDoubleQuotedEscapes(t *testing.T) {
 }
 
 func TestReadSingleQuotedWithEscapedQuote(t *testing.T) {
+	t.Parallel()
 	input := "key: 'It''s a test'\n"
 	blocks := readYAML(t, input)
 	require.NotEmpty(t, blocks)
@@ -912,12 +977,14 @@ func TestReadSingleQuotedWithEscapedQuote(t *testing.T) {
 // --- Non-string scalar tests ---
 
 func TestReadBooleanNotExtractedByDefault(t *testing.T) {
+	t.Parallel()
 	input := "enabled: true\ndisabled: false\n"
 	blocks := readYAML(t, input)
 	assert.Empty(t, blocks, "booleans should not be extracted by default")
 }
 
 func TestReadBooleanExtractedWhenConfigured(t *testing.T) {
+	t.Parallel()
 	input := "enabled: true\ndisabled: false\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"extractNonStrings": true,
@@ -928,12 +995,14 @@ func TestReadBooleanExtractedWhenConfigured(t *testing.T) {
 }
 
 func TestReadNumberNotExtractedByDefault(t *testing.T) {
+	t.Parallel()
 	input := "count: 42\nprice: 9.99\n"
 	blocks := readYAML(t, input)
 	assert.Empty(t, blocks, "numbers should not be extracted by default")
 }
 
 func TestReadNumberExtractedWhenConfigured(t *testing.T) {
+	t.Parallel()
 	input := "count: 42\nprice: 9.99\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"extractNonStrings": true,
@@ -944,6 +1013,7 @@ func TestReadNumberExtractedWhenConfigured(t *testing.T) {
 }
 
 func TestReadNullNotExtracted(t *testing.T) {
+	t.Parallel()
 	input := "key: null\nother: ~\n"
 	blocks := readYAML(t, input)
 	assert.Empty(t, blocks, "null values should not be extracted")
@@ -952,6 +1022,7 @@ func TestReadNullNotExtracted(t *testing.T) {
 // --- Key path name tests ---
 
 func TestReadKeyPathNames(t *testing.T) {
+	t.Parallel()
 	input := `root:
   level1:
     level2: deep value
@@ -962,6 +1033,7 @@ func TestReadKeyPathNames(t *testing.T) {
 }
 
 func TestReadArrayKeyPathNames(t *testing.T) {
+	t.Parallel()
 	input := "items:\n  - alpha\n  - beta\n"
 	blocks := readYAML(t, input)
 	require.Len(t, blocks, 2)
@@ -970,6 +1042,7 @@ func TestReadArrayKeyPathNames(t *testing.T) {
 }
 
 func TestReadNestedArrayKeyPath(t *testing.T) {
+	t.Parallel()
 	input := `categories:
   - name: First
     items:
@@ -986,6 +1059,7 @@ func TestReadNestedArrayKeyPath(t *testing.T) {
 // --- Key path pattern tests ---
 
 func TestReadKeyPathPatternWildcard(t *testing.T) {
+	t.Parallel()
 	input := `en:
   title: English Title
   body: English Body
@@ -1004,6 +1078,7 @@ fr:
 }
 
 func TestReadKeyPathPatternDoubleWildcard(t *testing.T) {
+	t.Parallel()
 	input := `en:
   messages:
     greeting: Hello
@@ -1025,6 +1100,7 @@ fr:
 }
 
 func TestReadKeyPathPatternNoMatch(t *testing.T) {
+	t.Parallel()
 	input := "title: Hello\nbody: World\n"
 	blocks := readYAMLWithConfig(t, input, map[string]any{
 		"keyPathPatterns": []any{"nonexistent.*"},
@@ -1033,6 +1109,7 @@ func TestReadKeyPathPatternNoMatch(t *testing.T) {
 }
 
 func TestReadKeyPathPatternMultiple(t *testing.T) {
+	t.Parallel()
 	input := `en:
   title: English
 fr:
@@ -1052,6 +1129,7 @@ de:
 // --- Unicode tests ---
 
 func TestReadUnicodeContent(t *testing.T) {
+	t.Parallel()
 	input := "greeting: \u4f60\u597d\u4e16\u754c\nfarewell: \u3055\u3088\u306a\u3089\n"
 	blocks := readYAML(t, input)
 	require.Len(t, blocks, 2)
@@ -1061,6 +1139,7 @@ func TestReadUnicodeContent(t *testing.T) {
 }
 
 func TestReadSupplementalUnicode(t *testing.T) {
+	t.Parallel()
 	input := "emoji: \U0001F600\U0001F44D\n"
 	blocks := readYAML(t, input)
 	require.Len(t, blocks, 1)
@@ -1070,12 +1149,14 @@ func TestReadSupplementalUnicode(t *testing.T) {
 // --- Empty / whitespace-only values ---
 
 func TestReadEmptyStringNotExtracted(t *testing.T) {
+	t.Parallel()
 	input := "key: \"\"\n"
 	blocks := readYAML(t, input)
 	assert.Empty(t, blocks, "empty strings should not be extracted")
 }
 
 func TestReadWhitespaceOnlyNotExtracted(t *testing.T) {
+	t.Parallel()
 	input := "key: \"   \"\n"
 	blocks := readYAML(t, input)
 	assert.Empty(t, blocks, "whitespace-only strings should not be extracted")
@@ -1084,6 +1165,7 @@ func TestReadWhitespaceOnlyNotExtracted(t *testing.T) {
 // --- Config tests ---
 
 func TestConfigApplyMap(t *testing.T) {
+	t.Parallel()
 	cfg := &yamlfmt.Config{}
 
 	err := cfg.ApplyMap(map[string]any{
@@ -1100,6 +1182,7 @@ func TestConfigApplyMap(t *testing.T) {
 }
 
 func TestConfigApplyMapUnknownKey(t *testing.T) {
+	t.Parallel()
 	cfg := &yamlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{"badKey": true})
 	assert.Error(t, err)
@@ -1107,6 +1190,7 @@ func TestConfigApplyMapUnknownKey(t *testing.T) {
 }
 
 func TestConfigReset(t *testing.T) {
+	t.Parallel()
 	cfg := &yamlfmt.Config{
 		ExtractNonStrings: true,
 		UseCodeFinder:     true,
@@ -1121,11 +1205,13 @@ func TestConfigReset(t *testing.T) {
 }
 
 func TestConfigValidate(t *testing.T) {
+	t.Parallel()
 	cfg := &yamlfmt.Config{}
 	assert.NoError(t, cfg.Validate())
 }
 
 func TestConfigFormatName(t *testing.T) {
+	t.Parallel()
 	cfg := &yamlfmt.Config{}
 	assert.Equal(t, "yaml", cfg.FormatName())
 }
@@ -1133,6 +1219,7 @@ func TestConfigFormatName(t *testing.T) {
 // --- Compact notation / complex structures ---
 
 func TestReadCompactNotation(t *testing.T) {
+	t.Parallel()
 	// Rails-style YAML with locale prefix.
 	input := `en:
   activerecord:
@@ -1153,6 +1240,7 @@ func TestReadCompactNotation(t *testing.T) {
 }
 
 func TestReadRecursiveStructure(t *testing.T) {
+	t.Parallel()
 	input := `root:
   child1:
     grandchild: value1
@@ -1172,6 +1260,7 @@ func TestReadRecursiveStructure(t *testing.T) {
 // --- Line continuation tests ---
 
 func TestReadLineContinuation(t *testing.T) {
+	t.Parallel()
 	// YAML plain scalars with line continuation (folding in mapping values)
 	input := `description: This is a long
   description that continues
@@ -1187,6 +1276,7 @@ func TestReadLineContinuation(t *testing.T) {
 // --- Mixed content tests ---
 
 func TestReadMixedContent(t *testing.T) {
+	t.Parallel()
 	input := `strings:
   hello: world
   greeting: "Hello, World!"
@@ -1217,6 +1307,7 @@ nested:
 // --- Context cancellation test ---
 
 func TestReadContextCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -1234,6 +1325,7 @@ func TestReadContextCancellation(t *testing.T) {
 // --- Large document test ---
 
 func TestReadLargeDocument(t *testing.T) {
+	t.Parallel()
 	var sb strings.Builder
 	for i := 0; i < 100; i++ {
 		sb.WriteString(fmt.Sprintf("key%d: value %d\n", i, i))
@@ -1246,17 +1338,20 @@ func TestReadLargeDocument(t *testing.T) {
 // --- Edge cases ---
 
 func TestReadEmptyDocument(t *testing.T) {
+	t.Parallel()
 	blocks := readYAML(t, "")
 	assert.Empty(t, blocks)
 }
 
 func TestReadDocumentWithOnlyComments(t *testing.T) {
+	t.Parallel()
 	input := "# This is a comment\n# Another comment\n"
 	blocks := readYAML(t, input)
 	assert.Empty(t, blocks)
 }
 
 func TestReadSpecialCharactersInKeys(t *testing.T) {
+	t.Parallel()
 	input := "\"key.with.dots\": dotted value\n\"key with spaces\": spaced value\n"
 	blocks := readYAML(t, input)
 	require.Len(t, blocks, 2)
@@ -1266,6 +1361,7 @@ func TestReadSpecialCharactersInKeys(t *testing.T) {
 }
 
 func TestReadMultipleSequences(t *testing.T) {
+	t.Parallel()
 	input := `fruits:
   - apple
   - banana
@@ -1282,6 +1378,7 @@ colors:
 }
 
 func TestReadSequenceOfMappings(t *testing.T) {
+	t.Parallel()
 	input := `people:
   - name: Alice
     role: Dev
@@ -1297,6 +1394,7 @@ func TestReadSequenceOfMappings(t *testing.T) {
 }
 
 func TestReadYAMLWithTags(t *testing.T) {
+	t.Parallel()
 	// Strings with explicit !!str tags
 	input := "key: !!str 12345\n"
 	blocks := readYAML(t, input)

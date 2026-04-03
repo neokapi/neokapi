@@ -45,12 +45,14 @@ func skeletonRoundtrip(t *testing.T, input string) string {
 }
 
 func TestSkeletonStore_ByteExact_SimpleEntry(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n"
 	output := skeletonRoundtrip(t, input)
 	assert.Equal(t, input, output, "simple entry roundtrip should be byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_HeaderAndEntries(t *testing.T) {
+	t.Parallel()
 	input := `msgid ""
 msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -71,6 +73,7 @@ msgstr ""
 }
 
 func TestSkeletonStore_ByteExact_MultilineMsgstr(t *testing.T) {
+	t.Parallel()
 	input := `msgid ""
 "Hello "
 "World"
@@ -83,6 +86,7 @@ msgstr ""
 }
 
 func TestSkeletonStore_ByteExact_Comments(t *testing.T) {
+	t.Parallel()
 	input := `# Translator comment
 #. Extracted comment
 #: src/main.c:42
@@ -96,6 +100,7 @@ msgstr "Enregistrer"
 }
 
 func TestSkeletonStore_ByteExact_PluralForms(t *testing.T) {
+	t.Parallel()
 	input := `msgid "One item"
 msgid_plural "Many items"
 msgstr[0] "Un objet"
@@ -106,6 +111,7 @@ msgstr[1] "Plusieurs objets"
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"Hello\"\nmsgstr \"Bonjour\"\n\nmsgid \"World\"\nmsgstr \"Monde\"\n"
 	ctx := context.Background()
 	locale := model.LocaleID("de")
@@ -152,6 +158,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_MultipleCommentTypes(t *testing.T) {
+	t.Parallel()
 	input := `# Translator comment line 1
 # Translator comment line 2
 #. Extracted comment
@@ -166,6 +173,7 @@ msgstr "Bonjour %s"
 }
 
 func TestSkeletonStore_ByteExact_MsgctxtEntry(t *testing.T) {
+	t.Parallel()
 	input := `msgctxt "menu"
 msgid "File"
 msgstr "Fichier"
@@ -175,6 +183,7 @@ msgstr "Fichier"
 }
 
 func TestSkeletonStore_ByteExact_FuzzyPluralEntry(t *testing.T) {
+	t.Parallel()
 	input := `#, fuzzy
 msgid "One item"
 msgid_plural "%d items"
@@ -186,6 +195,7 @@ msgstr[1] "%d articles"
 }
 
 func TestSkeletonStore_ByteExact_UntranslatedEntry(t *testing.T) {
+	t.Parallel()
 	input := `msgid "Hello"
 msgstr ""
 `
@@ -194,12 +204,14 @@ msgstr ""
 }
 
 func TestSkeletonStore_ByteExact_EmptyInput(t *testing.T) {
+	t.Parallel()
 	input := ""
 	output := skeletonRoundtrip(t, input)
 	assert.Equal(t, input, output, "empty input should produce empty output")
 }
 
 func TestSkeletonStore_TranslationWithPlurals(t *testing.T) {
+	t.Parallel()
 	input := `msgid "One item"
 msgid_plural "Many items"
 msgstr[0] "Un objet"
@@ -254,12 +266,14 @@ msgstr[1] "Viele Gegenstaende"
 }
 
 func TestSkeletonStore_ByteExact_EscapedContent(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"She said \\\"hello\\\"\"\nmsgstr \"Elle a dit \\\"bonjour\\\"\"\n"
 	output := skeletonRoundtrip(t, input)
 	assert.Equal(t, input, output, "escaped content roundtrip should be byte-exact")
 }
 
 func TestSkeletonStore_ByteExact_EmbeddedNewlines(t *testing.T) {
+	t.Parallel()
 	input := "msgid \"Hello\\nWorld\"\nmsgstr \"Bonjour\\nMonde\"\n"
 	output := skeletonRoundtrip(t, input)
 	assert.Equal(t, input, output, "embedded newlines roundtrip should be byte-exact")

@@ -8,6 +8,7 @@ import (
 )
 
 func TestFindVersions(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.45.0", Platform: "darwin/arm64"},
@@ -27,6 +28,7 @@ func TestFindVersions(t *testing.T) {
 }
 
 func TestFindVersionsEmptyPlatform(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.0.0", Platform: ""},
@@ -37,6 +39,7 @@ func TestFindVersionsEmptyPlatform(t *testing.T) {
 }
 
 func TestFindVersionsNoMatch(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.0.0", Platform: "linux/amd64"},
@@ -47,6 +50,7 @@ func TestFindVersionsNoMatch(t *testing.T) {
 }
 
 func TestFindLatest(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.45.0", Platform: "darwin/arm64"},
@@ -61,6 +65,7 @@ func TestFindLatest(t *testing.T) {
 }
 
 func TestFindLatestNotFound(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{}
 	_, err := idx.FindLatest("okapi", "darwin/arm64")
 	assert.Error(t, err)
@@ -68,6 +73,7 @@ func TestFindLatestNotFound(t *testing.T) {
 }
 
 func TestFindExactVersion(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.46.0", Platform: "darwin/arm64"},
@@ -81,6 +87,7 @@ func TestFindExactVersion(t *testing.T) {
 }
 
 func TestFindExactVersionNotFound(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.46.0", Platform: "darwin/arm64"},
@@ -93,6 +100,7 @@ func TestFindExactVersionNotFound(t *testing.T) {
 }
 
 func TestGroupByName(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.45.0", Platform: "darwin/arm64"},
@@ -123,6 +131,7 @@ func TestGroupByName(t *testing.T) {
 }
 
 func TestGroupByNameEmptyPlatformMatchesAll(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.0.0", Platform: ""},
@@ -135,6 +144,7 @@ func TestGroupByNameEmptyPlatformMatchesAll(t *testing.T) {
 }
 
 func TestGroupByNameNoMatch(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.0.0", Platform: "linux/amd64"},
@@ -146,12 +156,14 @@ func TestGroupByNameNoMatch(t *testing.T) {
 }
 
 func TestGroupByNameEmpty(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{}
 	groups := idx.GroupByName("darwin/arm64")
 	assert.Empty(t, groups)
 }
 
 func TestGroupByNameSingleVersion(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.47.0", Platform: "darwin/arm64"},
@@ -166,6 +178,7 @@ func TestGroupByNameSingleVersion(t *testing.T) {
 }
 
 func TestIsBundle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		pluginType string
@@ -182,6 +195,7 @@ func TestIsBundle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			m := &PluginManifest{PluginType: tt.pluginType}
 			assert.Equal(t, tt.want, m.IsBundle())
 		})
@@ -189,12 +203,14 @@ func TestIsBundle(t *testing.T) {
 }
 
 func TestPluginTypeConstants(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "bundle", PluginTypeBundle)
 	assert.Equal(t, "format", PluginTypeFormat)
 	assert.Equal(t, "tool", PluginTypeTool)
 }
 
 func TestBundleWithMixedCapabilities(t *testing.T) {
+	t.Parallel()
 	m := PluginManifest{
 		Name:       "okapi",
 		PluginType: PluginTypeBundle,
@@ -213,6 +229,7 @@ func TestBundleWithMixedCapabilities(t *testing.T) {
 }
 
 func TestGroupByNameIncludesBundles(t *testing.T) {
+	t.Parallel()
 	idx := &RegistryIndex{
 		Plugins: []PluginManifest{
 			{Name: "okapi", Version: "1.47.0", Platform: "darwin/arm64", PluginType: PluginTypeBundle},

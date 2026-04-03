@@ -43,6 +43,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 }
 
 func TestSkeletonStore_ByteExact_SimpleTS(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr" sourcelanguage="en">
@@ -64,6 +65,7 @@ func TestSkeletonStore_ByteExact_SimpleTS(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("testdata/simple.ts")
 	require.NoError(t, err)
 	input := string(data)
@@ -72,6 +74,7 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_BilingualFile(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("testdata/bilingual.ts")
 	require.NoError(t, err)
 	input := string(data)
@@ -80,6 +83,7 @@ func TestSkeletonStore_ByteExact_BilingualFile(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_MultipleContexts(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="de" sourcelanguage="en">
@@ -104,6 +108,7 @@ func TestSkeletonStore_ByteExact_MultipleContexts(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_WithComments(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr" sourcelanguage="en">
@@ -122,6 +127,7 @@ func TestSkeletonStore_ByteExact_WithComments(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_EmptyTranslation(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr" sourcelanguage="en">
@@ -139,6 +145,7 @@ func TestSkeletonStore_ByteExact_EmptyTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr" sourcelanguage="en">
@@ -202,6 +209,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="fr" sourcelanguage="en">
@@ -251,6 +259,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_Unicode(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE TS>
 <TS version="2.1" language="ja" sourcelanguage="en">

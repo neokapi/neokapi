@@ -43,6 +43,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 }
 
 func TestSkeletonStore_ByteExact(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name  string
 		input string
@@ -68,6 +69,7 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			output := snippetRoundtripWithSkeleton(t, tc.input)
 			assert.Equal(t, tc.input, output, "skeleton store roundtrip should be byte-exact")
 		})
@@ -75,30 +77,35 @@ func TestSkeletonStore_ByteExact(t *testing.T) {
 }
 
 func TestSkeletonStore_LiteralBlock(t *testing.T) {
+	t.Parallel()
 	input := "description: |\n  This is a literal\n  block scalar.\n"
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "literal block scalar should roundtrip byte-exact")
 }
 
 func TestSkeletonStore_FoldedBlock(t *testing.T) {
+	t.Parallel()
 	input := "description: >\n  This is a folded\n  block scalar.\n"
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "folded block scalar should roundtrip byte-exact")
 }
 
 func TestSkeletonStore_LiteralBlockChompKeep(t *testing.T) {
+	t.Parallel()
 	input := "key: |+\n  Line one\n  Line two\n\n"
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "literal block with keep chomp should roundtrip byte-exact")
 }
 
 func TestSkeletonStore_LiteralBlockChompStrip(t *testing.T) {
+	t.Parallel()
 	input := "key: |-\n  Line one\n  Line two\n"
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "literal block with strip chomp should roundtrip byte-exact")
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
+	t.Parallel()
 	input := "greeting: Hello World\nfarewell: Goodbye\n"
 	ctx := context.Background()
 	locale := model.LocaleID("fr")
@@ -142,6 +149,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_DoubleQuoted(t *testing.T) {
+	t.Parallel()
 	input := "greeting: \"Hello World\"\nfarewell: \"Goodbye\"\n"
 	ctx := context.Background()
 	locale := model.LocaleID("fr")
@@ -185,6 +193,7 @@ func TestSkeletonStore_WithTranslation_DoubleQuoted(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_Nested(t *testing.T) {
+	t.Parallel()
 	input := "parent:\n  child: Hello\n"
 	ctx := context.Background()
 	locale := model.LocaleID("de")
@@ -224,12 +233,14 @@ func TestSkeletonStore_WithTranslation_Nested(t *testing.T) {
 }
 
 func TestSkeletonStore_PreservesFormatting(t *testing.T) {
+	t.Parallel()
 	input := "title: Hello World\nnested:\n  description: A description\n  count: 42\ntags:\n  - a\n  - b\n"
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "skeleton store should preserve all formatting")
 }
 
 func TestSkeletonStore_RailsStyle(t *testing.T) {
+	t.Parallel()
 	input := "en:\n  title: My Rails Website\n  items:\n    - test1\n    - test2\n"
 	output := snippetRoundtripWithSkeleton(t, input)
 	assert.Equal(t, input, output, "Rails-style YAML should roundtrip byte-exact")

@@ -78,6 +78,7 @@ func roundTripLocale(t *testing.T, input string, locale model.LocaleID, cfgFn fu
 
 // okapi: CommaSeparatedValuesFilterTest#testNameAndMimeType
 func TestCSV_NameAndMimeType(t *testing.T) {
+	t.Parallel()
 	parts := readCSV(t, "a,b\n1,2\n")
 	require.NotEmpty(t, parts)
 	assert.Equal(t, model.PartLayerStart, parts[0].Type)
@@ -90,6 +91,7 @@ func TestCSV_NameAndMimeType(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEmptyInput
 func TestCSV_EmptyInput(t *testing.T) {
+	t.Parallel()
 	parts := readCSV(t, "")
 	blocks := collectBlocks(parts)
 	assert.Empty(t, blocks, "empty input should produce no translatable blocks")
@@ -101,6 +103,7 @@ func TestCSV_EmptyInput(t *testing.T) {
 }
 
 func TestReadSimpleCSV(t *testing.T) {
+	t.Parallel()
 	parts := readCSV(t, "name,description\nWidget,A useful widget\nGadget,A cool gadget")
 	blocks := collectBlocks(parts)
 
@@ -112,6 +115,7 @@ func TestReadSimpleCSV(t *testing.T) {
 }
 
 func TestReadTSV(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "name\tdescription\nWidget\tA useful widget", func(c *csvfmt.Config) {
 		c.Separator = '\t'
 		c.HasHeader = true
@@ -124,6 +128,7 @@ func TestReadTSV(t *testing.T) {
 }
 
 func TestReadNoHeader(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "Widget,A useful widget\nGadget,A cool gadget", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -135,6 +140,7 @@ func TestReadNoHeader(t *testing.T) {
 }
 
 func TestReadSpecificColumns(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "name,description,value\nWidget,A useful widget,100", func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1} // Only description column
 	})
@@ -158,12 +164,14 @@ func TestReadSpecificColumns(t *testing.T) {
 }
 
 func TestReadEmpty(t *testing.T) {
+	t.Parallel()
 	parts := readCSV(t, "")
 	blocks := collectBlocks(parts)
 	assert.Empty(t, blocks)
 }
 
 func TestReadLayerStartEnd(t *testing.T) {
+	t.Parallel()
 	parts := readCSV(t, "name\nWidget")
 
 	require.GreaterOrEqual(t, len(parts), 2)
@@ -175,6 +183,7 @@ func TestReadLayerStartEnd(t *testing.T) {
 }
 
 func TestReaderSignature(t *testing.T) {
+	t.Parallel()
 	reader := csvfmt.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.MIMETypes, "text/csv")
@@ -182,12 +191,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReaderMetadata(t *testing.T) {
+	t.Parallel()
 	reader := csvfmt.NewReader()
 	assert.Equal(t, "csv", reader.Name())
 	assert.Equal(t, "CSV", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := csvfmt.NewReader()
 	err := reader.Open(ctx, nil)
@@ -198,6 +209,7 @@ func TestReadNilDocument(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testSkeletonWriter
 func TestCSV_SkeletonWriter(t *testing.T) {
+	t.Parallel()
 	output := roundTrip(t, "a,b\n1,2\n", nil)
 	require.NotEmpty(t, output)
 	assert.Contains(t, output, "a,b")
@@ -206,6 +218,7 @@ func TestCSV_SkeletonWriter(t *testing.T) {
 }
 
 func TestRoundTrip(t *testing.T) {
+	t.Parallel()
 	input := "name,description\nWidget,A useful widget\nGadget,A cool gadget\n"
 	output := roundTrip(t, input, nil)
 
@@ -215,6 +228,7 @@ func TestRoundTrip(t *testing.T) {
 }
 
 func TestRoundTripWithTargetLocale(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	input := "name,description\nWidget,A useful widget\n"
 
@@ -256,6 +270,7 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents
 func TestCSV_FileEvents(t *testing.T) {
+	t.Parallel()
 	// csv_test1.txt has a header row and 3 data rows with 7 columns each.
 	input := "Col1,Col2,Col3,Col4,Col5,Col6,Col7\nR1C1,R1C2,R1C3,R1C4,R1C5,R1C6,R1C7\nR2C1,R2C2,R2C3,R2C4,R2C5,R2C6,R2C7\nR3C1,R3C2,R3C3,R3C4,R3C5,R3C6,R3C7\n"
 	parts := readCSV(t, input)
@@ -274,6 +289,7 @@ func TestCSV_FileEvents(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents2
 func TestCSV_FileEvents2(t *testing.T) {
+	t.Parallel()
 	// csv_test2.txt has empty fields
 	input := "Col1,Col2,Col3\nR1C1,,R1C3\n,R2C2,\n"
 	parts := readCSV(t, input)
@@ -287,6 +303,7 @@ func TestCSV_FileEvents2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents2a
 func TestCSV_FileEvents2a(t *testing.T) {
+	t.Parallel()
 	// csv_test3.txt has quoted fields with embedded commas and newlines
 	input := "Col1,Col2\n\"has,comma\",normal\n\"has\nnewline\",also normal\n"
 	parts := readCSV(t, input)
@@ -301,6 +318,7 @@ func TestCSV_FileEvents2a(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents3
 func TestCSV_FileEvents3(t *testing.T) {
+	t.Parallel()
 	// csv_test4.txt has comment-like rows
 	input := "# Comment line\nCol1,Col2\nR1C1,R1C2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -316,6 +334,7 @@ func TestCSV_FileEvents3(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents4
 func TestCSV_FileEvents4(t *testing.T) {
+	t.Parallel()
 	// csv_test5.txt has various whitespace around values
 	input := "Col1 , Col2 , Col3\n  R1C1 ,R1C2, R1C3  \n"
 	parts := readCSV(t, input)
@@ -327,6 +346,7 @@ func TestCSV_FileEvents4(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents5
 func TestCSV_FileEvents5(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3\nR1C1,R1C2,R1C3\nR2C1,R2C2,R2C3\n"
 	parts := readCSV(t, input)
 	require.NotEmpty(t, parts)
@@ -338,6 +358,7 @@ func TestCSV_FileEvents5(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents6
 func TestCSV_FileEvents6(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3,Col4,Col5\nR1C1,R1C2,R1C3,R1C4,R1C5\nR2C1,R2C2,R2C3,R2C4,R2C5\n"
 	parts := readCSV(t, input)
 	require.NotEmpty(t, parts)
@@ -348,6 +369,7 @@ func TestCSV_FileEvents6(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents7
 func TestCSV_FileEvents7(t *testing.T) {
+	t.Parallel()
 	// Larger CSV
 	input := "Col1,Col2,Col3,Col4\nA1,A2,A3,A4\nB1,B2,B3,B4\nC1,C2,C3,C4\n"
 	parts := readCSV(t, input)
@@ -360,6 +382,7 @@ func TestCSV_FileEvents7(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents8
 func TestCSV_FileEvents8(t *testing.T) {
+	t.Parallel()
 	// Single column
 	input := "Col1\nR1\nR2\nR3\n"
 	parts := readCSV(t, input)
@@ -373,6 +396,7 @@ func TestCSV_FileEvents8(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testThreeColumnsSrcTrgData
 func TestCSV_ThreeColumnsSrcTrgData(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data 1\nSource text 2,Target text 2,Data 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0} // Only source column translatable
@@ -388,6 +412,7 @@ func TestCSV_ThreeColumnsSrcTrgData(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testThreeColumnsSrcTrgData_2
 func TestCSV_ThreeColumnsSrcTrgData_2(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data 1\nSource text 2,Target text 2,Data 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -402,6 +427,7 @@ func TestCSV_ThreeColumnsSrcTrgData_2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testThreeColumnsSrcTrgData_3
 func TestCSV_ThreeColumnsSrcTrgData_3(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nsource1,target1,data1\nsource2,target2,data2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -414,6 +440,7 @@ func TestCSV_ThreeColumnsSrcTrgData_3(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testThreeColumnsExtractAllWithSubfilter
 func TestCSV_ThreeColumnsExtractAllWithSubfilter(t *testing.T) {
+	t.Parallel()
 	// Subfilter extraction is bridge-specific; native test verifies all columns extract
 	input := "Source,Target,Data\n\"<b>bold text</b>\",target,data\n"
 	parts := readCSV(t, input)
@@ -427,6 +454,7 @@ func TestCSV_ThreeColumnsExtractAllWithSubfilter(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testThreeColumnsSrcDataWithSubfilter
 func TestCSV_ThreeColumnsSrcDataWithSubfilter(t *testing.T) {
+	t.Parallel()
 	// Subfilter not applicable natively; verify extraction works
 	input := "Source,Target,Data\n\"<p>para</p>\",target,data\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -442,6 +470,7 @@ func TestCSV_ThreeColumnsSrcDataWithSubfilter(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents96
 func TestCSV_FileEvents96(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data 1\nSource text 2,Target text 2,Data 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -457,6 +486,7 @@ func TestCSV_FileEvents96(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents96_2
 func TestCSV_FileEvents96_2(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nsource1,target1,data1\nsource2,target2,data2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -472,6 +502,7 @@ func TestCSV_FileEvents96_2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents96_3
 func TestCSV_FileEvents96_3(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data text 1\nSource text 2,Target text 2,Data text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -488,6 +519,7 @@ func TestCSV_FileEvents96_3(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents97
 func TestCSV_FileEvents97(t *testing.T) {
+	t.Parallel()
 	// Two source/target column pairs
 	input := "SourceA,TargetA,SourceB,TargetB\nSource text 1,Target text 1,SourceB1,TargetB1\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -507,6 +539,7 @@ func TestCSV_FileEvents97(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents106
 func TestCSV_FileEvents106(t *testing.T) {
+	t.Parallel()
 	input := "id,value\n01,one\n02,two\n03,three\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -523,6 +556,7 @@ func TestCSV_FileEvents106(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents106_2
 func TestCSV_FileEvents106_2(t *testing.T) {
+	t.Parallel()
 	input := "id,value\n01,alpha\n02,beta\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -536,6 +570,7 @@ func TestCSV_FileEvents106_2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents106_3
 func TestCSV_FileEvents106_3(t *testing.T) {
+	t.Parallel()
 	// Small snippet with limited rows
 	input := "id,value\n01,one\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -550,6 +585,7 @@ func TestCSV_FileEvents106_3(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents106_4
 func TestCSV_FileEvents106_4(t *testing.T) {
+	t.Parallel()
 	input := "id,value\n01,one\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -565,6 +601,7 @@ func TestCSV_FileEvents106_4(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents118
 func TestCSV_FileEvents118(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data text 1\nSource text 2,Target text 2,Data text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -579,6 +616,7 @@ func TestCSV_FileEvents118(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testFileEvents118_2
 func TestCSV_FileEvents118_2(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data 1\nSource text 2,Target text 2,Data 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -593,6 +631,7 @@ func TestCSV_FileEvents118_2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testParameters
 func TestCSV_Parameters(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data 1\nSource text 2,Target text 2,Data 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -606,6 +645,7 @@ func TestCSV_Parameters(t *testing.T) {
 }
 
 func TestConfig_ApplyMap(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 
@@ -632,6 +672,7 @@ func TestConfig_ApplyMap(t *testing.T) {
 }
 
 func TestConfig_Validate(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{Separator: 0}
 	assert.Error(t, cfg.Validate())
 
@@ -640,6 +681,7 @@ func TestConfig_Validate(t *testing.T) {
 }
 
 func TestConfig_Reset(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{Separator: '\t', HasHeader: false, TrimValues: true}
 	cfg.Reset()
 	assert.Equal(t, ',', cfg.Separator)
@@ -651,11 +693,13 @@ func TestConfig_Reset(t *testing.T) {
 }
 
 func TestConfig_FormatName(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{}
 	assert.Equal(t, "csv", cfg.FormatName())
 }
 
 func TestConfig_ApplyMap_UnknownParam(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknownParam": "value"})
@@ -663,6 +707,7 @@ func TestConfig_ApplyMap_UnknownParam(t *testing.T) {
 }
 
 func TestConfig_ApplyMap_InvalidTypes(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 
@@ -675,6 +720,7 @@ func TestConfig_ApplyMap_InvalidTypes(t *testing.T) {
 }
 
 func TestConfig_ApplyMap_SeparatorLength(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"separator": "ab"})
@@ -685,6 +731,7 @@ func TestConfig_ApplyMap_SeparatorLength(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testSkeleton
 func TestCSV_Skeleton(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nSource text 1,Target text 1,Data 1\nSource text 2,Target text 2,Data 2\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -697,6 +744,7 @@ func TestCSV_Skeleton(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testSkeleton2
 func TestCSV_Skeleton2(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Data\nsource1,target1,data1\nsource2,target2,data2\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -709,6 +757,7 @@ func TestCSV_Skeleton2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testSkeleton3
 func TestCSV_Skeleton3(t *testing.T) {
+	t.Parallel()
 	// Two source/target column pairs
 	input := "SourceA,TargetA,SourceB,TargetB\nSource text 1,Target text 1,SourceB1,TargetB1\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
@@ -724,6 +773,7 @@ func TestCSV_Skeleton3(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testQualifiedValues
 func TestCSV_QualifiedValues(t *testing.T) {
+	t.Parallel()
 	// Double-quote qualified fields
 	input := "col1,col2\n\"one,two\",\"three,four\"\n"
 	parts := readCSV(t, input)
@@ -744,6 +794,7 @@ func TestCSV_QualifiedValues(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testQualifiedValues2
 func TestCSV_QualifiedValues2(t *testing.T) {
+	t.Parallel()
 	// Single-quote values are not standard CSV qualifiers; Go csv package
 	// treats them as regular characters
 	input := "col1,col2\n'one','two'\n"
@@ -756,6 +807,7 @@ func TestCSV_QualifiedValues2(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testAddTextQualifiers
 func TestCSV_AddTextQualifiers(t *testing.T) {
+	t.Parallel()
 	output := roundTrip(t, "\"one,two\",\"three,four\"\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -766,6 +818,7 @@ func TestCSV_AddTextQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testAddTextQualifiersForQualifiers
 func TestCSV_AddTextQualifiersForQualifiers(t *testing.T) {
+	t.Parallel()
 	output := roundTrip(t, "\"one \"\"two\"\" three\",\"four\"\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -774,6 +827,7 @@ func TestCSV_AddTextQualifiersForQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEscapeQualifiersDoubleQuotes
 func TestCSV_EscapeQualifiersDoubleQuotes(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "\"one \"\"two\"\" three\",\"four\"\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -797,6 +851,7 @@ func TestCSV_EscapeQualifiersDoubleQuotes(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEscapeQualifiersBackslash
 func TestCSV_EscapeQualifiersBackslash(t *testing.T) {
+	t.Parallel()
 	// Go's csv package with LazyQuotes handles backslash-escaped quotes.
 	// The Okapi test uses a file with backslash-escaped double-quotes.
 	// Go's LazyQuotes mode allows bare quotes in unquoted fields.
@@ -820,6 +875,7 @@ func TestCSV_EscapeQualifiersBackslash(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEscapeQualifiersInUnqualifiedFields
 func TestCSV_EscapeQualifiersInUnqualifiedFields(t *testing.T) {
+	t.Parallel()
 	// Unqualified fields with embedded qualifiers (LazyQuotes handles this)
 	parts := readCSVWithConfig(t, "one \"two\" three,four\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
@@ -832,6 +888,7 @@ func TestCSV_EscapeQualifiersInUnqualifiedFields(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEmptyQualifiersWithSourceQualifiers
 func TestCSV_EmptyQualifiersWithSourceQualifiers(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "\"source\",\"\"\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -845,6 +902,7 @@ func TestCSV_EmptyQualifiersWithSourceQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEmptyQualifiersWithoutSourceQualifiers
 func TestCSV_EmptyQualifiersWithoutSourceQualifiers(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "source,\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -857,6 +915,7 @@ func TestCSV_EmptyQualifiersWithoutSourceQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEmptyQualifiersWithSourceQualifiersAddQualifiers
 func TestCSV_EmptyQualifiersWithSourceQualifiersAddQualifiers(t *testing.T) {
+	t.Parallel()
 	output := roundTrip(t, "\"source\",\"\"\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -866,6 +925,7 @@ func TestCSV_EmptyQualifiersWithSourceQualifiersAddQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testUnqualifiedTargetWithSourceQualifiers
 func TestCSV_UnqualifiedTargetWithSourceQualifiers(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "\"source\",target\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -880,6 +940,7 @@ func TestCSV_UnqualifiedTargetWithSourceQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testDoEscapeRemovedQualifiers
 func TestCSV_DoEscapeRemovedQualifiers(t *testing.T) {
+	t.Parallel()
 	output := roundTrip(t, "\"one \"\"two\"\" three\",four\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -890,6 +951,7 @@ func TestCSV_DoEscapeRemovedQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testDontEscapeUnremovedQualifiers
 func TestCSV_DontEscapeUnremovedQualifiers(t *testing.T) {
+	t.Parallel()
 	input := "id,text\n1,hello world\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -903,6 +965,7 @@ func TestCSV_DontEscapeUnremovedQualifiers(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEmptyLinesInCell
 func TestCSV_EmptyLinesInCell(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "\"line1\n\nline3\",second\n", func(c *csvfmt.Config) {
 		c.HasHeader = false
 	})
@@ -926,6 +989,7 @@ func TestCSV_EmptyLinesInCell(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testSourceId
 func TestCSV_SourceId(t *testing.T) {
+	t.Parallel()
 	input := "id,source,target\nkey1,Source text 1,Target text 1\nkey2,Source text 2,Target text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -943,6 +1007,7 @@ func TestCSV_SourceId(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testEmptySourceId
 func TestCSV_EmptySourceId(t *testing.T) {
+	t.Parallel()
 	input := "source,target,id\nSource text 1,Target text 1,\nSource text 2,Target text 2,id2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -957,6 +1022,7 @@ func TestCSV_EmptySourceId(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testRecordId
 func TestCSV_RecordId(t *testing.T) {
+	t.Parallel()
 	input := "record_id,source,target\nREC001,Source text 1,Target 1\nREC002,Source text 2,Target 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -974,6 +1040,7 @@ func TestCSV_RecordId(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testTabDelimited2Column
 func TestCSV_TabDelimited2Column(t *testing.T) {
+	t.Parallel()
 	input := "id\ttext\n1\thello text\n2\tworld text\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -996,6 +1063,7 @@ func TestCSV_TabDelimited2Column(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testTabDelimited2ColumnRoundTrip
 func TestCSV_TabDelimited2ColumnRoundTrip(t *testing.T) {
+	t.Parallel()
 	input := "id\ttext\n1\thello text\n2\tworld text\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1010,6 +1078,7 @@ func TestCSV_TabDelimited2ColumnRoundTrip(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testTrgAtCol4_Issue511
 func TestCSV_TrgAtCol4_Issue511(t *testing.T) {
+	t.Parallel()
 	// Tab-delimited, source=col2 (0-based), target=col3 (0-based), recordId=col1
 	content := "\"file\"\t\"id\"\t\"src\"\t\"trg\"\n\"f1\"\t\"i1\"\t\"src1\"\t\"trg for 1\"\n\"f2\"\t\"i2\"\t\"src2\"\t\"trg for 2\"\n"
 	parts := readCSVWithConfig(t, content, func(c *csvfmt.Config) {
@@ -1031,6 +1100,7 @@ func TestCSV_TrgAtCol4_Issue511(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testCatkeys
 func TestCSV_Catkeys(t *testing.T) {
+	t.Parallel()
 	// Haiku CatKeys format: tab-separated, specific columns
 	input := "1\ten\tapplication/x-vnd.Haiku-Pulse\n" +
 		"OK\t\tPulseApp\tSystem name\n" +
@@ -1061,6 +1131,7 @@ func TestCSV_Catkeys(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testSubfilterTuIds
 func TestCSV_SubfilterTuIds(t *testing.T) {
+	t.Parallel()
 	// Verify that block IDs are unique
 	input := "Source,Target,Data\nText 1,T1,D1\nText 2,T2,D2\nText 3,T3,D3\n"
 	parts := readCSV(t, input)
@@ -1082,6 +1153,7 @@ func TestCSV_SubfilterTuIds(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testCommentColumnsAsMetadata
 func TestCSV_CommentColumnsAsMetadata(t *testing.T) {
+	t.Parallel()
 	input := "Source,Target,Comment\nSource text 1,Target text 1,This is a comment\nSource text 2,Target text 2,Another comment\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -1101,6 +1173,7 @@ func TestCSV_CommentColumnsAsMetadata(t *testing.T) {
 
 // okapi: CommaSeparatedValuesFilterTest#testIssue_1153
 func TestCSV_Issue_1153(t *testing.T) {
+	t.Parallel()
 	// Debug config with code finder patterns
 	input := "source,target\nsource test {0},target test {0}\nsource test 2,target test 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -1126,6 +1199,7 @@ func TestCSV_Issue_1153(t *testing.T) {
 // okapi: CommaSeparatedValuesFilterTest#testDoubleExtraction
 // okapi-unmapped: Skipped in Java — Property Types difference
 func TestCSV_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	t.Skip("Skipped in Java surefire: Property Types difference")
 }
 
@@ -1133,6 +1207,7 @@ func TestCSV_DoubleExtraction(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testFileEvents
 func TestTSV_FileEvents(t *testing.T) {
+	t.Parallel()
 	input := "Source\tTarget\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1152,6 +1227,7 @@ func TestTSV_FileEvents(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testFileEvents2
 func TestTSV_FileEvents2(t *testing.T) {
+	t.Parallel()
 	input := "Source1\tTarget1\nSource2\t\nSource3\tTarget3\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1173,6 +1249,7 @@ func TestTSV_FileEvents2(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testSkeleton
 func TestTSV_Skeleton(t *testing.T) {
+	t.Parallel()
 	input := "Source\tTarget\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1185,6 +1262,7 @@ func TestTSV_Skeleton(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testSkeleton2
 func TestTSV_Skeleton2(t *testing.T) {
+	t.Parallel()
 	input := "Source1\tTarget1\nSource2\t\nSource3\tTarget3\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1196,6 +1274,7 @@ func TestTSV_Skeleton2(t *testing.T) {
 
 // okapi: TabSeparatedValuesFilterTest#testDoubleExtraction
 func TestTSV_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	// Read-write-read should produce identical blocks
 	input := "Source\tTarget\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
@@ -1217,6 +1296,7 @@ func TestTSV_DoubleExtraction(t *testing.T) {
 
 // okapi: TableFilterTest#testNameAndMimeType
 func TestTable_NameAndMimeType(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "one\ttwo\nthree\tfour\n", func(c *csvfmt.Config) {
 		c.Separator = '\t'
 		c.HasHeader = false
@@ -1231,6 +1311,7 @@ func TestTable_NameAndMimeType(t *testing.T) {
 
 // okapi: TableFilterTest#testEmptyInput
 func TestTable_EmptyInput(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "", func(c *csvfmt.Config) {
 		c.Separator = '\t'
 		c.HasHeader = false
@@ -1241,6 +1322,7 @@ func TestTable_EmptyInput(t *testing.T) {
 
 // okapi: TableFilterTest#testColumnDefinedLocales
 func TestTable_ColumnDefinedLocales(t *testing.T) {
+	t.Parallel()
 	input := "en\tfr\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1257,6 +1339,7 @@ func TestTable_ColumnDefinedLocales(t *testing.T) {
 
 // okapi: TableFilterTest#testColumnDefinedSource
 func TestTable_ColumnDefinedSource(t *testing.T) {
+	t.Parallel()
 	input := "en\tfr\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1271,6 +1354,7 @@ func TestTable_ColumnDefinedSource(t *testing.T) {
 
 // okapi: TableFilterTest#testColumnDefinedTarget
 func TestTable_ColumnDefinedTarget(t *testing.T) {
+	t.Parallel()
 	// The native CSV reader extracts source text. Target handling is done via tools/pipeline.
 	// Verify that the source column is correctly extracted.
 	input := "en\tfr\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
@@ -1285,6 +1369,7 @@ func TestTable_ColumnDefinedTarget(t *testing.T) {
 
 // okapi: TableFilterTest#testMultilineColNames
 func TestTable_MultilineColNames(t *testing.T) {
+	t.Parallel()
 	// Test with headers that might appear unusual
 	input := "Col One,Col Two,Col Three\nR1C1,R1C2,R1C3\n"
 	parts := readCSV(t, input)
@@ -1296,6 +1381,7 @@ func TestTable_MultilineColNames(t *testing.T) {
 
 // okapi: TableFilterTest#testSkeleton
 func TestTable_Skeleton(t *testing.T) {
+	t.Parallel()
 	input := "en\tfr\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1308,6 +1394,7 @@ func TestTable_Skeleton(t *testing.T) {
 
 // okapi: TableFilterTest#testSkeleton3
 func TestTable_Skeleton3(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3,Col4,Col5\nValue,R1C2,R1C3,R1C4,R1C5\n"
 	output := roundTrip(t, input, nil)
 	require.NotEmpty(t, output)
@@ -1317,6 +1404,7 @@ func TestTable_Skeleton3(t *testing.T) {
 
 // okapi: TableFilterTest#testFileEvents
 func TestTable_FileEvents(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3,Col4,Col5\nR1C1,R1C2,R1C3,R1C4,R1C5\nR2C1,R2C2,R2C3,R2C4,R2C5\n"
 	parts := readCSV(t, input)
 	require.NotEmpty(t, parts)
@@ -1330,6 +1418,7 @@ func TestTable_FileEvents(t *testing.T) {
 
 // okapi: TableFilterTest#testFileEvents2
 func TestTable_FileEvents2(t *testing.T) {
+	t.Parallel()
 	input := "Col1\nValue 1\nValue 2\n"
 	parts := readCSV(t, input)
 	require.NotEmpty(t, parts)
@@ -1349,6 +1438,7 @@ func TestTable_FileEvents2(t *testing.T) {
 
 // okapi: TableFilterTest#testDoubleExtraction
 func TestTable_DoubleExtraction(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3,Col4,Col5\nR1C1,R1C2,R1C3,R1C4,R1C5\nR2C1,R2C2,R2C3,R2C4,R2C5\n"
 	output := roundTrip(t, input, nil)
 
@@ -1360,6 +1450,7 @@ func TestTable_DoubleExtraction(t *testing.T) {
 
 // okapi: TableFilterTest#testTrimMode
 func TestTable_TrimMode(t *testing.T) {
+	t.Parallel()
 	input := "Source\tTarget\n  This is strong text.  \tTranslated\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1378,6 +1469,7 @@ func TestTable_TrimMode(t *testing.T) {
 
 // okapi: TableFilterTest#testSynchronization
 func TestTable_Synchronization(t *testing.T) {
+	t.Parallel()
 	input := "en\tfr\nSource text 1\tTarget text 1\nSource text 2\tTarget text 2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1390,6 +1482,7 @@ func TestTable_Synchronization(t *testing.T) {
 
 // okapi: TableFilterTest#testIssue1128
 func TestTable_Issue1128(t *testing.T) {
+	t.Parallel()
 	// Tab-separated with strong-tag-like content
 	input := "source\ttarget\nThis is strong text.\tTranslated strong text.\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -1420,6 +1513,7 @@ func TestTable_Issue1128(t *testing.T) {
 
 // okapi: TableFilterTest#testIssue124
 func TestTable_Issue124(t *testing.T) {
+	t.Parallel()
 	input := "comment\tsource\nNote1\tSource1\nNote2\tSource2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1444,6 +1538,7 @@ func TestTable_Issue124(t *testing.T) {
 // --- Delimiter Variants ---
 
 func TestCSV_SemicolonDelimiter(t *testing.T) {
+	t.Parallel()
 	input := "Col1;Col2;Col3\nR1C1;R1C2;R1C3\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = ';'
@@ -1456,6 +1551,7 @@ func TestCSV_SemicolonDelimiter(t *testing.T) {
 }
 
 func TestCSV_PipeDelimiter(t *testing.T) {
+	t.Parallel()
 	input := "Col1|Col2|Col3\nR1C1|R1C2|R1C3\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = '|'
@@ -1467,6 +1563,7 @@ func TestCSV_PipeDelimiter(t *testing.T) {
 }
 
 func TestCSV_ColonDelimiter(t *testing.T) {
+	t.Parallel()
 	input := "Col1:Col2:Col3\nR1C1:R1C2:R1C3\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = ':'
@@ -1478,6 +1575,7 @@ func TestCSV_ColonDelimiter(t *testing.T) {
 }
 
 func TestCSV_SpaceDelimiter(t *testing.T) {
+	t.Parallel()
 	input := "Col1 Col2\nR1C1 R1C2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.Separator = ' '
@@ -1491,6 +1589,7 @@ func TestCSV_SpaceDelimiter(t *testing.T) {
 // --- Blank Cell/Row/Column Tests ---
 
 func TestCSV_BlankCells(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3\n,R1C2,\nR2C1,,R2C3\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1504,6 +1603,7 @@ func TestCSV_BlankCells(t *testing.T) {
 }
 
 func TestCSV_BlankColumns(t *testing.T) {
+	t.Parallel()
 	input := "Col1,,Col3\nR1C1,,R1C3\nR2C1,,R2C3\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1513,6 +1613,7 @@ func TestCSV_BlankColumns(t *testing.T) {
 }
 
 func TestCSV_BlankRows(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2\nR1C1,R1C2\n,\nR3C1,R3C2\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1524,6 +1625,7 @@ func TestCSV_BlankRows(t *testing.T) {
 // --- Unicode / Encoding Tests ---
 
 func TestCSV_Unicode(t *testing.T) {
+	t.Parallel()
 	input := "key,text\ngreeting,\u4f60\u597d\u4e16\u754c\nfarewell,\u3055\u3088\u3046\u306a\u3089\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -1536,6 +1638,7 @@ func TestCSV_Unicode(t *testing.T) {
 }
 
 func TestCSV_BOM(t *testing.T) {
+	t.Parallel()
 	// UTF-8 BOM followed by CSV content
 	input := "\xef\xbb\xbfCol1,Col2\nR1C1,R1C2\n"
 	parts := readCSV(t, input)
@@ -1547,6 +1650,7 @@ func TestCSV_BOM(t *testing.T) {
 // --- Row Properties Tests ---
 
 func TestCSV_BlockProperties(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2\nR1C1,R1C2\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1558,6 +1662,7 @@ func TestCSV_BlockProperties(t *testing.T) {
 }
 
 func TestCSV_BlockNamesWithoutHeaders(t *testing.T) {
+	t.Parallel()
 	input := "R1C1,R1C2\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.HasHeader = false
@@ -1572,6 +1677,7 @@ func TestCSV_BlockNamesWithoutHeaders(t *testing.T) {
 // --- Multiple Key Columns ---
 
 func TestCSV_MultipleKeyColumns(t *testing.T) {
+	t.Parallel()
 	input := "group,key,text\nui,btn.save,Save\nui,btn.cancel,Cancel\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{2}
@@ -1587,6 +1693,7 @@ func TestCSV_MultipleKeyColumns(t *testing.T) {
 // --- Multiple Translatable Columns with Key ---
 
 func TestCSV_MultipleTranslatableWithKey(t *testing.T) {
+	t.Parallel()
 	input := "id,label,tooltip\n001,Save,Save the document\n002,Open,Open a file\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1, 2}
@@ -1605,6 +1712,7 @@ func TestCSV_MultipleTranslatableWithKey(t *testing.T) {
 // --- TSV MIME type ---
 
 func TestTSV_MimeType(t *testing.T) {
+	t.Parallel()
 	parts := readCSVWithConfig(t, "a\tb\n1\t2\n", func(c *csvfmt.Config) {
 		c.Separator = '\t'
 		c.HasHeader = false
@@ -1618,6 +1726,7 @@ func TestTSV_MimeType(t *testing.T) {
 // --- Context Cancellation ---
 
 func TestCSV_ContextCancellation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	reader := csvfmt.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString("a,b\n1,2\n3,4\n", model.LocaleEnglish))
@@ -1638,6 +1747,7 @@ func TestCSV_ContextCancellation(t *testing.T) {
 // --- ValuesStartRow / ColumnNamesRow ---
 
 func TestCSV_ValuesStartRow(t *testing.T) {
+	t.Parallel()
 	// Row 1 is preamble, row 2 is header, row 3+ is data
 	input := "# Generated file\nid,value\n01,Hello\n02,World\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
@@ -1658,6 +1768,7 @@ func TestCSV_ValuesStartRow(t *testing.T) {
 }
 
 func TestCSV_ColumnNamesRowAutoDetect(t *testing.T) {
+	t.Parallel()
 	// Default: first row is header
 	input := "Name,Value\nAlpha,Beta\n"
 	parts := readCSV(t, input)
@@ -1670,6 +1781,7 @@ func TestCSV_ColumnNamesRowAutoDetect(t *testing.T) {
 // --- Roundtrip with different delimiters ---
 
 func TestRoundTrip_SemicolonDelimiter(t *testing.T) {
+	t.Parallel()
 	input := "Col1;Col2\nA;B\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.Separator = ';'
@@ -1679,6 +1791,7 @@ func TestRoundTrip_SemicolonDelimiter(t *testing.T) {
 }
 
 func TestRoundTrip_TabDelimiter(t *testing.T) {
+	t.Parallel()
 	input := "Col1\tCol2\nA\tB\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.Separator = '\t'
@@ -1690,6 +1803,7 @@ func TestRoundTrip_TabDelimiter(t *testing.T) {
 // --- Roundtrip with key/comment columns ---
 
 func TestRoundTrip_WithKeyColumns(t *testing.T) {
+	t.Parallel()
 	input := "id,text\nkey1,Hello\nkey2,World\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -1701,6 +1815,7 @@ func TestRoundTrip_WithKeyColumns(t *testing.T) {
 }
 
 func TestRoundTrip_WithCommentColumns(t *testing.T) {
+	t.Parallel()
 	input := "text,comment\nHello,A note\nWorld,Another note\n"
 	output := roundTrip(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -1713,6 +1828,7 @@ func TestRoundTrip_WithCommentColumns(t *testing.T) {
 // --- Roundtrip with qualified values ---
 
 func TestRoundTrip_QualifiedValues(t *testing.T) {
+	t.Parallel()
 	input := "col1,col2\n\"has,comma\",normal\n"
 	output := roundTrip(t, input, nil)
 	require.NotEmpty(t, output)
@@ -1721,6 +1837,7 @@ func TestRoundTrip_QualifiedValues(t *testing.T) {
 }
 
 func TestRoundTrip_EmbeddedNewlines(t *testing.T) {
+	t.Parallel()
 	input := "col1,col2\n\"line1\nline2\",normal\n"
 	output := roundTrip(t, input, nil)
 	require.NotEmpty(t, output)
@@ -1728,6 +1845,7 @@ func TestRoundTrip_EmbeddedNewlines(t *testing.T) {
 }
 
 func TestRoundTrip_EmbeddedQuotes(t *testing.T) {
+	t.Parallel()
 	input := "col1,col2\n\"say \"\"hello\"\"\",normal\n"
 	output := roundTrip(t, input, nil)
 	require.NotEmpty(t, output)
@@ -1736,6 +1854,7 @@ func TestRoundTrip_EmbeddedQuotes(t *testing.T) {
 // --- Single row / single column edge cases ---
 
 func TestCSV_SingleRow(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2\nOnly,Row\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1743,6 +1862,7 @@ func TestCSV_SingleRow(t *testing.T) {
 }
 
 func TestCSV_SingleColumn(t *testing.T) {
+	t.Parallel()
 	input := "Col1\nValue1\nValue2\nValue3\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1750,6 +1870,7 @@ func TestCSV_SingleColumn(t *testing.T) {
 }
 
 func TestCSV_HeaderOnly(t *testing.T) {
+	t.Parallel()
 	input := "Col1,Col2,Col3\n"
 	parts := readCSV(t, input)
 	blocks := collectBlocks(parts)
@@ -1757,6 +1878,7 @@ func TestCSV_HeaderOnly(t *testing.T) {
 }
 
 func TestCSV_WhitespaceOnlyCell(t *testing.T) {
+	t.Parallel()
 	// Without TrimValues, whitespace-only cells are kept as translatable blocks
 	input := "Col1,Col2\n   ,Value\n"
 	parts := readCSV(t, input)
@@ -1773,6 +1895,7 @@ func TestCSV_WhitespaceOnlyCell(t *testing.T) {
 }
 
 func TestCSV_TrimValuesPreservesContent(t *testing.T) {
+	t.Parallel()
 	input := "Col1\n  Hello World  \n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TrimValues = true
@@ -1783,6 +1906,7 @@ func TestCSV_TrimValuesPreservesContent(t *testing.T) {
 }
 
 func TestCSV_TrimValuesDisabled(t *testing.T) {
+	t.Parallel()
 	input := "Col1\n  Hello World  \n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TrimValues = false
@@ -1795,6 +1919,7 @@ func TestCSV_TrimValuesDisabled(t *testing.T) {
 // --- Large CSV ---
 
 func TestCSV_LargeFile(t *testing.T) {
+	t.Parallel()
 	var sb strings.Builder
 	sb.WriteString("id,text\n")
 	for i := 0; i < 100; i++ {
@@ -1811,6 +1936,7 @@ func TestCSV_LargeFile(t *testing.T) {
 // --- Data parts for key/comment columns ---
 
 func TestCSV_KeyColumnsNotExtractedAsBlocks(t *testing.T) {
+	t.Parallel()
 	input := "id,text\nkey1,Hello\nkey2,World\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{1}
@@ -1828,6 +1954,7 @@ func TestCSV_KeyColumnsNotExtractedAsBlocks(t *testing.T) {
 }
 
 func TestCSV_CommentColumnsNotExtractedAsBlocks(t *testing.T) {
+	t.Parallel()
 	input := "text,comment\nHello,A note\nWorld,Another note\n"
 	parts := readCSVWithConfig(t, input, func(c *csvfmt.Config) {
 		c.TranslatableColumns = []int{0}
@@ -1844,6 +1971,7 @@ func TestCSV_CommentColumnsNotExtractedAsBlocks(t *testing.T) {
 // --- Schema Test ---
 
 func TestCSV_Schema(t *testing.T) {
+	t.Parallel()
 	cfg := &csvfmt.Config{}
 	s := cfg.Schema()
 	require.NotNil(t, s)

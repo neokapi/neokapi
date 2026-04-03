@@ -12,6 +12,7 @@ import (
 )
 
 func TestAzureOpenAIProviderName(t *testing.T) {
+	t.Parallel()
 	p := NewAzureOpenAIProvider(Config{
 		BaseURL: "https://myresource.openai.azure.com",
 		APIKey:  "test-key",
@@ -21,6 +22,7 @@ func TestAzureOpenAIProviderName(t *testing.T) {
 }
 
 func TestAzureOpenAIProviderChat(t *testing.T) {
+	t.Parallel()
 	// Mock server that verifies Azure-specific URL and auth.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify Azure-style URL path.
@@ -55,6 +57,7 @@ func TestAzureOpenAIProviderChat(t *testing.T) {
 }
 
 func TestAzureOpenAIProviderTranslate(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := openaiResponse{
 			Choices: []openaiChoice{{Message: openaiMessage{Content: "Bonjour"}}},
@@ -81,6 +84,7 @@ func TestAzureOpenAIProviderTranslate(t *testing.T) {
 }
 
 func TestAzureOpenAIProviderTokenAuth(t *testing.T) {
+	t.Parallel()
 	// Mock server that verifies Bearer token auth (not api-key).
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Contains(t, r.URL.Path, "/openai/deployments/gpt-4o/chat/completions")
@@ -109,6 +113,7 @@ func TestAzureOpenAIProviderTokenAuth(t *testing.T) {
 }
 
 func TestAzureOpenAIProviderClose(t *testing.T) {
+	t.Parallel()
 	p := NewAzureOpenAIProvider(Config{BaseURL: "https://test.openai.azure.com", Model: "gpt-4o"})
 	assert.NoError(t, p.Close())
 }

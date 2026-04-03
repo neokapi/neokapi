@@ -131,6 +131,7 @@ const sampleXLIFF = `<?xml version="1.0" encoding="UTF-8"?>
 
 // okapi: XLIFFFilterTest#testSimpleTransUnit
 func TestReadXLIFF(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
@@ -147,6 +148,7 @@ func TestReadXLIFF(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedTarget
 func TestReadXLIFFTargets(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
@@ -166,6 +168,7 @@ func TestReadXLIFFTargets(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStartDocument
 func TestReadXLIFFLayerStart(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
@@ -180,6 +183,7 @@ func TestReadXLIFFLayerStart(t *testing.T) {
 }
 
 func TestReadXLIFFBlockIDs(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
@@ -194,6 +198,7 @@ func TestReadXLIFFBlockIDs(t *testing.T) {
 }
 
 func TestWriteXLIFF(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, testutil.RawDocFromString(sampleXLIFF, model.LocaleEnglish))
@@ -220,6 +225,7 @@ func TestWriteXLIFF(t *testing.T) {
 }
 
 func TestReaderSignature(t *testing.T) {
+	t.Parallel()
 	reader := xliff.NewReader()
 	sig := reader.Signature()
 	assert.Contains(t, sig.Extensions, ".xlf")
@@ -227,12 +233,14 @@ func TestReaderSignature(t *testing.T) {
 }
 
 func TestReaderMetadata(t *testing.T) {
+	t.Parallel()
 	reader := xliff.NewReader()
 	assert.Equal(t, "xliff", reader.Name())
 	assert.Equal(t, "XLIFF 1.2", reader.DisplayName())
 }
 
 func TestReadNilDocument(t *testing.T) {
+	t.Parallel()
 	ctx := context.Background()
 	reader := xliff.NewReader()
 	err := reader.Open(ctx, nil)
@@ -243,6 +251,7 @@ func TestReadNilDocument(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBilingualTransUnit
 func TestExtract_SimpleXLIFF(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello world</source>
       </trans-unit>`)
@@ -253,6 +262,7 @@ func TestExtract_SimpleXLIFF(t *testing.T) {
 }
 
 func TestExtract_MultipleTransUnits(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First</source>
       </trans-unit>
@@ -271,6 +281,7 @@ func TestExtract_MultipleTransUnits(t *testing.T) {
 }
 
 func TestExtract_TransUnitIDs(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="greeting">
         <source>Hello</source>
       </trans-unit>
@@ -285,6 +296,7 @@ func TestExtract_TransUnitIDs(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBilingualTransUnitWithEmptyLocales
 func TestExtract_BilingualTransUnitWithEmptyLocales(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -295,6 +307,7 @@ func TestExtract_BilingualTransUnitWithEmptyLocales(t *testing.T) {
 }
 
 func TestExtract_WithTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -311,6 +324,7 @@ func TestExtract_WithTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testTranslateOnTU
 func TestExtract_TranslateNo(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" translate="yes">
         <source>Translate me</source>
       </trans-unit>
@@ -326,6 +340,7 @@ func TestExtract_TranslateNo(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testTranslateOnGroup
 func TestExtract_TranslateOnGroup(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <group id="g1" translate="no">
         <trans-unit id="1">
           <source>Should be non-translatable</source>
@@ -337,6 +352,7 @@ func TestExtract_TranslateOnGroup(t *testing.T) {
 }
 
 func TestExtract_NonTranslatableUnit(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" translate="yes">
         <source>Translate me</source>
       </trans-unit>
@@ -359,6 +375,7 @@ func TestExtract_NonTranslatableUnit(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testGroupIds
 func TestExtract_GroupStructure(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <group id="g1">
         <trans-unit id="1">
           <source>In group</source>
@@ -383,6 +400,7 @@ func TestExtract_GroupStructure(t *testing.T) {
 }
 
 func TestExtract_NestedGroups(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <group id="outer">
         <group id="inner">
           <trans-unit id="1">
@@ -418,6 +436,7 @@ func TestExtract_NestedGroups(t *testing.T) {
 // --- Multiple files ---
 
 func TestExtract_MultipleFiles(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="file1">
@@ -447,6 +466,7 @@ func TestExtract_MultipleFiles(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNotes
 func TestExtract_NoteAnnotation(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note>This is a developer note</note>
@@ -462,6 +482,7 @@ func TestExtract_NoteAnnotation(t *testing.T) {
 }
 
 func TestExtract_NoteWithPriority(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note priority="1" from="developer" annotates="source">Important note</note>
@@ -480,6 +501,7 @@ func TestExtract_NoteWithPriority(t *testing.T) {
 }
 
 func TestExtract_MultipleNotes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note>First note</note>
@@ -504,6 +526,7 @@ func TestExtract_MultipleNotes(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNoteRefersToNonExistingTarget
 func TestExtract_NoteRefersToNonExistingTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note annotates="target">Note for target</note>
@@ -514,6 +537,7 @@ func TestExtract_NoteRefersToNonExistingTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAddXLIFFNote
 func TestExtract_AddXLIFFNote(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note from="developer">Dev note</note>
@@ -525,6 +549,7 @@ func TestExtract_AddXLIFFNote(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testModifyXLIFFNote
 func TestExtract_ModifyXLIFFNote(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note>Original note</note>
@@ -535,6 +560,7 @@ func TestExtract_ModifyXLIFFNote(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testLocNoteModification
 func TestExtract_LocNoteModification(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note>Localization note</note>
@@ -547,6 +573,7 @@ func TestExtract_LocNoteModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAlTrans
 func TestExtract_AltTranslation(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -573,6 +600,7 @@ func TestExtract_AltTranslation(t *testing.T) {
 }
 
 func TestExtract_MultipleAltTranslations(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -602,6 +630,7 @@ func TestExtract_MultipleAltTranslations(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAddAltTrans
 func TestExtract_AddAltTrans(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -619,6 +648,7 @@ func TestExtract_AddAltTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAltTransWithEmptyTarget
 func TestExtract_AltTransWithEmptyTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <alt-trans match-quality="80">
@@ -632,6 +662,7 @@ func TestExtract_AltTransWithEmptyTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testDecimalAltTransValues
 func TestExtract_DecimalAltTransValues(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <alt-trans match-quality="99.5">
@@ -649,6 +680,7 @@ func TestExtract_DecimalAltTransValues(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testEmptyTargetInAltTrans
 func TestExtract_EmptyTargetInAltTrans(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <alt-trans>
@@ -662,6 +694,7 @@ func TestExtract_EmptyTargetInAltTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputAlTrans
 func TestExtract_OutputAlTrans(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -676,6 +709,7 @@ func TestExtract_OutputAlTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testUseTranslationTargetStateWithAltTrans
 func TestExtract_UseTranslationTargetStateWithAltTrans(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target state="translated">Bonjour</target>
@@ -689,6 +723,7 @@ func TestExtract_UseTranslationTargetStateWithAltTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBilingualInlines
 func TestExtract_InlineCodes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source>Click <g id="1">&lt;b&gt;</g>here<g id="2">&lt;/b&gt;</g> to continue</source>
       </trans-unit>`, "htmlbody")
@@ -700,6 +735,7 @@ func TestExtract_InlineCodes(t *testing.T) {
 }
 
 func TestExtract_InlineX(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Line one<x id="1"/>Line two</source>
       </trans-unit>`)
@@ -719,6 +755,7 @@ func TestExtract_InlineX(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBPTTypeTransUnit
 func TestExtract_InlineBpt_Ept(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source>Hello <bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept> text</source>
       </trans-unit>`, "htmlbody")
@@ -743,6 +780,7 @@ func TestExtract_InlineBpt_Ept(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputBPTTypeTransUnit
 func TestExtract_OutputBPTTypeTransUnit(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept></source>
       </trans-unit>`, "htmlbody")
@@ -752,6 +790,7 @@ func TestExtract_OutputBPTTypeTransUnit(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBPTWithSUB
 func TestExtract_BPTWithSUB(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;a href="<sub>link text</sub>"&gt;</bpt>click<ept id="1">&lt;/a&gt;</ept></source>
       </trans-unit>`)
@@ -761,6 +800,7 @@ func TestExtract_BPTWithSUB(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBPTAndSUBTypeTransUnit
 func TestExtract_BPTAndSUBTypeTransUnit(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;a href="<sub>alt</sub>"&gt;</bpt>link<ept id="1">&lt;/a&gt;</ept></source>
       </trans-unit>`)
@@ -770,6 +810,7 @@ func TestExtract_BPTAndSUBTypeTransUnit(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testEmptyCodes
 func TestExtract_EmptyCodes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <x id="1"/></source>
       </trans-unit>`)
@@ -782,6 +823,7 @@ func TestExtract_EmptyCodes(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCodeOriginalIDs
 func TestExtract_CodeOriginalIDs(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <x id="100"/> end</source>
       </trans-unit>`)
@@ -794,6 +836,7 @@ func TestExtract_CodeOriginalIDs(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testComplexSUB
 func TestExtract_ComplexSUB(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;img src="<sub>alt text</sub>"/&gt;</ph> end</source>
       </trans-unit>`)
@@ -803,6 +846,7 @@ func TestExtract_ComplexSUB(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testComplexSUBInTarget
 func TestExtract_ComplexSUBInTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;img src="<sub>alt text</sub>"/&gt;</ph> end</source>
         <target>Texte <ph id="1">&lt;img src="<sub>texte alt</sub>"/&gt;</ph> fin</target>
@@ -813,6 +857,7 @@ func TestExtract_ComplexSUBInTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSimpleSub
 func TestExtract_SimpleSub(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;a title="<sub>link</sub>"&gt;</ph>click</source>
       </trans-unit>`)
@@ -822,6 +867,7 @@ func TestExtract_SimpleSub(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSimpleSubTu
 func TestExtract_SimpleSubTu(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;a title="<sub>link</sub>"&gt;</ph>click</source>
       </trans-unit>`)
@@ -831,6 +877,7 @@ func TestExtract_SimpleSubTu(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSimpleSubTuTarget
 func TestExtract_SimpleSubTuTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;a title="<sub>link</sub>"&gt;</ph>click</source>
         <target>Texte <ph id="1">&lt;a title="<sub>lien</sub>"&gt;</ph>cliquez</target>
@@ -841,6 +888,7 @@ func TestExtract_SimpleSubTuTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSimpleSubTuTranslateToTarget
 func TestExtract_SimpleSubTuTranslateToTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;a title="<sub>link</sub>"&gt;</ph>click</source>
       </trans-unit>`)
@@ -850,6 +898,7 @@ func TestExtract_SimpleSubTuTranslateToTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testComplexSubTu
 func TestExtract_ComplexSubTu(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;a href="<sub>URL</sub>" title="<sub>title</sub>"&gt;</bpt>click<ept id="1">&lt;/a&gt;</ept></source>
       </trans-unit>`)
@@ -859,6 +908,7 @@ func TestExtract_ComplexSubTu(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSubTuBptEpt
 func TestExtract_SubTuBptEpt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;a href="<sub>URL</sub>"&gt;</bpt>link<ept id="1">&lt;/a&gt;</ept></source>
       </trans-unit>`)
@@ -868,6 +918,7 @@ func TestExtract_SubTuBptEpt(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAddedCloneCode
 func TestExtract_AddedCloneCode(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0"?>
 <xliff version="1.2">
 <file source-language="en" datatype="x-abc" original="file.ext">
@@ -885,6 +936,7 @@ func TestExtract_AddedCloneCode(t *testing.T) {
 // --- Inline code: bx/ex ---
 
 func TestExtract_InlineBxEx(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bx id="1"/>bold<ex id="1"/> end</source>
       </trans-unit>`)
@@ -908,6 +960,7 @@ func TestExtract_InlineBxEx(t *testing.T) {
 // --- Inline code: ph ---
 
 func TestExtract_InlinePh(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;br/&gt;</ph> end</source>
       </trans-unit>`)
@@ -928,6 +981,7 @@ func TestExtract_InlinePh(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testBalancedIT
 func TestExtract_BalancedIT(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <it id="1" pos="open">&lt;i&gt;</it>italic<it id="1" pos="close">&lt;/i&gt;</it> end</source>
       </trans-unit>`)
@@ -937,6 +991,7 @@ func TestExtract_BalancedIT(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testUnbalancedIT
 func TestExtract_UnbalancedIT(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <it id="1" pos="open">&lt;i&gt;</it>italic end</source>
       </trans-unit>`)
@@ -948,6 +1003,7 @@ func TestExtract_UnbalancedIT(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMrk
 func TestExtract_Mrk(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <mrk mtype="term">term</mrk> end</source>
       </trans-unit>`)
@@ -958,6 +1014,7 @@ func TestExtract_Mrk(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputMrk
 func TestExtract_OutputMrk(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <mrk mtype="term">term</mrk> end</source>
       </trans-unit>`)
@@ -967,6 +1024,7 @@ func TestExtract_OutputMrk(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testProtectedOnMRK
 func TestExtract_ProtectedOnMRK(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <mrk mtype="protected">locked</mrk> end</source>
       </trans-unit>`)
@@ -977,6 +1035,7 @@ func TestExtract_ProtectedOnMRK(t *testing.T) {
 // --- Inline code: ctype ---
 
 func TestExtract_CtypeBold(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1" ctype="bold">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept></source>
       </trans-unit>`)
@@ -994,6 +1053,7 @@ func TestExtract_CtypeBold(t *testing.T) {
 }
 
 func TestExtract_CtypeItalic(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1" ctype="italic">&lt;i&gt;</bpt>italic<ept id="1">&lt;/i&gt;</ept></source>
       </trans-unit>`)
@@ -1011,6 +1071,7 @@ func TestExtract_CtypeItalic(t *testing.T) {
 }
 
 func TestExtract_CtypeLink(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1" ctype="link">&lt;a&gt;</bpt>link<ept id="1">&lt;/a&gt;</ept></source>
       </trans-unit>`)
@@ -1028,6 +1089,7 @@ func TestExtract_CtypeLink(t *testing.T) {
 }
 
 func TestExtract_CtypeLb(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Line one<x id="1" ctype="lb"/>Line two</source>
       </trans-unit>`)
@@ -1049,6 +1111,7 @@ func TestExtract_CtypeLb(t *testing.T) {
 // okapi: XLIFFFilterTest#testSegmentedContent
 // okapi: XLIFFFilterTest#testSegmentIDs
 func TestExtract_Segmentation(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First sentence. Second sentence.</source>
         <seg-source>
@@ -1067,6 +1130,7 @@ func TestExtract_Segmentation(t *testing.T) {
 }
 
 func TestExtract_SegmentedTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First. Second.</source>
         <seg-source>
@@ -1087,6 +1151,7 @@ func TestExtract_SegmentedTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testIgnoredSegmentedTarget
 func TestExtract_IgnoredSegmentedTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello world</source>
         <target>
@@ -1099,6 +1164,7 @@ func TestExtract_IgnoredSegmentedTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedWithEmptyTarget
 func TestExtract_SegmentedWithEmptyTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First. Second.</source>
         <seg-source>
@@ -1116,6 +1182,7 @@ func TestExtract_SegmentedWithEmptyTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentationWithEmptyTarget
 func TestExtract_SegmentationWithEmptyTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Sentence one. Sentence two.</source>
         <seg-source>
@@ -1130,6 +1197,7 @@ func TestExtract_SegmentationWithEmptyTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputSegmentationWithEmptyTarget
 func TestExtract_OutputSegmentationWithEmptyTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Sentence one. Sentence two.</source>
         <seg-source>
@@ -1144,6 +1212,7 @@ func TestExtract_OutputSegmentationWithEmptyTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedAddedBptEpt
 func TestExtract_SegmentedAddedBptEpt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept> end</source>
         <seg-source>
@@ -1156,6 +1225,7 @@ func TestExtract_SegmentedAddedBptEpt(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedAddedBptEptAndPh
 func TestExtract_SegmentedAddedBptEptAndPh(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept> and <ph id="2">&lt;br/&gt;</ph> end</source>
         <seg-source>
@@ -1168,6 +1238,7 @@ func TestExtract_SegmentedAddedBptEptAndPh(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedAddedIt
 func TestExtract_SegmentedAddedIt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <it id="1" pos="open">&lt;i&gt;</it>italic end</source>
         <seg-source>
@@ -1180,6 +1251,7 @@ func TestExtract_SegmentedAddedIt(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedAddedItAndPh
 func TestExtract_SegmentedAddedItAndPh(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <it id="1" pos="open">&lt;i&gt;</it>italic <ph id="2">&lt;br/&gt;</ph> end</source>
         <seg-source>
@@ -1192,6 +1264,7 @@ func TestExtract_SegmentedAddedItAndPh(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedAddedPh
 func TestExtract_SegmentedAddedPh(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <ph id="1">&lt;br/&gt;</ph> end</source>
         <seg-source>
@@ -1204,6 +1277,7 @@ func TestExtract_SegmentedAddedPh(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAlwaysUseSegSource
 func TestExtract_AlwaysUseSegSource(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Full text here</source>
         <seg-source>
@@ -1216,6 +1290,7 @@ func TestExtract_AlwaysUseSegSource(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegSourceWithCodeFinder
 func TestExtract_SegSourceWithCodeFinder(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello world</source>
         <seg-source>
@@ -1228,6 +1303,7 @@ func TestExtract_SegSourceWithCodeFinder(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegSourceWithoutMrkOutput
 func TestExtract_SegSourceWithoutMrkOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello world</source>
         <seg-source>Hello world</seg-source>
@@ -1238,6 +1314,7 @@ func TestExtract_SegSourceWithoutMrkOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputOfResegmentedContent
 func TestExtract_OutputOfResegmentedContent(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>One. Two. Three.</source>
         <seg-source>
@@ -1252,6 +1329,7 @@ func TestExtract_OutputOfResegmentedContent(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedSourceWithOuterCodes
 func TestExtract_SegmentedSourceWithOuterCodes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><bpt id="1">&lt;p&gt;</bpt>First. Second.<ept id="1">&lt;/p&gt;</ept></source>
         <seg-source>
@@ -1265,6 +1343,7 @@ func TestExtract_SegmentedSourceWithOuterCodes(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSegmentedNoTargetEntryOutput
 func TestExtract_SegmentedNoTargetEntryOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First. Second.</source>
         <seg-source>
@@ -1278,6 +1357,7 @@ func TestExtract_SegmentedNoTargetEntryOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAllowEmptyTargetsWithSegments
 func TestExtract_AllowEmptyTargetsWithSegments(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>One. Two.</source>
         <seg-source>
@@ -1295,6 +1375,7 @@ func TestExtract_AllowEmptyTargetsWithSegments(t *testing.T) {
 
 // okapi: XLIFFFilterTest#corruptCodeIdsAfterJoinAll
 func TestExtract_CorruptCodeIdsAfterJoinAll(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>A. B.</source>
         <seg-source>
@@ -1308,6 +1389,7 @@ func TestExtract_CorruptCodeIdsAfterJoinAll(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testWSBetweenSegments
 func TestExtract_WSBetweenSegments(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>One. Two.</source>
         <seg-source>
@@ -1322,6 +1404,7 @@ func TestExtract_WSBetweenSegments(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveSpaces
 func TestExtract_PreserveWhitespace(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" xml:space="preserve">
         <source>  Hello  world  </source>
       </trans-unit>`)
@@ -1332,6 +1415,7 @@ func TestExtract_PreserveWhitespace(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveSpacesInSegmentedTU
 func TestExtract_PreserveSpacesInSegmentedTU(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" xml:space="preserve">
         <source>One. Two.</source>
         <seg-source>
@@ -1346,6 +1430,7 @@ func TestExtract_PreserveSpacesInSegmentedTU(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testUnwrapSpaces
 func TestExtract_UnwrapSpaces(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>  Hello  world  </source>
       </trans-unit>`)
@@ -1355,6 +1440,7 @@ func TestExtract_UnwrapSpaces(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testUnwrapSpacesInSegmentedTU
 func TestExtract_UnwrapSpacesInSegmentedTU(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>One. Two.</source>
         <seg-source>
@@ -1368,6 +1454,7 @@ func TestExtract_UnwrapSpacesInSegmentedTU(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveSpaceByDefaultOnTransUnit
 func TestExtract_PreserveSpaceByDefaultOnTransUnit(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1377,6 +1464,7 @@ func TestExtract_PreserveSpaceByDefaultOnTransUnit(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveSpaceByDefaultNoDeclaration
 func TestExtract_PreserveSpaceByDefaultNoDeclaration(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFNoNS(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1388,6 +1476,7 @@ func TestExtract_PreserveSpaceByDefaultNoDeclaration(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testEmptyTarget
 func TestExtract_EmptySource(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source></source>
       </trans-unit>
@@ -1399,6 +1488,7 @@ func TestExtract_EmptySource(t *testing.T) {
 }
 
 func TestExtract_EmptyTarget2(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target></target>
@@ -1409,6 +1499,7 @@ func TestExtract_EmptyTarget2(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testEmptyTargetCondition
 func TestExtract_EmptyTargetCondition(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target/>
@@ -1419,6 +1510,7 @@ func TestExtract_EmptyTargetCondition(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testEmptyTargetOutput
 func TestExtract_EmptyTargetOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target></target>
@@ -1429,6 +1521,7 @@ func TestExtract_EmptyTargetOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNoTarget
 func TestExtract_NoTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1439,6 +1532,7 @@ func TestExtract_NoTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNoTargetOutput
 func TestExtract_NoTargetOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1448,6 +1542,7 @@ func TestExtract_NoTargetOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAllowEmptyTargets
 func TestExtract_AllowEmptyTargets(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target></target>
@@ -1460,6 +1555,7 @@ func TestExtract_AllowEmptyTargets(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testApprovedTU
 func TestExtract_ApprovedTU(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" approved="yes">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -1471,6 +1567,7 @@ func TestExtract_ApprovedTU(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testApprovedOutput
 func TestExtract_ApprovedOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" approved="yes">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -1483,6 +1580,7 @@ func TestExtract_ApprovedOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testUseTranslationTargetState
 func TestExtract_UseTranslationTargetState(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target state="translated">Bonjour</target>
@@ -1493,6 +1591,7 @@ func TestExtract_UseTranslationTargetState(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testUseTranslationTargetStateWithSubfilter
 func TestExtract_UseTranslationTargetStateWithSubfilter(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target state="needs-translation">Bonjour</target>
@@ -1505,6 +1604,7 @@ func TestExtract_UseTranslationTargetStateWithSubfilter(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testSpecialAttributeValues
 func TestExtract_SpecialAttributeValues(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" resname="key.name">
         <source>Hello</source>
       </trans-unit>`)
@@ -1518,6 +1618,7 @@ func TestExtract_SpecialAttributeValues(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testDefaultInfo
 func TestExtract_LayerHasFormat(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1534,6 +1635,7 @@ func TestExtract_LayerHasFormat(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStartDocumentFromList
 func TestExtract_StartDocumentFromList(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1546,6 +1648,7 @@ func TestExtract_StartDocumentFromList(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStartSubDocumentFromList
 func TestExtract_StartSubDocumentFromList(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1560,6 +1663,7 @@ func TestExtract_StartSubDocumentFromList(t *testing.T) {
 }
 
 func TestExtract_LayerProperties(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="html" original="index.html">
@@ -1585,6 +1689,7 @@ func TestExtract_LayerProperties(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testElementsInHeader
 func TestExtract_ElementsInHeader(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test">
@@ -1600,6 +1705,7 @@ func TestExtract_ElementsInHeader(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testTool
 func TestExtract_Tool(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test">
@@ -1615,6 +1721,7 @@ func TestExtract_Tool(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testToolAfterSkl
 func TestExtract_ToolAfterSkl(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test">
@@ -1635,6 +1742,7 @@ func TestExtract_ToolAfterSkl(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testContextGroupAfterTarget
 func TestExtract_ContextGroupAfterTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -1648,6 +1756,7 @@ func TestExtract_ContextGroupAfterTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#extractsContextGroup
 func TestExtract_ExtractsContextGroup(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <context-group>
@@ -1659,6 +1768,7 @@ func TestExtract_ExtractsContextGroup(t *testing.T) {
 }
 
 func TestExtract_ContextGroup(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="msg.greeting">
         <source>Hello</source>
         <context-group name="x-pos" purpose="location">
@@ -1677,6 +1787,7 @@ func TestExtract_ContextGroup(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCDATAEntry
 func TestExtract_CDATAEntry(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2"><file source-language="en" target-language="fr" datatype="x-test" original="file.ext"><body><trans-unit id="1"><source>t1. t2 &amp; .t3</source></trans-unit></body></file></xliff>`
 	blocks := readXLIFFBlocks(t, xlf)
@@ -1686,6 +1797,7 @@ func TestExtract_CDATAEntry(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCREntity
 func TestExtract_CREntity(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Line1&#13;Line2</source>
       </trans-unit>`)
@@ -1695,6 +1807,7 @@ func TestExtract_CREntity(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCREntityOutput
 func TestExtract_CREntityOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Line1&#13;Line2</source>
       </trans-unit>`)
@@ -1704,6 +1817,7 @@ func TestExtract_CREntityOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveCDATAInBody
 func TestExtract_PreserveCDATAInBody(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2"><file source-language="en" target-language="fr" datatype="x-test" original="file.ext"><body><trans-unit id="1"><source><![CDATA[Hello CDATA]]></source></trans-unit></body></file></xliff>`
 	blocks := readXLIFFBlocks(t, xlf)
@@ -1712,6 +1826,7 @@ func TestExtract_PreserveCDATAInBody(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveCDATAInNotSegmentTransUnitContent
 func TestExtract_PreserveCDATAInNotSegmentTransUnitContent(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2"><file source-language="en" target-language="fr" datatype="x-test" original="file.ext"><body><trans-unit id="1"><source><![CDATA[Hello]]></source><target xml:lang="fr"><![CDATA[Bonjour]]></target></trans-unit></body></file></xliff>`
 	blocks := readXLIFFBlocks(t, xlf)
@@ -1720,6 +1835,7 @@ func TestExtract_PreserveCDATAInNotSegmentTransUnitContent(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testPreserveCDATASkeletonInHeader
 func TestExtract_PreserveCDATASkeletonInHeader(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test">
@@ -1733,6 +1849,7 @@ func TestExtract_PreserveCDATASkeletonInHeader(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNonEmptyTargetCDATABug
 func TestExtract_NonEmptyTargetCDATABug(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2"><file source-language="en" target-language="fr" datatype="x-test" original="file.ext"><body><trans-unit id="1"><source>Hello</source><target xml:lang="fr"><![CDATA[Bonjour]]></target></trans-unit></body></file></xliff>`
 	blocks := readXLIFFBlocks(t, xlf)
@@ -1741,6 +1858,7 @@ func TestExtract_NonEmptyTargetCDATABug(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCodeFinderWithCDATA
 func TestExtract_CodeFinderWithCDATA(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2"><file source-language="en" target-language="fr" datatype="x-test" original="file.ext"><body><trans-unit id="1"><source><![CDATA[Text with code]]></source></trans-unit></body></file></xliff>`
 	blocks := readXLIFFBlocks(t, xlf)
@@ -1751,6 +1869,7 @@ func TestExtract_CodeFinderWithCDATA(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testWithNamespaces
 func TestExtract_WithNamespaces(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:okp="okapi-framework:xliff-extensions">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test">
@@ -1769,6 +1888,7 @@ func TestExtract_WithNamespaces(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testXmlLangModification
 func TestExtract_XmlLangModification(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target xml:lang="fr">Bonjour</target>
@@ -1779,6 +1899,7 @@ func TestExtract_XmlLangModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testLangAndSpaceInline
 func TestExtract_LangAndSpaceInline(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" xml:space="preserve">
         <source>Text <mrk mtype="term" xml:lang="de">Term</mrk> end</source>
       </trans-unit>`)
@@ -1790,6 +1911,7 @@ func TestExtract_LangAndSpaceInline(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCodeFinderExtraction
 func TestExtract_CodeFinderExtraction(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text with placeholder</source>
       </trans-unit>`)
@@ -1799,6 +1921,7 @@ func TestExtract_CodeFinderExtraction(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCodeFinderExtractionTarget
 func TestExtract_CodeFinderExtractionTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text with placeholder</source>
         <target>Texte avec parametre</target>
@@ -1809,6 +1932,7 @@ func TestExtract_CodeFinderExtractionTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testCodeFinderExtractionTargetNotBalanced
 func TestExtract_CodeFinderExtractionTargetNotBalanced(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text with placeholder</source>
         <target>Texte avec parametre</target>
@@ -1821,6 +1945,7 @@ func TestExtract_CodeFinderExtractionTargetNotBalanced(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputOverrideTargetlanguage
 func TestExtract_OutputOverrideTargetlanguage(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source><target>Bonjour</target>
       </trans-unit>`)
@@ -1830,6 +1955,7 @@ func TestExtract_OutputOverrideTargetlanguage(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOutputSkipTargetInExtention
 func TestExtract_OutputSkipTargetInExtention(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source><target>Bonjour</target>
       </trans-unit>`)
@@ -1839,6 +1965,7 @@ func TestExtract_OutputSkipTargetInExtention(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNoTargetOutputMonolingual
 func TestExtract_NoTargetOutputMonolingual(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1848,6 +1975,7 @@ func TestExtract_NoTargetOutputMonolingual(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testNoTargetOutputMonolingualGenerateTarget
 func TestExtract_NoTargetOutputMonolingualGenerateTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1859,6 +1987,7 @@ func TestExtract_NoTargetOutputMonolingualGenerateTarget(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMtConfidence
 func TestExtract_MtConfidence(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source><target>Bonjour</target>
       </trans-unit>`)
@@ -1868,6 +1997,7 @@ func TestExtract_MtConfidence(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMtConfidenceAltTrans
 func TestExtract_MtConfidenceAltTrans(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <alt-trans match-quality="75" origin="MT"><target>Bonjour</target></alt-trans>
@@ -1878,6 +2008,7 @@ func TestExtract_MtConfidenceAltTrans(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMtConfidenceInline
 func TestExtract_MtConfidenceInline(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello <x id="1"/> world</source>
         <target>Bonjour <x id="1"/> monde</target>
@@ -1888,6 +2019,7 @@ func TestExtract_MtConfidenceInline(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMtConfidenceOutput
 func TestExtract_MtConfidenceOutput(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source><target>Bonjour</target>
       </trans-unit>`)
@@ -1899,6 +2031,7 @@ func TestExtract_MtConfidenceOutput(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStorageSizeModification
 func TestExtract_StorageSizeModification(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1908,6 +2041,7 @@ func TestExtract_StorageSizeModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testStorageSizeAndAllowedChars
 func TestExtract_StorageSizeAndAllowedChars(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1917,6 +2051,7 @@ func TestExtract_StorageSizeAndAllowedChars(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testAllowedCharsModification
 func TestExtract_AllowedCharsModification(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1928,6 +2063,7 @@ func TestExtract_AllowedCharsModification(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testOkapiMarkers
 func TestExtract_OkapiMarkers(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -1939,6 +2075,7 @@ func TestExtract_OkapiMarkers(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testForceUniqueIds
 func TestExtract_ForceUniqueIds(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="dup">
         <source>First</source>
       </trans-unit>
@@ -1951,6 +2088,7 @@ func TestExtract_ForceUniqueIds(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testDontForceUniqueIds
 func TestExtract_DontForceUniqueIds(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="dup">
         <source>First</source>
       </trans-unit>
@@ -1964,6 +2102,7 @@ func TestExtract_DontForceUniqueIds(t *testing.T) {
 // --- Roundtrip tests ---
 
 func TestRoundTrip_Simple(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello world</source>
       </trans-unit>`)
@@ -1974,6 +2113,7 @@ func TestRoundTrip_Simple(t *testing.T) {
 }
 
 func TestRoundTrip_WithTarget(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -1984,6 +2124,7 @@ func TestRoundTrip_WithTarget(t *testing.T) {
 }
 
 func TestRoundTrip_InlineCodes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source>Click <bpt id="1">&lt;b&gt;</bpt>here<ept id="1">&lt;/b&gt;</ept></source>
       </trans-unit>`, "htmlbody")
@@ -1993,6 +2134,7 @@ func TestRoundTrip_InlineCodes(t *testing.T) {
 }
 
 func TestRoundTrip_MultipleUnits(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First</source>
       </trans-unit>
@@ -2009,6 +2151,7 @@ func TestRoundTrip_MultipleUnits(t *testing.T) {
 }
 
 func TestRoundTrip_Notes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <note from="dev">A note</note>
@@ -2019,6 +2162,7 @@ func TestRoundTrip_Notes(t *testing.T) {
 }
 
 func TestRoundTrip_AltTrans(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -2033,6 +2177,7 @@ func TestRoundTrip_AltTrans(t *testing.T) {
 }
 
 func TestRoundTrip_TranslateNo(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" translate="no">
         <source>Code</source>
       </trans-unit>`)
@@ -2041,6 +2186,7 @@ func TestRoundTrip_TranslateNo(t *testing.T) {
 }
 
 func TestRoundTrip_PreserveWhitespace(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" xml:space="preserve">
         <source>  Hello  </source>
       </trans-unit>`)
@@ -2051,6 +2197,7 @@ func TestRoundTrip_PreserveWhitespace(t *testing.T) {
 // --- Sniff tests ---
 
 func TestSniff_ValidXLIFF12(t *testing.T) {
+	t.Parallel()
 	reader := xliff.NewReader()
 	sig := reader.Signature()
 	valid := `<?xml version="1.0"?><xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">`
@@ -2058,6 +2205,7 @@ func TestSniff_ValidXLIFF12(t *testing.T) {
 }
 
 func TestSniff_XLIFF20_NotMatched(t *testing.T) {
+	t.Parallel()
 	reader := xliff.NewReader()
 	sig := reader.Signature()
 	v2 := `<?xml version="1.0"?><xliff version="2.0" xmlns="urn:oasis:names:tc:xliff:document:2.0">`
@@ -2065,6 +2213,7 @@ func TestSniff_XLIFF20_NotMatched(t *testing.T) {
 }
 
 func TestSniff_NotXLIFF(t *testing.T) {
+	t.Parallel()
 	reader := xliff.NewReader()
 	sig := reader.Signature()
 	assert.False(t, sig.Sniff([]byte(`<html><body>Hello</body></html>`)))
@@ -2073,6 +2222,7 @@ func TestSniff_NotXLIFF(t *testing.T) {
 // --- Multilingual flag ---
 
 func TestExtract_IsMultilingual(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -2089,6 +2239,7 @@ func TestExtract_IsMultilingual(t *testing.T) {
 // --- Equiv-text tests ---
 
 func TestExtract_EquivText(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <x id="1" equiv-text="[BR]"/> end</source>
       </trans-unit>`)
@@ -2103,6 +2254,7 @@ func TestExtract_EquivText(t *testing.T) {
 // --- Data in bpt/ept ---
 
 func TestExtract_BptEptData(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello <bpt id="1">&lt;b&gt;</bpt>bold<ept id="1">&lt;/b&gt;</ept></source>
       </trans-unit>`)
@@ -2127,6 +2279,7 @@ func TestExtract_BptEptData(t *testing.T) {
 // --- IT pos attribute ---
 
 func TestExtract_ItPosOpen(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <it id="1" pos="open">&lt;i&gt;</it>italic</source>
       </trans-unit>`)
@@ -2144,6 +2297,7 @@ func TestExtract_ItPosOpen(t *testing.T) {
 }
 
 func TestExtract_ItPosClose(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>italic<it id="1" pos="close">&lt;/i&gt;</it> text</source>
       </trans-unit>`)
@@ -2163,6 +2317,7 @@ func TestExtract_ItPosClose(t *testing.T) {
 // --- G element tests ---
 
 func TestExtract_GElement(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Text <g id="1">inside</g> end</source>
       </trans-unit>`)
@@ -2187,6 +2342,7 @@ func TestExtract_GElement(t *testing.T) {
 // --- XML space inheritance ---
 
 func TestExtract_XmlSpaceInheritanceFromFile(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test" xml:space="preserve">
@@ -2203,6 +2359,7 @@ func TestExtract_XmlSpaceInheritanceFromFile(t *testing.T) {
 }
 
 func TestExtract_XmlSpaceInheritanceFromGroup(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <group id="g1" xml:space="preserve">
         <trans-unit id="1">
           <source>Hello</source>
@@ -2216,6 +2373,7 @@ func TestExtract_XmlSpaceInheritanceFromGroup(t *testing.T) {
 // --- Multiple segments in source ---
 
 func TestExtract_ThreeSegments(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>One. Two. Three.</source>
         <seg-source>
@@ -2235,6 +2393,7 @@ func TestExtract_ThreeSegments(t *testing.T) {
 // --- Writer: locale override ---
 
 func TestWriter_LocaleOverride(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
         <target>Bonjour</target>
@@ -2258,6 +2417,7 @@ func TestWriter_LocaleOverride(t *testing.T) {
 // --- Maxwidth / size-unit ---
 
 func TestExtract_MaxwidthSizeUnit(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1" maxwidth="20" size-unit="char">
         <source>Hello</source>
       </trans-unit>`)
@@ -2271,12 +2431,14 @@ func TestExtract_MaxwidthSizeUnit(t *testing.T) {
 
 // okapi: XLIFFFilterTest#disabled_testMisOrderedCodes
 func TestExtract_DisabledTestMisOrderedCodes(t *testing.T) {
+	t.Parallel()
 	t.Skip("disabled in Java: testMisOrderedCodes")
 }
 
 // --- Inline source text preserved correctly ---
 
 func TestExtract_InlineSourceTextPreserved(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Before <bpt id="1">&lt;b&gt;</bpt>inside<ept id="1">&lt;/b&gt;</ept> after</source>
       </trans-unit>`)
@@ -2291,6 +2453,7 @@ func TestExtract_InlineSourceTextPreserved(t *testing.T) {
 // --- Target with inline codes ---
 
 func TestExtract_TargetWithInlineCodes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello <x id="1"/> world</source>
         <target>Bonjour <x id="1"/> monde</target>
@@ -2303,6 +2466,7 @@ func TestExtract_TargetWithInlineCodes(t *testing.T) {
 // --- Source locale set on layer ---
 
 func TestExtract_SourceLocaleOnLayer(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -2319,6 +2483,7 @@ func TestExtract_SourceLocaleOnLayer(t *testing.T) {
 // --- Target language in layer properties ---
 
 func TestExtract_TargetLangInLayerProperties(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Hello</source>
       </trans-unit>`)
@@ -2335,6 +2500,7 @@ func TestExtract_TargetLangInLayerProperties(t *testing.T) {
 // --- File original attribute ---
 
 func TestExtract_FileOriginalAttribute(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file source-language="en" target-language="fr" datatype="plaintext" original="my-file.txt">
@@ -2358,6 +2524,7 @@ func TestExtract_FileOriginalAttribute(t *testing.T) {
 // --- Trans-unit with no source (edge case) ---
 
 func TestExtract_TransUnitEmptySource(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source/>
       </trans-unit>`)
@@ -2370,6 +2537,7 @@ func TestExtract_TransUnitEmptySource(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMultiLevelsSub
 func TestExtract_MultiLevelsSub(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Main text</source>
       </trans-unit>`)
@@ -2379,6 +2547,7 @@ func TestExtract_MultiLevelsSub(t *testing.T) {
 
 // okapi: XLIFFFilterTest#testMultiLevelsSubTu
 func TestExtract_MultiLevelsSubTu(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>Main text</source>
       </trans-unit>`)

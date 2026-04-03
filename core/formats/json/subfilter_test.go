@@ -88,6 +88,7 @@ func (f *fakeHTMLWriter) Write(ctx context.Context, parts <-chan *model.Part) er
 
 // okapi: JSONFilterTest#testSubfilter
 func TestSubfilter_ReadHTMLInJSON(t *testing.T) {
+	t.Parallel()
 	input := `{"title": "Hello", "body": "<p>Rich <b>content</b></p>"}`
 
 	reader := NewReader()
@@ -142,6 +143,7 @@ func TestSubfilter_ReadHTMLInJSON(t *testing.T) {
 }
 
 func TestSubfilter_NoMatchPassesThrough(t *testing.T) {
+	t.Parallel()
 	input := `{"title": "Hello", "body": "<p>HTML</p>"}`
 
 	reader := NewReader()
@@ -178,6 +180,7 @@ func TestSubfilter_NoMatchPassesThrough(t *testing.T) {
 }
 
 func TestSubfilter_WildcardPattern(t *testing.T) {
+	t.Parallel()
 	input := `{"en": {"body": "<p>Hello</p>"}, "fr": {"body": "<p>Bonjour</p>"}}`
 
 	reader := NewReader()
@@ -215,6 +218,7 @@ func TestSubfilter_WildcardPattern(t *testing.T) {
 
 // okapi: JSONFilterTest#testSubFilterDoubleExtraction
 func TestSubfilter_Roundtrip(t *testing.T) {
+	t.Parallel()
 	input := `{"title": "Hello", "body": "<p>Rich content</p>"}`
 
 	// Read with subfiltering
@@ -267,6 +271,7 @@ func TestSubfilter_Roundtrip(t *testing.T) {
 }
 
 func TestMatchGlob(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		pattern string
 		path    string
@@ -280,6 +285,7 @@ func TestMatchGlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.pattern+"_"+tt.path, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, matchGlob(tt.pattern, tt.path))
 		})
 	}
