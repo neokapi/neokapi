@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, DragEvent } from "react";
 import { FileText, FolderOpen, Plus, RefreshCw, Loader2, Upload } from "lucide-react";
-import { Button, Badge, Card } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, PageHeader } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -90,36 +90,33 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
 
   return (
     <div className="p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-            Project Files
-          </h2>
-          {basePath && (
-            <p className="mt-0.5 text-xs text-muted-foreground">{shortenHome(basePath)}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleAddFiles}
-            aria-label="Add files"
-          >
-            <Plus size={12} />
-            Add Files
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            onClick={refresh}
-            disabled={loading}
-            aria-label="Refresh files"
-          >
-            {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Project Files"
+        subtitle={basePath ? shortenHome(basePath) : undefined}
+        className="mb-4"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddFiles}
+              aria-label="Add files"
+            >
+              <Plus size={12} />
+              Add Files
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              onClick={refresh}
+              disabled={loading}
+              aria-label="Refresh files"
+            >
+              {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+            </Button>
+          </div>
+        }
+      />
 
       {/* Drop zone + file list */}
       <div

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
-import { Button, Badge, Card, CardContent, Label, Input } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, CardContent, Label, Input, PageHeader, EmptyState, LoadingSpinner } from "@neokapi/ui-primitives";
 import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -83,22 +83,20 @@ export function CredentialsPage() {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">AI Credentials</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            API keys are stored in your OS keychain
-          </p>
-        </div>
-        <Button
-          size="sm"
-          onClick={handleAdd}
-          aria-label="Add AI provider"
-        >
-          <Plus size={12} />
-          Add Provider
-        </Button>
-      </div>
+      <PageHeader
+        title="AI Credentials"
+        subtitle="API keys are stored in your OS keychain"
+        actions={
+          <Button
+            size="sm"
+            onClick={handleAdd}
+            aria-label="Add AI provider"
+          >
+            <Plus size={12} />
+            Add Provider
+          </Button>
+        }
+      />
 
       {error && (
         <p className="mb-4 text-sm text-destructive" role="alert">
@@ -107,10 +105,7 @@ export function CredentialsPage() {
       )}
 
       {loading ? (
-        <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-          <Loader2 size={16} className="animate-spin" />
-          Loading providers...
-        </div>
+        <LoadingSpinner text="Loading providers..." className="py-8" />
       ) : (
         <div className="space-y-2">
           {providers.map((provider) => (
@@ -149,14 +144,10 @@ export function CredentialsPage() {
             </Card>
           ))}
           {providers.length === 0 && !editing && (
-            <Card className="border-dashed">
-              <CardContent className="p-8 text-center">
-                <KeyRound size={24} className="mx-auto mb-2 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  No AI providers configured. Add one to use AI translation and QA tools.
-                </p>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={<KeyRound size={24} />}
+              title="No AI providers configured. Add one to use AI translation and QA tools."
+            />
           )}
         </div>
       )}

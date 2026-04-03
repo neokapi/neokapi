@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench, ArrowUpCircle } from "lucide-react";
-import { Button, Badge, Card, Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, Tabs, TabsList, TabsTrigger, TabsContent, LoadingSpinner } from "@neokapi/ui-primitives";
 import type { PluginInfo } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
@@ -259,9 +259,7 @@ export function PluginManager() {
 
       <TabsContent value="installed">
           {loading ? (
-            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 size={16} className="animate-spin" /> Loading plugins...
-            </div>
+            <LoadingSpinner text="Loading plugins..." className="py-8" />
           ) : (
             <div className="space-y-2">
               {filtered.map((plugin) => {
@@ -296,9 +294,7 @@ export function PluginManager() {
 
       <TabsContent value="available">
           {loadingAvailable ? (
-            <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
-              <Loader2 size={16} className="animate-spin" /> Loading plugin registry...
-            </div>
+            <LoadingSpinner text="Loading plugin registry..." className="py-8" />
           ) : (
             <div className="space-y-2">
               {available.map((plugin) => {
