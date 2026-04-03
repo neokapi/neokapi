@@ -1,8 +1,18 @@
 import React, { useState, useCallback } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "@neokapi/ui-primitives/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@neokapi/ui-primitives/components/ui/popover";
 import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@neokapi/ui-primitives/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@neokapi/ui-primitives/components/ui/select";
 import type { AddConceptRequest, TermInfo } from "../../types/api";
 
 interface TermCreationPopoverProps {
@@ -108,7 +118,9 @@ export function TermCreationPopover({
             <label className="text-xs text-muted-foreground">Translation ({targetLocale})</label>
             <Input
               value={targetTranslation}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTargetTranslation(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setTargetTranslation(e.target.value)
+              }
               placeholder="Target translation"
               className="h-8 text-sm"
             />

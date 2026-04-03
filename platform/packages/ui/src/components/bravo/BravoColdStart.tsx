@@ -21,9 +21,7 @@ export function BravoColdStart() {
           <circle cx="24" cy="1" r="2" fill="currentColor" stroke="none" />
         </svg>
         {/* Pulse ring */}
-        <div
-          className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping duration-[2s]"
-        />
+        <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping duration-[2s]" />
       </div>
 
       <div className="text-center space-y-1.5">

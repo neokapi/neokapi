@@ -63,12 +63,8 @@ export const WithRules: Story = {
     <Wrapper
       label="Inline Code Rules"
       initial={{
-        rules: [
-          { pattern: "</?\\w[^>]*>" },
-          { pattern: "\\{\\d+\\}" },
-          { pattern: "%[ds]" },
-        ],
-        sample: 'Click <b>OK</b> to format {0} with %d items',
+        rules: [{ pattern: "</?\\w[^>]*>" }, { pattern: "\\{\\d+\\}" }, { pattern: "%[ds]" }],
+        sample: "Click <b>OK</b> to format {0} with %d items",
       }}
     />
   ),
@@ -105,11 +101,7 @@ export const InvalidRegex: Story = {
     <Wrapper
       label="Inline Code Rules"
       initial={{
-        rules: [
-          { pattern: "</?\\w[^>]*>" },
-          { pattern: "[invalid(" },
-          { pattern: "\\{\\d+\\}" },
-        ],
+        rules: [{ pattern: "</?\\w[^>]*>" }, { pattern: "[invalid(" }, { pattern: "\\{\\d+\\}" }],
         sample: "Test <b>text</b> with {0}",
       }}
     />

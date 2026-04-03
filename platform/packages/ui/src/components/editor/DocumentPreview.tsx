@@ -274,9 +274,7 @@ export function DocumentPreview({
         srcDoc={previewHTML}
         className="w-full h-full border border-[var(--border)] rounded-lg bg-white"
         style={
-          inlineMode && iframeContentHeight > 0
-            ? { minHeight: iframeContentHeight }
-            : undefined
+          inlineMode && iframeContentHeight > 0 ? { minHeight: iframeContentHeight } : undefined
         }
         sandbox="allow-scripts"
         title="Document Preview"

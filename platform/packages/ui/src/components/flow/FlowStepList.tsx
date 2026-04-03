@@ -1,9 +1,5 @@
 import * as React from "react";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  GripVerticalIcon,
-} from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, GripVerticalIcon } from "lucide-react";
 
 import { cn } from "@neokapi/ui-primitives";
 import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
@@ -35,11 +31,7 @@ function extractResourceBadges(config: Record<string, unknown>): string[] {
   const badges: string[] = [];
   for (const value of Object.values(config)) {
     if (typeof value !== "string") continue;
-    if (
-      value.startsWith("tm:") ||
-      value.startsWith("termbase:") ||
-      value.startsWith("srx:")
-    ) {
+    if (value.startsWith("tm:") || value.startsWith("termbase:") || value.startsWith("srx:")) {
       badges.push(value);
     }
   }
@@ -84,23 +76,19 @@ export function FlowStepList({
         const schema = schemas.get(step.tool);
         const isExpanded = expandedIndex === index;
         const badges = extractResourceBadges(step.config);
-        const category =
-          schema?.description?.toLowerCase().includes("quality") ? "validate" :
-          schema?.description?.toLowerCase().includes("translat") ? "translate" :
-          "pipeline";
+        const category = schema?.description?.toLowerCase().includes("quality")
+          ? "validate"
+          : schema?.description?.toLowerCase().includes("translat")
+            ? "translate"
+            : "pipeline";
         const icon = categoryIcons[category] || "S";
 
         return (
-          <div
-            key={index}
-            className="rounded-lg border bg-card transition-colors"
-          >
+          <div key={index} className="rounded-lg border bg-card transition-colors">
             <button
               type="button"
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-accent/30"
-              onClick={() =>
-                setExpandedIndex(isExpanded ? null : index)
-              }
+              onClick={() => setExpandedIndex(isExpanded ? null : index)}
             >
               <GripVerticalIcon className="size-4 shrink-0 cursor-grab text-muted-foreground/40" />
               <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted text-xs font-bold text-muted-foreground">
@@ -108,15 +96,9 @@ export function FlowStepList({
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {step.label || step.tool}
-                  </span>
+                  <span className="text-sm font-medium">{step.label || step.tool}</span>
                   {badges.map((badge) => (
-                    <Badge
-                      key={badge}
-                      variant="secondary"
-                      className="text-xs font-normal"
-                    >
+                    <Badge key={badge} variant="secondary" className="text-xs font-normal">
                       {badge}
                     </Badge>
                   ))}

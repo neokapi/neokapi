@@ -41,8 +41,7 @@ function StatefulPanel(
 const qualityCheckSchema: ComponentSchema = {
   $id: "quality-check",
   title: "Quality Check",
-  description:
-    "Configurable quality assurance checks for bilingual content.",
+  description: "Configurable quality assurance checks for bilingual content.",
   properties: {
     whitespace: {
       type: "object",
@@ -73,15 +72,13 @@ const qualityCheckSchema: ComponentSchema = {
         emptyTarget: {
           type: "boolean",
           title: "Warn on Empty Target",
-          description:
-            "Flag segments where the target is empty while the source is not.",
+          description: "Flag segments where the target is empty while the source is not.",
           default: true,
         },
         emptySource: {
           type: "boolean",
           title: "Warn on Empty Source",
-          description:
-            "Flag segments where the target is not empty while the source is empty.",
+          description: "Flag segments where the target is not empty while the source is empty.",
           default: true,
         },
       },
@@ -101,24 +98,21 @@ const qualityCheckSchema: ComponentSchema = {
         maxCharLengthBreak: {
           type: "integer",
           title: "Long Text Threshold",
-          description:
-            'Character count above which text is considered "long".',
+          description: 'Character count above which text is considered "long".',
           default: 20,
           "ui:enabled": { field: "checkMaxCharLength", eq: true },
         },
         maxCharLengthAbove: {
           type: "integer",
           title: "Percentage for Long Text",
-          description:
-            "Maximum allowed percentage of source length for long text.",
+          description: "Maximum allowed percentage of source length for long text.",
           default: 200,
           "ui:enabled": { field: "checkMaxCharLength", eq: true },
         },
         maxCharLengthBelow: {
           type: "integer",
           title: "Percentage for Short Text",
-          description:
-            "Maximum allowed percentage of source length for short text.",
+          description: "Maximum allowed percentage of source length for short text.",
           default: 350,
           "ui:enabled": { field: "checkMaxCharLength", eq: true },
         },
@@ -168,8 +162,7 @@ const qualityCheckSchema: ComponentSchema = {
         checkTerms: {
           type: "boolean",
           title: "Check Terminology",
-          description:
-            "Verify glossary terminology is used correctly.",
+          description: "Verify glossary terminology is used correctly.",
           default: false,
         },
         termsPath: {
@@ -262,8 +255,7 @@ const segmentationSchema: ComponentSchema = {
     segmentTarget: {
       type: "boolean",
       title: "Segment Target Text",
-      description:
-        "Segment existing target text using SRX rules.",
+      description: "Segment existing target text using SRX rules.",
       default: false,
     },
     overwriteSegmentation: {

@@ -36,7 +36,10 @@ export function BrandScoreGauge({ score, size = 120, className, label }: BrandSc
           cy="50"
           r={radius}
           fill="none"
-          className={cn(strokeColor(clamped), "transition-[stroke-dashoffset] duration-[600ms] ease-in-out")}
+          className={cn(
+            strokeColor(clamped),
+            "transition-[stroke-dashoffset] duration-[600ms] ease-in-out",
+          )}
           strokeWidth="8"
           strokeDasharray={circumference}
           strokeDashoffset={offset}

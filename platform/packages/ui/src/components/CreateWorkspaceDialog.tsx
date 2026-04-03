@@ -4,7 +4,13 @@ import { useApi } from "../context/ApiContext";
 import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 
 export interface CreateWorkspaceDialogProps {
@@ -74,7 +80,9 @@ export function CreateWorkspaceDialog({
             <Label className="text-muted-foreground">Name</Label>
             <Input
               value={name}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleNameChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleNameChange(e.target.value)
+              }
               placeholder="My Workspace"
               autoFocus
               className="mt-1"

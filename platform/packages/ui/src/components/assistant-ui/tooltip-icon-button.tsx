@@ -3,7 +3,11 @@
 import { ComponentPropsWithRef, forwardRef } from "react";
 import { Slottable } from "@radix-ui/react-slot";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@neokapi/ui-primitives/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@neokapi/ui-primitives/components/ui/tooltip";
 import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { cn } from "@neokapi/ui-primitives";
 

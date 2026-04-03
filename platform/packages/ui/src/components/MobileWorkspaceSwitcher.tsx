@@ -9,7 +9,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@neokapi/ui-primitives/components/ui/dropdown-menu";
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@neokapi/ui-primitives/components/ui/sidebar";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@neokapi/ui-primitives/components/ui/sidebar";
 
 interface MobileWorkspaceSwitcherProps {
   workspaces: Workspace[];

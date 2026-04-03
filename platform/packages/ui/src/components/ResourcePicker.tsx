@@ -4,7 +4,12 @@ import { DatabaseIcon, FileIcon, FolderIcon } from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives/components/ui/tabs";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@neokapi/ui-primitives/components/ui/tabs";
 import {
   Combobox,
   ComboboxInput,
@@ -109,9 +114,7 @@ export function ResourcePicker({
           />
         </div>
         {resolvedPath && (
-          <p className="truncate pl-6 text-xs text-muted-foreground">
-            → {resolvedPath}
-          </p>
+          <p className="truncate pl-6 text-xs text-muted-foreground">→ {resolvedPath}</p>
         )}
       </div>
     );
@@ -185,18 +188,16 @@ export function ResourcePicker({
             )}
             <Input
               value={parsed.mode === "file" ? parsed.name : ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleFileChange(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleFileChange(e.target.value)
+              }
               placeholder="Enter file path..."
               disabled={disabled}
             />
           </div>
         </TabsContent>
       </Tabs>
-      {resolvedPath && (
-        <p className="truncate text-xs text-muted-foreground">
-          → {resolvedPath}
-        </p>
-      )}
+      {resolvedPath && <p className="truncate text-xs text-muted-foreground">→ {resolvedPath}</p>}
       {role === "output" && !resolvedPath && (
         <p className="text-xs text-muted-foreground/60">
           Output files are auto-placed in the output directory

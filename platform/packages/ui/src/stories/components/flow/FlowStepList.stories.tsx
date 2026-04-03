@@ -1,9 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import {
-  FlowStepList,
-  type FlowStepInfo,
-} from "../../../components/flow/FlowStepList";
+import { FlowStepList, type FlowStepInfo } from "../../../components/flow/FlowStepList";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 
 const meta: Meta<typeof FlowStepList> = {
@@ -27,9 +24,7 @@ const sampleTMs = [
   { name: "legacy-tm", entryCount: 85000 },
 ];
 
-const sampleTermbases = [
-  { name: "glossary", entryCount: 340 },
-];
+const sampleTermbases = [{ name: "glossary", entryCount: 340 }];
 
 // Minimal schemas for demo.
 const leveragingSchema: ComponentSchema = {
@@ -153,13 +148,7 @@ export const TranslateFlow: Story = {
 };
 
 export const EmptyFlow: Story = {
-  render: () => (
-    <FlowStepList
-      steps={[]}
-      schemas={schemas}
-      onStepConfigChange={() => {}}
-    />
-  ),
+  render: () => <FlowStepList steps={[]} schemas={schemas} onStepConfigChange={() => {}} />,
 };
 
 export const SingleStep: Story = {

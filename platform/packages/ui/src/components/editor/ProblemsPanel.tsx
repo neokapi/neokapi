@@ -56,9 +56,7 @@ export function ProblemsPanel({ issues, loading, onNavigateToBlock, onClose }: P
   const totalCount = flatIssues.length;
 
   return (
-    <div
-      className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col max-h-[40vh]"
-    >
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-card shadow-[0_-4px_24px_rgba(0,0,0,0.15)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.4)] flex flex-col max-h-[40vh]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/30 shrink-0">
         <div className="flex items-center gap-3">

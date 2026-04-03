@@ -21,7 +21,12 @@ import {
   SelectContent,
   SelectItem,
 } from "@neokapi/ui-primitives/components/ui/select";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives/components/ui/tabs";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@neokapi/ui-primitives/components/ui/tabs";
 import { Plus, Trash2, ArrowLeft, X } from "../components/icons";
 
 interface BrandProfileEditorProps {
@@ -233,9 +238,13 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
               <div className="flex gap-2">
                 <Input
                   value={personalityInput}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPersonalityInput(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setPersonalityInput(e.target.value)
+                  }
                   placeholder="Add tag (e.g. friendly, professional)"
-                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && (e.preventDefault(), addPersonalityTag())}
+                  onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                    e.key === "Enter" && (e.preventDefault(), addPersonalityTag())
+                  }
                 />
                 <Button variant="outline" size="sm" onClick={addPersonalityTag}>
                   Add
@@ -448,7 +457,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Input
                     placeholder="Regex"
                     value={pat.regex}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updatePattern("required_patterns", i, "regex", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      updatePattern("required_patterns", i, "regex", e.target.value)
+                    }
                     className="font-mono text-xs"
                   />
                   <Input
@@ -508,17 +519,23 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                       <Input
                         placeholder="Term"
                         value={rule.term}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTermRule(category, i, "term", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateTermRule(category, i, "term", e.target.value)
+                        }
                       />
                       <Input
                         placeholder="Replacement"
                         value={rule.replacement ?? ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTermRule(category, i, "replacement", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateTermRule(category, i, "replacement", e.target.value)
+                        }
                       />
                       <Input
                         placeholder="Note"
                         value={rule.note ?? ""}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateTermRule(category, i, "note", e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          updateTermRule(category, i, "note", e.target.value)
+                        }
                       />
                       <Button
                         variant="ghost"
@@ -566,7 +583,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                     <Label className="text-xs">Before</Label>
                     <Input
                       value={ex.before}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "before", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        updateExample(i, "before", e.target.value)
+                      }
                       placeholder="Original text"
                     />
                   </div>
@@ -574,7 +593,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                     <Label className="text-xs">After</Label>
                     <Input
                       value={ex.after}
-                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "after", e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        updateExample(i, "after", e.target.value)
+                      }
                       placeholder="Brand-compliant text"
                     />
                   </div>
@@ -583,7 +604,9 @@ export function BrandProfileEditor({ profile, onSave, onCancel }: BrandProfileEd
                   <Label className="text-xs">Explanation</Label>
                   <Input
                     value={ex.explanation ?? ""}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateExample(i, "explanation", e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      updateExample(i, "explanation", e.target.value)
+                    }
                     placeholder="Why this change?"
                   />
                 </div>

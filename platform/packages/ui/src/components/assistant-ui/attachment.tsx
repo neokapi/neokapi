@@ -10,8 +10,17 @@ import {
   useAui,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@neokapi/ui-primitives/components/ui/tooltip";
-import { Dialog, DialogTitle, DialogContent, DialogTrigger } from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@neokapi/ui-primitives/components/ui/tooltip";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogTrigger,
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@neokapi/ui-primitives/components/ui/avatar";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { cn } from "@neokapi/ui-primitives";

@@ -143,7 +143,7 @@ func TestResolveToolConfig_LanguageVariables(t *testing.T) {
 func TestResolveToolConfig_SchemaAnnotation(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("KAPI_CONFIG_DIR", tmpDir)
-	os.MkdirAll(filepath.Join(tmpDir, "termbases"), 0755)
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "termbases"), 0755))
 
 	cs := &schema.ComponentSchema{
 		Properties: map[string]schema.PropertySchema{

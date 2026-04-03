@@ -6,8 +6,20 @@ import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@neokapi/ui-primitives/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@neokapi/ui-primitives/components/ui/select";
 import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
 
@@ -232,7 +244,9 @@ export function InviteManager({ workspace }: InviteManagerProps) {
                 autoFocus
                 className="mt-1"
                 data-testid="invite-email-input"
-                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && handleCreate()}
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                  e.key === "Enter" && handleCreate()
+                }
               />
             </div>
             <div>

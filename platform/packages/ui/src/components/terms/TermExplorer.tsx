@@ -10,7 +10,13 @@ import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
@@ -769,7 +775,9 @@ export function TermExplorer({
                 <Input
                   placeholder="e.g. Legal, Medical"
                   value={newDomain}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDomain(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setNewDomain(e.target.value)
+                  }
                   className="mt-1"
                   data-testid="term-add-domain"
                   autoFocus
@@ -780,7 +788,9 @@ export function TermExplorer({
                 <Input
                   placeholder="Concept definition"
                   value={newDefinition}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewDefinition(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setNewDefinition(e.target.value)
+                  }
                   className="mt-1"
                   data-testid="term-add-definition"
                 />

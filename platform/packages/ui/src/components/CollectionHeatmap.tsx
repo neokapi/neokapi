@@ -1,5 +1,10 @@
 import type { CollectionTranslationStats } from "../types/api";
-import { Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@neokapi/ui-primitives/components/ui/card";
 import { cn } from "@neokapi/ui-primitives";
 
 interface CollectionHeatmapProps {
