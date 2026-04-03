@@ -7,7 +7,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Card } from "@neokapi/ui-primitives";
 import type { FlowSpec, FlowInfo } from "../types/api";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo } from "@neokapi/flow-editor";
@@ -60,12 +60,13 @@ function SimulatedFlowsPage() {
     return (
       <div style={{ height: 700, display: "flex", flexDirection: "column" }}>
         <div className="flex items-center gap-3 px-6 py-3 border-b border-border shrink-0">
-          <button
+          <Button
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setSelected(null)}
-            className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
           >
             <X size={16} />
-          </button>
+          </Button>
           <Workflow size={16} className="text-muted-foreground" />
           <span className="text-sm font-semibold">{selected}</span>
         </div>
@@ -91,9 +92,9 @@ function SimulatedFlowsPage() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
         {flowList.map((flow) => (
-          <div
+          <Card
             key={flow.name}
-            className="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
+            className="group p-4 transition-all hover:border-primary/30 hover:shadow-md cursor-pointer"
             onClick={() => setSelected(flow.name)}
           >
             <div className="flex items-start gap-3">
@@ -118,7 +119,7 @@ function SimulatedFlowsPage() {
                 </Button>
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     </div>

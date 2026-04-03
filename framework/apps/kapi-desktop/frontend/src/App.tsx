@@ -19,6 +19,7 @@ import { HomePage } from "./components/HomePage";
 import { ContentPage } from "./components/ContentPage";
 import { ProjectSetupPage } from "./components/ProjectSetupPage";
 import { useShortenHome } from "./hooks/useShortenHome";
+import { Button, Label, Input } from "@neokapi/ui-primitives";
 
 interface TabState {
   info: TabInfo;
@@ -451,28 +452,30 @@ function NewProjectDialog({
         <h2 className="mb-4 text-lg font-semibold">New Project</h2>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">
+            <Label className="mb-1 block text-xs text-muted-foreground">
               {customPath ? "Location" : "Name"}
-            </label>
+            </Label>
             <div className="flex items-center gap-1.5">
-              <input
+              <Input
                 type="text"
                 value={customPath || name}
-                onChange={(e) => {
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                   if (customPath) return;
                   setName(e.target.value);
                 }}
-                onKeyDown={(e) => {
+                onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                   if (e.key === "Enter") handleCreate();
                 }}
                 placeholder={customPath ? "" : "My App"}
                 readOnly={!!customPath}
                 autoFocus={!customPath}
-                className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${name && !nameValid && !customPath ? "border-destructive" : "border-input"} ${customPath ? "text-muted-foreground" : ""}`}
+                className={`flex-1 ${name && !nameValid && !customPath ? "border-destructive" : ""} ${customPath ? "text-muted-foreground" : ""}`}
               />
-              <button
+              <Button
+                variant="outline"
+                size="icon-sm"
                 onClick={handleBrowse}
-                className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                className="shrink-0"
                 aria-label="Choose location"
               >
                 <svg
@@ -488,11 +491,13 @@ function NewProjectDialog({
                 >
                   <path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2" />
                 </svg>
-              </button>
+              </Button>
               {customPath && (
-                <button
+                <Button
+                  variant="outline"
+                  size="icon-sm"
                   onClick={() => setCustomPath("")}
-                  className="shrink-0 rounded-lg border border-border p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="shrink-0"
                   aria-label="Clear location"
                 >
                   <svg
@@ -509,7 +514,7 @@ function NewProjectDialog({
                     <path d="M18 6 6 18" />
                     <path d="m6 6 12 12" />
                   </svg>
-                </button>
+                </Button>
               )}
             </div>
             {customPath ? (
@@ -523,19 +528,19 @@ function NewProjectDialog({
             )}
           </div>
           <div className="flex gap-2">
-            <button
+            <Button
               onClick={handleCreate}
               disabled={!canCreate}
-              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="flex-1"
             >
               Create Project
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="outline"
               onClick={onCancel}
-              className="rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       </div>

@@ -85,9 +85,9 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
               const spec = project.flows?.[name];
               if (!spec) return null;
               return (
-                <div
+                <Card
                   key={name}
-                  className="flex items-center gap-3 rounded-lg border border-border p-3"
+                  className="flex items-center gap-3 p-3"
                 >
                   <div className="flex-1">
                     <div className="text-sm font-medium">{name}</div>
@@ -114,7 +114,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
                     )}
                     Run
                   </Button>
-                </div>
+                </Card>
               );
             })}
           </div>

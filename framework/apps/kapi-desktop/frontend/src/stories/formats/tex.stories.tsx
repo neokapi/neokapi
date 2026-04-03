@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SchemaForm } from "@neokapi/ui-primitives";
+import { SchemaForm, Button } from "@neokapi/ui-primitives";
 
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import formatSchemas from "../fixtures/format-schemas.json";
@@ -51,7 +51,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
       <div className="mb-4 flex items-center gap-3">
         <span className="rounded-full px-2 py-0.5 text-[10px] bg-emerald-500/10 text-emerald-500">native: {np} params</span>
         <span className="rounded-full px-2 py-0.5 text-[10px] bg-blue-500/10 text-blue-500">okapi: {op} params</span>
-        <button onClick={() => setShowSchemas(!showSchemas)} className="ml-auto text-xs text-muted-foreground hover:text-foreground">{showSchemas ? "Hide" : "Show"} schemas</button>
+        <Button variant="ghost" size="xs" onClick={() => setShowSchemas(!showSchemas)} className="ml-auto">{showSchemas ? "Hide" : "Show"} schemas</Button>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
         <div>

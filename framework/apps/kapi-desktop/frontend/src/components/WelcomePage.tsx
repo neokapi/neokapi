@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { FolderOpen, FilePlus, Workflow, Wrench, Puzzle, Settings } from "lucide-react";
-import { Button, Label } from "@neokapi/ui-primitives";
+import { Button, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -151,7 +151,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
         )}
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <ScrollArea className="flex-1">
         <div className="mx-auto max-w-3xl px-8 pb-12 pt-20">
           {/* Hero */}
           <div className="mb-12 flex flex-col items-center text-center">
@@ -168,23 +168,23 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                     {customPath ? "Location" : "Name"}
                   </Label>
                   <div className="flex items-center gap-1.5">
-                    <input
+                    <Input
                       type="text"
                       value={customPath || newName}
-                      onChange={(e) => {
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                         if (customPath) return;
                         setNewName(e.target.value);
                       }}
-                      onKeyDown={(e) => {
+                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                         if (e.key === "Enter" && canCreate) handleCreateProject();
                       }}
                       placeholder={customPath ? "" : "My App"}
                       readOnly={!!customPath}
                       autoFocus={!customPath}
-                      className={`flex-1 rounded-lg border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring ${
+                      className={`flex-1 ${
                         newName && !nameValid && !customPath
                           ? "border-destructive"
-                          : "border-input"
+                          : ""
                       } ${customPath ? "text-muted-foreground" : ""}`}
                     />
                     <Button
@@ -337,7 +337,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
             </p>
           </footer>
         </div>
-      </div>
+      </ScrollArea>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, CheckCircle2, Trash2 } from "lucide-react";
+import { Button, Badge, Card, Input } from "@neokapi/ui-primitives";
 
 interface Plugin {
   name: string;
@@ -102,25 +103,26 @@ function SimulatedPluginManager() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Plugins</h1>
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleCheckUpdates}
           disabled={checking}
-          className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-accent disabled:opacity-50"
           aria-label="Check for updates"
         >
           {checking ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           {checking ? "Checking..." : "Check Updates"}
-        </button>
+        </Button>
       </div>
 
       <div className="relative mb-4">
         <Search size={14} className="absolute left-2.5 top-2.5 text-muted-foreground" />
-        <input
+        <Input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search plugins..."
-          className="w-full rounded-md border border-input bg-transparent py-2 pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+          className="w-full pl-8"
         />
       </div>
 
@@ -133,14 +135,14 @@ function SimulatedPluginManager() {
 
       <div className="space-y-2">
         {filtered.map((plugin) => (
-          <div key={plugin.name} className="rounded-lg border border-border p-4">
+          <Card key={plugin.name} className="p-4">
             <div className="flex items-center gap-3">
               <Package size={20} className="shrink-0 text-primary" />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{plugin.name}</span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">v{plugin.version}</span>
-                  <span className="rounded bg-accent px-1.5 py-0.5 text-xs">{plugin.type}</span>
+                  <Badge variant="secondary">v{plugin.version}</Badge>
+                  <Badge variant="secondary">{plugin.type}</Badge>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">{plugin.description}</p>
               </div>
@@ -164,26 +166,28 @@ function SimulatedPluginManager() {
                     <CheckCircle2 size={12} />
                     Installed
                   </span>
-                  <button
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => handleUninstall(plugin.name)}
-                    className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    className="hover:bg-destructive/10 hover:text-destructive"
                     aria-label={`Uninstall ${plugin.name}`}
                   >
                     <Trash2 size={12} />
-                  </button>
+                  </Button>
                 </div>
               ) : (
-                <button
+                <Button
+                  size="sm"
                   onClick={() => handleInstall(plugin.name)}
-                  className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                   aria-label={`Install ${plugin.name}`}
                 >
                   <Download size={12} />
                   Install
-                </button>
+                </Button>
               )}
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     </div>

@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { AuditSession } from "@/context/ApiContext";
 
 interface SessionDetailProps {
@@ -89,7 +90,7 @@ export default function SessionDetail({ session, onClose }: SessionDetailProps) 
 
         <div>
           <h4 className="mb-2 text-sm font-semibold">Events ({session.eventCount})</h4>
-          <div className="max-h-[300px] overflow-y-auto rounded-md border">
+          <ScrollArea className="max-h-[300px] rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -116,7 +117,7 @@ export default function SessionDetail({ session, onClose }: SessionDetailProps) 
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>

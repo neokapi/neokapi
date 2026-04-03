@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Button, Input, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@neokapi/ui";
+import { Button, Input, Label, Collapsible, CollapsibleTrigger, CollapsibleContent } from "@neokapi/ui";
 import { Loader2, ChevronRight, ChevronDown } from "lucide-react";
 import type { ConnectionInfo } from "../hooks/useApi";
 
@@ -135,7 +135,7 @@ export function ServerConnect({
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Server URL</label>
+                  <Label>Server URL</Label>
                   <Input
                     placeholder={defaultURL}
                     value={serverURL}

@@ -114,9 +114,9 @@ export function CredentialsPage() {
       ) : (
         <div className="space-y-2">
           {providers.map((provider) => (
-            <div
+            <Card
               key={provider.id}
-              className="flex items-center gap-3 rounded-lg border border-border p-4"
+              className="flex items-center gap-3 p-4"
             >
               <KeyRound size={18} className="shrink-0 text-primary" />
               <div className="flex-1">
@@ -146,7 +146,7 @@ export function CredentialsPage() {
               >
                 <Trash2 size={14} />
               </Button>
-            </div>
+            </Card>
           ))}
           {providers.length === 0 && !editing && (
             <Card className="border-dashed">
