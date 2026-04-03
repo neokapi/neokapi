@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { X, ChevronUp, ChevronDown, Plus } from "lucide-react";
-import { cn } from "../../../lib/utils";
 import { Button } from "../../ui/button";
 import { Input } from "../../ui/input";
 import { Label } from "../../ui/label";

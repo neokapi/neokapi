@@ -11,13 +11,15 @@ WORKDIR /src
 
 # Copy workspace root (lock file + workspace config) and package.json files
 # for all workspaces to leverage Docker layer caching for npm ci.
-COPY platform/package.json platform/package-lock.json platform/
+COPY package.json package-lock.json ./
+COPY packages/ui/package.json packages/ui/
 COPY platform/packages/ui/package.json platform/packages/ui/
 COPY platform/apps/web/package.json platform/apps/web/
 COPY platform/apps/bowrain/frontend/package.json platform/apps/bowrain/frontend/
-RUN cd platform && npm ci
+RUN npm ci
 
 # Build shared UI package
+COPY packages/ui/ packages/ui/
 COPY platform/packages/ui/ platform/packages/ui/
 RUN cd platform/packages/ui && npx tsc
 

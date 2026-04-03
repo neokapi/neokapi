@@ -6,6 +6,10 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
+    "paths": {
+      "@neokapi/ui-primitives": ["../../../../packages/ui/src/index.ts"],
+      "@neokapi/ui-primitives/*": ["../../../../packages/ui/src/*"]
+    },
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,

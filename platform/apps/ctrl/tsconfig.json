@@ -3,12 +3,17 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "paths": {
+      "@neokapi/ui-primitives": ["../../../packages/ui/src/index.ts"],
+      "@neokapi/ui-primitives/*": ["../../../packages/ui/src/*"],
+      "@neokapi/ui": ["../../packages/ui/src/index.ts"],
+      "@neokapi/ui/*": ["../../packages/ui/src/*"]
+    },
     "jsx": "react-jsx",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "rootDir": "src",
-    "outDir": "dist"
+    "noEmit": true
   },
   "include": ["src"]
 }
