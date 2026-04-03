@@ -33,7 +33,7 @@ func (s *ConnectorService) ListConnectorTypes() []connector.ConnectorInfo {
 // AddConnector creates and registers an active connector instance.
 func (s *ConnectorService) AddConnector(name string, config map[string]string) (connector.IntegrationConnector, error) {
 	if name == "" {
-		return nil, fmt.Errorf("connector name is required")
+		return nil, ErrConnectorNameRequired
 	}
 	c, err := s.connectorReg.NewConnector(name, config)
 	if err != nil {
@@ -47,7 +47,7 @@ func (s *ConnectorService) AddConnector(name string, config map[string]string) (
 func (s *ConnectorService) GetConnector(id string) (connector.IntegrationConnector, error) {
 	c, ok := s.active[id]
 	if !ok {
-		return nil, fmt.Errorf("connector %s not found", id)
+		return nil, fmt.Errorf("connector %s: %w", id, ErrConnectorNotFound)
 	}
 	return c, nil
 }
@@ -56,7 +56,7 @@ func (s *ConnectorService) GetConnector(id string) (connector.IntegrationConnect
 func (s *ConnectorService) RemoveConnector(id string) error {
 	c, ok := s.active[id]
 	if !ok {
-		return fmt.Errorf("connector %s not found", id)
+		return fmt.Errorf("connector %s: %w", id, ErrConnectorNotFound)
 	}
 	delete(s.active, id)
 	return c.Close()
@@ -74,11 +74,11 @@ func (s *ConnectorService) ListActive() []connector.IntegrationConnector {
 // Fetch retrieves content from a connector and stores it in the project.
 func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID string, opts connector.FetchOptions) ([]*connector.ContentItem, error) {
 	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+		return nil, ErrProjectIDRequired
 	}
 	c, ok := s.active[connectorID]
 	if !ok {
-		return nil, fmt.Errorf("connector %s not found", connectorID)
+		return nil, fmt.Errorf("connector %s: %w", connectorID, ErrConnectorNotFound)
 	}
 
 	items, err := c.Fetch(ctx, opts)
@@ -104,11 +104,11 @@ func (s *ConnectorService) Fetch(ctx context.Context, connectorID, projectID str
 // Publish sends content from the store to a connector.
 func (s *ConnectorService) Publish(ctx context.Context, connectorID, projectID string, opts connector.PublishOptions) error {
 	if projectID == "" {
-		return fmt.Errorf("project ID is required")
+		return ErrProjectIDRequired
 	}
 	c, ok := s.active[connectorID]
 	if !ok {
-		return fmt.Errorf("connector %s not found", connectorID)
+		return fmt.Errorf("connector %s: %w", connectorID, ErrConnectorNotFound)
 	}
 
 	// Get all blocks from the project.
@@ -135,7 +135,7 @@ func (s *ConnectorService) Publish(ctx context.Context, connectorID, projectID s
 func (s *ConnectorService) ConnectorStatus(ctx context.Context, connectorID string) (*connector.SyncStatus, error) {
 	c, ok := s.active[connectorID]
 	if !ok {
-		return nil, fmt.Errorf("connector %s not found", connectorID)
+		return nil, fmt.Errorf("connector %s: %w", connectorID, ErrConnectorNotFound)
 	}
 	return c.Status(ctx)
 }

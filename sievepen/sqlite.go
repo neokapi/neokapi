@@ -2,6 +2,7 @@ package sievepen
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"sort"
@@ -10,6 +11,12 @@ import (
 
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/storage"
+)
+
+// Sentinel errors for TM entry validation.
+var (
+	ErrEntryIDRequired     = errors.New("entry ID is required")
+	ErrEntrySourceRequired = errors.New("entry source Fragment is required")
 )
 
 // SQLiteTM is a persistent translation memory backed by SQLite with
@@ -126,10 +133,10 @@ func (tm *SQLiteTM) Add(entry TMEntry) error {
 // in the framework TMEntry type.
 func (tm *SQLiteTM) AddWithStream(entry TMEntry, stream string) error {
 	if entry.ID == "" {
-		return fmt.Errorf("entry ID is required")
+		return ErrEntryIDRequired
 	}
 	if entry.Source == nil {
-		return fmt.Errorf("entry source Fragment is required")
+		return ErrEntrySourceRequired
 	}
 
 	now := time.Now()

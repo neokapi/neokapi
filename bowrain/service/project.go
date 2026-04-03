@@ -2,10 +2,9 @@ package service
 
 import (
 	"context"
-	"fmt"
 
-	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/bowrain/core/store"
+	"github.com/neokapi/neokapi/core/model"
 )
 
 // ProjectService provides project and block operations.
@@ -21,13 +20,13 @@ func NewProjectService(s store.ContentStore) *ProjectService {
 // CreateProject creates a new project.
 func (s *ProjectService) CreateProject(ctx context.Context, p *store.Project) error {
 	if p == nil {
-		return fmt.Errorf("project is required")
+		return ErrProjectRequired
 	}
 	if p.Name == "" {
-		return fmt.Errorf("project name is required")
+		return ErrProjectNameRequired
 	}
 	if p.DefaultSourceLanguage == "" {
-		return fmt.Errorf("source locale is required")
+		return ErrSourceLocaleRequired
 	}
 	return s.store.CreateProject(ctx, p)
 }
@@ -35,7 +34,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, p *store.Project) er
 // GetProject retrieves a project by ID.
 func (s *ProjectService) GetProject(ctx context.Context, id string) (*store.Project, error) {
 	if id == "" {
-		return nil, fmt.Errorf("project ID is required")
+		return nil, ErrProjectIDRequired
 	}
 	return s.store.GetProject(ctx, id)
 }
@@ -48,10 +47,10 @@ func (s *ProjectService) ListProjects(ctx context.Context) ([]*store.Project, er
 // UpdateProject updates a project.
 func (s *ProjectService) UpdateProject(ctx context.Context, p *store.Project) error {
 	if p == nil {
-		return fmt.Errorf("project is required")
+		return ErrProjectRequired
 	}
 	if p.ID == "" {
-		return fmt.Errorf("project ID is required")
+		return ErrProjectIDRequired
 	}
 	return s.store.UpdateProject(ctx, p)
 }
@@ -59,7 +58,7 @@ func (s *ProjectService) UpdateProject(ctx context.Context, p *store.Project) er
 // DeleteProject deletes a project.
 func (s *ProjectService) DeleteProject(ctx context.Context, id string) error {
 	if id == "" {
-		return fmt.Errorf("project ID is required")
+		return ErrProjectIDRequired
 	}
 	return s.store.DeleteProject(ctx, id)
 }
@@ -67,7 +66,7 @@ func (s *ProjectService) DeleteProject(ctx context.Context, id string) error {
 // StoreBlocks stores blocks in a project.
 func (s *ProjectService) StoreBlocks(ctx context.Context, projectID string, blocks []*model.Block) error {
 	if projectID == "" {
-		return fmt.Errorf("project ID is required")
+		return ErrProjectIDRequired
 	}
 	return s.store.StoreBlocks(ctx, projectID, "main", blocks)
 }
@@ -75,10 +74,10 @@ func (s *ProjectService) StoreBlocks(ctx context.Context, projectID string, bloc
 // StoreBlocksForItem stores blocks scoped to a specific item (source file).
 func (s *ProjectService) StoreBlocksForItem(ctx context.Context, projectID, itemName string, blocks []*model.Block) error {
 	if projectID == "" {
-		return fmt.Errorf("project ID is required")
+		return ErrProjectIDRequired
 	}
 	if itemName == "" {
-		return fmt.Errorf("item name is required")
+		return ErrItemNameRequired
 	}
 	return s.store.StoreBlocksForItem(ctx, projectID, "main", itemName, blocks)
 }
@@ -86,10 +85,10 @@ func (s *ProjectService) StoreBlocksForItem(ctx context.Context, projectID, item
 // GetBlock retrieves a single block.
 func (s *ProjectService) GetBlock(ctx context.Context, projectID, blockID string) (*store.StoredBlock, error) {
 	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+		return nil, ErrProjectIDRequired
 	}
 	if blockID == "" {
-		return nil, fmt.Errorf("block ID is required")
+		return nil, ErrBlockIDRequired
 	}
 	return s.store.GetBlock(ctx, projectID, "main", blockID)
 }
@@ -97,7 +96,7 @@ func (s *ProjectService) GetBlock(ctx context.Context, projectID, blockID string
 // GetBlocks retrieves blocks matching a query.
 func (s *ProjectService) GetBlocks(ctx context.Context, query store.BlockQuery) ([]*store.StoredBlock, error) {
 	if query.ProjectID == "" {
-		return nil, fmt.Errorf("project ID is required in block query")
+		return nil, ErrProjectIDRequired
 	}
 	if query.Stream == "" {
 		query.Stream = "main"
@@ -108,10 +107,10 @@ func (s *ProjectService) GetBlocks(ctx context.Context, query store.BlockQuery) 
 // CreateVersion creates a version snapshot.
 func (s *ProjectService) CreateVersion(ctx context.Context, projectID, label, description string) (*store.Version, error) {
 	if projectID == "" {
-		return nil, fmt.Errorf("project ID is required")
+		return nil, ErrProjectIDRequired
 	}
 	if label == "" {
-		return nil, fmt.Errorf("version label is required")
+		return nil, ErrVersionLabelRequired
 	}
 	return s.store.CreateVersion(ctx, projectID, "main", label, description)
 }
@@ -139,10 +138,10 @@ func (s *ProjectService) LatestCursor(ctx context.Context, projectID string) (in
 // DeleteBlock deletes a block from a project.
 func (s *ProjectService) DeleteBlock(ctx context.Context, projectID, blockID string) error {
 	if projectID == "" {
-		return fmt.Errorf("project ID is required")
+		return ErrProjectIDRequired
 	}
 	if blockID == "" {
-		return fmt.Errorf("block ID is required")
+		return ErrBlockIDRequired
 	}
 	return s.store.DeleteBlock(ctx, projectID, "main", blockID)
 }
