@@ -13,7 +13,11 @@ import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@neokapi/ui-primitives/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@neokapi/ui-primitives/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "../icons";
 
 interface FilterConfigEditorProps {
@@ -448,7 +452,9 @@ function CodeFinderRulesField({
               value={rule.pattern}
               placeholder="Regex pattern"
               className="flex-1 font-mono text-xs"
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleRuleChange(index, e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleRuleChange(index, e.target.value)
+              }
             />
             <Button type="button" variant="ghost" size="sm" onClick={() => handleRemoveRule(index)}>
               ✕

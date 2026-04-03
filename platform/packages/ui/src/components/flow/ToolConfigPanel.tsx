@@ -82,10 +82,7 @@ export interface ToolConfigPanelProps {
 }
 
 /** Evaluate a ConditionExpr against current config values. */
-function evalCondition(
-  cond: ConditionExpr | undefined,
-  config: Record<string, unknown>,
-): boolean {
+function evalCondition(cond: ConditionExpr | undefined, config: Record<string, unknown>): boolean {
   if (!cond) return true;
   if (cond.not) return !evalCondition(cond.not, config);
   if (cond.all) return cond.all.every((c) => evalCondition(c, config));
@@ -115,9 +112,7 @@ function renderProperty(
   }
 
   // Conditional enablement
-  const enabled = prop["ui:enabled"]
-    ? evalCondition(prop["ui:enabled"], config)
-    : true;
+  const enabled = prop["ui:enabled"] ? evalCondition(prop["ui:enabled"], config) : true;
   const disabled = readOnly || !enabled;
 
   // x-path annotation → ResourcePicker.
@@ -144,17 +139,12 @@ function renderProperty(
     return (
       <div
         key={key}
-        className={cn(
-          "flex items-center justify-between gap-3",
-          disabled && "opacity-50",
-        )}
+        className={cn("flex items-center justify-between gap-3", disabled && "opacity-50")}
       >
         <div className="flex flex-col">
           <Label className="text-sm">{label}</Label>
           {prop.description && (
-            <span className="text-xs text-muted-foreground">
-              {prop.description}
-            </span>
+            <span className="text-xs text-muted-foreground">{prop.description}</span>
           )}
         </div>
         <Switch
@@ -188,9 +178,7 @@ function renderProperty(
           </SelectContent>
         </Select>
         {prop.description && (
-          <span className="text-xs text-muted-foreground">
-            {prop.description}
-          </span>
+          <span className="text-xs text-muted-foreground">{prop.description}</span>
         )}
       </div>
     );
@@ -219,7 +207,9 @@ function renderProperty(
         <Input
           type="number"
           value={value !== undefined ? String(value) : ""}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateField(key, parseInt(e.target.value, 10))}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+            updateField(key, parseInt(e.target.value, 10))
+          }
           placeholder={prop.description}
           disabled={disabled}
         />
@@ -238,9 +228,7 @@ export function ToolConfigPanel({
   readOnly = false,
   className,
 }: ToolConfigPanelProps) {
-  const [collapsedSections, setCollapsedSections] = React.useState<
-    Set<string>
-  >(new Set());
+  const [collapsedSections, setCollapsedSections] = React.useState<Set<string>>(new Set());
 
   const updateField = (key: string, value: unknown) => {
     onChange({ ...config, [key]: value });
@@ -261,11 +249,7 @@ export function ToolConfigPanel({
     <div className={cn("flex flex-col gap-4", className)}>
       {entries.map(([key, prop]) => {
         // Nested object → collapsible section
-        if (
-          prop.type === "object" &&
-          prop.properties &&
-          Object.keys(prop.properties).length > 0
-        ) {
+        if (prop.type === "object" && prop.properties && Object.keys(prop.properties).length > 0) {
           const isCollapsed = collapsedSections.has(key);
           return (
             <div key={key} className="rounded-md border">
@@ -292,8 +276,7 @@ export function ToolConfigPanel({
                     renderProperty(
                       childKey,
                       childProp,
-                      (config[key] as Record<string, unknown>)?.[childKey] ??
-                        childProp.default,
+                      (config[key] as Record<string, unknown>)?.[childKey] ?? childProp.default,
                       (childKey2, childValue) => {
                         const parent = (config[key] as Record<string, unknown>) || {};
                         onChange({
@@ -314,15 +297,7 @@ export function ToolConfigPanel({
 
         // Leaf property
         const value = config[key] ?? prop.default;
-        return renderProperty(
-          key,
-          prop,
-          value,
-          updateField,
-          config,
-          resources,
-          readOnly,
-        );
+        return renderProperty(key, prop, value, updateField, config, resources, readOnly);
       })}
     </div>
   );

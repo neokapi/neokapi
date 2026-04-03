@@ -76,9 +76,7 @@ const sampleSRX: ResourceInfo[] = [
   },
 ];
 
-function InteractiveBrowser(
-  props: Omit<ResourceBrowserProps, "open" | "onClose" | "onSelect">,
-) {
+function InteractiveBrowser(props: Omit<ResourceBrowserProps, "open" | "onClose" | "onSelect">) {
   const [open, setOpen] = useState(true);
   const [lastSelected, setLastSelected] = useState<string | null>(null);
 
@@ -106,27 +104,19 @@ function InteractiveBrowser(
 }
 
 export const TMBrowser: Story = {
-  render: () => (
-    <InteractiveBrowser resourceKind="tm" resources={sampleTMs} />
-  ),
+  render: () => <InteractiveBrowser resourceKind="tm" resources={sampleTMs} />,
 };
 
 export const TermbaseBrowser: Story = {
-  render: () => (
-    <InteractiveBrowser resourceKind="termbase" resources={sampleTermbases} />
-  ),
+  render: () => <InteractiveBrowser resourceKind="termbase" resources={sampleTermbases} />,
 };
 
 export const SrxBrowser: Story = {
-  render: () => (
-    <InteractiveBrowser resourceKind="srx" resources={sampleSRX} />
-  ),
+  render: () => <InteractiveBrowser resourceKind="srx" resources={sampleSRX} />,
 };
 
 export const EmptyState: Story = {
-  render: () => (
-    <InteractiveBrowser resourceKind="tm" resources={[]} />
-  ),
+  render: () => <InteractiveBrowser resourceKind="tm" resources={[]} />,
 };
 
 export const WithSelection: Story = {

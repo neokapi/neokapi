@@ -29,10 +29,7 @@ const sampleTermbases = [
   { name: "brand-terms", entryCount: 52 },
 ];
 
-const sampleSRX = [
-  { name: "custom-rules" },
-  { name: "japanese-rules" },
-];
+const sampleSRX = [{ name: "custom-rules" }, { name: "japanese-rules" }];
 
 function StatefulPicker(props: Omit<ResourcePickerProps, "onChange">) {
   const [value, setValue] = useState(props.value);
@@ -41,12 +38,7 @@ function StatefulPicker(props: Omit<ResourcePickerProps, "onChange">) {
 
 export const Default: Story = {
   render: () => (
-    <StatefulPicker
-      value=""
-      label="Translation Memory"
-      resourceKind="tm"
-      resources={sampleTMs}
-    />
+    <StatefulPicker value="" label="Translation Memory" resourceKind="tm" resources={sampleTMs} />
   ),
 };
 
@@ -88,12 +80,7 @@ export const TermbaseKind: Story = {
 
 export const SrxKind: Story = {
   render: () => (
-    <StatefulPicker
-      value=""
-      label="Segmentation Rules"
-      resourceKind="srx"
-      resources={sampleSRX}
-    />
+    <StatefulPicker value="" label="Segmentation Rules" resourceKind="srx" resources={sampleSRX} />
   ),
 };
 

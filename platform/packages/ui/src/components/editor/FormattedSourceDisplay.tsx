@@ -168,4 +168,3 @@ export function FormattedSourceDisplay({ codedText, spans }: FormattedSourceDisp
 
   return <span>{rendered}</span>;
 }
-

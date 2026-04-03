@@ -12,7 +12,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@neokapi/ui-primitives/components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives/components/ui/tabs";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@neokapi/ui-primitives/components/ui/tabs";
 import type { ResourceKind } from "./ResourcePicker";
 
 export interface ResourceInfo {
@@ -145,15 +150,11 @@ export function ResourceBrowser({
                             {r.sourceLocale && (
                               <span>
                                 {r.sourceLocale}
-                                {r.targetLocales?.length
-                                  ? ` → ${r.targetLocales.join(", ")}`
-                                  : ""}
+                                {r.targetLocales?.length ? ` → ${r.targetLocales.join(", ")}` : ""}
                               </span>
                             )}
                           </div>
-                          <div className="truncate text-xs text-muted-foreground/60">
-                            {r.path}
-                          </div>
+                          <div className="truncate text-xs text-muted-foreground/60">{r.path}</div>
                         </div>
                       </button>
                     ))}
@@ -186,9 +187,7 @@ export function ResourceBrowser({
           </Button>
           <Button
             onClick={handleSelect}
-            disabled={
-              (tab === "named" && !selected) || (tab === "file" && !filePath)
-            }
+            disabled={(tab === "named" && !selected) || (tab === "file" && !filePath)}
           >
             Select
           </Button>

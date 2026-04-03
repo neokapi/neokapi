@@ -1,8 +1,20 @@
 import * as React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@neokapi/ui-primitives/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@neokapi/ui-primitives/components/ui/card";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@neokapi/ui-primitives/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@neokapi/ui-primitives/components/ui/select";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Bell, Clock, Globe } from "./icons";
 
@@ -129,7 +141,9 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
                   id="quiet-start"
                   type="time"
                   value={settings.quiet_start}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update({ quiet_start: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    update({ quiet_start: e.target.value })
+                  }
                   className="w-32"
                 />
               </div>
@@ -141,7 +155,9 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
                   id="quiet-end"
                   type="time"
                   value={settings.quiet_end}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => update({ quiet_end: e.target.value })}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    update({ quiet_end: e.target.value })
+                  }
                   className="w-32"
                 />
               </div>
@@ -164,7 +180,10 @@ export function NotificationSettings({ settings, onChange, saving }: Notificatio
             <Label htmlFor="timezone" className="min-w-24">
               Timezone
             </Label>
-            <Select value={settings.timezone} onValueChange={(v: string) => update({ timezone: v })}>
+            <Select
+              value={settings.timezone}
+              onValueChange={(v: string) => update({ timezone: v })}
+            >
               <SelectTrigger id="timezone" className="w-56">
                 <SelectValue />
               </SelectTrigger>

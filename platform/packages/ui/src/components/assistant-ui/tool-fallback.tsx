@@ -7,7 +7,11 @@ import {
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@neokapi/ui-primitives/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@neokapi/ui-primitives/components/ui/collapsible";
 import { cn } from "@neokapi/ui-primitives";
 
 const ANIMATION_DURATION = 200;

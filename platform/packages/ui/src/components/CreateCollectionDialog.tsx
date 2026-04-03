@@ -3,7 +3,13 @@ import type { CollectionKind, CollectionInfo } from "../types/api";
 import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { Upload, Plug } from "./icons";
 
 export interface CreateCollectionDialogProps {

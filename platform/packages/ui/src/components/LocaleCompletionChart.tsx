@@ -1,7 +1,12 @@
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 import type { LocaleTranslationStats } from "../types/api";
 import { LanguageLabel, localeDisplayName } from "./LanguageLabel";
-import { Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+} from "@neokapi/ui-primitives/components/ui/card";
 import { ChartContainer, type ChartConfig } from "@neokapi/ui-primitives/components/ui/chart";
 
 interface LocaleCompletionChartProps {

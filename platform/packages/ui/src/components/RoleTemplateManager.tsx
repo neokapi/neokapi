@@ -7,7 +7,13 @@ import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { Textarea } from "@neokapi/ui-primitives/components/ui/textarea";
 import { Shield, Pencil, Trash2, Plus } from "./icons";
@@ -259,7 +265,9 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
               <Label className="text-muted-foreground">Name</Label>
               <Input
                 value={form.name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setForm((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="translator"
                 autoFocus
                 className="mt-1"
@@ -270,7 +278,9 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
               <Label className="text-muted-foreground">Display Name</Label>
               <Input
                 value={form.display_name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((prev) => ({ ...prev, display_name: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setForm((prev) => ({ ...prev, display_name: e.target.value }))
+                }
                 placeholder="Translator"
                 className="mt-1"
                 data-testid="role-display-name-input"
@@ -280,7 +290,9 @@ export function RoleTemplateManager({ workspace }: RoleTemplateManagerProps) {
               <Label className="text-muted-foreground">Description</Label>
               <Textarea
                 value={form.description}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                  setForm((prev) => ({ ...prev, description: e.target.value }))
+                }
                 placeholder="Describe what this role can do..."
                 className="mt-1"
                 rows={2}

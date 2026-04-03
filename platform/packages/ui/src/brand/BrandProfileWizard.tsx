@@ -147,7 +147,9 @@ export function BrandProfileWizard({ profile, onSave, onCancel }: BrandProfileWi
                 <Input
                   id="profile-desc"
                   value={description}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setDescription(e.target.value)
+                  }
                   placeholder="Brief description of this voice profile"
                 />
               </div>

@@ -1,7 +1,14 @@
 import type { BillingPlan } from "../../types/api";
 import { cn } from "@neokapi/ui-primitives";
 import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@neokapi/ui-primitives/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@neokapi/ui-primitives/components/ui/card";
 import { Check, X } from "lucide-react";
 
 export interface PlanFeature {

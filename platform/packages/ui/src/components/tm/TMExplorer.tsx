@@ -9,7 +9,13 @@ import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@neokapi/ui-primitives/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@neokapi/ui-primitives/components/ui/dialog";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
 
@@ -317,7 +323,9 @@ export function TMExplorer({ sourceLocale, targetLocales, projects, onBack }: TM
                             <Input
                               type="text"
                               value={editTarget}
-                              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditTarget(e.target.value)}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                setEditTarget(e.target.value)
+                              }
                               className="flex-1 h-8"
                               data-testid={`tm-edit-input-${entry.id}`}
                             />

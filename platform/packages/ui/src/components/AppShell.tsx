@@ -1,6 +1,11 @@
 import { useRef, type ReactNode } from "react";
 import { cn } from "@neokapi/ui-primitives";
-import { SidebarProvider, SidebarInset, SidebarTrigger, useSidebar } from "@neokapi/ui-primitives/components/ui/sidebar";
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+  useSidebar,
+} from "@neokapi/ui-primitives/components/ui/sidebar";
 import { Separator } from "@neokapi/ui-primitives/components/ui/separator";
 import { AppSidebar, type AppSidebarProps, type SubNavItem, subNavConfig } from "./AppSidebar";
 import { BreadcrumbProvider, useBreadcrumb } from "../context/BreadcrumbContext";

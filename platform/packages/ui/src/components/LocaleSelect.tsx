@@ -178,12 +178,8 @@ export function MultiLocaleSelect({
           className="absolute top-full left-0 right-0 mt-1 rounded-xl shadow-md z-50 overflow-hidden backdrop-blur-md bg-[var(--dropdown-bg)] border border-[var(--dropdown-border)] shadow-[var(--dropdown-glow)]"
           onMouseDown={(e) => e.preventDefault()}
         >
-          <div
-            className="flex items-center gap-2 px-3 py-2 border-b border-[var(--dropdown-border)]"
-          >
-            <Search
-              className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-80"
-            />
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--dropdown-border)]">
+            <Search className="h-4 w-4 shrink-0 text-[var(--text-muted)] opacity-80" />
             <input
               ref={searchRef}
               type="text"
