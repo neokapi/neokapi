@@ -56,7 +56,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      ...options?.headers,
+      ...(options?.headers as Record<string, string>),
     },
   });
 
@@ -71,7 +71,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${retryToken}`,
-            ...options?.headers,
+            ...(options?.headers as Record<string, string>),
           },
         });
         if (!retryResponse.ok) {
@@ -251,7 +251,9 @@ export interface RunnerUsageEntry {
   count: number;
 }
 
-export function getModelUsage(workspaceId: string): Promise<{ model_usage: ModelUsageEntry[]; runner_usage?: RunnerUsageEntry[] }> {
+export function getModelUsage(
+  workspaceId: string,
+): Promise<{ model_usage: ModelUsageEntry[]; runner_usage?: RunnerUsageEntry[] }> {
   return request(`/workspaces/${encodeURIComponent(workspaceId)}/model-usage`);
 }
 

@@ -10,7 +10,8 @@ import { useEffect } from "react";
 type WailsEventCallback = (data: unknown) => void;
 
 // Lazily resolve the Wails Events module once.
-let eventsModule: { On: (name: string, cb: (e: { data: unknown }) => void) => () => void } | null = null;
+let eventsModule: { On: (name: string, cb: (e: { data: unknown }) => void) => () => void } | null =
+  null;
 let eventsLoaded = false;
 
 async function getEvents() {
@@ -38,12 +39,14 @@ async function getEvents() {
 export function useWailsEvent(name: string, callback: WailsEventCallback) {
   useEffect(() => {
     let cleanup: (() => void) | null = null;
-    getEvents().then((events) => {
+    void getEvents().then((events) => {
       if (events) {
         cleanup = events.On(name, (e) => callback(e.data));
       }
     });
-    return () => { cleanup?.(); };
+    return () => {
+      cleanup?.();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- callback identity managed by caller
   }, [name]);
 }
@@ -54,7 +57,7 @@ export function useWailsEvent(name: string, callback: WailsEventCallback) {
 export function useWailsEvents(names: string[], callback: WailsEventCallback) {
   useEffect(() => {
     const cleanups: Array<() => void> = [];
-    getEvents().then((events) => {
+    void getEvents().then((events) => {
       if (events) {
         for (const name of names) {
           cleanups.push(events.On(name, (e) => callback(e.data)));

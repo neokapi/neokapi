@@ -14,2500 +14,2502 @@ import * as flow$0 from "../../core/flow/models.js";
  * AddConceptRequest is the request to add a new concept.
  */
 export class AddConceptRequest {
-    /**
-     * Creates a new AddConceptRequest instance.
-     * @param {Partial<AddConceptRequest>} [$$source = {}] - The source object to create the AddConceptRequest.
-     */
-    constructor($$source = {}) {
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("domain" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["domain"] = "";
-        }
-        if (!("definition" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["definition"] = "";
-        }
-        if (!("terms" in $$source)) {
-            /**
-             * @member
-             * @type {TermDTO[]}
-             */
-            this["terms"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new AddConceptRequest instance.
+   * @param {Partial<AddConceptRequest>} [$$source = {}] - The source object to create the AddConceptRequest.
+   */
+  constructor($$source = {}) {
+    if (!("project_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["project_id"] = "";
+    }
+    if (!("domain" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["domain"] = "";
+    }
+    if (!("definition" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["definition"] = "";
+    }
+    if (!("terms" in $$source)) {
+      /**
+       * @member
+       * @type {TermDTO[]}
+       */
+      this["terms"] = [];
     }
 
-    /**
-     * Creates a new AddConceptRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AddConceptRequest}
-     */
-    static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType1;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
-        }
-        return new AddConceptRequest(/** @type {Partial<AddConceptRequest>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new AddConceptRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {AddConceptRequest}
+   */
+  static createFrom($$source = {}) {
+    const $$createField3_0 = $$createType1;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("terms" in $$parsedSource) {
+      $$parsedSource["terms"] = $$createField3_0($$parsedSource["terms"]);
     }
+    return new AddConceptRequest(/** @type {Partial<AddConceptRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * AddTMEntryRequest is the request to add a new TM entry.
  */
 export class AddTMEntryRequest {
-    /**
-     * Creates a new AddTMEntryRequest instance.
-     * @param {Partial<AddTMEntryRequest>} [$$source = {}] - The source object to create the AddTMEntryRequest.
-     */
-    constructor($$source = {}) {
-        if (!("source" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new AddTMEntryRequest instance.
+   * @param {Partial<AddTMEntryRequest>} [$$source = {}] - The source object to create the AddTMEntryRequest.
+   */
+  constructor($$source = {}) {
+    if (!("source" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source"] = "";
+    }
+    if (!("target" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target"] = "";
+    }
+    if (!("source_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source_locale"] = "";
+    }
+    if (!("target_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target_locale"] = "";
+    }
+    if (!("project_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["project_id"] = "";
     }
 
-    /**
-     * Creates a new AddTMEntryRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AddTMEntryRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new AddTMEntryRequest(/** @type {Partial<AddTMEntryRequest>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new AddTMEntryRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {AddTMEntryRequest}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new AddTMEntryRequest(/** @type {Partial<AddTMEntryRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * AnnotateEntitiesRequest is the request to batch-annotate entities on TM entries.
  */
 export class AnnotateEntitiesRequest {
-    /**
-     * Creates a new AnnotateEntitiesRequest instance.
-     * @param {Partial<AnnotateEntitiesRequest>} [$$source = {}] - The source object to create the AnnotateEntitiesRequest.
-     */
-    constructor($$source = {}) {
-        if (!("entry_ids" in $$source)) {
-            /**
-             * @member
-             * @type {string[]}
-             */
-            this["entry_ids"] = [];
-        }
-        if (!("patterns" in $$source)) {
-            /**
-             * @member
-             * @type {EntityPatternRequest[]}
-             */
-            this["patterns"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new AnnotateEntitiesRequest instance.
+   * @param {Partial<AnnotateEntitiesRequest>} [$$source = {}] - The source object to create the AnnotateEntitiesRequest.
+   */
+  constructor($$source = {}) {
+    if (!("entry_ids" in $$source)) {
+      /**
+       * @member
+       * @type {string[]}
+       */
+      this["entry_ids"] = [];
+    }
+    if (!("patterns" in $$source)) {
+      /**
+       * @member
+       * @type {EntityPatternRequest[]}
+       */
+      this["patterns"] = [];
     }
 
-    /**
-     * Creates a new AnnotateEntitiesRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AnnotateEntitiesRequest}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType2;
-        const $$createField1_0 = $$createType4;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("entry_ids" in $$parsedSource) {
-            $$parsedSource["entry_ids"] = $$createField0_0($$parsedSource["entry_ids"]);
-        }
-        if ("patterns" in $$parsedSource) {
-            $$parsedSource["patterns"] = $$createField1_0($$parsedSource["patterns"]);
-        }
-        return new AnnotateEntitiesRequest(/** @type {Partial<AnnotateEntitiesRequest>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new AnnotateEntitiesRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {AnnotateEntitiesRequest}
+   */
+  static createFrom($$source = {}) {
+    const $$createField0_0 = $$createType2;
+    const $$createField1_0 = $$createType4;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("entry_ids" in $$parsedSource) {
+      $$parsedSource["entry_ids"] = $$createField0_0($$parsedSource["entry_ids"]);
     }
+    if ("patterns" in $$parsedSource) {
+      $$parsedSource["patterns"] = $$createField1_0($$parsedSource["patterns"]);
+    }
+    return new AnnotateEntitiesRequest(
+      /** @type {Partial<AnnotateEntitiesRequest>} */ ($$parsedSource),
+    );
+  }
 }
 
 /**
  * AnnotateResult reports the outcome of a batch entity annotation.
  */
 export class AnnotateResult {
-    /**
-     * Creates a new AnnotateResult instance.
-     * @param {Partial<AnnotateResult>} [$$source = {}] - The source object to create the AnnotateResult.
-     */
-    constructor($$source = {}) {
-        if (!("entries_updated" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["entries_updated"] = 0;
-        }
-        if (!("entities_added" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["entities_added"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new AnnotateResult instance.
+   * @param {Partial<AnnotateResult>} [$$source = {}] - The source object to create the AnnotateResult.
+   */
+  constructor($$source = {}) {
+    if (!("entries_updated" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["entries_updated"] = 0;
+    }
+    if (!("entities_added" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["entities_added"] = 0;
     }
 
-    /**
-     * Creates a new AnnotateResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AnnotateResult}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new AnnotateResult(/** @type {Partial<AnnotateResult>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new AnnotateResult instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {AnnotateResult}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new AnnotateResult(/** @type {Partial<AnnotateResult>} */ ($$parsedSource));
+  }
 }
 
 /**
  * AppSettings holds persisted user preferences.
  */
 export class AppSettings {
-    /**
-     * Creates a new AppSettings instance.
-     * @param {Partial<AppSettings>} [$$source = {}] - The source object to create the AppSettings.
-     */
-    constructor($$source = {}) {
-        if (!("theme" in $$source)) {
-            /**
-             * "system", "dark", or "light"
-             * @member
-             * @type {string}
-             */
-            this["theme"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * true after user dismisses sample project cards
-             * @member
-             * @type {boolean | undefined}
-             */
-            this["samples_dismissed"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new AppSettings instance.
+   * @param {Partial<AppSettings>} [$$source = {}] - The source object to create the AppSettings.
+   */
+  constructor($$source = {}) {
+    if (!("theme" in $$source)) {
+      /**
+       * "system", "dark", or "light"
+       * @member
+       * @type {string}
+       */
+      this["theme"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * true after user dismisses sample project cards
+       * @member
+       * @type {boolean | undefined}
+       */
+      this["samples_dismissed"] = undefined;
     }
 
-    /**
-     * Creates a new AppSettings instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AppSettings}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new AppSettings(/** @type {Partial<AppSettings>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new AppSettings instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {AppSettings}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new AppSettings(/** @type {Partial<AppSettings>} */ ($$parsedSource));
+  }
 }
 
 /**
  * AvailablePlugin represents a plugin available from the registry.
  */
 export class AvailablePlugin {
-    /**
-     * Creates a new AvailablePlugin instance.
-     * @param {Partial<AvailablePlugin>} [$$source = {}] - The source object to create the AvailablePlugin.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["version"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("installed" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["installed"] = false;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new AvailablePlugin instance.
+   * @param {Partial<AvailablePlugin>} [$$source = {}] - The source object to create the AvailablePlugin.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("version" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["version"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("installed" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["installed"] = false;
     }
 
-    /**
-     * Creates a new AvailablePlugin instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {AvailablePlugin}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new AvailablePlugin(/** @type {Partial<AvailablePlugin>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new AvailablePlugin instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {AvailablePlugin}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new AvailablePlugin(/** @type {Partial<AvailablePlugin>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ConceptDTO is the frontend-facing termbase concept.
  */
 export class ConceptDTO {
-    /**
-     * Creates a new ConceptDTO instance.
-     * @param {Partial<ConceptDTO>} [$$source = {}] - The source object to create the ConceptDTO.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("domain" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["domain"] = "";
-        }
-        if (!("definition" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["definition"] = "";
-        }
-        if (!("source" in $$source)) {
-            /**
-             * "terminology" or "brand_vocabulary"
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("terms" in $$source)) {
-            /**
-             * @member
-             * @type {TermDTO[]}
-             */
-            this["terms"] = [];
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: string } | undefined}
-             */
-            this["properties"] = undefined;
-        }
-        if (!("created_at" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["created_at"] = "";
-        }
-        if (!("updated_at" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["updated_at"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ConceptDTO instance.
+   * @param {Partial<ConceptDTO>} [$$source = {}] - The source object to create the ConceptDTO.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("project_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["project_id"] = "";
+    }
+    if (!("domain" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["domain"] = "";
+    }
+    if (!("definition" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["definition"] = "";
+    }
+    if (!("source" in $$source)) {
+      /**
+       * "terminology" or "brand_vocabulary"
+       * @member
+       * @type {string}
+       */
+      this["source"] = "";
+    }
+    if (!("terms" in $$source)) {
+      /**
+       * @member
+       * @type {TermDTO[]}
+       */
+      this["terms"] = [];
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: string } | undefined}
+       */
+      this["properties"] = undefined;
+    }
+    if (!("created_at" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["created_at"] = "";
+    }
+    if (!("updated_at" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["updated_at"] = "";
     }
 
-    /**
-     * Creates a new ConceptDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ConceptDTO}
-     */
-    static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType1;
-        const $$createField6_0 = $$createType5;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField5_0($$parsedSource["terms"]);
-        }
-        if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField6_0($$parsedSource["properties"]);
-        }
-        return new ConceptDTO(/** @type {Partial<ConceptDTO>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ConceptDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ConceptDTO}
+   */
+  static createFrom($$source = {}) {
+    const $$createField5_0 = $$createType1;
+    const $$createField6_0 = $$createType5;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("terms" in $$parsedSource) {
+      $$parsedSource["terms"] = $$createField5_0($$parsedSource["terms"]);
     }
+    if ("properties" in $$parsedSource) {
+      $$parsedSource["properties"] = $$createField6_0($$parsedSource["properties"]);
+    }
+    return new ConceptDTO(/** @type {Partial<ConceptDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * EntityAdaptationDTO describes how to substitute an entity value.
  */
 export class EntityAdaptationDTO {
-    /**
-     * Creates a new EntityAdaptationDTO instance.
-     * @param {Partial<EntityAdaptationDTO>} [$$source = {}] - The source object to create the EntityAdaptationDTO.
-     */
-    constructor($$source = {}) {
-        if (!("placeholder_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["placeholder_id"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("stored_value" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["stored_value"] = "";
-        }
-        if (!("current_value" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["current_value"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new EntityAdaptationDTO instance.
+   * @param {Partial<EntityAdaptationDTO>} [$$source = {}] - The source object to create the EntityAdaptationDTO.
+   */
+  constructor($$source = {}) {
+    if (!("placeholder_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["placeholder_id"] = "";
+    }
+    if (!("type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("stored_value" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["stored_value"] = "";
+    }
+    if (!("current_value" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["current_value"] = "";
     }
 
-    /**
-     * Creates a new EntityAdaptationDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {EntityAdaptationDTO}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new EntityAdaptationDTO(/** @type {Partial<EntityAdaptationDTO>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new EntityAdaptationDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {EntityAdaptationDTO}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new EntityAdaptationDTO(/** @type {Partial<EntityAdaptationDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * EntityAnnotationDTO is a single entity annotation from the frontend.
  */
 export class EntityAnnotationDTO {
-    /**
-     * Creates a new EntityAnnotationDTO instance.
-     * @param {Partial<EntityAnnotationDTO>} [$$source = {}] - The source object to create the EntityAnnotationDTO.
-     */
-    constructor($$source = {}) {
-        if (!("text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["text"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * "entity:person" etc.
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("start" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["start"] = 0;
-        }
-        if (!("end" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["end"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new EntityAnnotationDTO instance.
+   * @param {Partial<EntityAnnotationDTO>} [$$source = {}] - The source object to create the EntityAnnotationDTO.
+   */
+  constructor($$source = {}) {
+    if (!("text" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["text"] = "";
+    }
+    if (!("type" in $$source)) {
+      /**
+       * "entity:person" etc.
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("start" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["start"] = 0;
+    }
+    if (!("end" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["end"] = 0;
     }
 
-    /**
-     * Creates a new EntityAnnotationDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {EntityAnnotationDTO}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new EntityAnnotationDTO(/** @type {Partial<EntityAnnotationDTO>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new EntityAnnotationDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {EntityAnnotationDTO}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new EntityAnnotationDTO(/** @type {Partial<EntityAnnotationDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * EntityPatternRequest defines a text→entity mapping for batch annotation.
  */
 export class EntityPatternRequest {
-    /**
-     * Creates a new EntityPatternRequest instance.
-     * @param {Partial<EntityPatternRequest>} [$$source = {}] - The source object to create the EntityPatternRequest.
-     */
-    constructor($$source = {}) {
-        if (!("text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["text"] = "";
-        }
-        if (!("entity_type" in $$source)) {
-            /**
-             * "entity:person" etc.
-             * @member
-             * @type {string}
-             */
-            this["entity_type"] = "";
-        }
-        if (!("case_sensitive" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["case_sensitive"] = false;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new EntityPatternRequest instance.
+   * @param {Partial<EntityPatternRequest>} [$$source = {}] - The source object to create the EntityPatternRequest.
+   */
+  constructor($$source = {}) {
+    if (!("text" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["text"] = "";
+    }
+    if (!("entity_type" in $$source)) {
+      /**
+       * "entity:person" etc.
+       * @member
+       * @type {string}
+       */
+      this["entity_type"] = "";
+    }
+    if (!("case_sensitive" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["case_sensitive"] = false;
     }
 
-    /**
-     * Creates a new EntityPatternRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {EntityPatternRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new EntityPatternRequest(/** @type {Partial<EntityPatternRequest>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new EntityPatternRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {EntityPatternRequest}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new EntityPatternRequest(/** @type {Partial<EntityPatternRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * FileMatch represents a file matched by content patterns.
  */
 export class FileMatch {
-    /**
-     * Creates a new FileMatch instance.
-     * @param {Partial<FileMatch>} [$$source = {}] - The source object to create the FileMatch.
-     */
-    constructor($$source = {}) {
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["format"] = undefined;
-        }
-        if (!("relative" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["relative"] = "";
-        }
-        if (!("pattern" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["pattern"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["collection"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FileMatch instance.
+   * @param {Partial<FileMatch>} [$$source = {}] - The source object to create the FileMatch.
+   */
+  constructor($$source = {}) {
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["format"] = undefined;
+    }
+    if (!("relative" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["relative"] = "";
+    }
+    if (!("pattern" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["pattern"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["collection"] = undefined;
     }
 
-    /**
-     * Creates a new FileMatch instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FileMatch}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FileMatch(/** @type {Partial<FileMatch>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FileMatch instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FileMatch}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new FileMatch(/** @type {Partial<FileMatch>} */ ($$parsedSource));
+  }
 }
 
 /**
  * FlowInfo is the frontend-facing flow summary.
  */
 export class FlowInfo {
-    /**
-     * Creates a new FlowInfo instance.
-     * @param {Partial<FlowInfo>} [$$source = {}] - The source object to create the FlowInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("step_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["step_count"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FlowInfo instance.
+   * @param {Partial<FlowInfo>} [$$source = {}] - The source object to create the FlowInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("step_count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["step_count"] = 0;
     }
 
-    /**
-     * Creates a new FlowInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FlowInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new FlowInfo(/** @type {Partial<FlowInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FlowInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FlowInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new FlowInfo(/** @type {Partial<FlowInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * FormatInfo is the frontend-facing format summary.
  */
 export class FormatInfo {
-    /**
-     * Creates a new FormatInfo instance.
-     * @param {Partial<FormatInfo>} [$$source = {}] - The source object to create the FormatInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["display_name"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["extensions"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["mime_types"] = undefined;
-        }
-        if (!("has_reader" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["has_reader"] = false;
-        }
-        if (!("has_writer" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["has_writer"] = false;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["source"] = undefined;
-        }
-        if (!("has_schema" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["has_schema"] = false;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FormatInfo instance.
+   * @param {Partial<FormatInfo>} [$$source = {}] - The source object to create the FormatInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["display_name"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["extensions"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["mime_types"] = undefined;
+    }
+    if (!("has_reader" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["has_reader"] = false;
+    }
+    if (!("has_writer" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["has_writer"] = false;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["source"] = undefined;
+    }
+    if (!("has_schema" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["has_schema"] = false;
     }
 
-    /**
-     * Creates a new FormatInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FormatInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType2;
-        const $$createField3_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("extensions" in $$parsedSource) {
-            $$parsedSource["extensions"] = $$createField2_0($$parsedSource["extensions"]);
-        }
-        if ("mime_types" in $$parsedSource) {
-            $$parsedSource["mime_types"] = $$createField3_0($$parsedSource["mime_types"]);
-        }
-        return new FormatInfo(/** @type {Partial<FormatInfo>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FormatInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FormatInfo}
+   */
+  static createFrom($$source = {}) {
+    const $$createField2_0 = $$createType2;
+    const $$createField3_0 = $$createType2;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("extensions" in $$parsedSource) {
+      $$parsedSource["extensions"] = $$createField2_0($$parsedSource["extensions"]);
     }
+    if ("mime_types" in $$parsedSource) {
+      $$parsedSource["mime_types"] = $$createField3_0($$parsedSource["mime_types"]);
+    }
+    return new FormatInfo(/** @type {Partial<FormatInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * FormatPartInfo describes a single part from a format reader.
  */
 export class FormatPartInfo {
-    /**
-     * Creates a new FormatPartInfo instance.
-     * @param {Partial<FormatPartInfo>} [$$source = {}] - The source object to create the FormatPartInfo.
-     */
-    constructor($$source = {}) {
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("summary" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["summary"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["source_text"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: string } | undefined}
-             */
-            this["properties"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FormatPartInfo instance.
+   * @param {Partial<FormatPartInfo>} [$$source = {}] - The source object to create the FormatPartInfo.
+   */
+  constructor($$source = {}) {
+    if (!("type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("summary" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["summary"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["source_text"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: string } | undefined}
+       */
+      this["properties"] = undefined;
     }
 
-    /**
-     * Creates a new FormatPartInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FormatPartInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType5;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
-        }
-        return new FormatPartInfo(/** @type {Partial<FormatPartInfo>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FormatPartInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FormatPartInfo}
+   */
+  static createFrom($$source = {}) {
+    const $$createField4_0 = $$createType5;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("properties" in $$parsedSource) {
+      $$parsedSource["properties"] = $$createField4_0($$parsedSource["properties"]);
     }
+    return new FormatPartInfo(/** @type {Partial<FormatPartInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * FormatPresetInfo is the frontend-facing format preset summary.
  */
 export class FormatPresetInfo {
-    /**
-     * Creates a new FormatPresetInfo instance.
-     * @param {Partial<FormatPresetInfo>} [$$source = {}] - The source object to create the FormatPresetInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("format" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["format"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: any } | undefined}
-             */
-            this["config"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * "built-in", "plugin", "user", "bridge", "schema"
-             * @member
-             * @type {string | undefined}
-             */
-            this["source"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FormatPresetInfo instance.
+   * @param {Partial<FormatPresetInfo>} [$$source = {}] - The source object to create the FormatPresetInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("format" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["format"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: any } | undefined}
+       */
+      this["config"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * "built-in", "plugin", "user", "bridge", "schema"
+       * @member
+       * @type {string | undefined}
+       */
+      this["source"] = undefined;
     }
 
-    /**
-     * Creates a new FormatPresetInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FormatPresetInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType6;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("config" in $$parsedSource) {
-            $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
-        }
-        return new FormatPresetInfo(/** @type {Partial<FormatPresetInfo>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FormatPresetInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FormatPresetInfo}
+   */
+  static createFrom($$source = {}) {
+    const $$createField3_0 = $$createType6;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("config" in $$parsedSource) {
+      $$parsedSource["config"] = $$createField3_0($$parsedSource["config"]);
     }
+    return new FormatPresetInfo(/** @type {Partial<FormatPresetInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ImportResult reports the outcome of an import operation.
  */
 export class ImportResult {
-    /**
-     * Creates a new ImportResult instance.
-     * @param {Partial<ImportResult>} [$$source = {}] - The source object to create the ImportResult.
-     */
-    constructor($$source = {}) {
-        if (!("count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["count"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ImportResult instance.
+   * @param {Partial<ImportResult>} [$$source = {}] - The source object to create the ImportResult.
+   */
+  constructor($$source = {}) {
+    if (!("count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["count"] = 0;
     }
 
-    /**
-     * Creates a new ImportResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ImportResult}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ImportResult(/** @type {Partial<ImportResult>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ImportResult instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ImportResult}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new ImportResult(/** @type {Partial<ImportResult>} */ ($$parsedSource));
+  }
 }
 
 /**
  * LookupTMRequest is the request for entity-aware TM lookup.
  */
 export class LookupTMRequest {
-    /**
-     * Creates a new LookupTMRequest instance.
-     * @param {Partial<LookupTMRequest>} [$$source = {}] - The source object to create the LookupTMRequest.
-     */
-    constructor($$source = {}) {
-        if (!("text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["text"] = "";
-        }
-        if (!("entities" in $$source)) {
-            /**
-             * @member
-             * @type {EntityAnnotationDTO[]}
-             */
-            this["entities"] = [];
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("min_score" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["min_score"] = 0;
-        }
-        if (!("max_results" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["max_results"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new LookupTMRequest instance.
+   * @param {Partial<LookupTMRequest>} [$$source = {}] - The source object to create the LookupTMRequest.
+   */
+  constructor($$source = {}) {
+    if (!("text" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["text"] = "";
+    }
+    if (!("entities" in $$source)) {
+      /**
+       * @member
+       * @type {EntityAnnotationDTO[]}
+       */
+      this["entities"] = [];
+    }
+    if (!("source_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source_locale"] = "";
+    }
+    if (!("target_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target_locale"] = "";
+    }
+    if (!("min_score" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["min_score"] = 0;
+    }
+    if (!("max_results" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["max_results"] = 0;
     }
 
-    /**
-     * Creates a new LookupTMRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {LookupTMRequest}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType8;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("entities" in $$parsedSource) {
-            $$parsedSource["entities"] = $$createField1_0($$parsedSource["entities"]);
-        }
-        return new LookupTMRequest(/** @type {Partial<LookupTMRequest>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new LookupTMRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {LookupTMRequest}
+   */
+  static createFrom($$source = {}) {
+    const $$createField1_0 = $$createType8;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("entities" in $$parsedSource) {
+      $$parsedSource["entities"] = $$createField1_0($$parsedSource["entities"]);
     }
+    return new LookupTMRequest(/** @type {Partial<LookupTMRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PluginCapability describes a format or tool provided by a plugin.
  */
 export class PluginCapability {
-    /**
-     * Creates a new PluginCapability instance.
-     * @param {Partial<PluginCapability>} [$$source = {}] - The source object to create the PluginCapability.
-     */
-    constructor($$source = {}) {
-        if (!("type" in $$source)) {
-            /**
-             * "format" or "tool"
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["display_name"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["extensions"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PluginCapability instance.
+   * @param {Partial<PluginCapability>} [$$source = {}] - The source object to create the PluginCapability.
+   */
+  constructor($$source = {}) {
+    if (!("type" in $$source)) {
+      /**
+       * "format" or "tool"
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["display_name"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["extensions"] = undefined;
     }
 
-    /**
-     * Creates a new PluginCapability instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluginCapability}
-     */
-    static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("extensions" in $$parsedSource) {
-            $$parsedSource["extensions"] = $$createField3_0($$parsedSource["extensions"]);
-        }
-        return new PluginCapability(/** @type {Partial<PluginCapability>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PluginCapability instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PluginCapability}
+   */
+  static createFrom($$source = {}) {
+    const $$createField3_0 = $$createType2;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("extensions" in $$parsedSource) {
+      $$parsedSource["extensions"] = $$createField3_0($$parsedSource["extensions"]);
     }
+    return new PluginCapability(/** @type {Partial<PluginCapability>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PluginInfo is the frontend-facing plugin summary.
  */
 export class PluginInfo {
-    /**
-     * Creates a new PluginInfo instance.
-     * @param {Partial<PluginInfo>} [$$source = {}] - The source object to create the PluginInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("id" in $$source)) {
-            /**
-             * unique identifier for this specific plugin installation
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["version"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["framework_version"] = undefined;
-        }
-        if (!("type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["description"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["formats"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {PluginCapability[] | undefined}
-             */
-            this["capabilities"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PluginInfo instance.
+   * @param {Partial<PluginInfo>} [$$source = {}] - The source object to create the PluginInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("id" in $$source)) {
+      /**
+       * unique identifier for this specific plugin installation
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("version" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["version"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["framework_version"] = undefined;
+    }
+    if (!("type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["description"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["formats"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {PluginCapability[] | undefined}
+       */
+      this["capabilities"] = undefined;
     }
 
-    /**
-     * Creates a new PluginInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluginInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType2;
-        const $$createField7_0 = $$createType10;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("formats" in $$parsedSource) {
-            $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
-        }
-        if ("capabilities" in $$parsedSource) {
-            $$parsedSource["capabilities"] = $$createField7_0($$parsedSource["capabilities"]);
-        }
-        return new PluginInfo(/** @type {Partial<PluginInfo>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PluginInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PluginInfo}
+   */
+  static createFrom($$source = {}) {
+    const $$createField6_0 = $$createType2;
+    const $$createField7_0 = $$createType10;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("formats" in $$parsedSource) {
+      $$parsedSource["formats"] = $$createField6_0($$parsedSource["formats"]);
     }
+    if ("capabilities" in $$parsedSource) {
+      $$parsedSource["capabilities"] = $$createField7_0($$parsedSource["capabilities"]);
+    }
+    return new PluginInfo(/** @type {Partial<PluginInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PluginUpdate represents a plugin with an available update.
  */
 export class PluginUpdate {
-    /**
-     * Creates a new PluginUpdate instance.
-     * @param {Partial<PluginUpdate>} [$$source = {}] - The source object to create the PluginUpdate.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("current_version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["current_version"] = "";
-        }
-        if (!("latest_version" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["latest_version"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PluginUpdate instance.
+   * @param {Partial<PluginUpdate>} [$$source = {}] - The source object to create the PluginUpdate.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("current_version" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["current_version"] = "";
+    }
+    if (!("latest_version" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["latest_version"] = "";
     }
 
-    /**
-     * Creates a new PluginUpdate instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PluginUpdate}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PluginUpdate(/** @type {Partial<PluginUpdate>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PluginUpdate instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PluginUpdate}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new PluginUpdate(/** @type {Partial<PluginUpdate>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PresetInfo is the frontend-facing framework preset summary.
  */
 export class PresetInfo {
-    /**
-     * Creates a new PresetInfo instance.
-     * @param {Partial<PresetInfo>} [$$source = {}] - The source object to create the PresetInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PresetInfo instance.
+   * @param {Partial<PresetInfo>} [$$source = {}] - The source object to create the PresetInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
     }
 
-    /**
-     * Creates a new PresetInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PresetInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PresetInfo(/** @type {Partial<PresetInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PresetInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PresetInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new PresetInfo(/** @type {Partial<PresetInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PreviewResult contains trace data from a preview flow execution.
  */
 export class PreviewResult {
-    /**
-     * Creates a new PreviewResult instance.
-     * @param {Partial<PreviewResult>} [$$source = {}] - The source object to create the PreviewResult.
-     */
-    constructor($$source = {}) {
-        if (!("nodes" in $$source)) {
-            /**
-             * @member
-             * @type {flow$0.TraceNode[]}
-             */
-            this["nodes"] = [];
-        }
-        if (!("events" in $$source)) {
-            /**
-             * @member
-             * @type {flow$0.TraceEvent[]}
-             */
-            this["events"] = [];
-        }
-        if (!("parts" in $$source)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: flow$0.PartSnapshotSet | null }}
-             */
-            this["parts"] = {};
-        }
-        if (!("node_order" in $$source)) {
-            /**
-             * @member
-             * @type {string[]}
-             */
-            this["node_order"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PreviewResult instance.
+   * @param {Partial<PreviewResult>} [$$source = {}] - The source object to create the PreviewResult.
+   */
+  constructor($$source = {}) {
+    if (!("nodes" in $$source)) {
+      /**
+       * @member
+       * @type {flow$0.TraceNode[]}
+       */
+      this["nodes"] = [];
+    }
+    if (!("events" in $$source)) {
+      /**
+       * @member
+       * @type {flow$0.TraceEvent[]}
+       */
+      this["events"] = [];
+    }
+    if (!("parts" in $$source)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: flow$0.PartSnapshotSet | null }}
+       */
+      this["parts"] = {};
+    }
+    if (!("node_order" in $$source)) {
+      /**
+       * @member
+       * @type {string[]}
+       */
+      this["node_order"] = [];
     }
 
-    /**
-     * Creates a new PreviewResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PreviewResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType12;
-        const $$createField1_0 = $$createType14;
-        const $$createField2_0 = $$createType17;
-        const $$createField3_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("nodes" in $$parsedSource) {
-            $$parsedSource["nodes"] = $$createField0_0($$parsedSource["nodes"]);
-        }
-        if ("events" in $$parsedSource) {
-            $$parsedSource["events"] = $$createField1_0($$parsedSource["events"]);
-        }
-        if ("parts" in $$parsedSource) {
-            $$parsedSource["parts"] = $$createField2_0($$parsedSource["parts"]);
-        }
-        if ("node_order" in $$parsedSource) {
-            $$parsedSource["node_order"] = $$createField3_0($$parsedSource["node_order"]);
-        }
-        return new PreviewResult(/** @type {Partial<PreviewResult>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PreviewResult instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PreviewResult}
+   */
+  static createFrom($$source = {}) {
+    const $$createField0_0 = $$createType12;
+    const $$createField1_0 = $$createType14;
+    const $$createField2_0 = $$createType17;
+    const $$createField3_0 = $$createType2;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("nodes" in $$parsedSource) {
+      $$parsedSource["nodes"] = $$createField0_0($$parsedSource["nodes"]);
     }
+    if ("events" in $$parsedSource) {
+      $$parsedSource["events"] = $$createField1_0($$parsedSource["events"]);
+    }
+    if ("parts" in $$parsedSource) {
+      $$parsedSource["parts"] = $$createField2_0($$parsedSource["parts"]);
+    }
+    if ("node_order" in $$parsedSource) {
+      $$parsedSource["node_order"] = $$createField3_0($$parsedSource["node_order"]);
+    }
+    return new PreviewResult(/** @type {Partial<PreviewResult>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ProjectFileInfo describes a file in the project directory.
  */
 export class ProjectFileInfo {
-    /**
-     * Creates a new ProjectFileInfo instance.
-     * @param {Partial<ProjectFileInfo>} [$$source = {}] - The source object to create the ProjectFileInfo.
-     */
-    constructor($$source = {}) {
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-        if (!("relative" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["relative"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["format"] = undefined;
-        }
-        if (!("size" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["size"] = 0;
-        }
-        if (!("is_dir" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["is_dir"] = false;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ProjectFileInfo instance.
+   * @param {Partial<ProjectFileInfo>} [$$source = {}] - The source object to create the ProjectFileInfo.
+   */
+  constructor($$source = {}) {
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
+    }
+    if (!("relative" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["relative"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["format"] = undefined;
+    }
+    if (!("size" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["size"] = 0;
+    }
+    if (!("is_dir" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["is_dir"] = false;
     }
 
-    /**
-     * Creates a new ProjectFileInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ProjectFileInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProjectFileInfo(/** @type {Partial<ProjectFileInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ProjectFileInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ProjectFileInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new ProjectFileInfo(/** @type {Partial<ProjectFileInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ProviderInfo is the frontend-facing provider summary (no API key).
  */
 export class ProviderInfo {
-    /**
-     * Creates a new ProviderInfo instance.
-     * @param {Partial<ProviderInfo>} [$$source = {}] - The source object to create the ProviderInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("provider_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["provider_type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["model"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["base_url"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ProviderInfo instance.
+   * @param {Partial<ProviderInfo>} [$$source = {}] - The source object to create the ProviderInfo.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("provider_type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["provider_type"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["model"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["base_url"] = undefined;
     }
 
-    /**
-     * Creates a new ProviderInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ProviderInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProviderInfo(/** @type {Partial<ProviderInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ProviderInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ProviderInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new ProviderInfo(/** @type {Partial<ProviderInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ProviderSaveRequest is sent from the frontend to save a provider with its key.
  */
 export class ProviderSaveRequest {
-    /**
-     * Creates a new ProviderSaveRequest instance.
-     * @param {Partial<ProviderSaveRequest>} [$$source = {}] - The source object to create the ProviderSaveRequest.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("provider_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["provider_type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["model"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["base_url"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["api_key"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ProviderSaveRequest instance.
+   * @param {Partial<ProviderSaveRequest>} [$$source = {}] - The source object to create the ProviderSaveRequest.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("provider_type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["provider_type"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["model"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["base_url"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["api_key"] = undefined;
     }
 
-    /**
-     * Creates a new ProviderSaveRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ProviderSaveRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ProviderSaveRequest(/** @type {Partial<ProviderSaveRequest>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ProviderSaveRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ProviderSaveRequest}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new ProviderSaveRequest(/** @type {Partial<ProviderSaveRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * RecentFile represents a recently opened .kapi file.
  */
 export class RecentFile {
-    /**
-     * Creates a new RecentFile instance.
-     * @param {Partial<RecentFile>} [$$source = {}] - The source object to create the RecentFile.
-     */
-    constructor($$source = {}) {
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("opened_at" in $$source)) {
-            /**
-             * RFC3339
-             * @member
-             * @type {string}
-             */
-            this["opened_at"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new RecentFile instance.
+   * @param {Partial<RecentFile>} [$$source = {}] - The source object to create the RecentFile.
+   */
+  constructor($$source = {}) {
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("opened_at" in $$source)) {
+      /**
+       * RFC3339
+       * @member
+       * @type {string}
+       */
+      this["opened_at"] = "";
     }
 
-    /**
-     * Creates a new RecentFile instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {RecentFile}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new RecentFile(/** @type {Partial<RecentFile>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new RecentFile instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {RecentFile}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new RecentFile(/** @type {Partial<RecentFile>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ResourceInfo describes a named resource (TM or termbase) in KAPI_HOME.
  */
 export class ResourceInfo {
-    /**
-     * Creates a new ResourceInfo instance.
-     * @param {Partial<ResourceInfo>} [$$source = {}] - The source object to create the ResourceInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-        if (!("size" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["size"] = 0;
-        }
-        if (!("modified" in $$source)) {
-            /**
-             * ISO 8601
-             * @member
-             * @type {string}
-             */
-            this["modified"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ResourceInfo instance.
+   * @param {Partial<ResourceInfo>} [$$source = {}] - The source object to create the ResourceInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
+    }
+    if (!("size" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["size"] = 0;
+    }
+    if (!("modified" in $$source)) {
+      /**
+       * ISO 8601
+       * @member
+       * @type {string}
+       */
+      this["modified"] = "";
     }
 
-    /**
-     * Creates a new ResourceInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ResourceInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new ResourceInfo(/** @type {Partial<ResourceInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ResourceInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ResourceInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new ResourceInfo(/** @type {Partial<ResourceInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * SaveUserFlowRequest is the request to save a user flow.
  */
 export class SaveUserFlowRequest {
-    /**
-     * Creates a new SaveUserFlowRequest instance.
-     * @param {Partial<SaveUserFlowRequest>} [$$source = {}] - The source object to create the SaveUserFlowRequest.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("steps" in $$source)) {
-            /**
-             * @member
-             * @type {flow$0.FlowStep[]}
-             */
-            this["steps"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new SaveUserFlowRequest instance.
+   * @param {Partial<SaveUserFlowRequest>} [$$source = {}] - The source object to create the SaveUserFlowRequest.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("steps" in $$source)) {
+      /**
+       * @member
+       * @type {flow$0.FlowStep[]}
+       */
+      this["steps"] = [];
     }
 
-    /**
-     * Creates a new SaveUserFlowRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {SaveUserFlowRequest}
-     */
-    static createFrom($$source = {}) {
-        const $$createField3_0 = $$createType19;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
-        }
-        return new SaveUserFlowRequest(/** @type {Partial<SaveUserFlowRequest>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new SaveUserFlowRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {SaveUserFlowRequest}
+   */
+  static createFrom($$source = {}) {
+    const $$createField3_0 = $$createType19;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("steps" in $$parsedSource) {
+      $$parsedSource["steps"] = $$createField3_0($$parsedSource["steps"]);
     }
+    return new SaveUserFlowRequest(/** @type {Partial<SaveUserFlowRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * SpanDTO is the frontend-facing inline span, matching the SpanInfo TypeScript type.
  */
 export class SpanDTO {
-    /**
-     * Creates a new SpanDTO instance.
-     * @param {Partial<SpanDTO>} [$$source = {}] - The source object to create the SpanDTO.
-     */
-    constructor($$source = {}) {
-        if (!("span_type" in $$source)) {
-            /**
-             * "opening"|"closing"|"placeholder"
-             * @member
-             * @type {string}
-             */
-            this["span_type"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * "fmt:bold", "entity:person"
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("data" in $$source)) {
-            /**
-             * raw markup or entity value
-             * @member
-             * @type {string}
-             */
-            this["data"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * optional label override
-             * @member
-             * @type {string | undefined}
-             */
-            this["display_text"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new SpanDTO instance.
+   * @param {Partial<SpanDTO>} [$$source = {}] - The source object to create the SpanDTO.
+   */
+  constructor($$source = {}) {
+    if (!("span_type" in $$source)) {
+      /**
+       * "opening"|"closing"|"placeholder"
+       * @member
+       * @type {string}
+       */
+      this["span_type"] = "";
+    }
+    if (!("type" in $$source)) {
+      /**
+       * "fmt:bold", "entity:person"
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("data" in $$source)) {
+      /**
+       * raw markup or entity value
+       * @member
+       * @type {string}
+       */
+      this["data"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * optional label override
+       * @member
+       * @type {string | undefined}
+       */
+      this["display_text"] = undefined;
     }
 
-    /**
-     * Creates a new SpanDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {SpanDTO}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new SpanDTO(/** @type {Partial<SpanDTO>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new SpanDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {SpanDTO}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new SpanDTO(/** @type {Partial<SpanDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TMEntryDTO is the frontend-facing TM entry.
  */
 export class TMEntryDTO {
-    /**
-     * Creates a new TMEntryDTO instance.
-     * @param {Partial<TMEntryDTO>} [$$source = {}] - The source object to create the TMEntryDTO.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("source_text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_text"] = "";
-        }
-        if (!("target_text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_text"] = "";
-        }
-        if (!("source_coded" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_coded"] = "";
-        }
-        if (!("target_coded" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_coded"] = "";
-        }
-        if (!("source_spans" in $$source)) {
-            /**
-             * @member
-             * @type {SpanDTO[]}
-             */
-            this["source_spans"] = [];
-        }
-        if (!("target_spans" in $$source)) {
-            /**
-             * @member
-             * @type {SpanDTO[]}
-             */
-            this["target_spans"] = [];
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: string } | undefined}
-             */
-            this["properties"] = undefined;
-        }
-        if (!("created_at" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["created_at"] = "";
-        }
-        if (!("updated_at" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["updated_at"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TMEntryDTO instance.
+   * @param {Partial<TMEntryDTO>} [$$source = {}] - The source object to create the TMEntryDTO.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("source_text" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source_text"] = "";
+    }
+    if (!("target_text" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target_text"] = "";
+    }
+    if (!("source_coded" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source_coded"] = "";
+    }
+    if (!("target_coded" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target_coded"] = "";
+    }
+    if (!("source_spans" in $$source)) {
+      /**
+       * @member
+       * @type {SpanDTO[]}
+       */
+      this["source_spans"] = [];
+    }
+    if (!("target_spans" in $$source)) {
+      /**
+       * @member
+       * @type {SpanDTO[]}
+       */
+      this["target_spans"] = [];
+    }
+    if (!("source_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source_locale"] = "";
+    }
+    if (!("target_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target_locale"] = "";
+    }
+    if (!("project_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["project_id"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: string } | undefined}
+       */
+      this["properties"] = undefined;
+    }
+    if (!("created_at" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["created_at"] = "";
+    }
+    if (!("updated_at" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["updated_at"] = "";
     }
 
-    /**
-     * Creates a new TMEntryDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TMEntryDTO}
-     */
-    static createFrom($$source = {}) {
-        const $$createField5_0 = $$createType21;
-        const $$createField6_0 = $$createType21;
-        const $$createField10_0 = $$createType5;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("source_spans" in $$parsedSource) {
-            $$parsedSource["source_spans"] = $$createField5_0($$parsedSource["source_spans"]);
-        }
-        if ("target_spans" in $$parsedSource) {
-            $$parsedSource["target_spans"] = $$createField6_0($$parsedSource["target_spans"]);
-        }
-        if ("properties" in $$parsedSource) {
-            $$parsedSource["properties"] = $$createField10_0($$parsedSource["properties"]);
-        }
-        return new TMEntryDTO(/** @type {Partial<TMEntryDTO>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TMEntryDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TMEntryDTO}
+   */
+  static createFrom($$source = {}) {
+    const $$createField5_0 = $$createType21;
+    const $$createField6_0 = $$createType21;
+    const $$createField10_0 = $$createType5;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("source_spans" in $$parsedSource) {
+      $$parsedSource["source_spans"] = $$createField5_0($$parsedSource["source_spans"]);
     }
+    if ("target_spans" in $$parsedSource) {
+      $$parsedSource["target_spans"] = $$createField6_0($$parsedSource["target_spans"]);
+    }
+    if ("properties" in $$parsedSource) {
+      $$parsedSource["properties"] = $$createField10_0($$parsedSource["properties"]);
+    }
+    return new TMEntryDTO(/** @type {Partial<TMEntryDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TMMatchDTO is a single match from entity-aware TM lookup.
  */
 export class TMMatchDTO {
-    /**
-     * Creates a new TMMatchDTO instance.
-     * @param {Partial<TMMatchDTO>} [$$source = {}] - The source object to create the TMMatchDTO.
-     */
-    constructor($$source = {}) {
-        if (!("entry" in $$source)) {
-            /**
-             * @member
-             * @type {TMEntryDTO}
-             */
-            this["entry"] = (new TMEntryDTO());
-        }
-        if (!("score" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["score"] = 0;
-        }
-        if (!("match_type" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["match_type"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {EntityAdaptationDTO[] | undefined}
-             */
-            this["entity_adaptations"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TMMatchDTO instance.
+   * @param {Partial<TMMatchDTO>} [$$source = {}] - The source object to create the TMMatchDTO.
+   */
+  constructor($$source = {}) {
+    if (!("entry" in $$source)) {
+      /**
+       * @member
+       * @type {TMEntryDTO}
+       */
+      this["entry"] = new TMEntryDTO();
+    }
+    if (!("score" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["score"] = 0;
+    }
+    if (!("match_type" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["match_type"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {EntityAdaptationDTO[] | undefined}
+       */
+      this["entity_adaptations"] = undefined;
     }
 
-    /**
-     * Creates a new TMMatchDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TMMatchDTO}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType22;
-        const $$createField3_0 = $$createType24;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("entry" in $$parsedSource) {
-            $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
-        }
-        if ("entity_adaptations" in $$parsedSource) {
-            $$parsedSource["entity_adaptations"] = $$createField3_0($$parsedSource["entity_adaptations"]);
-        }
-        return new TMMatchDTO(/** @type {Partial<TMMatchDTO>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TMMatchDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TMMatchDTO}
+   */
+  static createFrom($$source = {}) {
+    const $$createField0_0 = $$createType22;
+    const $$createField3_0 = $$createType24;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("entry" in $$parsedSource) {
+      $$parsedSource["entry"] = $$createField0_0($$parsedSource["entry"]);
     }
+    if ("entity_adaptations" in $$parsedSource) {
+      $$parsedSource["entity_adaptations"] = $$createField3_0($$parsedSource["entity_adaptations"]);
+    }
+    return new TMMatchDTO(/** @type {Partial<TMMatchDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TMSearchResult is the paginated result from SearchTMEntries.
  */
 export class TMSearchResult {
-    /**
-     * Creates a new TMSearchResult instance.
-     * @param {Partial<TMSearchResult>} [$$source = {}] - The source object to create the TMSearchResult.
-     */
-    constructor($$source = {}) {
-        if (!("entries" in $$source)) {
-            /**
-             * @member
-             * @type {TMEntryDTO[]}
-             */
-            this["entries"] = [];
-        }
-        if (!("total_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["total_count"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TMSearchResult instance.
+   * @param {Partial<TMSearchResult>} [$$source = {}] - The source object to create the TMSearchResult.
+   */
+  constructor($$source = {}) {
+    if (!("entries" in $$source)) {
+      /**
+       * @member
+       * @type {TMEntryDTO[]}
+       */
+      this["entries"] = [];
+    }
+    if (!("total_count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["total_count"] = 0;
     }
 
-    /**
-     * Creates a new TMSearchResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TMSearchResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType25;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("entries" in $$parsedSource) {
-            $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
-        }
-        return new TMSearchResult(/** @type {Partial<TMSearchResult>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TMSearchResult instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TMSearchResult}
+   */
+  static createFrom($$source = {}) {
+    const $$createField0_0 = $$createType25;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("entries" in $$parsedSource) {
+      $$parsedSource["entries"] = $$createField0_0($$parsedSource["entries"]);
     }
+    return new TMSearchResult(/** @type {Partial<TMSearchResult>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TMStats is the stats response for an open TM.
  */
 export class TMStats {
-    /**
-     * Creates a new TMStats instance.
-     * @param {Partial<TMStats>} [$$source = {}] - The source object to create the TMStats.
-     */
-    constructor($$source = {}) {
-        if (!("count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["count"] = 0;
-        }
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-        if (!("size" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["size"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TMStats instance.
+   * @param {Partial<TMStats>} [$$source = {}] - The source object to create the TMStats.
+   */
+  constructor($$source = {}) {
+    if (!("count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["count"] = 0;
+    }
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
+    }
+    if (!("size" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["size"] = 0;
     }
 
-    /**
-     * Creates a new TMStats instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TMStats}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TMStats(/** @type {Partial<TMStats>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TMStats instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TMStats}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new TMStats(/** @type {Partial<TMStats>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TabInfo is returned to the frontend to describe an open tab.
  */
 export class TabInfo {
-    /**
-     * Creates a new TabInfo instance.
-     * @param {Partial<TabInfo>} [$$source = {}] - The source object to create the TabInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TabInfo instance.
+   * @param {Partial<TabInfo>} [$$source = {}] - The source object to create the TabInfo.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
     }
 
-    /**
-     * Creates a new TabInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TabInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TabInfo(/** @type {Partial<TabInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TabInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TabInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new TabInfo(/** @type {Partial<TabInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TermDTO is the frontend-facing term within a concept.
  */
 export class TermDTO {
-    /**
-     * Creates a new TermDTO instance.
-     * @param {Partial<TermDTO>} [$$source = {}] - The source object to create the TermDTO.
-     */
-    constructor($$source = {}) {
-        if (!("text" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["text"] = "";
-        }
-        if (!("locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["locale"] = "";
-        }
-        if (!("status" in $$source)) {
-            /**
-             * preferred, approved, admitted, proposed, deprecated, forbidden
-             * @member
-             * @type {string}
-             */
-            this["status"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["part_of_speech"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["gender"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["note"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {boolean | undefined}
-             */
-            this["competitor_term"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TermDTO instance.
+   * @param {Partial<TermDTO>} [$$source = {}] - The source object to create the TermDTO.
+   */
+  constructor($$source = {}) {
+    if (!("text" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["text"] = "";
+    }
+    if (!("locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["locale"] = "";
+    }
+    if (!("status" in $$source)) {
+      /**
+       * preferred, approved, admitted, proposed, deprecated, forbidden
+       * @member
+       * @type {string}
+       */
+      this["status"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["part_of_speech"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["gender"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["note"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {boolean | undefined}
+       */
+      this["competitor_term"] = undefined;
     }
 
-    /**
-     * Creates a new TermDTO instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TermDTO}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TermDTO(/** @type {Partial<TermDTO>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TermDTO instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TermDTO}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new TermDTO(/** @type {Partial<TermDTO>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TermSearchResult is the paginated result from SearchTerms.
  */
 export class TermSearchResult {
-    /**
-     * Creates a new TermSearchResult instance.
-     * @param {Partial<TermSearchResult>} [$$source = {}] - The source object to create the TermSearchResult.
-     */
-    constructor($$source = {}) {
-        if (!("concepts" in $$source)) {
-            /**
-             * @member
-             * @type {ConceptDTO[]}
-             */
-            this["concepts"] = [];
-        }
-        if (!("total_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["total_count"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TermSearchResult instance.
+   * @param {Partial<TermSearchResult>} [$$source = {}] - The source object to create the TermSearchResult.
+   */
+  constructor($$source = {}) {
+    if (!("concepts" in $$source)) {
+      /**
+       * @member
+       * @type {ConceptDTO[]}
+       */
+      this["concepts"] = [];
+    }
+    if (!("total_count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["total_count"] = 0;
     }
 
-    /**
-     * Creates a new TermSearchResult instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TermSearchResult}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType27;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("concepts" in $$parsedSource) {
-            $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
-        }
-        return new TermSearchResult(/** @type {Partial<TermSearchResult>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TermSearchResult instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TermSearchResult}
+   */
+  static createFrom($$source = {}) {
+    const $$createField0_0 = $$createType27;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("concepts" in $$parsedSource) {
+      $$parsedSource["concepts"] = $$createField0_0($$parsedSource["concepts"]);
     }
+    return new TermSearchResult(/** @type {Partial<TermSearchResult>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TermbaseStats is the stats response for an open termbase.
  */
 export class TermbaseStats {
-    /**
-     * Creates a new TermbaseStats instance.
-     * @param {Partial<TermbaseStats>} [$$source = {}] - The source object to create the TermbaseStats.
-     */
-    constructor($$source = {}) {
-        if (!("count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["count"] = 0;
-        }
-        if (!("path" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["path"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TermbaseStats instance.
+   * @param {Partial<TermbaseStats>} [$$source = {}] - The source object to create the TermbaseStats.
+   */
+  constructor($$source = {}) {
+    if (!("count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["count"] = 0;
+    }
+    if (!("path" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["path"] = "";
     }
 
-    /**
-     * Creates a new TermbaseStats instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TermbaseStats}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TermbaseStats(/** @type {Partial<TermbaseStats>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TermbaseStats instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TermbaseStats}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new TermbaseStats(/** @type {Partial<TermbaseStats>} */ ($$parsedSource));
+  }
 }
 
 /**
  * ToolInfo is the frontend-facing tool summary.
  */
 export class ToolInfo {
-    /**
-     * Creates a new ToolInfo instance.
-     * @param {Partial<ToolInfo>} [$$source = {}] - The source object to create the ToolInfo.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["display_name"] = undefined;
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("category" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["category"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * "built-in" or plugin name
-             * @member
-             * @type {string | undefined}
-             */
-            this["source"] = undefined;
-        }
-        if (!("has_schema" in $$source)) {
-            /**
-             * @member
-             * @type {boolean}
-             */
-            this["has_schema"] = false;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["inputs"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["outputs"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["tags"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string[] | undefined}
-             */
-            this["requires"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new ToolInfo instance.
+   * @param {Partial<ToolInfo>} [$$source = {}] - The source object to create the ToolInfo.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["display_name"] = undefined;
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("category" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["category"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * "built-in" or plugin name
+       * @member
+       * @type {string | undefined}
+       */
+      this["source"] = undefined;
+    }
+    if (!("has_schema" in $$source)) {
+      /**
+       * @member
+       * @type {boolean}
+       */
+      this["has_schema"] = false;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["inputs"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["outputs"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["tags"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string[] | undefined}
+       */
+      this["requires"] = undefined;
     }
 
-    /**
-     * Creates a new ToolInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {ToolInfo}
-     */
-    static createFrom($$source = {}) {
-        const $$createField6_0 = $$createType2;
-        const $$createField7_0 = $$createType2;
-        const $$createField8_0 = $$createType2;
-        const $$createField9_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("inputs" in $$parsedSource) {
-            $$parsedSource["inputs"] = $$createField6_0($$parsedSource["inputs"]);
-        }
-        if ("outputs" in $$parsedSource) {
-            $$parsedSource["outputs"] = $$createField7_0($$parsedSource["outputs"]);
-        }
-        if ("tags" in $$parsedSource) {
-            $$parsedSource["tags"] = $$createField8_0($$parsedSource["tags"]);
-        }
-        if ("requires" in $$parsedSource) {
-            $$parsedSource["requires"] = $$createField9_0($$parsedSource["requires"]);
-        }
-        return new ToolInfo(/** @type {Partial<ToolInfo>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new ToolInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {ToolInfo}
+   */
+  static createFrom($$source = {}) {
+    const $$createField6_0 = $$createType2;
+    const $$createField7_0 = $$createType2;
+    const $$createField8_0 = $$createType2;
+    const $$createField9_0 = $$createType2;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("inputs" in $$parsedSource) {
+      $$parsedSource["inputs"] = $$createField6_0($$parsedSource["inputs"]);
     }
+    if ("outputs" in $$parsedSource) {
+      $$parsedSource["outputs"] = $$createField7_0($$parsedSource["outputs"]);
+    }
+    if ("tags" in $$parsedSource) {
+      $$parsedSource["tags"] = $$createField8_0($$parsedSource["tags"]);
+    }
+    if ("requires" in $$parsedSource) {
+      $$parsedSource["requires"] = $$createField9_0($$parsedSource["requires"]);
+    }
+    return new ToolInfo(/** @type {Partial<ToolInfo>} */ ($$parsedSource));
+  }
 }
 
 /**
  * UpdateConceptRequest is the request to update a concept.
  */
 export class UpdateConceptRequest {
-    /**
-     * Creates a new UpdateConceptRequest instance.
-     * @param {Partial<UpdateConceptRequest>} [$$source = {}] - The source object to create the UpdateConceptRequest.
-     */
-    constructor($$source = {}) {
-        if (!("concept_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["concept_id"] = "";
-        }
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-        if (!("domain" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["domain"] = "";
-        }
-        if (!("definition" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["definition"] = "";
-        }
-        if (!("terms" in $$source)) {
-            /**
-             * @member
-             * @type {TermDTO[]}
-             */
-            this["terms"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new UpdateConceptRequest instance.
+   * @param {Partial<UpdateConceptRequest>} [$$source = {}] - The source object to create the UpdateConceptRequest.
+   */
+  constructor($$source = {}) {
+    if (!("concept_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["concept_id"] = "";
+    }
+    if (!("project_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["project_id"] = "";
+    }
+    if (!("domain" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["domain"] = "";
+    }
+    if (!("definition" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["definition"] = "";
+    }
+    if (!("terms" in $$source)) {
+      /**
+       * @member
+       * @type {TermDTO[]}
+       */
+      this["terms"] = [];
     }
 
-    /**
-     * Creates a new UpdateConceptRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {UpdateConceptRequest}
-     */
-    static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType1;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("terms" in $$parsedSource) {
-            $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
-        }
-        return new UpdateConceptRequest(/** @type {Partial<UpdateConceptRequest>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new UpdateConceptRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {UpdateConceptRequest}
+   */
+  static createFrom($$source = {}) {
+    const $$createField4_0 = $$createType1;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("terms" in $$parsedSource) {
+      $$parsedSource["terms"] = $$createField4_0($$parsedSource["terms"]);
     }
+    return new UpdateConceptRequest(/** @type {Partial<UpdateConceptRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * UpdateTMEntryRequest is the request to update a TM entry.
  */
 export class UpdateTMEntryRequest {
-    /**
-     * Creates a new UpdateTMEntryRequest instance.
-     * @param {Partial<UpdateTMEntryRequest>} [$$source = {}] - The source object to create the UpdateTMEntryRequest.
-     */
-    constructor($$source = {}) {
-        if (!("entry_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["entry_id"] = "";
-        }
-        if (!("source" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("target" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target"] = "";
-        }
-        if (!("source_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source_locale"] = "";
-        }
-        if (!("target_locale" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["target_locale"] = "";
-        }
-        if (!("project_id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["project_id"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new UpdateTMEntryRequest instance.
+   * @param {Partial<UpdateTMEntryRequest>} [$$source = {}] - The source object to create the UpdateTMEntryRequest.
+   */
+  constructor($$source = {}) {
+    if (!("entry_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["entry_id"] = "";
+    }
+    if (!("source" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source"] = "";
+    }
+    if (!("target" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target"] = "";
+    }
+    if (!("source_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source_locale"] = "";
+    }
+    if (!("target_locale" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["target_locale"] = "";
+    }
+    if (!("project_id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["project_id"] = "";
     }
 
-    /**
-     * Creates a new UpdateTMEntryRequest instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {UpdateTMEntryRequest}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UpdateTMEntryRequest(/** @type {Partial<UpdateTMEntryRequest>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new UpdateTMEntryRequest instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {UpdateTMEntryRequest}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new UpdateTMEntryRequest(/** @type {Partial<UpdateTMEntryRequest>} */ ($$parsedSource));
+  }
 }
 
 /**
  * UserFlowDetail is the full flow data for editing.
  */
 export class UserFlowDetail {
-    /**
-     * Creates a new UserFlowDetail instance.
-     * @param {Partial<UserFlowDetail>} [$$source = {}] - The source object to create the UserFlowDetail.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("source" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("steps" in $$source)) {
-            /**
-             * @member
-             * @type {flow$0.FlowStep[]}
-             */
-            this["steps"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new UserFlowDetail instance.
+   * @param {Partial<UserFlowDetail>} [$$source = {}] - The source object to create the UserFlowDetail.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("source" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["source"] = "";
+    }
+    if (!("steps" in $$source)) {
+      /**
+       * @member
+       * @type {flow$0.FlowStep[]}
+       */
+      this["steps"] = [];
     }
 
-    /**
-     * Creates a new UserFlowDetail instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {UserFlowDetail}
-     */
-    static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType19;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
-        }
-        return new UserFlowDetail(/** @type {Partial<UserFlowDetail>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new UserFlowDetail instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {UserFlowDetail}
+   */
+  static createFrom($$source = {}) {
+    const $$createField4_0 = $$createType19;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("steps" in $$parsedSource) {
+      $$parsedSource["steps"] = $$createField4_0($$parsedSource["steps"]);
     }
+    return new UserFlowDetail(/** @type {Partial<UserFlowDetail>} */ ($$parsedSource));
+  }
 }
 
 /**
  * UserFlowInfo is the frontend-facing flow summary.
  */
 export class UserFlowInfo {
-    /**
-     * Creates a new UserFlowInfo instance.
-     * @param {Partial<UserFlowInfo>} [$$source = {}] - The source object to create the UserFlowInfo.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("source" in $$source)) {
-            /**
-             * "built-in" or "user"
-             * @member
-             * @type {string}
-             */
-            this["source"] = "";
-        }
-        if (!("step_count" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["step_count"] = 0;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["modified"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new UserFlowInfo instance.
+   * @param {Partial<UserFlowInfo>} [$$source = {}] - The source object to create the UserFlowInfo.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("source" in $$source)) {
+      /**
+       * "built-in" or "user"
+       * @member
+       * @type {string}
+       */
+      this["source"] = "";
+    }
+    if (!("step_count" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["step_count"] = 0;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["modified"] = undefined;
     }
 
-    /**
-     * Creates a new UserFlowInfo instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {UserFlowInfo}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new UserFlowInfo(/** @type {Partial<UserFlowInfo>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new UserFlowInfo instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {UserFlowInfo}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new UserFlowInfo(/** @type {Partial<UserFlowInfo>} */ ($$parsedSource));
+  }
 }
 
 // Private type creation functions

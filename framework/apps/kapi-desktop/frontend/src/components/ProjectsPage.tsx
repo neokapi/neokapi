@@ -21,18 +21,11 @@ export function ProjectsPage({
         title="Projects"
         actions={
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={onNewProject}
-            >
+            <Button size="sm" onClick={onNewProject}>
               <Plus size={12} />
               New Project
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onOpenProject}
-            >
+            <Button variant="outline" size="sm" onClick={onOpenProject}>
               <FolderOpen size={12} />
               Open
             </Button>

@@ -104,9 +104,7 @@ export const ParameterHelp: StoryObj = {
   name: "ParamHelp (inline tooltip)",
   render: () => (
     <div className="space-y-3 p-4">
-      <p className="text-sm text-foreground">
-        Click the info icons to see parameter help:
-      </p>
+      <p className="text-sm text-foreground">Click the info icons to see parameter help:</p>
       <div className="flex items-center gap-2 text-sm">
         <span className="text-foreground">inlineCodes</span>
         <ParamHelp paramKey="inlineCodes" doc={docs.filters.okf_json as FilterDoc} />

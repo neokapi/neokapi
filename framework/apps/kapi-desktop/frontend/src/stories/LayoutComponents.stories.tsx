@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { Plus, FolderOpen, X, Database, FileText, Inbox, ArrowLeft } from "lucide-react";
+import { Plus, FolderOpen, X, Database, Inbox } from "lucide-react";
 import {
   Button,
   PageHeader,
@@ -22,9 +22,7 @@ type Story = StoryObj;
 
 export const PageHeaderBasic: Story = {
   name: "PageHeader / Basic",
-  render: () => (
-    <PageHeader title="Translation Memories" />
-  ),
+  render: () => <PageHeader title="Translation Memories" />,
 };
 
 export const PageHeaderWithActions: Story = {
@@ -72,7 +70,9 @@ export const PageHeaderWithBackButton: Story = {
         </Button>
       }
       actions={
-        <Button variant="outline" size="sm">Export</Button>
+        <Button variant="outline" size="sm">
+          Export
+        </Button>
       }
     />
   ),
@@ -84,10 +84,7 @@ export const EmptyStateBasic: Story = {
   name: "EmptyState / Basic",
   render: () => (
     <div style={{ maxWidth: 500 }}>
-      <EmptyState
-        title="No flows yet"
-        description="Create a flow to start processing files."
-      />
+      <EmptyState title="No flows yet" description="Create a flow to start processing files." />
     </div>
   ),
 };

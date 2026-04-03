@@ -1,10 +1,30 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Workflow, Plus, Play, Trash2, X, Save, Copy, Lock, Import, FolderOpen, Download } from "lucide-react";
-import { Button, Card, Skeleton, Label, Input, ScrollArea, PageHeader, EmptyState } from "@neokapi/ui-primitives";
+import {
+  Workflow,
+  Plus,
+  Trash2,
+  X,
+  Save,
+  Copy,
+  Lock,
+  Import,
+  FolderOpen,
+  Download,
+} from "lucide-react";
+import {
+  Button,
+  Card,
+  Skeleton,
+  Label,
+  Input,
+  ScrollArea,
+  PageHeader,
+  EmptyState,
+} from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
-import type { FlowSpec, FlowInfo } from "../types/api";
+import type { FlowSpec } from "../types/api";
 
 interface FlowsPageProps {
   /** Project tab ID — if provided, flows are scoped to the project. */
@@ -27,7 +47,7 @@ interface FlowListItem {
 
 export function FlowsPage({
   tabID,
-  projectFlows,
+  projectFlows: _projectFlows,
   onFlowChange,
   onFlowDelete,
 }: FlowsPageProps) {
@@ -98,7 +118,10 @@ export function FlowsPage({
           const detail = await api.getUserFlow(item.id);
           if (detail) {
             setSelectedId(item.id);
-            setSelectedSpec({ description: detail.description, steps: detail.steps as FlowSpec["steps"] });
+            setSelectedSpec({
+              description: detail.description,
+              steps: detail.steps as FlowSpec["steps"],
+            });
             setSelectedSource(detail.source);
           }
         }
@@ -158,7 +181,10 @@ export function FlowsPage({
           // Copy to project flows.
           const detail = await api.getUserFlow(item.id);
           if (detail) {
-            const spec: FlowSpec = { description: detail.description, steps: detail.steps as FlowSpec["steps"] };
+            const spec: FlowSpec = {
+              description: detail.description,
+              steps: detail.steps as FlowSpec["steps"],
+            };
             await api.saveFlow(tabID!, newName, spec);
             onFlowChange?.(newName, spec);
             setSelectedId(newName);
@@ -171,7 +197,10 @@ export function FlowsPage({
             const detail = await api.getUserFlow(newID);
             if (detail) {
               setSelectedId(newID);
-              setSelectedSpec({ description: detail.description, steps: detail.steps as FlowSpec["steps"] });
+              setSelectedSpec({
+                description: detail.description,
+                steps: detail.steps as FlowSpec["steps"],
+              });
               setSelectedSource("user");
             }
           }
@@ -210,7 +239,10 @@ export function FlowsPage({
         const detail = await api.getUserFlow(item.id);
         if (detail) {
           const name = item.id;
-          const spec: FlowSpec = { description: detail.description, steps: detail.steps as FlowSpec["steps"] };
+          const spec: FlowSpec = {
+            description: detail.description,
+            steps: detail.steps as FlowSpec["steps"],
+          };
           await api.saveFlow(tabID, name, spec);
           onFlowChange?.(name, spec);
           setShowImportDialog(false);
@@ -275,7 +307,10 @@ export function FlowsPage({
       const detail = await api.openFlowFileDialog();
       if (detail) {
         setSelectedId(detail.id);
-        setSelectedSpec({ description: detail.description, steps: detail.steps as FlowSpec["steps"] });
+        setSelectedSpec({
+          description: detail.description,
+          steps: detail.steps as FlowSpec["steps"],
+        });
         setSelectedSource("file");
       }
     } catch (err) {
@@ -324,28 +359,28 @@ export function FlowsPage({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => void handleCopyBuiltIn({ id: selectedId, name: selectedId, description: "", source: "built-in", stepCount: 0 })}
+                onClick={() =>
+                  void handleCopyBuiltIn({
+                    id: selectedId,
+                    name: selectedId,
+                    description: "",
+                    source: "built-in",
+                    stepCount: 0,
+                  })
+                }
               >
                 <Copy size={12} />
                 Copy to edit
               </Button>
             )}
             {!isReadOnly && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleSaveAs()}
-              >
+              <Button variant="outline" size="sm" onClick={() => void handleSaveAs()}>
                 <Download size={12} />
                 Save As...
               </Button>
             )}
             {tabID && !isReadOnly && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleSaveProject()}
-              >
+              <Button variant="outline" size="sm" onClick={() => void handleSaveProject()}>
                 <Save size={12} />
                 Save
               </Button>
@@ -374,29 +409,18 @@ export function FlowsPage({
         actions={
           <div className="flex gap-2">
             {!isProjectMode && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleOpenFile()}
-              >
+              <Button variant="outline" size="sm" onClick={() => void handleOpenFile()}>
                 <FolderOpen size={12} />
                 Open File...
               </Button>
             )}
             {isProjectMode && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => void handleOpenImportDialog()}
-              >
+              <Button variant="outline" size="sm" onClick={() => void handleOpenImportDialog()}>
                 <Import size={12} />
                 Import Flow
               </Button>
             )}
-            <Button
-              size="sm"
-              onClick={() => setShowCreateDialog(true)}
-            >
+            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
               New Flow
             </Button>
@@ -413,8 +437,12 @@ export function FlowsPage({
                   key={item.id}
                   item={item}
                   onClick={() => void handleOpenFlow(item)}
-                  onCopy={item.source === "built-in" ? () => void handleCopyBuiltIn(item) : undefined}
-                  onDelete={item.source !== "built-in" ? () => void handleDeleteFlow(item) : undefined}
+                  onCopy={
+                    item.source === "built-in" ? () => void handleCopyBuiltIn(item) : undefined
+                  }
+                  onDelete={
+                    item.source !== "built-in" ? () => void handleDeleteFlow(item) : undefined
+                  }
                   deleteConfirm={deleteConfirm === item.id}
                   onDeleteConfirm={() => setDeleteConfirm(item.id)}
                   onDeleteCancel={() => setDeleteConfirm(null)}
@@ -426,14 +454,13 @@ export function FlowsPage({
       {!loading && flows.length === 0 && (
         <EmptyState
           icon={<Workflow size={24} className="text-muted-foreground/50" />}
-          title={isProjectMode
-            ? "No flows defined in this project yet."
-            : "Create a flow or copy a built-in to get started."}
+          title={
+            isProjectMode
+              ? "No flows defined in this project yet."
+              : "Create a flow or copy a built-in to get started."
+          }
           action={
-            <Button
-              size="sm"
-              onClick={() => setShowCreateDialog(true)}
-            >
+            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               Create Flow
             </Button>
           }
@@ -449,7 +476,9 @@ export function FlowsPage({
               type="text"
               value={newFlowName}
               onChange={(e) => setNewFlowName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") void handleCreateFlow(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleCreateFlow();
+              }}
               placeholder="translate-and-qa"
               autoFocus
               className="mb-1"
@@ -468,7 +497,10 @@ export function FlowsPage({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setShowCreateDialog(false); setNewFlowName(""); }}
+                onClick={() => {
+                  setShowCreateDialog(false);
+                  setNewFlowName("");
+                }}
               >
                 Cancel
               </Button>
@@ -483,19 +515,18 @@ export function FlowsPage({
           <div className="w-full max-w-md rounded-xl border border-border bg-background p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Import Flow</h2>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={() => setShowImportDialog(false)}
-              >
+              <Button variant="ghost" size="icon-xs" onClick={() => setShowImportDialog(false)}>
                 <X size={14} />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Copy a built-in or user flow into this project. The flow will be independent — changes won't affect the original.
+              Copy a built-in or user flow into this project. The flow will be independent — changes
+              won't affect the original.
             </p>
             {importFlows.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">No flows available to import.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No flows available to import.
+              </p>
             ) : (
               <ScrollArea className="max-h-64">
                 <div className="flex flex-col gap-1.5">
@@ -515,10 +546,14 @@ export function FlowsPage({
                           </span>
                         </div>
                         {item.description && (
-                          <div className="text-[10px] text-muted-foreground truncate mt-0.5">{item.description}</div>
+                          <div className="text-[10px] text-muted-foreground truncate mt-0.5">
+                            {item.description}
+                          </div>
                         )}
                       </div>
-                      <span className="text-[10px] text-muted-foreground">{item.stepCount} steps</span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {item.stepCount} steps
+                      </span>
                     </Button>
                   ))}
                 </div>
@@ -583,7 +618,10 @@ function FlowCard({
       onClick={onClick}
     >
       <div className="flex items-start gap-3">
-        <Workflow size={18} className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        <Workflow
+          size={18}
+          className="mt-0.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0"
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">
@@ -601,7 +639,9 @@ function FlowCard({
             </div>
           )}
           <div className="flex items-center gap-3 mt-2 text-[11px] text-muted-foreground">
-            <span>{item.stepCount} step{item.stepCount !== 1 ? "s" : ""}</span>
+            <span>
+              {item.stepCount} step{item.stepCount !== 1 ? "s" : ""}
+            </span>
           </div>
         </div>
 
@@ -618,8 +658,12 @@ function FlowCard({
             <>
               {deleteConfirm ? (
                 <div className="flex gap-1">
-                  <Button variant="destructive" size="xs" onClick={onDelete}>Delete</Button>
-                  <Button variant="ghost" size="xs" onClick={onDeleteCancel}>Cancel</Button>
+                  <Button variant="destructive" size="xs" onClick={onDelete}>
+                    Delete
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={onDeleteCancel}>
+                    Cancel
+                  </Button>
                 </div>
               ) : (
                 <Button

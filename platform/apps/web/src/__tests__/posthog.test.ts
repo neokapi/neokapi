@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { describe, it, expect, vi, beforeEach } from "vite-plus/test";
 
 // Mock posthog-js before importing our module.
@@ -20,7 +21,7 @@ describe("posthog integration", () => {
     const posthog = (await import("posthog-js")).default;
     const { initPostHog } = await import("../posthog");
     initPostHog();
-    expect(posthog.init).not.toHaveBeenCalled();
+    expect(vi.mocked(posthog.init)).not.toHaveBeenCalled();
   });
 
   it("initializes when VITE_POSTHOG_KEY is set", async () => {
@@ -28,7 +29,7 @@ describe("posthog integration", () => {
     const posthog = (await import("posthog-js")).default;
     const { initPostHog } = await import("../posthog");
     initPostHog();
-    expect(posthog.init).toHaveBeenCalledWith("phc_test_key", {
+    expect(vi.mocked(posthog.init)).toHaveBeenCalledWith("phc_test_key", {
       api_host: "https://eu.i.posthog.com",
       capture_pageview: true,
       capture_pageleave: true,
@@ -40,7 +41,7 @@ describe("posthog integration", () => {
     const posthog = (await import("posthog-js")).default;
     const { identifyUser } = await import("../posthog");
     identifyUser("user-1", { email: "test@example.com" });
-    expect(posthog.identify).not.toHaveBeenCalled();
+    expect(vi.mocked(posthog.identify)).not.toHaveBeenCalled();
   });
 
   it("identifyUser calls posthog.identify with key", async () => {
@@ -48,7 +49,7 @@ describe("posthog integration", () => {
     const posthog = (await import("posthog-js")).default;
     const { identifyUser } = await import("../posthog");
     identifyUser("user-1", { email: "test@example.com" });
-    expect(posthog.identify).toHaveBeenCalledWith("user-1", {
+    expect(vi.mocked(posthog.identify)).toHaveBeenCalledWith("user-1", {
       email: "test@example.com",
     });
   });
@@ -57,6 +58,6 @@ describe("posthog integration", () => {
     const posthog = (await import("posthog-js")).default;
     const { resetPostHog } = await import("../posthog");
     resetPostHog();
-    expect(posthog.reset).not.toHaveBeenCalled();
+    expect(vi.mocked(posthog.reset)).not.toHaveBeenCalled();
   });
 });

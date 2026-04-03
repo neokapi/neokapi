@@ -1,6 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, TestTube, KeyRound, Loader2, CheckCircle2 } from "lucide-react";
-import { Button, Badge, Card, CardContent, Label, Input, PageHeader, EmptyState, LoadingSpinner } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Badge,
+  Card,
+  CardContent,
+  Label,
+  Input,
+  PageHeader,
+  EmptyState,
+  LoadingSpinner,
+} from "@neokapi/ui-primitives";
 import type { ProviderConfig } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -30,7 +40,7 @@ export function CredentialsPage() {
   }, [showError]);
 
   useEffect(() => {
-    loadProviders();
+    void loadProviders();
   }, [loadProviders]);
 
   const handleAdd = () => {
@@ -87,11 +97,7 @@ export function CredentialsPage() {
         title="AI Credentials"
         subtitle="API keys are stored in your OS keychain"
         actions={
-          <Button
-            size="sm"
-            onClick={handleAdd}
-            aria-label="Add AI provider"
-          >
+          <Button size="sm" onClick={handleAdd} aria-label="Add AI provider">
             <Plus size={12} />
             Add Provider
           </Button>
@@ -109,10 +115,7 @@ export function CredentialsPage() {
       ) : (
         <div className="space-y-2">
           {providers.map((provider) => (
-            <Card
-              key={provider.id}
-              className="flex items-center gap-3 p-4"
-            >
+            <Card key={provider.id} className="flex items-center gap-3 p-4">
               <KeyRound size={18} className="shrink-0 text-primary" />
               <div className="flex-1">
                 <div className="flex items-center gap-2">
@@ -213,27 +216,27 @@ export function CredentialsPage() {
                 />
               </div>
             </div>
-          <div className="mt-3 flex gap-2">
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!editing.name || !editing.provider_type || saving}
-            >
-              {saving && <Loader2 size={12} className="animate-spin" />}
-              {saving ? "Saving..." : "Save"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setApiKey("");
-                setError(null);
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
+            <div className="mt-3 flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={!editing.name || !editing.provider_type || saving}
+              >
+                {saving && <Loader2 size={12} className="animate-spin" />}
+                {saving ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setEditing(null);
+                  setApiKey("");
+                  setError(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}

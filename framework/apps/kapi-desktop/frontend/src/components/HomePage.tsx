@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Play, Globe, Workflow, Wrench, Loader2 } from "lucide-react";
+import { Play, Globe, Workflow, Loader2 } from "lucide-react";
 import { Button, Badge, Card, EmptyState } from "@neokapi/ui-primitives";
 import type { KapiProject, FlowSpec } from "../types/api";
 
@@ -69,7 +69,9 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
           className="h-auto rounded-lg p-4 text-left flex-col items-start hover:border-primary/30 hover:bg-accent/30"
         >
           <div className="mb-1 text-sm font-medium">Tools</div>
-          <div className="text-xs text-muted-foreground font-normal">Run individual tools on files</div>
+          <div className="text-xs text-muted-foreground font-normal">
+            Run individual tools on files
+          </div>
         </Button>
       </div>
 
@@ -85,10 +87,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
               const spec = project.flows?.[name];
               if (!spec) return null;
               return (
-                <Card
-                  key={name}
-                  className="flex items-center gap-3 p-3"
-                >
+                <Card key={name} className="flex items-center gap-3 p-3">
                   <div className="flex-1">
                     <div className="text-sm font-medium">{name}</div>
                     <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -127,7 +126,12 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
           icon={<Workflow size={24} className="text-muted-foreground/50" />}
           title="No flows defined yet."
           action={
-            <Button variant="link" size="sm" onClick={() => onNavigate("flows")} className="px-0 h-auto">
+            <Button
+              variant="link"
+              size="sm"
+              onClick={() => onNavigate("flows")}
+              className="px-0 h-auto"
+            >
               Create your first flow
             </Button>
           }

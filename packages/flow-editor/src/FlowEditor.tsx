@@ -9,7 +9,7 @@ import {
   type Node,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { Play, X, GitBranch, Zap, Eye, RefreshCw } from "lucide-react";
+import { Play, X, GitBranch, Zap, Eye } from "lucide-react";
 
 import type { FlowEditorProps, FlowSpec, FlowStep, ToolInfo, ComponentSchema } from "./types";
 import { ReaderNode } from "./nodes/ReaderNode";
@@ -23,7 +23,6 @@ import { getCategoryStyle } from "./category";
 import { suggestParallelGroups, type ParallelSuggestion } from "./parallelChecker";
 import { TraceTimeline } from "./TraceTimeline";
 import { PartInspector } from "./PartInspector";
-import { PreviewPanel } from "./PreviewPanel";
 import { computeNodeStats } from "./traceTypes";
 import type { ToolDoc, ToolDocParam } from "./types";
 
@@ -64,11 +63,7 @@ function FlowToolbar({ stepCount, showPreview, onTogglePreview, onRun, flow }: F
           </Button>
 
           {onRun && (
-            <Button
-              size="xs"
-              onClick={() => onRun(flow)}
-              aria-label="Run flow"
-            >
+            <Button size="xs" onClick={() => onRun(flow)} aria-label="Run flow">
               <Play size={12} />
               Run
             </Button>
@@ -85,17 +80,17 @@ interface ParallelSuggestionBannerProps {
   onDismiss: () => void;
 }
 
-function ParallelSuggestionBanner({ suggestion, onParallelize, onDismiss }: ParallelSuggestionBannerProps) {
+function ParallelSuggestionBanner({
+  suggestion,
+  onParallelize,
+  onDismiss,
+}: ParallelSuggestionBannerProps) {
   return (
     <PanelHeader
       className="py-1.5 bg-secondary text-[11px]"
       actions={
         <>
-          <Button
-            size="xs"
-            onClick={() => onParallelize(suggestion)}
-            className="text-[11px]"
-          >
+          <Button size="xs" onClick={() => onParallelize(suggestion)} className="text-[11px]">
             <GitBranch size={11} />
             Parallelize
           </Button>
@@ -112,14 +107,14 @@ function ParallelSuggestionBanner({ suggestion, onParallelize, onDismiss }: Para
     >
       <Zap size={13} className="text-accent-foreground shrink-0" />
       <span className="text-muted-foreground flex-1">
-        <strong className="text-foreground">{suggestion.toolNames.join(", ")}</strong> can
-        run in parallel &mdash; {suggestion.reason}
+        <strong className="text-foreground">{suggestion.toolNames.join(", ")}</strong> can run in
+        parallel &mdash; {suggestion.reason}
       </span>
     </PanelHeader>
   );
 }
 
-function EmptyFlowMessage() {
+function _EmptyFlowMessage() {
   return (
     <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm gap-2">
       <p>Add tools from the palette to build your flow.</p>
@@ -185,10 +180,7 @@ function StepConfigPanel({
       {/* Header */}
       <div className="px-3 py-2.5 border-b border-border flex flex-col gap-1.5">
         <div className="flex items-center gap-1.5">
-          <div
-            className="w-[3px] h-5 rounded-sm shrink-0"
-            style={{ background: catStyle.color }}
-          />
+          <div className="w-[3px] h-5 rounded-sm shrink-0" style={{ background: catStyle.color }} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 mb-0.5">
               <Icon size={11} style={{ color: catStyle.text }} />
@@ -199,9 +191,7 @@ function StepConfigPanel({
                 {catStyle.label}
               </span>
             </div>
-            <div className="text-sm font-semibold text-foreground">
-              {displayName}
-            </div>
+            <div className="text-sm font-semibold text-foreground">{displayName}</div>
           </div>
           <Button
             variant="ghost"
@@ -238,10 +228,7 @@ function StepConfigPanel({
               variant={showDocs ? "outline" : "ghost"}
               size="xs"
               onClick={() => setShowDocs((v) => !v)}
-              className={cn(
-                "ml-auto text-[9px] h-5 px-2",
-                showDocs && "border-ring text-ring",
-              )}
+              className={cn("ml-auto text-[9px] h-5 px-2", showDocs && "border-ring text-ring")}
             >
               {showDocs ? "Hide Docs" : "Docs"}
             </Button>
@@ -273,7 +260,13 @@ function StepConfigPanel({
       <ScrollArea className="flex-1">
         <div className="px-3 py-2">
           {schema ? (
-            <SchemaForm schema={schema} values={localConfig} onChange={handleLocalChange} compact paramDocs={doc?.parameters} />
+            <SchemaForm
+              schema={schema}
+              values={localConfig}
+              onChange={handleLocalChange}
+              compact
+              paramDocs={doc?.parameters}
+            />
           ) : (
             <div className="text-[11px] text-muted-foreground text-center py-5 italic">
               {toolInfo?.has_schema ? "Loading configuration..." : "No configurable parameters"}
@@ -347,12 +340,14 @@ export function FlowEditor({
   // NOT when config changes. This prevents the graph from resetting on every config edit.
   const topologyKey = useMemo(() => {
     const extractTools = (steps: FlowStep[]): string => {
-      return steps.map((s) => {
-        if (s.parallel && s.parallel.length > 0) {
-          return `[${s.parallel.map((p) => p.tool).join(",")}]`;
-        }
-        return s.tool;
-      }).join("→");
+      return steps
+        .map((s) => {
+          if (s.parallel && s.parallel.length > 0) {
+            return `[${s.parallel.map((p) => p.tool).join(",")}]`;
+          }
+          return s.tool;
+        })
+        .join("→");
     };
     return extractTools(flow.steps);
   }, [flow.steps]);
@@ -383,7 +378,11 @@ export function FlowEditor({
       const stats = nodeStats?.get(n.id);
       const extra: Record<string, unknown> = {};
       if (stats) {
-        extra.execState = stats.hasError ? "error" : stats.partsProcessed > 0 ? "complete" : undefined;
+        extra.execState = stats.hasError
+          ? "error"
+          : stats.partsProcessed > 0
+            ? "complete"
+            : undefined;
         extra.partCount = stats.partsProcessed;
       }
       if (!readOnly && n.type === "tool") {
@@ -561,12 +560,8 @@ export function FlowEditor({
   // because node IDs don't map 1:1 to step indices when parallel steps exist.
   const selectedNode = selectedNodeId ? nodes.find((n) => n.id === selectedNodeId) : null;
   const selectedToolName = selectedNode?.data?.toolName as string | undefined;
-  const selectedStep = selectedToolName
-    ? findStepByTool(flow.steps, selectedToolName)
-    : null;
-  const selectedStepIndex = selectedStep
-    ? findStepIndex(flow.steps, selectedToolName!)
-    : NaN;
+  const selectedStep = selectedToolName ? findStepByTool(flow.steps, selectedToolName) : null;
+  const selectedStepIndex = selectedStep ? findStepIndex(flow.steps, selectedToolName!) : NaN;
   const selectedToolInfo = selectedToolName ? toolMap.get(selectedToolName) : null;
   const selectedSchema = selectedToolName && onGetSchema ? onGetSchema(selectedToolName) : null;
   const selectedDoc = selectedToolName && onGetDoc ? onGetDoc(selectedToolName) : null;
@@ -643,7 +638,12 @@ export function FlowEditor({
                 animated: false,
               }}
             >
-              <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="var(--border)" />
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={24}
+                size={1}
+                color="var(--border)"
+              />
             </ReactFlow>
           </div>
         )}
@@ -757,13 +757,9 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
                 i < doc.examples!.length - 1 && "mb-1",
               )}
             >
-              <div className="font-semibold text-[10px] text-foreground">
-                {ex.title}
-              </div>
+              <div className="font-semibold text-[10px] text-foreground">{ex.title}</div>
               {ex.description && (
-                <div className="text-[10px] text-muted-foreground mt-0.5">
-                  {ex.description}
-                </div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">{ex.description}</div>
               )}
               {ex.input && (
                 <pre className="text-[9px] font-mono bg-background rounded-sm px-1.5 py-1 mt-1 overflow-auto max-h-[60px] whitespace-pre-wrap text-foreground">
@@ -797,7 +793,9 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
             <div
               key={i}
               className="text-[10px] text-muted-foreground pl-2 mb-0.5"
-              style={{ borderLeft: "2px solid color-mix(in oklch, var(--accent) 40%, transparent)" }}
+              style={{
+                borderLeft: "2px solid color-mix(in oklch, var(--accent) 40%, transparent)",
+              }}
             >
               {note}
             </div>
@@ -808,13 +806,7 @@ function DocsSidebar({ doc }: { doc: ToolDoc }) {
   );
 }
 
-function DocSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+function DocSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground mb-1">
@@ -847,22 +839,14 @@ function DocParamRow({ name, param }: { name: string; param: ToolDocParam }) {
           </span>
         )}
       </div>
-      <div className="text-[10px] text-muted-foreground leading-snug">
-        {param.description}
-      </div>
+      <div className="text-[10px] text-muted-foreground leading-snug">{param.description}</div>
       {param.notes?.map((note, i) => (
-        <div
-          key={i}
-          className="text-[9px] text-muted-foreground mt-0.5 italic opacity-80"
-        >
+        <div key={i} className="text-[9px] text-muted-foreground mt-0.5 italic opacity-80">
           {note}
         </div>
       ))}
       {param.dependsOn?.map((dep, i) => (
-        <div
-          key={i}
-          className="text-[9px] mt-0.5 flex items-center gap-0.5"
-        >
+        <div key={i} className="text-[9px] mt-0.5 flex items-center gap-0.5">
           <GitBranch size={8} className="text-muted-foreground" />
           <code className="font-semibold text-muted-foreground">{dep.property}</code>
           <span className="text-muted-foreground opacity-70">{dep.condition}</span>

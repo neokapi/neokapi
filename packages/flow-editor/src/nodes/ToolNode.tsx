@@ -1,11 +1,20 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
-import { Settings2, GitBranch, CheckCircle2, AlertCircle, Loader2, RefreshCw, X } from "lucide-react";
+import {
+  Settings2,
+  GitBranch,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  X,
+} from "lucide-react";
 import { cn } from "@neokapi/ui-primitives";
 import { getCategoryStyle } from "../category";
 
 /** Status badge shown at top-right of a node (complete/error/active). */
 function NodeStatusBadge({ execState }: { execState: string }) {
-  const base = "absolute -top-1 -right-1 size-3.5 rounded-full flex items-center justify-center z-[1]";
+  const base =
+    "absolute -top-1 -right-1 size-3.5 rounded-full flex items-center justify-center z-[1]";
   if (execState === "complete") {
     return (
       <div className={cn(base, "bg-[oklch(0.65_0.15_145)]")}>
@@ -73,17 +82,15 @@ export function ToolNode({ data, selected }: NodeProps) {
       }}
     >
       {/* Category rail */}
-      <div
-        className="w-1 shrink-0 rounded-l-[6px]"
-        style={{ background: style.color }}
-      />
+      <div className="w-1 shrink-0 rounded-l-[6px]" style={{ background: style.color }} />
 
       <div className="flex-1 px-3 py-2 relative">
         <Handle
           type="target"
           position={Position.Left}
           style={{
-            width: 10, height: 10,
+            width: 10,
+            height: 10,
             background: style.color,
             border: "2px solid var(--card)",
             left: -9,
@@ -148,7 +155,8 @@ export function ToolNode({ data, selected }: NodeProps) {
           type="source"
           position={Position.Right}
           style={{
-            width: 10, height: 10,
+            width: 10,
+            height: 10,
             background: style.color,
             border: "2px solid var(--card)",
             right: -9,
@@ -159,7 +167,10 @@ export function ToolNode({ data, selected }: NodeProps) {
       {/* Remove button */}
       {onRemove && (
         <button
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
           className={cn(
             "nopan absolute -top-1.5 -left-1.5 size-4 rounded-full",
             "bg-secondary border border-border",

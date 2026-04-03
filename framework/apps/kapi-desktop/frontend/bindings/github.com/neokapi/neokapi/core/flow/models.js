@@ -11,276 +11,276 @@ import { Create as $Create } from "@wailsio/runtime";
  * Steps are sequential by default. Use Parallel for fan-out branches.
  */
 export class FlowStep {
-    /**
-     * Creates a new FlowStep instance.
-     * @param {Partial<FlowStep>} [$$source = {}] - The source object to create the FlowStep.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["tool"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: any } | undefined}
-             */
-            this["config"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["label"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {FlowStep[] | undefined}
-             */
-            this["parallel"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FlowStep instance.
+   * @param {Partial<FlowStep>} [$$source = {}] - The source object to create the FlowStep.
+   */
+  constructor($$source = {}) {
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["tool"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: any } | undefined}
+       */
+      this["config"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["label"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {FlowStep[] | undefined}
+       */
+      this["parallel"] = undefined;
     }
 
-    /**
-     * Creates a new FlowStep instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FlowStep}
-     */
-    static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType0;
-        const $$createField3_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("config" in $$parsedSource) {
-            $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
-        }
-        if ("parallel" in $$parsedSource) {
-            $$parsedSource["parallel"] = $$createField3_0($$parsedSource["parallel"]);
-        }
-        return new FlowStep(/** @type {Partial<FlowStep>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FlowStep instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FlowStep}
+   */
+  static createFrom($$source = {}) {
+    const $$createField1_0 = $$createType0;
+    const $$createField3_0 = $$createType2;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("config" in $$parsedSource) {
+      $$parsedSource["config"] = $$createField1_0($$parsedSource["config"]);
     }
+    if ("parallel" in $$parsedSource) {
+      $$parsedSource["parallel"] = $$createField3_0($$parsedSource["parallel"]);
+    }
+    return new FlowStep(/** @type {Partial<FlowStep>} */ ($$parsedSource));
+  }
 }
 
 /**
  * FlowTrace is the top-level output of a traced flow execution.
  */
 export class FlowTrace {
-    /**
-     * Creates a new FlowTrace instance.
-     * @param {Partial<FlowTrace>} [$$source = {}] - The source object to create the FlowTrace.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("description" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["description"] = "";
-        }
-        if (!("nodes" in $$source)) {
-            /**
-             * @member
-             * @type {TraceNode[]}
-             */
-            this["nodes"] = [];
-        }
-        if (!("channelSize" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["channelSize"] = 0;
-        }
-        if (!("events" in $$source)) {
-            /**
-             * @member
-             * @type {TraceEvent[]}
-             */
-            this["events"] = [];
-        }
-        if (!("parts" in $$source)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: PartSnapshotSet | null }}
-             */
-            this["parts"] = {};
-        }
-        if (!("inputFile" in $$source)) {
-            /**
-             * @member
-             * @type {TraceFile}
-             */
-            this["inputFile"] = (new TraceFile());
-        }
-        if (!("outputFile" in $$source)) {
-            /**
-             * @member
-             * @type {TraceFile}
-             */
-            this["outputFile"] = (new TraceFile());
-        }
-        if (!("durationUs" in $$source)) {
-            /**
-             * @member
-             * @type {number}
-             */
-            this["durationUs"] = 0;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new FlowTrace instance.
+   * @param {Partial<FlowTrace>} [$$source = {}] - The source object to create the FlowTrace.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("description" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["description"] = "";
+    }
+    if (!("nodes" in $$source)) {
+      /**
+       * @member
+       * @type {TraceNode[]}
+       */
+      this["nodes"] = [];
+    }
+    if (!("channelSize" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["channelSize"] = 0;
+    }
+    if (!("events" in $$source)) {
+      /**
+       * @member
+       * @type {TraceEvent[]}
+       */
+      this["events"] = [];
+    }
+    if (!("parts" in $$source)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: PartSnapshotSet | null }}
+       */
+      this["parts"] = {};
+    }
+    if (!("inputFile" in $$source)) {
+      /**
+       * @member
+       * @type {TraceFile}
+       */
+      this["inputFile"] = new TraceFile();
+    }
+    if (!("outputFile" in $$source)) {
+      /**
+       * @member
+       * @type {TraceFile}
+       */
+      this["outputFile"] = new TraceFile();
+    }
+    if (!("durationUs" in $$source)) {
+      /**
+       * @member
+       * @type {number}
+       */
+      this["durationUs"] = 0;
     }
 
-    /**
-     * Creates a new FlowTrace instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {FlowTrace}
-     */
-    static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType4;
-        const $$createField4_0 = $$createType6;
-        const $$createField5_0 = $$createType9;
-        const $$createField6_0 = $$createType10;
-        const $$createField7_0 = $$createType10;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("nodes" in $$parsedSource) {
-            $$parsedSource["nodes"] = $$createField2_0($$parsedSource["nodes"]);
-        }
-        if ("events" in $$parsedSource) {
-            $$parsedSource["events"] = $$createField4_0($$parsedSource["events"]);
-        }
-        if ("parts" in $$parsedSource) {
-            $$parsedSource["parts"] = $$createField5_0($$parsedSource["parts"]);
-        }
-        if ("inputFile" in $$parsedSource) {
-            $$parsedSource["inputFile"] = $$createField6_0($$parsedSource["inputFile"]);
-        }
-        if ("outputFile" in $$parsedSource) {
-            $$parsedSource["outputFile"] = $$createField7_0($$parsedSource["outputFile"]);
-        }
-        return new FlowTrace(/** @type {Partial<FlowTrace>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new FlowTrace instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {FlowTrace}
+   */
+  static createFrom($$source = {}) {
+    const $$createField2_0 = $$createType4;
+    const $$createField4_0 = $$createType6;
+    const $$createField5_0 = $$createType9;
+    const $$createField6_0 = $$createType10;
+    const $$createField7_0 = $$createType10;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("nodes" in $$parsedSource) {
+      $$parsedSource["nodes"] = $$createField2_0($$parsedSource["nodes"]);
     }
+    if ("events" in $$parsedSource) {
+      $$parsedSource["events"] = $$createField4_0($$parsedSource["events"]);
+    }
+    if ("parts" in $$parsedSource) {
+      $$parsedSource["parts"] = $$createField5_0($$parsedSource["parts"]);
+    }
+    if ("inputFile" in $$parsedSource) {
+      $$parsedSource["inputFile"] = $$createField6_0($$parsedSource["inputFile"]);
+    }
+    if ("outputFile" in $$parsedSource) {
+      $$parsedSource["outputFile"] = $$createField7_0($$parsedSource["outputFile"]);
+    }
+    return new FlowTrace(/** @type {Partial<FlowTrace>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PartSnapshot captures the state of a Part at a point in time.
  */
 export class PartSnapshot {
-    /**
-     * Creates a new PartSnapshot instance.
-     * @param {Partial<PartSnapshot>} [$$source = {}] - The source object to create the PartSnapshot.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * "LayerStart", "LayerEnd", "Block", "Data", "Media", "GroupStart", "GroupEnd"
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("summary" in $$source)) {
-            /**
-             * short description
-             * @member
-             * @type {string}
-             */
-            this["summary"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * source text for blocks
-             * @member
-             * @type {string | undefined}
-             */
-            this["sourceText"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * target text for blocks
-             * @member
-             * @type {string | undefined}
-             */
-            this["targetText"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PartSnapshot instance.
+   * @param {Partial<PartSnapshot>} [$$source = {}] - The source object to create the PartSnapshot.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("type" in $$source)) {
+      /**
+       * "LayerStart", "LayerEnd", "Block", "Data", "Media", "GroupStart", "GroupEnd"
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("summary" in $$source)) {
+      /**
+       * short description
+       * @member
+       * @type {string}
+       */
+      this["summary"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * source text for blocks
+       * @member
+       * @type {string | undefined}
+       */
+      this["sourceText"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * target text for blocks
+       * @member
+       * @type {string | undefined}
+       */
+      this["targetText"] = undefined;
     }
 
-    /**
-     * Creates a new PartSnapshot instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PartSnapshot}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new PartSnapshot(/** @type {Partial<PartSnapshot>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PartSnapshot instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PartSnapshot}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new PartSnapshot(/** @type {Partial<PartSnapshot>} */ ($$parsedSource));
+  }
 }
 
 /**
  * PartSnapshotSet holds the initial snapshot and snapshots after each node.
  */
 export class PartSnapshotSet {
-    /**
-     * Creates a new PartSnapshotSet instance.
-     * @param {Partial<PartSnapshotSet>} [$$source = {}] - The source object to create the PartSnapshotSet.
-     */
-    constructor($$source = {}) {
-        if (!("initial" in $$source)) {
-            /**
-             * @member
-             * @type {PartSnapshot}
-             */
-            this["initial"] = (new PartSnapshot());
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {{ [_ in string]?: PartSnapshot } | undefined}
-             */
-            this["afterNode"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new PartSnapshotSet instance.
+   * @param {Partial<PartSnapshotSet>} [$$source = {}] - The source object to create the PartSnapshotSet.
+   */
+  constructor($$source = {}) {
+    if (!("initial" in $$source)) {
+      /**
+       * @member
+       * @type {PartSnapshot}
+       */
+      this["initial"] = new PartSnapshot();
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {{ [_ in string]?: PartSnapshot } | undefined}
+       */
+      this["afterNode"] = undefined;
     }
 
-    /**
-     * Creates a new PartSnapshotSet instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {PartSnapshotSet}
-     */
-    static createFrom($$source = {}) {
-        const $$createField0_0 = $$createType11;
-        const $$createField1_0 = $$createType12;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("initial" in $$parsedSource) {
-            $$parsedSource["initial"] = $$createField0_0($$parsedSource["initial"]);
-        }
-        if ("afterNode" in $$parsedSource) {
-            $$parsedSource["afterNode"] = $$createField1_0($$parsedSource["afterNode"]);
-        }
-        return new PartSnapshotSet(/** @type {Partial<PartSnapshotSet>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new PartSnapshotSet instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {PartSnapshotSet}
+   */
+  static createFrom($$source = {}) {
+    const $$createField0_0 = $$createType11;
+    const $$createField1_0 = $$createType12;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("initial" in $$parsedSource) {
+      $$parsedSource["initial"] = $$createField0_0($$parsedSource["initial"]);
     }
+    if ("afterNode" in $$parsedSource) {
+      $$parsedSource["afterNode"] = $$createField1_0($$parsedSource["afterNode"]);
+    }
+    return new PartSnapshotSet(/** @type {Partial<PartSnapshotSet>} */ ($$parsedSource));
+  }
 }
 
 /**
@@ -288,215 +288,215 @@ export class PartSnapshotSet {
  * It compiles to a FlowDefinition (nodes + edges) for execution.
  */
 export class StepsSpec {
-    /**
-     * Creates a new StepsSpec instance.
-     * @param {Partial<StepsSpec>} [$$source = {}] - The source object to create the StepsSpec.
-     */
-    constructor($$source = {}) {
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["input"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["output"] = undefined;
-        }
-        if (!("steps" in $$source)) {
-            /**
-             * @member
-             * @type {FlowStep[]}
-             */
-            this["steps"] = [];
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new StepsSpec instance.
+   * @param {Partial<StepsSpec>} [$$source = {}] - The source object to create the StepsSpec.
+   */
+  constructor($$source = {}) {
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["input"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["output"] = undefined;
+    }
+    if (!("steps" in $$source)) {
+      /**
+       * @member
+       * @type {FlowStep[]}
+       */
+      this["steps"] = [];
     }
 
-    /**
-     * Creates a new StepsSpec instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {StepsSpec}
-     */
-    static createFrom($$source = {}) {
-        const $$createField2_0 = $$createType2;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("steps" in $$parsedSource) {
-            $$parsedSource["steps"] = $$createField2_0($$parsedSource["steps"]);
-        }
-        return new StepsSpec(/** @type {Partial<StepsSpec>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new StepsSpec instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {StepsSpec}
+   */
+  static createFrom($$source = {}) {
+    const $$createField2_0 = $$createType2;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("steps" in $$parsedSource) {
+      $$parsedSource["steps"] = $$createField2_0($$parsedSource["steps"]);
     }
+    return new StepsSpec(/** @type {Partial<StepsSpec>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TraceEvent represents a single timestamped event during flow execution.
  */
 export class TraceEvent {
-    /**
-     * Creates a new TraceEvent instance.
-     * @param {Partial<TraceEvent>} [$$source = {}] - The source object to create the TraceEvent.
-     */
-    constructor($$source = {}) {
-        if (!("ts" in $$source)) {
-            /**
-             * microseconds from flow start
-             * @member
-             * @type {number}
-             */
-            this["ts"] = 0;
-        }
-        if (!("type" in $$source)) {
-            /**
-             * event type (e.g., "enter", "exit")
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("nodeId" in $$source)) {
-            /**
-             * which node
-             * @member
-             * @type {string}
-             */
-            this["nodeId"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * which Part
-             * @member
-             * @type {string | undefined}
-             */
-            this["partId"] = undefined;
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * extra data
-             * @member
-             * @type {{ [_ in string]?: any } | undefined}
-             */
-            this["meta"] = undefined;
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TraceEvent instance.
+   * @param {Partial<TraceEvent>} [$$source = {}] - The source object to create the TraceEvent.
+   */
+  constructor($$source = {}) {
+    if (!("ts" in $$source)) {
+      /**
+       * microseconds from flow start
+       * @member
+       * @type {number}
+       */
+      this["ts"] = 0;
+    }
+    if (!("type" in $$source)) {
+      /**
+       * event type (e.g., "enter", "exit")
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("nodeId" in $$source)) {
+      /**
+       * which node
+       * @member
+       * @type {string}
+       */
+      this["nodeId"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * which Part
+       * @member
+       * @type {string | undefined}
+       */
+      this["partId"] = undefined;
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * extra data
+       * @member
+       * @type {{ [_ in string]?: any } | undefined}
+       */
+      this["meta"] = undefined;
     }
 
-    /**
-     * Creates a new TraceEvent instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TraceEvent}
-     */
-    static createFrom($$source = {}) {
-        const $$createField4_0 = $$createType0;
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        if ("meta" in $$parsedSource) {
-            $$parsedSource["meta"] = $$createField4_0($$parsedSource["meta"]);
-        }
-        return new TraceEvent(/** @type {Partial<TraceEvent>} */($$parsedSource));
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TraceEvent instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TraceEvent}
+   */
+  static createFrom($$source = {}) {
+    const $$createField4_0 = $$createType0;
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    if ("meta" in $$parsedSource) {
+      $$parsedSource["meta"] = $$createField4_0($$parsedSource["meta"]);
     }
+    return new TraceEvent(/** @type {Partial<TraceEvent>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TraceFile describes an input or output file.
  */
 export class TraceFile {
-    /**
-     * Creates a new TraceFile instance.
-     * @param {Partial<TraceFile>} [$$source = {}] - The source object to create the TraceFile.
-     */
-    constructor($$source = {}) {
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (/** @type {any} */(false)) {
-            /**
-             * @member
-             * @type {string | undefined}
-             */
-            this["format"] = undefined;
-        }
-        if (!("preview" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["preview"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TraceFile instance.
+   * @param {Partial<TraceFile>} [$$source = {}] - The source object to create the TraceFile.
+   */
+  constructor($$source = {}) {
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (/** @type {any} */ (false)) {
+      /**
+       * @member
+       * @type {string | undefined}
+       */
+      this["format"] = undefined;
+    }
+    if (!("preview" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["preview"] = "";
     }
 
-    /**
-     * Creates a new TraceFile instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TraceFile}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TraceFile(/** @type {Partial<TraceFile>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TraceFile instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TraceFile}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new TraceFile(/** @type {Partial<TraceFile>} */ ($$parsedSource));
+  }
 }
 
 /**
  * TraceNode describes a node in the flow graph.
  */
 export class TraceNode {
-    /**
-     * Creates a new TraceNode instance.
-     * @param {Partial<TraceNode>} [$$source = {}] - The source object to create the TraceNode.
-     */
-    constructor($$source = {}) {
-        if (!("id" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["id"] = "";
-        }
-        if (!("type" in $$source)) {
-            /**
-             * "reader", "tool", "writer"
-             * @member
-             * @type {string}
-             */
-            this["type"] = "";
-        }
-        if (!("name" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["name"] = "";
-        }
-        if (!("label" in $$source)) {
-            /**
-             * @member
-             * @type {string}
-             */
-            this["label"] = "";
-        }
-
-        Object.assign(this, $$source);
+  /**
+   * Creates a new TraceNode instance.
+   * @param {Partial<TraceNode>} [$$source = {}] - The source object to create the TraceNode.
+   */
+  constructor($$source = {}) {
+    if (!("id" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["id"] = "";
+    }
+    if (!("type" in $$source)) {
+      /**
+       * "reader", "tool", "writer"
+       * @member
+       * @type {string}
+       */
+      this["type"] = "";
+    }
+    if (!("name" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["name"] = "";
+    }
+    if (!("label" in $$source)) {
+      /**
+       * @member
+       * @type {string}
+       */
+      this["label"] = "";
     }
 
-    /**
-     * Creates a new TraceNode instance from a string or object.
-     * @param {any} [$$source = {}]
-     * @returns {TraceNode}
-     */
-    static createFrom($$source = {}) {
-        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
-        return new TraceNode(/** @type {Partial<TraceNode>} */($$parsedSource));
-    }
+    Object.assign(this, $$source);
+  }
+
+  /**
+   * Creates a new TraceNode instance from a string or object.
+   * @param {any} [$$source = {}]
+   * @returns {TraceNode}
+   */
+  static createFrom($$source = {}) {
+    let $$parsedSource = typeof $$source === "string" ? JSON.parse($$source) : $$source;
+    return new TraceNode(/** @type {Partial<TraceNode>} */ ($$parsedSource));
+  }
 }
 
 // Private type creation functions

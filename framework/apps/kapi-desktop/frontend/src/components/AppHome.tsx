@@ -60,8 +60,8 @@ export function AppHome({
             >
               <div className="text-sm font-medium">KapiMart</div>
               <p className="mt-1 text-xs text-muted-foreground font-normal">
-                A sample store using Kapi's built-in Go formats — JSON, HTML, Markdown, and more.
-                No plugins needed.
+                A sample store using Kapi's built-in Go formats — JSON, HTML, Markdown, and more. No
+                plugins needed.
               </p>
             </Button>
             <Button
@@ -97,7 +97,9 @@ export function AppHome({
         >
           <FolderOpen size={18} className="mb-2 text-primary" />
           <div className="text-sm font-medium">Open a Project</div>
-          <div className="text-xs text-muted-foreground font-normal">Open an existing Kapi project</div>
+          <div className="text-xs text-muted-foreground font-normal">
+            Open an existing Kapi project
+          </div>
         </Button>
         <Button
           variant="outline"

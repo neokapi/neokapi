@@ -84,13 +84,33 @@ export const api = {
   deleteFlow: (tabID: string, name: string) => call<void>("DeleteFlow", tabID, name),
 
   // User flows (ad-hoc, stored in ~/.config/kapi/flows/)
-  listUserFlows: () => call<Array<{ id: string; name: string; description: string; source: string; step_count: number; modified: string }>>("ListUserFlows"),
-  getUserFlow: (id: string) => call<{ id: string; name: string; description: string; source: string; steps: unknown[] }>("GetUserFlow", id),
-  saveUserFlow: (req: { id: string; name: string; description: string; steps: unknown[] }) => call<void>("SaveUserFlow", req),
+  listUserFlows: () =>
+    call<
+      Array<{
+        id: string;
+        name: string;
+        description: string;
+        source: string;
+        step_count: number;
+        modified: string;
+      }>
+    >("ListUserFlows"),
+  getUserFlow: (id: string) =>
+    call<{ id: string; name: string; description: string; source: string; steps: unknown[] }>(
+      "GetUserFlow",
+      id,
+    ),
+  saveUserFlow: (req: { id: string; name: string; description: string; steps: unknown[] }) =>
+    call<void>("SaveUserFlow", req),
   deleteUserFlow: (id: string) => call<void>("DeleteUserFlow", id),
-  copyBuiltInFlow: (builtInID: string, newName: string) => call<string>("CopyBuiltInFlow", builtInID, newName),
-  openFlowFileDialog: () => call<{ id: string; name: string; description: string; source: string; steps: unknown[] }>("OpenFlowFileDialog"),
-  saveFlowFileDialog: (name: string, steps: unknown[]) => call<void>("SaveFlowFileDialog", name, steps),
+  copyBuiltInFlow: (builtInID: string, newName: string) =>
+    call<string>("CopyBuiltInFlow", builtInID, newName),
+  openFlowFileDialog: () =>
+    call<{ id: string; name: string; description: string; source: string; steps: unknown[] }>(
+      "OpenFlowFileDialog",
+    ),
+  saveFlowFileDialog: (name: string, steps: unknown[]) =>
+    call<void>("SaveFlowFileDialog", name, steps),
 
   // Runner (scoped to tab)
   runFlow: (tabID: string, name: string, inputPaths: string[], targetLang: string) =>
@@ -110,19 +130,51 @@ export const api = {
   applyPreset: (tabID: string, presetName: string) =>
     call<KapiProject>("ApplyPreset", tabID, presetName),
   listFormatPresets: (format: string) =>
-    call<Array<{ name: string; description: string; format: string; config?: Record<string, unknown>; source?: string }>>("ListFormatPresets", format),
+    call<
+      Array<{
+        name: string;
+        description: string;
+        format: string;
+        config?: Record<string, unknown>;
+        source?: string;
+      }>
+    >("ListFormatPresets", format),
   saveFormatPreset: (format: string, name: string, config: Record<string, unknown>) =>
     call<void>("SaveFormatPreset", format, name, config),
   deleteFormatPreset: (format: string, name: string) =>
     call<void>("DeleteFormatPreset", format, name),
   listAllFormatPresets: (format: string) =>
-    call<Array<{ name: string; description: string; format: string; config?: Record<string, unknown>; source?: string }>>("ListAllFormatPresets", format),
+    call<
+      Array<{
+        name: string;
+        description: string;
+        format: string;
+        config?: Record<string, unknown>;
+        source?: string;
+      }>
+    >("ListAllFormatPresets", format),
   renderFormatConfig: (format: string, config: Record<string, unknown>, outputFormat: string) =>
     call<string>("RenderFormatConfig", format, config, outputFormat),
   runFormatReader: (format: string, filePath: string, config: Record<string, unknown>) =>
-    call<Array<{ type: string; id: string; summary: string; source_text?: string; properties?: Record<string, string> }>>("RunFormatReader", format, filePath, config),
+    call<
+      Array<{
+        type: string;
+        id: string;
+        summary: string;
+        source_text?: string;
+        properties?: Record<string, string>;
+      }>
+    >("RunFormatReader", format, filePath, config),
   runFormatReaderDialog: (format: string, config: Record<string, unknown>) =>
-    call<Array<{ type: string; id: string; summary: string; source_text?: string; properties?: Record<string, string> }>>("RunFormatReaderDialog", format, config),
+    call<
+      Array<{
+        type: string;
+        id: string;
+        summary: string;
+        source_text?: string;
+        properties?: Record<string, string>;
+      }>
+    >("RunFormatReaderDialog", format, config),
 
   // Plugin docs — summary lists available IDs; individual docs fetched on demand
   getPluginDocsSummary: () => call<PluginDocsSummary>("GetPluginDocs"),
@@ -167,8 +219,7 @@ export const api = {
         is_dir: boolean;
       }>
     >("ListProjectFiles", tabID),
-  applyTemplate: (tabID: string, template: string) =>
-    call<void>("ApplyTemplate", tabID, template),
+  applyTemplate: (tabID: string, template: string) => call<void>("ApplyTemplate", tabID, template),
   copyFileToProject: (tabID: string, srcPath: string, destDir: string) =>
     call<string>("CopyFileToProject", tabID, srcPath, destDir),
   addFilesDialog: (tabID: string, destDir: string) =>

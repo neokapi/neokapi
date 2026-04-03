@@ -35,11 +35,7 @@ function TimelineBar({
       {s.hasError ? (
         <AlertCircle size={12} className="shrink-0 text-destructive" />
       ) : (
-        <CheckCircle2
-          size={12}
-          className="shrink-0"
-          style={{ color: "oklch(0.65 0.15 145)" }}
-        />
+        <CheckCircle2 size={12} className="shrink-0" style={{ color: "oklch(0.65 0.15 145)" }} />
       )}
 
       {/* Node name */}
@@ -56,10 +52,7 @@ function TimelineBar({
       {/* Duration bar */}
       <div className="flex-1 h-1.5 rounded-sm overflow-hidden bg-muted">
         <div
-          className={cn(
-            "h-full rounded-sm",
-            s.hasError ? "bg-destructive" : "bg-accent",
-          )}
+          className={cn("h-full rounded-sm", s.hasError ? "bg-destructive" : "bg-accent")}
           style={{
             width: `${barWidth}%`,
             animation: "barFill 0.3s ease-out",

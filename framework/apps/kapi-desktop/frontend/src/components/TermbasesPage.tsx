@@ -108,7 +108,7 @@ export function TermbasesPage() {
 
   const handleClose = useCallback(() => {
     if (handle) {
-      api.closeTermbase(handle);
+      void api.closeTermbase(handle);
       setHandle(null);
       setTbName("");
       setTbPath("");
@@ -157,38 +157,21 @@ export function TermbasesPage() {
           title={tbName}
           subtitle={tbPath || undefined}
           backButton={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={handleClose}
-              title="Close Termbase"
-            >
+            <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close Termbase">
               <X size={16} />
             </Button>
           }
           actions={
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleImportCSV}
-              >
+              <Button variant="outline" size="sm" onClick={handleImportCSV}>
                 <Upload size={12} />
                 Import CSV
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleImportJSON}
-              >
+              <Button variant="outline" size="sm" onClick={handleImportJSON}>
                 <Upload size={12} />
                 Import JSON
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-              >
+              <Button variant="outline" size="sm" onClick={handleExport}>
                 Export JSON
               </Button>
             </div>
@@ -209,18 +192,11 @@ export function TermbasesPage() {
         title="Termbases"
         actions={
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenDialog}
-            >
+            <Button variant="outline" size="sm" onClick={handleOpenDialog}>
               <FolderOpen size={12} />
               Open File...
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setShowCreateDialog(true)}
-            >
+            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
               New Termbase
             </Button>
@@ -252,17 +228,10 @@ export function TermbasesPage() {
           title="No termbases found. Create one or open a .db file."
           action={
             <div className="flex gap-2 justify-center">
-              <Button
-                size="sm"
-                onClick={() => setShowCreateDialog(true)}
-              >
+              <Button size="sm" onClick={() => setShowCreateDialog(true)}>
                 New Termbase
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenDialog}
-              >
+              <Button variant="outline" size="sm" onClick={handleOpenDialog}>
                 Open File...
               </Button>
             </div>
@@ -287,18 +256,10 @@ export function TermbasesPage() {
               className="mb-4"
             />
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => void handleCreate()}
-                disabled={!newName.trim()}
-              >
+              <Button size="sm" onClick={() => void handleCreate()} disabled={!newName.trim()}>
                 Create
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCreateDialog(false)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowCreateDialog(false)}>
                 Cancel
               </Button>
             </div>
@@ -318,20 +279,21 @@ export function TermbasesPage() {
               <strong>{corruptName}</strong> could not be opened. The database may be corrupt.
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              The file will be renamed to <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh database created in its place.
+              The file will be renamed to{" "}
+              <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh
+              database created in its place.
             </p>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => void handleRecover()}
-                disabled={recovering}
-              >
+              <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
                 {recovering ? "Recovering..." : "Create Fresh Termbase"}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setCorruptPath(null); setCorruptName(""); }}
+                onClick={() => {
+                  setCorruptPath(null);
+                  setCorruptName("");
+                }}
               >
                 Cancel
               </Button>

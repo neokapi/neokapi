@@ -40,10 +40,11 @@ function PresetBrowser() {
   }, [formatIds, search]);
 
   const totalPresets = useMemo(
-    () => formatIds.reduce((sum, id) => {
-      const fp = allPresets[id];
-      return sum + (fp ? Object.values(fp).filter((v) => v != null).length : 0);
-    }, 0),
+    () =>
+      formatIds.reduce((sum, id) => {
+        const fp = allPresets[id];
+        return sum + (fp ? Object.values(fp).filter((v) => v != null).length : 0);
+      }, 0),
     [formatIds],
   );
 
@@ -57,7 +58,10 @@ function PresetBrowser() {
   }
 
   // Compute diff between a preset and the default
-  function computeDiff(preset: Record<string, unknown>, defaultPreset: Record<string, unknown>): { key: string; presetVal: unknown; defaultVal: unknown }[] {
+  function computeDiff(
+    preset: Record<string, unknown>,
+    defaultPreset: Record<string, unknown>,
+  ): { key: string; presetVal: unknown; defaultVal: unknown }[] {
     const diffs: { key: string; presetVal: unknown; defaultVal: unknown }[] = [];
     const allKeys = new Set([...Object.keys(preset), ...Object.keys(defaultPreset)]);
     for (const key of allKeys) {
@@ -70,9 +74,10 @@ function PresetBrowser() {
 
   if (selectedPreset) {
     const defaultPreset = getDefaultPreset(selectedPreset.formatId);
-    const diffs = defaultPreset && selectedPreset.presetId !== "default"
-      ? computeDiff(selectedPreset.values, defaultPreset)
-      : [];
+    const diffs =
+      defaultPreset && selectedPreset.presetId !== "default"
+        ? computeDiff(selectedPreset.values, defaultPreset)
+        : [];
 
     return (
       <div style={{ maxWidth: 700 }}>
@@ -112,7 +117,9 @@ function PresetBrowser() {
           </div>
         )}
 
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">All Values</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          All Values
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-80">
           {JSON.stringify(selectedPreset.values, null, 2)}
         </pre>
@@ -147,9 +154,10 @@ function PresetBrowser() {
             const values = formatPresets[presetId] as Record<string, unknown>;
             const paramCount = Object.keys(values).length;
             const defaultPreset = getDefaultPreset(selectedFormat);
-            const diffCount = defaultPreset && presetId !== "default"
-              ? computeDiff(values, defaultPreset).length
-              : 0;
+            const diffCount =
+              defaultPreset && presetId !== "default"
+                ? computeDiff(values, defaultPreset).length
+                : 0;
 
             return (
               <Button
@@ -163,7 +171,9 @@ function PresetBrowser() {
                   <div className="flex gap-2 text-[10px] text-muted-foreground">
                     <span>{paramCount} params</span>
                     {diffCount > 0 && (
-                      <span className="text-primary">{diffCount} diff{diffCount !== 1 ? "s" : ""} from default</span>
+                      <span className="text-primary">
+                        {diffCount} diff{diffCount !== 1 ? "s" : ""} from default
+                      </span>
                     )}
                   </div>
                 </div>

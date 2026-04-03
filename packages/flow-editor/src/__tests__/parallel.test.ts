@@ -16,7 +16,7 @@ describe("stepsToGraph with parallel branches", () => {
       ],
     };
 
-    const { nodes, edges } = stepsToGraph(spec);
+    const { nodes } = stepsToGraph(spec);
 
     // reader + ai-translate + ai-qa + tm-leverage + merge-results + writer = 6 nodes
     expect(nodes).toHaveLength(6);

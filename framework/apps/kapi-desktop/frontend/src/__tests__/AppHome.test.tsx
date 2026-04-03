@@ -68,7 +68,11 @@ describe("AppHome", () => {
 
   it("renders recent projects when present", () => {
     const recentFiles = [
-      { path: "/home/dev/KapiProjects/MyApp/project.kapi", name: "MyApp", opened_at: "2026-03-01T00:00:00Z" },
+      {
+        path: "/home/dev/KapiProjects/MyApp/project.kapi",
+        name: "MyApp",
+        opened_at: "2026-03-01T00:00:00Z",
+      },
     ];
     render(<AppHome {...defaultProps} recentFiles={recentFiles} />);
     expect(screen.getByText("MyApp")).toBeInTheDocument();

@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { evaluateCondition } from "@neokapi/ui-primitives/components/schema-form/hooks/useConditionalVisibility";
-import { resolveWidgetName, WIDGET_NAMES } from "@neokapi/ui-primitives/components/schema-form/registry";
+import {
+  resolveWidgetName,
+  WIDGET_NAMES,
+} from "@neokapi/ui-primitives/components/schema-form/registry";
 import type { PropertySchema, ConditionExpr } from "../types";
 
 // ── evaluateCondition ──────────────────────────────────────────────────
@@ -136,10 +139,7 @@ describe("evaluateCondition", () => {
   describe("nested compound", () => {
     it("handles all + not", () => {
       const cond: ConditionExpr = {
-        all: [
-          { field: "enabled", eq: true },
-          { not: { field: "mode", eq: "simple" } },
-        ],
+        all: [{ field: "enabled", eq: true }, { not: { field: "mode", eq: "simple" } }],
       };
       expect(evaluateCondition(cond, values, properties)).toBe(true);
     });
@@ -147,7 +147,12 @@ describe("evaluateCondition", () => {
     it("handles any + all", () => {
       const cond: ConditionExpr = {
         any: [
-          { all: [{ field: "mode", eq: "simple" }, { field: "enabled", eq: true }] },
+          {
+            all: [
+              { field: "mode", eq: "simple" },
+              { field: "enabled", eq: true },
+            ],
+          },
           { field: "count", eq: "5" }, // string comparison of number
         ],
       };
@@ -203,10 +208,22 @@ describe("resolveWidgetName", () => {
 describe("WIDGET_NAMES", () => {
   it("contains all canonical widget names", () => {
     const expected = [
-      "text", "textarea", "password", "code-editor", "regex", "tags",
-      "number-list", "segmented", "file-picker", "folder-picker",
-      "checklist", "select", "code-finder", "element-rules",
-      "attribute-rules", "simplifier-rules",
+      "text",
+      "textarea",
+      "password",
+      "code-editor",
+      "regex",
+      "tags",
+      "number-list",
+      "segmented",
+      "file-picker",
+      "folder-picker",
+      "checklist",
+      "select",
+      "code-finder",
+      "element-rules",
+      "attribute-rules",
+      "simplifier-rules",
     ];
     for (const name of expected) {
       expect(WIDGET_NAMES).toContain(name);

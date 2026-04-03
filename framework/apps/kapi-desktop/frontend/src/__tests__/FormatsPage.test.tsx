@@ -57,25 +57,19 @@ describe("FormatsPage", () => {
   it("shows empty state after loading with no API", async () => {
     renderPage();
     await waitFor(() => {
-      expect(
-        screen.getByText("No formats available."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("No formats available.")).toBeInTheDocument();
     });
   });
 
   it("shows search empty state", async () => {
     renderPage();
     await waitFor(() => {
-      expect(
-        screen.queryByText("Loading configuration schema..."),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText("Loading configuration schema...")).not.toBeInTheDocument();
     });
     await userEvent.type(
       screen.getByPlaceholderText("Search formats by name or extension..."),
       "nonexistent",
     );
-    expect(
-      screen.getByText("No formats match your search."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("No formats match your search.")).toBeInTheDocument();
   });
 });

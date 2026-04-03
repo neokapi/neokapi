@@ -80,7 +80,9 @@ test.describe("Web App Recordings", () => {
       const api = new BowrainAPI(BASE_URL, token);
       _storyCtx = await fullSeed(api);
     } catch (err) {
-      console.log(`[recordings] Shared seeder failed (story recordings will be skipped): ${err}`);
+      console.log(
+        `[recordings] Shared seeder failed (story recordings will be skipped): ${String(err)}`,
+      );
       _storyCtx = null;
     }
   });

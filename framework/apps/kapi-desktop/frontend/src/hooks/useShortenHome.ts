@@ -13,7 +13,7 @@ export function useShortenHome(): (path: string) => string {
 
   useEffect(() => {
     if (cachedHome) return;
-    api.getHomeDir().then((h) => {
+    void api.getHomeDir().then((h) => {
       if (h) {
         cachedHome = h;
         setHome(h);

@@ -23,7 +23,7 @@ const navItems: { view: ProjectView; label: string; icon: React.ReactNode }[] = 
 export function ProjectSidebar({
   activeView,
   onViewChange,
-  projectName,
+  projectName: _projectName,
   flowNames,
   selectedFlow,
   onSelectFlow,

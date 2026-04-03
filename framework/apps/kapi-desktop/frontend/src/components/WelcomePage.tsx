@@ -39,6 +39,7 @@ const GET_STARTED = [
 ];
 
 // Characters not allowed in directory names.
+// eslint-disable-next-line no-control-regex -- intentional check for control characters in filenames
 const INVALID_DIR_CHARS = /[<>:"/\\|?*\x00-\x1f]/;
 
 function isValidDirName(name: string): boolean {
@@ -60,7 +61,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
   >([]);
 
   useEffect(() => {
-    api.listRecentFiles().then((files) => {
+    void api.listRecentFiles().then((files) => {
       if (files) setRecentFiles(files);
     });
   }, []);
@@ -126,7 +127,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
         const tab = await api.openProject(path);
         if (tab) onOpen(tab);
       } catch (e) {
-        setError(`Failed to open ${path}: ${e}`);
+        setError(`Failed to open ${path}: ${String(e)}`);
       }
     },
     [onOpen],
@@ -176,15 +177,13 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                         setNewName(e.target.value);
                       }}
                       onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                        if (e.key === "Enter" && canCreate) handleCreateProject();
+                        if (e.key === "Enter" && canCreate) void handleCreateProject();
                       }}
                       placeholder={customPath ? "" : "My App"}
                       readOnly={!!customPath}
                       autoFocus={!customPath}
                       className={`flex-1 ${
-                        newName && !nameValid && !customPath
-                          ? "border-destructive"
-                          : ""
+                        newName && !nameValid && !customPath ? "border-destructive" : ""
                       } ${customPath ? "text-muted-foreground" : ""}`}
                     />
                     <Button
@@ -217,9 +216,7 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                       Invalid directory name
                     </p>
                   ) : savePath ? (
-                    <p className="mt-1 text-left text-xs text-muted-foreground">
-                      {savePath}
-                    </p>
+                    <p className="mt-1 text-left text-xs text-muted-foreground">{savePath}</p>
                   ) : (
                     <p className="mt-1 text-left text-xs">&nbsp;</p>
                   )}
@@ -232,20 +229,14 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
                   >
                     {creating ? "Creating..." : "Create Project"}
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setShowNewForm(false)}
-                  >
+                  <Button variant="outline" onClick={() => setShowNewForm(false)}>
                     Cancel
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="flex gap-3">
-                <Button
-                  onClick={handleNew}
-                  className="gap-2 px-6 shadow-sm"
-                >
+                <Button onClick={handleNew} className="gap-2 px-6 shadow-sm">
                   <FilePlus size={16} />
                   New Project
                 </Button>

@@ -105,7 +105,7 @@ function ConnectedTopBar({
   const { data: myTasksData } = useQuery(myTasksQueryOptions(api, workspaceSlug));
 
   const markSeen = useCallback(() => {
-    api.markActivitiesSeen(workspaceSlug).then(() => {
+    void api.markActivitiesSeen(workspaceSlug).then(() => {
       void queryClient.invalidateQueries({ queryKey: ["activities", workspaceSlug] });
     });
   }, [api, workspaceSlug, queryClient]);

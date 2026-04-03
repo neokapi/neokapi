@@ -18,7 +18,20 @@ import {
 } from "lucide-react";
 import type { FormatInfo, PluginDocs, PluginDocsSummary, FilterDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Button, SchemaForm, Card, CardContent, Skeleton, Input, Tabs, TabsList, TabsTrigger, TabsContent, ScrollArea, PageHeader } from "@neokapi/ui-primitives";
+import {
+  Button,
+  SchemaForm,
+  Card,
+  CardContent,
+  Skeleton,
+  Input,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  ScrollArea,
+  PageHeader,
+} from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 import { DocsPanel } from "./DocsPanel";
@@ -39,10 +52,7 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
   const { showError } = useError();
 
   useEffect(() => {
-    Promise.all([
-      api.listFormats(),
-      propDocs ? Promise.resolve(null) : api.getPluginDocsSummary(),
-    ])
+    Promise.all([api.listFormats(), propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
       .then(([f, summary]) => {
         if (f) setFormats(f);
         if (summary) setDocsSummary(summary);
@@ -53,8 +63,18 @@ export function FormatsPage({ docs: propDocs }: FormatsPageProps = {}) {
 
   // Refresh when plugins change (formats may have been added/removed).
   useWailsEvent("registries-changed", () => {
-    api.listFormats().then((f) => { if (f) setFormats(f); }).catch(() => {});
-    api.getPluginDocsSummary().then((s) => { if (s) setDocsSummary(s); }).catch(() => {});
+    api
+      .listFormats()
+      .then((f) => {
+        if (f) setFormats(f);
+      })
+      .catch(() => {});
+    api
+      .getPluginDocsSummary()
+      .then((s) => {
+        if (s) setDocsSummary(s);
+      })
+      .catch(() => {});
   });
 
   // Total documented count for display
@@ -333,8 +353,8 @@ function FormatDetail({
   const [runnerLoading, setRunnerLoading] = useState(false);
 
   // Filter documentation — pre-loaded (Storybook) or fetched on demand
-  const [filterDoc, setFilterDoc] = useState<FilterDoc | undefined>(
-    () => resolveFilterDoc(formatName, docs),
+  const [filterDoc, setFilterDoc] = useState<FilterDoc | undefined>(() =>
+    resolveFilterDoc(formatName, docs),
   );
 
   const { showError } = useError();
@@ -342,9 +362,12 @@ function FormatDetail({
   // Fetch filter doc on demand if not pre-loaded
   useEffect(() => {
     if (docs) return; // Already have pre-loaded docs
-    api.getFilterDoc(formatName).then((d) => {
-      if (d) setFilterDoc(d);
-    }).catch(() => {});
+    api
+      .getFilterDoc(formatName)
+      .then((d) => {
+        if (d) setFilterDoc(d);
+      })
+      .catch(() => {});
   }, [formatName, docs]);
 
   // Get preset values for modified-from-preset indicator
@@ -363,10 +386,7 @@ function FormatDetail({
 
   useEffect(() => {
     setLoadingSchema(true);
-    Promise.all([
-      api.getFormatSchema(formatName),
-      loadPresets(),
-    ])
+    Promise.all([api.getFormatSchema(formatName), loadPresets()])
       .then(([s]) => {
         if (s) setSchema(s as ComponentSchema);
       })
@@ -377,15 +397,18 @@ function FormatDetail({
   // Phase 3: Update YAML when switching to YAML tab or config changes
   useEffect(() => {
     if (activeTab === "yaml") {
-      api.renderFormatConfig(formatName, config, "yaml").then((text) => {
-        if (text !== null) {
-          setYamlText(text);
-          setYamlError(null);
-        }
-      }).catch(() => {
-        // Fall back to JSON stringify
-        setYamlText(JSON.stringify(config, null, 2));
-      });
+      api
+        .renderFormatConfig(formatName, config, "yaml")
+        .then((text) => {
+          if (text !== null) {
+            setYamlText(text);
+            setYamlError(null);
+          }
+        })
+        .catch(() => {
+          // Fall back to JSON stringify
+          setYamlText(JSON.stringify(config, null, 2));
+        });
     }
   }, [activeTab, config, formatName]);
 
@@ -418,17 +441,20 @@ function FormatDetail({
   }, [formatName, savePresetName, config, loadPresets, showError]);
 
   // Phase 2: Delete preset handler
-  const handleDeletePreset = useCallback(async (presetName: string) => {
-    try {
-      await api.deleteFormatPreset(formatName, presetName);
-      await loadPresets();
-      if (selectedPreset === presetName) {
-        setSelectedPreset(null);
+  const handleDeletePreset = useCallback(
+    async (presetName: string) => {
+      try {
+        await api.deleteFormatPreset(formatName, presetName);
+        await loadPresets();
+        if (selectedPreset === presetName) {
+          setSelectedPreset(null);
+        }
+      } catch (err) {
+        showError("Failed to delete preset", err);
       }
-    } catch (err) {
-      showError("Failed to delete preset", err);
-    }
-  }, [formatName, loadPresets, selectedPreset, showError]);
+    },
+    [formatName, loadPresets, selectedPreset, showError],
+  );
 
   // Phase 3: YAML text change handler (parse back to config)
   const handleYamlChange = useCallback((text: string) => {
@@ -466,11 +492,7 @@ function FormatDetail({
     <div className="p-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          onClick={onBack}
-        >
+        <Button variant="ghost" size="icon-xs" onClick={onBack}>
           <ArrowLeft size={16} />
         </Button>
         <FileText size={20} className="text-primary" />
@@ -558,15 +580,14 @@ function FormatDetail({
                   variant="outline"
                   size="sm"
                   onClick={() => handlePresetSelect(p.name)}
-                  className={selectedPreset === p.name
+                  className={
+                    selectedPreset === p.name
                       ? "border-primary bg-primary/10 text-primary"
                       : "text-muted-foreground hover:border-primary/30 hover:text-foreground"
                   }
                 >
                   {p.name}
-                  {p.source && (
-                    <span className="ml-1 text-[9px] opacity-60">({p.source})</span>
-                  )}
+                  {p.source && <span className="ml-1 text-[9px] opacity-60">({p.source})</span>}
                   {p.description && (
                     <span className="ml-1 text-muted-foreground">— {p.description}</span>
                   )}
@@ -575,7 +596,10 @@ function FormatDetail({
                   <Button
                     variant="destructive"
                     size="icon-xs"
-                    onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleDeletePreset(p.name); }}
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      void handleDeletePreset(p.name);
+                    }}
                     className="absolute -top-1.5 -right-1.5 hidden group-hover:flex items-center justify-center w-4 h-4 rounded-full"
                     title="Delete preset"
                   >
@@ -598,25 +622,30 @@ function FormatDetail({
                 type="text"
                 value={savePresetName}
                 onChange={(e) => setSavePresetName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") handleSavePreset(); }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void handleSavePreset();
+                }}
                 placeholder="Preset name..."
                 className="flex-1"
                 autoFocus
               />
-            <Button
-              size="sm"
-              onClick={handleSavePreset}
-              disabled={saving || !savePresetName.trim()}
-            >
-              {saving ? "Saving..." : "Save"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => { setShowSavePreset(false); setSavePresetName(""); }}
-            >
-              Cancel
-            </Button>
+              <Button
+                size="sm"
+                onClick={handleSavePreset}
+                disabled={saving || !savePresetName.trim()}
+              >
+                {saving ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowSavePreset(false);
+                  setSavePresetName("");
+                }}
+              >
+                Cancel
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -652,9 +681,7 @@ function FormatDetail({
                   <Settings2 size={12} />
                   Editor
                 </TabsTrigger>
-                <TabsTrigger value="yaml">
-                  Config (YAML)
-                </TabsTrigger>
+                <TabsTrigger value="yaml">Config (YAML)</TabsTrigger>
               </>
             )}
             {hasDocumentation && (
@@ -680,17 +707,19 @@ function FormatDetail({
                 </Card>
 
                 {/* Contextual parameter help sidebar */}
-                {filterDoc && filterDoc.parameters && Object.keys(filterDoc.parameters).length > 0 && (
-                  <div className="w-80 shrink-0 hidden xl:block">
-                    <div className="sticky top-4">
-                      <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                        <BookOpen size={11} />
-                        Parameter Reference
-                      </h3>
-                      <DocsPanel doc={filterDoc} inline />
+                {filterDoc &&
+                  filterDoc.parameters &&
+                  Object.keys(filterDoc.parameters).length > 0 && (
+                    <div className="w-80 shrink-0 hidden xl:block">
+                      <div className="sticky top-4">
+                        <h3 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                          <BookOpen size={11} />
+                          Parameter Reference
+                        </h3>
+                        <DocsPanel doc={filterDoc} inline />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
             </TabsContent>
           )}
@@ -704,9 +733,7 @@ function FormatDetail({
                   className="w-full min-h-[300px] rounded-lg border border-border bg-card p-4 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-ring resize-y"
                   spellCheck={false}
                 />
-                {yamlError && (
-                  <p className="mt-1 text-[10px] text-amber-500">{yamlError}</p>
-                )}
+                {yamlError && <p className="mt-1 text-[10px] text-amber-500">{yamlError}</p>}
               </div>
             </TabsContent>
           )}
@@ -812,9 +839,7 @@ function PartRow({ part }: { part: FormatPartInfo }) {
         )}
 
         {/* Summary */}
-        <span className="flex-1 text-xs text-foreground truncate">
-          {part.summary}
-        </span>
+        <span className="flex-1 text-xs text-foreground truncate">{part.summary}</span>
 
         {/* Expand toggle */}
         {hasDetails && (
@@ -834,7 +859,9 @@ function PartRow({ part }: { part: FormatPartInfo }) {
         <div className="mt-2 ml-6 space-y-1">
           {part.source_text && (
             <div>
-              <span className="text-[9px] font-semibold text-muted-foreground uppercase">Source:</span>
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase">
+                Source:
+              </span>
               <pre className="mt-0.5 text-[10px] text-foreground bg-muted/50 rounded p-2 whitespace-pre-wrap break-words max-h-32 overflow-auto">
                 {part.source_text}
               </pre>
@@ -842,10 +869,15 @@ function PartRow({ part }: { part: FormatPartInfo }) {
           )}
           {hasProps && (
             <div>
-              <span className="text-[9px] font-semibold text-muted-foreground uppercase">Properties:</span>
+              <span className="text-[9px] font-semibold text-muted-foreground uppercase">
+                Properties:
+              </span>
               <div className="mt-0.5 flex flex-wrap gap-1">
                 {Object.entries(part.properties!).map(([k, v]) => (
-                  <span key={k} className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono">
+                  <span
+                    key={k}
+                    className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-mono"
+                  >
                     {k}: {v}
                   </span>
                 ))}
@@ -860,10 +892,7 @@ function PartRow({ part }: { part: FormatPartInfo }) {
 
 // --- Utility: resolve filter doc by format name ---
 
-function resolveFilterDoc(
-  formatName: string,
-  docs: PluginDocs | null,
-): FilterDoc | undefined {
+function resolveFilterDoc(formatName: string, docs: PluginDocs | null): FilterDoc | undefined {
   if (!docs) return undefined;
 
   // Direct match

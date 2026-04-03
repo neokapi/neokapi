@@ -52,7 +52,7 @@ function formatDetails(details: unknown): string {
   try {
     return JSON.stringify(details, null, 2);
   } catch {
-    return String(details);
+    return String(details as string);
   }
 }
 

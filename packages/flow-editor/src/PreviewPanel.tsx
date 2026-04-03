@@ -38,7 +38,7 @@ function PreviewSegment({
       className={cn(
         "min-w-[140px] max-w-[200px] shrink-0 rounded-md border bg-card p-2 opacity-0",
         changed ? "border-accent" : "border-border",
-        (changed || isFirst) ? "border-l-[3px] border-l-accent" : "",
+        changed || isFirst ? "border-l-[3px] border-l-accent" : "",
       )}
       style={{
         animation: "cardReveal 0.25s ease-out forwards",
@@ -57,9 +57,7 @@ function PreviewSegment({
         <div
           className={cn(
             "text-[10px] leading-tight",
-            changed
-              ? "font-medium text-accent-foreground"
-              : "text-muted-foreground",
+            changed ? "font-medium text-accent-foreground" : "text-muted-foreground",
           )}
         >
           {targetText
@@ -116,7 +114,7 @@ export function PreviewPanel({
   const blockPart = result
     ? Object.entries(result.parts).find(([, ss]) => ss.initial.type === "Block")
     : null;
-  const blockId = blockPart?.[0];
+  const _blockId = blockPart?.[0];
   const snapshots = blockPart?.[1];
 
   return (
@@ -141,11 +139,7 @@ export function PreviewPanel({
           size="sm"
           className="self-start"
         >
-          {loading ? (
-            <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-          ) : (
-            "Run"
-          )}
+          {loading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} /> : "Run"}
         </Button>
       </div>
 
@@ -173,9 +167,7 @@ export function PreviewPanel({
 
             return (
               <div key={nodeId} className="flex items-center gap-0">
-                <span className="shrink-0 px-1 text-sm text-muted-foreground">
-                  &rarr;
-                </span>
+                <span className="shrink-0 px-1 text-sm text-muted-foreground">&rarr;</span>
                 <PreviewSegment
                   label={nodeNames.get(nodeId) ?? nodeId}
                   sourceText={after.sourceText ?? ""}

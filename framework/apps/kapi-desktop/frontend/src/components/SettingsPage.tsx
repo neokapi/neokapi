@@ -2,7 +2,15 @@ import { useState, useEffect, useCallback } from "react";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
-import { Card, CardContent, Tabs, TabsList, TabsTrigger, TabsContent, LoadingSpinner } from "@neokapi/ui-primitives";
+import {
+  Card,
+  CardContent,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  LoadingSpinner,
+} from "@neokapi/ui-primitives";
 import { CredentialsPage } from "./CredentialsPage";
 import { PluginManager } from "./PluginManager";
 
@@ -36,28 +44,37 @@ export function SettingsPage() {
   }, [theme]);
 
   useEffect(() => {
-    api.getSettings().then((settings) => {
-      if (settings) {
-        const t = (settings.theme || "system") as ThemeMode;
-        setTheme(t);
-      }
-    }).catch((err) => {
-      showError("Failed to load settings", err);
-    }).finally(() => {
-      setLoading(false);
-    });
+    api
+      .getSettings()
+      .then((settings) => {
+        if (settings) {
+          const t = (settings.theme || "system") as ThemeMode;
+          setTheme(t);
+        }
+      })
+      .catch((err) => {
+        showError("Failed to load settings", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [showError]);
 
-  const handleThemeChange = useCallback(async (next: ThemeMode) => {
-    setTheme(next);
-    applyTheme(next);
-    try { await api.setTheme(next); } catch (err) { showError("Failed to save theme", err); }
-  }, [showError]);
+  const handleThemeChange = useCallback(
+    async (next: ThemeMode) => {
+      setTheme(next);
+      applyTheme(next);
+      try {
+        await api.setTheme(next);
+      } catch (err) {
+        showError("Failed to save theme", err);
+      }
+    },
+    [showError],
+  );
 
   if (loading) {
-    return (
-      <LoadingSpinner text="Loading settings..." className="p-6" />
-    );
+    return <LoadingSpinner text="Loading settings..." className="p-6" />;
   }
 
   return (
@@ -76,32 +93,31 @@ export function SettingsPage() {
             <Card>
               <CardContent className="p-4">
                 <div className="mb-3 text-sm font-medium">Appearance</div>
-              <div className="flex gap-2">
-                {([
-                  { value: "system" as ThemeMode, icon: Monitor, label: "System" },
-                  { value: "light" as ThemeMode, icon: Sun, label: "Light" },
-                  { value: "dark" as ThemeMode, icon: Moon, label: "Dark" },
-                ]).map(({ value, icon: Icon, label }) => (
-                  <button
-                    key={value}
-                    onClick={() => void handleThemeChange(value)}
-                    className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
-                      theme === value
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
-                    }`}
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </button>
-                ))}
-              </div>
+                <div className="flex gap-2">
+                  {[
+                    { value: "system" as ThemeMode, icon: Monitor, label: "System" },
+                    { value: "light" as ThemeMode, icon: Sun, label: "Light" },
+                    { value: "dark" as ThemeMode, icon: Moon, label: "Dark" },
+                  ].map(({ value, icon: Icon, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => void handleThemeChange(value)}
+                      className={`flex flex-1 flex-col items-center gap-1.5 rounded-md border p-3 text-xs font-medium transition-colors ${
+                        theme === value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
                 <p className="mt-2 text-[10px] text-muted-foreground">
                   System follows your operating system's appearance setting.
                 </p>
               </CardContent>
             </Card>
-
           </div>
         </div>
       </TabsContent>

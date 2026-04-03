@@ -117,17 +117,32 @@ const sampleDocs: Record<string, ToolDoc> = {
     overview:
       "Generates pseudo-translations by applying diacritical marks, padding, and brackets to source text. Useful for testing UI layout, detecting hardcoded strings, and verifying internationalization readiness without real translations.",
     parameters: {
-      prefix: { description: "Character(s) prepended to each translated string. Helps identify translated vs untranslated strings in the UI." },
+      prefix: {
+        description:
+          "Character(s) prepended to each translated string. Helps identify translated vs untranslated strings in the UI.",
+      },
       suffix: { description: "Character(s) appended to each translated string." },
       expansionPercent: {
-        description: "Percentage to expand text length to simulate longer translations (e.g. German is ~30% longer than English).",
+        description:
+          "Percentage to expand text length to simulate longer translations (e.g. German is ~30% longer than English).",
         notes: ["Set to 0 to disable expansion. Values above 100% double the original length."],
       },
-      applyAccents: { description: "Replace ASCII characters with visually similar accented characters (e.g. a→á, e→é) to test rendering." },
+      applyAccents: {
+        description:
+          "Replace ASCII characters with visually similar accented characters (e.g. a→á, e→é) to test rendering.",
+      },
     },
-    limitations: ["Does not handle right-to-left scripts.", "Inline codes are preserved but not expanded."],
+    limitations: [
+      "Does not handle right-to-left scripts.",
+      "Inline codes are preserved but not expanded.",
+    ],
     examples: [
-      { title: "Basic pseudo", description: "Default settings", input: "Hello World", output: "[Ĥéĺĺö Ŵöŕĺð]" },
+      {
+        title: "Basic pseudo",
+        description: "Default settings",
+        input: "Hello World",
+        output: "[Ĥéĺĺö Ŵöŕĺð]",
+      },
     ],
   },
   "qa-check": {
@@ -135,21 +150,31 @@ const sampleDocs: Record<string, ToolDoc> = {
     overview:
       "Runs rule-based quality assurance checks on translations. Detects whitespace mismatches, missing translations, broken inline codes, and pattern inconsistencies between source and target.",
     parameters: {
-      checkLeadingWhitespace: { description: "Verify that leading whitespace in target matches source." },
+      checkLeadingWhitespace: {
+        description: "Verify that leading whitespace in target matches source.",
+      },
       checkInlineCodes: {
         description: "Verify all inline codes from source are preserved in target translation.",
         notes: ["Inline codes include format specifiers ({0}), HTML tags, and printf patterns."],
       },
-      severityLevel: { description: "Default severity for issues found. Can be error, warning, or info." },
+      severityLevel: {
+        description: "Default severity for issues found. Can be error, warning, or info.",
+      },
     },
-    processingNotes: ["Checks run independently — disabling one does not affect others.", "Results are attached as annotations to each block."],
+    processingNotes: [
+      "Checks run independently — disabling one does not affect others.",
+      "Results are attached as annotations to each block.",
+    ],
   },
   "search-replace": {
     displayName: "Search and Replace",
-    overview: "Performs search and replace operations on source or target text. Supports both literal string matching and Java regular expressions.",
+    overview:
+      "Performs search and replace operations on source or target text. Supports both literal string matching and Java regular expressions.",
     parameters: {
       search: { description: "The text or regex pattern to search for." },
-      replace: { description: "The replacement text. Supports $1, $2 backreferences when regex is enabled." },
+      replace: {
+        description: "The replacement text. Supports $1, $2 backreferences when regex is enabled.",
+      },
       regEx: {
         description: "When enabled, the search pattern is treated as a Java regular expression.",
         notes: ["Use \\\\n for newline, \\\\t for tab in regex mode."],

@@ -75,7 +75,9 @@ test.describe("Web App Screenshots", () => {
       const api = new BowrainAPI(BASE_URL, token);
       storyCtx = await fullSeed(api);
     } catch (err) {
-      console.log(`[screenshots] Shared seeder failed (story screenshots will be skipped): ${err}`);
+      console.log(
+        `[screenshots] Shared seeder failed (story screenshots will be skipped): ${String(err)}`,
+      );
       storyCtx = null;
     }
   });

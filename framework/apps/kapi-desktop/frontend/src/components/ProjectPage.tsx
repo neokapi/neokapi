@@ -77,25 +77,17 @@ export function ProjectPage({
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveName();
+                  if (e.key === "Enter") void handleSaveName();
                   if (e.key === "Escape") handleCancelEditName();
                 }}
                 placeholder={displayName({ ...project, name: "" }, projectPath)}
                 autoFocus
                 className="rounded-md border border-input bg-transparent px-2 py-1 text-xl font-semibold outline-none focus:ring-2 focus:ring-ring"
               />
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={handleSaveName}
-              >
+              <Button variant="outline" size="xs" onClick={handleSaveName}>
                 Save
               </Button>
-              <Button
-                variant="outline"
-                size="xs"
-                onClick={handleCancelEditName}
-              >
+              <Button variant="outline" size="xs" onClick={handleCancelEditName}>
                 Cancel
               </Button>
             </div>

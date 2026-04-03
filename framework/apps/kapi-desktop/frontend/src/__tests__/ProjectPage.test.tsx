@@ -23,9 +23,7 @@ describe("ProjectPage", () => {
 
   it("derives display name from folder when name is empty", () => {
     const noName = { ...project, name: "" };
-    render(
-      <ProjectPage project={noName} projectPath="/Users/me/MyApp/project.kapi" tabID="t1" />,
-    );
+    render(<ProjectPage project={noName} projectPath="/Users/me/MyApp/project.kapi" tabID="t1" />);
     expect(screen.getByText("MyApp")).toBeInTheDocument();
   });
 
