@@ -32,8 +32,11 @@ runs:
       shell: bash
       run: |
         # packages/ui installs its own react copy via transitive deps.
-        # Remove it so all packages resolve react from platform/node_modules.
+        # Replace with symlinks to platform's copy so all packages share
+        # a single React instance during tests and builds.
         rm -rf packages/ui/node_modules/react packages/ui/node_modules/react-dom
+        ln -s "$PWD/platform/node_modules/react" packages/ui/node_modules/react
+        ln -s "$PWD/platform/node_modules/react-dom" packages/ui/node_modules/react-dom
 
     - name: Typecheck platform UI package
       shell: bash
