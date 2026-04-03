@@ -43,6 +43,7 @@ func snippetRoundtripWithSkeleton(t *testing.T, input string) string {
 }
 
 func TestSkeletonStore_ByteExact_SimpleXLIFF(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file original="hello.txt" source-language="en" target-language="fr" datatype="plaintext">
@@ -59,6 +60,7 @@ func TestSkeletonStore_ByteExact_SimpleXLIFF(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_MultipleTransUnits(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file original="hello.txt" source-language="en" target-language="fr" datatype="plaintext">
@@ -82,6 +84,7 @@ func TestSkeletonStore_ByteExact_MultipleTransUnits(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
+	t.Parallel()
 	data, err := os.ReadFile("testdata/simple.xlf")
 	require.NoError(t, err)
 	input := string(data)
@@ -90,6 +93,7 @@ func TestSkeletonStore_ByteExact_SimpleFile(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_XmlEntities(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file original="test" source-language="en" target-language="fr" datatype="plaintext">
@@ -106,6 +110,7 @@ func TestSkeletonStore_ByteExact_XmlEntities(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file original="test" source-language="en" target-language="fr" datatype="plaintext">
@@ -165,6 +170,7 @@ func TestSkeletonStore_WithTranslation(t *testing.T) {
 }
 
 func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file original="test" source-language="en" target-language="fr" datatype="plaintext">
@@ -211,6 +217,7 @@ func TestSkeletonStore_WithTranslation_Escaping(t *testing.T) {
 }
 
 func TestSkeletonStore_ByteExact_SourceOnly(t *testing.T) {
+	t.Parallel()
 	input := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2">
   <file original="test" source-language="en" datatype="plaintext">

@@ -14,6 +14,7 @@ import (
 )
 
 func TestParseItem(t *testing.T) {
+	t.Parallel()
 	// Create an HTML reader
 	reader := htmlfmt.NewReader()
 

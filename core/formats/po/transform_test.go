@@ -11,11 +11,13 @@ import (
 )
 
 func TestOkapiPOTransform_Registration(t *testing.T) {
+	t.Parallel()
 	assert.True(t, config.DefaultTransforms.Has(
 		config.OkapiFilterConfigKind("po"), config.FormatConfigKind("po")))
 }
 
 func TestOkapiPOTransform_DropsOkapiOnlyParams(t *testing.T) {
+	t.Parallel()
 	from := config.OkapiFilterConfigKind("po")
 	to := config.FormatConfigKind("po")
 	spec := map[string]any{
@@ -40,6 +42,7 @@ func TestOkapiPOTransform_DropsOkapiOnlyParams(t *testing.T) {
 }
 
 func TestOkapiPOTransform_EmptySpec(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("po"), config.FormatConfigKind("po"), map[string]any{})
 	require.NoError(t, err)

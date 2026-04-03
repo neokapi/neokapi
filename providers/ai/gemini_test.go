@@ -13,11 +13,13 @@ import (
 )
 
 func TestGeminiProviderName(t *testing.T) {
+	t.Parallel()
 	p := NewGeminiProvider(Config{APIKey: "test-key"})
 	assert.Equal(t, "gemini", p.Name())
 }
 
 func TestGeminiProviderDefaults(t *testing.T) {
+	t.Parallel()
 	p := NewGeminiProvider(Config{})
 	assert.Equal(t, "https://generativelanguage.googleapis.com", p.config.BaseURL)
 	assert.Equal(t, "gemini-3-flash-preview", p.config.Model)
@@ -25,6 +27,7 @@ func TestGeminiProviderDefaults(t *testing.T) {
 }
 
 func TestGeminiProviderChat(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Contains(t, r.URL.Path, "/v1beta/models/gemini-3-flash-preview:generateContent")
 		assert.Equal(t, "test-key", r.URL.Query().Get("key"))
@@ -69,6 +72,7 @@ func TestGeminiProviderChat(t *testing.T) {
 }
 
 func TestGeminiProviderTranslate(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := geminiResponse{
 			Candidates: []geminiCandidate{{
@@ -100,6 +104,7 @@ func TestGeminiProviderTranslate(t *testing.T) {
 }
 
 func TestGeminiProviderChatStructured(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req geminiRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
@@ -144,6 +149,7 @@ func TestGeminiProviderChatStructured(t *testing.T) {
 }
 
 func TestGeminiProviderSystemMessage(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req geminiRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
@@ -181,6 +187,7 @@ func TestGeminiProviderSystemMessage(t *testing.T) {
 }
 
 func TestGeminiProviderFiltersThinkingParts(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Simulate a response with thinking parts interleaved.
 		resp := geminiResponse{
@@ -213,6 +220,7 @@ func TestGeminiProviderFiltersThinkingParts(t *testing.T) {
 }
 
 func TestGeminiProviderDisablesThinking(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var req geminiRequest
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&req))
@@ -248,6 +256,7 @@ func TestGeminiProviderDisablesThinking(t *testing.T) {
 }
 
 func TestGeminiProviderChatStream(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Contains(t, r.URL.Path, "streamGenerateContent")
 		assert.Equal(t, "sse", r.URL.Query().Get("alt"))
@@ -323,6 +332,7 @@ func TestGeminiProviderChatStream(t *testing.T) {
 }
 
 func TestGeminiProviderChatStreamMultipleContentChunks(t *testing.T) {
+	t.Parallel()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		flusher, _ := w.(http.Flusher)
@@ -365,6 +375,7 @@ func TestGeminiProviderChatStreamMultipleContentChunks(t *testing.T) {
 }
 
 func TestGeminiProviderImplementsStreamingInterface(t *testing.T) {
+	t.Parallel()
 	p := NewGeminiProvider(Config{APIKey: "test-key"})
 	var provider LLMProvider = p
 
@@ -374,6 +385,7 @@ func TestGeminiProviderImplementsStreamingInterface(t *testing.T) {
 }
 
 func TestGeminiProviderClose(t *testing.T) {
+	t.Parallel()
 	p := NewGeminiProvider(Config{APIKey: "test-key"})
 	assert.NoError(t, p.Close())
 }

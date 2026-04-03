@@ -8,6 +8,7 @@ import (
 )
 
 func TestParse(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input string
 		want  string
@@ -27,6 +28,7 @@ func TestParse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got, err := Parse(tt.input)
 			if tt.err {
 				assert.Error(t, err)
@@ -39,6 +41,7 @@ func TestParse(t *testing.T) {
 }
 
 func TestMustParse(t *testing.T) {
+	t.Parallel()
 	assert.NotPanics(t, func() {
 		id := MustParse("fr")
 		assert.Equal(t, "fr", string(id))
@@ -50,6 +53,7 @@ func TestMustParse(t *testing.T) {
 }
 
 func TestDisplayName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		code string
 		want string
@@ -67,6 +71,7 @@ func TestDisplayName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.code, func(t *testing.T) {
+			t.Parallel()
 			got := DisplayName(MustParse(tt.code))
 			assert.Equal(t, tt.want, got)
 		})
@@ -74,6 +79,7 @@ func TestDisplayName(t *testing.T) {
 }
 
 func TestWellKnownLocales(t *testing.T) {
+	t.Parallel()
 	locales := WellKnownLocales()
 
 	// Should have a reasonable number of locales

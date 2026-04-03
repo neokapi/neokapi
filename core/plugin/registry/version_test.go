@@ -10,6 +10,7 @@ import (
 )
 
 func TestWriteAndReadVersionFile(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	vf := &VersionFile{
@@ -46,6 +47,7 @@ func TestWriteAndReadVersionFile(t *testing.T) {
 }
 
 func TestReadVersionFileBackwardsCompatible(t *testing.T) {
+	t.Parallel()
 	// Old version.json files without plugin_type/capabilities should still parse.
 	dir := t.TempDir()
 	vf := &VersionFile{
@@ -63,6 +65,7 @@ func TestReadVersionFileBackwardsCompatible(t *testing.T) {
 }
 
 func TestReadVersionFileNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	_, err := ReadVersionFile(dir, "nonexistent", "1.0.0")
@@ -70,6 +73,7 @@ func TestReadVersionFileNotFound(t *testing.T) {
 }
 
 func TestListInstalledVersions(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Write two versions of plugin-a.
@@ -98,6 +102,7 @@ func TestListInstalledVersions(t *testing.T) {
 }
 
 func TestListInstalledVersionsNonexistent(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	versions, err := ListInstalledVersions(dir, "nonexistent")
@@ -106,6 +111,7 @@ func TestListInstalledVersionsNonexistent(t *testing.T) {
 }
 
 func TestListAllInstalled(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	require.NoError(t, WriteVersionFile(dir, "plugin-a", "1.0.0", &VersionFile{
@@ -130,6 +136,7 @@ func TestListAllInstalled(t *testing.T) {
 }
 
 func TestListAllInstalledEmptyDir(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	all, err := ListAllInstalled(dir)
@@ -138,12 +145,14 @@ func TestListAllInstalledEmptyDir(t *testing.T) {
 }
 
 func TestListAllInstalledNonexistentDir(t *testing.T) {
+	t.Parallel()
 	all, err := ListAllInstalled("/tmp/nonexistent-plugin-dir-test")
 	require.NoError(t, err)
 	assert.Nil(t, all)
 }
 
 func TestLatestInstalledVersion(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	require.NoError(t, WriteVersionFile(dir, "okapi", "1.45.0", &VersionFile{
@@ -162,6 +171,7 @@ func TestLatestInstalledVersion(t *testing.T) {
 }
 
 func TestLatestInstalledVersionNotFound(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	_, err := LatestInstalledVersion(dir, "nonexistent")
@@ -170,11 +180,13 @@ func TestLatestInstalledVersionNotFound(t *testing.T) {
 }
 
 func TestVersionedPluginDir(t *testing.T) {
+	t.Parallel()
 	dir := VersionedPluginDir("/base", "okapi", "1.46.0")
 	assert.Equal(t, filepath.Join("/base", "okapi", "1.46.0"), dir)
 }
 
 func TestWriteVersionFileCreatesDir(t *testing.T) {
+	t.Parallel()
 	dir := filepath.Join(t.TempDir(), "nested", "path")
 
 	err := WriteVersionFile(dir, "test", "1.0.0", &VersionFile{Name: "test", Version: "1.0.0"})

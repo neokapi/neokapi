@@ -9,11 +9,13 @@ import (
 )
 
 func TestOkapiXLIFFTransform_Registration(t *testing.T) {
+	t.Parallel()
 	assert.True(t, config.DefaultTransforms.Has(
 		config.OkapiFilterConfigKind("xliff"), config.FormatConfigKind("xliff")))
 }
 
 func TestOkapiXLIFFTransform_DropsOkapiOnlyParams(t *testing.T) {
+	t.Parallel()
 	from := config.OkapiFilterConfigKind("xliff")
 	to := config.FormatConfigKind("xliff")
 	spec := map[string]any{
@@ -42,6 +44,7 @@ func TestOkapiXLIFFTransform_DropsOkapiOnlyParams(t *testing.T) {
 }
 
 func TestOkapiXLIFFTransform_PassesThroughSupportedParams(t *testing.T) {
+	t.Parallel()
 	from := config.OkapiFilterConfigKind("xliff")
 	to := config.FormatConfigKind("xliff")
 	spec := map[string]any{
@@ -64,6 +67,7 @@ func TestOkapiXLIFFTransform_PassesThroughSupportedParams(t *testing.T) {
 }
 
 func TestOkapiXLIFFTransform_EmptySpec(t *testing.T) {
+	t.Parallel()
 	result, err := config.DefaultTransforms.Transform(
 		config.OkapiFilterConfigKind("xliff"), config.FormatConfigKind("xliff"), map[string]any{})
 	require.NoError(t, err)
@@ -71,6 +75,7 @@ func TestOkapiXLIFFTransform_EmptySpec(t *testing.T) {
 }
 
 func TestOkapiXLIFFTransform_UnknownParamsPassThrough(t *testing.T) {
+	t.Parallel()
 	from := config.OkapiFilterConfigKind("xliff")
 	to := config.FormatConfigKind("xliff")
 	spec := map[string]any{

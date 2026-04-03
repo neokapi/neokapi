@@ -114,6 +114,7 @@ import (
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeG
 func TestCtype_KeepCtypeG(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><g id="1" ctype="bold">text</g></source>
       </trans-unit>`, "x-test")
@@ -132,6 +133,7 @@ func TestCtype_KeepCtypeG(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBx
 func TestCtype_KeepCtypeBx(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bx id="1" ctype="bold"/>text<ex id="1"/></source>
       </trans-unit>`, "x-test")
@@ -150,6 +152,7 @@ func TestCtype_KeepCtypeBx(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBxRid
 func TestCtype_KeepCtypeBxRid(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bx id="1" ctype="bold" rid="99"/>text<ex id="2" rid="99"/></source>
       </trans-unit>`, "x-test")
@@ -162,6 +165,7 @@ func TestCtype_KeepCtypeBxRid(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBpt
 func TestCtype_KeepCtypeBpt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bpt id="1" ctype="bold"/>text<ept id="1"/></source>
       </trans-unit>`, "x-test")
@@ -180,6 +184,7 @@ func TestCtype_KeepCtypeBpt(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeBptRid
 func TestCtype_KeepCtypeBptRid(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bpt id="1" ctype="bold" rid="99"/>text<ept id="2" rid="99"/></source>
       </trans-unit>`, "x-test")
@@ -192,6 +197,7 @@ func TestCtype_KeepCtypeBptRid(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeX
 func TestCtype_KeepCtypeX(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><x id="1" ctype="lb"/>text</source>
       </trans-unit>`, "x-test")
@@ -210,6 +216,7 @@ func TestCtype_KeepCtypeX(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testKeepCtypeXBoldAsXBold
 func TestCtype_KeepCtypeXBoldAsXBold(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><x id="1" ctype="bold"/>text</source>
       </trans-unit>`, "x-test")
@@ -222,6 +229,7 @@ func TestCtype_KeepCtypeXBoldAsXBold(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreNumbers
 func TestCtype_TargetIsSegmentedIdsAreNumbers(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
 <file source-language="en" target-language="fr" datatype="x-test" original="file.ext">
@@ -239,6 +247,7 @@ func TestCtype_TargetIsSegmentedIdsAreNumbers(t *testing.T) {
 
 // okapi: XLIFFFilterCtypeTest#testTargetIsSegmentedIdsAreStrings
 func TestCtype_TargetIsSegmentedIdsAreStrings(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2">
 <file source-language="en" target-language="fr" datatype="x-test" original="file.ext">
@@ -260,6 +269,7 @@ func TestCtype_TargetIsSegmentedIdsAreStrings(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextGHello
 func TestEquivText_KeepGHello(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><g id="1" equiv-text="hello">foo</g></source>
       </trans-unit>`, "x-test")
@@ -273,6 +283,7 @@ func TestEquivText_KeepGHello(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextGCustom
 func TestEquivText_KeepGCustom(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><g id="1" equiv-text="x-custom">foo</g></source>
       </trans-unit>`, "x-test")
@@ -286,6 +297,7 @@ func TestEquivText_KeepGCustom(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextX
 func TestEquivText_KeepX(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><x id="1" equiv-text="hello"/>foo</source>
       </trans-unit>`, "x-test")
@@ -299,6 +311,7 @@ func TestEquivText_KeepX(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextXWithEscapedContent
 func TestEquivText_KeepXWithEscapedContent(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><x id="1" equiv-text="{&quot;hello&quot;}"/>foo</source>
       </trans-unit>`, "x-test")
@@ -313,6 +326,7 @@ func TestEquivText_KeepXWithEscapedContent(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBx
 func TestEquivText_KeepBx(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bx id="1" equiv-text="hello"/>foo</source>
       </trans-unit>`, "x-test")
@@ -326,6 +340,7 @@ func TestEquivText_KeepBx(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextEx
 func TestEquivText_KeepEx(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><ex id="1" equiv-text="hello"/>foo</source>
       </trans-unit>`, "x-test")
@@ -339,6 +354,7 @@ func TestEquivText_KeepEx(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBxEx
 func TestEquivText_KeepBxEx(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bx id="1" equiv-text="hello"/>foo<ex id="1" equiv-text="world"/></source>
       </trans-unit>`, "x-test")
@@ -353,6 +369,7 @@ func TestEquivText_KeepBxEx(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextBpt
 func TestEquivText_KeepBpt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><bpt id="1" equiv-text="hello">data</bpt>foo</source>
       </trans-unit>`, "x-test")
@@ -366,6 +383,7 @@ func TestEquivText_KeepBpt(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextEpt
 func TestEquivText_KeepEpt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><ept id="1" equiv-text="hello">data</ept>foo</source>
       </trans-unit>`, "x-test")
@@ -379,6 +397,7 @@ func TestEquivText_KeepEpt(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextPh
 func TestEquivText_KeepPh(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><ph id="1" equiv-text="hello">data</ph>foo</source>
       </trans-unit>`, "x-test")
@@ -392,6 +411,7 @@ func TestEquivText_KeepPh(t *testing.T) {
 
 // okapi: XLIFFFilterEquivTextTest#testKeepEquivTextIt
 func TestEquivText_KeepIt(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1">
         <source><it id="1" equiv-text="hello" pos="open">data</it>foo</source>
       </trans-unit>`, "x-test")
@@ -409,6 +429,7 @@ func TestEquivText_KeepIt(t *testing.T) {
 
 // okapi: XLIFFFilterLengthConstraintsTest#testTransUnit
 func TestLengthConstraints_TransUnit(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1" maxwidth="100" size-unit="char">
         <source>hello</source>
       </trans-unit>`, "x-test")
@@ -420,6 +441,7 @@ func TestLengthConstraints_TransUnit(t *testing.T) {
 
 // okapi: XLIFFFilterLengthConstraintsTest#testSizeUnitDefault
 func TestLengthConstraints_SizeUnitDefault(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFFDatatype(`      <trans-unit id="1" maxwidth="100">
         <source>hello</source>
       </trans-unit>`, "x-test")
@@ -430,6 +452,7 @@ func TestLengthConstraints_SizeUnitDefault(t *testing.T) {
 
 // okapi: XLIFFFilterLengthConstraintsTest#testGroup
 func TestLengthConstraints_Group(t *testing.T) {
+	t.Parallel()
 	// Group-level maxwidth/size-unit: verify blocks inside the group are extractable.
 	xlf := wrapXLIFFDatatype(`      <group maxwidth="100" size-unit="char">
         <trans-unit id="1"><source>hello</source></trans-unit>
@@ -489,6 +512,7 @@ func TestLengthConstraints_Group(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithCTypesAfterJoinAll
 func TestBalancing_WithCTypes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><bx id="1" ctype="bold"/>text<ex id="1"/></source>
       </trans-unit>`)
@@ -499,6 +523,7 @@ func TestBalancing_WithCTypes(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingOverMultipleSegmentsAfterJoinAll
 func TestBalancing_OverMultipleSegments(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source>First. Second.</source>
         <seg-source>
@@ -513,6 +538,7 @@ func TestBalancing_OverMultipleSegments(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingBetweenSegmentsAfterJoinAll
 func TestBalancing_BetweenSegments(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><bx id="1"/>Sentence one.<ex id="1"/> <bx id="2"/>Sentence two.<ex id="2"/></source>
         <seg-source>
@@ -527,6 +553,7 @@ func TestBalancing_BetweenSegments(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithBxAndGTagsAfterJoinAll
 func TestBalancing_WithBxAndGTags(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><bx id="1"/>text <g id="2">inner</g> end<ex id="1"/></source>
       </trans-unit>`)
@@ -539,6 +566,7 @@ func TestBalancing_WithBxAndGTags(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsAfterJoinAll
 func TestBalancing_WithNestedGTags(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><g id="1"><g id="2">nested text</g></g></source>
       </trans-unit>`)
@@ -549,6 +577,7 @@ func TestBalancing_WithNestedGTags(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAll
 func TestBalancing_WithNestedGTagsOnThreeLevels(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><g id="1"><g id="2"><g id="3">deep text</g></g></g></source>
       </trans-unit>`)
@@ -559,6 +588,7 @@ func TestBalancing_WithNestedGTagsOnThreeLevels(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testValidBalancingWithNestedGTagsOnThreeLevelsAfterJoinAllWithNamespaces
 func TestBalancing_WithNestedGTagsOnThreeLevelsWithNamespaces(t *testing.T) {
+	t.Parallel()
 	xlf := `<?xml version="1.0" encoding="UTF-8"?>
 <xliff version="1.2" xmlns="urn:oasis:names:tc:xliff:document:1.2" xmlns:okp="okapi-framework:xliff-extensions">
   <file source-language="en" target-language="fr" datatype="plaintext" original="test">
@@ -576,6 +606,7 @@ func TestBalancing_WithNestedGTagsOnThreeLevelsWithNamespaces(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testDifferentCTypes
 func TestBalancing_DifferentCTypes(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><bx id="1" ctype="bold"/>bold <bx id="2" ctype="italic"/>italic<ex id="2"/><ex id="1"/></source>
       </trans-unit>`)
@@ -587,6 +618,7 @@ func TestBalancing_DifferentCTypes(t *testing.T) {
 
 // okapi: XLIFFFilterBalancingTest#testDifferentCTypesWithBreakingMrk
 func TestBalancing_DifferentCTypesWithBreakingMrk(t *testing.T) {
+	t.Parallel()
 	xlf := wrapXLIFF(`      <trans-unit id="1">
         <source><bx id="1" ctype="bold"/>text <mrk mtype="term">term</mrk> end<ex id="1"/></source>
       </trans-unit>`)
