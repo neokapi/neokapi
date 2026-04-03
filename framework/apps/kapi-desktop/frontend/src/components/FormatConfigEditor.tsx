@@ -21,7 +21,13 @@ interface FormatConfigEditorProps {
  * Used in both the flow editor (reader/writer node config) and
  * the standalone format presets page.
  */
-export function FormatConfigEditor({ schema, values, onChange, title, presetValues }: FormatConfigEditorProps) {
+export function FormatConfigEditor({
+  schema,
+  values,
+  onChange,
+  title,
+  presetValues,
+}: FormatConfigEditorProps) {
   const filterMeta = schema.formatMeta;
   const extensions = filterMeta?.extensions || [];
   const mimeTypes = filterMeta?.mimeTypes || [];

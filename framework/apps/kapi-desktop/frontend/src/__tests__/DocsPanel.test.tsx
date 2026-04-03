@@ -50,9 +50,7 @@ describe("DocsPanel", () => {
   it("renders overview section expanded by default", () => {
     render(<DocsPanel doc={sampleFilterDoc} />);
     expect(screen.getByText("Overview")).toBeInTheDocument();
-    expect(
-      screen.getByText("Extracts translatable strings from JSON files."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Extracts translatable strings from JSON files.")).toBeInTheDocument();
   });
 
   it("renders wiki link when available", () => {
@@ -77,9 +75,7 @@ describe("DocsPanel", () => {
   it("expands parameters section on click", async () => {
     render(<DocsPanel doc={sampleFilterDoc} />);
     await userEvent.click(screen.getByText("Parameters"));
-    expect(
-      screen.getByText("Controls what content is extracted."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Controls what content is extracted.")).toBeInTheDocument();
   });
 
   it("shows introducedIn badge for versioned parameters", async () => {
@@ -102,9 +98,7 @@ describe("DocsPanel", () => {
     await userEvent.click(screen.getByText("Parameters"));
     // extraction has children — click to expand it
     await userEvent.click(screen.getByText("extraction"));
-    expect(
-      screen.getByText("Overridden by pathRules if specified."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Overridden by pathRules if specified.")).toBeInTheDocument();
   });
 
   it("expands examples section on click", async () => {
@@ -118,15 +112,11 @@ describe("DocsPanel", () => {
   it("expands limitations section on click", async () => {
     render(<DocsPanel doc={sampleFilterDoc} />);
     await userEvent.click(screen.getByText("Limitations"));
-    expect(
-      screen.getByText("Cannot handle binary JSON (BSON)."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Cannot handle binary JSON (BSON).")).toBeInTheDocument();
   });
 
   it("renders in inline mode without card wrapper", () => {
-    const { container } = render(
-      <DocsPanel doc={sampleFilterDoc} inline />,
-    );
+    const { container } = render(<DocsPanel doc={sampleFilterDoc} inline />);
     // In inline mode the outermost element should be a plain div, not a card
     const outerDiv = container.firstElementChild;
     expect(outerDiv?.tagName).toBe("DIV");
@@ -134,31 +124,21 @@ describe("DocsPanel", () => {
   });
 
   it("filters parameters by visibleParams", async () => {
-    render(
-      <DocsPanel doc={sampleFilterDoc} visibleParams={["extraction"]} />,
-    );
+    render(<DocsPanel doc={sampleFilterDoc} visibleParams={["extraction"]} />);
     await userEvent.click(screen.getByText("Parameters"));
     // Should show extraction and (after expanding) extraction.extractAll
-    expect(
-      screen.getByText("Controls what content is extracted."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Controls what content is extracted.")).toBeInTheDocument();
     // keys.useFullPath should NOT be present (filtered out)
-    expect(
-      screen.queryByText("Use full hierarchical key path."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Use full hierarchical key path.")).not.toBeInTheDocument();
     // Expand extraction to see its child
     await userEvent.click(screen.getByText("extraction"));
-    expect(
-      screen.getByText("When true, extracts all strings."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("When true, extracts all strings.")).toBeInTheDocument();
   });
 
   it("renders step doc (not just filter doc)", () => {
     render(<DocsPanel doc={sampleStepDoc} />);
     expect(screen.getByText("Overview")).toBeInTheDocument();
-    expect(
-      screen.getByText("Translates content using a batch process."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Translates content using a batch process.")).toBeInTheDocument();
   });
 
   it("hides sections with no data", () => {
@@ -176,46 +156,32 @@ describe("DocsPanel", () => {
 
 describe("ParamHelp", () => {
   it("renders nothing for nonexistent parameter", () => {
-    const { container } = render(
-      <ParamHelp paramKey="nonexistent" doc={sampleFilterDoc} />,
-    );
+    const { container } = render(<ParamHelp paramKey="nonexistent" doc={sampleFilterDoc} />);
     expect(container.firstElementChild).toBeNull();
   });
 
   it("renders nothing when doc is undefined", () => {
-    const { container } = render(
-      <ParamHelp paramKey="extraction" doc={undefined} />,
-    );
+    const { container } = render(<ParamHelp paramKey="extraction" doc={undefined} />);
     expect(container.firstElementChild).toBeNull();
   });
 
   it("renders info button for existing parameter", () => {
     render(<ParamHelp paramKey="extraction" doc={sampleFilterDoc} />);
-    expect(
-      screen.getByTitle("Show parameter documentation"),
-    ).toBeInTheDocument();
+    expect(screen.getByTitle("Show parameter documentation")).toBeInTheDocument();
   });
 
   it("shows tooltip on click", async () => {
     render(<ParamHelp paramKey="extraction" doc={sampleFilterDoc} />);
-    await userEvent.click(
-      screen.getByTitle("Show parameter documentation"),
-    );
-    expect(
-      screen.getByText("Controls what content is extracted."),
-    ).toBeInTheDocument();
+    await userEvent.click(screen.getByTitle("Show parameter documentation"));
+    expect(screen.getByText("Controls what content is extracted.")).toBeInTheDocument();
   });
 
   it("hides tooltip on second click", async () => {
     render(<ParamHelp paramKey="extraction" doc={sampleFilterDoc} />);
     const btn = screen.getByTitle("Show parameter documentation");
     await userEvent.click(btn);
-    expect(
-      screen.getByText("Controls what content is extracted."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Controls what content is extracted.")).toBeInTheDocument();
     await userEvent.click(btn);
-    expect(
-      screen.queryByText("Controls what content is extracted."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Controls what content is extracted.")).not.toBeInTheDocument();
   });
 });

@@ -181,7 +181,11 @@ describe("duplicate label suppression", () => {
       .trim();
   }
 
-  function resolveDescription(title: string | undefined, description: string | undefined, name: string): string | undefined {
+  function resolveDescription(
+    title: string | undefined,
+    description: string | undefined,
+    name: string,
+  ): string | undefined {
     const label = title || formatLabel(name);
     if (description && label.toLowerCase() !== description.toLowerCase()) {
       return description;
@@ -195,7 +199,9 @@ describe("duplicate label suppression", () => {
   });
 
   it("keeps description when different from title", () => {
-    expect(resolveDescription("Prefix", "The prefix to prepend", "prefix")).toBe("The prefix to prepend");
+    expect(resolveDescription("Prefix", "The prefix to prepend", "prefix")).toBe(
+      "The prefix to prepend",
+    );
   });
 
   it("suppresses description when identical to generated label", () => {
@@ -204,7 +210,9 @@ describe("duplicate label suppression", () => {
   });
 
   it("keeps description when title is absent and description differs from generated label", () => {
-    expect(resolveDescription(undefined, "Enable line-based segmentation", "segmentByLine")).toBe("Enable line-based segmentation");
+    expect(resolveDescription(undefined, "Enable line-based segmentation", "segmentByLine")).toBe(
+      "Enable line-based segmentation",
+    );
   });
 });
 
@@ -299,7 +307,8 @@ describe("ui:enabled condition", () => {
     };
     const values = { useAdvanced: false };
     const cond = schema["ui:enabled"]!;
-    const enabled = "field" in cond && "eq" in cond && values[cond.field as keyof typeof values] === cond.eq;
+    const enabled =
+      "field" in cond && "eq" in cond && values[cond.field as keyof typeof values] === cond.eq;
     expect(enabled).toBe(false);
   });
 
@@ -310,7 +319,8 @@ describe("ui:enabled condition", () => {
     };
     const values = { useAdvanced: true };
     const cond = schema["ui:enabled"]!;
-    const enabled = "field" in cond && "eq" in cond && values[cond.field as keyof typeof values] === cond.eq;
+    const enabled =
+      "field" in cond && "eq" in cond && values[cond.field as keyof typeof values] === cond.eq;
     expect(enabled).toBe(true);
   });
 });

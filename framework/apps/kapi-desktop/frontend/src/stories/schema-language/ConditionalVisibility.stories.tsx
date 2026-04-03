@@ -9,20 +9,32 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { SchemaForm } from "@neokapi/ui-primitives";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 
-function SchemaStory({ schema, description, initialValues }: { schema: ComponentSchema; description?: string; initialValues?: Record<string, unknown> }) {
+function SchemaStory({
+  schema,
+  description,
+  initialValues,
+}: {
+  schema: ComponentSchema;
+  description?: string;
+  initialValues?: Record<string, unknown>;
+}) {
   const [values, setValues] = useState<Record<string, unknown>>(initialValues ?? {});
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900  }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
       <div>
         {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
         <SchemaForm schema={schema} values={values} onChange={setValues} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Current Values</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Current Values
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
           {JSON.stringify(values, null, 2)}
         </pre>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Schema</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+          Schema
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-60">
           {JSON.stringify(schema, null, 2)}
         </pre>
@@ -49,7 +61,12 @@ export const ShowIfBoolean: Story = {
       title: "Conditional Fields",
       type: "object",
       properties: {
-        useCodeFinder: { type: "boolean", title: "Use Code Finder", description: "Enable inline code detection", default: false },
+        useCodeFinder: {
+          type: "boolean",
+          title: "Use Code Finder",
+          description: "Enable inline code detection",
+          default: false,
+        },
         codeFinderRules: {
           type: "string",
           title: "Code Finder Rules",
@@ -66,7 +83,7 @@ export const ShowIfEnum: Story = {
   name: "ui:visible — Enum-Driven Visibility",
   args: {
     description:
-      'Fields can be shown conditionally based on an enum value. Select different output modes to see different options appear.',
+      "Fields can be shown conditionally based on an enum value. Select different output modes to see different options appear.",
     initialValues: { outputMode: "file" },
     schema: {
       title: "Mode-Dependent Fields",
@@ -110,7 +127,11 @@ export const ShowIfEmpty: Story = {
       title: "Empty-Based Visibility",
       type: "object",
       properties: {
-        overridePath: { type: "string", title: "Override Path", description: "Custom output path (leave empty for default)" },
+        overridePath: {
+          type: "string",
+          title: "Override Path",
+          description: "Custom output path (leave empty for default)",
+        },
         defaultPathInfo: {
           type: "string",
           title: "Default Path",

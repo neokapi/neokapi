@@ -68,7 +68,9 @@ export function AddMemberDialog({ open, onOpenChange, workspaceId }: AddMemberDi
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>Add Member</DialogTitle>
-          <DialogDescription>Search for a user by email and add them to this workspace.</DialogDescription>
+          <DialogDescription>
+            Search for a user by email and add them to this workspace.
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">

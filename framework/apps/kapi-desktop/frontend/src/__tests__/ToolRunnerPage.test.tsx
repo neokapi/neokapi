@@ -71,16 +71,12 @@ function renderPage(props?: { tools?: ToolInfo[]; docs?: PluginDocs | null }) {
 describe("ToolRunnerPage", () => {
   it("renders empty state when no tool selected", () => {
     renderPage({ tools: sampleTools });
-    expect(
-      screen.getByText("Select a tool to view details and run it"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Select a tool to view details and run it")).toBeInTheDocument();
   });
 
   it("shows tool count in empty state", () => {
     renderPage({ tools: sampleTools });
-    expect(
-      screen.getByText(/4 tools available/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/4 tools available/)).toBeInTheDocument();
   });
 
   it("renders all tools in sidebar", () => {
@@ -109,10 +105,7 @@ describe("ToolRunnerPage", () => {
 
   it("filters by search text", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.type(
-      screen.getByPlaceholderText("Search tools..."),
-      "pseudo",
-    );
+    await userEvent.type(screen.getByPlaceholderText("Search tools..."), "pseudo");
     expect(screen.getByText("pseudo-translate")).toBeInTheDocument();
     expect(screen.queryByText("ai-translate")).not.toBeInTheDocument();
   });
@@ -145,13 +138,8 @@ describe("ToolRunnerPage", () => {
 
   it("shows no tools message when search has no results", async () => {
     renderPage({ tools: sampleTools });
-    await userEvent.type(
-      screen.getByPlaceholderText("Search tools..."),
-      "zzzzz",
-    );
-    expect(
-      screen.getByText("No tools match your search."),
-    ).toBeInTheDocument();
+    await userEvent.type(screen.getByPlaceholderText("Search tools..."), "zzzzz");
+    expect(screen.getByText("No tools match your search.")).toBeInTheDocument();
   });
 
   it("shows tool description in header when docs available", async () => {
@@ -182,5 +170,4 @@ describe("ToolRunnerPage", () => {
     const badges = screen.queryAllByText("built-in");
     expect(badges).toHaveLength(0);
   });
-
 });

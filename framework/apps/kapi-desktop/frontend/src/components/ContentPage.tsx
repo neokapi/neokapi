@@ -51,7 +51,12 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPageProps) {
+export function ContentPage({
+  project,
+  projectPath: _projectPath,
+  onUpdate,
+  tabID,
+}: ContentPageProps) {
   const { showError } = useError();
   const shortenHome = useShortenHome();
   const [matches, setMatches] = useState<FileMatch[]>([]);
@@ -81,7 +86,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
   useEffect(() => {
     for (const fmt of usedFormats) {
       if (formatPresets[fmt]) continue;
-      api.listFormatPresets(fmt).then((presets) => {
+      void api.listFormatPresets(fmt).then((presets) => {
         if (presets) {
           setFormatPresets((prev) => ({ ...prev, [fmt]: presets }));
         }
@@ -129,12 +134,12 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
   }, [tabID, project, showError]);
 
   useEffect(() => {
-    rescanFiles();
+    void rescanFiles();
   }, [rescanFiles, content.length]);
 
   // Auto-refresh when files change on disk.
   useWailsEvent("project-files-changed", (data) => {
-    if (data === tabID) rescanFiles();
+    if (data === tabID) void rescanFiles();
   });
 
   const handleAddEntry = () => {
@@ -159,7 +164,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
 
   const handleAddFiles = async () => {
     const added = await api.addFilesDialog(tabID, "");
-    if (added && added.length > 0) rescanFiles();
+    if (added && added.length > 0) void rescanFiles();
   };
 
   const handleDrop = useCallback(
@@ -175,7 +180,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
           await api.copyFileToProject(tabID, path, "");
         }
       }
-      rescanFiles();
+      void rescanFiles();
     },
     [tabID, rescanFiles],
   );
@@ -248,9 +253,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                 </option>
               ))}
             </select>
-            {project.preset && (
-              <Badge variant="secondary">{project.preset}</Badge>
-            )}
+            {project.preset && <Badge variant="secondary">{project.preset}</Badge>}
           </div>
         </section>
       )}
@@ -329,9 +332,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
         </h2>
         <div className="flex max-w-lg flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
           {(project.plugins ?? []).map((plugin) => {
-            const [name, ver] = plugin.includes("@")
-              ? plugin.split("@", 2)
-              : [plugin, ""];
+            const [name, ver] = plugin.includes("@") ? plugin.split("@", 2) : [plugin, ""];
             return (
               <span
                 key={plugin}
@@ -409,9 +410,8 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {content.map((entry, i) => {
               const matchCount = matches.filter((m) => m.pattern === entry.path).length;
-              const presetOptions = entry.format ? formatPresets[entry.format] ?? [] : [];
-              const hasConfig =
-                entry.format_config && Object.keys(entry.format_config).length > 0;
+              const presetOptions = entry.format ? (formatPresets[entry.format] ?? []) : [];
+              const hasConfig = entry.format_config && Object.keys(entry.format_config).length > 0;
               const isExpanded = expandedConfig.has(i);
               return (
                 <div
@@ -491,9 +491,8 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                             });
                             // Load presets for the new format.
                             if (fmt && !formatPresets[fmt]) {
-                              api.listFormatPresets(fmt).then((p) => {
-                                if (p)
-                                  setFormatPresets((prev) => ({ ...prev, [fmt]: p }));
+                              void api.listFormatPresets(fmt).then((p) => {
+                                if (p) setFormatPresets((prev) => ({ ...prev, [fmt]: p }));
                               });
                             }
                           }}
@@ -581,11 +580,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                         {isExpanded && (
                           <div className="mt-1.5">
                             <textarea
-                              value={
-                                hasConfig
-                                  ? JSON.stringify(entry.format_config, null, 2)
-                                  : ""
-                              }
+                              value={hasConfig ? JSON.stringify(entry.format_config, null, 2) : ""}
                               onChange={(e) => {
                                 const val = e.target.value.trim();
                                 if (!val) {
@@ -637,7 +632,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
             Files
             <span className="text-xs font-normal">
-              ({matches.length} matched{!hideUnmatched && unmatchedFiles.length > 0 && `, ${unmatchedFiles.length} other`}{totalFiles > 0 && ` of ${totalFiles} total`})
+              ({matches.length} matched
+              {!hideUnmatched && unmatchedFiles.length > 0 && `, ${unmatchedFiles.length} other`}
+              {totalFiles > 0 && ` of ${totalFiles} total`})
             </span>
           </h2>
           <div className="flex items-center gap-2">
@@ -652,12 +649,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
               {hideUnmatched ? <Eye size={12} /> : <EyeOff size={12} />}
               {hideUnmatched ? "Show all" : "Matched only"}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddFiles}
-              aria-label="Add files"
-            >
+            <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
               <Plus size={12} />
               Add Files
             </Button>
@@ -668,11 +660,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
               disabled={scanning}
               aria-label="Rescan files"
             >
-              {scanning ? (
-                <Loader2 size={12} className="animate-spin" />
-              ) : (
-                <RefreshCw size={12} />
-              )}
+              {scanning ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
             </Button>
           </div>
         </div>
@@ -729,9 +717,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                                 </span>
                               </td>
                               <td className="px-3 py-1.5">
-                                <Badge variant="secondary">
-                                  {m.format || "unknown"}
-                                </Badge>
+                                <Badge variant="secondary">{m.format || "unknown"}</Badge>
                               </td>
                               <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
                             </tr>

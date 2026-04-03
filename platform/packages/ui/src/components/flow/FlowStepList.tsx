@@ -3,8 +3,7 @@ import { ChevronDownIcon, ChevronRightIcon, GripVerticalIcon } from "lucide-reac
 
 import { cn } from "@neokapi/ui-primitives";
 import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { SchemaForm, type ComponentSchema, type PropertySchema } from "@neokapi/ui-primitives";
+import { SchemaForm, type ComponentSchema } from "@neokapi/ui-primitives";
 import type { ResourceOption } from "../ResourcePicker";
 
 export interface FlowStepInfo {

@@ -1,15 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Database, Plus, FolderOpen, X, Upload, Download } from "lucide-react";
 import {
   Button,
   TMBrowser,
   ResourceCard,
   type TMAdapter,
-  type TMSearchResult,
   type TMEntryDTO,
-  type TMMatchDTO,
-  type AnnotateResult,
 } from "@neokapi/ui-primitives";
 
 const SAMPLE_ENTRIES: TMEntryDTO[] = [
@@ -120,7 +117,7 @@ function createMockAdapter(entries: TMEntryDTO[]): TMAdapter {
         entities_added: req.entry_ids.length * req.patterns.length,
       };
     },
-    async lookup(req) {
+    async lookup(_req) {
       return SAMPLE_ENTRIES.slice(0, 2).map((e, i) => ({
         entry: e,
         score: i === 0 ? 1.0 : 0.85,

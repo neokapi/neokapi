@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { GitBranch, Layers } from "lucide-react";
 import {
-  cn,
   Button,
   Card,
   CardHeader,
@@ -39,9 +38,7 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
   return (
     <div className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 py-10">
       <div className="text-center">
-        <h2 className="m-0 text-lg font-bold text-foreground">
-          Start from a template
-        </h2>
+        <h2 className="m-0 text-lg font-bold text-foreground">Start from a template</h2>
         <p className="mt-2 mb-0 text-sm text-muted-foreground">
           Choose a common flow pattern or start with an empty canvas.
         </p>
@@ -96,11 +93,7 @@ export function FlowTemplateLibrary({ onSelect, onDismiss }: FlowTemplateLibrary
 
       {/* Empty canvas option */}
       {onDismiss && (
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onDismiss}
-        >
+        <Button variant="outline" size="sm" onClick={onDismiss}>
           Start with empty canvas
         </Button>
       )}

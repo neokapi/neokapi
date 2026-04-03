@@ -7,11 +7,11 @@ import { IconSidebar } from "./components/IconSidebar";
 import { ModeToggle } from "./components/ModeToggle";
 import { TabBar } from "./components/TabBar";
 import { AppHome } from "./components/AppHome";
-import { ProjectsPage } from "./components/ProjectsPage";
+
 import { TermbasesPage } from "./components/TermbasesPage";
 import { MemoriesPage } from "./components/MemoriesPage";
 import { FormatsPage } from "./components/FormatsPage";
-import { FlowPage } from "./components/FlowPage";
+
 import { FlowsPage } from "./components/FlowsPage";
 import { ToolRunnerPage } from "./components/ToolRunnerPage";
 import { SettingsPage } from "./components/SettingsPage";
@@ -41,7 +41,7 @@ function AppInner() {
   const [view, setView] = useState<string>("home");
   const [tabs, setTabs] = useState<TabState[]>([]);
   const [activeTabID, setActiveTabID] = useState<string | null>(null);
-  const [selectedFlow, setSelectedFlow] = useState<string | null>(null);
+  const [, setSelectedFlow] = useState<string | null>(null);
   const [recentFiles, setRecentFiles] = useState<
     Array<{ path: string; name: string; opened_at: string }>
   >([]);
@@ -52,7 +52,7 @@ function AppInner() {
   const activeTab = tabs.find((t) => t.info.id === activeTabID) ?? null;
 
   const refreshRecent = useCallback(() => {
-    api.listRecentFiles().then((f) => {
+    void api.listRecentFiles().then((f) => {
       if (f) setRecentFiles(f);
     });
   }, []);
@@ -64,18 +64,21 @@ function AppInner() {
 
   // Apply persisted theme and load settings on startup.
   useEffect(() => {
-    api.getSettings().then((s) => {
-      if (s) {
-        setSamplesDismissed(!!s.samples_dismissed);
-        const mode = s.theme || "system";
-        if (mode === "system") {
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          document.documentElement.classList.toggle("dark", prefersDark);
-        } else {
-          document.documentElement.classList.toggle("dark", mode === "dark");
+    api
+      .getSettings()
+      .then((s) => {
+        if (s) {
+          setSamplesDismissed(!!s.samples_dismissed);
+          const mode = s.theme || "system";
+          if (mode === "system") {
+            const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+            document.documentElement.classList.toggle("dark", prefersDark);
+          } else {
+            document.documentElement.classList.toggle("dark", mode === "dark");
+          }
         }
-      }
-    }).catch(() => {});
+      })
+      .catch(() => {});
   }, []);
 
   // Per Wails v3 docs: common:ApplicationStarted fires after all
@@ -92,9 +95,11 @@ function AppInner() {
       if (!href || href.startsWith("#") || href.startsWith("/")) return;
       // External URL — open in system browser.
       e.preventDefault();
-      import("@wailsio/runtime").then((m) => m.Browser.OpenURL(href)).catch(() => {
-        window.open(href, "_blank");
-      });
+      import("@wailsio/runtime")
+        .then((m) => m.Browser.OpenURL(href))
+        .catch(() => {
+          window.open(href, "_blank");
+        });
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
@@ -140,7 +145,7 @@ function AppInner() {
         const tab = await api.newProject(name, "en-US", [], savePath);
         if (tab) {
           const proj = await api.getProject(tab.id);
-          addTab(tab, proj ?? { version: "v1", name: tab.name });
+          await addTab(tab, proj ?? { version: "v1", name: tab.name });
         }
         setShowNewProjectForm(false);
       } catch (err) {
@@ -155,7 +160,7 @@ function AppInner() {
       const tab = await api.openProjectDialog();
       if (tab) {
         const proj = await api.getProject(tab.id);
-        if (proj) addTab(tab, proj);
+        if (proj) await addTab(tab, proj);
       }
     } catch (err) {
       showError("Failed to open project", err);
@@ -168,7 +173,7 @@ function AppInner() {
         const tab = await api.createSampleProject(name);
         if (tab) {
           const proj = await api.getProject(tab.id);
-          if (proj) addTab(tab, proj);
+          if (proj) await addTab(tab, proj);
         }
       } catch (err) {
         showError("Failed to create sample project", err);
@@ -188,7 +193,7 @@ function AppInner() {
         const tab = await api.openProject(path);
         if (tab) {
           const proj = await api.getProject(tab.id);
-          if (proj) addTab(tab, proj);
+          if (proj) await addTab(tab, proj);
         }
       } catch (err) {
         showError("Failed to open recent project", err);
@@ -198,7 +203,7 @@ function AppInner() {
   );
 
   const handleCloseTab = useCallback((tabID: string) => {
-    api.closeProject(tabID);
+    void api.closeProject(tabID);
     setTabs((prev) => {
       const remaining = prev.filter((t) => t.info.id !== tabID);
       setActiveTabID((cur) => {
@@ -241,7 +246,7 @@ function AppInner() {
   useWailsEvent("menu:open-project", () => handleOpenProject());
   useWailsEvent("menu:open-recent", (data) => {
     const p = data as string;
-    if (p) handleOpenRecent(p);
+    if (p) void handleOpenRecent(p);
   });
   useWailsEvent("menu:save-project", async () => {
     const tabID = activeTabIDRef.current;
@@ -271,7 +276,7 @@ function AppInner() {
     const tab = data as TabInfo;
     if (tab?.id) {
       const proj = await api.getProject(tab.id);
-      if (proj) addTab(tab, proj);
+      if (proj) await addTab(tab, proj);
     }
   });
 
@@ -349,9 +354,7 @@ function AppInner() {
           )}
 
           {/* Ad-hoc views */}
-          {mode === "adhoc" && view === "flows" && (
-            <FlowsPage />
-          )}
+          {mode === "adhoc" && view === "flows" && <FlowsPage />}
           {mode === "adhoc" && view === "tools" && <ToolRunnerPage />}
           {mode === "adhoc" && view === "termbases" && <TermbasesPage />}
           {mode === "adhoc" && view === "memories" && <MemoriesPage />}
@@ -363,9 +366,7 @@ function AppInner() {
               tabID={activeTab.info.id}
               onDone={() => {
                 setTabs((prev) =>
-                  prev.map((t) =>
-                    t.info.id === activeTab.info.id ? { ...t, isEmpty: false } : t,
-                  ),
+                  prev.map((t) => (t.info.id === activeTab.info.id ? { ...t, isEmpty: false } : t)),
                 );
               }}
             />
@@ -431,6 +432,7 @@ function NewProjectDialog({
 }) {
   const [name, setName] = useState("");
   const [customPath, setCustomPath] = useState("");
+  // eslint-disable-next-line no-control-regex -- intentional check for control characters in filenames
   const INVALID = /[<>:"/\\|?*\x00-\x1f]/;
   const trimmed = name.trim();
   const nameValid =
@@ -528,17 +530,10 @@ function NewProjectDialog({
             )}
           </div>
           <div className="flex gap-2">
-            <Button
-              onClick={handleCreate}
-              disabled={!canCreate}
-              className="flex-1"
-            >
+            <Button onClick={handleCreate} disabled={!canCreate} className="flex-1">
               Create Project
             </Button>
-            <Button
-              variant="outline"
-              onClick={onCancel}
-            >
+            <Button variant="outline" onClick={onCancel}>
               Cancel
             </Button>
           </div>

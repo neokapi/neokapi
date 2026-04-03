@@ -12,7 +12,13 @@ const tools = toolsData as unknown as ToolInfo[];
 const okapiTools: ToolInfo[] = Object.entries(docs.steps).map(([name, doc]) => ({
   name,
   description: (doc as { overview: string }).overview.slice(0, 80) + "...",
-  category: name.includes("translation") ? "translate" : name.includes("count") || name.includes("character") ? "validate" : name.includes("search") ? "transform" : "pipeline",
+  category: name.includes("translation")
+    ? "translate"
+    : name.includes("count") || name.includes("character")
+      ? "validate"
+      : name.includes("search")
+        ? "transform"
+        : "pipeline",
   has_schema: true,
   inputs: ["block"],
   tags: ["okapi"],

@@ -7,7 +7,6 @@ import {
   BookOpen,
   ExternalLink,
   Wrench,
-  Zap,
   Shield,
   ArrowRightLeft,
   Repeat,
@@ -20,15 +19,22 @@ import {
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Badge, Button, SchemaForm, Card, CardContent, Label, Input, ScrollArea, LoadingSpinner } from "@neokapi/ui-primitives";
+import {
+  Badge,
+  Button,
+  SchemaForm,
+  Card,
+  CardContent,
+  Label,
+  Input,
+  ScrollArea,
+  LoadingSpinner,
+} from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
 // Category metadata for visual treatment
-const categoryMeta: Record<
-  string,
-  { icon: typeof Wrench; color: string; label: string }
-> = {
+const categoryMeta: Record<string, { icon: typeof Wrench; color: string; label: string }> = {
   translate: {
     icon: ArrowRightLeft,
     color: "text-blue-500 bg-blue-500/10",
@@ -86,10 +92,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
 
   useEffect(() => {
     if (propTools) return;
-    Promise.all([
-      api.listTools(),
-      propDocs ? Promise.resolve(null) : api.getPluginDocsSummary(),
-    ])
+    Promise.all([api.listTools(), propDocs ? Promise.resolve(null) : api.getPluginDocsSummary()])
       .then(([t, summary]) => {
         if (t) setTools(t);
         if (summary) setDocsSummary(summary);
@@ -136,7 +139,10 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
         {/* Search */}
         <div className="p-3 border-b border-border">
           <div className="relative">
-            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Search
+              size={13}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
             <input
               type="text"
               value={search}
@@ -174,85 +180,93 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
         {/* Tool list */}
         <ScrollArea className="flex-1">
           <div className="p-2">
-          {loading ? (
-            <LoadingSpinner size="sm" text="Loading tools..." className="px-2 py-4" />
-          ) : (
-            <div className="space-y-0.5">
-              {filteredTools.map((tool) => {
-                const cat = tool.category || "utility";
-                const meta = categoryMeta[cat] || categoryMeta.utility;
-                const Icon = meta.icon;
-                const hasStepDoc = resolveStepDoc(tool.name, docs) || docsSummary?.stepIDs?.includes(tool.name);
-                const isSelected = selectedTool === tool.name;
+            {loading ? (
+              <LoadingSpinner size="sm" text="Loading tools..." className="px-2 py-4" />
+            ) : (
+              <div className="space-y-0.5">
+                {filteredTools.map((tool) => {
+                  const cat = tool.category || "utility";
+                  const meta = categoryMeta[cat] || categoryMeta.utility;
+                  const Icon = meta.icon;
+                  const hasStepDoc =
+                    resolveStepDoc(tool.name, docs) || docsSummary?.stepIDs?.includes(tool.name);
+                  const isSelected = selectedTool === tool.name;
 
-                return (
-                  <div
-                    key={tool.name}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedTool(tool.name)}
-                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedTool(tool.name); }}
-                    className={`cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors ${
-                      isSelected
-                        ? "bg-accent border border-primary/20 shadow-sm"
-                        : "hover:bg-accent/50 border border-transparent"
-                    }`}
-                  >
-                    <div className="flex items-start gap-2.5">
-                      <div className={`mt-0.5 shrink-0 p-1 rounded ${meta.color}`}>
-                        <Icon size={12} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`text-xs font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
-                            {tool.display_name || tool.name}
-                          </span>
-                          {tool.source && tool.source !== "built-in" && (
-                            <Badge variant="secondary" className="text-[8px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0">
-                              {tool.source}
-                            </Badge>
-                          )}
-                          {tool.has_schema && (
-                            <Settings2 size={9} className="text-muted-foreground shrink-0" />
-                          )}
-                          {hasStepDoc && (
-                            <BookOpen size={9} className="text-primary/50 shrink-0" />
+                  return (
+                    <div
+                      key={tool.name}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelectedTool(tool.name)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") setSelectedTool(tool.name);
+                      }}
+                      className={`cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors ${
+                        isSelected
+                          ? "bg-accent border border-primary/20 shadow-sm"
+                          : "hover:bg-accent/50 border border-transparent"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className={`mt-0.5 shrink-0 p-1 rounded ${meta.color}`}>
+                          <Icon size={12} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              className={`text-xs font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}
+                            >
+                              {tool.display_name || tool.name}
+                            </span>
+                            {tool.source && tool.source !== "built-in" && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[8px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0"
+                              >
+                                {tool.source}
+                              </Badge>
+                            )}
+                            {tool.has_schema && (
+                              <Settings2 size={9} className="text-muted-foreground shrink-0" />
+                            )}
+                            {hasStepDoc && (
+                              <BookOpen size={9} className="text-primary/50 shrink-0" />
+                            )}
+                          </div>
+                          <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
+                            {tool.description}
+                          </p>
+                          {tool.tags && tool.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {tool.tags.slice(0, 3).map((tag) => (
+                                <Badge
+                                  key={tag}
+                                  variant="secondary"
+                                  className="text-[8px] px-1 py-px"
+                                >
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
-                          {tool.description}
-                        </p>
-                        {tool.tags && tool.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {tool.tags.slice(0, 3).map((tag) => (
-                              <Badge
-                                key={tag}
-                                variant="secondary"
-                                className="text-[8px] px-1 py-px"
-                              >
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
+                        <ChevronRight
+                          size={12}
+                          className={`mt-1 shrink-0 transition-colors ${
+                            isSelected ? "text-primary" : "text-muted-foreground/30"
+                          }`}
+                        />
                       </div>
-                      <ChevronRight
-                        size={12}
-                        className={`mt-1 shrink-0 transition-colors ${
-                          isSelected ? "text-primary" : "text-muted-foreground/30"
-                        }`}
-                      />
                     </div>
-                  </div>
-                );
-              })}
-              {filteredTools.length === 0 && !loading && (
-                <p className="px-3 py-4 text-xs text-muted-foreground text-center">
-                  {search ? "No tools match your search." : "No tools available."}
-                </p>
-              )}
-            </div>
-          )}
+                  );
+                })}
+                {filteredTools.length === 0 && !loading && (
+                  <p className="px-3 py-4 text-xs text-muted-foreground text-center">
+                    {search ? "No tools match your search." : "No tools available."}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>
@@ -260,10 +274,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
       {/* Right panel: tool detail */}
       <ScrollArea className="flex-1">
         {selectedTool && selectedToolInfo ? (
-          <ToolDetail
-            tool={selectedToolInfo}
-            docs={docs}
-          />
+          <ToolDetail tool={selectedToolInfo} docs={docs} />
         ) : (
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <div className="text-center">
@@ -282,13 +293,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
 
 // --- Tool Detail Panel ---
 
-function ToolDetail({
-  tool,
-  docs,
-}: {
-  tool: ToolInfo;
-  docs: PluginDocs | null;
-}) {
+function ToolDetail({ tool, docs }: { tool: ToolInfo; docs: PluginDocs | null }) {
   const [schema, setSchema] = useState<ComponentSchema | null>(null);
   const [config, setConfig] = useState<Record<string, unknown>>({});
   const [loadingSchema, setLoadingSchema] = useState(false);
@@ -296,11 +301,11 @@ function ToolDetail({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { showError } = useError();
+  const { showError: _showError } = useError();
 
   // Step documentation — pre-loaded (Storybook) or fetched on demand
-  const [stepDoc, setStepDoc] = useState<StepDoc | undefined>(
-    () => resolveStepDoc(tool.name, docs),
+  const [stepDoc, setStepDoc] = useState<StepDoc | undefined>(() =>
+    resolveStepDoc(tool.name, docs),
   );
   const cat = tool.category || "utility";
   const meta = categoryMeta[cat] || categoryMeta.utility;
@@ -310,9 +315,12 @@ function ToolDetail({
   useEffect(() => {
     setStepDoc(resolveStepDoc(tool.name, docs));
     if (docs) return;
-    api.getStepDoc(tool.name).then((d) => {
-      if (d) setStepDoc(d);
-    }).catch(() => {});
+    api
+      .getStepDoc(tool.name)
+      .then((d) => {
+        if (d) setStepDoc(d);
+      })
+      .catch(() => {});
   }, [tool.name, docs]);
 
   // Load schema when tool changes — always try, schema may come from plugin schemas
@@ -321,8 +329,11 @@ function ToolDetail({
     setSchema(null);
     setError(null);
     setLoadingSchema(true);
-    api.getToolSchema(tool.name)
-      .then((s) => { if (s) setSchema(s as ComponentSchema); })
+    api
+      .getToolSchema(tool.name)
+      .then((s) => {
+        if (s) setSchema(s as ComponentSchema);
+      })
       .catch(() => {})
       .finally(() => setLoadingSchema(false));
   }, [tool.name]);
@@ -351,10 +362,10 @@ function ToolDetail({
           <Icon size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <h2 className="text-lg font-semibold text-foreground">{tool.display_name || tool.name}</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {tool.description}
-          </p>
+          <h2 className="text-lg font-semibold text-foreground">
+            {tool.display_name || tool.name}
+          </h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{tool.description}</p>
           <div className="flex items-center gap-2 mt-2">
             <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${meta.color}`}>
               {meta.label}
@@ -394,34 +405,34 @@ function ToolDetail({
 
       {/* Configuration form + run controls */}
       <div className="space-y-4">
-          {/* Step metadata (I/O types, pipeline params) */}
-          {!loadingSchema && schema && <ToolMetadataPanel schema={schema} />}
+        {/* Step metadata (I/O types, pipeline params) */}
+        {!loadingSchema && schema && <ToolMetadataPanel schema={schema} />}
 
-          {loadingSchema && (
-            <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
-              Loading configuration...
-            </div>
-          )}
-          {!loadingSchema && schema && (
-            <Card>
-              <CardContent className="p-4">
-                <SchemaForm
-                  schema={schema}
-                  values={config}
-                  onChange={setConfig}
-                  paramDocs={stepDoc?.parameters}
-                />
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Runner controls */}
+        {loadingSchema && (
+          <div className="py-4 text-center text-sm text-muted-foreground animate-pulse">
+            Loading configuration...
+          </div>
+        )}
+        {!loadingSchema && schema && (
           <Card>
-            <CardContent className="p-4 space-y-3">
-              <div>
-                <Label htmlFor="tool-files" className="mb-1 block">
-                  Input Files
-                </Label>
+            <CardContent className="p-4">
+              <SchemaForm
+                schema={schema}
+                values={config}
+                onChange={setConfig}
+                paramDocs={stepDoc?.parameters}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Runner controls */}
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div>
+              <Label htmlFor="tool-files" className="mb-1 block">
+                Input Files
+              </Label>
               <Button
                 id="tool-files"
                 variant="outline"
@@ -461,8 +472,8 @@ function ToolDetail({
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
             </Button>
-            </CardContent>
-          </Card>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -487,28 +498,33 @@ function ToolMetadataPanel({ schema }: { schema: ComponentSchema }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-[10px]">
-      {hasInputs && toolMeta.inputs!.map((input) => (
-        <span key={input} className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400">
-          <FileInput size={9} />
-          In: {ioTypeLabels[input] || input}
-        </span>
-      ))}
-      {hasOutputs && toolMeta.outputs!.map((output) => (
-        <span key={output} className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400">
-          <Play size={9} />
-          Out: {ioTypeLabels[output] || output}
-        </span>
-      ))}
+      {hasInputs &&
+        toolMeta.inputs!.map((input) => (
+          <span
+            key={input}
+            className="flex items-center gap-1 rounded bg-blue-500/10 px-2 py-0.5 text-blue-600 dark:text-blue-400"
+          >
+            <FileInput size={9} />
+            In: {ioTypeLabels[input] || input}
+          </span>
+        ))}
+      {hasOutputs &&
+        toolMeta.outputs!.map((output) => (
+          <span
+            key={output}
+            className="flex items-center gap-1 rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-400"
+          >
+            <Play size={9} />
+            Out: {ioTypeLabels[output] || output}
+          </span>
+        ))}
     </div>
   );
 }
 
 // --- Utility: resolve step doc by tool name ---
 
-function resolveStepDoc(
-  toolName: string,
-  docs: PluginDocs | null,
-): StepDoc | undefined {
+function resolveStepDoc(toolName: string, docs: PluginDocs | null): StepDoc | undefined {
   if (!docs?.steps) return undefined;
 
   // Direct match

@@ -9,7 +9,11 @@
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
-import { Call as $Call, CancellablePromise as $CancellablePromise, Create as $Create } from "@wailsio/runtime";
+import {
+  Call as $Call,
+  CancellablePromise as $CancellablePromise,
+  Create as $Create,
+} from "@wailsio/runtime";
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore: Unused imports
@@ -32,7 +36,7 @@ import * as $models from "./models.js";
  * @returns {$CancellablePromise<void>}
  */
 export function AddConcept(handle, req) {
-    return $Call.ByID(4111750941, handle, req);
+  return $Call.ByID(4111750941, handle, req);
 }
 
 /**
@@ -44,9 +48,13 @@ export function AddConcept(handle, req) {
  * @returns {$CancellablePromise<string[]>}
  */
 export function AddFilesDialog(tabID, destDir) {
-    return $Call.ByID(475059314, tabID, destDir).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(475059314, tabID, destDir).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType0($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -56,7 +64,7 @@ export function AddFilesDialog(tabID, destDir) {
  * @returns {$CancellablePromise<void>}
  */
 export function AddTMEntry(handle, req) {
-    return $Call.ByID(1344157892, handle, req);
+  return $Call.ByID(1344157892, handle, req);
 }
 
 /**
@@ -68,9 +76,13 @@ export function AddTMEntry(handle, req) {
  * @returns {$CancellablePromise<$models.AnnotateResult | null>}
  */
 export function AnnotateEntities(handle, req) {
-    return $Call.ByID(1959631339, handle, req).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1959631339, handle, req).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType2($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -81,9 +93,13 @@ export function AnnotateEntities(handle, req) {
  * @returns {$CancellablePromise<project$0.KapiProject | null>}
  */
 export function ApplyPreset(tabID, presetName) {
-    return $Call.ByID(2602088083, tabID, presetName).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2602088083, tabID, presetName).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType4($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -97,7 +113,7 @@ export function ApplyPreset(tabID, presetName) {
  * @returns {$CancellablePromise<void>}
  */
 export function ApplyTemplate(tabID, template) {
-    return $Call.ByID(1105718358, tabID, template);
+  return $Call.ByID(1105718358, tabID, template);
 }
 
 /**
@@ -106,7 +122,7 @@ export function ApplyTemplate(tabID, template) {
  * @returns {$CancellablePromise<string>}
  */
 export function BrowseProjectLocation() {
-    return $Call.ByID(2962056532);
+  return $Call.ByID(2962056532);
 }
 
 /**
@@ -114,7 +130,7 @@ export function BrowseProjectLocation() {
  * @returns {$CancellablePromise<void>}
  */
 export function CancelRun() {
-    return $Call.ByID(3371737795);
+  return $Call.ByID(3371737795);
 }
 
 /**
@@ -122,9 +138,13 @@ export function CancelRun() {
  * @returns {$CancellablePromise<$models.PluginUpdate[]>}
  */
 export function CheckPluginUpdates() {
-    return $Call.ByID(121494435).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(121494435).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType6($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -132,7 +152,7 @@ export function CheckPluginUpdates() {
  * @returns {$CancellablePromise<void>}
  */
 export function ClearRecentFiles() {
-    return $Call.ByID(4123162209);
+  return $Call.ByID(4123162209);
 }
 
 /**
@@ -142,7 +162,7 @@ export function ClearRecentFiles() {
  * @returns {$CancellablePromise<void>}
  */
 export function CloseProject(tabID) {
-    return $Call.ByID(1682869233, tabID);
+  return $Call.ByID(1682869233, tabID);
 }
 
 /**
@@ -151,7 +171,7 @@ export function CloseProject(tabID) {
  * @returns {$CancellablePromise<void>}
  */
 export function CloseTM(handle) {
-    return $Call.ByID(1888351567, handle);
+  return $Call.ByID(1888351567, handle);
 }
 
 /**
@@ -160,7 +180,7 @@ export function CloseTM(handle) {
  * @returns {$CancellablePromise<void>}
  */
 export function CloseTermbase(handle) {
-    return $Call.ByID(1231480235, handle);
+  return $Call.ByID(1231480235, handle);
 }
 
 /**
@@ -170,7 +190,7 @@ export function CloseTermbase(handle) {
  * @returns {$CancellablePromise<string>}
  */
 export function CopyBuiltInFlow(builtInID, newName) {
-    return $Call.ByID(1514532424, builtInID, newName);
+  return $Call.ByID(1514532424, builtInID, newName);
 }
 
 /**
@@ -183,7 +203,7 @@ export function CopyBuiltInFlow(builtInID, newName) {
  * @returns {$CancellablePromise<string>}
  */
 export function CopyFileToProject(tabID, srcPath, destDir) {
-    return $Call.ByID(1795437871, tabID, srcPath, destDir);
+  return $Call.ByID(1795437871, tabID, srcPath, destDir);
 }
 
 /**
@@ -192,7 +212,7 @@ export function CopyFileToProject(tabID, srcPath, destDir) {
  * @returns {$CancellablePromise<string>}
  */
 export function CreateNamedTM(name) {
-    return $Call.ByID(1240973870, name);
+  return $Call.ByID(1240973870, name);
 }
 
 /**
@@ -201,7 +221,7 @@ export function CreateNamedTM(name) {
  * @returns {$CancellablePromise<string>}
  */
 export function CreateNamedTermbase(name) {
-    return $Call.ByID(882997886, name);
+  return $Call.ByID(882997886, name);
 }
 
 /**
@@ -212,9 +232,13 @@ export function CreateNamedTermbase(name) {
  * @returns {$CancellablePromise<$models.TabInfo | null>}
  */
 export function CreateSampleProject(name) {
-    return $Call.ByID(2933587303, name).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2933587303, name).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType8($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -223,7 +247,7 @@ export function CreateSampleProject(name) {
  * @returns {$CancellablePromise<string>}
  */
 export function CreateTM(path) {
-    return $Call.ByID(2679126687, path);
+  return $Call.ByID(2679126687, path);
 }
 
 /**
@@ -232,7 +256,7 @@ export function CreateTM(path) {
  * @returns {$CancellablePromise<string>}
  */
 export function CreateTermbase(path) {
-    return $Call.ByID(2555416443, path);
+  return $Call.ByID(2555416443, path);
 }
 
 /**
@@ -242,7 +266,7 @@ export function CreateTermbase(path) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteConcept(handle, conceptID) {
-    return $Call.ByID(3720639685, handle, conceptID);
+  return $Call.ByID(3720639685, handle, conceptID);
 }
 
 /**
@@ -252,7 +276,7 @@ export function DeleteConcept(handle, conceptID) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteConcepts(handle, conceptIDs) {
-    return $Call.ByID(3527654018, handle, conceptIDs);
+  return $Call.ByID(3527654018, handle, conceptIDs);
 }
 
 /**
@@ -262,7 +286,7 @@ export function DeleteConcepts(handle, conceptIDs) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteFlow(tabID, name) {
-    return $Call.ByID(1449161487, tabID, name);
+  return $Call.ByID(1449161487, tabID, name);
 }
 
 /**
@@ -272,7 +296,7 @@ export function DeleteFlow(tabID, name) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteFormatPreset(formatName, presetName) {
-    return $Call.ByID(1936359843, formatName, presetName);
+  return $Call.ByID(1936359843, formatName, presetName);
 }
 
 /**
@@ -281,7 +305,7 @@ export function DeleteFormatPreset(formatName, presetName) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteProvider(id) {
-    return $Call.ByID(619613282, id);
+  return $Call.ByID(619613282, id);
 }
 
 /**
@@ -291,7 +315,7 @@ export function DeleteProvider(id) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteTMEntries(handle, entryIDs) {
-    return $Call.ByID(3149600520, handle, entryIDs);
+  return $Call.ByID(3149600520, handle, entryIDs);
 }
 
 /**
@@ -301,7 +325,7 @@ export function DeleteTMEntries(handle, entryIDs) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteTMEntry(handle, entryID) {
-    return $Call.ByID(2629253148, handle, entryID);
+  return $Call.ByID(2629253148, handle, entryID);
 }
 
 /**
@@ -310,7 +334,7 @@ export function DeleteTMEntry(handle, entryID) {
  * @returns {$CancellablePromise<void>}
  */
 export function DeleteUserFlow(id) {
-    return $Call.ByID(3795596216, id);
+  return $Call.ByID(3795596216, id);
 }
 
 /**
@@ -319,7 +343,7 @@ export function DeleteUserFlow(id) {
  * @returns {$CancellablePromise<string>}
  */
 export function DetectFormat(path) {
-    return $Call.ByID(455287008, path);
+  return $Call.ByID(455287008, path);
 }
 
 /**
@@ -327,7 +351,7 @@ export function DetectFormat(path) {
  * @returns {$CancellablePromise<void>}
  */
 export function DismissSamples() {
-    return $Call.ByID(2057214703);
+  return $Call.ByID(2057214703);
 }
 
 /**
@@ -338,7 +362,7 @@ export function DismissSamples() {
  * @returns {$CancellablePromise<void>}
  */
 export function ExportTMXDialog(handle, srcLocale, tgtLocale) {
-    return $Call.ByID(2327334975, handle, srcLocale, tgtLocale);
+  return $Call.ByID(2327334975, handle, srcLocale, tgtLocale);
 }
 
 /**
@@ -348,7 +372,7 @@ export function ExportTMXDialog(handle, srcLocale, tgtLocale) {
  * @returns {$CancellablePromise<void>}
  */
 export function ExportTermbaseJSONDialog(handle, name) {
-    return $Call.ByID(1122165683, handle, name);
+  return $Call.ByID(1122165683, handle, name);
 }
 
 /**
@@ -358,7 +382,7 @@ export function ExportTermbaseJSONDialog(handle, name) {
  * @returns {$CancellablePromise<string>}
  */
 export function GetBasePath(tabID) {
-    return $Call.ByID(1869359930, tabID);
+  return $Call.ByID(1869359930, tabID);
 }
 
 /**
@@ -368,9 +392,13 @@ export function GetBasePath(tabID) {
  * @returns {$CancellablePromise<$models.ConceptDTO | null>}
  */
 export function GetConcept(handle, conceptID) {
-    return $Call.ByID(2251690728, handle, conceptID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2251690728, handle, conceptID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType10($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -380,9 +408,13 @@ export function GetConcept(handle, conceptID) {
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetFilterDoc(filterID) {
-    return $Call.ByID(1281331816, filterID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1281331816, filterID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType11($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -392,9 +424,13 @@ export function GetFilterDoc(filterID) {
  * @returns {$CancellablePromise<flow$0.StepsSpec | null>}
  */
 export function GetFlow(tabID, name) {
-    return $Call.ByID(304290764, tabID, name).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(304290764, tabID, name).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType13($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -407,9 +443,13 @@ export function GetFlow(tabID, name) {
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetFormatSchema(formatName) {
-    return $Call.ByID(719959656, formatName).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(719959656, formatName).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType11($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -417,7 +457,7 @@ export function GetFormatSchema(formatName) {
  * @returns {$CancellablePromise<string>}
  */
 export function GetHomeDir() {
-    return $Call.ByID(1767231314);
+  return $Call.ByID(1767231314);
 }
 
 /**
@@ -425,9 +465,13 @@ export function GetHomeDir() {
  * @returns {$CancellablePromise<flow$0.FlowTrace | null>}
  */
 export function GetLastTrace() {
-    return $Call.ByID(173656901).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(173656901).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType15($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -437,9 +481,13 @@ export function GetLastTrace() {
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetPluginDocs() {
-    return $Call.ByID(1803183312).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1803183312).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType11($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -448,9 +496,13 @@ export function GetPluginDocs() {
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetPresetDetails(name) {
-    return $Call.ByID(712088315, name).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(712088315, name).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType11($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -459,9 +511,13 @@ export function GetPresetDetails(name) {
  * @returns {$CancellablePromise<project$0.KapiProject | null>}
  */
 export function GetProject(tabID) {
-    return $Call.ByID(550618713, tabID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(550618713, tabID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType4($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -470,7 +526,7 @@ export function GetProject(tabID) {
  * @returns {$CancellablePromise<string>}
  */
 export function GetProjectPath(tabID) {
-    return $Call.ByID(604422626, tabID);
+  return $Call.ByID(604422626, tabID);
 }
 
 /**
@@ -478,7 +534,7 @@ export function GetProjectPath(tabID) {
  * @returns {$CancellablePromise<string>}
  */
 export function GetRunState() {
-    return $Call.ByID(3099976578);
+  return $Call.ByID(3099976578);
 }
 
 /**
@@ -486,9 +542,13 @@ export function GetRunState() {
  * @returns {$CancellablePromise<$models.AppSettings>}
  */
 export function GetSettings() {
-    return $Call.ByID(2735126073).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2735126073).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType16($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -498,9 +558,13 @@ export function GetSettings() {
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetStepDoc(stepID) {
-    return $Call.ByID(1229098168, stepID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1229098168, stepID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType11($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -510,9 +574,13 @@ export function GetStepDoc(stepID) {
  * @returns {$CancellablePromise<$models.TMEntryDTO | null>}
  */
 export function GetTMEntry(handle, entryID) {
-    return $Call.ByID(1732683985, handle, entryID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1732683985, handle, entryID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType18($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -521,9 +589,13 @@ export function GetTMEntry(handle, entryID) {
  * @returns {$CancellablePromise<$models.TMStats | null>}
  */
 export function GetTMStats(handle) {
-    return $Call.ByID(2800491194, handle).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2800491194, handle).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType20($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -532,9 +604,13 @@ export function GetTMStats(handle) {
  * @returns {$CancellablePromise<$models.TermbaseStats | null>}
  */
 export function GetTermbaseStats(handle) {
-    return $Call.ByID(3396033326, handle).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3396033326, handle).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType22($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -542,7 +618,7 @@ export function GetTermbaseStats(handle) {
  * @returns {$CancellablePromise<string>}
  */
 export function GetTheme() {
-    return $Call.ByID(2808377921);
+  return $Call.ByID(2808377921);
 }
 
 /**
@@ -554,9 +630,13 @@ export function GetTheme() {
  * @returns {$CancellablePromise<{ [_ in string]?: any }>}
  */
 export function GetToolSchema(name) {
-    return $Call.ByID(1681112681, name).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1681112681, name).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType11($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -565,9 +645,13 @@ export function GetToolSchema(name) {
  * @returns {$CancellablePromise<$models.UserFlowDetail | null>}
  */
 export function GetUserFlow(id) {
-    return $Call.ByID(3160388915, id).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3160388915, id).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType24($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -575,7 +659,7 @@ export function GetUserFlow(id) {
  * @returns {$CancellablePromise<string>}
  */
 export function GetVersion() {
-    return $Call.ByID(2402937320);
+  return $Call.ByID(2402937320);
 }
 
 /**
@@ -586,9 +670,13 @@ export function GetVersion() {
  * @returns {$CancellablePromise<$models.ImportResult | null>}
  */
 export function ImportTMXDialog(handle, srcLocale, tgtLocale) {
-    return $Call.ByID(1560060134, handle, srcLocale, tgtLocale).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1560060134, handle, srcLocale, tgtLocale).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType26($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -600,9 +688,13 @@ export function ImportTMXDialog(handle, srcLocale, tgtLocale) {
  * @returns {$CancellablePromise<$models.ImportResult | null>}
  */
 export function ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain) {
-    return $Call.ByID(830332458, handle, srcLocale, tgtLocale, domain).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(830332458, handle, srcLocale, tgtLocale, domain).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType26($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -611,9 +703,13 @@ export function ImportTermbaseCSVDialog(handle, srcLocale, tgtLocale, domain) {
  * @returns {$CancellablePromise<$models.ImportResult | null>}
  */
 export function ImportTermbaseJSONDialog(handle) {
-    return $Call.ByID(1740483588, handle).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1740483588, handle).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType26($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -623,7 +719,7 @@ export function ImportTermbaseJSONDialog(handle) {
  * @returns {$CancellablePromise<void>}
  */
 export function InstallPlugin(name) {
-    return $Call.ByID(409809776, name);
+  return $Call.ByID(409809776, name);
 }
 
 /**
@@ -633,7 +729,7 @@ export function InstallPlugin(name) {
  * @returns {$CancellablePromise<boolean>}
  */
 export function IsEmptyProject(tabID) {
-    return $Call.ByID(1345036474, tabID);
+  return $Call.ByID(1345036474, tabID);
 }
 
 /**
@@ -642,9 +738,13 @@ export function IsEmptyProject(tabID) {
  * @returns {$CancellablePromise<$models.FormatPresetInfo[]>}
  */
 export function ListAllFormatPresets(formatName) {
-    return $Call.ByID(4147461344, formatName).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(4147461344, formatName).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType28($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -652,9 +752,13 @@ export function ListAllFormatPresets(formatName) {
  * @returns {$CancellablePromise<$models.AvailablePlugin[]>}
  */
 export function ListAvailablePlugins() {
-    return $Call.ByID(3801942969).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3801942969).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType30($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -663,9 +767,13 @@ export function ListAvailablePlugins() {
  * @returns {$CancellablePromise<$models.FlowInfo[]>}
  */
 export function ListFlows(tabID) {
-    return $Call.ByID(254064977, tabID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(254064977, tabID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType32($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -674,9 +782,13 @@ export function ListFlows(tabID) {
  * @returns {$CancellablePromise<$models.FormatPresetInfo[]>}
  */
 export function ListFormatPresets(format) {
-    return $Call.ByID(3563914789, format).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3563914789, format).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType28($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -684,9 +796,13 @@ export function ListFormatPresets(format) {
  * @returns {$CancellablePromise<$models.FormatInfo[]>}
  */
 export function ListFormats() {
-    return $Call.ByID(3840728832).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3840728832).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType34($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -694,9 +810,13 @@ export function ListFormats() {
  * @returns {$CancellablePromise<$models.ResourceInfo[]>}
  */
 export function ListNamedTMs() {
-    return $Call.ByID(138470699).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(138470699).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType36($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -704,9 +824,13 @@ export function ListNamedTMs() {
  * @returns {$CancellablePromise<$models.ResourceInfo[]>}
  */
 export function ListNamedTermbases() {
-    return $Call.ByID(1569783227).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1569783227).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType36($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -714,9 +838,13 @@ export function ListNamedTermbases() {
  * @returns {$CancellablePromise<$models.PluginInfo[]>}
  */
 export function ListPlugins() {
-    return $Call.ByID(2093840368).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2093840368).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType38($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -724,9 +852,13 @@ export function ListPlugins() {
  * @returns {$CancellablePromise<$models.PresetInfo[]>}
  */
 export function ListPresets() {
-    return $Call.ByID(1022998084).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1022998084).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType40($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -736,9 +868,13 @@ export function ListPresets() {
  * @returns {$CancellablePromise<$models.ProjectFileInfo[]>}
  */
 export function ListProjectFiles(tabID) {
-    return $Call.ByID(258177568, tabID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(258177568, tabID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType42($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -746,9 +882,13 @@ export function ListProjectFiles(tabID) {
  * @returns {$CancellablePromise<$models.ProviderInfo[]>}
  */
 export function ListProviders() {
-    return $Call.ByID(431317626).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(431317626).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType44($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -756,9 +896,13 @@ export function ListProviders() {
  * @returns {$CancellablePromise<$models.RecentFile[]>}
  */
 export function ListRecentFiles() {
-    return $Call.ByID(525069106).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(525069106).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType46($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -766,9 +910,13 @@ export function ListRecentFiles() {
  * @returns {$CancellablePromise<$models.TabInfo[]>}
  */
 export function ListTabs() {
-    return $Call.ByID(2754032564).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2754032564).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType47($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -776,9 +924,13 @@ export function ListTabs() {
  * @returns {$CancellablePromise<$models.ToolInfo[]>}
  */
 export function ListTools() {
-    return $Call.ByID(4153492859).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(4153492859).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType49($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -786,9 +938,13 @@ export function ListTools() {
  * @returns {$CancellablePromise<$models.UserFlowInfo[]>}
  */
 export function ListUserFlows() {
-    return $Call.ByID(2506791156).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2506791156).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType51($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -796,7 +952,7 @@ export function ListUserFlows() {
  * @returns {$CancellablePromise<void>}
  */
 export function LoadPlugins() {
-    return $Call.ByID(448272764);
+  return $Call.ByID(448272764);
 }
 
 /**
@@ -806,9 +962,13 @@ export function LoadPlugins() {
  * @returns {$CancellablePromise<$models.TMMatchDTO[]>}
  */
 export function LookupTM(handle, req) {
-    return $Call.ByID(858147209, handle, req).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(858147209, handle, req).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType53($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -820,9 +980,13 @@ export function LookupTM(handle, req) {
  * @returns {$CancellablePromise<$models.FileMatch[]>}
  */
 export function MatchContent(tabID) {
-    return $Call.ByID(433231038, tabID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(433231038, tabID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType55($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -837,9 +1001,13 @@ export function MatchContent(tabID) {
  * @returns {$CancellablePromise<$models.TabInfo | null>}
  */
 export function NewProject(name, sourceLang, targetLangs, savePath) {
-    return $Call.ByID(2342405367, name, sourceLang, targetLangs, savePath).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2342405367, name, sourceLang, targetLangs, savePath).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType8($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -847,9 +1015,13 @@ export function NewProject(name, sourceLang, targetLangs, savePath) {
  * @returns {$CancellablePromise<$models.UserFlowDetail | null>}
  */
 export function OpenFlowFileDialog() {
-    return $Call.ByID(585459070).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(585459070).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType24($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -859,9 +1031,13 @@ export function OpenFlowFileDialog() {
  * @returns {$CancellablePromise<$models.TabInfo | null>}
  */
 export function OpenProject(path) {
-    return $Call.ByID(2875711285, path).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2875711285, path).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType8($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -870,9 +1046,13 @@ export function OpenProject(path) {
  * @returns {$CancellablePromise<$models.TabInfo | null>}
  */
 export function OpenProjectDialog() {
-    return $Call.ByID(3150431689).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3150431689).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType8($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -881,7 +1061,7 @@ export function OpenProjectDialog() {
  * @returns {$CancellablePromise<string>}
  */
 export function OpenTM(path) {
-    return $Call.ByID(1590161971, path);
+  return $Call.ByID(1590161971, path);
 }
 
 /**
@@ -889,7 +1069,7 @@ export function OpenTM(path) {
  * @returns {$CancellablePromise<string>}
  */
 export function OpenTMDialog() {
-    return $Call.ByID(4002017663);
+  return $Call.ByID(4002017663);
 }
 
 /**
@@ -898,7 +1078,7 @@ export function OpenTMDialog() {
  * @returns {$CancellablePromise<string>}
  */
 export function OpenTermbase(path) {
-    return $Call.ByID(1725863647, path);
+  return $Call.ByID(1725863647, path);
 }
 
 /**
@@ -906,7 +1086,7 @@ export function OpenTermbase(path) {
  * @returns {$CancellablePromise<string>}
  */
 export function OpenTermbaseDialog() {
-    return $Call.ByID(2649642507);
+  return $Call.ByID(2649642507);
 }
 
 /**
@@ -920,9 +1100,13 @@ export function OpenTermbaseDialog() {
  * @returns {$CancellablePromise<$models.PreviewResult | null>}
  */
 export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang) {
-    return $Call.ByID(918288804, tabID, flowName, sampleText, sourceLang, targetLang).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(918288804, tabID, flowName, sampleText, sourceLang, targetLang).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType57($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -932,7 +1116,7 @@ export function PreviewFlow(tabID, flowName, sampleText, sourceLang, targetLang)
  * @returns {$CancellablePromise<string>}
  */
 export function RecoverResource(path) {
-    return $Call.ByID(2829441104, path);
+  return $Call.ByID(2829441104, path);
 }
 
 /**
@@ -941,7 +1125,7 @@ export function RecoverResource(path) {
  * @returns {$CancellablePromise<void>}
  */
 export function RemovePlugin(name) {
-    return $Call.ByID(2184650371, name);
+  return $Call.ByID(2184650371, name);
 }
 
 /**
@@ -952,7 +1136,7 @@ export function RemovePlugin(name) {
  * @returns {$CancellablePromise<string>}
  */
 export function RenderFormatConfig(formatName, config, outputFormat) {
-    return $Call.ByID(2381041337, formatName, config, outputFormat);
+  return $Call.ByID(2381041337, formatName, config, outputFormat);
 }
 
 /**
@@ -965,7 +1149,7 @@ export function RenderFormatConfig(formatName, config, outputFormat) {
  * @returns {$CancellablePromise<void>}
  */
 export function RunFlow(tabID, flowName, inputPaths, targetLang) {
-    return $Call.ByID(178743469, tabID, flowName, inputPaths, targetLang);
+  return $Call.ByID(178743469, tabID, flowName, inputPaths, targetLang);
 }
 
 /**
@@ -976,9 +1160,13 @@ export function RunFlow(tabID, flowName, inputPaths, targetLang) {
  * @returns {$CancellablePromise<$models.FormatPartInfo[]>}
  */
 export function RunFormatReader(formatName, filePath, config) {
-    return $Call.ByID(2298675461, formatName, filePath, config).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2298675461, formatName, filePath, config).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType59($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -988,9 +1176,13 @@ export function RunFormatReader(formatName, filePath, config) {
  * @returns {$CancellablePromise<$models.FormatPartInfo[]>}
  */
 export function RunFormatReaderDialog(formatName, config) {
-    return $Call.ByID(3765990169, formatName, config).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(3765990169, formatName, config).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType59($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -1001,7 +1193,7 @@ export function RunFormatReaderDialog(formatName, config) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveFlow(tabID, name, spec) {
-    return $Call.ByID(117336501, tabID, name, spec);
+  return $Call.ByID(117336501, tabID, name, spec);
 }
 
 /**
@@ -1011,7 +1203,7 @@ export function SaveFlow(tabID, name, spec) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveFlowFileDialog(name, steps) {
-    return $Call.ByID(2482853599, name, steps);
+  return $Call.ByID(2482853599, name, steps);
 }
 
 /**
@@ -1022,7 +1214,7 @@ export function SaveFlowFileDialog(name, steps) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveFormatPreset(formatName, presetName, config) {
-    return $Call.ByID(382418249, formatName, presetName, config);
+  return $Call.ByID(382418249, formatName, presetName, config);
 }
 
 /**
@@ -1031,7 +1223,7 @@ export function SaveFormatPreset(formatName, presetName, config) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveProject(tabID) {
-    return $Call.ByID(2922706782, tabID);
+  return $Call.ByID(2922706782, tabID);
 }
 
 /**
@@ -1041,7 +1233,7 @@ export function SaveProject(tabID) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveProjectAs(tabID, path) {
-    return $Call.ByID(716966426, tabID, path);
+  return $Call.ByID(716966426, tabID, path);
 }
 
 /**
@@ -1052,9 +1244,13 @@ export function SaveProjectAs(tabID, path) {
  * @returns {$CancellablePromise<$models.TabInfo | null>}
  */
 export function SaveProjectDialog(tabID) {
-    return $Call.ByID(2439877550, tabID).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2439877550, tabID).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType8($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -1063,9 +1259,13 @@ export function SaveProjectDialog(tabID) {
  * @returns {$CancellablePromise<$models.ProviderInfo | null>}
  */
 export function SaveProvider(req) {
-    return $Call.ByID(990642140, req).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(990642140, req).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType60($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -1074,7 +1274,7 @@ export function SaveProvider(req) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveSettings(s) {
-    return $Call.ByID(1349058088, s);
+  return $Call.ByID(1349058088, s);
 }
 
 /**
@@ -1083,7 +1283,7 @@ export function SaveSettings(s) {
  * @returns {$CancellablePromise<void>}
  */
 export function SaveUserFlow(req) {
-    return $Call.ByID(2691788622, req);
+  return $Call.ByID(2691788622, req);
 }
 
 /**
@@ -1092,9 +1292,13 @@ export function SaveUserFlow(req) {
  * @returns {$CancellablePromise<$models.AvailablePlugin[]>}
  */
 export function SearchPlugins(query) {
-    return $Call.ByID(1519277548, query).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(1519277548, query).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType30($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -1108,9 +1312,13 @@ export function SearchPlugins(query) {
  * @returns {$CancellablePromise<$models.TMSearchResult | null>}
  */
 export function SearchTMEntries(handle, query, srcLocale, tgtLocale, offset, limit) {
-    return $Call.ByID(2364570829, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(2364570829, handle, query, srcLocale, tgtLocale, offset, limit).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType62($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -1124,9 +1332,13 @@ export function SearchTMEntries(handle, query, srcLocale, tgtLocale, offset, lim
  * @returns {$CancellablePromise<$models.TermSearchResult | null>}
  */
 export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) {
-    return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(/** @type {($result: any) => any} */(($result) => {
+  return $Call.ByID(556247463, handle, query, srcLocale, tgtLocale, offset, limit).then(
+    /** @type {($result: any) => any} */ (
+      ($result) => {
         return $$createType64($result);
-    }));
+      }
+    ),
+  );
 }
 
 /**
@@ -1135,7 +1347,7 @@ export function SearchTerms(handle, query, srcLocale, tgtLocale, offset, limit) 
  * @returns {$CancellablePromise<void>}
  */
 export function SetApplication(app) {
-    return $Call.ByID(2429951734, app);
+  return $Call.ByID(2429951734, app);
 }
 
 /**
@@ -1144,7 +1356,7 @@ export function SetApplication(app) {
  * @returns {$CancellablePromise<void>}
  */
 export function SetTheme(theme) {
-    return $Call.ByID(3719958557, theme);
+  return $Call.ByID(3719958557, theme);
 }
 
 /**
@@ -1153,7 +1365,7 @@ export function SetTheme(theme) {
  * @returns {$CancellablePromise<boolean>}
  */
 export function TestProvider(id) {
-    return $Call.ByID(1587682585, id);
+  return $Call.ByID(1587682585, id);
 }
 
 /**
@@ -1163,7 +1375,7 @@ export function TestProvider(id) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateConcept(handle, req) {
-    return $Call.ByID(4284577631, handle, req);
+  return $Call.ByID(4284577631, handle, req);
 }
 
 /**
@@ -1172,7 +1384,7 @@ export function UpdateConcept(handle, req) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdatePlugin(name) {
-    return $Call.ByID(1586148030, name);
+  return $Call.ByID(1586148030, name);
 }
 
 /**
@@ -1184,7 +1396,7 @@ export function UpdatePlugin(name) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateProject(tabID, proj) {
-    return $Call.ByID(2356547906, tabID, proj);
+  return $Call.ByID(2356547906, tabID, proj);
 }
 
 /**
@@ -1194,7 +1406,7 @@ export function UpdateProject(tabID, proj) {
  * @returns {$CancellablePromise<void>}
  */
 export function UpdateTMEntry(handle, req) {
-    return $Call.ByID(771615526, handle, req);
+  return $Call.ByID(771615526, handle, req);
 }
 
 /**
@@ -1203,7 +1415,7 @@ export function UpdateTMEntry(handle, req) {
  * @returns {$CancellablePromise<void>}
  */
 export function ValidateContentPath(path) {
-    return $Call.ByID(2541506264, path);
+  return $Call.ByID(2541506264, path);
 }
 
 // Private type creation functions

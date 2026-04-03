@@ -1,6 +1,17 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
-import { Button, Badge, Card, CardHeader, CardTitle, CardContent, Label, Input, ScrollArea, PageHeader } from "@neokapi/ui-primitives";
+import {
+  Button,
+  Badge,
+  Card,
+  CardHeader,
+  CardTitle,
+  CardContent,
+  Label,
+  Input,
+  ScrollArea,
+  PageHeader,
+} from "@neokapi/ui-primitives";
 import type { FlowSpec } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -95,12 +106,7 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
         actions={
           <div className="flex items-center gap-2">
             {stateIcon[state]}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onClose}
-              aria-label="Back to flows"
-            >
+            <Button variant="outline" size="sm" onClick={onClose} aria-label="Back to flows">
               Back to Flows
             </Button>
           </div>

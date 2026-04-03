@@ -41,9 +41,7 @@ function buildToolEntries(): ToolEntry[] {
   const entries: ToolEntry[] = [];
 
   for (const t of toolList.builtIn) {
-    const schema = allSchemas.find(
-      (s) => (s as Record<string, unknown>)["x-name"] === t.name,
-    );
+    const schema = allSchemas.find((s) => (s as Record<string, unknown>)["x-name"] === t.name);
     entries.push({
       name: t.name,
       displayName: t.name,
@@ -57,9 +55,7 @@ function buildToolEntries(): ToolEntry[] {
   }
 
   for (const t of toolList.bridge) {
-    const schema = allSchemas.find(
-      (s) => (s as Record<string, unknown>)["x-name"] === t.name,
-    );
+    const schema = allSchemas.find((s) => (s as Record<string, unknown>)["x-name"] === t.name);
     entries.push({
       name: t.name,
       displayName: t.display_name || t.name,
@@ -122,7 +118,10 @@ function ToolBrowser() {
         <Button
           variant="link"
           size="sm"
-          onClick={() => { setSelected(null); setConfigValues({}); }}
+          onClick={() => {
+            setSelected(null);
+            setConfigValues({});
+          }}
           className="mb-4 px-0"
         >
           &larr; Back to tool list
@@ -130,41 +129,67 @@ function ToolBrowser() {
         <Card className="p-4 mb-4">
           <div className="flex items-center gap-2 mb-1">
             <h3 className="text-lg font-semibold">{selected.displayName}</h3>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] ${CATEGORY_COLORS[selected.category] || CATEGORY_COLORS.other}`}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] ${CATEGORY_COLORS[selected.category] || CATEGORY_COLORS.other}`}
+            >
               {selected.category}
             </span>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] ${
-              selected.source === "built-in" ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
-            }`}>
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] ${
+                selected.source === "built-in"
+                  ? "bg-emerald-500/10 text-emerald-500"
+                  : "bg-blue-500/10 text-blue-500"
+              }`}
+            >
               {selected.source === "built-in" ? "native" : "okapi"}
             </span>
           </div>
-          {selected.description && <p className="text-sm text-muted-foreground">{selected.description}</p>}
+          {selected.description && (
+            <p className="text-sm text-muted-foreground">{selected.description}</p>
+          )}
           {selected.tags.length > 0 && (
             <div className="flex gap-1 mt-2">
               {selected.tags.map((t) => (
-                <span key={t} className="rounded bg-muted px-1.5 py-0.5 text-[10px]">#{t}</span>
+                <span key={t} className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
+                  #{t}
+                </span>
               ))}
             </div>
           )}
         </Card>
-        <div style={{ display: "grid", gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr", gap: 24 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr",
+            gap: 24,
+          }}
+        >
           <div>
             {selected.schema && Object.keys(selected.schema.properties || {}).length > 0 ? (
-              <SchemaForm schema={selected.schema} values={configValues} onChange={setConfigValues} />
+              <SchemaForm
+                schema={selected.schema}
+                values={configValues}
+                onChange={setConfigValues}
+              />
             ) : (
               <p className="text-sm text-muted-foreground">
-                {selected.schema ? "This tool has no configurable parameters." : "No schema available."}
+                {selected.schema
+                  ? "This tool has no configurable parameters."
+                  : "No schema available."}
               </p>
             )}
           </div>
           {selected.schema && (
             <div style={{ minWidth: 0 }}>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema (JSON)</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Schema (JSON)
+              </h4>
               <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-96">
                 {JSON.stringify(selected.schema, null, 2)}
               </pre>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Config Values</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+                Config Values
+              </h4>
               <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
                 {JSON.stringify(configValues, null, 2)}
               </pre>
@@ -201,19 +226,29 @@ function ToolBrowser() {
           variant="ghost"
           size="xs"
           onClick={() => setCategoryFilter("all")}
-          className={categoryFilter === "all" ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"}
+          className={
+            categoryFilter === "all"
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-muted-foreground"
+          }
         >
           All ({filtered.length})
         </Button>
         {categories.map((cat) => {
-          const count = tools.filter((t) => t.category === cat && (sourceFilter === "all" || t.source === sourceFilter)).length;
+          const count = tools.filter(
+            (t) => t.category === cat && (sourceFilter === "all" || t.source === sourceFilter),
+          ).length;
           return (
             <Button
               key={cat}
               variant="ghost"
               size="xs"
               onClick={() => setCategoryFilter(cat)}
-              className={categoryFilter === cat ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground"}
+              className={
+                categoryFilter === cat
+                  ? "bg-primary/10 text-primary font-medium"
+                  : "text-muted-foreground"
+              }
             >
               {cat} ({count})
             </Button>
@@ -237,16 +272,24 @@ function ToolBrowser() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <code className="text-sm font-medium">{t.name}</code>
-                    <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${
-                      t.source === "built-in" ? "bg-emerald-500/10 text-emerald-500" : "bg-blue-500/10 text-blue-500"
-                    }`}>
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] ${
+                        t.source === "built-in"
+                          ? "bg-emerald-500/10 text-emerald-500"
+                          : "bg-blue-500/10 text-blue-500"
+                      }`}
+                    >
                       {t.source === "built-in" ? "native" : "okapi"}
                     </span>
                   </div>
-                  {!t.schema && <span className="text-[10px] text-muted-foreground/50">no schema</span>}
+                  {!t.schema && (
+                    <span className="text-[10px] text-muted-foreground/50">no schema</span>
+                  )}
                 </div>
                 {t.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                    {t.description}
+                  </p>
                 )}
               </Button>
             ))}

@@ -1,6 +1,27 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench, ArrowUpCircle } from "lucide-react";
-import { Button, Badge, Card, Tabs, TabsList, TabsTrigger, TabsContent, LoadingSpinner } from "@neokapi/ui-primitives";
+import {
+  Download,
+  RefreshCw,
+  Search,
+  Package,
+  Loader2,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Wrench,
+  ArrowUpCircle,
+} from "lucide-react";
+import {
+  Button,
+  Badge,
+  Card,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+  LoadingSpinner,
+} from "@neokapi/ui-primitives";
 import type { PluginInfo } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
@@ -56,19 +77,20 @@ export function PluginManager() {
     }
   }, []);
 
-  const loadAvailable = useCallback(async (query?: string) => {
-    setLoadingAvailable(true);
-    try {
-      const result = query
-        ? await api.searchPlugins(query)
-        : await api.listAvailablePlugins();
-      if (result) setAvailable(result as AvailablePlugin[]);
-    } catch (e) {
-      showError("Failed to load available plugins", e);
-    } finally {
-      setLoadingAvailable(false);
-    }
-  }, [showError]);
+  const loadAvailable = useCallback(
+    async (query?: string) => {
+      setLoadingAvailable(true);
+      try {
+        const result = query ? await api.searchPlugins(query) : await api.listAvailablePlugins();
+        if (result) setAvailable(result as AvailablePlugin[]);
+      } catch (e) {
+        showError("Failed to load available plugins", e);
+      } finally {
+        setLoadingAvailable(false);
+      }
+    },
+    [showError],
+  );
 
   // Initial load.
   useEffect(() => {
@@ -138,7 +160,7 @@ export function PluginManager() {
   const handleInstall = useCallback((name: string) => {
     setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));
     // Fire-and-forget — the backend runs in a goroutine and emits events.
-    api.installPlugin(name);
+    void api.installPlugin(name);
   }, []);
 
   const handleCheckUpdates = useCallback(async () => {
@@ -161,14 +183,14 @@ export function PluginManager() {
 
   const handleUpdate = useCallback((name: string) => {
     setInstallStatus((prev) => ({ ...prev, [name]: { state: "downloading", percent: 0 } }));
-    api.updatePlugin(name);
+    void api.updatePlugin(name);
   }, []);
 
   const handleUpdateAll = useCallback(async () => {
     setUpdatingAll(true);
     for (const u of updates) {
       setInstallStatus((prev) => ({ ...prev, [u.name]: { state: "downloading", percent: 0 } }));
-      api.updatePlugin(u.name);
+      void api.updatePlugin(u.name);
     }
     // The event handlers will manage state from here.
   }, [updates]);
@@ -181,7 +203,9 @@ export function PluginManager() {
         await api.removePlugin(pluginId);
         // Optimistically remove from local state immediately.
         setPlugins((prev) => prev.filter((p) => p.id !== pluginId));
-        setAvailable((prev) => prev.map((p) => p.name === pluginId ? { ...p, installed: false } : p));
+        setAvailable((prev) =>
+          prev.map((p) => (p.name === pluginId ? { ...p, installed: false } : p)),
+        );
       } catch (e) {
         showError("Failed to remove plugin", e);
         // Refresh to restore accurate state on error.
@@ -215,11 +239,7 @@ export function PluginManager() {
         <h1 className="text-xl font-semibold">Plugins</h1>
         <div className="flex items-center gap-2">
           {updates.length > 0 && (
-            <Button
-              size="sm"
-              onClick={handleUpdateAll}
-              disabled={updatingAll}
-            >
+            <Button size="sm" onClick={handleUpdateAll} disabled={updatingAll}>
               <ArrowUpCircle size={12} />
               {updatingAll ? "Updating..." : `Update All (${updates.length})`}
             </Button>
@@ -242,43 +262,41 @@ export function PluginManager() {
           <TabsTrigger value="available">Available</TabsTrigger>
         </TabsList>
 
-      <div className="relative mb-4">
-        <Search size={14} className="absolute left-2.5 top-2.5 text-muted-foreground" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder={tab === "installed" ? "Filter installed..." : "Search registry..."}
-          className="w-full rounded-md border border-input bg-transparent py-2 pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring"
-        />
-      </div>
+        <div className="relative mb-4">
+          <Search size={14} className="absolute left-2.5 top-2.5 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            placeholder={tab === "installed" ? "Filter installed..." : "Search registry..."}
+            className="w-full rounded-md border border-input bg-transparent py-2 pl-8 pr-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
 
-      {error && (
-        <p className="mb-4 text-sm text-muted-foreground">{error}</p>
-      )}
+        {error && <p className="mb-4 text-sm text-muted-foreground">{error}</p>}
 
-      <TabsContent value="installed">
+        <TabsContent value="installed">
           {loading ? (
             <LoadingSpinner text="Loading plugins..." className="py-8" />
           ) : (
             <div className="space-y-2">
               {filtered.map((plugin) => {
-                  const updateInfo = updates.find((u) => u.name === plugin.name);
-                  const updateStatus = installStatus[plugin.name];
-                  return (
-                    <InstalledPluginCard
-                      key={plugin.id}
-                      plugin={plugin}
-                      removing={removing === plugin.id}
-                      confirmRemove={confirmRemove === plugin.id}
-                      onConfirmRemove={() => setConfirmRemove(plugin.id)}
-                      onCancelRemove={() => setConfirmRemove(null)}
-                      onRemove={() => void handleRemove(plugin.id)}
-                      updateAvailable={updateInfo}
-                      updateStatus={updateStatus}
-                      onUpdate={() => handleUpdate(plugin.name)}
-                    />
-                  );
+                const updateInfo = updates.find((u) => u.name === plugin.name);
+                const updateStatus = installStatus[plugin.name];
+                return (
+                  <InstalledPluginCard
+                    key={plugin.id}
+                    plugin={plugin}
+                    removing={removing === plugin.id}
+                    confirmRemove={confirmRemove === plugin.id}
+                    onConfirmRemove={() => setConfirmRemove(plugin.id)}
+                    onCancelRemove={() => setConfirmRemove(null)}
+                    onRemove={() => void handleRemove(plugin.id)}
+                    updateAvailable={updateInfo}
+                    updateStatus={updateStatus}
+                    onUpdate={() => handleUpdate(plugin.name)}
+                  />
+                );
               })}
               {filtered.length === 0 && (
                 <div className="py-8 text-center">
@@ -290,9 +308,9 @@ export function PluginManager() {
               )}
             </div>
           )}
-      </TabsContent>
+        </TabsContent>
 
-      <TabsContent value="available">
+        <TabsContent value="available">
           {loadingAvailable ? (
             <LoadingSpinner text="Loading plugin registry..." className="py-8" />
           ) : (
@@ -301,7 +319,10 @@ export function PluginManager() {
                 const status = installStatus[plugin.name];
                 return (
                   <Card key={plugin.name} className="flex items-center gap-3 p-4">
-                    <Package size={20} className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`} />
+                    <Package
+                      size={20}
+                      className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`}
+                    />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{plugin.name}</span>
@@ -309,7 +330,9 @@ export function PluginManager() {
                         <Badge variant="secondary">{plugin.type}</Badge>
                       </div>
                       {plugin.description && (
-                        <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {plugin.description}
+                        </div>
                       )}
                       {/* Download progress bar */}
                       {status?.state === "downloading" && status.percent !== undefined && (
@@ -323,7 +346,9 @@ export function PluginManager() {
                     </div>
                     {/* Status / action */}
                     {plugin.installed || status?.state === "done" ? (
-                      <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded bg-muted">Installed</span>
+                      <span className="text-[10px] text-muted-foreground px-2 py-0.5 rounded bg-muted">
+                        Installed
+                      </span>
                     ) : status?.state === "downloading" ? (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Loader2 size={12} className="animate-spin" />
@@ -331,16 +356,15 @@ export function PluginManager() {
                       </div>
                     ) : status?.state === "error" ? (
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-destructive">{status.error || "Failed"}</span>
+                        <span className="text-[10px] text-destructive">
+                          {status.error || "Failed"}
+                        </span>
                         <Button variant="link" size="xs" onClick={() => handleInstall(plugin.name)}>
                           Retry
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        size="sm"
-                        onClick={() => handleInstall(plugin.name)}
-                      >
+                      <Button size="sm" onClick={() => handleInstall(plugin.name)}>
                         <Download size={12} /> Install
                       </Button>
                     )}
@@ -354,7 +378,7 @@ export function PluginManager() {
               )}
             </div>
           )}
-      </TabsContent>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -396,8 +420,12 @@ function InstalledPluginCard({
             {plugin.framework_version && (
               <Badge variant="secondary">{plugin.framework_version}</Badge>
             )}
-            <Badge variant="secondary" className="text-[10px]">v{plugin.version}</Badge>
-            <Badge variant="secondary" className="text-[10px]">{plugin.type}</Badge>
+            <Badge variant="secondary" className="text-[10px]">
+              v{plugin.version}
+            </Badge>
+            <Badge variant="secondary" className="text-[10px]">
+              {plugin.type}
+            </Badge>
           </div>
           {plugin.description && (
             <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
@@ -405,12 +433,17 @@ function InstalledPluginCard({
           {plugin.formats && plugin.formats.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1.5">
               {plugin.formats.slice(0, 8).map((f) => (
-                <span key={f} className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono">
+                <span
+                  key={f}
+                  className="text-[10px] px-1.5 py-px rounded bg-muted text-muted-foreground font-mono"
+                >
                   {f}
                 </span>
               ))}
               {plugin.formats.length > 8 && (
-                <span className="text-[10px] text-muted-foreground">+{plugin.formats.length - 8} more</span>
+                <span className="text-[10px] text-muted-foreground">
+                  +{plugin.formats.length - 8} more
+                </span>
               )}
             </div>
           )}
@@ -442,12 +475,16 @@ function InstalledPluginCard({
               {updateStatus.percent !== undefined ? `${updateStatus.percent}%` : "Updating..."}
             </div>
           ) : updateStatus?.state === "done" ? (
-            <span className="text-[10px] text-primary px-2 py-0.5 rounded bg-primary/10">Updated</span>
+            <span className="text-[10px] text-primary px-2 py-0.5 rounded bg-primary/10">
+              Updated
+            </span>
           ) : updateStatus?.state === "error" ? (
             <div className="flex items-center gap-1">
               <span className="text-[10px] text-destructive">{updateStatus.error || "Failed"}</span>
               {onUpdate && (
-                <Button variant="link" size="xs" onClick={onUpdate}>Retry</Button>
+                <Button variant="link" size="xs" onClick={onUpdate}>
+                  Retry
+                </Button>
               )}
             </div>
           ) : updateAvailable && onUpdate ? (
@@ -469,11 +506,21 @@ function InstalledPluginCard({
             </div>
           ) : confirmRemove ? (
             <div className="flex items-center gap-1">
-              <Button variant="destructive" size="xs" onClick={onRemove}>Remove</Button>
-              <Button variant="ghost" size="xs" onClick={onCancelRemove}>Cancel</Button>
+              <Button variant="destructive" size="xs" onClick={onRemove}>
+                Remove
+              </Button>
+              <Button variant="ghost" size="xs" onClick={onCancelRemove}>
+                Cancel
+              </Button>
             </div>
           ) : (
-            <Button variant="ghost" size="icon-xs" onClick={onConfirmRemove} className="hover:bg-destructive/10 hover:text-destructive" title="Uninstall">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={onConfirmRemove}
+              className="hover:bg-destructive/10 hover:text-destructive"
+              title="Uninstall"
+            >
               <Trash2 size={12} />
             </Button>
           )}
@@ -490,7 +537,10 @@ function InstalledPluginCard({
               </div>
               <div className="flex flex-wrap gap-1">
                 {formatCaps.map((c) => (
-                  <span key={c.name} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-foreground">
+                  <span
+                    key={c.name}
+                    className="text-[10px] px-1.5 py-0.5 rounded border border-border text-foreground"
+                  >
                     {c.display_name || c.name}
                     {c.extensions && c.extensions.length > 0 && (
                       <span className="text-muted-foreground ml-1">{c.extensions.join(" ")}</span>
@@ -507,7 +557,10 @@ function InstalledPluginCard({
               </div>
               <div className="flex flex-wrap gap-1">
                 {toolCaps.map((c) => (
-                  <span key={c.name} className="text-[10px] px-1.5 py-0.5 rounded border border-border text-foreground">
+                  <span
+                    key={c.name}
+                    className="text-[10px] px-1.5 py-0.5 rounded border border-border text-foreground"
+                  >
                     {c.display_name || c.name}
                   </span>
                 ))}

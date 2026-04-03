@@ -21,19 +21,28 @@ function PresetStory({
 }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900  }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
       <div>
         {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
-        <SchemaForm schema={schema} values={values} onChange={setValues} presetValues={presetValues} />
+        <SchemaForm
+          schema={schema}
+          values={values}
+          onChange={setValues}
+          presetValues={presetValues}
+        />
       </div>
       <div style={{ minWidth: 0 }}>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Current Values</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Current Values
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-32">
           {JSON.stringify(values, null, 2)}
         </pre>
         {presetValues && (
           <>
-            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Active Preset Values</h4>
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+              Active Preset Values
+            </h4>
             <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-32">
               {JSON.stringify(presetValues, null, 2)}
             </pre>
@@ -57,7 +66,7 @@ export const DefaultValues: Story = {
   name: "default — Property Defaults",
   args: {
     description:
-      'Each property can have a `default` value. When the user hasn\'t set a value, the default is shown as placeholder/initial state. The SchemaForm tracks which values differ from defaults.',
+      "Each property can have a `default` value. When the user hasn't set a value, the default is shown as placeholder/initial state. The SchemaForm tracks which values differ from defaults.",
     schema: {
       title: "Properties with Defaults",
       type: "object",
@@ -65,7 +74,12 @@ export const DefaultValues: Story = {
         encoding: { type: "string", title: "Encoding", default: "UTF-8" },
         extractAll: { type: "boolean", title: "Extract All", default: true },
         maxSegments: { type: "integer", title: "Max Segments", default: 1000, minimum: 1 },
-        outputFormat: { type: "string", title: "Format", default: "json", enum: ["json", "yaml", "xml"] },
+        outputFormat: {
+          type: "string",
+          title: "Format",
+          default: "json",
+          enum: ["json", "yaml", "xml"],
+        },
       },
     },
   },
@@ -75,7 +89,7 @@ export const PresetIndicator: Story = {
   name: "presetValues — Modified Indicator Dot",
   args: {
     description:
-      'When `presetValues` is provided, a colored dot appears next to fields that differ from the preset. This helps users see what they\'ve customized. Try changing field values to see the dot appear.',
+      "When `presetValues` is provided, a colored dot appears next to fields that differ from the preset. This helps users see what they've customized. Try changing field values to see the dot appear.",
     presetValues: {
       encoding: "UTF-8",
       extractAll: true,
@@ -104,12 +118,18 @@ export const RealPresets: Story = {
     description: formatWithPresets
       ? `Real presets for format "${formatWithPresets[0]}". Presets are extracted from Okapi filter configurations during the transform stage and stored as separate JSON files.`
       : "No multi-preset format found in fixtures.",
-    presetValues: formatWithPresets ? Object.values(formatWithPresets[1])[0] as Record<string, unknown> : undefined,
+    presetValues: formatWithPresets
+      ? (Object.values(formatWithPresets[1])[0] as Record<string, unknown>)
+      : undefined,
     schema: {
       title: formatWithPresets ? `Presets for ${formatWithPresets[0]}` : "No presets",
       type: "object",
       properties: {
-        info: { type: "string", title: "Available presets", description: formatWithPresets ? Object.keys(formatWithPresets[1]).join(", ") : "none" },
+        info: {
+          type: "string",
+          title: "Available presets",
+          description: formatWithPresets ? Object.keys(formatWithPresets[1]).join(", ") : "none",
+        },
       },
     },
   },

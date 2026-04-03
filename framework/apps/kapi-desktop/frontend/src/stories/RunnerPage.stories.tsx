@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { fn, within, userEvent, waitFor, expect } from "storybook/test";
 import { useState, useEffect, useCallback } from "react";
-import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
+import { Play, Square, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { FlowSpec } from "../types/api";
 import { Button, Card, ScrollArea } from "@neokapi/ui-primitives";
 
@@ -146,10 +145,7 @@ function SimulatedRunner({
       {/* Controls */}
       <div className="mb-4 flex gap-2">
         {state === "idle" && (
-          <Button
-            onClick={runSimulation}
-            data-testid="run-button"
-          >
+          <Button onClick={runSimulation} data-testid="run-button">
             <Play size={14} />
             Run Flow
           </Button>

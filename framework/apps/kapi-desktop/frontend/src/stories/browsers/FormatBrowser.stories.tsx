@@ -6,7 +6,7 @@
  */
 import { useState, useMemo } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { SchemaForm, Button, Input } from "@neokapi/ui-primitives";
+import { Button, Input } from "@neokapi/ui-primitives";
 import { FormatConfigEditor } from "../../components/FormatConfigEditor";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
 import formatSchemas from "../fixtures/format-schemas.json";
@@ -14,7 +14,7 @@ import formatList from "../fixtures/format-list.json";
 import pluginDocs from "../fixtures/plugin-docs.json";
 import type { PluginDocs } from "../../types/api";
 
-const docs = pluginDocs as unknown as PluginDocs;
+const _docs = pluginDocs as unknown as PluginDocs;
 const allSchemas = formatSchemas.all as unknown as ComponentSchema[];
 
 interface FormatEntry {
@@ -30,9 +30,7 @@ function buildFormatEntries(): FormatEntry[] {
   const entries: FormatEntry[] = [];
 
   for (const f of formatList.builtIn) {
-    const schema = allSchemas.find(
-      (s) => (s as Record<string, unknown>)["x-name"] === f.name,
-    );
+    const schema = allSchemas.find((s) => (s as Record<string, unknown>)["x-name"] === f.name);
     entries.push({
       name: f.name,
       displayName: f.display_name || f.name,
@@ -44,9 +42,7 @@ function buildFormatEntries(): FormatEntry[] {
   }
 
   for (const f of formatList.bridge) {
-    const schema = allSchemas.find(
-      (s) => (s as Record<string, unknown>)["x-name"] === f.name,
-    );
+    const schema = allSchemas.find((s) => (s as Record<string, unknown>)["x-name"] === f.name);
     entries.push({
       name: f.name,
       displayName: f.display_name || f.name,
@@ -92,12 +88,21 @@ function FormatBrowser() {
         <Button
           variant="link"
           size="sm"
-          onClick={() => { setSelected(null); setConfigValues({}); }}
+          onClick={() => {
+            setSelected(null);
+            setConfigValues({});
+          }}
           className="mb-4 px-0"
         >
           &larr; Back to format list
         </Button>
-        <div style={{ display: "grid", gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr", gap: 24 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: selected.schema ? "1fr 1fr" : "1fr",
+            gap: 24,
+          }}
+        >
           <div>
             {selected.schema ? (
               <FormatConfigEditor
@@ -112,11 +117,15 @@ function FormatBrowser() {
           </div>
           {selected.schema && (
             <div style={{ minWidth: 0 }}>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema (JSON)</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Schema (JSON)
+              </h4>
               <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-96">
                 {JSON.stringify(selected.schema, null, 2)}
               </pre>
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Config Values</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+                Config Values
+              </h4>
               <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
                 {JSON.stringify(configValues, null, 2)}
               </pre>
@@ -144,9 +153,15 @@ function FormatBrowser() {
               variant="ghost"
               size="xs"
               onClick={() => setSourceFilter(s)}
-              className={sourceFilter === s ? "bg-primary/10 text-primary" : "text-muted-foreground"}
+              className={
+                sourceFilter === s ? "bg-primary/10 text-primary" : "text-muted-foreground"
+              }
             >
-              {s === "all" ? `All (${formats.length})` : s === "built-in" ? `Built-in (${builtInCount})` : `Okapi (${okapiCount})`}
+              {s === "all"
+                ? `All (${formats.length})`
+                : s === "built-in"
+                  ? `Built-in (${builtInCount})`
+                  : `Okapi (${okapiCount})`}
             </Button>
           ))}
         </div>
@@ -166,20 +181,29 @@ function FormatBrowser() {
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">{f.displayName}</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] ${
-                f.source === "built-in"
-                  ? "bg-emerald-500/10 text-emerald-500"
-                  : "bg-blue-500/10 text-blue-500"
-              }`}>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${
+                  f.source === "built-in"
+                    ? "bg-emerald-500/10 text-emerald-500"
+                    : "bg-blue-500/10 text-blue-500"
+                }`}
+              >
                 {f.source === "built-in" ? "native" : "okapi"}
               </span>
             </div>
             <div className="flex flex-wrap gap-1 mt-1.5">
               {f.extensions.slice(0, 4).map((ext) => (
-                <code key={ext} className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">{ext}</code>
+                <code
+                  key={ext}
+                  className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground"
+                >
+                  {ext}
+                </code>
               ))}
               {f.extensions.length > 4 && (
-                <span className="text-[10px] text-muted-foreground">+{f.extensions.length - 4}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  +{f.extensions.length - 4}
+                </span>
               )}
             </div>
             {!f.schema && (

@@ -9,7 +9,6 @@ import {
   ComboboxItem,
   ComboboxEmpty,
 } from "@neokapi/ui-primitives/components/ui/combobox";
-import { cn } from "@neokapi/ui-primitives";
 
 interface LocaleSelectProps {
   value: string;

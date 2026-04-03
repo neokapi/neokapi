@@ -4,11 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { Mail, User, ArrowLeft } from "lucide-react";
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui";
 import { Button } from "@neokapi/ui";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@neokapi/ui";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@neokapi/ui";
 import { Label } from "@neokapi/ui";
 
 export default function Register(props: {

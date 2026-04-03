@@ -13,19 +13,21 @@ import type { ComponentSchema } from "@neokapi/ui-primitives";
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900  }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
       <div>
-        {description && (
-          <p className="text-sm text-muted-foreground mb-4">{description}</p>
-        )}
+        {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
         <SchemaForm schema={schema} values={values} onChange={setValues} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Schema (JSON)</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Schema (JSON)
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-60">
           {JSON.stringify(schema, null, 2)}
         </pre>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Values</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+          Values
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
           {JSON.stringify(values, null, 2)}
         </pre>
@@ -46,14 +48,25 @@ type Story = StoryObj<typeof SchemaStory>;
 export const StringProperty: Story = {
   name: "string — Text Input",
   args: {
-    description: "A simple string property renders as a text input. The `description` becomes helper text below the field.",
+    description:
+      "A simple string property renders as a text input. The `description` becomes helper text below the field.",
     schema: {
       title: "String Properties",
       type: "object",
       properties: {
         name: { type: "string", title: "Name", description: "A simple text field" },
-        pattern: { type: "string", title: "Regex Pattern", description: "With placeholder text", "ui:placeholder": "e.g., ^[A-Z].*" },
-        notes: { type: "string", title: "Notes", description: "Multiline when ui:widget is set to 'textarea'", "ui:widget": "textarea" },
+        pattern: {
+          type: "string",
+          title: "Regex Pattern",
+          description: "With placeholder text",
+          "ui:placeholder": "e.g., ^[A-Z].*",
+        },
+        notes: {
+          type: "string",
+          title: "Notes",
+          description: "Multiline when ui:widget is set to 'textarea'",
+          "ui:widget": "textarea",
+        },
       },
     },
   },
@@ -62,13 +75,24 @@ export const StringProperty: Story = {
 export const BooleanProperty: Story = {
   name: "boolean — Checkbox",
   args: {
-    description: "Boolean properties render as checkboxes. The `default` value is shown when no value is set.",
+    description:
+      "Boolean properties render as checkboxes. The `default` value is shown when no value is set.",
     schema: {
       title: "Boolean Properties",
       type: "object",
       properties: {
-        enabled: { type: "boolean", title: "Enabled", description: "A simple on/off toggle", default: true },
-        extractAll: { type: "boolean", title: "Extract All Pairs", description: "Extract all string key-value pairs as translatable blocks", default: false },
+        enabled: {
+          type: "boolean",
+          title: "Enabled",
+          description: "A simple on/off toggle",
+          default: true,
+        },
+        extractAll: {
+          type: "boolean",
+          title: "Extract All Pairs",
+          description: "Extract all string key-value pairs as translatable blocks",
+          default: false,
+        },
       },
     },
   },
@@ -77,13 +101,27 @@ export const BooleanProperty: Story = {
 export const NumberProperty: Story = {
   name: "number / integer — Numeric Input",
   args: {
-    description: "Number properties render as numeric inputs. `minimum` and `maximum` set bounds. `default` provides the initial value.",
+    description:
+      "Number properties render as numeric inputs. `minimum` and `maximum` set bounds. `default` provides the initial value.",
     schema: {
       title: "Number Properties",
       type: "object",
       properties: {
-        threshold: { type: "number", title: "Similarity Threshold", description: "Minimum match score (0.0-1.0)", default: 0.7, minimum: 0, maximum: 1 },
-        maxSegments: { type: "integer", title: "Max Segments", description: "Maximum number of segments to process", default: 1000, minimum: 1 },
+        threshold: {
+          type: "number",
+          title: "Similarity Threshold",
+          description: "Minimum match score (0.0-1.0)",
+          default: 0.7,
+          minimum: 0,
+          maximum: 1,
+        },
+        maxSegments: {
+          type: "integer",
+          title: "Max Segments",
+          description: "Maximum number of segments to process",
+          default: 1000,
+          minimum: 1,
+        },
       },
     },
   },
@@ -92,7 +130,8 @@ export const NumberProperty: Story = {
 export const EnumProperty: Story = {
   name: "options — Labeled Dropdown Select",
   args: {
-    description: "Properties with `options` render as dropdown selects with labeled values. Each option has a `value` and a `label`. Use `ui:enum-descriptions` for tooltips.",
+    description:
+      "Properties with `options` render as dropdown selects with labeled values. Each option has a `value` and a `label`. Use `ui:enum-descriptions` for tooltips.",
     schema: {
       title: "Options Properties",
       type: "object",
@@ -132,7 +171,8 @@ export const EnumProperty: Story = {
 export const ObjectProperty: Story = {
   name: "object — Nested Fields",
   args: {
-    description: "Object properties create nested field groups. For shallow nesting (depth 1), fields are shown inline. Deeper nesting uses drill-down navigation.",
+    description:
+      "Object properties create nested field groups. For shallow nesting (depth 1), fields are shown inline. Deeper nesting uses drill-down navigation.",
     schema: {
       title: "Object Properties",
       type: "object",
@@ -142,8 +182,18 @@ export const ObjectProperty: Story = {
           title: "Parser Settings",
           description: "Settings for the document parser",
           properties: {
-            assumeWellformed: { type: "boolean", title: "Assume Well-formed", description: "Skip validation of input structure", default: false },
-            encoding: { type: "string", title: "Input Encoding", description: "Override auto-detected encoding", default: "UTF-8" },
+            assumeWellformed: {
+              type: "boolean",
+              title: "Assume Well-formed",
+              description: "Skip validation of input structure",
+              default: false,
+            },
+            encoding: {
+              type: "string",
+              title: "Input Encoding",
+              description: "Override auto-detected encoding",
+              default: "UTF-8",
+            },
           },
         },
         output: {
@@ -163,7 +213,8 @@ export const ObjectProperty: Story = {
 export const ArrayProperty: Story = {
   name: "array — List Editor",
   args: {
-    description: "Array properties render as lists with add/remove controls. The `items` schema defines the type of each element.",
+    description:
+      "Array properties render as lists with add/remove controls. The `items` schema defines the type of each element.",
     schema: {
       title: "Array Properties",
       type: "object",
@@ -188,7 +239,8 @@ export const ArrayProperty: Story = {
 export const DuplicateLabelSuppression: Story = {
   name: "Duplicate Label Suppression",
   args: {
-    description: "When `title` and `description` are the same (case-insensitive), the description is suppressed to avoid visual duplication. Compare the first two fields (title === description) with the third (different description).",
+    description:
+      "When `title` and `description` are the same (case-insensitive), the description is suppressed to avoid visual duplication. Compare the first two fields (title === description) with the third (different description).",
     schema: {
       title: "Label Suppression Demo",
       type: "object",

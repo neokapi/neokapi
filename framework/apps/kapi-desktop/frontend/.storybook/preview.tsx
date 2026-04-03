@@ -4,8 +4,8 @@ import { themes } from "storybook/theming";
 import "../src/index.css";
 
 // Detect system preference for default theme
-const prefersDark = typeof window !== "undefined"
-  && window.matchMedia("(prefers-color-scheme: dark)").matches;
+const prefersDark =
+  typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches;
 
 function ThemeDecorator(Story: React.ComponentType) {
   return (
@@ -33,7 +33,15 @@ const preview: Preview = {
     },
     options: {
       storySort: {
-        order: ["Foundations", "Formats & Tools", ["Browsers", "Schema", "Formats", "Tools"], "Flow Editor", "Pages", "Components", "Interactions"],
+        order: [
+          "Foundations",
+          "Formats & Tools",
+          ["Browsers", "Schema", "Formats", "Tools"],
+          "Flow Editor",
+          "Pages",
+          "Components",
+          "Interactions",
+        ],
       },
     },
   },

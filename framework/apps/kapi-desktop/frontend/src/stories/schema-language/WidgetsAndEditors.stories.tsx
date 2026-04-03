@@ -12,17 +12,21 @@ import type { ComponentSchema } from "@neokapi/ui-primitives";
 function SchemaStory({ schema, description }: { schema: ComponentSchema; description?: string }) {
   const [values, setValues] = useState<Record<string, unknown>>({});
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900  }}>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, maxWidth: 900 }}>
       <div>
         {description && <p className="text-sm text-muted-foreground mb-4">{description}</p>}
         <SchemaForm schema={schema} values={values} onChange={setValues} />
       </div>
       <div style={{ minWidth: 0 }}>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Values</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+          Values
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-40">
           {JSON.stringify(values, null, 2)}
         </pre>
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">Schema</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mt-4 mb-2">
+          Schema
+        </h4>
         <pre className="rounded bg-muted p-3 text-xs text-muted-foreground overflow-auto max-h-60">
           {JSON.stringify(schema, null, 2)}
         </pre>
@@ -49,7 +53,12 @@ export const TextWidget: Story = {
       type: "object",
       properties: {
         name: { type: "string", title: "Name", "ui:widget": "text" },
-        description: { type: "string", title: "Description", "ui:widget": "text", "ui:placeholder": "Enter a description..." },
+        description: {
+          type: "string",
+          title: "Description",
+          "ui:widget": "text",
+          "ui:placeholder": "Enter a description...",
+        },
       },
     },
   },
@@ -58,7 +67,8 @@ export const TextWidget: Story = {
 export const TextareaWidget: Story = {
   name: "ui:widget: textarea — Multiline Text",
   args: {
-    description: 'Renders a multiline text area. The canonical widget name is `"multilineText"`. The alias `"textarea"` is also accepted. Use for rules, patterns, or any long-form text input.',
+    description:
+      'Renders a multiline text area. The canonical widget name is `"multilineText"`. The alias `"textarea"` is also accepted. Use for rules, patterns, or any long-form text input.',
     schema: {
       title: "Textarea Widget",
       type: "object",
@@ -83,7 +93,8 @@ export const TextareaWidget: Story = {
 export const RegexBuilderWidget: Story = {
   name: "ui:widget: regexBuilder — Regex Pattern Input",
   args: {
-    description: "A text input styled for regex patterns. Provides visual feedback for regex syntax.",
+    description:
+      "A text input styled for regex patterns. Provides visual feedback for regex syntax.",
     schema: {
       title: "Regex Builder",
       type: "object",
@@ -121,7 +132,8 @@ export const TagListWidget: Story = {
 export const PasswordWidget: Story = {
   name: "ui:widget: text (password) — Masked Input",
   args: {
-    description: "The ui:widget-options metadata can specify `text.password: true` for sensitive fields.",
+    description:
+      "The ui:widget-options metadata can specify `text.password: true` for sensitive fields.",
     schema: {
       title: "Password Field",
       type: "object",
@@ -162,7 +174,8 @@ export const SpinWidget: Story = {
 export const CheckListWidget: Story = {
   name: "ui:widget: checkList — Named Checkbox List",
   args: {
-    description: "Renders a list of named checkboxes from the ui:widget-options.entries array. Each entry has a name, title, and optional description.",
+    description:
+      "Renders a list of named checkboxes from the ui:widget-options.entries array. Each entry has a name, title, and optional description.",
     schema: {
       title: "Check List",
       type: "object",
@@ -174,9 +187,17 @@ export const CheckListWidget: Story = {
           "ui:widget": "checkList",
           "ui:widget-options": {
             entries: [
-              { name: "segmentation", title: "Segmentation", description: "Split text into sentences" },
+              {
+                name: "segmentation",
+                title: "Segmentation",
+                description: "Split text into sentences",
+              },
               { name: "codeFinder", title: "Code Finder", description: "Detect inline codes" },
-              { name: "subfilter", title: "Sub-filtering", description: "Apply secondary filter to embedded content" },
+              {
+                name: "subfilter",
+                title: "Sub-filtering",
+                description: "Apply secondary filter to embedded content",
+              },
             ],
           },
         },
@@ -188,7 +209,8 @@ export const CheckListWidget: Story = {
 export const DropdownWidget: Story = {
   name: "ui:widget: dropdown — Dropdown Select",
   args: {
-    description: "Dropdown selection from ui:widget-options. Maps to the same rendering as enum + ui:enum-labels.",
+    description:
+      "Dropdown selection from ui:widget-options. Maps to the same rendering as enum + ui:enum-labels.",
     schema: {
       title: "Dropdown Widget",
       type: "object",
@@ -199,7 +221,11 @@ export const DropdownWidget: Story = {
           enum: ["lf", "crlf", "platform"],
           default: "platform",
           "ui:widget": "dropdown",
-          "ui:enum-labels": { lf: "Unix (LF)", crlf: "Windows (CRLF)", platform: "Platform Default" },
+          "ui:enum-labels": {
+            lf: "Unix (LF)",
+            crlf: "Windows (CRLF)",
+            platform: "Platform Default",
+          },
         },
       },
     },

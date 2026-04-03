@@ -21,7 +21,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   const loadTools = useCallback(() => {
-    api.listTools().then((result) => {
+    void api.listTools().then((result) => {
       if (result) {
         setTools(
           result.map((t) => ({
@@ -40,7 +40,9 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
     });
   }, []);
 
-  useEffect(() => { loadTools(); }, [loadTools]);
+  useEffect(() => {
+    loadTools();
+  }, [loadTools]);
 
   // Refresh when plugins change (tools may have been added/removed).
   useWailsEvent("registries-changed", loadTools);
@@ -51,7 +53,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
     }
     if (fetchingRef.current.has(toolName)) return null;
     fetchingRef.current.add(toolName);
-    api.getToolSchema(toolName).then((result) => {
+    void api.getToolSchema(toolName).then((result) => {
       fetchingRef.current.delete(toolName);
       schemasRef.current[toolName] = (result as ComponentSchema) ?? null;
       forceUpdate();
@@ -66,7 +68,7 @@ export function FlowPage({ flowName, flow, onChange, onRun, readOnly }: FlowPage
     const fetchKey = `doc:${toolName}`;
     if (fetchingRef.current.has(fetchKey)) return null;
     fetchingRef.current.add(fetchKey);
-    api.getStepDoc(toolName).then((result) => {
+    void api.getStepDoc(toolName).then((result) => {
       fetchingRef.current.delete(fetchKey);
       if (result) {
         docsRef.current[toolName] = {

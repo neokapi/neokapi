@@ -103,7 +103,7 @@ export function MemoriesPage() {
 
   const handleClose = useCallback(() => {
     if (handle) {
-      api.closeTM(handle);
+      void api.closeTM(handle);
       setHandle(null);
       setTmName("");
       setTmPath("");
@@ -140,30 +140,17 @@ export function MemoriesPage() {
           title={tmName}
           subtitle={tmPath || undefined}
           backButton={
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={handleClose}
-              title="Close TM"
-            >
+            <Button variant="ghost" size="icon-xs" onClick={handleClose} title="Close TM">
               <X size={16} />
             </Button>
           }
           actions={
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleImport}
-              >
+              <Button variant="outline" size="sm" onClick={handleImport}>
                 <Upload size={12} />
                 Import TMX
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExport}
-              >
+              <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download size={12} />
                 Export TMX
               </Button>
@@ -185,18 +172,11 @@ export function MemoriesPage() {
         title="Translation Memories"
         actions={
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleOpenDialog}
-            >
+            <Button variant="outline" size="sm" onClick={handleOpenDialog}>
               <FolderOpen size={12} />
               Open File...
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setShowCreateDialog(true)}
-            >
+            <Button size="sm" onClick={() => setShowCreateDialog(true)}>
               <Plus size={12} />
               Create TM
             </Button>
@@ -231,17 +211,10 @@ export function MemoriesPage() {
               No translation memories found. Create one or open a .db file.
             </p>
             <div className="flex gap-2 justify-center">
-              <Button
-                size="sm"
-                onClick={() => setShowCreateDialog(true)}
-              >
+              <Button size="sm" onClick={() => setShowCreateDialog(true)}>
                 Create TM
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleOpenDialog}
-              >
+              <Button variant="outline" size="sm" onClick={handleOpenDialog}>
                 Open File...
               </Button>
             </div>
@@ -267,18 +240,10 @@ export function MemoriesPage() {
               className="mb-4"
             />
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => void handleCreate()}
-                disabled={!newName.trim()}
-              >
+              <Button size="sm" onClick={() => void handleCreate()} disabled={!newName.trim()}>
                 Create
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCreateDialog(false)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowCreateDialog(false)}>
                 Cancel
               </Button>
             </div>
@@ -298,20 +263,21 @@ export function MemoriesPage() {
               <strong>{corruptName}</strong> could not be opened. The database may be corrupt.
             </p>
             <p className="text-xs text-muted-foreground mb-4">
-              The file will be renamed to <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh database created in its place.
+              The file will be renamed to{" "}
+              <code className="text-[10px] bg-muted px-1 py-0.5 rounded">.db.bak</code> and a fresh
+              database created in its place.
             </p>
             <div className="flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => void handleRecover()}
-                disabled={recovering}
-              >
+              <Button size="sm" onClick={() => void handleRecover()} disabled={recovering}>
                 {recovering ? "Recovering..." : "Create Fresh TM"}
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => { setCorruptPath(null); setCorruptName(""); }}
+                onClick={() => {
+                  setCorruptPath(null);
+                  setCorruptName("");
+                }}
               >
                 Cancel
               </Button>

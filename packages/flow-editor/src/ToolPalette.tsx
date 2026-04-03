@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { Search, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
 import {
-  cn,
   Button,
   InputGroup,
   InputGroupAddon,
@@ -64,59 +63,57 @@ export function ToolPalette({ tools, onAddTool }: ToolPaletteProps) {
       {/* Categories */}
       <ScrollArea className="flex-1">
         <div className="py-1">
-        {ALL_CATEGORIES.map((cat) => {
-          const items = grouped[cat.id] || [];
-          if (items.length === 0 && search) return null;
-          const isCollapsed = collapsed[cat.id] ?? false;
-          const Icon = cat.icon;
+          {ALL_CATEGORIES.map((cat) => {
+            const items = grouped[cat.id] || [];
+            if (items.length === 0 && search) return null;
+            const isCollapsed = collapsed[cat.id] ?? false;
+            const Icon = cat.icon;
 
-          return (
-            <div key={cat.id}>
-              {/* Category header */}
-              <Button
-                variant="ghost"
-                onClick={() => toggle(cat.id)}
-                className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left h-auto rounded-none"
-              >
-                {isCollapsed ? (
-                  <ChevronRight size={12} className="text-muted-foreground" />
-                ) : (
-                  <ChevronDown size={12} className="text-muted-foreground" />
-                )}
-                <Icon size={13} style={{ color: cat.color }} />
-                <span
-                  className="text-[11px] font-semibold tracking-wide"
-                  style={{ color: cat.text }}
+            return (
+              <div key={cat.id}>
+                {/* Category header */}
+                <Button
+                  variant="ghost"
+                  onClick={() => toggle(cat.id)}
+                  className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left h-auto rounded-none"
                 >
-                  {cat.label}
-                </span>
-                <span className="ml-auto text-[10px] text-muted-foreground">
-                  {items.length}
-                </span>
-              </Button>
-
-              {/* Tool items */}
-              {!isCollapsed && (
-                <div className="pb-1">
-                  {items.map((tool) => (
-                    <PaletteItem
-                      key={tool.name}
-                      tool={tool}
-                      categoryColor={cat.color}
-                      onAdd={() => onAddTool(tool.name)}
-                      onDragStart={(e) => handleDragStart(e, tool.name)}
-                    />
-                  ))}
-                  {items.length === 0 && (
-                    <div className="pl-9 pr-2.5 py-1 text-[11px] italic text-muted-foreground">
-                      No tools
-                    </div>
+                  {isCollapsed ? (
+                    <ChevronRight size={12} className="text-muted-foreground" />
+                  ) : (
+                    <ChevronDown size={12} className="text-muted-foreground" />
                   )}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                  <Icon size={13} style={{ color: cat.color }} />
+                  <span
+                    className="text-[11px] font-semibold tracking-wide"
+                    style={{ color: cat.text }}
+                  >
+                    {cat.label}
+                  </span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{items.length}</span>
+                </Button>
+
+                {/* Tool items */}
+                {!isCollapsed && (
+                  <div className="pb-1">
+                    {items.map((tool) => (
+                      <PaletteItem
+                        key={tool.name}
+                        tool={tool}
+                        categoryColor={cat.color}
+                        onAdd={() => onAddTool(tool.name)}
+                        onDragStart={(e) => handleDragStart(e, tool.name)}
+                      />
+                    ))}
+                    {items.length === 0 && (
+                      <div className="pl-9 pr-2.5 py-1 text-[11px] italic text-muted-foreground">
+                        No tools
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </ScrollArea>
     </div>
@@ -171,9 +168,7 @@ function PaletteItem({
     >
       <GripVertical size={11} className="mt-0.5 shrink-0 text-border" />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-[11.5px] font-medium text-foreground">
-          {displayName}
-        </div>
+        <div className="truncate text-[11.5px] font-medium text-foreground">{displayName}</div>
         <div className="truncate text-[10px] leading-tight text-muted-foreground">
           {tool.description}
         </div>

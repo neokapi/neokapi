@@ -19,7 +19,13 @@ function SchemaFormWrapper({
   const [values, setValues] = useState<Record<string, unknown>>(initialValues);
   return (
     <div style={{ maxWidth: width }}>
-      <SchemaForm schema={schema} values={values} onChange={setValues} compact={compact} presetValues={presetValues} />
+      <SchemaForm
+        schema={schema}
+        values={values}
+        onChange={setValues}
+        compact={compact}
+        presetValues={presetValues}
+      />
       <pre
         style={{
           marginTop: 16,
@@ -47,8 +53,18 @@ const pseudoTranslateSchema: ComponentSchema = {
     { id: "behavior", label: "Behavior", fields: ["applyAccents", "padWithX"] },
   ],
   properties: {
-    prefix: { type: "string", title: "Prefix", default: "[", description: "Prefix added to translations" },
-    suffix: { type: "string", title: "Suffix", default: "]", description: "Suffix added to translations" },
+    prefix: {
+      type: "string",
+      title: "Prefix",
+      default: "[",
+      description: "Prefix added to translations",
+    },
+    suffix: {
+      type: "string",
+      title: "Suffix",
+      default: "]",
+      description: "Suffix added to translations",
+    },
     expansionPercent: {
       type: "integer",
       title: "Expansion Percent",
@@ -119,7 +135,12 @@ const qaCheckSchema: ComponentSchema = {
       default: true,
       description: "Verify inline codes are preserved",
     },
-    checkPatterns: { type: "boolean", title: "Check Patterns", default: false, description: "Check for pattern mismatches" },
+    checkPatterns: {
+      type: "boolean",
+      title: "Check Patterns",
+      default: false,
+      description: "Check for pattern mismatches",
+    },
     severityLevel: {
       type: "string",
       title: "Severity Level",
@@ -145,11 +166,36 @@ const searchReplaceSchema: ComponentSchema = {
   properties: {
     search: { type: "string", title: "Search", description: "Search pattern or literal text" },
     replace: { type: "string", title: "Replace", description: "Replacement text" },
-    regEx: { type: "boolean", title: "Regular Expression", default: false, description: "Treat search as a regular expression" },
-    target: { type: "boolean", title: "Apply to Target", default: true, description: "Apply to target text" },
-    source: { type: "boolean", title: "Apply to Source", default: false, description: "Apply to source text" },
-    dotAll: { type: "boolean", title: "Dot All", default: false, description: "Dot matches newlines in regex" },
-    caseInsensitive: { type: "boolean", title: "Case Insensitive", default: false, description: "Case-insensitive matching" },
+    regEx: {
+      type: "boolean",
+      title: "Regular Expression",
+      default: false,
+      description: "Treat search as a regular expression",
+    },
+    target: {
+      type: "boolean",
+      title: "Apply to Target",
+      default: true,
+      description: "Apply to target text",
+    },
+    source: {
+      type: "boolean",
+      title: "Apply to Source",
+      default: false,
+      description: "Apply to source text",
+    },
+    dotAll: {
+      type: "boolean",
+      title: "Dot All",
+      default: false,
+      description: "Dot matches newlines in regex",
+    },
+    caseInsensitive: {
+      type: "boolean",
+      title: "Case Insensitive",
+      default: false,
+      description: "Case-insensitive matching",
+    },
   },
 };
 
@@ -261,7 +307,12 @@ const arraySchema: ComponentSchema = {
         type: "object",
         properties: {
           name: { type: "string", title: "Name", description: "Column name" },
-          start: { type: "integer", title: "Start", minimum: 0, description: "Start position (0-based)" },
+          start: {
+            type: "integer",
+            title: "Start",
+            minimum: 0,
+            description: "Start position (0-based)",
+          },
           width: { type: "integer", title: "Width", minimum: 1, description: "Column width" },
           translatable: {
             type: "boolean",
@@ -279,7 +330,13 @@ const arraySchema: ComponentSchema = {
       enum: ["UTF-8", "UTF-16", "ISO-8859-1", "Windows-1252"],
       description: "File character encoding",
     },
-    skipLines: { type: "integer", title: "Skip Lines", default: 0, minimum: 0, description: "Header lines to skip" },
+    skipLines: {
+      type: "integer",
+      title: "Skip Lines",
+      default: 0,
+      minimum: 0,
+      description: "Header lines to skip",
+    },
   },
 };
 
@@ -363,7 +420,12 @@ const deeplyNestedSchema: ComponentSchema = {
     { id: "codes", label: "Inline Codes", fields: ["codeFinderRules", "useCodeFinder"] },
   ],
   properties: {
-    preserveWhitespace: { type: "boolean", title: "Preserve Whitespace", default: false, description: "Preserve significant whitespace in text nodes" },
+    preserveWhitespace: {
+      type: "boolean",
+      title: "Preserve Whitespace",
+      default: false,
+      description: "Preserve significant whitespace in text nodes",
+    },
     elements: {
       type: "object",
       title: "Elements",
@@ -371,7 +433,12 @@ const deeplyNestedSchema: ComponentSchema = {
       additionalProperties: {
         type: "object",
         properties: {
-          ruleType: { type: "string", title: "Rule Type", enum: ["INLINE", "GROUP", "EXCLUDE", "TEXTUNIT", "PRESERVE_WHITESPACE"], default: "INLINE" },
+          ruleType: {
+            type: "string",
+            title: "Rule Type",
+            enum: ["INLINE", "GROUP", "EXCLUDE", "TEXTUNIT", "PRESERVE_WHITESPACE"],
+            default: "INLINE",
+          },
           translatable: { type: "boolean", title: "Translatable", default: true },
         },
       } as unknown as boolean,
@@ -387,7 +454,11 @@ const deeplyNestedSchema: ComponentSchema = {
       title: "Code Finder Rules",
       description: "Rules for identifying inline codes",
       properties: {
-        useAllRulesWhenTesting: { type: "boolean", title: "Use All Rules When Testing", default: true },
+        useAllRulesWhenTesting: {
+          type: "boolean",
+          title: "Use All Rules When Testing",
+          default: true,
+        },
         includes: {
           type: "array",
           title: "Includes",
@@ -402,7 +473,12 @@ const deeplyNestedSchema: ComponentSchema = {
         },
       },
     },
-    useCodeFinder: { type: "boolean", title: "Use Code Finder", default: true, description: "Enable the inline code finder" },
+    useCodeFinder: {
+      type: "boolean",
+      title: "Use Code Finder",
+      default: true,
+      description: "Enable the inline code finder",
+    },
   },
 };
 
@@ -441,8 +517,18 @@ const mapEditorSchema: ComponentSchema = {
         },
       } as unknown as boolean,
     },
-    expandVars: { type: "boolean", title: "Expand Vars", default: true, description: "Expand ${VAR} references in values" },
-    caseSensitiveKeys: { type: "boolean", title: "Case Sensitive Keys", default: true, description: "Treat variable names as case-sensitive" },
+    expandVars: {
+      type: "boolean",
+      title: "Expand Vars",
+      default: true,
+      description: "Expand ${VAR} references in values",
+    },
+    caseSensitiveKeys: {
+      type: "boolean",
+      title: "Case Sensitive Keys",
+      default: true,
+      description: "Treat variable names as case-sensitive",
+    },
   },
 };
 

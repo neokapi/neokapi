@@ -136,7 +136,7 @@ export function useWebauthnRegisterScript(params: {
       return;
     }
 
-    (async () => {
+    void (async () => {
       await waitForElementMountedOnDom({ elementId: authButtonId });
       insertScriptTags();
     })();

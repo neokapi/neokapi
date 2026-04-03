@@ -87,10 +87,7 @@ function SimulatedCredentials() {
 
       <div className="space-y-2">
         {providers.map((provider) => (
-          <Card
-            key={provider.id}
-            className="flex items-center gap-3 p-4"
-          >
+          <Card key={provider.id} className="flex items-center gap-3 p-4">
             <KeyRound size={18} className="shrink-0 text-primary" />
             <div className="flex-1">
               <div className="flex items-center gap-2">
@@ -180,19 +177,11 @@ function SimulatedCredentials() {
             </div>
           </div>
           <div className="mt-3 flex gap-2">
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!editing.name || saving}
-            >
+            <Button size="sm" onClick={handleSave} disabled={!editing.name || saving}>
               {saving && <Loader2 size={12} className="animate-spin" />}
               {saving ? "Saving..." : "Save to Keychain"}
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditing(null)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setEditing(null)}>
               Cancel
             </Button>
           </div>

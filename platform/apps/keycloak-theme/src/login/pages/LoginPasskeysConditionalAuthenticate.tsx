@@ -4,11 +4,7 @@ import { Mail, User } from "lucide-react";
 const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
 import { Card, CardHeader, CardContent, CardFooter } from "@neokapi/ui";
 import { Button } from "@neokapi/ui";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@neokapi/ui";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@neokapi/ui";
 import { Label } from "@neokapi/ui";
 import { useScript } from "keycloakify/login/pages/LoginPasskeysConditionalAuthenticate.useScript";
 

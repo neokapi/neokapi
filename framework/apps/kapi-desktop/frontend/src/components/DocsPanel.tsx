@@ -34,9 +34,7 @@ interface DocsPanelProps {
  * Supports both full-page and compact inline modes.
  */
 export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(
-    new Set(["overview"]),
-  );
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(["overview"]));
 
   const toggleSection = (id: string) => {
     setExpandedSections((prev) => {
@@ -171,10 +169,7 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
           >
             <ul className="flex flex-col gap-1.5">
               {doc.limitations!.map((lim, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2 text-[12px] text-foreground/80"
-                >
+                <li key={i} className="flex items-start gap-2 text-[12px] text-foreground/80">
                   <span className="mt-1.5 h-1 w-1 rounded-full bg-chart-5/60 shrink-0" />
                   <Md>{lim}</Md>
                 </li>
@@ -194,10 +189,7 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
           >
             <ul className="flex flex-col gap-1.5">
               {doc.processingNotes!.map((note, i) => (
-                <li
-                  key={i}
-                  className="flex items-start gap-2 text-[12px] text-foreground/80"
-                >
+                <li key={i} className="flex items-start gap-2 text-[12px] text-foreground/80">
                   <span className="mt-1.5 h-1 w-1 rounded-full bg-chart-3/60 shrink-0" />
                   <Md>{note}</Md>
                 </li>
@@ -213,11 +205,7 @@ export function DocsPanel({ doc, visibleParams, inline }: DocsPanelProps) {
 // --- Sub-components ---
 
 function CardWrapper({ children }: { children: React.ReactNode }) {
-  return (
-    <Card className="overflow-hidden">
-      {children}
-    </Card>
-  );
+  return <Card className="overflow-hidden">{children}</Card>;
 }
 
 function CollapsibleSection({
@@ -257,9 +245,7 @@ function CollapsibleSection({
           </span>
         )}
       </Button>
-      {expanded && (
-        <div className="px-4 pb-3 pt-0.5 ml-[22px]">{children}</div>
-      )}
+      {expanded && <div className="px-4 pb-3 pt-0.5 ml-[22px]">{children}</div>}
     </div>
   );
 }
@@ -315,12 +301,11 @@ function ParameterEntry({
             {doc.notes && doc.notes.length > 0 && (
               <div className="mt-1.5 flex flex-col gap-1">
                 {doc.notes.map((note, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-1.5 text-[10px] text-chart-4"
-                  >
+                  <div key={i} className="flex items-start gap-1.5 text-[10px] text-chart-4">
                     <Lightbulb size={9} className="mt-0.5 shrink-0" />
-                    <span><Md>{note}</Md></span>
+                    <span>
+                      <Md>{note}</Md>
+                    </span>
                   </div>
                 ))}
               </div>
@@ -348,11 +333,7 @@ function ParameterEntry({
         {expanded && hasChildren && (
           <div className="border-t border-border/40 px-3 py-2 ml-4 flex flex-col gap-2">
             {children.map(([key, childDoc]) => (
-              <ParameterEntry
-                key={key}
-                name={key.split(".").pop() || key}
-                doc={childDoc}
-              />
+              <ParameterEntry key={key} name={key.split(".").pop() || key} doc={childDoc} />
             ))}
           </div>
         )}
@@ -369,9 +350,7 @@ function ExampleEntry({
   return (
     <div className="rounded-md border border-border/60 bg-background/50 overflow-hidden">
       <div className="px-3 py-2">
-        <h4 className="text-[11px] font-semibold text-foreground">
-          {example.title}
-        </h4>
+        <h4 className="text-[11px] font-semibold text-foreground">{example.title}</h4>
         {example.description && (
           <div className="mt-0.5 text-[11px] text-foreground/70">
             <Md>{example.description}</Md>
@@ -415,7 +394,12 @@ function Md({ children }: { children: string }) {
       components={{
         p: ({ children: c }) => <p className="mb-1 last:mb-0">{c}</p>,
         a: ({ href, children: c }) => (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary/80 hover:text-primary underline underline-offset-2 decoration-primary/30">
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary/80 hover:text-primary underline underline-offset-2 decoration-primary/30"
+          >
             {c}
           </a>
         ),
@@ -428,11 +412,11 @@ function Md({ children }: { children: string }) {
         table: ({ children: c }) => (
           <table className="my-2 w-full text-[0.95em] border-collapse">{c}</table>
         ),
-        thead: ({ children: c }) => (
-          <thead className="border-b-2 border-border">{c}</thead>
-        ),
+        thead: ({ children: c }) => <thead className="border-b-2 border-border">{c}</thead>,
         th: ({ children: c }) => (
-          <th className="text-left py-1 pr-3 font-semibold text-[0.9em] text-muted-foreground">{c}</th>
+          <th className="text-left py-1 pr-3 font-semibold text-[0.9em] text-muted-foreground">
+            {c}
+          </th>
         ),
         td: ({ children: c }) => (
           <td className="py-1 pr-3 border-b border-border align-top">{c}</td>
@@ -484,22 +468,15 @@ export function ParamHelp({ paramKey, doc }: ParamHelpProps) {
             <Md>{paramDoc.description || paramDoc.help || ""}</Md>
           </div>
           {paramDoc.notes?.map((note, i) => (
-            <div
-              key={i}
-              className="mt-1.5 text-[10px] text-chart-4 flex items-start gap-1"
-            >
+            <div key={i} className="mt-1.5 text-[10px] text-chart-4 flex items-start gap-1">
               <Lightbulb size={9} className="mt-0.5 shrink-0" />
               <Md>{note}</Md>
             </div>
           ))}
           {paramDoc.dependsOn?.map((dep, i) => (
-            <p
-              key={i}
-              className="mt-1 text-[10px] text-chart-3 flex items-center gap-1"
-            >
+            <p key={i} className="mt-1 text-[10px] text-chart-3 flex items-center gap-1">
               <GitBranch size={8} />
-              Requires <code className="font-semibold">{dep.property}</code>{" "}
-              {dep.condition}
+              Requires <code className="font-semibold">{dep.property}</code> {dep.condition}
             </p>
           ))}
         </div>

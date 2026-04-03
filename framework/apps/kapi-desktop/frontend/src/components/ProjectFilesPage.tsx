@@ -42,17 +42,17 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
 
   // Initial load.
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   // Auto-refresh when files change on disk.
   useWailsEvent("project-files-changed", (data) => {
-    if (data === tabID) refresh();
+    if (data === tabID) void refresh();
   });
 
   const handleAddFiles = async () => {
     const added = await api.addFilesDialog(tabID, "");
-    if (added && added.length > 0) refresh();
+    if (added && added.length > 0) void refresh();
   };
 
   const handleDrop = useCallback(
@@ -70,7 +70,7 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
           await api.copyFileToProject(tabID, path, "");
         }
       }
-      refresh();
+      void refresh();
     },
     [tabID, refresh],
   );
@@ -96,12 +96,7 @@ export function ProjectFilesPage({ tabID, basePath }: ProjectFilesPageProps) {
         className="mb-4"
         actions={
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleAddFiles}
-              aria-label="Add files"
-            >
+            <Button variant="outline" size="sm" onClick={handleAddFiles} aria-label="Add files">
               <Plus size={12} />
               Add Files
             </Button>

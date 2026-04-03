@@ -1764,52 +1764,28 @@
       "preserve_whitespace": false,
       "attributes": {
         "dir": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ],
-          "allElementsExcept": [
-            "base",
-            "basefront",
-            "head",
-            "html",
-            "meta",
-            "param",
-            "script"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"],
+          "allElementsExcept": ["base", "basefront", "head", "html", "meta", "param", "script"]
         },
         "title": {
-          "ruleTypes": [
-            "ATTRIBUTE_TRANS"
-          ]
+          "ruleTypes": ["ATTRIBUTE_TRANS"]
         },
         "lang": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"]
         },
         "xml:lang": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"]
         },
         "aria-label": {
-          "ruleTypes": [
-            "ATTRIBUTE_TRANS"
-          ]
+          "ruleTypes": ["ATTRIBUTE_TRANS"]
         }
       },
       "elements": {
         "meta": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
           "translatableAttributes": {
             "content": [
-              [
-                "http-equiv",
-                "EQUALS",
-                "keywords"
-              ],
+              ["http-equiv", "EQUALS", "keywords"],
               [
                 "name",
                 "EQUALS",
@@ -1826,675 +1802,340 @@
             ]
           },
           "writableLocalizableAttributes": {
-            "content": [
-              "http-equiv",
-              "EQUALS",
-              [
-                "content-language",
-                "content-type"
-              ]
-            ]
+            "content": ["http-equiv", "EQUALS", ["content-language", "content-type"]]
           },
           "readOnlyLocalizableAttributes": {
-            "content": [
-              "name",
-              "EQUALS",
-              [
-                "generator",
-                "author",
-                "progid",
-                "date"
-              ]
-            ]
+            "content": ["name", "EQUALS", ["generator", "author", "progid", "date"]]
           }
         },
         "area": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "accesskey",
-            "area",
-            "alt",
-            "download"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["accesskey", "area", "alt", "download"]
         },
         "isindex": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "prompt"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["prompt"]
         },
         "option": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "label"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["label"]
         },
         "dl": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "menu": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "ol": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "optgroup": {
-          "ruleTypes": [
-            "GROUP"
-          ],
-          "translatableAttributes": [
-            "label"
-          ]
+          "ruleTypes": ["GROUP"],
+          "translatableAttributes": ["label"]
         },
         "select": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "table": {
-          "ruleTypes": [
-            "GROUP"
-          ],
-          "translatableAttributes": [
-            "summary"
-          ]
+          "ruleTypes": ["GROUP"],
+          "translatableAttributes": ["summary"]
         },
         "tbody": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "tfoot": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "thead": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "tr": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "ul": {
-          "ruleTypes": [
-            "GROUP"
-          ]
+          "ruleTypes": ["GROUP"]
         },
         "address": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "dt": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "dd": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h1": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h2": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h3": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h4": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h5": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h6": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "legend": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "translatableAttributes": [
-            "accesskey"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "translatableAttributes": ["accesskey"],
+          "idAttributes": ["id"]
         },
         "li": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "translatableAttributes": [
-            "value"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "translatableAttributes": ["value"],
+          "idAttributes": ["id"]
         },
         "marquee": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "p": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ],
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"],
           "elementType": "paragraph"
         },
         "pre": {
-          "ruleTypes": [
-            "TEXTUNIT",
-            "PRESERVE_WHITESPACE"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT", "PRESERVE_WHITESPACE"],
+          "idAttributes": ["id"]
         },
         "td": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "translatableAttributes": [
-            "abbr"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "translatableAttributes": ["abbr"],
+          "idAttributes": ["id"]
         },
         "th": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "title": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "track": {
-          "translatableAttributes": [
-            "label",
-            "srclang"
-          ],
-          "writableLocalizableAttributes": [
-            "src"
-          ]
+          "translatableAttributes": ["label", "srclang"],
+          "writableLocalizableAttributes": ["src"]
         },
         "a": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "link",
-          "translatableAttributes": [
-            "title",
-            "accesskey",
-            "download"
-          ],
-          "writableLocalizableAttributes": [
-            "href"
-          ]
+          "translatableAttributes": ["title", "accesskey", "download"],
+          "writableLocalizableAttributes": ["href"]
         },
         "audio": {
-          "writableLocalizableAttributes": [
-            "src"
-          ]
+          "writableLocalizableAttributes": ["src"]
         },
         "abbr": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "acronym": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "applet": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "alt"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["alt"]
         },
         "b": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "bold"
         },
         "base": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "writableLocalizableAttributes": [
-            "href"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "writableLocalizableAttributes": ["href"]
         },
         "bdo": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "big": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "blink": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "br": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "button": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "accesskey",
-            "value"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["accesskey", "value"]
         },
         "cite": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "code": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "del": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "dfn": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "em": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "embed": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "font": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "i": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "italic"
         },
         "iframe": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "srcdoc"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["srcdoc"]
         },
         "img": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "image",
-          "translatableAttributes": [
-            "title",
-            "alt"
-          ],
-          "writableLocalizableAttributes": [
-            "href",
-            "src"
-          ]
+          "translatableAttributes": ["title", "alt"],
+          "writableLocalizableAttributes": ["href", "src"]
         },
         "input": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "translatableAttributes": {
-            "alt": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "value": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "accesskey": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "title": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "placeholder": [
-              "type",
-              "NOT_EQUALS",
-              "dummy"
-            ]
+            "alt": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "value": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "accesskey": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "title": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "placeholder": ["type", "NOT_EQUALS", "dummy"]
           }
         },
         "ins": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "kbd": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "label": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "accesskey"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["accesskey"]
         },
         "map": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "menuitem": {
-          "translatableAttributes": [
-            "label"
-          ]
+          "translatableAttributes": ["label"]
         },
         "nobr": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "object": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "standby"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["standby"]
         },
         "param": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "value"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["value"]
         },
         "q": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "s": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "samp": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "small": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "span": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "spacer": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "strike": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "strong": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sub": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sup": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "textarea": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "accesskey",
-            "placeholder"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["accesskey", "placeholder"]
         },
         "tt": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "u": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "underlined"
         },
         "var": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "wbr": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "ruby": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rb": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rt": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rc": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rp": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rbc": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rtc": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "symbol": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "face": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         ".*": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ],
-          "conditions": [
-            "translate",
-            "EQUALS",
-            "no"
-          ]
+          "ruleTypes": ["EXCLUDE"],
+          "conditions": ["translate", "EQUALS", "no"]
         },
         ".+": {
-          "ruleTypes": [
-            "INCLUDE"
-          ],
-          "conditions": [
-            "translate",
-            "EQUALS",
-            "yes"
-          ]
+          "ruleTypes": ["INCLUDE"],
+          "conditions": ["translate", "EQUALS", "yes"]
         },
         "style": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "stylesheet": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "script": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         }
       }
     },
@@ -2503,52 +2144,28 @@
       "preserve_whitespace": false,
       "attributes": {
         "dir": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ],
-          "allElementsExcept": [
-            "base",
-            "basefront",
-            "head",
-            "html",
-            "meta",
-            "param",
-            "script"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"],
+          "allElementsExcept": ["base", "basefront", "head", "html", "meta", "param", "script"]
         },
         "title": {
-          "ruleTypes": [
-            "ATTRIBUTE_TRANS"
-          ]
+          "ruleTypes": ["ATTRIBUTE_TRANS"]
         },
         "lang": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"]
         },
         "xml:lang": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"]
         },
         "aria-label": {
-          "ruleTypes": [
-            "ATTRIBUTE_TRANS"
-          ]
+          "ruleTypes": ["ATTRIBUTE_TRANS"]
         }
       },
       "elements": {
         "meta": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
           "translatableAttributes": {
             "content": [
-              [
-                "http-equiv",
-                "EQUALS",
-                "keywords"
-              ],
+              ["http-equiv", "EQUALS", "keywords"],
               [
                 "name",
                 "EQUALS",
@@ -2565,638 +2182,317 @@
             ]
           },
           "writableLocalizableAttributes": {
-            "content": [
-              "http-equiv",
-              "EQUALS",
-              [
-                "content-language",
-                "content-type"
-              ]
-            ]
+            "content": ["http-equiv", "EQUALS", ["content-language", "content-type"]]
           },
           "readOnlyLocalizableAttributes": {
-            "content": [
-              "name",
-              "EQUALS",
-              [
-                "generator",
-                "author",
-                "progid",
-                "date"
-              ]
-            ]
+            "content": ["name", "EQUALS", ["generator", "author", "progid", "date"]]
           }
         },
         "area": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "accesskey",
-            "area",
-            "alt",
-            "download"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["accesskey", "area", "alt", "download"]
         },
         "isindex": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "prompt"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["prompt"]
         },
         "option": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "label"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["label"]
         },
         "optgroup": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "label"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["label"]
         },
         "address": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "dt": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "dd": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h1": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h2": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h3": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h4": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h5": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "h6": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "legend": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "translatableAttributes": [
-            "accesskey"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "translatableAttributes": ["accesskey"],
+          "idAttributes": ["id"]
         },
         "li": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "translatableAttributes": [
-            "value"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "translatableAttributes": ["value"],
+          "idAttributes": ["id"]
         },
         "marquee": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "p": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ],
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"],
           "elementType": "paragraph"
         },
         "pre": {
-          "ruleTypes": [
-            "TEXTUNIT",
-            "PRESERVE_WHITESPACE"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT", "PRESERVE_WHITESPACE"],
+          "idAttributes": ["id"]
         },
         "td": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "translatableAttributes": [
-            "abbr"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "translatableAttributes": ["abbr"],
+          "idAttributes": ["id"]
         },
         "th": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ],
-          "translatableAttributes": [
-            "abbr"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"],
+          "translatableAttributes": ["abbr"]
         },
         "title": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "id"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["id"]
         },
         "track": {
-          "translatableAttributes": [
-            "label",
-            "srclang"
-          ],
-          "writableLocalizableAttributes": [
-            "src"
-          ]
+          "translatableAttributes": ["label", "srclang"],
+          "writableLocalizableAttributes": ["src"]
         },
         "a": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "link",
-          "translatableAttributes": [
-            "title",
-            "accesskey",
-            "download"
-          ],
-          "writableLocalizableAttributes": [
-            "href"
-          ]
+          "translatableAttributes": ["title", "accesskey", "download"],
+          "writableLocalizableAttributes": ["href"]
         },
         "audio": {
-          "writableLocalizableAttributes": [
-            "src"
-          ]
+          "writableLocalizableAttributes": ["src"]
         },
         "abbr": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "acronym": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "applet": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "alt"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["alt"]
         },
         "b": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "bold"
         },
         "base": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "writableLocalizableAttributes": [
-            "href"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "writableLocalizableAttributes": ["href"]
         },
         "bdo": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "big": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "blink": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "br": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "button": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "accesskey",
-            "value"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["accesskey", "value"]
         },
         "cite": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "code": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "del": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "dfn": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "em": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "embed": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "font": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "i": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "italic"
         },
         "iframe": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "srcdoc"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["srcdoc"]
         },
         "img": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "image",
-          "translatableAttributes": [
-            "title",
-            "alt"
-          ],
-          "writableLocalizableAttributes": [
-            "href",
-            "src"
-          ]
+          "translatableAttributes": ["title", "alt"],
+          "writableLocalizableAttributes": ["href", "src"]
         },
         "input": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "translatableAttributes": {
-            "alt": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "value": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "accesskey": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "title": [
-              "type",
-              "NOT_EQUALS",
-              [
-                "file",
-                "hidden",
-                "image",
-                "Password"
-              ]
-            ],
-            "placeholder": [
-              "type",
-              "NOT_EQUALS",
-              "dummy"
-            ]
+            "alt": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "value": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "accesskey": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "title": ["type", "NOT_EQUALS", ["file", "hidden", "image", "Password"]],
+            "placeholder": ["type", "NOT_EQUALS", "dummy"]
           }
         },
         "ins": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "kbd": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "label": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "accesskey"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["accesskey"]
         },
         "map": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "menuitem": {
-          "translatableAttributes": [
-            "label"
-          ]
+          "translatableAttributes": ["label"]
         },
         "nobr": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "object": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "standby"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["standby"]
         },
         "param": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "value"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["value"]
         },
         "q": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "s": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "samp": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "small": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "select": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "span": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "spacer": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "strike": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "strong": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sub": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sup": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "table": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "summary"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["summary"]
         },
         "textarea": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "accesskey",
-            "placeholder"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["accesskey", "placeholder"]
         },
         "tt": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "u": {
-          "ruleTypes": [
-            "INLINE"
-          ],
+          "ruleTypes": ["INLINE"],
           "elementType": "underlined"
         },
         "var": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "wbr": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "ruby": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rb": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rt": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rc": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rp": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rbc": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "rtc": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "symbol": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "face": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         ".*": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ],
-          "conditions": [
-            "translate",
-            "EQUALS",
-            "no"
-          ]
+          "ruleTypes": ["EXCLUDE"],
+          "conditions": ["translate", "EQUALS", "no"]
         },
         ".+": {
-          "ruleTypes": [
-            "INCLUDE"
-          ],
-          "conditions": [
-            "translate",
-            "EQUALS",
-            "yes"
-          ]
+          "ruleTypes": ["INCLUDE"],
+          "conditions": ["translate", "EQUALS", "yes"]
         },
         "style": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "stylesheet": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "script": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         }
       }
     }
@@ -4110,408 +3406,227 @@
       "preserve_whitespace": false,
       "attributes": {
         "xml:lang": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"]
         },
         "xml:id": {
-          "ruleTypes": [
-            "ATTRIBUTE_ID"
-          ]
+          "ruleTypes": ["ATTRIBUTE_ID"]
         },
         "id": {
-          "ruleTypes": [
-            "ATTRIBUTE_ID"
-          ]
+          "ruleTypes": ["ATTRIBUTE_ID"]
         },
         "xml:space": {
-          "ruleTypes": [
-            "ATTRIBUTE_PRESERVE_WHITESPACE"
-          ],
-          "preserve": [
-            "xml:space",
-            "EQUALS",
-            "preserve"
-          ],
-          "default": [
-            "xml:space",
-            "EQUALS",
-            "default"
-          ]
+          "ruleTypes": ["ATTRIBUTE_PRESERVE_WHITESPACE"],
+          "preserve": ["xml:space", "EQUALS", "preserve"],
+          "default": ["xml:space", "EQUALS", "default"]
         }
       },
       "elements": {
         "othermeta": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "content"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["content"]
         },
         "topicref": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "navtitle"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["navtitle"]
         },
         "topicgroup": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "navtitle"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["navtitle"]
         },
         "topichead": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "navtitle"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["navtitle"]
         },
         "note": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "othertype"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["othertype"]
         },
         "lq": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "reftitle"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["reftitle"]
         },
         "object": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "standby"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["standby"]
         },
         "map": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "title"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["title"]
         },
         "state": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY",
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "value"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY", "INLINE"],
+          "translatableAttributes": ["value"]
         },
         "data": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "label"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["label"]
         },
         "vrm": {
-          "ruleTypes": [
-            "ATTRIBUTES_ONLY"
-          ],
-          "translatableAttributes": [
-            "version"
-          ]
+          "ruleTypes": ["ATTRIBUTES_ONLY"],
+          "translatableAttributes": ["version"]
         },
         "pre": {
-          "ruleTypes": [
-            "PRESERVE_WHITESPACE"
-          ]
+          "ruleTypes": ["PRESERVE_WHITESPACE"]
         },
         "lines": {
-          "ruleTypes": [
-            "PRESERVE_WHITESPACE"
-          ]
+          "ruleTypes": ["PRESERVE_WHITESPACE"]
         },
         "screen": {
-          "ruleTypes": [
-            "PRESERVE_WHITESPACE"
-          ]
+          "ruleTypes": ["PRESERVE_WHITESPACE"]
         },
         "msgblock": {
-          "ruleTypes": [
-            "PRESERVE_WHITESPACE"
-          ]
+          "ruleTypes": ["PRESERVE_WHITESPACE"]
         },
         "codeblock": {
-          "ruleTypes": [
-            "PRESERVE_WHITESPACE"
-          ]
+          "ruleTypes": ["PRESERVE_WHITESPACE"]
         },
         ".*": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ],
-          "conditions": [
-            "translate",
-            "EQUALS",
-            "no"
-          ]
+          "ruleTypes": ["EXCLUDE"],
+          "conditions": ["translate", "EQUALS", "no"]
         },
         ".+": {
-          "ruleTypes": [
-            "INCLUDE"
-          ],
-          "conditions": [
-            "translate",
-            "EQUALS",
-            "yes"
-          ]
+          "ruleTypes": ["INCLUDE"],
+          "conditions": ["translate", "EQUALS", "yes"]
         },
         "stylesheet": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "coords": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "draft-comment": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "required-cleanup": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "shape": {
-          "ruleTypes": [
-            "EXCLUDE"
-          ]
+          "ruleTypes": ["EXCLUDE"]
         },
         "alt": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "apiname": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "b": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "boolean": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "cite": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "cmdname": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "codeph": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "delim": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "filepath": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "fragref": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "i": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "image": {
-          "ruleTypes": [
-            "INLINE"
-          ],
-          "translatableAttributes": [
-            "alt"
-          ],
-          "conditions": [
-            "placement",
-            "NOT_EQUALS",
-            "break"
-          ]
+          "ruleTypes": ["INLINE"],
+          "translatableAttributes": ["alt"],
+          "conditions": ["placement", "NOT_EQUALS", "break"]
         },
         "itemgroup": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "keyword": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "kwd": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "menucascade": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "msgnum": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "msgph": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "oper": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "option": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "parmname": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "ph": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "q": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "repsep": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sep": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "shortcut": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sub": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "sup": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "synnoteref": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "synph": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "systemoutput": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "term": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "tm": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "tt": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "u": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "uicontrol": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "userinput": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "var": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "varname": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "wintitle": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         },
         "xref": {
-          "ruleTypes": [
-            "INLINE"
-          ]
+          "ruleTypes": ["INLINE"]
         }
       }
     },
@@ -4521,12 +3636,8 @@
       "preserve_whitespace": false,
       "elements": {
         "entry": {
-          "ruleTypes": [
-            "TEXTUNIT"
-          ],
-          "idAttributes": [
-            "key"
-          ]
+          "ruleTypes": ["TEXTUNIT"],
+          "idAttributes": ["key"]
         }
       }
     },
@@ -4535,34 +3646,18 @@
       "preserve_whitespace": false,
       "attributes": {
         "xml:lang": {
-          "ruleTypes": [
-            "ATTRIBUTE_WRITABLE"
-          ]
+          "ruleTypes": ["ATTRIBUTE_WRITABLE"]
         },
         "xml:id": {
-          "ruleTypes": [
-            "ATTRIBUTE_ID"
-          ]
+          "ruleTypes": ["ATTRIBUTE_ID"]
         },
         "id": {
-          "ruleTypes": [
-            "ATTRIBUTE_ID"
-          ]
+          "ruleTypes": ["ATTRIBUTE_ID"]
         },
         "xml:space": {
-          "ruleTypes": [
-            "ATTRIBUTE_PRESERVE_WHITESPACE"
-          ],
-          "preserve": [
-            "xml:space",
-            "EQUALS",
-            "preserve"
-          ],
-          "default": [
-            "xml:space",
-            "EQUALS",
-            "default"
-          ]
+          "ruleTypes": ["ATTRIBUTE_PRESERVE_WHITESPACE"],
+          "preserve": ["xml:space", "EQUALS", "preserve"],
+          "default": ["xml:space", "EQUALS", "default"]
         }
       }
     }

@@ -8,7 +8,6 @@ import {
   useUpdateBrandProfile,
 } from "@neokapi/ui";
 import type { StarterPackMeta } from "@neokapi/ui";
-import { starterPacks } from "@neokapi/ui";
 import type { WorkspaceRouteContext } from "..";
 import type { ToneProfile, StyleRules, VocabularyRules, VoiceExample } from "@neokapi/ui";
 
