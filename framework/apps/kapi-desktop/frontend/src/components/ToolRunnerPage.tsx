@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Button, SchemaForm, Card, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
+import { Badge, Button, SchemaForm, Card, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -189,29 +189,31 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                 const isSelected = selectedTool === tool.name;
 
                 return (
-                  <Button
+                  <div
                     key={tool.name}
-                    variant="ghost"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelectedTool(tool.name)}
-                    className={`w-full h-auto rounded-lg px-3 py-2.5 text-left ${
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setSelectedTool(tool.name); }}
+                    className={`cursor-pointer rounded-lg px-3 py-2.5 text-left transition-colors ${
                       isSelected
                         ? "bg-accent border border-primary/20 shadow-sm"
                         : "hover:bg-accent/50 border border-transparent"
                     }`}
                   >
                     <div className="flex items-start gap-2.5">
-                      <div className={`mt-0.5 p-1 rounded ${meta.color}`}>
+                      <div className={`mt-0.5 shrink-0 p-1 rounded ${meta.color}`}>
                         <Icon size={12} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`text-xs font-semibold truncate ${isSelected ? "text-primary" : "text-foreground"}`}>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-xs font-semibold ${isSelected ? "text-primary" : "text-foreground"}`}>
                             {tool.display_name || tool.name}
                           </span>
                           {tool.source && tool.source !== "built-in" && (
-                            <span className="text-[8px] px-1 py-px rounded bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0 font-medium">
+                            <Badge variant="secondary" className="text-[8px] px-1 py-px bg-violet-500/10 text-violet-600 dark:text-violet-400 shrink-0">
                               {tool.source}
-                            </span>
+                            </Badge>
                           )}
                           {tool.has_schema && (
                             <Settings2 size={9} className="text-muted-foreground shrink-0" />
@@ -220,18 +222,19 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                             <BookOpen size={9} className="text-primary/50 shrink-0" />
                           )}
                         </div>
-                        <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                        <p className="text-[10px] text-muted-foreground line-clamp-2 mt-0.5">
                           {tool.description}
                         </p>
                         {tool.tags && tool.tags.length > 0 && (
-                          <div className="flex gap-1 mt-1">
+                          <div className="flex flex-wrap gap-1 mt-1">
                             {tool.tags.slice(0, 3).map((tag) => (
-                              <span
+                              <Badge
                                 key={tag}
-                                className="text-[8px] px-1 py-px rounded bg-muted text-muted-foreground"
+                                variant="secondary"
+                                className="text-[8px] px-1 py-px"
                               >
                                 {tag}
-                              </span>
+                              </Badge>
                             ))}
                           </div>
                         )}
@@ -243,7 +246,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
                         }`}
                       />
                     </div>
-                  </Button>
+                  </div>
                 );
               })}
               {filteredTools.length === 0 && !loading && (
