@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Play, Globe, Workflow, Wrench, Loader2 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, CardContent } from "@neokapi/ui-primitives";
 import type { KapiProject, FlowSpec } from "../types/api";
 
 interface HomePageProps {
@@ -95,7 +95,7 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
                       {spec.steps.map((step, i) => (
                         <span key={i} className="flex items-center gap-1">
                           {i > 0 && <span>&rarr;</span>}
-                          <span className="rounded bg-accent px-1.5 py-0.5">{step.tool}</span>
+                          <Badge variant="secondary">{step.tool}</Badge>
                         </span>
                       ))}
                     </div>
@@ -123,16 +123,18 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
 
       {/* Empty state */}
       {flowNames.length === 0 && (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">
-            No flows defined yet.{" "}
-            <Button variant="link" size="sm" onClick={() => onNavigate("flows")} className="px-0 h-auto">
-              Create your first flow
-            </Button>{" "}
-            to get started.
-          </p>
-        </div>
+        <Card className="border-dashed">
+          <CardContent className="p-8 text-center">
+            <Workflow size={24} className="mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              No flows defined yet.{" "}
+              <Button variant="link" size="sm" onClick={() => onNavigate("flows")} className="px-0 h-auto">
+                Create your first flow
+              </Button>{" "}
+              to get started.
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

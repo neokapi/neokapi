@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { ToolInfo, PluginDocs, PluginDocsSummary, StepDoc } from "../types/api";
 import type { ComponentSchema } from "@neokapi/ui-primitives";
-import { Button, SchemaForm } from "@neokapi/ui-primitives";
+import { Button, SchemaForm, Card, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
 
@@ -172,7 +172,8 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
         </div>
 
         {/* Tool list */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <ScrollArea className="flex-1">
+          <div className="p-2">
           {loading ? (
             <div className="flex items-center gap-2 px-2 py-4 text-sm text-muted-foreground">
               <Loader2 size={14} className="animate-spin" />
@@ -252,11 +253,12 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
               )}
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
       </div>
 
       {/* Right panel: tool detail */}
-      <div className="flex-1 overflow-y-auto">
+      <ScrollArea className="flex-1">
         {selectedTool && selectedToolInfo ? (
           <ToolDetail
             tool={selectedToolInfo}
@@ -273,7 +275,7 @@ export function ToolRunnerPage({ docs: propDocs, tools: propTools }: ToolRunnerP
             </div>
           </div>
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -401,22 +403,25 @@ function ToolDetail({
             </div>
           )}
           {!loadingSchema && schema && (
-            <div className="rounded-lg border border-border bg-card p-4">
-              <SchemaForm
-                schema={schema}
-                values={config}
-                onChange={setConfig}
-                paramDocs={stepDoc?.parameters}
-              />
-            </div>
+            <Card>
+              <CardContent className="p-4">
+                <SchemaForm
+                  schema={schema}
+                  values={config}
+                  onChange={setConfig}
+                  paramDocs={stepDoc?.parameters}
+                />
+              </CardContent>
+            </Card>
           )}
 
           {/* Runner controls */}
-          <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-            <div>
-              <label className="mb-1 block text-xs font-medium" htmlFor="tool-files">
-                Input Files
-              </label>
+          <Card>
+            <CardContent className="p-4 space-y-3">
+              <div>
+                <Label htmlFor="tool-files" className="mb-1 block">
+                  Input Files
+                </Label>
               <Button
                 id="tool-files"
                 variant="outline"
@@ -429,16 +434,16 @@ function ToolDetail({
 
             {tool.requires?.includes("target-language") && (
               <div>
-                <label className="mb-1 block text-xs font-medium" htmlFor="tool-target-lang">
+                <Label htmlFor="tool-target-lang" className="mb-1 block">
                   Target Language
-                </label>
-                <input
+                </Label>
+                <Input
                   id="tool-target-lang"
                   type="text"
                   value={targetLang}
                   onChange={(e) => setTargetLang(e.target.value)}
                   placeholder="e.g. fr-FR"
-                  className="w-48 rounded-md border border-input bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+                  className="w-48"
                 />
               </div>
             )}
@@ -456,7 +461,8 @@ function ToolDetail({
               {running ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
               {running ? "Running..." : `Run ${tool.display_name || tool.name}`}
             </Button>
-          </div>
+            </CardContent>
+          </Card>
       </div>
     </div>
   );

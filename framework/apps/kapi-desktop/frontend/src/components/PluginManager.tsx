@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, Trash2, ChevronDown, ChevronRight, FileText, Wrench, ArrowUpCircle } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, Tabs, TabsList, TabsTrigger, TabsContent } from "@neokapi/ui-primitives";
 import type { PluginInfo } from "../types/api";
 import { useWailsEvent } from "../hooks/useWailsEvent";
 import { api } from "../hooks/useApi";
@@ -36,7 +36,7 @@ export function PluginManager() {
   const [removing, setRemoving] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"installed" | "available">("installed");
+  const [tab, setTab] = useState<string>("installed");
   const [updates, setUpdates] = useState<PluginUpdate[]>([]);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
   const [updatingAll, setUpdatingAll] = useState(false);
@@ -236,33 +236,11 @@ export function PluginManager() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-0 mb-4 border-b border-border">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setTab("installed")}
-          className={`rounded-none ${
-            tab === "installed"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Installed ({plugins.length})
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setTab("available")}
-          className={`rounded-none ${
-            tab === "available"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          Available
-        </Button>
-      </div>
+      <Tabs defaultValue="installed" onValueChange={setTab}>
+        <TabsList variant="line" className="mb-4">
+          <TabsTrigger value="installed">Installed ({plugins.length})</TabsTrigger>
+          <TabsTrigger value="available">Available</TabsTrigger>
+        </TabsList>
 
       <div className="relative mb-4">
         <Search size={14} className="absolute left-2.5 top-2.5 text-muted-foreground" />
@@ -279,9 +257,7 @@ export function PluginManager() {
         <p className="mb-4 text-sm text-muted-foreground">{error}</p>
       )}
 
-      {/* Installed tab */}
-      {tab === "installed" && (
-        <>
+      <TabsContent value="installed">
           {loading ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 size={16} className="animate-spin" /> Loading plugins...
@@ -316,12 +292,9 @@ export function PluginManager() {
               )}
             </div>
           )}
-        </>
-      )}
+      </TabsContent>
 
-      {/* Available tab */}
-      {tab === "available" && (
-        <>
+      <TabsContent value="available">
           {loadingAvailable ? (
             <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
               <Loader2 size={16} className="animate-spin" /> Loading plugin registry...
@@ -331,13 +304,13 @@ export function PluginManager() {
               {available.map((plugin) => {
                 const status = installStatus[plugin.name];
                 return (
-                  <div key={plugin.name} className="flex items-center gap-3 rounded-lg border border-border p-4">
+                  <Card key={plugin.name} className="flex items-center gap-3 p-4">
                     <Package size={20} className={`shrink-0 ${plugin.installed || status?.state === "done" ? "text-primary" : "text-muted-foreground"}`} />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{plugin.name}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">v{plugin.version}</span>
-                        <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">{plugin.type}</span>
+                        <Badge variant="secondary">v{plugin.version}</Badge>
+                        <Badge variant="secondary">{plugin.type}</Badge>
                       </div>
                       {plugin.description && (
                         <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
@@ -375,7 +348,7 @@ export function PluginManager() {
                         <Download size={12} /> Install
                       </Button>
                     )}
-                  </div>
+                  </Card>
                 );
               })}
               {available.length === 0 && (
@@ -385,8 +358,8 @@ export function PluginManager() {
               )}
             </div>
           )}
-        </>
-      )}
+      </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -418,19 +391,17 @@ function InstalledPluginCard({
   const hasDetails = formatCaps.length > 0 || toolCaps.length > 0;
 
   return (
-    <div className="rounded-lg border border-border overflow-hidden">
+    <Card className="overflow-hidden">
       <div className="flex items-center gap-3 p-4">
         <Package size={20} className="shrink-0 text-primary" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold">{plugin.name}</span>
             {plugin.framework_version && (
-              <span className="rounded bg-accent px-1.5 py-0.5 text-xs font-medium">
-                {plugin.framework_version}
-              </span>
+              <Badge variant="secondary">{plugin.framework_version}</Badge>
             )}
-            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">v{plugin.version}</span>
-            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{plugin.type}</span>
+            <Badge variant="secondary" className="text-[10px]">v{plugin.version}</Badge>
+            <Badge variant="secondary" className="text-[10px]">{plugin.type}</Badge>
           </div>
           {plugin.description && (
             <div className="text-xs text-muted-foreground mt-0.5">{plugin.description}</div>
@@ -549,6 +520,6 @@ function InstalledPluginCard({
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

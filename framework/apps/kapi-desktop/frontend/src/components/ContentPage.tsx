@@ -15,7 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, Label, Input } from "@neokapi/ui-primitives";
 import type { KapiProject, ContentEntry } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useError } from "./ErrorBanner";
@@ -249,7 +249,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
               ))}
             </select>
             {project.preset && (
-              <span className="rounded bg-accent px-2 py-0.5 text-xs">{project.preset}</span>
+              <Badge variant="secondary">{project.preset}</Badge>
             )}
           </div>
         </section>
@@ -263,20 +263,19 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
         </h2>
         <div className="grid max-w-lg grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground" htmlFor="source-lang">
+            <Label htmlFor="source-lang" className="mb-1 block text-xs text-muted-foreground">
               Source Language
-            </label>
-            <input
+            </Label>
+            <Input
               id="source-lang"
               type="text"
               value={project.source_language ?? ""}
               onChange={(e) => onUpdate({ ...project, source_language: e.target.value })}
               placeholder="en-US"
-              className="w-full rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Target Languages</label>
+            <Label className="mb-1 block text-xs text-muted-foreground">Target Languages</Label>
             <div className="flex flex-wrap items-center gap-1.5 rounded border border-input bg-transparent px-2 py-1.5">
               {(project.target_languages ?? []).map((lang) => (
                 <span
@@ -465,9 +464,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                   </div>
                   <div className="space-y-2">
                     <div>
-                      <label className="mb-0.5 block text-xs text-muted-foreground">
+                      <Label className="mb-0.5 block text-xs text-muted-foreground">
                         Path pattern
-                      </label>
+                      </Label>
                       <input
                         type="text"
                         value={entry.path}
@@ -478,7 +477,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <label className="mb-0.5 block text-xs text-muted-foreground">Format</label>
+                        <Label className="mb-0.5 block text-xs text-muted-foreground">Format</Label>
                         <select
                           value={entry.format ?? ""}
                           onChange={(e) => {
@@ -509,9 +508,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                         </select>
                       </div>
                       <div>
-                        <label className="mb-0.5 block text-xs text-muted-foreground">
+                        <Label className="mb-0.5 block text-xs text-muted-foreground">
                           Target path
-                        </label>
+                        </Label>
                         <input
                           type="text"
                           value={entry.target ?? ""}
@@ -530,9 +529,9 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                     {/* Format preset — shown when a format is selected */}
                     {entry.format && (
                       <div>
-                        <label className="mb-0.5 block text-xs text-muted-foreground">
+                        <Label className="mb-0.5 block text-xs text-muted-foreground">
                           Format Preset
-                        </label>
+                        </Label>
                         <select
                           value={entry.format_preset ?? ""}
                           onChange={(e) =>
@@ -708,7 +707,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                         <span className="ml-1.5 font-normal">({collFiles.length})</span>
                       </h3>
                     )}
-                    <div className="rounded-lg border border-border">
+                    <Card>
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="border-b border-border text-left text-muted-foreground">
@@ -730,16 +729,16 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                                 </span>
                               </td>
                               <td className="px-3 py-1.5">
-                                <span className="rounded bg-accent px-1.5 py-0.5">
+                                <Badge variant="secondary">
                                   {m.format || "unknown"}
-                                </span>
+                                </Badge>
                               </td>
                               <td className="px-3 py-1.5 text-muted-foreground">{m.pattern}</td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                    </div>
+                    </Card>
                   </div>
                 );
               })}
@@ -755,7 +754,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                       </span>
                     </h3>
                   )}
-                  <div className="rounded-lg border border-border">
+                  <Card>
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-border text-left text-muted-foreground">
@@ -793,7 +792,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                             </td>
                             <td className="px-3 py-1.5">
                               {f.format ? (
-                                <span className="rounded bg-accent px-1.5 py-0.5">{f.format}</span>
+                                <Badge variant="secondary">{f.format}</Badge>
                               ) : (
                                 <span>&mdash;</span>
                               )}
@@ -803,7 +802,7 @@ export function ContentPage({ project, projectPath, onUpdate, tabID }: ContentPa
                         ))}
                       </tbody>
                     </table>
-                  </div>
+                  </Card>
                 </div>
               )}
             </div>

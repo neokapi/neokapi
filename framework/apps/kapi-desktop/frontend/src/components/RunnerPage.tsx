@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { Play, Square, CheckCircle2, XCircle, Loader2, FileText } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, CardHeader, CardTitle, CardContent, Label, Input, ScrollArea } from "@neokapi/ui-primitives";
 import type { FlowSpec } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useWailsEvent } from "../hooks/useWailsEvent";
@@ -105,27 +105,31 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
       </div>
 
       {/* Pipeline preview */}
-      <div className="mb-4 rounded-lg border border-border p-3">
-        <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Pipeline
-        </h3>
-        <div className="flex items-center gap-2">
-          {flow.steps.map((step, i) => (
-            <div key={i} className="flex items-center gap-2">
-              {i > 0 && <span className="text-muted-foreground">&rarr;</span>}
-              <span className="rounded bg-accent px-2 py-0.5 text-xs font-medium">{step.tool}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Card className="mb-4">
+        <CardHeader className="px-4">
+          <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Pipeline
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4">
+          <div className="flex items-center gap-2">
+            {flow.steps.map((step, i) => (
+              <div key={i} className="flex items-center gap-2">
+                {i > 0 && <span className="text-muted-foreground">&rarr;</span>}
+                <Badge variant="secondary">{step.tool}</Badge>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Configuration (only in idle state) */}
       {state === "idle" && (
         <div className="mb-4 space-y-3">
           <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="runner-files">
+            <Label htmlFor="runner-files" className="mb-1 block">
               Input Files
-            </label>
+            </Label>
             <Button
               id="runner-files"
               variant="outline"
@@ -137,16 +141,16 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
             </Button>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium" htmlFor="runner-target-lang">
+            <Label htmlFor="runner-target-lang" className="mb-1 block">
               Target Language
-            </label>
-            <input
+            </Label>
+            <Input
               id="runner-target-lang"
               type="text"
               value={targetLang}
               onChange={(e) => setTargetLang(e.target.value)}
               placeholder="e.g. fr-FR"
-              className="w-48 rounded border border-input bg-transparent px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring"
+              className="w-48"
             />
           </div>
         </div>
@@ -212,27 +216,33 @@ export function RunnerPage({ flowName, flow, onClose }: RunnerPageProps) {
 
       {/* Event log */}
       {events.length > 0 && (
-        <div className="rounded-lg border border-border">
-          <h3 className="border-b border-border px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Output
-          </h3>
-          <div className="max-h-64 overflow-auto p-3">
-            {events.map((event, i) => (
-              <div
-                key={i}
-                className={`py-0.5 font-mono text-xs ${
-                  event.type === "error"
-                    ? "text-destructive"
-                    : event.type === "complete"
-                      ? "text-green-500"
-                      : "text-muted-foreground"
-                }`}
-              >
-                {event.message || event.file_path || event.type}
+        <Card>
+          <CardHeader className="px-4">
+            <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Output
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <ScrollArea className="max-h-64">
+              <div>
+                {events.map((event, i) => (
+                  <div
+                    key={i}
+                    className={`py-0.5 font-mono text-xs ${
+                      event.type === "error"
+                        ? "text-destructive"
+                        : event.type === "complete"
+                          ? "text-green-500"
+                          : "text-muted-foreground"
+                    }`}
+                  >
+                    {event.message || event.file_path || event.type}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

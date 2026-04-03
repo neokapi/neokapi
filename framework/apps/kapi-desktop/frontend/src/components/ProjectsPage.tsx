@@ -1,5 +1,5 @@
 import { FolderKanban, FolderOpen, Plus } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Card } from "@neokapi/ui-primitives";
 import type { TabInfo } from "../types/api";
 
 interface ProjectsPageProps {
@@ -58,12 +58,14 @@ export function ProjectsPage({
           ))}
         </div>
       ) : (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center">
-          <FolderKanban size={24} className="mx-auto mb-2 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">
-            No projects open. Create a new project or open an existing one.
-          </p>
-        </div>
+        <Card className="border-dashed">
+          <div className="p-8 text-center">
+            <FolderKanban size={24} className="mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              No projects open. Create a new project or open an existing one.
+            </p>
+          </div>
+        </Card>
       )}
     </div>
   );

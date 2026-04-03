@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Globe, FileText, Workflow, Save, Loader2, Pencil } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Badge, Card, CardHeader, CardTitle, CardContent } from "@neokapi/ui-primitives";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 
@@ -133,66 +133,78 @@ export function ProjectPage({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {/* Languages card */}
-        <div className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Globe size={16} className="text-primary" />
-            <h2 className="text-sm font-medium">Languages</h2>
-          </div>
-          <div className="space-y-1 text-sm">
-            <div>
-              <span className="text-muted-foreground">Source: </span>
-              <span>{project.source_language || "Not set"}</span>
+        <Card>
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Globe size={16} className="text-primary" />
+              Languages
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <div className="space-y-1 text-sm">
+              <div>
+                <span className="text-muted-foreground">Source: </span>
+                <span>{project.source_language || "Not set"}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Targets: </span>
+                <span>
+                  {project.target_languages?.length ? project.target_languages.join(", ") : "None"}
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-muted-foreground">Targets: </span>
-              <span>
-                {project.target_languages?.length ? project.target_languages.join(", ") : "None"}
-              </span>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Content card */}
-        <div className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <FileText size={16} className="text-primary" />
-            <h2 className="text-sm font-medium">Content</h2>
-          </div>
-          <div className="space-y-1 text-sm">
-            {project.content?.length ? (
-              project.content.map((entry, i) => (
-                <div key={i} className="truncate text-muted-foreground">
-                  {entry.path}
-                  {entry.format && <span className="ml-1 text-xs">({entry.format})</span>}
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground">No content patterns</p>
-            )}
-          </div>
-        </div>
+        <Card>
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <FileText size={16} className="text-primary" />
+              Content
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <div className="space-y-1 text-sm">
+              {project.content?.length ? (
+                project.content.map((entry, i) => (
+                  <div key={i} className="truncate text-muted-foreground">
+                    {entry.path}
+                    {entry.format && <span className="ml-1 text-xs">({entry.format})</span>}
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground">No content patterns</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Flows card */}
-        <div className="rounded-lg border border-border p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Workflow size={16} className="text-primary" />
-            <h2 className="text-sm font-medium">Flows</h2>
-          </div>
-          <div className="space-y-1 text-sm">
-            {project.flows && Object.keys(project.flows).length > 0 ? (
-              Object.entries(project.flows).map(([name, spec]) => (
-                <div key={name} className="text-muted-foreground">
-                  {name}
-                  <span className="ml-1 text-xs">
-                    ({spec.steps.length} step{spec.steps.length !== 1 ? "s" : ""})
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-muted-foreground">No flows defined</p>
-            )}
-          </div>
-        </div>
+        <Card>
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-medium">
+              <Workflow size={16} className="text-primary" />
+              Flows
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <div className="space-y-1 text-sm">
+              {project.flows && Object.keys(project.flows).length > 0 ? (
+                Object.entries(project.flows).map(([name, spec]) => (
+                  <div key={name} className="text-muted-foreground">
+                    {name}
+                    <span className="ml-1 text-xs">
+                      ({spec.steps.length} step{spec.steps.length !== 1 ? "s" : ""})
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground">No flows defined</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Preset & plugins */}
@@ -201,16 +213,16 @@ export function ProjectPage({
           {project.preset && (
             <div>
               <span className="text-muted-foreground">Preset: </span>
-              <span className="rounded bg-accent px-1.5 py-0.5 text-xs">{project.preset}</span>
+              <Badge variant="secondary">{project.preset}</Badge>
             </div>
           )}
           {project.plugins?.length ? (
             <div>
               <span className="text-muted-foreground">Plugins: </span>
               {project.plugins.map((p) => (
-                <span key={p} className="mr-1 rounded bg-accent px-1.5 py-0.5 text-xs">
+                <Badge key={p} variant="secondary" className="mr-1">
                   {p}
-                </span>
+                </Badge>
               ))}
             </div>
           ) : null}

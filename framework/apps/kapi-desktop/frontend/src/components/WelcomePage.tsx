@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { FolderOpen, FilePlus, Workflow, Wrench, Puzzle, Settings } from "lucide-react";
-import { Button } from "@neokapi/ui-primitives";
+import { Button, Label } from "@neokapi/ui-primitives";
 import type { KapiProject, TabInfo } from "../types/api";
 import { api } from "../hooks/useApi";
 import { useShortenHome } from "../hooks/useShortenHome";
@@ -164,9 +164,9 @@ export function WelcomePage({ onOpen, onNew, onSettings }: WelcomePageProps) {
             {showNewForm ? (
               <div className="w-full max-w-sm space-y-3">
                 <div>
-                  <label className="mb-1 block text-left text-xs text-muted-foreground">
+                  <Label className="mb-1 block text-left text-xs text-muted-foreground">
                     {customPath ? "Location" : "Name"}
-                  </label>
+                  </Label>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="text"
