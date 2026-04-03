@@ -56,13 +56,17 @@ type deviceVerifyEntry struct {
 
 func randomHex(n int) string {
 	b := make([]byte, n)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand: " + err.Error())
+	}
 	return hex.EncodeToString(b)
 }
 
 func randomUserCode() string {
 	b := make([]byte, 4)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand: " + err.Error())
+	}
 	code := hex.EncodeToString(b)
 	return fmt.Sprintf("%s-%s", code[:4], code[4:])
 }

@@ -292,7 +292,7 @@ func (s *SQLiteGraphStore) NeighborsScoped(ctx context.Context, nodeID string, d
 	for rows.Next() {
 		e, err := scanEdgeRow(rows)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("scan edge row: %w", err)
 		}
 		if e.Validity.Matches(scope) {
 			if e.Source == nodeID {
@@ -543,7 +543,7 @@ func (s *SQLiteGraphStore) queryEdges(ctx context.Context, where string, args []
 	for rows.Next() {
 		e, err := scanEdgeRow(rows)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("scan edge row: %w", err)
 		}
 		edges = append(edges, e)
 	}
