@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button, Input, Label, Switch } from "@neokapi/ui";
 import {
+  Button,
+  Input,
+  Label,
+  Switch,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@neokapi/ui/components/ui/dialog";
+} from "@neokapi/ui";
 import { setFeatureOverride } from "../api";
 
 const FEATURES = [
