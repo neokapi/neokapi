@@ -76,7 +76,7 @@ The TM Explorer provides full access to the translation memory. Browse, search, 
 - **Terminology management** with concept-oriented termbases, multi-locale terms, lifecycle statuses, CSV/JSON import/export
 - **Translation Memory** with content-aware tiered matching (generalized, structural, plain), fuzzy matching, and TM explorer
 - **Flow editor** with drag-and-drop visual workflow builder and built-in flow templates
-- **AI translation** using Anthropic, OpenAI, or Ollama providers
+- **AI translation** using Anthropic, OpenAI, Google Gemini, or Ollama providers, with streaming progress for live thinking updates
 - **Action tools** including segmentation, QA check, TM leverage, term lookup, and term enforcement
 - **Plugin support** for extending with custom formats and tools
 - **Batch file management** with per-file language and format configuration

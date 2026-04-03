@@ -89,6 +89,7 @@ Kapi is a Wails v3 application at `framework/apps/kapi-desktop/`. It is part of 
 **Technology stack** — identical to Bowrain Desktop ([AD-012](./012-bowrain.md)):
 - Go backend with Wails v3 auto-generated TypeScript bindings
 - React 19 + Vite + TailwindCSS 4 frontend
+- shadcn/ui component library via `@neokapi/ui-primitives` (shared `packages/ui/`)
 - Storybook 10 for component development
 
 **Architecture** — significantly simpler than Bowrain Desktop:
@@ -177,7 +178,7 @@ The credential store (`cli/credentials/`) was extracted from `platform/credentia
 
 - `kapi run -p file.kapi` enables project-based CLI workflows without breaking the one-shot default behavior.
 
-- Kapi and Bowrain Desktop share the same technology stack (Wails v3, React 19, TailwindCSS) but are independent applications with no shared frontend code (shared flow editor extraction is planned as a follow-up).
+- Kapi and Bowrain Desktop share the same technology stack (Wails v3, React 19, TailwindCSS) and shared frontend packages. Raw Tailwind has been replaced with shadcn primitives (Button, Card, Badge, Label, Input, Tabs, ScrollArea, etc.) from `@neokapi/ui-primitives`. Shared layout components include PageHeader, EmptyState, SkeletonCard, PanelHeader, and LoadingSpinner. The `@neokapi/flow-editor` package provides the shared flow editor. Both packages are resolved via npm workspace symlinks (no path aliases).
 
 - The `.kapi` file format uses `core/flow.StepsSpec` for flow definitions, ensuring compatibility with `.bowrain/flows/` and built-in flows.
 

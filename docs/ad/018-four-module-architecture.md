@@ -61,8 +61,18 @@ neokapi/
 │   └── go.mod       # github.com/neokapi/neokapi/bowrain-cli
 ├── bowrain/         # Server + desktop
 │   └── go.mod       # github.com/neokapi/neokapi/bowrain
-└── packages/ui/     # Shared React component library
+├── package.json     # Root npm workspace coordinating all frontend packages
+├── .npmrc           # install-strategy=hoisted (npm 11)
+└── packages/
+    ├── ui/          # @neokapi/ui-primitives — shadcn/ui primitives (Apache license)
+    └── flow-editor/ # @neokapi/flow-editor — shared flow editor (Apache license)
 ```
+
+### Frontend Workspace
+
+A root `package.json` npm workspace coordinates all frontend packages. `vp install` at the repo root installs all workspace members — no per-directory installs are needed. `.npmrc` sets `install-strategy=hoisted` for npm 11 compatibility.
+
+**License boundary:** packages under `packages/*` are Apache-2.0 licensed (shared by both the open-source kapi and the commercial bowrain platform). Packages under `bowrain/` and `platform/` are AGPL-3.0.
 
 ### Dependency Constraints
 

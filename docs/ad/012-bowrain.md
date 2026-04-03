@@ -34,7 +34,11 @@ Use [Wails v3](https://wails.io/) with a React 19 / TypeScript frontend.
 native file dialogs.
 
 **Frontend** uses React 19, Vite (fast HMR), TailwindCSS, and shadcn/ui
-components. Playwright provides E2E test coverage.
+components via `@neokapi/ui-primitives` (shared `packages/ui/`). The shared
+component library includes layout primitives (PageHeader, EmptyState,
+SkeletonCard, PanelHeader, LoadingSpinner) and shadcn primitives (Button, Card,
+Badge, Label, Input, Tabs, ScrollArea, etc.). Playwright provides E2E test
+coverage.
 
 Previously the app used Wails v2 but was migrated to Wails v3 for improved API
 stability and ES module support.
@@ -124,7 +128,7 @@ Bowrain uses a Slack-inspired two-panel sidebar layout: a 60px workspace rail an
 
 ### Shared Component Library (`packages/ui/`)
 
-Core UI components are extracted to `packages/ui/` (`@neokapi/ui`) for reuse across Bowrain (desktop) and the web app, with platform-specific API adapters.
+Core UI components are extracted to `packages/ui/` (`@neokapi/ui-primitives`) for reuse across Bowrain (desktop), Kapi, and the web app, with platform-specific API adapters. The `@neokapi/flow-editor` package (`packages/flow-editor/`) provides the shared flow editor component. Both packages are resolved via the root npm workspace (symlinks, no path aliases).
 
 See [Bowrain UI Components](/docs/notes/bowrain-ui-components) for workspace rail layout, shared component library details, and API adapter architecture.
 
