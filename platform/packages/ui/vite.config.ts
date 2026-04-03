@@ -8,6 +8,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@neokapi/ui-primitives": resolve(__dirname, "../../../packages/ui/src"),
+      // Deduplicate React: ensure packages/ui/src components use the same
+      // React instance as platform/packages/ui during tests.
+      "react": resolve(__dirname, "../../node_modules/react"),
+      "react-dom": resolve(__dirname, "../../node_modules/react-dom"),
     },
   },
   test: {
