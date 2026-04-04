@@ -69,7 +69,7 @@ func (s *Server) HandleCreateAnonymousProject(c echo.Context) error {
 	// Send claim email if email is provided and SMTP is configured.
 	if req.Email != "" && s.EmailSender != nil {
 		baseURL := requestBaseURL(c)
-		go s.sendClaimEmail(context.Background(), req.Email, projectID, claimToken, baseURL)
+		go s.sendClaimEmail(context.WithoutCancel(ctx), req.Email, projectID, claimToken, baseURL)
 	}
 
 	return c.JSON(http.StatusCreated, AnonymousProjectResponse{

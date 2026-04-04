@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -143,44 +144,71 @@ func (s *Server) executeAutomationAction(action event.AutomationAction, ev plate
 }
 
 func (s *Server) doExecuteAction(action event.AutomationAction, ev platev.Event, stepID string) error {
+	// Automation actions run in background goroutines and must not inherit
+	// the triggering event's cancellation. Use a fresh context with a timeout
+	// so actions are bounded but survive request/event lifecycle.
+	actionCtx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+
 	switch action.Type {
 	case "auto_translate":
 		items := ev.Data["items"]
 		pushID := ev.Data["push_id"]
 		wsSlug := ev.Data["workspace_slug"]
 		if items == "" || pushID == "" {
+			cancel()
 			return nil
 		}
 		itemNames := strings.Split(items, ",")
-		go s.triggerAutoTranslate(context.Background(), ev.ProjectID, itemNames, nil, pushID, wsSlug, stepID)
+		go func() {
+			defer cancel()
+			s.triggerAutoTranslate(actionCtx, ev.ProjectID, itemNames, nil, pushID, wsSlug, stepID)
+		}()
 
 	case "auto_extract":
 		items := ev.Data["items"]
 		pushID := ev.Data["push_id"]
 		wsSlug := ev.Data["workspace_slug"]
 		if items == "" || pushID == "" {
+			cancel()
 			return nil
 		}
 		itemNames := strings.Split(items, ",")
-		go s.triggerAutoExtract(context.Background(), ev.ProjectID, itemNames, pushID, wsSlug, stepID)
+		go func() {
+			defer cancel()
+			s.triggerAutoExtract(actionCtx, ev.ProjectID, itemNames, pushID, wsSlug, stepID)
+		}()
 
 	case "notify":
+		cancel()
 		s.executeNotifyAction(action, ev)
 
 	case "auto_translate_new_locale":
 		newLocales := ev.Data["new_locales"]
 		wsSlug := ev.Data["workspace_slug"]
 		if newLocales == "" {
+			cancel()
 			return nil
 		}
 		locales := strings.Split(newLocales, ",")
-		go s.triggerAutoTranslateNewLocales(context.Background(), ev.ProjectID, locales, wsSlug)
+		go func() {
+			defer cancel()
+			s.triggerAutoTranslateNewLocales(actionCtx, ev.ProjectID, locales, wsSlug)
+		}()
 
 	case "create_review_tasks":
-		go s.createReviewTasks(context.Background(), action, ev, stepID)
+		go func() {
+			defer cancel()
+			s.createReviewTasks(actionCtx, action, ev, stepID)
+		}()
 
 	case "create_source_review":
-		go s.createSourceReviewTask(context.Background(), action, ev, stepID)
+		go func() {
+			defer cancel()
+			s.createSourceReviewTask(actionCtx, action, ev, stepID)
+		}()
+
+	default:
+		cancel()
 	}
 	return nil
 }
@@ -280,7 +308,8 @@ func (s *Server) executeNotifyAction(action event.AutomationAction, ev platev.Ev
 	}
 	body := action.Config["body"]
 
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	n := &bstore.Notification{
 		UserID:    userID,
 		Type:      bstore.NotificationType(action.Config["notification_type"]),
