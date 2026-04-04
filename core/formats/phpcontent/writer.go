@@ -2,6 +2,7 @@ package phpcontent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -84,7 +85,7 @@ done:
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -121,7 +122,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("phpcontent writer: expected Block resource")
+		return errors.New("phpcontent writer: expected Block resource")
 	}
 
 	// Get the text to write - use target if available, otherwise source
@@ -138,7 +139,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 func (w *Writer) writeData(part *model.Part) error {
 	data, ok := part.Resource.(*model.Data)
 	if !ok {
-		return fmt.Errorf("phpcontent writer: expected Data resource")
+		return errors.New("phpcontent writer: expected Data resource")
 	}
 
 	// Write code, comments, and structural elements as-is

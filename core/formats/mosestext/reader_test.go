@@ -309,7 +309,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := mosestext.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReadEmpty(t *testing.T) {
@@ -530,15 +530,15 @@ func TestRoundTripWithTargetLocale(t *testing.T) {
 func TestConfig(t *testing.T) {
 	cfg := &mosestext.Config{}
 	assert.Equal(t, "mosestext", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	cfg.Reset()
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown parameter")
 
 	err = cfg.ApplyMap(map[string]any{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

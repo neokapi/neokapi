@@ -2,6 +2,7 @@ package format
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -116,7 +117,7 @@ func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
 	defer d.mu.RUnlock()
 	ext = strings.ToLower(ext)
 	if ext == "" {
-		return "", fmt.Errorf("empty extension")
+		return "", errors.New("empty extension")
 	}
 	bestName := ""
 	bestPriority := -1
@@ -142,7 +143,7 @@ func (d *FormatDetector) DetectByExtension(ext string) (string, error) {
 func (d *FormatDetector) DetectByContent(reader io.ReadSeeker) (string, error) {
 	buf := make([]byte, 512)
 	n, err := reader.Read(buf)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return "", fmt.Errorf("reading content: %w", err)
 	}
 	buf = buf[:n]
@@ -188,5 +189,5 @@ func (d *FormatDetector) DetectByContent(reader io.ReadSeeker) (string, error) {
 		return bestName, nil
 	}
 
-	return "", fmt.Errorf("unable to detect format from content")
+	return "", errors.New("unable to detect format from content")
 }

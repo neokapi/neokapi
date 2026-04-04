@@ -288,12 +288,12 @@ func TestPartResult(t *testing.T) {
 	// Success result
 	part := &model.Part{Type: model.PartBlock, Resource: model.NewBlock("tu1", "Hello")}
 	result := model.PartResult{Part: part}
-	assert.Nil(t, result.Error)
+	require.NoError(t, result.Error)
 	assert.NotNil(t, result.Part)
 
 	// Error result
 	errResult := model.PartResult{Error: assert.AnError}
-	assert.NotNil(t, errResult.Error)
+	require.Error(t, errResult.Error)
 	assert.Nil(t, errResult.Part)
 }
 

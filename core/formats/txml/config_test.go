@@ -17,7 +17,7 @@ func TestConfigDefaults(t *testing.T) {
 	cfg.Reset()
 	assert.Equal(t, "txml", cfg.FormatName())
 	assert.True(t, cfg.AllowEmptyOutputTarget)
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMap(t *testing.T) {
@@ -35,14 +35,14 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	cfg := &txml.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapTypeMismatch(t *testing.T) {
 	cfg := &txml.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"allowEmptyOutputTarget": "notabool"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigKind(t *testing.T) {

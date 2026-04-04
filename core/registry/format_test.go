@@ -89,7 +89,7 @@ func TestNewReaderExact(t *testing.T) {
 func TestNewReaderUnknown(t *testing.T) {
 	reg := NewFormatRegistry()
 	_, err := reg.NewReader("nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown format")
 }
 
@@ -154,7 +154,7 @@ func TestNewWriterVersionedFallback(t *testing.T) {
 func TestNewWriterUnknown(t *testing.T) {
 	reg := NewFormatRegistry()
 	_, err := reg.NewWriter("nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown format writer")
 }
 
@@ -473,7 +473,7 @@ func TestOnMissConcurrentCallersBlock(t *testing.T) {
 
 	assert.Equal(t, 1, callCount, "onMiss should be called exactly once")
 	for i, err := range errors {
-		assert.NoError(t, err, "goroutine %d should find the format after onMiss completes", i)
+		require.NoError(t, err, "goroutine %d should find the format after onMiss completes", i)
 	}
 }
 

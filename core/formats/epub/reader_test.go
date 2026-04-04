@@ -198,7 +198,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := epub.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: EpubFilterTests#testInformation — verifies EPUB MIME type and file signature.
@@ -312,12 +312,12 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"unknown": "value",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigValidate(t *testing.T) {
 	cfg := &epub.Config{}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestSkeletonRoundTrip(t *testing.T) {

@@ -251,5 +251,5 @@ func TestRepetitionAnalysisConfigReset(t *testing.T) {
 
 func TestRepetitionAnalysisConfigValidate(t *testing.T) {
 	cfg := &tools.RepetitionAnalysisConfig{}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }

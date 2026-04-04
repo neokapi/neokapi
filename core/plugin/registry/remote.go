@@ -52,7 +52,7 @@ func (r *RemoteRegistry) httpClient() *http.Client {
 
 // FetchIndex retrieves the plugin registry index from the remote server.
 func (r *RemoteRegistry) FetchIndex() (*RegistryIndex, error) {
-	resp, err := r.httpClient().Get(r.BaseURL)
+	resp, err := r.httpClient().Get(r.BaseURL) //nolint:noctx // registry API does not yet accept context
 	if err != nil {
 		return nil, fmt.Errorf("fetching registry index: %w", err)
 	}
@@ -130,7 +130,7 @@ func (r *RemoteRegistry) Download(manifest *PluginManifest) (string, error) {
 	destPath := filepath.Join(destDir, filename)
 
 	// Download the binary.
-	resp, err := r.httpClient().Get(manifest.DownloadURL)
+	resp, err := r.httpClient().Get(manifest.DownloadURL) //nolint:noctx // registry API does not yet accept context
 	if err != nil {
 		return "", fmt.Errorf("downloading plugin %s: %w", manifest.Name, err)
 	}
@@ -276,7 +276,7 @@ func (r *RemoteRegistry) InstallPlugin(ref PluginRef) (*InstallResult, error) {
 // installBridge downloads a .tar.gz archive and extracts its contents into
 // the versioned plugin directory.
 func (r *RemoteRegistry) installBridge(manifest *PluginManifest) ([]string, error) {
-	resp, err := r.httpClient().Get(manifest.DownloadURL)
+	resp, err := r.httpClient().Get(manifest.DownloadURL) //nolint:noctx // registry API does not yet accept context
 	if err != nil {
 		return nil, fmt.Errorf("downloading bridge %s: %w", manifest.Name, err)
 	}

@@ -20,7 +20,7 @@ func TestConfigDefaults(t *testing.T) {
 	assert.False(t, cfg.ExtractBookmarks)
 	assert.False(t, cfg.UseCodeFinder)
 	assert.Empty(t, cfg.CodeFinderRules)
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMapAll(t *testing.T) {
@@ -47,14 +47,14 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	cfg := &rtf.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapTypeMismatch(t *testing.T) {
 	cfg := &rtf.Config{}
 	cfg.Reset()
 	err := cfg.ApplyMap(map[string]any{"extractHeadersFooters": "notabool"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapCodeFinderRulesBridgeStyle(t *testing.T) {

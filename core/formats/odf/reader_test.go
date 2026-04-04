@@ -170,7 +170,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := odf.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: OpenOfficeFilterTest#testFirstTextUnit — extracts paragraphs from ODT content.
@@ -368,7 +368,7 @@ func TestReadInvalidZip(t *testing.T) {
 			break
 		}
 	}
-	assert.Error(t, readErr)
+	require.Error(t, readErr)
 	assert.Contains(t, readErr.Error(), "not a valid ZIP archive")
 }
 
@@ -475,18 +475,18 @@ func TestConfig(t *testing.T) {
 	assert.False(t, cfg.TranslateHiddenContent)
 
 	err := cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = cfg.ApplyMap(map[string]any{
 		"translateNotes": false,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, cfg.TranslateNotes)
 
 	err = cfg.ApplyMap(map[string]any{
 		"unknownKey": true,
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestReaderConfig(t *testing.T) {
@@ -506,7 +506,7 @@ func TestWriterNoOriginalContent(t *testing.T) {
 	ch := make(chan *model.Part)
 	close(ch)
 	err = writer.Write(ctx, ch)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires original content")
 }
 
@@ -842,5 +842,5 @@ func TestTempFileCleanup(t *testing.T) {
 
 	// Close should clean up temp file without error
 	err = reader.Close()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

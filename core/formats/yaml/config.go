@@ -1,6 +1,7 @@
 package yaml
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 )
@@ -58,13 +59,13 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "extractNonStrings":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("yaml: extractNonStrings must be bool")
+				return errors.New("yaml: extractNonStrings must be bool")
 			}
 			c.ExtractNonStrings = b
 		case "useCodeFinder":
 			b, ok := val.(bool)
 			if !ok {
-				return fmt.Errorf("yaml: useCodeFinder must be bool")
+				return errors.New("yaml: useCodeFinder must be bool")
 			}
 			c.UseCodeFinder = b
 		case "keyPathPatterns":
@@ -74,7 +75,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 				for i, p := range v {
 					s, ok := p.(string)
 					if !ok {
-						return fmt.Errorf("yaml: keyPathPatterns items must be strings")
+						return errors.New("yaml: keyPathPatterns items must be strings")
 					}
 					patterns[i] = s
 				}
@@ -82,7 +83,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 			case []string:
 				c.KeyPathPatterns = v
 			default:
-				return fmt.Errorf("yaml: keyPathPatterns must be a string array")
+				return errors.New("yaml: keyPathPatterns must be a string array")
 			}
 		case "codeFinderRules":
 			rules, err := parseCodeFinderRules(val)
@@ -94,7 +95,7 @@ func (c *Config) ApplyMap(values map[string]any) error {
 		case "subfilter":
 			s, ok := val.(string)
 			if !ok {
-				return fmt.Errorf("yaml: subfilter must be string")
+				return errors.New("yaml: subfilter must be string")
 			}
 			c.Subfilter = s
 		default:

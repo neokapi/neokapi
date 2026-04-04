@@ -474,7 +474,7 @@ func TestExtract_HandleInvalidCodeTypes(t *testing.T) {
 			break
 		}
 	}
-	assert.Error(t, readErr, "invalid code type should produce a read error")
+	require.Error(t, readErr, "invalid code type should produce a read error")
 	assert.Contains(t, readErr.Error(), "invalidType",
 		"error should mention the invalid type value")
 }
@@ -510,7 +510,7 @@ func TestExtract_InvalidTargetXlf(t *testing.T) {
 			break
 		}
 	}
-	assert.Error(t, readErr, "invalid-target.xlf should produce a read error")
+	require.Error(t, readErr, "invalid-target.xlf should produce a read error")
 	assert.Contains(t, readErr.Error(), "originalData",
 		"error should mention missing originalData")
 }

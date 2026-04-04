@@ -149,27 +149,27 @@ func TestSchemaRegistry_ValidateParams(t *testing.T) {
 		"count":   42,
 		"name":    "test",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Unknown parameter
 	err = reg.ValidateParams("okf_test", map[string]any{
 		"unknown": "value",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown parameter")
 
 	// Wrong type
 	err = reg.ValidateParams("okf_test", map[string]any{
 		"enabled": "not a boolean",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected boolean")
 
 	// No schema - should pass
 	err = reg.ValidateParams("okf_nonexistent", map[string]any{
 		"anything": "goes",
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestSchemaRegistry_EmptyDirectory(t *testing.T) {
@@ -311,7 +311,7 @@ func TestSchemaRegistry_LoadCompositeSchemas(t *testing.T) {
 		"assumeWellformed": true,
 		"useCodeFinder":    false,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // TestSchemaRegistry_ExtractPresets verifies that filter configurations
@@ -403,8 +403,8 @@ func TestSchemaRegistry_RegisterSchema(t *testing.T) {
 
 	// ValidateParams should work
 	err := reg.ValidateParams("json", map[string]any{"extractAllPairs": true})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = reg.ValidateParams("json", map[string]any{"unknown": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 }

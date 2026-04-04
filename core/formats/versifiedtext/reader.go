@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -60,7 +61,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("versifiedtext: nil document or reader")
+		return errors.New("versifiedtext: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -138,7 +139,7 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 
 			blockID++
 			block := model.NewBlock(fmt.Sprintf("tu%d", blockID), text)
-			block.Name = fmt.Sprintf("verse.%s", verseNum)
+			block.Name = "verse." + verseNum
 			block.Properties["verse"] = verseNum
 			if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 				return
@@ -214,7 +215,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 				r.skelText(lineEnding)
 
 				block := model.NewBlock(blockIDStr, text)
-				block.Name = fmt.Sprintf("verse.%s", verseNum)
+				block.Name = "verse." + verseNum
 				block.Properties["verse"] = verseNum
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
 					return

@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCaseTransformToolUpper(t *testing.T) {
@@ -62,15 +63,15 @@ func TestCaseTransformToolTarget(t *testing.T) {
 func TestCaseTransformConfigValidation(t *testing.T) {
 	cfg := &tools.CaseTransformConfig{Mode: "invalid"}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid Mode")
 
 	cfg = &tools.CaseTransformConfig{Mode: tools.CaseUpper, ApplyTarget: true}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg = &tools.CaseTransformConfig{Mode: tools.CaseLower}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

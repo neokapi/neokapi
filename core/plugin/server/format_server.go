@@ -6,6 +6,7 @@ package server
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/rpc"
@@ -88,7 +89,7 @@ func (p *FormatReaderServerPlugin) Server(broker *goplugin.MuxBroker) (any, erro
 
 // Client is not used on the server side.
 func (p *FormatReaderServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (any, error) {
-	return nil, fmt.Errorf("FormatReaderServerPlugin.Client should not be called on server side")
+	return nil, errors.New("FormatReaderServerPlugin.Client should not be called on server side")
 }
 
 // FormatWriterRPCServer wraps a format.DataFormatWriter for serving over net/rpc.
@@ -153,5 +154,5 @@ func (p *FormatWriterServerPlugin) Server(broker *goplugin.MuxBroker) (any, erro
 
 // Client is not used on the server side.
 func (p *FormatWriterServerPlugin) Client(broker *goplugin.MuxBroker, c *rpc.Client) (any, error) {
-	return nil, fmt.Errorf("FormatWriterServerPlugin.Client should not be called on server side")
+	return nil, errors.New("FormatWriterServerPlugin.Client should not be called on server side")
 }

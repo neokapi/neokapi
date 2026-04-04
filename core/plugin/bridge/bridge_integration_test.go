@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neokapi/neokapi/core/plugin/loader"
+	"github.com/neokapi/neokapi/core/format/schema"
 	"github.com/neokapi/neokapi/core/preset"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -38,7 +38,7 @@ func TestIntegrationSchemaLoading(t *testing.T) {
 	jar := bridgeJAR(t)
 	schemasDir := bridgeSchemasDir(t, jar)
 
-	reg := loader.NewSchemaRegistry()
+	reg := schema.NewSchemaRegistry()
 	require.NoError(t, reg.LoadFromDirectory(schemasDir))
 
 	// okapi-bridge includes 45-57 schema files depending on version.
@@ -77,13 +77,13 @@ func TestIntegrationSchemaLoading(t *testing.T) {
 	err := reg.ValidateParams("okf_json", map[string]any{
 		"extractAllPairs": true,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Validate unknown param is rejected.
 	err = reg.ValidateParams("okf_json", map[string]any{
 		"nonexistentParam": "hello",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestIntegrationExtractPresets(t *testing.T) {
@@ -93,7 +93,7 @@ func TestIntegrationExtractPresets(t *testing.T) {
 	jar := bridgeJAR(t)
 	schemasDir := bridgeSchemasDir(t, jar)
 
-	schemaReg := loader.NewSchemaRegistry()
+	schemaReg := schema.NewSchemaRegistry()
 	require.NoError(t, schemaReg.LoadFromDirectory(schemasDir))
 
 	presetReg := preset.NewPresetRegistry()

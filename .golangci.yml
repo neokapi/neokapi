@@ -2,11 +2,40 @@ version: "2"
 run:
   timeout: 5m
 linters:
+  enable:
+    - errorlint
+    - noctx
+    - bodyclose
+    - nolintlint
+    - gocritic
+    - perfsprint
+    - testifylint
   settings:
     staticcheck:
       checks:
         - "all"
         - "-QF*"
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    perfsprint:
+      err-error: true
+      errorf: true
+      sprintf1: true
+    gocritic:
+      disabled-checks:
+        - ifElseChain
+        - singleCaseSwitch
+        - unlambda
+    testifylint:
+      disable:
+        - compares
+        - contains
+        - empty
+        - encoded-compare
+        - float-compare
+        - len
+        - negative-positive
   exclusions:
     generated: lax
     presets:
@@ -14,15 +43,19 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      # bowrain/core/client needs context threading — separate effort
+      - linters: [noctx]
+        path: bowrain/core/client/
     paths:
       - apps/bowrain
       - third_party$
       - builtin$
-      - examples$
+      - examples/
 formatters:
   exclusions:
     generated: lax
     paths:
       - third_party$
       - builtin$
-      - examples$
+      - examples/

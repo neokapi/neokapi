@@ -113,7 +113,7 @@ func TestTSV_NilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := csvfmt.NewTSVReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestTSV_HeaderRow(t *testing.T) {

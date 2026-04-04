@@ -3,7 +3,6 @@ package tools
 import (
 	"encoding/xml"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 
@@ -19,9 +18,9 @@ const (
 
 // XMLValidationConfig holds configuration for the XML validation tool.
 type XMLValidationConfig struct {
-	CheckSource bool           `schema:"title=Check Source,description=Validate source text for XML well-formedness,default=true"` // Validate source text (default: true)
-	CheckTarget bool           `schema:"title=Check Target,description=Validate target text for XML well-formedness"` // Validate target text
-	Locale      model.LocaleID `schema:"title=Target Locale,description=Target locale for validation,showIfSet=CheckTarget"` // Target locale for validation
+	CheckSource bool           `schema:"title=Check Source,description=Validate source text for XML well-formedness,default=true"`          // Validate source text (default: true)
+	CheckTarget bool           `schema:"title=Check Target,description=Validate target text for XML well-formedness"`                       // Validate target text
+	Locale      model.LocaleID `schema:"title=Target Locale,description=Target locale for validation,showIfSet=CheckTarget"`                // Target locale for validation
 	WrapRoot    bool           `schema:"title=Wrap in Root Element,description=Wrap text in a root element before validating,default=true"` // Wrap text in root element before validating
 }
 
@@ -39,7 +38,7 @@ func (c *XMLValidationConfig) Reset() {
 // Validate checks configuration validity.
 func (c *XMLValidationConfig) Validate() error {
 	if c.CheckTarget && c.Locale.IsEmpty() {
-		return fmt.Errorf("xml-validation: locale is required when CheckTarget is true")
+		return errors.New("xml-validation: locale is required when CheckTarget is true")
 	}
 	return nil
 }
@@ -72,7 +71,7 @@ func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {
 		if conf.CheckSource {
 			if err := validateXML(block.SourceText(), conf.WrapRoot); err != nil {
 				valid = false
-				errMsg = fmt.Sprintf("source: %s", err.Error())
+				errMsg = "source: " + err.Error()
 			}
 		}
 
@@ -82,7 +81,7 @@ func NewXMLValidationTool(cfg *XMLValidationConfig) *tool.BaseTool {
 				if errMsg != "" {
 					errMsg += "; "
 				}
-				errMsg += fmt.Sprintf("target: %s", err.Error())
+				errMsg += "target: " + err.Error()
 			}
 		}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -41,7 +42,7 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 	case "run_flow":
 		flowName := action.Config["flow"]
 		if flowName == "" {
-			return fmt.Errorf("run_flow action missing 'flow' config")
+			return errors.New("run_flow action missing 'flow' config")
 		}
 		fmt.Fprintf(cmd.OutOrStdout(), "  Would run flow: %s\n", flowName)
 		return nil
@@ -88,7 +89,7 @@ func executeLocalAction(cmd *cobra.Command, action project.ActionConfig, proj *p
 			}
 			time.Sleep(interval)
 			if interval < 30*time.Second {
-				interval = interval * 2
+				interval *= 2
 			}
 		}
 		return fmt.Errorf("timed out waiting for translations after %s", timeout)

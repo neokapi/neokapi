@@ -142,7 +142,7 @@ func TestBaseToolErrorPropagation(t *testing.T) {
 
 	ctx := context.Background()
 	err := bt.Process(ctx, in, out)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestBaseToolModifyBlock(t *testing.T) {
@@ -179,5 +179,5 @@ func TestBaseToolConfig(t *testing.T) {
 
 	// nil config is ok
 	err := bt.SetConfig(nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

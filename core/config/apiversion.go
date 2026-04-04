@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 // type information (format identity, namespace).
 func ParseAPIVersion(s string) (int, error) {
 	if s == "" {
-		return 0, fmt.Errorf("apiVersion is required")
+		return 0, errors.New("apiVersion is required")
 	}
 	if !strings.HasPrefix(s, "v") {
 		return 0, fmt.Errorf("apiVersion %q: expected format v{N}", s)

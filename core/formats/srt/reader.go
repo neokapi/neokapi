@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -54,7 +55,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("srt: nil document or reader")
+		return errors.New("srt: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -117,7 +118,7 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		dataCounter++
 		seqData := &model.Data{
 			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: fmt.Sprintf("sequence.%s", entry.sequence),
+			Name: "sequence." + entry.sequence,
 			Properties: map[string]string{
 				"sequence": entry.sequence,
 			},
@@ -129,7 +130,7 @@ func (r *Reader) readContentSimple(ctx context.Context, ch chan<- model.PartResu
 		// Emit subtitle text as Block
 		blockCounter++
 		block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), entry.text)
-		block.Name = fmt.Sprintf("subtitle.%s", entry.sequence)
+		block.Name = "subtitle." + entry.sequence
 		block.Properties["timecode"] = entry.timecode
 		block.Properties["sequence"] = entry.sequence
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {
@@ -172,7 +173,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		dataCounter++
 		seqData := &model.Data{
 			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: fmt.Sprintf("sequence.%s", sequence),
+			Name: "sequence." + sequence,
 			Properties: map[string]string{
 				"sequence": sequence,
 			},
@@ -200,7 +201,7 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 		r.skelText(lastEnding)
 
 		block := model.NewBlock(blockIDStr, sb.String())
-		block.Name = fmt.Sprintf("subtitle.%s", sequence)
+		block.Name = "subtitle." + sequence
 		block.Properties["timecode"] = timecode
 		block.Properties["sequence"] = sequence
 		if !r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block}) {

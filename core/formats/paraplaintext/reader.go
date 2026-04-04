@@ -3,6 +3,7 @@ package paraplaintext
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -51,7 +52,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("paraplaintext: nil document or reader")
+		return errors.New("paraplaintext: nil document or reader")
 	}
 	r.Doc = doc
 	return nil

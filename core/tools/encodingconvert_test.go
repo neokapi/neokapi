@@ -110,7 +110,7 @@ func TestEncodingConvertConfigValidation(t *testing.T) {
 	// All valid.
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestEncodingConvertConfigReset(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestXSLTTransformTool(t *testing.T) {
@@ -50,7 +51,7 @@ func TestXSLTTransformConfigValidation(t *testing.T) {
 		},
 	}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty pattern")
 
 	cfg = &tools.XSLTTransformConfig{
@@ -59,7 +60,7 @@ func TestXSLTTransformConfigValidation(t *testing.T) {
 		},
 	}
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid pattern")
 
 	cfg = &tools.XSLTTransformConfig{
@@ -68,5 +69,5 @@ func TestXSLTTransformConfigValidation(t *testing.T) {
 		},
 	}
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }

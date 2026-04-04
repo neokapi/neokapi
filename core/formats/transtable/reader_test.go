@@ -149,7 +149,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := transtable.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: TransTableFilterTest#testStartDocument — verifies LayerStart/LayerEnd wraps transtable content.
@@ -191,25 +191,25 @@ func TestConfigFormatName(t *testing.T) {
 
 func TestConfigValidate(t *testing.T) {
 	cfg := &transtable.Config{}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigReset(t *testing.T) {
 	cfg := &transtable.Config{}
 	cfg.Reset()
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMapUnknown(t *testing.T) {
 	cfg := &transtable.Config{}
 	err := cfg.ApplyMap(map[string]any{"unknown": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigApplyMapEmpty(t *testing.T) {
 	cfg := &transtable.Config{}
 	err := cfg.ApplyMap(map[string]any{})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestRoundTrip(t *testing.T) {

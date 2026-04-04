@@ -2,6 +2,7 @@ package html
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"regexp"
@@ -120,7 +121,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("html: nil document or reader")
+		return errors.New("html: nil document or reader")
 	}
 	r.Doc = doc
 	return nil

@@ -75,7 +75,7 @@ func TestSkeletonStore_ReadBeforeFlush(t *testing.T) {
 	defer store.Close()
 
 	_, err = store.Next()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestSkeletonStore_LargeData(t *testing.T) {

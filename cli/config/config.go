@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,7 +67,8 @@ func NewOverlayAppConfig(appName string, configure func(cfg *AppConfig)) *AppCon
 // Load reads the configuration file.
 func (c *AppConfig) Load() error {
 	if err := c.v.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		var notFound viper.ConfigFileNotFoundError
+		if errors.As(err, &notFound) {
 			return nil // Config file not found is ok
 		}
 		return err

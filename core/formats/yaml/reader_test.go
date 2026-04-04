@@ -759,7 +759,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := yamlfmt.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // --- Multiline string tests ---
@@ -1185,7 +1185,7 @@ func TestConfigApplyMapUnknownKey(t *testing.T) {
 	t.Parallel()
 	cfg := &yamlfmt.Config{}
 	err := cfg.ApplyMap(map[string]any{"badKey": true})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown parameter")
 }
 
@@ -1207,7 +1207,7 @@ func TestConfigReset(t *testing.T) {
 func TestConfigValidate(t *testing.T) {
 	t.Parallel()
 	cfg := &yamlfmt.Config{}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigFormatName(t *testing.T) {

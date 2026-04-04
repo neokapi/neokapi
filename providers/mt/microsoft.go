@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -25,7 +26,7 @@ type MicrosoftConfig struct {
 // Validate checks configuration validity.
 func (c *MicrosoftConfig) Validate() error {
 	if c.SubscriptionKey == "" {
-		return fmt.Errorf("microsoft: SubscriptionKey is required")
+		return errors.New("microsoft: SubscriptionKey is required")
 	}
 	return nil
 }
@@ -50,7 +51,7 @@ func NewMicrosoftProvider(cfg MicrosoftConfig) *MicrosoftProvider {
 
 func (p *MicrosoftProvider) Name() string { return "microsoft" }
 
-func (p *MicrosoftProvider) Translate(_ context.Context, req TranslateRequest) (*TranslateResponse, error) {
+func (p *MicrosoftProvider) Translate(ctx context.Context, req TranslateRequest) (*TranslateResponse, error) {
 	body := []msRequestBody{{Text: req.Source}}
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -59,10 +60,10 @@ func (p *MicrosoftProvider) Translate(_ context.Context, req TranslateRequest) (
 
 	apiURL := fmt.Sprintf("%s/translate?api-version=3.0&to=%s", p.cfg.baseURL(), string(req.TargetLocale))
 	if !req.SourceLocale.IsEmpty() {
-		apiURL += fmt.Sprintf("&from=%s", string(req.SourceLocale))
+		apiURL += "&from=" + string(req.SourceLocale)
 	}
 
-	httpReq, err := http.NewRequest(http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -93,7 +94,7 @@ func (p *MicrosoftProvider) Translate(_ context.Context, req TranslateRequest) (
 	}
 
 	if len(result) == 0 || len(result[0].Translations) == 0 {
-		return nil, fmt.Errorf("no translations returned")
+		return nil, errors.New("no translations returned")
 	}
 
 	return &TranslateResponse{
@@ -125,10 +126,10 @@ func (c *MicrosoftToolConfig) Reset() {
 // Validate checks configuration validity.
 func (c *MicrosoftToolConfig) Validate() error {
 	if c.SubscriptionKey == "" {
-		return fmt.Errorf("microsoft: SubscriptionKey is required")
+		return errors.New("microsoft: SubscriptionKey is required")
 	}
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("microsoft: TargetLocale is required")
+		return errors.New("microsoft: TargetLocale is required")
 	}
 	return nil
 }

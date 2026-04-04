@@ -612,11 +612,11 @@ func TestRead_LoadParams(t *testing.T) {
 
 	// Unknown parameter should error
 	err = cfg.ApplyMap(map[string]any{"unknownParam": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Wrong type should error
 	err = cfg.ApplyMap(map[string]any{"variant": 123})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestRead_EmptyInput(t *testing.T) {
@@ -629,7 +629,7 @@ func TestRead_NilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := wiki.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestRead_Cancel(t *testing.T) {

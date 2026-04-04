@@ -273,5 +273,5 @@ func TestSQLiteTM_InterfaceCompliance(t *testing.T) {
 	var _ sievepen.EntryProvider = tm
 	var _ sievepen.TMStore = tm
 
-	assert.NoError(t, tm.Close())
+	require.NoError(t, tm.Close())
 }

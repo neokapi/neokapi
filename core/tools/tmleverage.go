@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -42,19 +43,19 @@ func (NullTMProvider) LookupFuzzy(string, model.LocaleID, model.LocaleID, int) (
 
 // TMLeverageConfig holds configuration for the TM leverage tool.
 type TMLeverageConfig struct {
-	TargetLocale   model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
-	SourceLocale   model.LocaleID `json:"sourceLocale,omitempty"   schema:"-"`
-	Provider       TMProvider     `json:"-"                        schema:"-"`
+	TargetLocale model.LocaleID `json:"targetLocale,omitempty"   schema:"-"`
+	SourceLocale model.LocaleID `json:"sourceLocale,omitempty"   schema:"-"`
+	Provider     TMProvider     `json:"-"                        schema:"-"`
 
 	// Schema-visible properties matching the bridge schema.
-	FuzzyThreshold   int  `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
-	FillTarget       bool `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
-	FillTargetThreshold int `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target,default=95,min=0,max=100"`
-	FillIfTargetIsEmpty bool `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
-	NoQueryThreshold int  `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip TM query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
-	MakeTMX          bool `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
-	TMXPath          string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
-	DowngradeIdenticalBestMatches bool `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
+	FuzzyThreshold                int    `json:"fuzzyThreshold,omitempty"   schema:"title=Fuzzy Match Threshold,description=Minimum score for fuzzy matches (0-100),default=70,min=0,max=100"`
+	FillTarget                    bool   `json:"fillTarget,omitempty"       schema:"title=Fill Target with Translation,description=Copy the best translation candidate into the target content,default=true"`
+	FillTargetThreshold           int    `json:"fillTargetThreshold,omitempty" schema:"title=Fill Target Threshold,description=Minimum match score required to fill the target,default=95,min=0,max=100"`
+	FillIfTargetIsEmpty           bool   `json:"fillIfTargetIsEmpty,omitempty" schema:"title=Only If Target Is Empty,description=Fill the target only when it has no existing content"`
+	NoQueryThreshold              int    `json:"noQueryThreshold,omitempty" schema:"title=No-Query Threshold,description=Skip TM query if existing candidate scores at or above this value (101 = always query),default=101,min=0,max=101"`
+	MakeTMX                       bool   `json:"makeTmx,omitempty"          schema:"title=Generate TMX Document,description=Create a TMX file with all leveraged matches"`
+	TMXPath                       string `json:"tmxPath,omitempty"         schema:"title=TMX Output Path,description=File path for the generated TMX document"`
+	DowngradeIdenticalBestMatches bool   `json:"downgradeIdenticalBestMatches,omitempty" schema:"title=Downgrade Identical Exact Matches,description=Reduce score by 1%% when multiple identical exact matches are returned"`
 }
 
 // ToolName returns the tool name this config applies to.
@@ -78,13 +79,13 @@ func (c *TMLeverageConfig) Reset() {
 // Validate checks configuration validity.
 func (c *TMLeverageConfig) Validate() error {
 	if c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("tm-leverage: TargetLocale is required")
+		return errors.New("tm-leverage: TargetLocale is required")
 	}
 	if c.FuzzyThreshold < 0 || c.FuzzyThreshold > 100 {
-		return fmt.Errorf("tm-leverage: FuzzyThreshold must be between 0 and 100")
+		return errors.New("tm-leverage: FuzzyThreshold must be between 0 and 100")
 	}
 	if c.Provider == nil {
-		return fmt.Errorf("tm-leverage: Provider is required")
+		return errors.New("tm-leverage: Provider is required")
 	}
 	return nil
 }

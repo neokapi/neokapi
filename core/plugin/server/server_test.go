@@ -117,5 +117,5 @@ func TestToolServerPluginServer(t *testing.T) {
 func TestToolServerPluginClientErrors(t *testing.T) {
 	plugin := &server.ToolServerPlugin{Impl: &tool.BaseTool{}}
 	_, err := plugin.Client(nil, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }

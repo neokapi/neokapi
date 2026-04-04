@@ -3,6 +3,7 @@ package ttx
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -107,7 +108,7 @@ func (w *Writer) writeFromSkeleton() error {
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -170,7 +171,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("ttx writer: expected Block resource")
+		return errors.New("ttx writer: expected Block resource")
 	}
 
 	sourceText := block.SourceText()

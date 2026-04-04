@@ -144,7 +144,7 @@ func TestScriptEmptyPassesThrough(t *testing.T) {
 
 	// Verify config validation catches empty code.
 	err := tl.Config().Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestScriptInvalidCodeReturnsError(t *testing.T) {
@@ -160,7 +160,7 @@ func TestScriptInvalidCodeReturnsError(t *testing.T) {
 
 	err := tl.Process(context.Background(), in, out)
 	close(out)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "compile error")
 }
 
@@ -224,27 +224,27 @@ func TestScriptNonBlockPartTypes(t *testing.T) {
 func TestScriptConfigValidation(t *testing.T) {
 	// Inline mode with no code: error.
 	cfg := &tools.ScriptConfig{Source: "inline"}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	// Inline mode with code: ok.
 	cfg = &tools.ScriptConfig{Source: "inline", Code: "emit(part)"}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	// Default source (empty) with code: ok (defaults to inline).
 	cfg = &tools.ScriptConfig{Code: "emit(part)"}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	// Default source (empty) with no code: error.
 	cfg = &tools.ScriptConfig{}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	// File mode with file: ok.
 	cfg = &tools.ScriptConfig{Source: "file", ScriptFile: "test.js"}
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	// File mode with no file: error.
 	cfg = &tools.ScriptConfig{Source: "file"}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	// Reset clears values and sets source to inline.
 	cfg.Reset()

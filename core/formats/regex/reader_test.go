@@ -71,7 +71,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := regex.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: RegexFilterTest#testStartDocument
@@ -755,25 +755,25 @@ func TestConfigValidation(t *testing.T) {
 	cfg := &regex.Config{}
 
 	// Empty config is valid (no rules)
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	// Rule with empty pattern
 	cfg.Rules = []regex.Rule{{Pattern: "", SourceGroup: 1}}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	// Rule with sourceGroup < 1
 	cfg.Rules = []regex.Rule{{Pattern: `\w+`, SourceGroup: 0}}
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	// Invalid escape type
 	cfg.Rules = nil
 	cfg.EscapeType = "invalid"
-	assert.Error(t, cfg.Validate())
+	require.Error(t, cfg.Validate())
 
 	// Valid config
 	cfg.Rules = []regex.Rule{{Pattern: `"([^"]*)"`, SourceGroup: 1}}
 	cfg.EscapeType = regex.EscapeBackslash
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 }
 
 func TestConfigApplyMap(t *testing.T) {
@@ -803,7 +803,7 @@ func TestConfigApplyMap(t *testing.T) {
 func TestConfigApplyMapUnknownKey(t *testing.T) {
 	cfg := &regex.Config{}
 	err := cfg.ApplyMap(map[string]any{"unknown": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigReset(t *testing.T) {

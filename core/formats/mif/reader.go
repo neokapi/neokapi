@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -58,7 +59,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("mif: nil document or reader")
+		return errors.New("mif: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -303,7 +304,7 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 			dataCounter++
 			d := &model.Data{
 				ID:   fmt.Sprintf("d%d", dataCounter),
-				Name: fmt.Sprintf("mif.%s", stmt.tag),
+				Name: "mif." + stmt.tag,
 				Properties: map[string]string{
 					"tag": stmt.tag,
 					"raw": stmt.raw,
@@ -342,7 +343,7 @@ func (r *Reader) emitStatements(ctx context.Context, ch chan<- model.PartResult,
 		dataCounter++
 		d := &model.Data{
 			ID:   fmt.Sprintf("d%d", dataCounter),
-			Name: fmt.Sprintf("mif.%s", stmt.tag),
+			Name: "mif." + stmt.tag,
 			Properties: map[string]string{
 				"tag": stmt.tag,
 				"raw": stmt.raw,

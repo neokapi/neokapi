@@ -3,6 +3,7 @@ package ts
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -123,7 +124,7 @@ func (w *Writer) writeFromSkeleton() error {
 
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -352,12 +353,7 @@ func (w *Writer) fragmentToXML(frag *model.Fragment) string {
 			if spanIdx < len(frag.Spans) {
 				span := frag.Spans[spanIdx]
 				spanIdx++
-				if span.Type == "byte" {
-					// Write back the <byte> element
-					buf.WriteString(span.Data)
-				} else {
-					buf.WriteString(span.Data)
-				}
+				buf.WriteString(span.Data)
 			}
 		} else {
 			buf.WriteString(xmlEscapeRune(r))

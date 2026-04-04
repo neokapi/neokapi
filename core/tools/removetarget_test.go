@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRemoveTargetTool(t *testing.T) {
@@ -96,5 +97,5 @@ func TestRemoveTargetToolNoTarget(t *testing.T) {
 func TestRemoveTargetConfigValidation(t *testing.T) {
 	cfg := &tools.RemoveTargetConfig{}
 	err := cfg.Validate()
-	assert.NoError(t, err) // No required fields.
+	require.NoError(t, err) // No required fields.
 }

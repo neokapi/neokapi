@@ -154,7 +154,7 @@ func TestSQLiteTermBase_InterfaceCompliance(t *testing.T) {
 
 	var _ termbase.TermBase = tb
 	var _ termbase.TBStore = tb
-	assert.NoError(t, tb.Close())
+	require.NoError(t, tb.Close())
 }
 
 func TestSQLiteTermBase_AddConceptWithStream(t *testing.T) {

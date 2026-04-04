@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -76,7 +78,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("csv: nil document or reader")
+		return errors.New("csv: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -239,8 +241,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
 					Properties: map[string]string{
 						"content": cell,
-						"column":  fmt.Sprintf("%d", colIdx),
-						"row":     fmt.Sprintf("%d", rowNum),
+						"column":  strconv.Itoa(colIdx),
+						"row":     strconv.Itoa(rowNum),
 					},
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -272,8 +274,8 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 
 			block := model.NewBlock(blockID, cellValue)
 			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
-			block.Properties["column"] = fmt.Sprintf("%d", colIdx)
-			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
+			block.Properties["column"] = strconv.Itoa(colIdx)
+			block.Properties["row"] = strconv.Itoa(rowNum)
 			if rowComment != "" {
 				block.Properties["comment"] = rowComment
 			}
@@ -453,8 +455,8 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 					Name: fmt.Sprintf("%s.row%d", colName, rowNum),
 					Properties: map[string]string{
 						"content": parsedValue,
-						"column":  fmt.Sprintf("%d", colIdx),
-						"row":     fmt.Sprintf("%d", rowNum),
+						"column":  strconv.Itoa(colIdx),
+						"row":     strconv.Itoa(rowNum),
 					},
 				}
 				if !r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data}) {
@@ -492,8 +494,8 @@ func (r *Reader) readContentSkeleton(ctx context.Context, ch chan<- model.PartRe
 
 			block := model.NewBlock(blockID, cellValue)
 			block.Name = fmt.Sprintf("%s.row%d", colName, rowNum)
-			block.Properties["column"] = fmt.Sprintf("%d", colIdx)
-			block.Properties["row"] = fmt.Sprintf("%d", rowNum)
+			block.Properties["column"] = strconv.Itoa(colIdx)
+			block.Properties["row"] = strconv.Itoa(rowNum)
 			if rc.prefix == "\"" {
 				block.Properties["quoted"] = "true"
 			}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -114,7 +115,7 @@ func (p *OpenAIProvider) Chat(ctx context.Context, messages []Message) (*ChatRes
 	}
 
 	if len(apiResp.Choices) == 0 {
-		return nil, fmt.Errorf("openai: no choices in response")
+		return nil, errors.New("openai: no choices in response")
 	}
 
 	return &ChatResponse{
@@ -181,7 +182,7 @@ func (p *OpenAIProvider) ChatStructured(ctx context.Context, messages []Message,
 	}
 
 	if len(apiResp.Choices) == 0 {
-		return nil, fmt.Errorf("openai: no choices in response")
+		return nil, errors.New("openai: no choices in response")
 	}
 
 	return &ChatResponse{

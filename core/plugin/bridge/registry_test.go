@@ -68,7 +68,7 @@ func TestRegistryShutdown(t *testing.T) {
 	r.Shutdown()
 
 	_, _, err := r.Acquire(BridgeConfig{Command: "java"})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "shut down")
 }
 

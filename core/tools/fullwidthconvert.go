@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,13 +19,13 @@ const (
 
 // FullWidthConvertConfig holds configuration for the full-width conversion tool.
 type FullWidthConvertConfig struct {
-	Mode            FullWidthMode  `schema:"title=Conversion Mode,description=Conversion direction between half-width and full-width characters,enum=to-half|to-full,default=to-half"` // Conversion direction (default: "to-half")
-	ApplySource     bool           `schema:"title=Apply to Source,description=Apply to source text"`                              // Apply to source (default: false)
-	ApplyTarget     bool           `schema:"title=Apply to Target,description=Apply to target text,default=true"`                 // Apply to target (default: true)
-	TargetLocale    model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"` // Target locale to process (required when ApplyTarget)
+	Mode            FullWidthMode  `schema:"title=Conversion Mode,description=Conversion direction between half-width and full-width characters,enum=to-half|to-full,default=to-half"`                       // Conversion direction (default: "to-half")
+	ApplySource     bool           `schema:"title=Apply to Source,description=Apply to source text"`                                                                                                         // Apply to source (default: false)
+	ApplyTarget     bool           `schema:"title=Apply to Target,description=Apply to target text,default=true"`                                                                                            // Apply to target (default: true)
+	TargetLocale    model.LocaleID `schema:"title=Target Locale,description=Target locale for processing,showIfSet=ApplyTarget"`                                                                             // Target locale to process (required when ApplyTarget)
 	IncludeSLA      bool           `schema:"title=Include Squared Latin Abbreviations,description=Also convert Squared Latin Abbreviations from the CJK Compatibility block to non-CJK character sequences"` // Include Squared Latin Abbreviations
-	IncludeLLS      bool           `schema:"title=Include Letter-Like Symbols,description=Also convert characters from the Letter-Like Symbols block to character sequences"`                         // Include Letter-Like Symbols
-	IncludeKatakana bool           `schema:"title=Include Katakana,description=Also convert Japanese Katakana and associated punctuation to half-width forms"`                              // Include Katakana
+	IncludeLLS      bool           `schema:"title=Include Letter-Like Symbols,description=Also convert characters from the Letter-Like Symbols block to character sequences"`                                // Include Letter-Like Symbols
+	IncludeKatakana bool           `schema:"title=Include Katakana,description=Also convert Japanese Katakana and associated punctuation to half-width forms"`                                               // Include Katakana
 }
 
 // ToolName returns the tool name this config applies to.
@@ -49,7 +50,7 @@ func (c *FullWidthConvertConfig) Validate() error {
 		return fmt.Errorf("fullwidth-convert: invalid Mode %q (use to-half or to-full)", c.Mode)
 	}
 	if c.ApplyTarget && c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("fullwidth-convert: TargetLocale required when ApplyTarget is true")
+		return errors.New("fullwidth-convert: TargetLocale required when ApplyTarget is true")
 	}
 	return nil
 }

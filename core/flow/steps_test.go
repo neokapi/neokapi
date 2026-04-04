@@ -104,7 +104,7 @@ func TestStepsToGraph_SingleStep(t *testing.T) {
 func TestStepsToGraph_Empty(t *testing.T) {
 	spec := &StepsSpec{Steps: []FlowStep{}}
 	_, _, err := StepsToGraph(spec)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestStepsToGraph_CustomLabel(t *testing.T) {
@@ -154,7 +154,7 @@ func TestStepsToGraph_ValidTopology(t *testing.T) {
 		Nodes: nodes,
 		Edges: edges,
 	}
-	assert.NoError(t, def.Validate())
+	require.NoError(t, def.Validate())
 
 	// Verify topological sort works (no cycles)
 	order, err := def.TopologicalOrder()

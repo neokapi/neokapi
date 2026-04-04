@@ -23,7 +23,7 @@ func TestNewEncoderManager(t *testing.T) {
 func TestEncoderManager_GetUnknown(t *testing.T) {
 	em := NewEncoderManager()
 	_, err := em.Get("nonexistent-encoding")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported encoding")
 }
 

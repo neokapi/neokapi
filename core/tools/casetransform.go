@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -45,7 +46,7 @@ func (c *CaseTransformConfig) Validate() error {
 		return fmt.Errorf("case-transform: invalid Mode %q (use upper, lower, or title)", c.Mode)
 	}
 	if c.ApplyTarget && c.TargetLocale.IsEmpty() {
-		return fmt.Errorf("case-transform: TargetLocale required when ApplyTarget is true")
+		return errors.New("case-transform: TargetLocale required when ApplyTarget is true")
 	}
 	return nil
 }

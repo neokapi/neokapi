@@ -65,7 +65,7 @@ func TestDetectByMIME(t *testing.T) {
 func TestDetectByMIMEUnknown(t *testing.T) {
 	d := newDetector()
 	_, err := d.DetectByMIME("application/octet-stream")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDetectByExtension(t *testing.T) {
@@ -96,13 +96,13 @@ func TestDetectByExtension(t *testing.T) {
 func TestDetectByExtensionUnknown(t *testing.T) {
 	d := newDetector()
 	_, err := d.DetectByExtension(".docx")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDetectByExtensionEmpty(t *testing.T) {
 	d := newDetector()
 	_, err := d.DetectByExtension("")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDetectByContentMagicBytes(t *testing.T) {
@@ -150,7 +150,7 @@ func TestDetectByContentUnknown(t *testing.T) {
 	d := newDetector()
 	reader := strings.NewReader("just some random text")
 	_, err := d.DetectByContent(reader)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDetectCascade(t *testing.T) {
@@ -179,7 +179,7 @@ func TestDetectAllFail(t *testing.T) {
 	d := newDetector()
 	reader := strings.NewReader("random content")
 	_, err := d.Detect("file.unknown", reader, "")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestDetectReaderSeekReset(t *testing.T) {

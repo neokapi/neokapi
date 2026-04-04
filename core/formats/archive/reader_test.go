@@ -187,7 +187,7 @@ func TestReadNilDocument(t *testing.T) {
 	ctx := context.Background()
 	reader := archive.NewReader()
 	err := reader.Open(ctx, nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 // okapi: ArchiveFilterTest#testMimeType — verifies MIME type and signature of archive format.
@@ -468,7 +468,7 @@ func TestConfigApplyMapUnknown(t *testing.T) {
 	err := cfg.ApplyMap(map[string]any{
 		"unknown": "value",
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestConfigReset(t *testing.T) {

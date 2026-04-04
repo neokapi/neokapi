@@ -2,6 +2,7 @@ package regex
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -83,7 +84,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("regex writer: expected Block resource")
+		return errors.New("regex writer: expected Block resource")
 	}
 
 	// Get the text to write (target if available, else source)
@@ -116,7 +117,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 func (w *Writer) writeData(part *model.Part) error {
 	data, ok := part.Resource.(*model.Data)
 	if !ok {
-		return fmt.Errorf("regex writer: expected Data resource")
+		return errors.New("regex writer: expected Data resource")
 	}
 
 	content := data.Properties["content"]
@@ -202,7 +203,7 @@ done:
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {

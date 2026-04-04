@@ -2,6 +2,7 @@ package properties
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -86,7 +87,7 @@ done:
 func (w *Writer) writeFromSkeleton(blocks map[string]*model.Block) error {
 	for {
 		entry, err := w.skeletonStore.Next()
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
@@ -137,7 +138,7 @@ func (w *Writer) writePart(part *model.Part) error {
 func (w *Writer) writeBlock(part *model.Part) error {
 	block, ok := part.Resource.(*model.Block)
 	if !ok {
-		return fmt.Errorf("properties writer: expected Block resource")
+		return errors.New("properties writer: expected Block resource")
 	}
 
 	// Use target text if available, otherwise source text
@@ -162,7 +163,7 @@ func (w *Writer) writeBlock(part *model.Part) error {
 func (w *Writer) writeData(part *model.Part) error {
 	data, ok := part.Resource.(*model.Data)
 	if !ok {
-		return fmt.Errorf("properties writer: expected Data resource")
+		return errors.New("properties writer: expected Data resource")
 	}
 
 	switch data.Name {

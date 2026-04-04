@@ -191,15 +191,15 @@ func TestLoad_JSON(t *testing.T) {
 
 func TestLoad_FileNotFound(t *testing.T) {
 	_, err := Load("/nonexistent/path.yaml")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestParse_InvalidYAML(t *testing.T) {
 	_, err := Parse([]byte(":::invalid:::"), ".yaml")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestParse_InvalidJSON(t *testing.T) {
 	_, err := Parse([]byte("{invalid}"), ".json")
-	assert.Error(t, err)
+	require.Error(t, err)
 }

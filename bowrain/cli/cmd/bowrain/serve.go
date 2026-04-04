@@ -44,7 +44,7 @@ If no directory is given, the current directory is used.`,
 		}
 
 		addr := fmt.Sprintf("localhost:%d", servePort)
-		url := fmt.Sprintf("http://%s", addr)
+		url := "http://" + addr
 
 		mux := http.NewServeMux()
 		mux.HandleFunc("GET /api/project", func(w http.ResponseWriter, r *http.Request) {
@@ -110,11 +110,11 @@ func openBrowser(url string) {
 	var cmd *exec.Cmd
 	switch runtime.GOOS {
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", url) //nolint:noctx // open browser
 	case "linux":
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", url) //nolint:noctx // open browser
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url) //nolint:noctx // open browser
 	default:
 		fmt.Printf("Open %s in your browser\n", url)
 		return

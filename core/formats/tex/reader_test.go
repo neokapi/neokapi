@@ -270,9 +270,11 @@ Cell one & Cell two
 	require.NotEmpty(t, blocks)
 	// The content within the tabular environment should be extracted
 	allText := ""
+	var allTextSb273 strings.Builder
 	for _, b := range blocks {
-		allText += b.SourceText()
+		allTextSb273.WriteString(b.SourceText())
 	}
+	allText += allTextSb273.String()
 	assert.Contains(t, allText, "Cell one")
 }
 
@@ -363,7 +365,7 @@ func TestEmptyInput(t *testing.T) {
 func TestNilDocument(t *testing.T) {
 	reader := tex.NewReader()
 	err := reader.Open(context.Background(), nil)
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestLayerStructure(t *testing.T) {
@@ -402,11 +404,11 @@ func TestConfig(t *testing.T) {
 	reader := tex.NewReader()
 	cfg := reader.Config()
 	assert.Equal(t, "tex", cfg.FormatName())
-	assert.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Validate())
 
 	// Unknown parameter should error
 	err := cfg.ApplyMap(map[string]any{"unknownParam": "value"})
-	assert.Error(t, err)
+	require.Error(t, err)
 }
 
 func TestCancel(t *testing.T) {
@@ -772,7 +774,7 @@ Second paragraph.
 func TestWriter_NameAndClose(t *testing.T) {
 	writer := tex.NewWriter()
 	assert.Equal(t, "tex", writer.Name())
-	assert.NoError(t, writer.Close())
+	require.NoError(t, writer.Close())
 }
 
 func TestWriter_EmptyChannel(t *testing.T) {

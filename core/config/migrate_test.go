@@ -1,7 +1,7 @@
 package config
 
 import (
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -141,7 +141,7 @@ func TestMigrationRegistry_MigrationError(t *testing.T) {
 		FromVersion: 1,
 		ToVersion:   2,
 		Migrate: func(spec map[string]any) (map[string]any, error) {
-			return nil, fmt.Errorf("migration failed")
+			return nil, errors.New("migration failed")
 		},
 	}))
 
@@ -164,7 +164,7 @@ func TestMigrationRegistry_RegisterErrors(t *testing.T) {
 		ToVersion:   2,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "kind is required")
 
 	err = reg.Register(Migration{
@@ -173,7 +173,7 @@ func TestMigrationRegistry_RegisterErrors(t *testing.T) {
 		ToVersion:   2,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "fromVersion")
 
 	err = reg.Register(Migration{
@@ -182,7 +182,7 @@ func TestMigrationRegistry_RegisterErrors(t *testing.T) {
 		ToVersion:   1,
 		Migrate:     func(spec map[string]any) (map[string]any, error) { return spec, nil },
 	})
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "toVersion")
 }
 

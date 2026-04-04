@@ -3,6 +3,7 @@ package tools
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -79,7 +80,7 @@ func NewTagProtectTool(cfg *TagProtectConfig) *tool.BaseTool {
 		if block.Properties == nil {
 			block.Properties = make(map[string]string)
 		}
-		block.Properties[PropTagProtectCount] = fmt.Sprintf("%d", len(protected))
+		block.Properties[PropTagProtectCount] = strconv.Itoa(len(protected))
 
 		if len(protected) > 0 {
 			if block.Annotations == nil {

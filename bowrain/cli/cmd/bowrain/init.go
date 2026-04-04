@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,12 +9,12 @@ import (
 
 	"github.com/charmbracelet/huh"
 	"github.com/neokapi/neokapi/bowrain/cli/cmd/bowrain/output"
-	"github.com/neokapi/neokapi/core/locale"
-	"github.com/neokapi/neokapi/core/model"
-	"github.com/neokapi/neokapi/core/preset"
 	"github.com/neokapi/neokapi/bowrain/core/client"
 	"github.com/neokapi/neokapi/bowrain/core/config"
 	"github.com/neokapi/neokapi/bowrain/core/project"
+	"github.com/neokapi/neokapi/core/locale"
+	"github.com/neokapi/neokapi/core/model"
+	"github.com/neokapi/neokapi/core/preset"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -129,11 +130,11 @@ func runInitNonInteractive(cwd string) (*output.InitOutput, error) {
 	if initProjectID != "" {
 		serverURL := resolveServerURL()
 		if serverURL == "" {
-			return nil, fmt.Errorf("--server or BOWRAIN_SERVER_URL is required when --project is specified")
+			return nil, errors.New("--server or BOWRAIN_SERVER_URL is required when --project is specified")
 		}
 		auth, err := loadAuth()
 		if err != nil {
-			return nil, fmt.Errorf("not authenticated with server (run: bowrain auth login)")
+			return nil, errors.New("not authenticated with server (run: bowrain auth login)")
 		}
 		if auth.ServerURL != serverURL {
 			return nil, fmt.Errorf("authenticated with different server (%s), please login to %s first", auth.ServerURL, serverURL)
@@ -320,7 +321,7 @@ func runInitEmailClaim(cwd, serverURL string) (*output.InitOutput, error) {
 		projectName = dirName
 	}
 	if email == "" {
-		return nil, fmt.Errorf("email address is required")
+		return nil, errors.New("email address is required")
 	}
 
 	cfg := newConfigFromFlags(sourceLocale)
@@ -513,7 +514,7 @@ func createWorkspace(serverURL, token string) (string, error) {
 				Value(&name).
 				Validate(func(s string) error {
 					if strings.TrimSpace(s) == "" {
-						return fmt.Errorf("name is required")
+						return errors.New("name is required")
 					}
 					return nil
 				}),

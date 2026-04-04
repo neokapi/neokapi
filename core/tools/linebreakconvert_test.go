@@ -6,6 +6,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	"github.com/neokapi/neokapi/core/tools"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLineBreakConvertToolLF(t *testing.T) {
@@ -134,12 +135,12 @@ func TestLineBreakConvertToolSkipsNonTranslatable(t *testing.T) {
 func TestLineBreakConvertConfigValidation(t *testing.T) {
 	cfg := &tools.LineBreakConvertConfig{Mode: "invalid"}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid Mode")
 
 	cfg.Mode = tools.LineBreakLF
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestLineBreakConvertConfigReset(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"github.com/neokapi/neokapi/core/model"
 	mttools "github.com/neokapi/neokapi/core/mt/tools"
 	"github.com/neokapi/neokapi/core/tool"
-	"github.com/neokapi/neokapi/providers/mt"
+	mtprovider "github.com/neokapi/neokapi/providers/mt"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +54,7 @@ func TestGoogleProvider(t *testing.T) {
 			Format string `json:"format"`
 		}
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "Hello world", reqBody.Q)
 		assert.Equal(t, "en", reqBody.Source)
 		assert.Equal(t, "fr", reqBody.Target)
@@ -116,7 +116,7 @@ func TestDeepLProvider(t *testing.T) {
 		assert.Equal(t, "application/x-www-form-urlencoded", r.Header.Get("Content-Type"))
 
 		err := r.ParseForm()
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "Hello world", r.FormValue("text"))
 		assert.Equal(t, "FR", r.FormValue("target_lang"))
 		assert.Equal(t, "EN", r.FormValue("source_lang"))
@@ -186,8 +186,8 @@ func TestMicrosoftProvider(t *testing.T) {
 			Text string `json:"Text"`
 		}
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
-		require.NoError(t, err)
-		require.Len(t, reqBody, 1)
+		assert.NoError(t, err)
+		assert.Len(t, reqBody, 1)
 		assert.Equal(t, "Hello world", reqBody[0].Text)
 
 		resp := []map[string]any{
@@ -306,7 +306,7 @@ func TestModernMTProvider(t *testing.T) {
 			Hints  []int64 `json:"hints"`
 		}
 		err := json.NewDecoder(r.Body).Decode(&reqBody)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Equal(t, "Hello world", reqBody.Q)
 		assert.Equal(t, "en", reqBody.Source)
 		assert.Equal(t, "fr", reqBody.Target)
@@ -360,81 +360,81 @@ func TestModernMTProviderSkipsNonTranslatable(t *testing.T) {
 func TestGoogleConfigValidation(t *testing.T) {
 	cfg := &mtprovider.GoogleToolConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "APIKey")
 
 	cfg.APIKey = "key"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestDeepLConfigValidation(t *testing.T) {
 	cfg := &mtprovider.DeepLToolConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "APIKey")
 
 	cfg.APIKey = "key"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestMicrosoftConfigValidation(t *testing.T) {
 	cfg := &mtprovider.MicrosoftToolConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "SubscriptionKey")
 
 	cfg.SubscriptionKey = "key"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestMyMemoryConfigValidation(t *testing.T) {
 	cfg := &mtprovider.MyMemoryToolConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "SourceLocale")
 
 	cfg.SourceLocale = model.LocaleEnglish
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestModernMTConfigValidation(t *testing.T) {
 	cfg := &mtprovider.ModernMTToolConfig{}
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "APIKey")
 
 	cfg.APIKey = "key"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "TargetLocale")
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 // Verify that all providers implement the MTProvider interface.

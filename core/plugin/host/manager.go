@@ -88,7 +88,7 @@ func (m *PluginManager) loadPlugin(path string, reg *registry.FormatRegistry) er
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         PluginMap(),
-		Cmd:             exec.Command(path),
+		Cmd:             exec.Command(path), //nolint:noctx // long-lived plugin subprocess
 		Logger:          nil, // use default hclog
 	})
 
@@ -181,7 +181,7 @@ func (m *PluginManager) LoadFormatReader(path string) (*FormatReaderRPCClient, e
 	client := plugin.NewClient(&plugin.ClientConfig{
 		HandshakeConfig: HandshakeConfig,
 		Plugins:         PluginMap(),
-		Cmd:             exec.Command(path),
+		Cmd:             exec.Command(path), //nolint:noctx // long-lived plugin subprocess
 	})
 
 	rpcClient, err := client.Client()

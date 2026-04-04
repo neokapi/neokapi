@@ -270,7 +270,7 @@ func TestFlowDefinitionValidate(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -348,7 +348,7 @@ func TestBuiltInFlows(t *testing.T) {
 		assert.NotEmpty(t, f.ID)
 		assert.NotEmpty(t, f.Name)
 		assert.Equal(t, "built-in", f.Source)
-		assert.NoError(t, f.Validate())
+		require.NoError(t, f.Validate())
 		ids[f.ID] = true
 	}
 	assert.True(t, ids["ai-translate"])
@@ -426,7 +426,7 @@ func TestFlowStore(t *testing.T) {
 
 	// Get non-existent.
 	_, err = store.Get("nope")
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	// Delete.
 	require.NoError(t, store.Delete("my-flow"))
@@ -435,7 +435,7 @@ func TestFlowStore(t *testing.T) {
 	assert.Empty(t, defs)
 
 	// Delete non-existent.
-	assert.Error(t, store.Delete("nope"))
+	require.Error(t, store.Delete("nope"))
 }
 
 func TestFlowStoreNonExistentDir(t *testing.T) {
@@ -458,11 +458,11 @@ func TestFlowStoreNonExistentDir(t *testing.T) {
 
 	// Verify file exists.
 	_, err = os.Stat(filepath.Join(store.dir, "test.json"))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestFlowStoreSaveValidation(t *testing.T) {
 	store := NewFlowStore(t.TempDir())
 	def := &FlowDefinition{Name: "no id"}
-	assert.Error(t, store.Save(def))
+	require.Error(t, store.Save(def))
 }

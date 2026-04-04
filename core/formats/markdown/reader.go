@@ -3,6 +3,7 @@ package markdown
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
@@ -74,7 +75,7 @@ func (r *Reader) Signature() format.FormatSignature {
 // Open opens a RawDocument for reading.
 func (r *Reader) Open(ctx context.Context, doc *model.RawDocument) error {
 	if doc == nil || doc.Reader == nil {
-		return fmt.Errorf("markdown: nil document or reader")
+		return errors.New("markdown: nil document or reader")
 	}
 	r.Doc = doc
 	return nil
@@ -235,20 +236,22 @@ func (r *Reader) emitFrontMatterBlocks(ctx context.Context, ch chan<- model.Part
 		r.blockCounter++
 		blockID := fmt.Sprintf("tu%d", r.blockCounter)
 		block := model.NewBlock(blockID, unquoted)
-		block.Name = fmt.Sprintf("fm_%s", key)
+		block.Name = "fm_" + key
 		block.Type = "front-matter"
 		block.Properties["key"] = key
 
 		prefix := line[:colonIdx+1]
 		valuePart := line[colonIdx+1:]
 		leadingSpace := ""
+		var leadingSpaceSb245 strings.Builder
 		for _, c := range valuePart {
 			if c == ' ' || c == '\t' {
-				leadingSpace += string(c)
+				leadingSpaceSb245.WriteString(string(c))
 			} else {
 				break
 			}
 		}
+		leadingSpace += leadingSpaceSb245.String()
 		r.skelText(prefix + leadingSpace)
 		r.skelRef(blockID)
 		r.skelText("\n")
@@ -377,7 +380,7 @@ func (r *Reader) emitHeading(ctx context.Context, ch chan<- model.PartResult, n 
 	block := model.NewBlock(blockID, textContent)
 	block.Name = fmt.Sprintf("heading%d", r.blockCounter)
 	block.Type = "heading"
-	block.Properties["level"] = fmt.Sprintf("%d", n.Level)
+	block.Properties["level"] = strconv.Itoa(n.Level)
 	r.addInlineSpans(block, n, source)
 
 	absStart, _ := fullNodeAbsRange(n, source, baseOffset)
@@ -932,7 +935,7 @@ func (r *Reader) buildLinkSpan(frag *model.Fragment, n *ast.Link, source []byte,
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("link:hyperlink")
 
-	closingData := fmt.Sprintf("](%s", string(n.Destination))
+	closingData := "](" + string(n.Destination)
 	if len(n.Title) > 0 {
 		closingData += fmt.Sprintf(` "%s"`, string(n.Title))
 	}
@@ -970,7 +973,7 @@ func (r *Reader) buildImageSpan(frag *model.Fragment, n *ast.Image, source []byt
 	id := strconv.Itoa(*spanCounter)
 	info := r.vocab.LookupOrFallback("link:image")
 
-	closingData := fmt.Sprintf("](%s", string(n.Destination))
+	closingData := "](" + string(n.Destination)
 	if len(n.Title) > 0 {
 		closingData += fmt.Sprintf(` "%s"`, string(n.Title))
 	}

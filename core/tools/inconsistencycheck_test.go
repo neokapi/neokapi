@@ -26,7 +26,7 @@ func TestInconsistencyCheckConfig(t *testing.T) {
 
 	// Validate requires TargetLocale.
 	err := cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	cfg.Reset()
 	assert.True(t, cfg.CaseSensitive)
@@ -35,7 +35,7 @@ func TestInconsistencyCheckConfig(t *testing.T) {
 
 	cfg.TargetLocale = model.LocaleFrench
 	err = cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 }
 
 func TestInconsistencyCheckConsistent(t *testing.T) {

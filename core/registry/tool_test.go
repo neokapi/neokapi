@@ -87,7 +87,7 @@ func TestRegisterWithSchema_EmptyMeta(t *testing.T) {
 	reg := NewToolRegistry()
 
 	s := &schema.ComponentSchema{
-		Title: "Minimal",
+		Title:    "Minimal",
 		ToolMeta: &schema.ToolMeta{ID: "minimal"},
 	}
 
@@ -129,5 +129,5 @@ func TestNewTool_CreatesInstance(t *testing.T) {
 func TestNewTool_ErrorForUnknown(t *testing.T) {
 	reg := NewToolRegistry()
 	_, err := reg.NewTool("nonexistent")
-	assert.Error(t, err)
+	require.Error(t, err)
 }
