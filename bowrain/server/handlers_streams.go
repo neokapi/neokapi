@@ -64,7 +64,7 @@ func (s *Server) HandleCreateStream(c echo.Context) error {
 	baseCursor, _ := s.ContentStore.LatestCursor(c.Request().Context(), projectID, req.Parent)
 
 	createdBy := ""
-	if claims, ok := c.Get("user_claims").(map[string]interface{}); ok {
+	if claims, ok := c.Get("user_claims").(map[string]any); ok {
 		if sub, ok := claims["sub"].(string); ok {
 			createdBy = sub
 		}
@@ -241,7 +241,7 @@ func (s *Server) HandleLockStream(c echo.Context) error {
 	streamName := c.Param("stream")
 
 	userID := ""
-	if claims, ok := c.Get("user_claims").(map[string]interface{}); ok {
+	if claims, ok := c.Get("user_claims").(map[string]any); ok {
 		if sub, ok := claims["sub"].(string); ok {
 			userID = sub
 		}
@@ -345,7 +345,7 @@ func (s *Server) HandleCreateStreamTag(c echo.Context) error {
 	}
 
 	createdBy := ""
-	if claims, ok := c.Get("user_claims").(map[string]interface{}); ok {
+	if claims, ok := c.Get("user_claims").(map[string]any); ok {
 		if sub, ok := claims["sub"].(string); ok {
 			createdBy = sub
 		}

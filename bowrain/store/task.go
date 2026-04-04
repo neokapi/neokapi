@@ -128,11 +128,11 @@ func (s *TaskStore) Create(ctx context.Context, t *Task) error {
 	}
 
 	dataJSON, _ := json.Marshal(t.Data)
-	var dueAt interface{}
+	var dueAt any
 	if t.DueAt != nil {
 		dueAt = t.DueAt.UTC().Format(time.RFC3339)
 	}
-	var completedAt interface{}
+	var completedAt any
 	if t.CompletedAt != nil {
 		completedAt = t.CompletedAt.UTC().Format(time.RFC3339)
 	}
@@ -256,11 +256,11 @@ func (s *TaskStore) List(ctx context.Context, q TaskQuery) (*TaskResult, error) 
 func (s *TaskStore) Update(ctx context.Context, t *Task) error {
 	t.UpdatedAt = time.Now().UTC()
 	dataJSON, _ := json.Marshal(t.Data)
-	var dueAt interface{}
+	var dueAt any
 	if t.DueAt != nil {
 		dueAt = t.DueAt.UTC().Format(time.RFC3339)
 	}
-	var completedAt interface{}
+	var completedAt any
 	if t.CompletedAt != nil {
 		completedAt = t.CompletedAt.UTC().Format(time.RFC3339)
 	}

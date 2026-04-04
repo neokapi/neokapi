@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -292,8 +292,8 @@ func buildDOCXParts(info *containerInfo, cfg *Config) []string {
 	}
 
 	// Sort headers/footers for deterministic order
-	sort.Strings(headers)
-	sort.Strings(footers)
+	slices.Sort(headers)
+	slices.Sort(footers)
 
 	parts = append(parts, headers...)
 	parts = append(parts, footers...)
@@ -345,11 +345,11 @@ func buildPPTXParts(info *containerInfo, cfg *Config) []string {
 		}
 	}
 
-	sort.Strings(slides)
-	sort.Strings(notes)
-	sort.Strings(masters)
-	sort.Strings(layouts)
-	sort.Strings(comments)
+	slices.Sort(slides)
+	slices.Sort(notes)
+	slices.Sort(masters)
+	slices.Sort(layouts)
+	slices.Sort(comments)
 
 	var parts []string
 	parts = append(parts, slides...)
@@ -424,7 +424,7 @@ func buildXLSXParts(info *containerInfo, cfg *Config) []string {
 			}
 		}
 	}
-	sort.Strings(sheets)
+	slices.Sort(sheets)
 	parts = append(parts, sheets...)
 
 	// Tables (column names must stay in sync with header row cell values)
@@ -436,7 +436,7 @@ func buildXLSXParts(info *containerInfo, cfg *Config) []string {
 			}
 		}
 	}
-	sort.Strings(tables)
+	slices.Sort(tables)
 	parts = append(parts, tables...)
 
 	// Comments

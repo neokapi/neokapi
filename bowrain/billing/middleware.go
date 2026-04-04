@@ -166,9 +166,9 @@ func extractBearerToken(c echo.Context) string {
 	if auth == "" {
 		return ""
 	}
-	parts := strings.SplitN(auth, " ", 2)
-	if len(parts) != 2 || !strings.EqualFold(parts[0], "bearer") {
+	scheme, token, ok := strings.Cut(auth, " ")
+	if !ok || !strings.EqualFold(scheme, "bearer") {
 		return ""
 	}
-	return parts[1]
+	return token
 }

@@ -1,8 +1,9 @@
 package sievepen
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -260,13 +261,13 @@ func (tm *InMemoryTM) tieredLookup(plainKey, structKey, generalKey string, entit
 	}
 
 	// Sort by match type priority, then by score descending.
-	sort.Slice(matches, func(i, j int) bool {
-		pi := MatchTypePriority(matches[i].MatchType)
-		pj := MatchTypePriority(matches[j].MatchType)
-		if pi != pj {
-			return pi < pj
+	slices.SortFunc(matches, func(a, b TMMatch) int {
+		pa := MatchTypePriority(a.MatchType)
+		pb := MatchTypePriority(b.MatchType)
+		if c := cmp.Compare(pa, pb); c != 0 {
+			return c
 		}
-		return matches[i].Score > matches[j].Score
+		return cmp.Compare(b.Score, a.Score)
 	})
 
 	return LimitResults(matches, opts.MaxResults)

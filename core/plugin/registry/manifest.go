@@ -3,8 +3,9 @@
 package registry
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 )
 
@@ -194,8 +195,8 @@ func (idx *RegistryIndex) GroupByName(platform string) []PluginGroup {
 
 	groups := make([]PluginGroup, 0, len(byName))
 	for name, manifests := range byName {
-		sort.Slice(manifests, func(i, j int) bool {
-			return CompareSemver(manifests[i].Version, manifests[j].Version) > 0
+		slices.SortFunc(manifests, func(a, b PluginManifest) int {
+			return CompareSemver(b.Version, a.Version)
 		})
 		groups = append(groups, PluginGroup{
 			Name:     name,
@@ -204,8 +205,8 @@ func (idx *RegistryIndex) GroupByName(platform string) []PluginGroup {
 		})
 	}
 
-	sort.Slice(groups, func(i, j int) bool {
-		return groups[i].Name < groups[j].Name
+	slices.SortFunc(groups, func(a, b PluginGroup) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 
 	return groups

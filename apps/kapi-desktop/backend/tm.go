@@ -1,10 +1,11 @@
 package backend
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -218,8 +219,8 @@ func listNamedResources(kind string) []ResourceInfo {
 			Modified: info.ModTime().Format(time.RFC3339),
 		})
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Modified > result[j].Modified // newest first
+	slices.SortFunc(result, func(a, b ResourceInfo) int {
+		return cmp.Compare(b.Modified, a.Modified) // newest first
 	})
 	return result
 }
@@ -477,8 +478,8 @@ func buildFragmentWithEntities(text string, entities []EntityAnnotationDTO) *mod
 	// Sort entities by start position.
 	sorted := make([]EntityAnnotationDTO, len(entities))
 	copy(sorted, entities)
-	sort.Slice(sorted, func(i, j int) bool {
-		return sorted[i].Start < sorted[j].Start
+	slices.SortFunc(sorted, func(a, b EntityAnnotationDTO) int {
+		return cmp.Compare(a.Start, b.Start)
 	})
 
 	runes := []rune(text)
@@ -675,7 +676,7 @@ func rebuildWithEntities(frag *model.Fragment, patterns []EntityPatternRequest) 
 	}
 
 	// Sort by position, remove overlaps.
-	sort.Slice(hits, func(i, j int) bool { return hits[i].start < hits[j].start })
+	slices.SortFunc(hits, func(a, b entityHit) int { return cmp.Compare(a.start, b.start) })
 	var filtered []entityHit
 	lastEnd := 0
 	for _, h := range hits {

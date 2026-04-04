@@ -1,11 +1,12 @@
 package backend
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -98,12 +99,15 @@ func (a *App) ListUserFlows() []UserFlowInfo {
 		})
 	}
 
-	sort.Slice(result, func(i, j int) bool {
+	slices.SortFunc(result, func(a, b UserFlowInfo) int {
 		// Built-in first, then user by modified time.
-		if result[i].Source != result[j].Source {
-			return result[i].Source == "built-in"
+		if a.Source != b.Source {
+			if a.Source == "built-in" {
+				return -1
+			}
+			return 1
 		}
-		return result[i].Modified > result[j].Modified
+		return cmp.Compare(b.Modified, a.Modified)
 	})
 
 	return result
@@ -309,7 +313,7 @@ func graphToSteps(def *flow.FlowDefinition) []flow.FlowStep {
 			})
 		}
 	}
-	sort.Slice(tools, func(i, j int) bool { return tools[i].x < tools[j].x })
+	slices.SortFunc(tools, func(a, b toolNode) int { return cmp.Compare(a.x, b.x) })
 
 	steps := make([]flow.FlowStep, len(tools))
 	for i, t := range tools {

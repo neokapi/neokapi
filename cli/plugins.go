@@ -6,7 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/cli/config"
@@ -370,13 +370,13 @@ func (a *App) listInstalledPlugins(cmd *cobra.Command) error {
 		}
 	}
 
-	sort.Strings(nameOrder)
+	slices.Sort(nameOrder)
 
 	var pluginInfos []output.PluginInfo
 	for _, name := range nameOrder {
 		versions := byName[name]
-		sort.Slice(versions, func(i, j int) bool {
-			return registry.CompareSemver(versions[i], versions[j]) > 0
+		slices.SortFunc(versions, func(a, b string) int {
+			return registry.CompareSemver(b, a)
 		})
 		for _, v := range versions {
 			info := output.PluginInfo{

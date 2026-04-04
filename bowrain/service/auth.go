@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/auth"
-	"github.com/neokapi/neokapi/core/id"
 	platauth "github.com/neokapi/neokapi/bowrain/core/auth"
+	"github.com/neokapi/neokapi/core/id"
 )
 
 // AuthService provides authentication and workspace business logic.
@@ -77,8 +77,8 @@ func (s *AuthService) GetOrCreateUser(ctx context.Context, email, name, avatarUR
 
 // personalSlug derives a workspace slug from an email address.
 func personalSlug(email string) string {
-	parts := strings.SplitN(email, "@", 2)
-	slug := strings.ToLower(parts[0])
+	local, _, _ := strings.Cut(email, "@")
+	slug := strings.ToLower(local)
 	// Replace common non-slug characters.
 	slug = strings.NewReplacer(".", "-", "_", "-", "+", "-").Replace(slug)
 	return slug

@@ -182,13 +182,13 @@ func (s *QueueSink) handleEvent(ev platev.Event) {
 
 // RedisQueuePublisher implements QueuePublisher using Redis pub/sub.
 type RedisQueuePublisher struct {
-	publish func(ctx context.Context, channel string, message interface{}) error
+	publish func(ctx context.Context, channel string, message any) error
 }
 
 // NewRedisQueuePublisher creates a publisher that sends messages to Redis channels.
 // The client parameter should be a *redis.Client; the function signature uses
 // the minimal interface to avoid importing go-redis in the event package.
-func NewRedisQueuePublisher(publishFn func(ctx context.Context, channel string, message interface{}) error) *RedisQueuePublisher {
+func NewRedisQueuePublisher(publishFn func(ctx context.Context, channel string, message any) error) *RedisQueuePublisher {
 	return &RedisQueuePublisher{publish: publishFn}
 }
 

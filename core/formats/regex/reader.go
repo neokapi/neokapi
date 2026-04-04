@@ -355,7 +355,7 @@ func (r *Reader) Close() error {
 func extractGroups(content string, idx []int) []string {
 	numGroups := len(idx) / 2
 	groups := make([]string, numGroups)
-	for i := 0; i < numGroups; i++ {
+	for i := range numGroups {
 		start := idx[2*i]
 		end := idx[2*i+1]
 		if start >= 0 && end >= 0 {

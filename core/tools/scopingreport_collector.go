@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"maps"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,7 +36,7 @@ func (s *ScopingSummary) FormatTable(w io.Writer) {
 	for name := range s.Categories {
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	// Header.
 	fmt.Fprintf(w, "%-16s %8s  %12s\n", "CATEGORY", "BLOCKS", "WORDS")

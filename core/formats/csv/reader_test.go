@@ -1922,7 +1922,7 @@ func TestCSV_LargeFile(t *testing.T) {
 	t.Parallel()
 	var sb strings.Builder
 	sb.WriteString("id,text\n")
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		sb.WriteString(strings.Join([]string{
 			strings.Repeat("k", 3),
 			strings.Repeat("v", 10),

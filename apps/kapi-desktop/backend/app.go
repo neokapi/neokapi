@@ -4,13 +4,14 @@
 package backend
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -529,7 +530,7 @@ func (a *App) ListTools() []ToolInfo {
 			Requires:    info.Requires,
 		}
 	}
-	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
+	slices.SortFunc(infos, func(a, b ToolInfo) int { return cmp.Compare(a.Name, b.Name) })
 	return infos
 }
 
@@ -880,7 +881,7 @@ func (a *App) loadUserPresets(formatName string) ([]FormatPresetInfo, error) {
 			Source: "user",
 		})
 	}
-	sort.Slice(presets, func(i, j int) bool { return presets[i].Name < presets[j].Name })
+	slices.SortFunc(presets, func(a, b FormatPresetInfo) int { return cmp.Compare(a.Name, b.Name) })
 	return presets, nil
 }
 

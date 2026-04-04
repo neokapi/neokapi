@@ -60,7 +60,7 @@ func TestMemoryStress(t *testing.T) {
 			var baseline runtime.MemStats
 			runtime.ReadMemStats(&baseline)
 
-			for i := 0; i < iterations; i++ {
+			for range iterations {
 				parts := bridgetest.ReadString(t, pool, cfg,
 					entry.filterClass, entry.content, entry.uri, entry.mimeType, nil)
 				_ = parts
