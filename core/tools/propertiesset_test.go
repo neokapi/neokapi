@@ -117,7 +117,7 @@ func TestPropertiesSetConfigValidation(t *testing.T) {
 	}
 	err := cfg.Validate()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Properties")
+	assert.Contains(t, err.Error(), "properties")
 
 	cfg.Properties = map[string]string{}
 	err = cfg.Validate()

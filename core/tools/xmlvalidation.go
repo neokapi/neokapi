@@ -2,7 +2,9 @@ package tools
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model"
@@ -37,7 +39,7 @@ func (c *XMLValidationConfig) Reset() {
 // Validate checks configuration validity.
 func (c *XMLValidationConfig) Validate() error {
 	if c.CheckTarget && c.Locale.IsEmpty() {
-		return fmt.Errorf("xml-validation: Locale is required when CheckTarget is true")
+		return fmt.Errorf("xml-validation: locale is required when CheckTarget is true")
 	}
 	return nil
 }
@@ -109,7 +111,7 @@ func validateXML(text string, wrapRoot bool) error {
 	for {
 		_, err := decoder.Token()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if errors.Is(err, io.EOF) {
 				return nil
 			}
 			return err
