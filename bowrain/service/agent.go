@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -385,7 +385,7 @@ func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, use
 		return fmt.Errorf("enqueue agent job: %w", err)
 	}
 
-	log.Printf("Agent job enqueued: conversation=%s, waiting for Redis events...", conversationID)
+	slog.InfoContext(ctx, "agent job enqueued, waiting for events", "conversation_id", conversationID)
 
 	// Relay Redis events → SSE until message_end, error, or timeout.
 	timeout := 5 * time.Minute
@@ -396,10 +396,10 @@ func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, use
 		select {
 		case evt, ok := <-events:
 			if !ok {
-				log.Printf("Agent SSE relay: Redis channel closed for conversation=%s", conversationID)
+				slog.DebugContext(ctx, "agent SSE relay: channel closed", "conversation_id", conversationID)
 				return nil // channel closed
 			}
-			log.Printf("Agent SSE relay: event=%s conversation=%s", evt.Event, conversationID)
+			slog.DebugContext(ctx, "agent SSE relay event", "event", evt.Event, "conversation_id", conversationID)
 			_ = sse.WriteEvent(evt.Event, json.RawMessage(evt.Data))
 
 			// Terminal events: stop relaying.
@@ -408,12 +408,12 @@ func (s *AgentService) sendQueuedStream(ctx context.Context, conversationID, use
 			}
 
 		case <-timer.C:
-			log.Printf("Agent SSE relay: timeout for conversation=%s", conversationID)
+			slog.WarnContext(ctx, "agent SSE relay: timeout", "conversation_id", conversationID)
 			_ = sse.WriteEvent(SSEError, ErrorData{Error: "agent response timed out"})
 			return nil
 
 		case <-ctx.Done():
-			log.Printf("Agent SSE relay: context cancelled for conversation=%s: %v", conversationID, ctx.Err())
+			slog.DebugContext(ctx, "agent SSE relay: context cancelled", "conversation_id", conversationID, "error", ctx.Err())
 			return ctx.Err()
 		}
 	}

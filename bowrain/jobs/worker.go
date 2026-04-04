@@ -3,7 +3,7 @@ package jobs
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -71,14 +71,14 @@ func RunWorker(ctx context.Context, jobStore JobStore, contentStore store.Conten
 
 // RunWorkerWithDeps runs the translation worker loop with full dependency injection.
 func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
-	log.Println("translation worker started")
+	slog.InfoContext(ctx, "translation worker started")
 	if deps.Platform != nil {
-		log.Printf("platform Azure OpenAI enabled: %s", deps.Platform.Endpoint)
+		slog.InfoContext(ctx, "platform Azure OpenAI enabled", "endpoint", deps.Platform.Endpoint)
 	}
 	if deps.QuotaStore != nil {
-		log.Println("AI quota enforcement enabled")
+		slog.InfoContext(ctx, "AI quota enforcement enabled")
 	}
-	defer log.Println("translation worker stopped")
+	defer slog.InfoContext(ctx, "translation worker stopped")
 
 	for {
 		select {
@@ -92,13 +92,13 @@ func RunWorkerWithDeps(ctx context.Context, deps *WorkerDeps) error {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			log.Printf("dequeue error: %v", err)
+			slog.WarnContext(ctx, "dequeue error", "error", err)
 			sleepCtx(ctx, 2*time.Second)
 			continue
 		}
 
 		if processErr := processJobWithDeps(ctx, deps, jobID); processErr != nil {
-			log.Printf("job %s failed: %v", jobID, processErr)
+			slog.ErrorContext(ctx, "job failed", "job_id", jobID, "error", processErr)
 		}
 		// Always ack: processJob marks failed jobs in the database.
 		// Nacking would cause infinite retries for permanent errors.
@@ -115,7 +115,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 		return fmt.Errorf("claim job: %w", err)
 	}
 	if !claimed {
-		log.Printf("job %s already claimed by another worker, skipping", jobID)
+		slog.DebugContext(ctx, "job already claimed, skipping", "job_id", jobID)
 		return nil
 	}
 
@@ -133,7 +133,7 @@ func processJobWithDeps(ctx context.Context, deps *WorkerDeps, jobID string) err
 	if deps.QuotaStore != nil {
 		remaining, err := deps.QuotaStore.CheckQuota(ctx, job.WorkspaceSlug)
 		if err != nil {
-			log.Printf("warning: quota check failed for %s: %v", job.WorkspaceSlug, err)
+			slog.WarnContext(ctx, "quota check failed", "workspace", job.WorkspaceSlug, "error", err)
 		} else if remaining <= 0 {
 			_ = deps.JobStore.UpdateJobStatus(ctx, jobID, StatusFailed, "workspace AI quota exceeded")
 			return fmt.Errorf("workspace %s quota exceeded", job.WorkspaceSlug)
@@ -276,7 +276,7 @@ func executeTranslationWithDeps(ctx context.Context, deps *WorkerDeps, job *Tran
 
 		// Update progress.
 		if err := deps.JobStore.UpdateJobProgress(ctx, job.ID, end, totalBlocks); err != nil {
-			log.Printf("warning: update progress for %s: %v", job.ID, err)
+			slog.WarnContext(ctx, "update progress failed", "job_id", job.ID, "error", err)
 		}
 		job.DoneBlocks = end
 		job.TotalBlocks = totalBlocks

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -56,7 +56,7 @@ func (a *AuditLogger) handleEvent(ev platev.Event) {
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		ev.ProjectID, string(ev.Type), ev.Actor, ev.Source, string(dataJSON), ev.Timestamp)
 	if err != nil {
-		log.Printf("WARNING: audit logger failed to persist event %s (type=%s): %v", ev.ID, ev.Type, err)
+		slog.Warn("audit logger failed to persist event", "event_id", ev.ID, "event_type", ev.Type, "error", err)
 	}
 }
 

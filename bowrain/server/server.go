@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,6 +14,9 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/neokapi/neokapi/bowrain/observe"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	slogecho "github.com/samber/slog-echo"
 	"github.com/neokapi/neokapi/bowrain/analytics"
 	"github.com/neokapi/neokapi/bowrain/auth"
 	"github.com/neokapi/neokapi/bowrain/billing"
@@ -90,6 +93,10 @@ type Server struct {
 	// When set, gRPC requests (HTTP/2 with Content-Type: application/grpc)
 	// are routed to this server. When nil, gRPC is not available.
 	GRPCServer *grpc.Server
+
+	// httpServer holds the underlying *http.Server for graceful shutdown.
+	// Set by Start() when gRPC multiplexing is active (h2c mode).
+	httpServer *http.Server
 
 	// AutomationEngine evaluates automation rules on events. Nil when event system is not wired up.
 	AutomationEngine *event.AutomationEngine
@@ -222,22 +229,22 @@ func createEventBus(cfg ServerConfig) platev.EventBus {
 	if cfg.ServiceBusConnection != "" {
 		bus, err := event.NewServiceBusEventBus(cfg.ServiceBusConnection)
 		if err != nil {
-			log.Printf("WARNING: failed to create Service Bus event bus: %v (falling back to in-memory)", err)
+			slog.Warn("failed to create Service Bus event bus, falling back to in-memory", "error", err)
 			return event.NewChannelEventBus()
 		}
-		log.Println("Using Azure Service Bus event bus")
+		slog.Info("event bus configured", "backend", "azure-service-bus")
 		return bus
 	}
 	if cfg.NATSUrl != "" {
 		bus, err := event.NewNATSEventBus(cfg.NATSUrl)
 		if err != nil {
-			log.Printf("WARNING: failed to create NATS event bus: %v (falling back to in-memory)", err)
+			slog.Warn("failed to create NATS event bus, falling back to in-memory", "error", err)
 			return event.NewChannelEventBus()
 		}
-		log.Println("Using NATS JetStream event bus")
+		slog.Info("event bus configured", "backend", "nats-jetstream")
 		return bus
 	}
-	log.Println("Using in-memory event bus (single instance only)")
+	slog.Info("event bus configured", "backend", "in-memory")
 	return event.NewChannelEventBus()
 }
 
@@ -266,11 +273,11 @@ func NewServer(cfg ServerConfig) *Server {
 	if cfg.RedisURL != "" {
 		rs, err := NewRedisSessionStore(cfg.RedisURL, cfg.RedisPassword)
 		if err != nil {
-			log.Printf("WARNING: failed to connect to Redis for session store: %v (falling back to in-memory)", err)
+			slog.Warn("failed to connect to Redis for session store, falling back to in-memory", "error", err)
 			s.SessionStore = NewMemorySessionStore()
 		} else {
 			s.SessionStore = rs
-			log.Printf("Using Redis session store at %s", cfg.RedisURL)
+			slog.Info("session store configured", "backend", "redis", "redis_url", cfg.RedisURL)
 		}
 
 		// Wire Redis hash cache for sync diff engine (AD-038).
@@ -281,7 +288,7 @@ func NewServer(cfg ServerConfig) *Server {
 			}
 			redisClient := redis.NewClient(redisOpts)
 			s.SyncCache = bowsync.NewRedisHashCache(redisClient, 30*time.Minute)
-			log.Printf("Using Redis sync hash cache")
+			slog.Info("sync hash cache configured", "backend", "redis")
 		}
 	} else {
 		s.SessionStore = NewMemorySessionStore()
@@ -303,7 +310,7 @@ func NewServer(cfg ServerConfig) *Server {
 			pg, err = openPostgresStores(cfg.DatabaseURL)
 		}
 		if err != nil {
-			log.Printf("WARNING: failed to open PostgreSQL stores: %v", err)
+			slog.Warn("failed to open PostgreSQL stores", "error", err)
 		} else {
 			s.ContentStore = pg.Content
 			s.Services = service.NewServices(pg.Content, connReg, formatReg, toolReg)
@@ -337,14 +344,14 @@ func NewServer(cfg ServerConfig) *Server {
 	case cfg.ServiceBusConnection != "":
 		q, err := jobs.NewServiceBusQueue(cfg.ServiceBusConnection, "translation-jobs")
 		if err != nil {
-			log.Printf("WARNING: failed to connect to Service Bus queue: %v", err)
+			slog.Warn("failed to connect to Service Bus queue", "error", err)
 		} else {
 			s.JobQueue = q
 		}
 	case cfg.NATSUrl != "":
 		q, err := jobs.NewNATSQueue(cfg.NATSUrl)
 		if err != nil {
-			log.Printf("WARNING: failed to connect to NATS queue: %v", err)
+			slog.Warn("failed to connect to NATS queue", "error", err)
 		} else {
 			s.JobQueue = q
 		}
@@ -497,7 +504,7 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 		ms, err := mcpserver.NewMCPServerWithStore(s.BrandStore, s.ContentStore, mcpCfg, mcpOpts...)
 		if err != nil {
-			log.Printf("WARNING: failed to initialize MCP server: %v", err)
+			slog.Warn("failed to initialize MCP server", "error", err)
 		} else {
 			s.mcpServer = ms
 		}
@@ -512,20 +519,20 @@ func NewServer(cfg ServerConfig) *Server {
 			// Queue mode: agent processing is handled by the worker.
 			// API server enqueues jobs to Service Bus and subscribes to Redis pub/sub.
 			if err := s.setupAgentQueue(cfg); err != nil {
-				log.Printf("WARNING: failed to initialize agent queue mode: %v", err)
+				slog.Warn("failed to initialize agent queue mode", "error", err)
 			} else {
-				log.Printf("Agent mode: queue (worker handles container lifecycle)")
+				slog.Info("agent mode configured", "mode", "queue")
 			}
 		case "docker", "aca":
 			// Direct mode: API server manages containers directly.
 			if pool := s.buildAgentPool(); pool != nil {
 				s.AgentService.SetPool(pool)
-				log.Printf("Agent pool initialized (runtime=%s)", cfg.AgentRuntime)
+				slog.Info("agent pool initialized", "runtime", cfg.AgentRuntime)
 			}
 		case "":
 			// No runtime — mock mode.
 		default:
-			log.Printf("WARNING: unknown agent runtime %q", cfg.AgentRuntime)
+			slog.Warn("unknown agent runtime", "runtime", cfg.AgentRuntime)
 		}
 	}
 
@@ -540,7 +547,7 @@ func NewServer(cfg ServerConfig) *Server {
 			}
 			// PostHog wiring deferred to after PostHog init below.
 		}
-		log.Printf("Stripe billing enabled")
+		slog.Info("Stripe billing enabled")
 	}
 
 	// Initialize PostHog client (AD-030).
@@ -551,10 +558,10 @@ func NewServer(cfg ServerConfig) *Server {
 		}
 		phClient, err := analytics.NewPostHogClient(cfg.PostHogAPIKey, host)
 		if err != nil {
-			log.Printf("WARNING: failed to init PostHog client: %v (analytics disabled)", err)
+			slog.Warn("failed to init PostHog client, analytics disabled", "error", err)
 		} else {
 			s.PostHogClient = phClient
-			log.Printf("PostHog analytics enabled")
+			slog.Info("PostHog analytics enabled")
 		}
 	}
 
@@ -568,17 +575,17 @@ func NewServer(cfg ServerConfig) *Server {
 		ctx := context.Background()
 		verifier, err := auth.NewOIDCVerifier(ctx, cfg.AdminOIDCIssuerURL, cfg.AdminOIDCClientID)
 		if err != nil {
-			log.Printf("WARNING: failed to init admin OIDC verifier: %v (admin API disabled)", err)
+			slog.Warn("failed to init admin OIDC verifier, admin API disabled", "error", err)
 		} else {
 			s.AdminVerifier = verifier
 			// Access token verifier skips audience check (Keycloak uses aud="account").
 			accessVerifier, err := auth.NewOIDCAccessTokenVerifier(ctx, cfg.AdminOIDCIssuerURL)
 			if err != nil {
-				log.Printf("WARNING: failed to init admin access token verifier: %v", err)
+				slog.Warn("failed to init admin access token verifier", "error", err)
 			} else {
 				s.AdminAccessVerifier = accessVerifier
 			}
-			log.Printf("Admin OIDC verifier enabled (issuer: %s)", cfg.AdminOIDCIssuerURL)
+			slog.Info("admin OIDC verifier enabled", "issuer", cfg.AdminOIDCIssuerURL)
 		}
 	}
 
@@ -623,20 +630,31 @@ func NewServer(cfg ServerConfig) *Server {
 
 // SetupRoutes registers all API routes on the Echo instance.
 func (s *Server) SetupRoutes(e *echo.Echo) {
-	// Middleware
-	logger := log.New(os.Stdout, "", log.LstdFlags)
-	e.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogMethod: true,
-		LogURI:    true,
-		LogStatus: true,
-		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
-			logger.Printf("%s %s %d\n", v.Method, v.URI, v.Status)
-			return nil
+	// Middleware — order matters:
+	// 1. Request ID (propagate/generate correlation ID)
+	// 2. Structured request logging (slog-echo, includes request_id)
+	// 3. Prometheus metrics
+	// 4. Recovery, body limit, CORS
+	e.Use(observe.RequestIDMiddleware())
+	e.Use(slogecho.NewWithConfig(slog.Default(), slogecho.Config{
+		DefaultLevel:     slog.LevelInfo,
+		ClientErrorLevel: slog.LevelWarn,
+		ServerErrorLevel: slog.LevelError,
+		WithRequestID:    true,
+		Filters: []slogecho.Filter{
+			slogecho.IgnorePath("/api/v1/health", "/metrics"),
 		},
 	}))
+	e.Use(observe.MetricsMiddleware())
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("50M"))
 	e.Use(middleware.CORS())
+
+	// Prometheus metrics endpoint (no auth).
+	e.GET("/metrics", echo.WrapHandler(promhttp.Handler()))
+
+	// pprof endpoints (behind BOWRAIN_PPROF_ENABLED env var).
+	observe.RegisterPprof(e)
 
 	// API v1 routes
 	v1 := e.Group("/api/v1")
@@ -1169,8 +1187,25 @@ func (s *Server) Start(addr string) error {
 		Addr:    addr,
 		Handler: h2c.NewHandler(handler, h2s),
 	}
-	log.Printf("Starting Bowrain server on %s (HTTP + gRPC)", addr)
+	s.httpServer = srv
+	slog.Info("starting Bowrain server", "addr", addr, "mode", "HTTP+gRPC")
 	return srv.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server, draining in-flight requests.
+// It stops accepting new connections, waits for existing requests to complete
+// (up to the context deadline), then shuts down gRPC if configured.
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.GRPCServer != nil {
+		s.GRPCServer.GracefulStop()
+	}
+	if s.httpServer != nil {
+		return s.httpServer.Shutdown(ctx)
+	}
+	if s.Echo != nil {
+		return s.Echo.Shutdown(ctx)
+	}
+	return nil
 }
 
 // GetEcho returns the underlying Echo instance. Useful for testing.

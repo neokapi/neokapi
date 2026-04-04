@@ -1,19 +1,32 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
+	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
+	"time"
 
+	"github.com/neokapi/neokapi/bowrain/observe"
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
 	"github.com/neokapi/neokapi/bowrain/server"
 	"google.golang.org/grpc"
 )
 
 func main() {
+	// Structured logging — bridges existing log.Printf calls through slog.
+	observe.SetupLogger(
+		os.Getenv("BOWRAIN_LOG_FORMAT"),
+		os.Getenv("BOWRAIN_LOG_LEVEL"),
+	)
+
 	// Handle subcommands before flag parsing.
 	if len(os.Args) > 1 && os.Args[0] != "-" {
 		switch os.Args[1] {
@@ -223,8 +236,25 @@ func main() {
 	pb.RegisterEditorServiceServer(grpcSrv, server.NewEditorGRPCServer(srv))
 	srv.GRPCServer = grpcSrv
 
+	// Graceful shutdown: start server in a goroutine, wait for signal.
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
-	if err := srv.Start(addr); err != nil {
-		log.Fatalf("Server failed: %v", err)
+	go func() {
+		if err := srv.Start(addr); err != nil && err != http.ErrServerClosed {
+			slog.Error("server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	slog.Info("shutdown signal received, draining connections...")
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer shutdownCancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		slog.Error("forced shutdown", "error", err)
 	}
+	slog.Info("server stopped")
 }

@@ -12,6 +12,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/agent"
+	"github.com/neokapi/neokapi/bowrain/observe"
 	"github.com/neokapi/neokapi/bowrain/credentials"
 	bowevent "github.com/neokapi/neokapi/bowrain/event"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -27,6 +28,12 @@ import (
 )
 
 func main() {
+	// Structured logging — bridges existing log.Printf calls through slog.
+	observe.SetupLogger(
+		os.Getenv("BOWRAIN_LOG_FORMAT"),
+		os.Getenv("BOWRAIN_LOG_LEVEL"),
+	)
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 

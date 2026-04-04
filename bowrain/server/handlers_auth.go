@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -1067,7 +1067,7 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 	// Create a remote keyset to verify the JWT signature against Keycloak's JWKS.
 	provider, err := oidc.NewProvider(oidcCtx, s.Config.OIDCIssuerURL)
 	if err != nil {
-		log.Printf("back-channel logout: OIDC discovery failed: %v", err)
+		slog.WarnContext(ctx, "back-channel logout: OIDC discovery failed", "error", err)
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "OIDC discovery failed"})
 	}
 
@@ -1082,7 +1082,7 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 	// Verify signature and standard claims (iss, aud, exp).
 	idToken, err := keySet.Verify(oidcCtx, rawLogoutToken)
 	if err != nil {
-		log.Printf("back-channel logout: token verification failed: %v", err)
+		slog.WarnContext(ctx, "back-channel logout: token verification failed", "error", err)
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid logout_token"})
 	}
 
@@ -1094,7 +1094,7 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 		Sid    string          `json:"sid"`
 	}
 	if err := idToken.Claims(&logoutClaims); err != nil {
-		log.Printf("back-channel logout: failed to extract claims: %v", err)
+		slog.WarnContext(ctx, "back-channel logout: failed to extract claims", "error", err)
 		return c.JSON(http.StatusBadRequest, ErrorResponse{Error: "invalid claims"})
 	}
 
@@ -1122,16 +1122,16 @@ func (s *Server) HandleBackChannelLogout(c echo.Context) error {
 		user, err := s.AuthStore.GetUserByOIDCSub(ctx, logoutClaims.Sub)
 		if err != nil {
 			// User not found — nothing to revoke. Still return 200 per spec.
-			log.Printf("back-channel logout: no user found for sub %s", logoutClaims.Sub)
+			slog.InfoContext(ctx, "back-channel logout: no user found for subject", "oidc_sub", logoutClaims.Sub)
 			return c.NoContent(http.StatusOK)
 		}
 
 		if err := s.AuthStore.RevokeUserRefreshTokens(ctx, user.ID); err != nil {
-			log.Printf("back-channel logout: failed to revoke tokens for user %s: %v", user.ID, err)
+			slog.ErrorContext(ctx, "back-channel logout: failed to revoke tokens", "user_id", user.ID, "error", err)
 			return c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "failed to revoke tokens"})
 		}
 
-		log.Printf("back-channel logout: revoked tokens for user %s (sub: %s)", user.Email, logoutClaims.Sub)
+		slog.InfoContext(ctx, "back-channel logout: revoked tokens", "user_id", user.ID, "oidc_sub", logoutClaims.Sub)
 	}
 
 	return c.NoContent(http.StatusOK)
