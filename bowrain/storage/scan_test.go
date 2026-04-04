@@ -1,6 +1,7 @@
 package storage_test
 
 import (
+	"context"
 	"database/sql"
 	"testing"
 
@@ -16,9 +17,11 @@ func TestScanRows(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	_, err = db.Exec(`CREATE TABLE test_scan (id INTEGER PRIMARY KEY, name TEXT)`)
+	ctx := context.Background()
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE test_scan (id INTEGER PRIMARY KEY, name TEXT)`)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO test_scan (id, name) VALUES (1, 'alpha'), (2, 'bravo'), (3, 'charlie')`)
+	_, err = db.ExecContext(ctx, `INSERT INTO test_scan (id, name) VALUES (1, 'alpha'), (2, 'bravo'), (3, 'charlie')`)
 	require.NoError(t, err)
 
 	type row struct {
@@ -26,7 +29,7 @@ func TestScanRows(t *testing.T) {
 		Name string
 	}
 
-	rows, err := db.Query(`SELECT id, name FROM test_scan ORDER BY id`)
+	rows, err := db.QueryContext(ctx, `SELECT id, name FROM test_scan ORDER BY id`)
 	require.NoError(t, err)
 
 	results, err := storage.ScanRows(rows, func(s storage.Scanner) (row, error) {
@@ -49,10 +52,12 @@ func TestScanRows_Empty(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	_, err = db.Exec(`CREATE TABLE test_empty (id INTEGER)`)
+	ctx := context.Background()
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE test_empty (id INTEGER)`)
 	require.NoError(t, err)
 
-	rows, err := db.Query(`SELECT id FROM test_empty`)
+	rows, err := db.QueryContext(ctx, `SELECT id FROM test_empty`)
 	require.NoError(t, err)
 
 	results, err := storage.ScanRows(rows, func(s storage.Scanner) (int, error) {
@@ -71,12 +76,14 @@ func TestScanRows_ScanError(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	_, err = db.Exec(`CREATE TABLE test_err (name TEXT)`)
+	ctx := context.Background()
+
+	_, err = db.ExecContext(ctx, `CREATE TABLE test_err (name TEXT)`)
 	require.NoError(t, err)
-	_, err = db.Exec(`INSERT INTO test_err (name) VALUES ('hello')`)
+	_, err = db.ExecContext(ctx, `INSERT INTO test_err (name) VALUES ('hello')`)
 	require.NoError(t, err)
 
-	rows, err := db.Query(`SELECT name FROM test_err`)
+	rows, err := db.QueryContext(ctx, `SELECT name FROM test_err`)
 	require.NoError(t, err)
 
 	// Try to scan text into int — should produce error.

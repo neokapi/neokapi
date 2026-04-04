@@ -1,6 +1,7 @@
 package storage_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/neokapi/neokapi/bowrain/storage"
@@ -13,16 +14,18 @@ func TestOpen_InMemory(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
+	ctx := context.Background()
+
 	// Verify pragmas were applied.
 	var journalMode string
-	err = db.QueryRow("PRAGMA journal_mode").Scan(&journalMode)
+	err = db.QueryRowContext(ctx, "PRAGMA journal_mode").Scan(&journalMode)
 	require.NoError(t, err)
 	// In-memory databases use "memory" journal mode regardless.
 	assert.Contains(t, []string{"wal", "memory"}, journalMode)
 
 	// Verify foreign keys are on.
 	var fk int
-	err = db.QueryRow("PRAGMA foreign_keys").Scan(&fk)
+	err = db.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&fk)
 	require.NoError(t, err)
 	assert.Equal(t, 1, fk)
 }
@@ -49,8 +52,10 @@ func TestMigrate(t *testing.T) {
 	err = storage.Migrate(db, migrations)
 	require.NoError(t, err)
 
+	ctx := context.Background()
+
 	// Insert a row to verify schema.
-	_, err = db.Exec("INSERT INTO users (id, name, email) VALUES ('u1', 'Alice', 'alice@example.com')")
+	_, err = db.ExecContext(ctx, "INSERT INTO users (id, name, email) VALUES ('u1', 'Alice', 'alice@example.com')")
 	require.NoError(t, err)
 
 	// Re-running migrations should be idempotent.
@@ -59,7 +64,7 @@ func TestMigrate(t *testing.T) {
 
 	// Verify migration was recorded.
 	var count int
-	err = db.QueryRow("SELECT COUNT(*) FROM schema_migrations").Scan(&count)
+	err = db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
@@ -85,8 +90,9 @@ func TestMigrate_Incremental(t *testing.T) {
 	require.NoError(t, err)
 
 	// Both tables should exist.
-	_, err = db.Exec("INSERT INTO t1 (id) VALUES ('a')")
+	ctx := context.Background()
+	_, err = db.ExecContext(ctx, "INSERT INTO t1 (id) VALUES ('a')")
 	require.NoError(t, err)
-	_, err = db.Exec("INSERT INTO t2 (id) VALUES ('b')")
+	_, err = db.ExecContext(ctx, "INSERT INTO t2 (id) VALUES ('b')")
 	require.NoError(t, err)
 }
