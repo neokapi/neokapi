@@ -28,10 +28,12 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 	projPath := filepath.Join(dir, "test.kapi")
 
 	proj := &project.KapiProject{
-		Version:         "v1",
-		Name:            "Test",
-		SourceLanguage:  "ja-JP",
-		TargetLanguages: []string{"en-US", "zh-CN"},
+		Version: "v1",
+		Name:    "Test",
+		Defaults: project.Defaults{
+			SourceLanguage:  "ja-JP",
+			TargetLanguages: []string{"en-US", "zh-CN"},
+		},
 	}
 	require.NoError(t, project.Save(projPath, proj))
 
@@ -46,11 +48,11 @@ func TestRunFromProject_LoadsDefaults(t *testing.T) {
 	require.NoError(t, err)
 
 	// Simulate what runFromProject does for language defaults.
-	if app.SourceLang == "en" && loaded.SourceLanguage != "" {
-		app.SourceLang = loaded.SourceLanguage
+	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
+		app.SourceLang = loaded.Defaults.SourceLanguage
 	}
-	if app.TargetLang == "" && len(loaded.TargetLanguages) > 0 {
-		app.TargetLang = loaded.TargetLanguages[0]
+	if app.TargetLang == "" && len(loaded.Defaults.TargetLanguages) > 0 {
+		app.TargetLang = loaded.Defaults.TargetLanguages[0]
 	}
 
 	assert.Equal(t, "ja-JP", app.SourceLang, "project source lang should override default 'en'")
@@ -63,10 +65,12 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 	projPath := filepath.Join(dir, "test.kapi")
 
 	proj := &project.KapiProject{
-		Version:         "v1",
-		Name:            "Test",
-		SourceLanguage:  "ja-JP",
-		TargetLanguages: []string{"en-US"},
+		Version: "v1",
+		Name:    "Test",
+		Defaults: project.Defaults{
+			SourceLanguage:  "ja-JP",
+			TargetLanguages: []string{"en-US"},
+		},
 	}
 	require.NoError(t, project.Save(projPath, proj))
 
@@ -80,11 +84,11 @@ func TestRunFromProject_CLIFlagsOverride(t *testing.T) {
 	require.NoError(t, err)
 
 	// Same logic as runFromProject — only override when CLI default.
-	if app.SourceLang == "en" && loaded.SourceLanguage != "" {
-		app.SourceLang = loaded.SourceLanguage
+	if app.SourceLang == "en" && loaded.Defaults.SourceLanguage != "" {
+		app.SourceLang = loaded.Defaults.SourceLanguage
 	}
-	if app.TargetLang == "" && len(loaded.TargetLanguages) > 0 {
-		app.TargetLang = loaded.TargetLanguages[0]
+	if app.TargetLang == "" && len(loaded.Defaults.TargetLanguages) > 0 {
+		app.TargetLang = loaded.Defaults.TargetLanguages[0]
 	}
 
 	assert.Equal(t, "fr-FR", app.SourceLang, "explicit CLI source lang should not be overridden")
@@ -138,22 +142,33 @@ func TestToolFromStep_BuiltinTool(t *testing.T) {
 
 func TestKapiProjectYAMLRoundtrip(t *testing.T) {
 	// Write a realistic .kapi file and verify it roundtrips through YAML.
-	yaml := `version: v1
+	yamlContent := `version: v1
 name: Acme App Localization
-source_language: en-US
-target_languages:
-  - fr-FR
-  - de-DE
-  - ja-JP
+plugins:
+  okapi:
+    framework_version: "^1.47.0"
+    format_priority: 200
+defaults:
+  source_language: en-US
+  target_languages:
+    - fr-FR
+    - de-DE
+    - ja-JP
+  concurrency: 8
+  parallel_blocks: 5
+  encoding: utf-8
+  formats:
+    okf_html:
+      preset: strict-extraction
 content:
   - path: src/i18n/en/*.json
     format: json
     target: src/i18n/{lang}/*.json
-  - path: docs/en/**/*.md
-    format: markdown
+  - name: Documentation
+    items:
+      - path: docs/en/**/*.md
+        format: markdown
 preset: nextjs
-plugins:
-  - okapi@1.47.0
 flows:
   translate:
     steps:
@@ -170,24 +185,28 @@ flows:
       - tool: pseudo-translate
         config:
           expansion_rate: 1.3
-defaults:
-  concurrency: 8
-  parallel_blocks: 5
-  encoding: utf-8
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "acme.kapi")
-	require.NoError(t, os.WriteFile(path, []byte(yaml), 0o644))
+	require.NoError(t, os.WriteFile(path, []byte(yamlContent), 0o644))
 
 	proj, err := project.Load(path)
 	require.NoError(t, err)
 
 	assert.Equal(t, "Acme App Localization", proj.Name)
-	assert.Equal(t, "en-US", proj.SourceLanguage)
-	assert.Equal(t, 3, len(proj.TargetLanguages))
+	assert.Equal(t, "en-US", proj.Defaults.SourceLanguage)
+	assert.Equal(t, 3, len(proj.Defaults.TargetLanguages))
 	assert.Equal(t, 2, len(proj.Content))
 	assert.Equal(t, "nextjs", proj.Preset)
-	assert.Equal(t, []string{"okapi@1.47.0"}, proj.Plugins)
+
+	// Plugins.
+	require.Contains(t, proj.Plugins, "okapi")
+	assert.Equal(t, "^1.47.0", proj.Plugins["okapi"].FrameworkVersion)
+	assert.Equal(t, 200, proj.Plugins["okapi"].FormatPriority)
+
+	// Format defaults.
+	require.Contains(t, proj.Defaults.Formats, "okf_html")
+	assert.Equal(t, "strict-extraction", proj.Defaults.Formats["okf_html"].Preset)
 
 	// Flows
 	assert.Equal(t, 2, len(proj.Flows))
@@ -215,6 +234,6 @@ defaults:
 	proj2, err := project.Load(path2)
 	require.NoError(t, err)
 	assert.Equal(t, proj.Name, proj2.Name)
-	assert.Equal(t, proj.TargetLanguages, proj2.TargetLanguages)
+	assert.Equal(t, proj.Defaults.TargetLanguages, proj2.Defaults.TargetLanguages)
 	assert.Equal(t, len(proj.Flows), len(proj2.Flows))
 }

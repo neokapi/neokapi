@@ -18,14 +18,25 @@ export const WithContent: Story = {
     project: {
       version: "v1",
       name: "Acme App Localization",
-      source_language: "en-US",
-      target_languages: ["fr-FR", "de-DE", "ja-JP"],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR", "de-DE", "ja-JP"],
+      },
       content: [
-        { path: "src/i18n/en/*.json", format: "json", target: "src/i18n/{lang}/*.json" },
-        { path: "docs/en/**/*.md", format: "markdown" },
+        {
+          path: "src/i18n/en/*.json",
+          format: { name: "json" },
+          target: "src/i18n/{lang}/*.json",
+        },
+        {
+          name: "Documentation",
+          items: [{ path: "docs/en/**/*.md", format: { name: "markdown" } }],
+        },
       ],
       preset: "nextjs",
-      plugins: ["okapi@1.47.0"],
+      plugins: {
+        okapi: { framework_version: "^1.47.0" },
+      },
       flows: {
         translate: {
           steps: [{ tool: "ai-translate", config: { provider: "anthropic" } }],
@@ -47,7 +58,9 @@ export const Minimal: Story = {
     project: {
       version: "v1",
       name: "New Project",
-      source_language: "en",
+      defaults: {
+        source_language: "en",
+      },
     },
     projectPath: "",
   },
@@ -58,8 +71,10 @@ export const WithFlowsOnly: Story = {
     project: {
       version: "v1",
       name: "QA Pipeline",
-      source_language: "en-US",
-      target_languages: ["fr-FR"],
+      defaults: {
+        source_language: "en-US",
+        target_languages: ["fr-FR"],
+      },
       flows: {
         "qa-check": {
           steps: [{ tool: "qa-check" }],

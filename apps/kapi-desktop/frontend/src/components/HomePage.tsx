@@ -31,8 +31,10 @@ export function HomePage({ project, displayName, onRunFlow, onNavigate }: HomePa
         <div className="mt-2 flex items-center gap-4 text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <Globe size={14} />
-            {project.source_language || "No source"} &rarr;{" "}
-            {project.target_languages?.length ? project.target_languages.join(", ") : "No targets"}
+            {project.defaults?.source_language || "No source"} &rarr;{" "}
+            {project.defaults?.target_languages?.length
+              ? project.defaults.target_languages.join(", ")
+              : "No targets"}
           </span>
         </div>
       </div>

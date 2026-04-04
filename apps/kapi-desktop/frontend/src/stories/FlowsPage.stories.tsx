@@ -170,4 +170,3 @@ export const WithFlows: StoryObj<typeof FlowsPage> = {
 export const Empty: StoryObj<typeof FlowsPage> = {
   render: () => <FlowsPage flows={[]} />,
 };
-
