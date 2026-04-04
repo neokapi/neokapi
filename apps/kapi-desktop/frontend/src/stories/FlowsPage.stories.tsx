@@ -5,6 +5,7 @@ import { Button, Card } from "@neokapi/ui-primitives";
 import type { FlowSpec, FlowInfo } from "../types/api";
 import { FlowEditor } from "@neokapi/flow-editor";
 import type { ToolInfo } from "@neokapi/flow-editor";
+import { FlowsPage, type FlowListItem } from "../components/FlowsPage";
 import toolsData from "./fixtures/tools-metadata.json";
 
 const tools = toolsData as ToolInfo[];
@@ -36,6 +37,14 @@ const SAMPLE_FLOWS: Record<string, FlowSpec> = {
     steps: [{ tool: "pseudo-translate" }, { tool: "qa-check" }],
   },
 };
+
+const SAMPLE_FLOW_LIST: FlowListItem[] = Object.entries(SAMPLE_FLOWS).map(([name, spec]) => ({
+  id: name,
+  name,
+  description: spec.description ?? "",
+  source: "user",
+  stepCount: spec.steps.length,
+}));
 
 function SimulatedFlowsPage() {
   const [flows, setFlows] = useState(SAMPLE_FLOWS);
@@ -147,3 +156,18 @@ export default meta;
 type Story = StoryObj<typeof SimulatedFlowsPage>;
 
 export const Default: Story = {};
+
+/**
+ * Real component with pre-loaded flows (no Wails API calls).
+ */
+export const WithFlows: StoryObj<typeof FlowsPage> = {
+  render: () => <FlowsPage flows={SAMPLE_FLOW_LIST} />,
+};
+
+/**
+ * Real component with empty flows list.
+ */
+export const Empty: StoryObj<typeof FlowsPage> = {
+  render: () => <FlowsPage flows={[]} />,
+};
+

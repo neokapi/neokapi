@@ -17,9 +17,14 @@ import { useError } from "./ErrorBanner";
 
 const PROVIDER_TYPES = ["anthropic", "openai", "ollama", "azureopenai"] as const;
 
-export function CredentialsPage() {
-  const [providers, setProviders] = useState<ProviderConfig[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface CredentialsPageProps {
+  /** Pre-loaded providers for Storybook — skips api.listProviders(). */
+  providers?: ProviderConfig[];
+}
+
+export function CredentialsPage({ providers: propProviders }: CredentialsPageProps = {}) {
+  const [providers, setProviders] = useState<ProviderConfig[]>(propProviders ?? []);
+  const [loading, setLoading] = useState(!propProviders);
   const [editing, setEditing] = useState<ProviderConfig | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [saving, setSaving] = useState(false);
@@ -29,6 +34,7 @@ export function CredentialsPage() {
   const { showError } = useError();
 
   const loadProviders = useCallback(async () => {
+    if (propProviders) return;
     try {
       const result = await api.listProviders();
       if (result) setProviders(result);
@@ -37,7 +43,7 @@ export function CredentialsPage() {
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, [showError, propProviders]);
 
   useEffect(() => {
     void loadProviders();

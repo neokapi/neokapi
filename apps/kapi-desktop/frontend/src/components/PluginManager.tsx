@@ -47,11 +47,16 @@ interface InstallStatus {
   error?: string;
 }
 
-export function PluginManager() {
+export interface PluginManagerProps {
+  /** Pre-loaded installed plugins for Storybook — skips api.listPlugins(). */
+  plugins?: PluginInfo[];
+}
+
+export function PluginManager({ plugins: propPlugins }: PluginManagerProps = {}) {
   const [search, setSearch] = useState("");
-  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const [plugins, setPlugins] = useState<PluginInfo[]>(propPlugins ?? []);
   const [available, setAvailable] = useState<AvailablePlugin[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!propPlugins);
   const [loadingAvailable, setLoadingAvailable] = useState(false);
   const [installStatus, setInstallStatus] = useState<Record<string, InstallStatus>>({});
   const [removing, setRemoving] = useState<string | null>(null);
@@ -65,6 +70,7 @@ export function PluginManager() {
   const { showError } = useError();
 
   const loadPlugins = useCallback(async () => {
+    if (propPlugins) return;
     setLoading(true);
     setError(null);
     try {
@@ -75,7 +81,7 @@ export function PluginManager() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [propPlugins]);
 
   const loadAvailable = useCallback(
     async (query?: string) => {

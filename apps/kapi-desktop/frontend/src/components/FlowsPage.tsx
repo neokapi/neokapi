@@ -26,7 +26,7 @@ import { useError } from "./ErrorBanner";
 import { FlowPage } from "./FlowPage";
 import type { FlowSpec } from "../types/api";
 
-interface FlowsPageProps {
+export interface FlowsPageProps {
   /** Project tab ID — if provided, flows are scoped to the project. */
   tabID?: string;
   /** Project flows map — used for project-mode flow data. */
@@ -35,9 +35,11 @@ interface FlowsPageProps {
   onFlowChange?: (name: string, spec: FlowSpec) => void;
   /** Called when a flow is deleted from the project. */
   onFlowDelete?: (name: string) => void;
+  /** Pre-loaded flow list for Storybook — skips api.listUserFlows()/api.listFlows(). */
+  flows?: FlowListItem[];
 }
 
-interface FlowListItem {
+export interface FlowListItem {
   id: string;
   name: string;
   description: string;
@@ -50,9 +52,10 @@ export function FlowsPage({
   projectFlows: _projectFlows,
   onFlowChange,
   onFlowDelete,
+  flows: propFlows,
 }: FlowsPageProps) {
-  const [flows, setFlows] = useState<FlowListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [flows, setFlows] = useState<FlowListItem[]>(propFlows ?? []);
+  const [loading, setLoading] = useState(!propFlows);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedSpec, setSelectedSpec] = useState<FlowSpec | null>(null);
   const [selectedSource, setSelectedSource] = useState<string>("user");
@@ -66,6 +69,7 @@ export function FlowsPage({
   const isProjectMode = !!tabID;
 
   const refreshFlows = useCallback(async () => {
+    if (propFlows) return;
     setLoading(true);
     try {
       if (isProjectMode) {
@@ -98,7 +102,7 @@ export function FlowsPage({
     } finally {
       setLoading(false);
     }
-  }, [tabID, isProjectMode, showError]);
+  }, [tabID, isProjectMode, showError, propFlows]);
 
   useEffect(() => {
     void refreshFlows();

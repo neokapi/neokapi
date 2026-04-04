@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { useState, useCallback } from "react";
 import { Download, RefreshCw, Search, Package, Loader2, CheckCircle2, Trash2 } from "lucide-react";
 import { Button, Badge, Card, Input } from "@neokapi/ui-primitives";
+import { PluginManager } from "../components/PluginManager";
 
 interface Plugin {
   name: string;
@@ -212,3 +213,42 @@ export default meta;
 type Story = StoryObj<typeof SimulatedPluginManager>;
 
 export const Default: Story = {};
+
+/**
+ * Real component with pre-loaded plugins (no Wails API calls).
+ */
+export const WithPlugins: StoryObj<typeof PluginManager> = {
+  render: () => (
+    <PluginManager
+      plugins={[
+        {
+          name: "okapi",
+          id: "okapi",
+          version: "1.47.0",
+          framework_version: "1.47.0",
+          description: "Okapi Framework bridge — plugs into Okapi's filters and steps",
+          type: "bridge",
+          formats: [
+            "okf_html",
+            "okf_json",
+            "okf_xliff",
+            "okf_xml",
+            "okf_properties",
+            "okf_po",
+            "okf_ts",
+            "okf_dtd",
+            "okf_regex",
+          ],
+        },
+      ]}
+    />
+  ),
+};
+
+/**
+ * Real component with empty plugins list.
+ */
+export const Empty: StoryObj<typeof PluginManager> = {
+  render: () => <PluginManager plugins={[]} />,
+};
+
