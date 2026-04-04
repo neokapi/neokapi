@@ -3,7 +3,7 @@ package project
 import (
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +32,7 @@ func createTestTree(t *testing.T) string {
 }
 
 func sorted(s []string) []string {
-	sort.Strings(s)
+	slices.Sort(s)
 	return s
 }
 

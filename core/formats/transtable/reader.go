@@ -155,12 +155,7 @@ func (r *Reader) readContent(ctx context.Context, ch chan<- model.PartResult) {
 		}
 
 		// Tab-separated key-value pair
-		parts := strings.SplitN(content, "\t", 2)
-		key := parts[0]
-		value := ""
-		if len(parts) == 2 {
-			value = parts[1]
-		}
+		key, value, _ := strings.Cut(content, "\t")
 
 		blockID++
 		// Skeleton: key+tab is text, value is the ref

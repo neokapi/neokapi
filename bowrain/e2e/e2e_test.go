@@ -38,12 +38,12 @@ func apiRequest(t *testing.T, method, path, token string, body string) *http.Res
 	return resp
 }
 
-func readJSON(t *testing.T, resp *http.Response) map[string]interface{} {
+func readJSON(t *testing.T, resp *http.Response) map[string]any {
 	t.Helper()
 	defer resp.Body.Close()
 	data, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
-	var result map[string]interface{}
+	var result map[string]any
 	require.NoError(t, json.Unmarshal(data, &result))
 	return result
 }
@@ -150,7 +150,7 @@ func TestWorkspaceCRUD(t *testing.T) {
 	defer listResp.Body.Close()
 	require.Equal(t, http.StatusOK, listResp.StatusCode)
 
-	var workspaces []map[string]interface{}
+	var workspaces []map[string]any
 	data, _ := io.ReadAll(listResp.Body)
 	require.NoError(t, json.Unmarshal(data, &workspaces))
 	require.NotEmpty(t, workspaces)
@@ -185,7 +185,7 @@ func TestProjectInWorkspace(t *testing.T) {
 	defer listResp.Body.Close()
 	require.Equal(t, http.StatusOK, listResp.StatusCode)
 
-	var projects []map[string]interface{}
+	var projects []map[string]any
 	data, _ := io.ReadAll(listResp.Body)
 	require.NoError(t, json.Unmarshal(data, &projects))
 	require.NotEmpty(t, projects)

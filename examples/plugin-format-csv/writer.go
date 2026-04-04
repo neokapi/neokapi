@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/csv"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -115,7 +115,7 @@ func (w *CSVWriter) flush() error {
 	for r := range w.cells {
 		rows = append(rows, r)
 	}
-	sort.Ints(rows)
+	slices.Sort(rows)
 
 	// Write each row.
 	for _, rowIdx := range rows {

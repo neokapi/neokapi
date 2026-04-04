@@ -94,15 +94,15 @@ func (w *Writer) writeFromSkeleton() error {
 		case format.SkeletonRef:
 			// Ref ID is "blockIdx:stringIdx"
 			refID := string(entry.Data)
-			parts := strings.SplitN(refID, ":", 2)
-			if len(parts) != 2 {
+			idxStr, refSuffix, ok := strings.Cut(refID, ":")
+			if !ok {
 				continue
 			}
-			blockIdx, err := strconv.Atoi(parts[0])
+			blockIdx, err := strconv.Atoi(idxStr)
 			if err != nil || blockIdx < 0 || blockIdx >= len(w.blocks) {
 				continue
 			}
-			stringIdx, err := strconv.Atoi(parts[1])
+			stringIdx, err := strconv.Atoi(refSuffix)
 			if err != nil {
 				continue
 			}

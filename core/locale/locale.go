@@ -3,8 +3,9 @@
 package locale
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/neokapi/neokapi/core/model"
 	"golang.org/x/text/language"
@@ -75,8 +76,8 @@ func WellKnownLocales() []LocaleInfo {
 			DisplayName: display.English.Tags().Name(tag),
 		})
 	}
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].DisplayName < result[j].DisplayName
+	slices.SortFunc(result, func(a, b LocaleInfo) int {
+		return cmp.Compare(a.DisplayName, b.DisplayName)
 	})
 	return result
 }

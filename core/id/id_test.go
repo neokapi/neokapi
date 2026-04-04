@@ -19,7 +19,7 @@ func TestNew(t *testing.T) {
 
 func TestNew_Unique(t *testing.T) {
 	seen := make(map[string]struct{}, 10000)
-	for i := 0; i < 10000; i++ {
+	for range 10000 {
 		id := New()
 		require.NotContains(t, seen, id, "duplicate ID generated")
 		seen[id] = struct{}{}

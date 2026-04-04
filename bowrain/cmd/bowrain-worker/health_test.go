@@ -39,7 +39,7 @@ func TestHealthEndpoint(t *testing.T) {
 
 	// Wait for server to start.
 	var resp *http.Response
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		resp, err = http.Get(fmt.Sprintf("http://localhost:%d/healthz", port))
 		if err == nil {
 			break

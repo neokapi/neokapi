@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format/schema"
@@ -57,8 +57,8 @@ func Build(pluginDir string, logger *log.Logger) (*PluginCache, error) {
 	bareNameCandidates := make(map[string][]versionedFmt)
 
 	for name, versions := range all {
-		sort.Slice(versions, func(i, j int) bool {
-			return pluginreg.CompareSemver(versions[i].Version, versions[j].Version) < 0
+		slices.SortFunc(versions, func(a, b pluginreg.InstalledVersion) int {
+			return pluginreg.CompareSemver(a.Version, b.Version)
 		})
 
 		for _, iv := range versions {

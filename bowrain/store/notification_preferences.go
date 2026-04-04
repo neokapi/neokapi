@@ -125,7 +125,7 @@ func (s *PreferenceStore) Get(ctx context.Context, userID, workspaceID string, c
 
 // boolParam returns a value suitable for the current dialect.
 // PostgreSQL requires native bools; SQLite works with 0/1 integers.
-func (s *PreferenceStore) boolParam(b bool) interface{} {
+func (s *PreferenceStore) boolParam(b bool) any {
 	if s.dialect == DialectPostgres {
 		return b
 	}

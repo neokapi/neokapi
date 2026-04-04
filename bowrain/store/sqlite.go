@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 	"github.com/neokapi/neokapi/bowrain/storage"
 	"github.com/neokapi/neokapi/core/id"
 	"github.com/neokapi/neokapi/core/model"
-	platstore "github.com/neokapi/neokapi/bowrain/core/store"
 )
 
 // SQLiteStore implements ContentStore using SQLite via the shared storage layer.
@@ -1081,8 +1081,8 @@ func scanStoredBlockRow(rows *sql.Rows) (*platstore.StoredBlock, error) {
 
 // annotationWrapper wraps an Annotation with a type discriminator for JSON storage.
 type annotationWrapper struct {
-	Type string      `json:"type"`
-	Data interface{} `json:"data"`
+	Type string `json:"type"`
+	Data any    `json:"data"`
 }
 
 // serializeAnnotations converts a map of typed Annotations into a JSON byte slice

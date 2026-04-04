@@ -253,12 +253,12 @@ func goTypeToSchemaType(t reflect.Type) string {
 // Format: schema:"description=...,default=...,min=...,max=...,enum=a|b|c,widget=..."
 func applyTag(prop *PropertySchema, tag string) {
 	for _, part := range strings.Split(tag, ",") {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) != 2 {
+		key, val, ok := strings.Cut(part, "=")
+		if !ok {
 			continue
 		}
-		key := strings.TrimSpace(kv[0])
-		val := strings.TrimSpace(kv[1])
+		key = strings.TrimSpace(key)
+		val = strings.TrimSpace(val)
 		switch key {
 		case "description":
 			prop.Description = val
@@ -283,9 +283,8 @@ func applyTag(prop *PropertySchema, tag string) {
 			prop.Default = parseDefault(val, prop.Type)
 		case "showIf":
 			// Format: showIf=field:value (show when field equals value)
-			parts := strings.SplitN(val, ":", 2)
-			if len(parts) == 2 {
-				prop.Visible = &ConditionExpr{Field: parts[0], Eq: parts[1]}
+			if field, eq, ok := strings.Cut(val, ":"); ok {
+				prop.Visible = &ConditionExpr{Field: field, Eq: eq}
 			}
 		case "showIfEmpty":
 			prop.Visible = &ConditionExpr{Field: val, Empty: boolPtr(true)}
@@ -325,9 +324,9 @@ func parseDefault(s string, propType string) any {
 // tagValue extracts a specific key's value from a schema tag.
 func tagValue(tag, key string) string {
 	for _, part := range strings.Split(tag, ",") {
-		kv := strings.SplitN(part, "=", 2)
-		if len(kv) == 2 && strings.TrimSpace(kv[0]) == key {
-			return strings.TrimSpace(kv[1])
+		k, v, ok := strings.Cut(part, "=")
+		if ok && strings.TrimSpace(k) == key {
+			return strings.TrimSpace(v)
 		}
 	}
 	return ""

@@ -76,11 +76,10 @@ func main() {
 		if token == "" {
 			token = cfg.FleetRepoToken
 		}
-		parts := strings.SplitN(cfg.GitHubIssuesRepo, "/", 2)
-		if len(parts) == 2 {
+		if owner, repo, ok := strings.Cut(cfg.GitHubIssuesRepo, "/"); ok {
 			mcpOpts = append(mcpOpts, agenticmcp.WithIssueTracker(&agenticmcp.GitHubIssueTracker{
-				Owner: parts[0],
-				Repo:  parts[1],
+				Owner: owner,
+				Repo:  repo,
 				Token: token,
 			}))
 			log.Printf("Issue tracker configured: %s", cfg.GitHubIssuesRepo)

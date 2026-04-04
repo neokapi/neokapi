@@ -1,8 +1,9 @@
 package registry
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -222,8 +223,8 @@ func (r *FormatRegistry) FormatInfos() []FormatInfo {
 		result = append(result, cp)
 	}
 
-	sort.Slice(result, func(i, j int) bool {
-		return result[i].Name < result[j].Name
+	slices.SortFunc(result, func(a, b FormatInfo) int {
+		return cmp.Compare(a.Name, b.Name)
 	})
 	return result
 }

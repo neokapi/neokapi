@@ -851,7 +851,7 @@ func parseCodeFinderRules(val any) ([]string, error) {
 			}
 		}
 		var rules []string
-		for i := 0; i < count; i++ {
+		for i := range count {
 			key := fmt.Sprintf("rule%d", i)
 			if rule, ok := m[key].(string); ok {
 				rules = append(rules, rule)

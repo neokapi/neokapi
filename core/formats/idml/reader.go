@@ -7,7 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -171,7 +171,7 @@ func (r *Reader) findStoryFiles(zr *zip.Reader) []string {
 			stories = append(stories, f.Name)
 		}
 	}
-	sort.Strings(stories)
+	slices.Sort(stories)
 	return stories
 }
 

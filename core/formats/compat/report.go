@@ -5,6 +5,7 @@ package compat
 import (
 	"archive/zip"
 	"bytes"
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -12,7 +13,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -210,7 +211,7 @@ func (rc *reportCollector) compareZIP(format, file, pair string, a, b []byte) bo
 	entriesB := readZIPEntries(b)
 
 	allKeys := mergeKeys(entriesA, entriesB)
-	sort.Strings(allKeys)
+	slices.Sort(allKeys)
 
 	allMatch := true
 	var diffs []zipEntryDiff
@@ -259,15 +260,14 @@ func (rc *reportCollector) writeReport(dir string) error {
 	defer rc.mu.Unlock()
 
 	// Sort results by format, file, pair.
-	sort.Slice(rc.results, func(i, j int) bool {
-		a, b := rc.results[i], rc.results[j]
-		if a.Format != b.Format {
-			return a.Format < b.Format
+	slices.SortFunc(rc.results, func(a, b comparisonResult) int {
+		if c := cmp.Compare(a.Format, b.Format); c != 0 {
+			return c
 		}
-		if a.File != b.File {
-			return a.File < b.File
+		if c := cmp.Compare(a.File, b.File); c != 0 {
+			return c
 		}
-		return a.Pair < b.Pair
+		return cmp.Compare(a.Pair, b.Pair)
 	})
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -526,9 +526,8 @@ func writeResultPanel(buf *bytes.Buffer, idx int, r comparisonResult, labelA, la
 
 // pairLabels splits a pair string like "native vs bridge" into its two sides.
 func pairLabels(pair string) (string, string) {
-	parts := strings.SplitN(pair, " vs ", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
+	if before, after, ok := strings.Cut(pair, " vs "); ok {
+		return before, after
 	}
 	return "A", "B"
 }

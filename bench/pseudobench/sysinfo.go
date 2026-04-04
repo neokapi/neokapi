@@ -36,9 +36,8 @@ func cpuModel() string {
 		if err != nil {
 			return "unknown"
 		}
-		parts := strings.SplitN(string(out), ":", 2)
-		if len(parts) == 2 {
-			return strings.TrimSpace(parts[1])
+		if _, after, ok := strings.Cut(string(out), ":"); ok {
+			return strings.TrimSpace(after)
 		}
 		return "unknown"
 	default:

@@ -14,7 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
+	"slices"
 	"strings"
 	"time"
 
@@ -292,8 +292,8 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 			continue
 		}
 
-		sort.Slice(versions, func(i, j int) bool {
-			return pluginreg.CompareSemver(versions[i].Version, versions[j].Version) < 0
+		slices.SortFunc(versions, func(a, b pluginreg.InstalledVersion) int {
+			return pluginreg.CompareSemver(a.Version, b.Version)
 		})
 
 		for _, iv := range versions {
@@ -345,7 +345,7 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 
 				var formats []string
 				if len(newFilterIDs) > 0 {
-					sort.Strings(newFilterIDs)
+					slices.Sort(newFilterIDs)
 					for _, filterID := range newFilterIDs {
 						if skipFilters[filterID] {
 							continue
@@ -401,7 +401,7 @@ func (l *PluginLoader) scanFromDisk(fmtReg *registry.FormatRegistry) error {
 						})
 					}
 				}
-				sort.Strings(formats)
+				slices.Sort(formats)
 
 				l.plugins = append(l.plugins, PluginInfo{
 					Name:             manifest.Name,

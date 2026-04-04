@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"io"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -54,8 +54,8 @@ func assertZIPEqual(t *testing.T, label string, expected, actual []byte) {
 	for k := range actualEntries {
 		actualKeys = append(actualKeys, k)
 	}
-	sort.Strings(expectedKeys)
-	sort.Strings(actualKeys)
+	slices.Sort(expectedKeys)
+	slices.Sort(actualKeys)
 
 	if !assert.Equal(t, expectedKeys, actualKeys, "%s: ZIP entry lists differ", label) {
 		return

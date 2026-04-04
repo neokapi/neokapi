@@ -3,7 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/neokapi/neokapi/cli/output"
 	"github.com/spf13/cobra"
@@ -60,7 +60,7 @@ func (a *App) listTools(cmd *cobra.Command) error {
 	// Add any tools from the registry that aren't already listed.
 	if a.ToolReg != nil {
 		names := a.ToolReg.Names()
-		sort.Strings(names)
+		slices.Sort(names)
 		for _, name := range names {
 			if !seen[name] {
 				t, err := a.ToolReg.NewTool(name)
@@ -101,7 +101,7 @@ func (a *App) toolSchema(_ *cobra.Command, name string) error {
 	return fmt.Errorf("no schema found for tool %q", name)
 }
 
-func printSchema(s interface{}) error {
+func printSchema(s any) error {
 	data, err := json.MarshalIndent(s, "", "  ")
 	if err != nil {
 		return err

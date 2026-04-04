@@ -3,7 +3,7 @@ package model
 import (
 	"encoding/json"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/model/vocabularies"
@@ -161,7 +161,7 @@ func (r *VocabularyRegistry) Categories() []string {
 	for cat := range r.categories {
 		cats = append(cats, cat)
 	}
-	sort.Strings(cats)
+	slices.Sort(cats)
 	return cats
 }
 
@@ -169,7 +169,7 @@ func (r *VocabularyRegistry) Categories() []string {
 func (r *VocabularyRegistry) TypesInCategory(cat string) []string {
 	types := make([]string, len(r.categories[cat]))
 	copy(types, r.categories[cat])
-	sort.Strings(types)
+	slices.Sort(types)
 	return types
 }
 
@@ -179,7 +179,7 @@ func (r *VocabularyRegistry) AllTypes() []string {
 	for name := range r.types {
 		types = append(types, name)
 	}
-	sort.Strings(types)
+	slices.Sort(types)
 	return types
 }
 

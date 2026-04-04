@@ -56,7 +56,7 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 	ctx := context.Background()
 
 	// Warmup
-	for i := 0; i < cfg.Warmup; i++ {
+	for i := range cfg.Warmup {
 		fmt.Printf("  warmup %d/%d...\n", i+1, cfg.Warmup)
 		tmpDir, err := os.MkdirTemp("", "pseudobench-warmup-*")
 		if err != nil {
@@ -83,7 +83,7 @@ func runExperiment(engine Engine, cfg *Config, daemon *DaemonProcess) (*Experime
 		traceFile = filepath.Join(cfg.TraceDir, engine.Name()+"-trace.json")
 	}
 
-	for i := 0; i < cfg.Iterations; i++ {
+	for i := range cfg.Iterations {
 		fmt.Printf("  iteration %d/%d...", i+1, cfg.Iterations)
 
 		// Use a temp dir for all iterations except the last.

@@ -435,7 +435,7 @@ func (r *Reader) parseODFContent(ctx context.Context, ch chan<- model.PartResult
 							_, _ = fmt.Sscanf(a.Value, "%d", &count)
 						}
 					}
-					for i := 0; i < count; i++ {
+					for range count {
 						textBuf.WriteRune(' ')
 					}
 				}
