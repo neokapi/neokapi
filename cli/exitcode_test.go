@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestExitCode(t *testing.T) {
@@ -41,7 +42,7 @@ func TestSignalContext(t *testing.T) {
 	defer stop()
 
 	// Context should not be cancelled initially.
-	assert.NoError(t, ctx.Err())
+	require.NoError(t, ctx.Err())
 
 	// Calling stop should release signal notification resources without error.
 	stop()
