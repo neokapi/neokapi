@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -271,7 +271,7 @@ func (p *AgentPool) RunCleanupLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if n := p.CleanupIdle(ctx); n > 0 {
-				log.Printf("Agent pool: cleaned up %d idle container(s)", n)
+				slog.Info("agent pool: cleaned up idle containers", "count", n)
 			}
 		}
 	}

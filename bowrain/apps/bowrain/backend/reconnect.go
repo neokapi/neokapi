@@ -3,7 +3,7 @@ package backend
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -19,7 +19,7 @@ func (a *App) goOffline() {
 		return
 	}
 
-	log.Printf("bowrain: connection lost, switching to offline mode")
+	slog.Info("bowrain: connection lost, switching to offline mode")
 	a.emitConnectionState()
 	a.startReconnect()
 }
@@ -49,7 +49,7 @@ func (a *App) reconnectLoop(ctx context.Context) {
 		}
 
 		if a.tryReconnect() {
-			log.Printf("bowrain: reconnected to server")
+			slog.Info("bowrain: reconnected to server")
 			a.replayPendingChanges()
 			return
 		}
@@ -91,7 +91,7 @@ func (a *App) replayPendingChanges() {
 		return
 	}
 
-	log.Printf("bowrain: replaying %d pending changes", count)
+	slog.Info("bowrain: replaying pending changes", "count", count)
 
 	for {
 		changes, err := a.offlineQueue.PeekPending(10)
@@ -101,7 +101,7 @@ func (a *App) replayPendingChanges() {
 
 		for _, change := range changes {
 			if err := a.replayChange(change); err != nil {
-				log.Printf("bowrain: replay failed for change %d (%s): %v", change.ID, change.Operation, err)
+				slog.Warn("bowrain: replay failed for change", "change_id", change.ID, "operation", change.Operation, "error", err)
 				_ = a.offlineQueue.MarkFailed(change.ID, err.Error())
 
 				// If we lost connection again during replay, go offline.
@@ -116,7 +116,7 @@ func (a *App) replayPendingChanges() {
 	}
 
 	_ = a.offlineQueue.PurgeCompleted()
-	log.Printf("bowrain: pending changes replayed")
+	slog.Info("bowrain: pending changes replayed")
 }
 
 // replayChange replays a single pending change to the server.
@@ -199,7 +199,7 @@ func (a *App) replayChange(change PendingChange) error {
 		return client.DeleteConcept(ws, req.ConceptID)
 
 	default:
-		log.Printf("bowrain: unknown pending change operation: %s", change.Operation)
+		slog.Info("bowrain: unknown pending change operation:", "value", change.Operation)
 		return nil // skip unknown operations
 	}
 }

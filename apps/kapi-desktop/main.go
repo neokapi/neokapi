@@ -2,7 +2,7 @@ package main
 
 import (
 	"embed"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -145,7 +145,7 @@ func main() {
 			go func(path string) {
 				tab, err := appService.OpenProject(path)
 				if err != nil {
-					log.Printf("open file: %v", err)
+					slog.Info("open file", "error", err)
 					return
 				}
 				app.Event.Emit("open-project-tab", tab)

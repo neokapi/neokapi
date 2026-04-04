@@ -3,7 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/neokapi/neokapi/bowrain/jobs"
@@ -28,7 +28,7 @@ func (s *Server) buildAgentPool() *service.AgentPool {
 	case "aca":
 		cred, err := azidentity.NewDefaultAzureCredential(nil)
 		if err != nil {
-			log.Printf("WARNING: failed to create Azure credential for agent runtime: %v", err)
+			slog.Warn("failed to create Azure credential for agent runtime", "error", err)
 			return nil
 		}
 		runtime = service.NewACARuntime(service.ACAConfig{

@@ -2,7 +2,7 @@ package backend
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -77,7 +77,7 @@ func NewAppWithoutPlugins() *App {
 	storePath := defaultStorePath()
 	cs, err := bstore.NewSQLiteStore(storePath)
 	if err != nil {
-		log.Printf("bowrain: failed to open store at %s: %v", storePath, err)
+		slog.Info("bowrain: failed to open store at", "id", storePath, "error", err)
 	}
 	return newAppWithStore(cs)
 }
@@ -106,7 +106,7 @@ func newAppWithStore(cs store.ContentStore) *App {
 	// Initialize the offline queue for queuing mutations when disconnected.
 	queuePath := defaultQueuePath()
 	if q, err := NewOfflineQueue(queuePath); err != nil {
-		log.Printf("bowrain: failed to open offline queue at %s: %v", queuePath, err)
+		slog.Info("bowrain: failed to open offline queue at", "id", queuePath, "error", err)
 	} else {
 		a.offlineQueue = q
 	}
@@ -125,7 +125,7 @@ func (a *App) LoadPlugins() {
 
 	pl := loader.NewPluginLoader(pluginDir, nil)
 	if err := pl.LoadAll(a.formatReg, nil); err != nil {
-		log.Printf("bowrain: failed to load plugins: %v", err)
+		slog.Info("bowrain: failed to load plugins", "error", err)
 	}
 
 	a.pluginMu.Lock()

@@ -3,7 +3,7 @@ package billing
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -33,7 +33,7 @@ func (n *BillingNotifier) NotifyCreditsWarning(ctx context.Context, email, works
 <p>Need more credits? <a href="https://app.bowrain.cloud/pricing">Upgrade your plan</a> or purchase a credit pack.</p>`,
 		pct, used, total, resetAt.Format("Monday, January 2"))
 	if err := n.Sender.Send(ctx, email, subject, body); err != nil {
-		log.Printf("billing: failed to send credits warning email to %s: %v", email, err)
+		slog.Info("billing: failed to send credits warning email to", "id", email, "error", err)
 	}
 }
 
@@ -50,7 +50,7 @@ func (n *BillingNotifier) NotifyCreditsExhausted(ctx context.Context, email, wor
 <p><a href="https://app.bowrain.cloud/pricing">Upgrade your plan</a> or <a href="https://app.bowrain.cloud/billing">purchase a credit pack</a> for immediate access.</p>`,
 		resetAt.Format("Monday, January 2"))
 	if err := n.Sender.Send(ctx, email, subject, body); err != nil {
-		log.Printf("billing: failed to send credits exhausted email to %s: %v", email, err)
+		slog.Info("billing: failed to send credits exhausted email to", "id", email, "error", err)
 	}
 }
 
@@ -65,7 +65,7 @@ func (n *BillingNotifier) NotifyPaymentFailed(ctx context.Context, email, worksp
 <p>Please update your payment method within 7 days to avoid service interruption.</p>
 <p><a href="https://app.bowrain.cloud/billing">Update payment method</a></p>`
 	if err := n.Sender.Send(ctx, email, subject, body); err != nil {
-		log.Printf("billing: failed to send payment failed email to %s: %v", email, err)
+		slog.Info("billing: failed to send payment failed email to", "id", email, "error", err)
 	}
 }
 
@@ -84,6 +84,6 @@ func (n *BillingNotifier) NotifySubscriptionChanged(ctx context.Context, email, 
 <p><a href="https://app.bowrain.cloud/billing">View billing details</a></p>`,
 		plan, status)
 	if err := n.Sender.Send(ctx, email, subject, body); err != nil {
-		log.Printf("billing: failed to send subscription changed email to %s: %v", email, err)
+		slog.Info("billing: failed to send subscription changed email to", "id", email, "error", err)
 	}
 }

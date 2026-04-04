@@ -3,7 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -87,7 +87,7 @@ func (s *Server) loadStoredAutomationRules() {
 	ctx := context.Background()
 	projects, err := s.ContentStore.ListProjects(ctx)
 	if err != nil {
-		log.Printf("WARNING: failed to list projects for automation rule loading: %v", err)
+		slog.Warn("failed to list projects for automation rule loading", "error", err)
 		return
 	}
 
@@ -95,7 +95,7 @@ func (s *Server) loadStoredAutomationRules() {
 	for _, proj := range projects {
 		rules, err := s.AutomationRuleStore.ListRules(ctx, proj.ID)
 		if err != nil {
-			log.Printf("WARNING: failed to load automation rules for project %s: %v", proj.ID, err)
+			slog.Warn("failed to load automation rules for project", "id", proj.ID, "error", err)
 			continue
 		}
 		for _, r := range rules {
@@ -112,7 +112,7 @@ func (s *Server) loadStoredAutomationRules() {
 		}
 	}
 	if loaded > 0 {
-		log.Printf("Loaded %d user-defined automation rules", loaded)
+		slog.Info("loaded user-defined automation rules", "count", loaded)
 	}
 }
 
@@ -221,7 +221,7 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 
 	proj, err := s.ContentStore.GetProject(ctx, projectID)
 	if err != nil {
-		log.Printf("auto-translate: failed to load project %s: %v", projectID, err)
+		slog.Info("auto-translate: failed to load project", "id", projectID, "error", err)
 		return
 	}
 
@@ -266,12 +266,12 @@ func (s *Server) triggerAutoTranslate(ctx context.Context, projectID string, ite
 			}
 
 			if err := s.JobStore.CreateJob(ctx, job); err != nil {
-				log.Printf("auto-translate: failed to create job for %s/%s: %v", itemName, locale, err)
+				slog.Info("auto-translate: failed to create job for", "name", itemName, "locale", locale, "error", err)
 				continue
 			}
 
 			if err := s.JobQueue.Enqueue(ctx, job.ID); err != nil {
-				log.Printf("auto-translate: failed to enqueue job %s: %v", job.ID, err)
+				slog.Info("auto-translate: failed to enqueue job", "id", job.ID, "error", err)
 				_ = s.JobStore.DeleteJob(ctx, job.ID)
 			} else {
 				jobIDs = append(jobIDs, job.ID)
@@ -330,7 +330,7 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 
 	proj, err := s.ContentStore.GetProject(ctx, projectID)
 	if err != nil {
-		log.Printf("auto-extract: failed to load project %s: %v", projectID, err)
+		slog.Info("auto-extract: failed to load project", "id", projectID, "error", err)
 		return
 	}
 
@@ -364,12 +364,12 @@ func (s *Server) triggerAutoExtract(ctx context.Context, projectID string, itemN
 		}
 
 		if err := s.ExtractionJobStore.CreateExtractionJob(ctx, job); err != nil {
-			log.Printf("auto-extract: failed to create job for %s: %v", itemName, err)
+			slog.Info("auto-extract: failed to create job for", "id", itemName, "error", err)
 			continue
 		}
 
 		if err := s.ExtractionQueue.Enqueue(ctx, job.ID); err != nil {
-			log.Printf("auto-extract: failed to enqueue job %s: %v", job.ID, err)
+			slog.Info("auto-extract: failed to enqueue job", "id", job.ID, "error", err)
 			_ = s.ExtractionJobStore.UpdateExtractionJobStatus(ctx, job.ID, jobs.ExtractionStatusFailed, "enqueue failed")
 		} else {
 			jobIDs = append(jobIDs, job.ID)
@@ -392,7 +392,7 @@ func (s *Server) triggerAutoTranslateNewLocales(ctx context.Context, projectID s
 
 	items, err := s.ContentStore.ListItems(ctx, projectID, "main")
 	if err != nil {
-		log.Printf("auto-translate-new-locale: failed to list items for %s: %v", projectID, err)
+		slog.Info("auto-translate-new-locale: failed to list items for", "id", projectID, "error", err)
 		return
 	}
 	if len(items) == 0 {
@@ -416,7 +416,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 
 	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
 	if err != nil {
-		log.Printf("create-review-tasks: failed to load project %s: %v", ev.ProjectID, err)
+		slog.Info("create-review-tasks: failed to load project", "id", ev.ProjectID, "error", err)
 		return
 	}
 
@@ -441,7 +441,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 
 	members, err := s.AuthStore.ListProjectMembers(ctx, proj.ID)
 	if err != nil {
-		log.Printf("create-review-tasks: failed to list members for %s: %v", proj.ID, err)
+		slog.Info("create-review-tasks: failed to list members for", "id", proj.ID, "error", err)
 		return
 	}
 
@@ -481,7 +481,7 @@ func (s *Server) createReviewTasks(ctx context.Context, action event.AutomationA
 				},
 			}
 			if err := s.TaskStore.Create(ctx, task); err != nil {
-				log.Printf("create-review-tasks: failed to create task for %s/%s: %v", localeStr, m.UserID, err)
+				slog.Info("create-review-tasks: failed to create task for", "name", localeStr, "locale", m.UserID, "error", err)
 				continue
 			}
 			taskIDs = append(taskIDs, task.ID)
@@ -532,7 +532,7 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 
 	proj, err := s.ContentStore.GetProject(ctx, ev.ProjectID)
 	if err != nil {
-		log.Printf("create-source-review: failed to load project %s: %v", ev.ProjectID, err)
+		slog.Info("create-source-review: failed to load project", "id", ev.ProjectID, "error", err)
 		return
 	}
 
@@ -570,7 +570,7 @@ func (s *Server) createSourceReviewTask(ctx context.Context, action event.Automa
 	}
 
 	if err := s.TaskStore.Create(ctx, task); err != nil {
-		log.Printf("create-source-review: failed to create task: %v", err)
+		slog.Info("create-source-review: failed to create task", "error", err)
 		return
 	}
 

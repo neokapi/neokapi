@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -81,7 +81,7 @@ func (s *Server) sendInviteEmail(ctx context.Context, inv *platauth.Invite, base
 	}
 
 	if err := s.Mailer.SendInvite(ctx, inv.Email, data); err != nil {
-		log.Printf("failed to send invite email to %s: %v", inv.Email, err)
+		slog.Info("failed to send invite email to", "id", inv.Email, "error", err)
 	}
 }
 

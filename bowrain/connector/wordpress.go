@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -114,7 +114,7 @@ func (c *WordPressConnector) Publish(ctx context.Context, items []*platconn.Cont
 	for _, item := range items {
 		wpID := item.Metadata["wp_id"]
 		if wpID == "" {
-			log.Printf("WARNING: wordpress: skipping item %q with no wp_id", item.Name)
+			slog.Warn("wordpress: skipping item with no wp_id", "item", item.Name)
 			continue
 		}
 
@@ -128,7 +128,7 @@ func (c *WordPressConnector) Publish(ctx context.Context, items []*platconn.Cont
 			case "excerpt":
 				payload["excerpt"] = b.SourceText()
 			default:
-				log.Printf("WARNING: wordpress: skipping block %q with unsupported type %q for post %s", b.ID, b.Type, wpID)
+				slog.Warn("wordpress: skipping block with unsupported type", "block_id", b.ID, "type", b.Type, "post_id", wpID)
 			}
 		}
 

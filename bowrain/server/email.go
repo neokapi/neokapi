@@ -10,7 +10,7 @@
 package server
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/neokapi/neokapi/bowrain/mailer"
 )
@@ -29,7 +29,7 @@ func (s *Server) initMailer(cfg ServerConfig) {
 	switch {
 	case cfg.ResendAPIKey != "" && cfg.SMTPFrom != "":
 		sender = mailer.NewResendSender(cfg.ResendAPIKey, cfg.SMTPFrom)
-		log.Printf("Email: using Resend sender (from: %s)", cfg.SMTPFrom)
+		slog.Info("email: using Resend sender", "from", cfg.SMTPFrom)
 
 	case cfg.SMTPHost != "" && cfg.SMTPFrom != "":
 		smtpCfg := mailer.SMTPConfig{
@@ -40,7 +40,7 @@ func (s *Server) initMailer(cfg ServerConfig) {
 			UseTLS:   cfg.SMTPUseTLS,
 		}
 		sender = mailer.NewSMTPSender(smtpCfg)
-		log.Printf("Email: using SMTP sender (%s, from: %s)", cfg.SMTPHost, cfg.SMTPFrom)
+		slog.Info("email: using SMTP sender", "host", cfg.SMTPHost, "from", cfg.SMTPFrom)
 
 	default:
 		return // email not configured
@@ -50,7 +50,7 @@ func (s *Server) initMailer(cfg ServerConfig) {
 
 	m, err := mailer.New(sender)
 	if err != nil {
-		log.Printf("WARNING: failed to initialize mailer: %v (email sending disabled)", err)
+		slog.Warn("failed to initialize mailer (email sending disabled)", "error", err)
 		return
 	}
 	s.Mailer = m

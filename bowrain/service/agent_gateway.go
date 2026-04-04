@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -68,7 +68,7 @@ func StreamFromGateway(
 		resp, err := client.Do(req)
 		if err != nil {
 			if time.Now().Before(deadline) {
-				log.Printf("Gateway request error (retrying): %v", err)
+				slog.Info("Gateway request error (retrying)", "error", err)
 				if !sleepContext(ctx, backoff) {
 					return nil, ctx.Err()
 				}
@@ -86,7 +86,7 @@ func StreamFromGateway(
 
 		// 404/502/503 are transient during container cold-start — retry.
 		if (resp.StatusCode == 404 || resp.StatusCode == 502 || resp.StatusCode == 503) && time.Now().Before(deadline) {
-			log.Printf("Gateway returned %d (container starting, retrying)...", resp.StatusCode)
+			slog.Info("gateway returned transient error, retrying", "status", resp.StatusCode)
 			if !sleepContext(ctx, backoff) {
 				return nil, ctx.Err()
 			}

@@ -3,7 +3,7 @@ package backend
 import (
 	"context"
 	"io"
-	"log"
+	"log/slog"
 	"time"
 
 	pb "github.com/neokapi/neokapi/bowrain/proto/v1"
@@ -117,7 +117,7 @@ func (w *ProjectWatcher) run(ctx context.Context, wsSlug, projectID string) {
 			return // context cancelled, clean shutdown
 		}
 
-		log.Printf("bowrain: WatchProject stream ended: %v, reconnecting in %v", err, backoff)
+		slog.Warn("bowrain: WatchProject stream ended, reconnecting", "error", err, "backoff", backoff)
 		select {
 		case <-ctx.Done():
 			return

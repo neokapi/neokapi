@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
+	"log/slog"
 	"strings"
 
 	platev "github.com/neokapi/neokapi/bowrain/core/event"
@@ -152,13 +152,13 @@ func processSyncPushJob(ctx context.Context, deps *WorkerDeps, job *TranslationJ
 			allItemNames = append(allItemNames, itemNames...)
 
 		case "terms":
-			log.Printf("sync: term processing not yet implemented (chunk %d)", chunkRef.Index)
+			slog.Info("sync: term processing not yet implemented", "chunk", chunkRef.Index)
 
 		case "tm":
-			log.Printf("sync: TM processing not yet implemented (chunk %d)", chunkRef.Index)
+			slog.Info("sync: TM processing not yet implemented", "chunk", chunkRef.Index)
 
 		case "media":
-			log.Printf("sync: media processing not yet implemented (chunk %d)", chunkRef.Index)
+			slog.Info("sync: media processing not yet implemented", "chunk", chunkRef.Index)
 		}
 	}
 
