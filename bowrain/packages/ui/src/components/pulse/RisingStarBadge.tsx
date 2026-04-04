@@ -8,7 +8,7 @@ interface RisingStarBadgeProps {
 export function RisingStarBadge({ growth, className }: RisingStarBadgeProps) {
   const isPositive = growth > 0;
   const Icon = isPositive ? TrendingUp : TrendingDown;
-  const color = isPositive ? "text-green-600 bg-green-50" : "text-red-600 bg-red-50";
+  const color = isPositive ? "text-success bg-success/5" : "text-destructive bg-destructive/5";
 
   return (
     <span

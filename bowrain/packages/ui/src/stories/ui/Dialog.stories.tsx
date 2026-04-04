@@ -1,14 +1,14 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  Button,
   Dialog,
-  DialogTrigger,
   DialogContent,
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
   DialogDescription,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Dialog> = {
   title: "Foundations/Dialog",

@@ -1,26 +1,25 @@
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback } from "react";
 import type { Invite, Workspace } from "../types/api";
 import { useApi } from "../context/ApiContext";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@neokapi/ui-primitives/components/ui/select";
-import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { UserPlus, Trash2, Copy, Clock } from "./icons";
 
 interface InviteManagerProps {
@@ -198,7 +197,7 @@ export function InviteManager({ workspace }: InviteManagerProps) {
                             data-testid="invite-copy-link-btn"
                           >
                             {copied === inv.code ? (
-                              <span className="text-xs text-green-500">OK</span>
+                              <span className="text-xs text-success">OK</span>
                             ) : (
                               <Copy className="h-3.5 w-3.5" />
                             )}

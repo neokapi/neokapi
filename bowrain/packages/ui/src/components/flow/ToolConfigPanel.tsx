@@ -1,17 +1,17 @@
-import * as React from "react";
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
-
-import { cn } from "@neokapi/ui-primitives";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 import {
+  Input,
+  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@neokapi/ui-primitives/components/ui/select";
+  Switch,
+  cn,
+} from "@neokapi/ui-primitives";
+import * as React from "react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+
 import { ResourcePicker, type ResourceOption } from "../ResourcePicker";
 
 /** Option item with typed value and label. */

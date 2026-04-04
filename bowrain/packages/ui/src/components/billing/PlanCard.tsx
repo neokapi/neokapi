@@ -1,14 +1,14 @@
-import type { BillingPlan } from "../../types/api";
-import { cn } from "@neokapi/ui-primitives";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
+  Button,
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-} from "@neokapi/ui-primitives/components/ui/card";
+  cn,
+} from "@neokapi/ui-primitives";
+import type { BillingPlan } from "../../types/api";
 import { Check, X } from "lucide-react";
 
 export interface PlanFeature {
@@ -64,7 +64,7 @@ export function PlanCard({
         <div
           className={cn(
             "absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-0.5 text-xs font-semibold text-white",
-            plan === "pro" ? "bg-blue-500" : plan === "team" ? "bg-purple-500" : "bg-primary",
+            plan === "pro" ? "bg-info" : plan === "team" ? "bg-purple-500" : "bg-primary",
           )}
         >
           Recommended
@@ -84,7 +84,7 @@ export function PlanCard({
           {features.map((f) => (
             <li key={f.label} className="flex items-start gap-2 text-sm">
               {f.included ? (
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
               ) : (
                 <X className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/40" />
               )}

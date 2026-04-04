@@ -1,15 +1,15 @@
-import { useState } from "react";
-import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
 import {
+  Button,
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
+  DialogHeader,
+  DialogTitle,
+  Input,
+} from "@neokapi/ui-primitives";
+import { useState } from "react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 interface GrantCreditsDialogProps {
   open: boolean;

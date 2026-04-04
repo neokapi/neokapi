@@ -13,20 +13,20 @@ const changeConfig: Record<
 > = {
   added: {
     label: "Added",
-    color: "text-emerald-600 dark:text-emerald-400",
-    bgColor: "bg-emerald-500/10",
+    color: "text-success dark:text-success",
+    bgColor: "bg-success/10",
     icon: Plus,
   },
   modified: {
     label: "Modified",
-    color: "text-amber-600 dark:text-amber-400",
-    bgColor: "bg-amber-500/10",
+    color: "text-warning dark:text-warning",
+    bgColor: "bg-warning/10",
     icon: ArrowRight,
   },
   removed: {
     label: "Removed",
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-500/10",
+    color: "text-destructive dark:text-destructive",
+    bgColor: "bg-destructive/10",
     icon: Trash2,
   },
 };

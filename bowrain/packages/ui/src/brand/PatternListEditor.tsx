@@ -1,15 +1,15 @@
-import { useCallback } from "react";
-import type { Pattern } from "./types";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
 import {
+  Button,
+  Input,
+  Label,
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
-} from "@neokapi/ui-primitives/components/ui/select";
+  SelectTrigger,
+  SelectValue,
+} from "@neokapi/ui-primitives";
+import { useCallback } from "react";
+import type { Pattern } from "./types";
 import { Plus, Trash2 } from "../components/icons";
 
 interface PatternListEditorProps {

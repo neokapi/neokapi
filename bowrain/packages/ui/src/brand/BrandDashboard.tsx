@@ -1,14 +1,8 @@
+import { Card, CardContent, CardHeader, CardTitle, cn } from "@neokapi/ui-primitives";
 import type { BrandComplianceScore, ScoreTrend, StoredScore } from "./types";
 import { BrandScoreGauge } from "./BrandScoreGauge";
 import { BrandDimensionBreakdown } from "./BrandDimensionBreakdown";
 import { BrandFindingsList } from "./BrandFindingsList";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@neokapi/ui-primitives/components/ui/card";
-import { cn } from "@neokapi/ui-primitives";
 
 interface BrandDashboardProps {
   score: BrandComplianceScore | null;
@@ -79,10 +73,10 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
                         className={cn(
                           "h-full rounded-full transition-all",
                           t.avg_score >= 80
-                            ? "bg-green-500"
+                            ? "bg-success"
                             : t.avg_score >= 60
-                              ? "bg-yellow-500"
-                              : "bg-red-500",
+                              ? "bg-warning"
+                              : "bg-destructive",
                         )}
                         style={{ width: `${t.avg_score}%` }}
                       />
@@ -115,10 +109,10 @@ export function BrandDashboard({ score, trends, recentScores, className }: Brand
                     className={cn(
                       "font-medium tabular-nums",
                       s.score >= 80
-                        ? "text-green-500"
+                        ? "text-success"
                         : s.score >= 60
-                          ? "text-yellow-500"
-                          : "text-red-500",
+                          ? "text-warning"
+                          : "text-destructive",
                     )}
                   >
                     {s.score}

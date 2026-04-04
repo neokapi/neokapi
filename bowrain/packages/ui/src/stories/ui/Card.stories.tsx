@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  Button,
   Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
-  CardDescription,
-  CardContent,
-  CardFooter,
-} from "@neokapi/ui-primitives/components/ui/card";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Card> = {
   title: "Foundations/Card",

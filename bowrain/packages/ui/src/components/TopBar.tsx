@@ -1,17 +1,17 @@
-import type { User, NotificationInfo, ActivityInfo, TaskInfo } from "../types/api";
-import { useTheme, type Theme } from "../context/ThemeContext";
-import { Sun, Moon, Monitor, WifiOff, LogOut, Settings } from "./icons";
-import { NotificationCenter } from "./NotificationCenter";
-import { ActivityIndicator, TaskIndicator } from "./ActivityTaskIndicators";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
+} from "@neokapi/ui-primitives";
+import type { User, NotificationInfo, ActivityInfo, TaskInfo } from "../types/api";
+import { useTheme, type Theme } from "../context/ThemeContext";
+import { Sun, Moon, Monitor, WifiOff, LogOut, Settings } from "./icons";
+import { NotificationCenter } from "./NotificationCenter";
+import { ActivityIndicator, TaskIndicator } from "./ActivityTaskIndicators";
 
 type ConnectionState = "disconnected" | "connecting" | "connected" | "offline";
 
@@ -111,7 +111,7 @@ export function TopBar({
 
       {/* Offline pending-changes indicator */}
       {isOffline && pendingChanges != null && pendingChanges > 0 && (
-        <span className="flex items-center gap-1 text-xs text-amber-500">
+        <span className="flex items-center gap-1 text-xs text-warning">
           <WifiOff className="size-3" />
           <span>{pendingChanges} pending</span>
         </span>

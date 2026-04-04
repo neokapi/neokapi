@@ -1,3 +1,4 @@
+import { Button } from "@neokapi/ui-primitives";
 import { useState } from "react";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
@@ -6,7 +7,6 @@ import {
   type ResourceBrowserProps,
   type ResourceInfo,
 } from "../../components/ResourceBrowser";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 const meta: Meta<typeof ResourceBrowser> = {
   title: "Workspace/Resources/ResourceBrowser",

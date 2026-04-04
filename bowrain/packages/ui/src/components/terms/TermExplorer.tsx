@@ -1,3 +1,18 @@
+import {
+  Alert,
+  AlertDescription,
+  Badge,
+  Button,
+  Card,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Input,
+  Label,
+  cn,
+} from "@neokapi/ui-primitives";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useTermsApi } from "../../hooks/useTermsApi";
 import { useLocales } from "../../hooks/useLocales";
@@ -5,22 +20,8 @@ import { useSetBreadcrumb } from "../../context/BreadcrumbContext";
 import type { ConceptInfo, TermInfo } from "../../types/api";
 import type { FilterToken, FilterField, FilterPreset } from "../FilterBar";
 import { FilterBar } from "../FilterBar";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import { Alert, AlertDescription } from "@neokapi/ui-primitives/components/ui/alert";
 import { LocaleSelect } from "../LocaleSelect";
 import { ArrowLeft } from "../icons";
-import { cn } from "@neokapi/ui-primitives";
 
 interface TermExplorerProps {
   sourceLocale: string;
@@ -413,7 +414,7 @@ export function TermExplorer({
 
         {/* Success message */}
         {successMessage && (
-          <Alert className="mb-6 border-green-200 text-green-800 dark:border-green-800 dark:text-green-400">
+          <Alert className="mb-6 border-success/25 text-success dark:border-success/40 dark:text-success">
             <AlertDescription>{successMessage}</AlertDescription>
           </Alert>
         )}
@@ -609,7 +610,7 @@ export function TermExplorer({
                               {concept.domain || "-"}
                             </span>
                             {concept.project_id ? (
-                              <span className="block text-[10px] mt-0.5 px-1.5 py-px rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 w-fit">
+                              <span className="block text-[10px] mt-0.5 px-1.5 py-px rounded bg-info/10 text-info dark:text-info w-fit">
                                 Project
                               </span>
                             ) : (

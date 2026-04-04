@@ -63,17 +63,17 @@ function actorName(activity: ActivityInfo): string {
 function activityColor(type: string): string {
   // Agent-specific colors
   if (type === "agent.tool.denied") return "text-destructive";
-  if (type === "agent.tool.approved") return "text-green-600 dark:text-green-400";
-  if (type === "agent.conversation.created") return "text-blue-600 dark:text-blue-400";
+  if (type === "agent.tool.approved") return "text-success dark:text-success";
+  if (type === "agent.conversation.created") return "text-info dark:text-info";
   if (type === "agent.tool.executed" || type === "agent.code.executed")
     return "text-purple-600 dark:text-purple-400";
-  if (type === "agent.message.sent") return "text-blue-600 dark:text-blue-400";
+  if (type === "agent.message.sent") return "text-info dark:text-info";
 
   // General colors
   if (type.includes("failed") || type.includes("drift")) return "text-destructive";
   if (type.includes("completed") || type.includes("passed") || type.includes("merged"))
-    return "text-green-600 dark:text-green-400";
-  if (type.includes("created")) return "text-blue-600 dark:text-blue-400";
+    return "text-success dark:text-success";
+  if (type.includes("created")) return "text-info dark:text-info";
   return "text-muted-foreground";
 }
 

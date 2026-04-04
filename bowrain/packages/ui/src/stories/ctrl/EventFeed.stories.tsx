@@ -1,5 +1,5 @@
+import { Badge } from "@neokapi/ui-primitives";
 import type { Meta, StoryObj } from "@storybook/react-vite";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 
 type BillingEventType =
   | "subscription_created"

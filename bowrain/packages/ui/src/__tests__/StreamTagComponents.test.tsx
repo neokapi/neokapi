@@ -46,7 +46,7 @@ describe("StreamTagBadge", () => {
       <StreamTagBadge tag={makeTag({ kind: "release", name: "v2.0" })} />,
     );
     const badge = container.firstElementChild as HTMLElement;
-    expect(badge.className).toContain("text-blue-");
+    expect(badge.className).toContain("text-info");
   });
 
   it("applies kind-specific color for milestone", () => {
@@ -54,7 +54,7 @@ describe("StreamTagBadge", () => {
       <StreamTagBadge tag={makeTag({ kind: "milestone", name: "done" })} />,
     );
     const badge = container.firstElementChild as HTMLElement;
-    expect(badge.className).toContain("text-emerald-");
+    expect(badge.className).toContain("text-success");
   });
 
   it("applies kind-specific color for custom", () => {

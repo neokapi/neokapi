@@ -1,11 +1,11 @@
-import type { CollectionInfo } from "../types/api";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
+  DropdownMenuTrigger,
+} from "@neokapi/ui-primitives";
+import type { CollectionInfo } from "../types/api";
 import { Plus, Pencil, Trash2, Plug } from "./icons";
 
 export interface CollectionTabsProps {

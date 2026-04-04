@@ -1,13 +1,13 @@
-import type { Meta, StoryObj } from "@storybook/react-vite";
 import {
+  Button,
   Popover,
-  PopoverTrigger,
   PopoverContent,
+  PopoverDescription,
   PopoverHeader,
   PopoverTitle,
-  PopoverDescription,
-} from "@neokapi/ui-primitives/components/ui/popover";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
+  PopoverTrigger,
+} from "@neokapi/ui-primitives";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 const meta: Meta<typeof Popover> = {
   title: "Foundations/Popover",

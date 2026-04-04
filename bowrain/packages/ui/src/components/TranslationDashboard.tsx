@@ -1,6 +1,5 @@
+import { Card, CardContent, cn } from "@neokapi/ui-primitives";
 import type { TranslationDashboardStats } from "../types/api";
-import { Card, CardContent } from "@neokapi/ui-primitives/components/ui/card";
-import { cn } from "@neokapi/ui-primitives";
 import { Globe, FileText, Languages, BarChart3 } from "./icons";
 import { LocaleCompletionChart } from "./LocaleCompletionChart";
 import { WordCountChart } from "./WordCountChart";

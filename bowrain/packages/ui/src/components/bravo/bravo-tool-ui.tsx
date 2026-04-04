@@ -1,7 +1,6 @@
+import { Button, cn } from "@neokapi/ui-primitives";
 import { useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { cn } from "@neokapi/ui-primitives";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
 
 // ---------------------------------------------------------------------------
 // Generic tool-call renderer
@@ -15,14 +14,14 @@ import { Button } from "@neokapi/ui-primitives/components/ui/button";
 function statusColor(status: string): string {
   switch (status) {
     case "complete":
-      return "text-green-600 dark:text-green-400";
+      return "text-success dark:text-success";
     case "error":
       return "text-destructive";
     case "running":
     case "in_progress":
-      return "text-blue-600 dark:text-blue-400";
+      return "text-info dark:text-info";
     case "requires-action":
-      return "text-amber-600 dark:text-amber-400";
+      return "text-warning dark:text-warning";
     default:
       return "text-muted-foreground";
   }
@@ -120,7 +119,7 @@ export function BravoToolCallRenderer({
       {needsApproval && addResult && (
         <div className="border-t px-3 py-2">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-amber-600 dark:text-amber-400 text-xs font-medium">
+            <span className="text-warning dark:text-warning text-xs font-medium">
               @bravo wants to run this tool
             </span>
           </div>

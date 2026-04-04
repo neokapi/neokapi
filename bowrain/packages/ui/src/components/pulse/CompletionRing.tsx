@@ -16,7 +16,7 @@ export function CompletionRing({
   const offset = circumference - (Math.min(percentage, 100) / 100) * circumference;
 
   const color =
-    percentage >= 100 ? "text-green-500" : percentage >= 50 ? "text-blue-500" : "text-amber-500";
+    percentage >= 100 ? "text-success" : percentage >= 50 ? "text-info" : "text-warning";
 
   return (
     <div className={`relative inline-flex items-center justify-center ${className ?? ""}`}>

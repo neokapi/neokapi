@@ -25,7 +25,7 @@ const plans: BillingPlan[] = ["free", "pro", "team", "enterprise"];
 function CellValue({ value }: { value: string | boolean }) {
   if (typeof value === "boolean") {
     return value ? (
-      <Check className="mx-auto h-4 w-4 text-green-500" />
+      <Check className="mx-auto h-4 w-4 text-success" />
     ) : (
       <X className="mx-auto h-4 w-4 text-muted-foreground/40" />
     );

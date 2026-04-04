@@ -1,10 +1,4 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@neokapi/ui-primitives/components/ui/dialog";
-import { Card } from "@neokapi/ui-primitives/components/ui/card";
+import { Card, Dialog, DialogContent, DialogHeader, DialogTitle } from "@neokapi/ui-primitives";
 import { Wand2 } from "../components/icons";
 import { StarterPackCard } from "./StarterPackCard";
 import { starterPacks, type StarterPackMeta } from "./data/starter-packs";

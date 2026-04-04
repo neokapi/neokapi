@@ -1,5 +1,5 @@
+import { Badge } from "@neokapi/ui-primitives";
 import type { ToneProfile, StyleRules } from "./types";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
 import { getVoicePreview } from "./data/voice-previews";
 
 interface BrandVoicePreviewProps {

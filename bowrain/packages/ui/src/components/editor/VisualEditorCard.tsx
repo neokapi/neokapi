@@ -1,3 +1,4 @@
+import { Badge, Button, Tabs, TabsList, TabsTrigger, cn } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
 import type {
   ProjectInfo,
@@ -19,10 +20,6 @@ import { VisualEditorToolbar } from "./VisualEditorToolbar";
 import { TermCreationPopover } from "./TermCreationPopover";
 import { InlineCodeLegend } from "./InlineCodeLegend";
 import { FormatVocabularyBadge } from "./FormatVocabularyBadge";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Badge } from "@neokapi/ui-primitives/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@neokapi/ui-primitives/components/ui/tabs";
-import { cn } from "@neokapi/ui-primitives";
 import {
   Check,
   X,
@@ -94,15 +91,15 @@ function getBlockStatus(block: BlockInfo, locale: string): BlockStatus {
 
 const statusConfig: Record<BlockStatus, { label: string; className: string }> = {
   "not-started": { label: "Not Started", className: "bg-muted text-muted-foreground" },
-  draft: { label: "Draft", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
-  translated: { label: "Translated", className: "bg-blue-500/15 text-blue-600 dark:text-blue-400" },
-  reviewed: { label: "Reviewed", className: "bg-green-500/15 text-green-700 dark:text-green-400" },
+  draft: { label: "Draft", className: "bg-warning/15 text-warning dark:text-warning" },
+  translated: { label: "Translated", className: "bg-info/15 text-info dark:text-info" },
+  reviewed: { label: "Reviewed", className: "bg-success/15 text-success dark:text-success" },
 };
 
 function tmScoreClass(score: number): string {
-  if (score >= 1) return "text-green-700 bg-green-500/15 dark:text-green-400";
-  if (score >= 0.85) return "text-blue-700 bg-blue-500/15 dark:text-blue-400";
-  if (score >= 0.7) return "text-amber-700 bg-amber-500/15 dark:text-amber-400";
+  if (score >= 1) return "text-success bg-success/15 dark:text-success";
+  if (score >= 0.85) return "text-info bg-info/15 dark:text-info";
+  if (score >= 0.7) return "text-warning bg-warning/15 dark:text-warning";
   return "text-muted-foreground bg-muted";
 }
 
@@ -240,7 +237,7 @@ export function VisualEditorCard({
             <button
               type="button"
               onClick={() => setQaExpanded((v) => !v)}
-              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 cursor-pointer bg-amber-500/10 px-1.5 py-0 h-4 rounded"
+              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-warning dark:text-warning cursor-pointer bg-warning/10 px-1.5 py-0 h-4 rounded"
               data-testid="qa-warning-badge"
             >
               <Info className="w-2.5 h-2.5" />
@@ -279,13 +276,13 @@ export function VisualEditorCard({
                 {issue.severity === "error" ? (
                   <AlertTriangle className="w-3 h-3 text-destructive shrink-0 mt-0.5" />
                 ) : (
-                  <Info className="w-3 h-3 text-amber-500 shrink-0 mt-0.5" />
+                  <Info className="w-3 h-3 text-warning shrink-0 mt-0.5" />
                 )}
                 <span
                   className={
                     issue.severity === "error"
                       ? "text-destructive"
-                      : "text-amber-600 dark:text-amber-400"
+                      : "text-warning dark:text-warning"
                   }
                 >
                   <span className="font-medium">{issue.type}:</span> {issue.message}

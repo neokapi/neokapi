@@ -1,18 +1,16 @@
-import React, { useState, useCallback } from "react";
 import {
+  Button,
+  Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@neokapi/ui-primitives/components/ui/popover";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@neokapi/ui-primitives/components/ui/select";
+} from "@neokapi/ui-primitives";
+import React, { useState, useCallback } from "react";
 import type { AddConceptRequest, TermInfo } from "../../types/api";
 
 interface TermCreationPopoverProps {

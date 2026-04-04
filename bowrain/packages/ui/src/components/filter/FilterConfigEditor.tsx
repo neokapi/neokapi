@@ -1,5 +1,14 @@
+import {
+  Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Input,
+  Label,
+  Switch,
+  cn,
+} from "@neokapi/ui-primitives";
 import { useState, useCallback, useMemo } from "react";
-import { cn } from "@neokapi/ui-primitives";
 import {
   ComponentSchema,
   FilterSchema,
@@ -9,15 +18,6 @@ import {
 } from "./types";
 
 // UI components from the ui directory
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@neokapi/ui-primitives/components/ui/collapsible";
 import { ChevronDown, ChevronRight } from "../icons";
 
 interface FilterConfigEditorProps {

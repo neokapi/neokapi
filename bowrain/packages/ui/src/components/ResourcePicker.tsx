@@ -1,23 +1,20 @@
-import * as React from "react";
-import { DatabaseIcon, FileIcon, FolderIcon } from "lucide-react";
-
-import { cn } from "@neokapi/ui-primitives";
-import { Input } from "@neokapi/ui-primitives/components/ui/input";
-import { Label } from "@neokapi/ui-primitives/components/ui/label";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@neokapi/ui-primitives/components/ui/tabs";
 import {
   Combobox,
-  ComboboxInput,
   ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
   ComboboxEmpty,
-} from "@neokapi/ui-primitives/components/ui/combobox";
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  Input,
+  Label,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  cn,
+} from "@neokapi/ui-primitives";
+import * as React from "react";
+import { DatabaseIcon, FileIcon, FolderIcon } from "lucide-react";
 
 export type ResourceKind = "tm" | "termbase" | "srx";
 

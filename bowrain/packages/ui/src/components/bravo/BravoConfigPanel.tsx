@@ -1,7 +1,6 @@
+import { Button, Switch } from "@neokapi/ui-primitives";
 import { useState, useCallback } from "react";
 import type { BravoConfig, BravoToolInfo } from "../../types/api";
-import { Button } from "@neokapi/ui-primitives/components/ui/button";
-import { Switch } from "@neokapi/ui-primitives/components/ui/switch";
 
 export interface BravoConfigPanelProps {
   config: BravoConfig;
@@ -33,11 +32,11 @@ function policyLabel(policy: ToolPolicy): string {
 function policyColor(policy: ToolPolicy): string {
   switch (policy) {
     case "allow":
-      return "text-green-600 dark:text-green-400";
+      return "text-success dark:text-success";
     case "deny":
       return "text-destructive";
     case "approve":
-      return "text-amber-600 dark:text-amber-400";
+      return "text-warning dark:text-warning";
   }
 }
 

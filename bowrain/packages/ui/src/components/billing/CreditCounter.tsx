@@ -24,10 +24,10 @@ export function CreditCounter({
 
   const ringColor =
     pct > 80
-      ? "text-red-500 dark:text-red-400"
+      ? "text-destructive dark:text-destructive"
       : pct > 60
-        ? "text-yellow-500 dark:text-yellow-400"
-        : "text-green-500 dark:text-green-400";
+        ? "text-warning dark:text-warning"
+        : "text-success dark:text-success";
 
   if (compact) {
     return (
@@ -39,9 +39,9 @@ export function CreditCounter({
       >
         <span
           className={cn("inline-block h-2 w-2 rounded-full", {
-            "bg-green-500 dark:bg-green-400": pct <= 60,
-            "bg-yellow-500 dark:bg-yellow-400": pct > 60 && pct <= 80,
-            "bg-red-500 dark:bg-red-400": pct > 80,
+            "bg-success dark:bg-success": pct <= 60,
+            "bg-warning dark:bg-warning": pct > 60 && pct <= 80,
+            "bg-destructive dark:bg-destructive": pct > 80,
           })}
         />
         {formatCredits(remaining)}

@@ -1,14 +1,14 @@
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+} from "@neokapi/ui-primitives";
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Search } from "lucide-react";
 import { useLocales } from "../hooks/useLocales";
-import {
-  Combobox,
-  ComboboxInput,
-  ComboboxContent,
-  ComboboxList,
-  ComboboxItem,
-  ComboboxEmpty,
-} from "@neokapi/ui-primitives/components/ui/combobox";
 
 interface LocaleSelectProps {
   value: string;

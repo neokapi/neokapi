@@ -1,20 +1,18 @@
-import type { Workspace } from "../types/api";
-import { WorkspaceIcon } from "./WorkspaceIcon";
-import { ChevronsUpDown, Plus } from "./icons";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-} from "@neokapi/ui-primitives/components/ui/dropdown-menu";
-import {
+  DropdownMenuTrigger,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@neokapi/ui-primitives/components/ui/sidebar";
+} from "@neokapi/ui-primitives";
+import type { Workspace } from "../types/api";
+import { WorkspaceIcon } from "./WorkspaceIcon";
+import { ChevronsUpDown, Plus } from "./icons";
 
 interface MobileWorkspaceSwitcherProps {
   workspaces: Workspace[];
