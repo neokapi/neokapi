@@ -1,26 +1,23 @@
 package vtt
 
-import (
-	"errors"
-	"fmt"
-)
+import "github.com/neokapi/neokapi/core/format"
 
 // Config holds configuration for the WebVTT subtitle format.
 type Config struct {
 	// MaxCharsPerLine sets the maximum characters per line in output.
 	// 0 means no limit.
-	MaxCharsPerLine int
+	MaxCharsPerLine int `json:"maxCharsPerLine"`
 
 	// MaxLinesPerCaption sets the maximum lines per caption in output.
 	// 0 means no limit.
-	MaxLinesPerCaption int
+	MaxLinesPerCaption int `json:"maxLinesPerCaption"`
 
 	// CJKCharsPerLine sets the maximum characters per line for CJK languages.
 	// 0 means no limit (falls back to MaxCharsPerLine).
-	CJKCharsPerLine int
+	CJKCharsPerLine int `json:"cjkCharsPerLine"`
 
 	// SplitWords allows splitting words to enforce the character limit per line.
-	SplitWords bool
+	SplitWords bool `json:"splitWords"`
 }
 
 // FormatName returns the format this config applies to.
@@ -37,51 +34,7 @@ func (c *Config) Reset() {
 // Validate checks configuration validity.
 func (c *Config) Validate() error { return nil }
 
-// toInt converts a value to int, handling JSON number types.
-func toInt(val any) (int, bool) {
-	switch v := val.(type) {
-	case int:
-		return v, true
-	case float64:
-		return int(v), true
-	case int64:
-		return int(v), true
-	default:
-		return 0, false
-	}
-}
-
 // ApplyMap applies configuration values from a map.
 func (c *Config) ApplyMap(values map[string]any) error {
-	for key, val := range values {
-		switch key {
-		case "maxCharsPerLine":
-			n, ok := toInt(val)
-			if !ok {
-				return fmt.Errorf("maxCharsPerLine: expected integer, got %T", val)
-			}
-			c.MaxCharsPerLine = n
-		case "maxLinesPerCaption":
-			n, ok := toInt(val)
-			if !ok {
-				return fmt.Errorf("maxLinesPerCaption: expected integer, got %T", val)
-			}
-			c.MaxLinesPerCaption = n
-		case "cjkCharsPerLine":
-			n, ok := toInt(val)
-			if !ok {
-				return fmt.Errorf("cjkCharsPerLine: expected integer, got %T", val)
-			}
-			c.CJKCharsPerLine = n
-		case "splitWords":
-			b, ok := val.(bool)
-			if !ok {
-				return errors.New("splitWords: expected bool")
-			}
-			c.SplitWords = b
-		default:
-			return fmt.Errorf("vtt: unknown parameter: %s", key)
-		}
-	}
-	return nil
+	return format.ApplyMapViaJSON(c, values)
 }
