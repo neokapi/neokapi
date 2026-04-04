@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/XLIFF Joiner",
+  title: "Formats & Tools/Tools/XLIFF/XLIFF Joiner",
   parameters: { layout: "padded" },
 };
 export default meta;

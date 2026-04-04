@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TS Filter",
+  title: "Formats & Tools/Formats/Localization/TS Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/TTML Subtitles",
+  title: "Formats & Tools/Formats/Subtitle/TTML Subtitles",
   parameters: { layout: "padded" },
 };
 export default meta;

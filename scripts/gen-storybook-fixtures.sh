@@ -26,8 +26,8 @@ if [ "$BRIDGE_DIR" = "--bridge-dir" ]; then
     BRIDGE_DIR="${1:-$ROOT_DIR/../okapi-bridge/dist/plugin}"
 fi
 
-OUTPUT_DIR="$ROOT_DIR/framework/apps/kapi-desktop/frontend/src/stories/fixtures"
-KAPI_DIR="$ROOT_DIR/framework"
+OUTPUT_DIR="$ROOT_DIR/apps/kapi-desktop/frontend/src/stories/fixtures"
+KAPI_DIR="$ROOT_DIR"
 
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'

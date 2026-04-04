@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Pattern Check",
+  title: "Formats & Tools/Tools/Quality Assurance/Pattern Check",
   parameters: { layout: "padded" },
 };
 export default meta;

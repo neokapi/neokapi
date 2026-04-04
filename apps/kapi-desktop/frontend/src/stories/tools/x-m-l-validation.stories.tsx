@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/XML Validation",
+  title: "Formats & Tools/Tools/Quality Assurance/XML Validation",
   parameters: { layout: "padded" },
 };
 export default meta;

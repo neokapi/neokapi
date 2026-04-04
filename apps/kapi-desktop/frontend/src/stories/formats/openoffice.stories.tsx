@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/OpenOffice.org Filter",
+  title: "Formats & Tools/Formats/Document/OpenOffice.org Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

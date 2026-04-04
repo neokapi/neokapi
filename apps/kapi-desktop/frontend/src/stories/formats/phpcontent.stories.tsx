@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/PHP Content",
+  title: "Formats & Tools/Formats/Plain Text/PHP Content",
   parameters: { layout: "padded" },
 };
 export default meta;

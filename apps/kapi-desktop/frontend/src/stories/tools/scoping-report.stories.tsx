@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Scoping Report",
+  title: "Formats & Tools/Tools/Analysis/Scoping Report",
   parameters: { layout: "padded" },
 };
 export default meta;

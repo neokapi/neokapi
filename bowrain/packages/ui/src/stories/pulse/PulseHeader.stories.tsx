@@ -4,6 +4,7 @@ import { PulseHeader } from "../../components/pulse";
 const meta: Meta<typeof PulseHeader> = {
   title: "Pulse/PulseHeader",
   component: PulseHeader,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 

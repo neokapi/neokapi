@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/XINI Filter",
+  title: "Formats & Tools/Formats/Data/XINI Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

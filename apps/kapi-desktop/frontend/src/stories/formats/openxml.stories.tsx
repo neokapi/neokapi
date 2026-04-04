@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Office Open XML Format",
+  title: "Formats & Tools/Formats/Document/Office Open XML Format",
   parameters: { layout: "padded" },
 };
 export default meta;

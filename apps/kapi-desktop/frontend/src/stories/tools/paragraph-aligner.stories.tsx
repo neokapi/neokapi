@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Paragraph Alignment",
+  title: "Formats & Tools/Tools/Alignment/Paragraph Alignment",
   parameters: { layout: "padded" },
 };
 export default meta;

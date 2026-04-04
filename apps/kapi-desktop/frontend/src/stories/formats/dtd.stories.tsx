@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/DTD Filter",
+  title: "Formats & Tools/Formats/Data/DTD Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Whitespace Correct",
+  title: "Formats & Tools/Tools/Text Processing/Whitespace Correct",
   parameters: { layout: "padded" },
 };
 export default meta;

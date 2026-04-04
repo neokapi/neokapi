@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/SDLPPX and SDLRPX Filter",
+  title: "Formats & Tools/Formats/Localization/SDLPPX and SDLRPX Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

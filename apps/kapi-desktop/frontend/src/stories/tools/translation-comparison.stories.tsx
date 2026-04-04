@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Translation Comparison",
+  title: "Formats & Tools/Tools/Analysis/Translation Comparison",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -15,9 +15,7 @@
     "test:watch": "vp test watch",
     "check": "vp check",
     "lint": "vp lint",
-    "fmt": "vp fmt",
-    "storybook": "vpx storybook dev -p 6006 --no-open",
-    "storybook:build": "vpx storybook build -o storybook-static"
+    "fmt": "vp fmt"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.12.19",
@@ -45,10 +43,6 @@
   "devDependencies": {
     "@lexical/react": "^0.42.0",
     "@rollup/pluginutils": "^5.3.0",
-    "@storybook/addon-docs": "^10.3.1",
-    "@storybook/addon-themes": "^10.3.1",
-    "@storybook/react": "^10.3.1",
-    "@storybook/react-vite": "^10.3.1",
     "@tanstack/react-query": "^5.91.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -59,7 +53,6 @@
     "lexical": "^0.42.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "storybook": "^10.3.1",
     "typescript": "^5.9.3",
     "vite-plus": "^0.1.13"
   },

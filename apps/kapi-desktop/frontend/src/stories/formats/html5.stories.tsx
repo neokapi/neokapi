@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/HTML5-ITS Filter",
+  title: "Formats & Tools/Formats/Document/HTML5-ITS Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

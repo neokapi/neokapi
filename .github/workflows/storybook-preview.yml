@@ -5,19 +5,31 @@ on:
     types: [opened, synchronize, reopened, closed]
     paths:
       - "bowrain/packages/ui/**"
+      - "bowrain/storybook/**"
       - "bowrain/emails/src/**/*.stories.*"
-      - "apps/kapi-desktop/frontend/**"
+      - "bowrain/apps/keycloak-theme/src/**/*.stories.*"
+      - "bowrain/apps/web/src/auth/**/*.stories.*"
+      - "bowrain/apps/bowrain/frontend/src/**/*.stories.*"
+      - "apps/kapi-desktop/frontend/src/**/*.stories.*"
+      - "storybook/**"
       - "packages/ui/**"
       - "packages/flow-editor/**"
+      - "packages/storybook-config/**"
       - ".github/workflows/storybook-preview.yml"
   push:
     branches: [main]
     paths:
       - "bowrain/packages/ui/**"
+      - "bowrain/storybook/**"
       - "bowrain/emails/src/**/*.stories.*"
-      - "apps/kapi-desktop/frontend/**"
+      - "bowrain/apps/keycloak-theme/src/**/*.stories.*"
+      - "bowrain/apps/web/src/auth/**/*.stories.*"
+      - "bowrain/apps/bowrain/frontend/src/**/*.stories.*"
+      - "apps/kapi-desktop/frontend/src/**/*.stories.*"
+      - "storybook/**"
       - "packages/ui/**"
       - "packages/flow-editor/**"
+      - "packages/storybook-config/**"
       - ".github/workflows/storybook-preview.yml"
 
 permissions:
@@ -38,13 +50,13 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build Bowrain Storybook
-        working-directory: bowrain/packages/ui
+        working-directory: bowrain/storybook
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/
         run: vpx storybook build -o storybook-static
 
       - name: Build Kapi Storybook
-        working-directory: apps/kapi-desktop/frontend
+        working-directory: storybook
         env:
           STORYBOOK_BASE_PATH: /kapi/storybook/
         run: vpx storybook build -o storybook-static
@@ -65,13 +77,13 @@ jobs:
           BOWRAIN_DIR="bowrain/storybook"
           find "/tmp/pages/${BOWRAIN_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
           mkdir -p "/tmp/pages/${BOWRAIN_DIR}"
-          cp -r bowrain/packages/ui/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
+          cp -r bowrain/storybook/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
 
           # Deploy Kapi Storybook
           KAPI_DIR="kapi/storybook"
           find "/tmp/pages/${KAPI_DIR}" -maxdepth 1 -not -name 'pr-*' -not -name storybook -delete 2>/dev/null || true
           mkdir -p "/tmp/pages/${KAPI_DIR}"
-          cp -r apps/kapi-desktop/frontend/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
+          cp -r storybook/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
 
           cd /tmp/pages
           git config user.name "github-actions[bot]"
@@ -91,13 +103,13 @@ jobs:
       - uses: ./.github/actions/setup-node-ui
 
       - name: Build Bowrain Storybook
-        working-directory: bowrain/packages/ui
+        working-directory: bowrain/storybook
         env:
           STORYBOOK_BASE_PATH: /bowrain/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
 
       - name: Build Kapi Storybook
-        working-directory: apps/kapi-desktop/frontend
+        working-directory: storybook
         env:
           STORYBOOK_BASE_PATH: /kapi/storybook/pr-${{ github.event.pull_request.number }}/
         run: vpx storybook build -o storybook-static
@@ -118,13 +130,13 @@ jobs:
           BOWRAIN_DIR="bowrain/storybook/pr-${PR_NUMBER}"
           rm -rf "/tmp/pages/${BOWRAIN_DIR}"
           mkdir -p "/tmp/pages/${BOWRAIN_DIR}"
-          cp -r bowrain/packages/ui/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
+          cp -r bowrain/storybook/storybook-static/* "/tmp/pages/${BOWRAIN_DIR}/"
 
           # Deploy Kapi Storybook preview
           KAPI_DIR="kapi/storybook/pr-${PR_NUMBER}"
           rm -rf "/tmp/pages/${KAPI_DIR}"
           mkdir -p "/tmp/pages/${KAPI_DIR}"
-          cp -r apps/kapi-desktop/frontend/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
+          cp -r storybook/storybook-static/* "/tmp/pages/${KAPI_DIR}/"
 
           cd /tmp/pages
           git config user.name "github-actions[bot]"

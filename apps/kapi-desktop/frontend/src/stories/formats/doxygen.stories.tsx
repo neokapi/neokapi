@@ -137,7 +137,7 @@ function CompareEditor({ nativeName, okapiName }: { nativeName: string; okapiNam
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Doxygen Comments",
+  title: "Formats & Tools/Formats/Document/Doxygen Comments",
   parameters: { layout: "padded" },
 };
 export default meta;

@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Inconsistency Check",
+  title: "Formats & Tools/Tools/Quality Assurance/Inconsistency Check",
   parameters: { layout: "padded" },
 };
 export default meta;

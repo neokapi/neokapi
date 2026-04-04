@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Transifex Filter",
+  title: "Formats & Tools/Formats/Localization/Transifex Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

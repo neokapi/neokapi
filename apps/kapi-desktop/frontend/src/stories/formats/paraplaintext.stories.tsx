@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Plain Text Filter (paraplaintext)",
+  title: "Formats & Tools/Formats/Plain Text/Plain Text Filter (paraplaintext)",
   parameters: { layout: "padded" },
 };
 export default meta;

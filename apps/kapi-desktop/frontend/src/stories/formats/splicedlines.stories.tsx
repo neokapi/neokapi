@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Plain Text Filter (splicedlines)",
+  title: "Formats & Tools/Formats/Plain Text/Plain Text Filter (splicedlines)",
   parameters: { layout: "padded" },
 };
 export default meta;

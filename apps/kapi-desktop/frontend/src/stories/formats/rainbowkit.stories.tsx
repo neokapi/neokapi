@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Rainbow Translation Kit Filter",
+  title: "Formats & Tools/Formats/Data/Rainbow Translation Kit Filter",
   parameters: { layout: "padded" },
 };
 export default meta;

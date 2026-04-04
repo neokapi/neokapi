@@ -5,6 +5,7 @@ import { mockContributors } from "./pulse-fixtures";
 const meta: Meta<typeof ContributorBoard> = {
   title: "Pulse/ContributorBoard",
   component: ContributorBoard,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 

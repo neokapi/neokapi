@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Case Transform",
+  title: "Formats & Tools/Tools/Text Processing/Case Transform",
   parameters: { layout: "padded" },
 };
 export default meta;

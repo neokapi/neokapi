@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Leveraging",
+  title: "Formats & Tools/Tools/Translation/Leveraging",
   parameters: { layout: "padded" },
 };
 export default meta;

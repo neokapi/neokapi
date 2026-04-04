@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Term Extraction",
+  title: "Formats & Tools/Tools/Other/Term Extraction",
   parameters: { layout: "padded" },
 };
 export default meta;

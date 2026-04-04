@@ -5,6 +5,7 @@ import { mockStats, mockProjects, mockLanguages, mockHeatmapDays } from "./pulse
 const meta: Meta<typeof PulseOverview> = {
   title: "Pulse/PulseOverview",
   component: PulseOverview,
+  tags: ["autodocs"],
 };
 
 export default meta;

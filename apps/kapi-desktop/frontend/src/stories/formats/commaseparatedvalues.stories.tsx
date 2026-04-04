@@ -68,7 +68,7 @@ function ConfigEditor({
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Formats/Plain Text Filter (commaseparatedvalues)",
+  title: "Formats & Tools/Formats/Data/Plain Text Filter (commaseparatedvalues)",
   parameters: { layout: "padded" },
 };
 export default meta;

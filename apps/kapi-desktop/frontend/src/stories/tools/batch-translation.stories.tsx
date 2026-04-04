@@ -64,7 +64,7 @@ function ToolConfig({ schemaName, source }: { schemaName: string; source: "built
 }
 
 const meta: Meta = {
-  title: "Formats & Tools/Tools/Batch Translation",
+  title: "Formats & Tools/Tools/Translation/Batch Translation",
   parameters: { layout: "padded" },
 };
 export default meta;

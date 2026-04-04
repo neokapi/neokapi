@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { FlowEditor } from "../FlowEditor";
 import type { ToolInfo, ToolDoc, ComponentSchema } from "../types";
-import toolsData from "../../../../framework/apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata.json";
+import toolsData from "../../../../apps/kapi-desktop/frontend/src/stories/fixtures/tools-metadata.json";
 
 const tools = toolsData as ToolInfo[];
 

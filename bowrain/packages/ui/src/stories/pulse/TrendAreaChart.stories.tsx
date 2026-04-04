@@ -5,6 +5,7 @@ import { mockActivityData } from "./pulse-fixtures";
 const meta: Meta<typeof TrendAreaChart> = {
   title: "Pulse/TrendAreaChart",
   component: TrendAreaChart,
+  tags: ["autodocs"],
   parameters: { layout: "padded" },
 };
 
