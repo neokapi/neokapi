@@ -346,7 +346,7 @@ func (w *Writer) writeTokenArray(out *strings.Builder, tokens []token, pos *int,
 			continue
 		}
 
-		childPath := parentPath + "[" + fmt.Sprintf("%d", index) + "]"
+		childPath := parentPath + "[" + strconv.Itoa(index) + "]"
 		w.writeTokenValue(out, tokens, pos, childPath, blocks, childLayerValues)
 		index++
 	}

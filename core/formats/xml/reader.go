@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/neokapi/neokapi/core/format"
@@ -255,7 +257,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			// Emit as data part
 			dataCounter++
 			data := &model.Data{
-				ID:   fmt.Sprintf("d%d", dataCounter),
+				ID:   "d" + strconv.Itoa(dataCounter),
 				Name: path,
 			}
 			r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -270,7 +272,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 		}
 
 		blockCounter++
-		blockID := fmt.Sprintf("tu%d", blockCounter)
+		blockID := "tu" + strconv.Itoa(blockCounter)
 		block := &model.Block{
 			ID:           blockID,
 			Translatable: true,
@@ -349,7 +351,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			if lang, ok := attrs["xml:lang"]; ok {
 				dataCounter++
 				data := &model.Data{
-					ID:         fmt.Sprintf("d%d", dataCounter),
+					ID:         "d" + strconv.Itoa(dataCounter),
 					Name:       t.Name.Local,
 					Properties: map[string]string{"language": lang},
 				}
@@ -410,7 +412,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 					spanCounter++
 					parent.frag.AppendSpan(&model.Span{
 						SpanType: model.SpanOpening,
-						ID:       fmt.Sprintf("%d", spanCounter),
+						ID:       strconv.Itoa(spanCounter),
 						Data:     buildStartTag(t),
 						Type:     "fmt:" + t.Name.Local,
 					})
@@ -433,7 +435,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 				}
 				if r.cfg.isTranslatableAttribute(t.Name.Local, attrName, attrs) {
 					blockCounter++
-					blockID := fmt.Sprintf("tu%d", blockCounter)
+					blockID := "tu" + strconv.Itoa(blockCounter)
 					block := model.NewBlock(blockID, attr.Value)
 					block.Name = elemPath() + "@" + attrName
 					block.Type = "attribute"
@@ -474,7 +476,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 				if parent != nil && parent.frag != nil && !parent.isExcluded {
 					if !frame.hasContent {
 						// Self-closing / empty inline: replace the opening span with a placeholder
-						spanID := fmt.Sprintf("%d", frame.spanID)
+						spanID := strconv.Itoa(frame.spanID)
 						for i, s := range parent.frag.Spans {
 							if s.ID == spanID && s.SpanType == model.SpanOpening {
 								parent.frag.Spans[i] = &model.Span{
@@ -490,7 +492,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 						// Add closing span to parent's fragment
 						parent.frag.AppendSpan(&model.Span{
 							SpanType: model.SpanClosing,
-							ID:       fmt.Sprintf("%d", frame.spanID),
+							ID:       strconv.Itoa(frame.spanID),
 							Data:     "</" + t.Name.Local + ">",
 							Type:     "fmt:" + t.Name.Local,
 						})
@@ -557,7 +559,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 			}
 			path := elemPath()
 			blockCounter++
-			block := model.NewBlock(fmt.Sprintf("tu%d", blockCounter), trimmed)
+			block := model.NewBlock("tu" + strconv.Itoa(blockCounter), trimmed)
 			block.Name = path
 			r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 
@@ -573,14 +575,14 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 				piData += "?>"
 				textFrame.frag.AppendSpan(&model.Span{
 					SpanType: model.SpanPlaceholder,
-					ID:       fmt.Sprintf("%d", spanCounter),
+					ID:       strconv.Itoa(spanCounter),
 					Data:     piData,
 					Type:     "xml:pi",
 				})
 			} else {
 				dataCounter++
 				data := &model.Data{
-					ID:   fmt.Sprintf("d%d", dataCounter),
+					ID:   "d" + strconv.Itoa(dataCounter),
 					Name: "processing-instruction",
 				}
 				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -593,14 +595,14 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 				spanCounter++
 				textFrame.frag.AppendSpan(&model.Span{
 					SpanType: model.SpanPlaceholder,
-					ID:       fmt.Sprintf("%d", spanCounter),
+					ID:       strconv.Itoa(spanCounter),
 					Data:     "<!--" + string(t) + "-->",
 					Type:     "xml:comment",
 				})
 			} else {
 				dataCounter++
 				data := &model.Data{
-					ID:   fmt.Sprintf("d%d", dataCounter),
+					ID:   "d" + strconv.Itoa(dataCounter),
 					Name: "comment",
 				}
 				r.emit(ctx, ch, &model.Part{Type: model.PartData, Resource: data})
@@ -614,7 +616,7 @@ func (r *Reader) readContentCore(ctx context.Context, ch chan<- model.PartResult
 // interleaves skeleton text with refs.
 func (r *Reader) writeSkeletonEntries(content []byte, contentRanges []skelContentRange, attrRanges []skelAttrRange) {
 	// Merge content and attr ranges into a unified sorted list.
-	var refs []skelRefEntry
+	refs := make([]skelRefEntry, 0, len(contentRanges)+len(attrRanges))
 	for _, cr := range contentRanges {
 		refs = append(refs, skelRefEntry(cr))
 	}
@@ -622,13 +624,9 @@ func (r *Reader) writeSkeletonEntries(content []byte, contentRanges []skelConten
 		refs = append(refs, skelRefEntry(ar))
 	}
 	// Sort by start offset.
-	for i := range refs {
-		for j := i + 1; j < len(refs); j++ {
-			if refs[j].start < refs[i].start {
-				refs[i], refs[j] = refs[j], refs[i]
-			}
-		}
-	}
+	slices.SortFunc(refs, func(a, b skelRefEntry) int {
+		return a.start - b.start
+	})
 
 	// Remove parent ranges that contain child ranges (overlapping nesting).
 	// A parent range [pStart, pEnd) that fully contains a child range [cStart, cEnd)
@@ -657,25 +655,35 @@ type skelRefEntry struct {
 }
 
 // removeOverlappingParents filters out ranges that fully contain other ranges.
+// Refs must be sorted by start offset. Uses a stack to achieve O(n) complexity.
 func removeOverlappingParents(refs []skelRefEntry) []skelRefEntry {
 	if len(refs) <= 1 {
 		return refs
 	}
-	// Mark ranges that contain other ranges for removal.
+	// Mark ranges that are parents (fully contain another range) for removal.
+	// Since refs are sorted by start, a parent always appears before or at the
+	// same position as its children. We use a stack of indices whose end has not
+	// yet been passed. When a new ref starts inside a stacked ref, the stacked
+	// ref is a parent and is marked for removal.
 	remove := make([]bool, len(refs))
+	// stack holds indices of refs whose end we haven't passed yet.
+	stack := make([]int, 0, 8)
 	for i := range refs {
-		for j := range refs {
-			if i == j {
-				continue
-			}
-			// ref[i] contains ref[j] if i.start <= j.start && j.end <= i.end
-			if refs[i].start <= refs[j].start && refs[j].end <= refs[i].end {
-				remove[i] = true
-				break
+		// Pop entries that end before the current ref starts — they can't be
+		// parents of this ref.
+		for len(stack) > 0 && refs[stack[len(stack)-1]].end <= refs[i].start {
+			stack = stack[:len(stack)-1]
+		}
+		// Any remaining entries on the stack started at or before refs[i].start
+		// and end after it — check if they fully contain refs[i].
+		for _, si := range stack {
+			if refs[si].start <= refs[i].start && refs[i].end <= refs[si].end {
+				remove[si] = true
 			}
 		}
+		stack = append(stack, i)
 	}
-	var result []skelRefEntry
+	result := make([]skelRefEntry, 0, len(refs))
 	for i, ref := range refs {
 		if !remove[i] {
 			result = append(result, ref)
@@ -863,14 +871,14 @@ func (r *Reader) emitSubfiltered(ctx context.Context, ch chan<- model.PartResult
 	if err != nil {
 		// Fall back to plain block
 		*blockCounter++
-		block := model.NewBlock(fmt.Sprintf("tu%d", *blockCounter), content)
+		block := model.NewBlock("tu" + strconv.Itoa(*blockCounter), content)
 		block.Name = path
 		r.emit(ctx, ch, &model.Part{Type: model.PartBlock, Resource: block})
 		return
 	}
 
 	r.layerSeq++
-	childLayerID := fmt.Sprintf("sf%d", r.layerSeq)
+	childLayerID := "sf" + strconv.Itoa(r.layerSeq)
 
 	locale := r.Doc.SourceLocale
 	if locale.IsEmpty() {
